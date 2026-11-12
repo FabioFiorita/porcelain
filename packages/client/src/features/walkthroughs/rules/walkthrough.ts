@@ -24,7 +24,7 @@ export type WalkthroughPhase =
       kind: 'ready';
       run: WalkthroughRun;
       content: WalkthroughContent;
-      outOfDate: boolean;
+      freshness: WalkthroughRead['freshness'];
       attempt?: WalkthroughRun | undefined;
     };
 
@@ -42,7 +42,7 @@ export function walkthroughPhase(read: WalkthroughRead): WalkthroughPhase {
         kind: 'ready',
         run,
         content: run.state.content,
-        outOfDate: read.outOfDate,
+        freshness: read.freshness,
         attempt: read.attempt,
       };
   }

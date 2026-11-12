@@ -10,10 +10,10 @@ import {
   readyUpdate,
   stopPaths,
   walkthroughCalls,
-  walkthroughFailureCopy,
   walkthroughMeta,
   walkthroughEvidenceNotice,
-  WALKTHROUGH_STALE_TEXT,
+  acknowledgedWalkthrough,
+  walkthroughPhase,
   walkthroughVerdict,
   type WalkthroughContent,
   type WalkthroughFailure,
@@ -23,7 +23,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { ButtonGroup, ButtonGroupText } from '@/components/ui/button-group';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Spinner } from '@/components/ui/spinner';
 import {
   Tooltip,
   TooltipContent,
@@ -40,6 +39,7 @@ import {
   EarlierComments,
   PostSaved,
 } from './walkthrough-conversation';
+import { WalkthroughStatus } from './walkthrough-status';
 import { WalkthroughProof } from './walkthrough-evidence';
 
 const scrollToId = (id: string) =>
@@ -319,18 +319,22 @@ function Step({
 function Written({
   run,
   content,
-  outOfDate,
+  freshness,
   props,
   onUpdate,
-  updating,
   updateFailure,
+  progressRun,
+  requesting,
+  reused,
 }: {
   run: WalkthroughRun;
   content: WalkthroughContent;
-  outOfDate: boolean;
+  freshness: Parameters<typeof WalkthroughStatus>[0]['freshness'];
+  progressRun: WalkthroughRun;
+  requesting: boolean;
+  reused: boolean;
   props: DocumentProps;
   onUpdate: () => void;
-  updating: boolean;
   updateFailure:
     | { failure: WalkthroughFailure; writer: WalkthroughRun['writer'] }
     | undefined;
@@ -347,35 +351,15 @@ function Written({
       />
     );
   };
-  let notice = (
-    <>
-      {outOfDate && <span>{WALKTHROUGH_STALE_TEXT}</span>}
-      <Button size="sm" variant="outline" onClick={onUpdate}>
-        Update walkthrough
-      </Button>
-    </>
-  );
-  if (updating) notice = <span role="status">Updating…</span>;
-  else if (updateFailure)
-    notice = (
-      <>
-        <span role="alert">
-          {
-            walkthroughFailureCopy(updateFailure.failure, updateFailure.writer)
-              .title
-          }
-          {updateFailure.failure.kind !== 'signed_out' &&
-            ` ${updateFailure.failure.message}`}
-        </span>
-        <Button size="sm" variant="outline" onClick={onUpdate}>
-          Try again
-        </Button>
-      </>
-    );
-  const stale = (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-ui text-foreground-2">
-      {notice}
-    </div>
+  const status = (
+    <WalkthroughStatus
+      run={progressRun}
+      requesting={requesting}
+      reused={reused}
+      freshness={freshness}
+      failure={updateFailure}
+      onUpdate={onUpdate}
+    />
   );
   if (content.outcome === 'nothing')
     return (
@@ -386,11 +370,7 @@ function Written({
           <p className="text-prose text-foreground-2">
             <RichText text={content.summary} />
           </p>
-          {(outOfDate ||
-            run.evidenceUnavailable ||
-            updating ||
-            updateFailure) &&
-            stale}
+          {status}
           <div className="-ml-2">
             <Button
               variant="link"
@@ -413,8 +393,7 @@ function Written({
         <p className="text-prose text-foreground-2">
           <RichText text={content.summary} />
         </p>
-        {(outOfDate || run.evidenceUnavailable || updating || updateFailure) &&
-          stale}
+        {status}
       </header>
       <Calls content={content} conversation={conversation} />
       {content.growth.length > 0 && <Growth content={content} />}
@@ -480,12 +459,9 @@ function Unwritten({
 function Writing({ run }: { run: WalkthroughRun }) {
   return (
     <Column>
-      <header role="status" className="flex flex-col gap-3">
+      <header className="flex flex-col gap-3">
         <Meta run={run} />
-        <p className="flex items-center gap-2 text-prose text-foreground-2">
-          <Spinner />
-          Reading the change
-        </p>
+        <WalkthroughStatus run={run} />
         <Skeleton className="h-9 w-4/5" />
         <Skeleton className="h-20 w-full" />
       </header>
@@ -511,6 +487,7 @@ function Failed({
         <h1 className="text-subpage-title font-semibold tracking-tight">
           {copy.title}
         </h1>
+        {run && <WalkthroughStatus run={run} requesting={waiting} />}
         {copy.message && (
           <p className="text-prose text-foreground-2">{copy.message}</p>
         )}
@@ -523,13 +500,23 @@ function Failed({
 }
 
 export function WalkthroughDocument(props: DocumentProps) {
-  const { result, phase, refresh } = useWalkthrough(props.scope, props.context);
+  const {
+    result,
+    phase: observedPhase,
+    read,
+    refresh,
+  } = useWalkthrough(props.scope, props.context);
   const write = useStartWalkthrough(
     props.scope,
     props.context,
     props.base,
-    phase && phase.kind !== 'unwritten' ? phase.run : undefined,
+    observedPhase && observedPhase.kind !== 'unwritten'
+      ? observedPhase.run
+      : undefined,
   );
+  const phase = read
+    ? walkthroughPhase(acknowledgedWalkthrough(read, write.accepted))
+    : observedPhase;
   if (phase === undefined)
     return AsyncResult.isFailure(result) ? (
       <StateFailure
@@ -574,10 +561,15 @@ export function WalkthroughDocument(props: DocumentProps) {
             key={phase.run.id}
             run={phase.run}
             content={phase.content}
-            outOfDate={phase.outOfDate}
+            freshness={phase.freshness}
             props={props}
             onUpdate={write.start}
-            updating={update.updating}
+            progressRun={phase.attempt ?? phase.run}
+            requesting={write.waiting}
+            reused={
+              write.accepted?.state.status === 'ready' &&
+              write.accepted.id === phase.run.id
+            }
             updateFailure={update.failure}
           />
         );

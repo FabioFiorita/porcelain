@@ -2,6 +2,7 @@ import { Lanes } from './lanes.ts';
 import { LaneKeys } from './lane-keys.ts';
 import {
   Context,
+  DateTime,
   Effect,
   Exit,
   Layer,
@@ -70,13 +71,17 @@ export class WalkthroughWorkflow extends Context.Service<
                     if (!job || job.run.state.status !== 'queued') return;
                     if (!(yield* begin.execute(id))) return;
                     yield* events.execute({ worktreeId: job.run.worktreeId });
-                    yield* writer.execute(job).pipe(
-                      Effect.ensuring(
-                        events.execute({
-                          worktreeId: job.run.worktreeId,
-                        }),
-                      ),
-                    );
+                    yield* writer
+                      .execute(job, () =>
+                        events.execute({ worktreeId: job.run.worktreeId }),
+                      )
+                      .pipe(
+                        Effect.ensuring(
+                          events.execute({
+                            worktreeId: job.run.worktreeId,
+                          }),
+                        ),
+                      );
                   }),
                 { deadlineMs: 46 * 60 * 1000 },
               ),
@@ -125,15 +130,21 @@ export class WalkthroughWorkflow extends Context.Service<
           });
         for (const job of yield* store.listPending()) {
           if (job.run.state.status === 'running') {
+            const message =
+              'The server stopped while this walkthrough was running. The interrupted writer was not restarted.';
+            const at = yield* DateTime.now.pipe(Effect.map(DateTime.formatIso));
             yield* lanes.run(keys.walkthroughs(), 'write', () =>
               store.save({
                 ...job.run,
+                progress: [
+                  ...(job.run.progress ?? []),
+                  { stage: 'failed', at, message },
+                ],
                 state: {
                   status: 'failed',
                   failure: {
                     kind: 'other',
-                    message:
-                      'The server stopped while this walkthrough was running. The interrupted writer was not restarted.',
+                    message,
                   },
                 },
               }),

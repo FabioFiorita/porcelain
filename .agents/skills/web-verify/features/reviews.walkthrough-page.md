@@ -4,14 +4,14 @@ selectors:
   - 'Walkthrough'
   - 'No walkthrough yet.'
   - 'Write walkthrough'
-  - 'Reading the change'
+  - 'Writing the walkthrough'
   - 'How the system grew'
   - 'See every changed file'
   - 'See the code'
   - 'See the change'
   - 'Update walkthrough'
   - 'Try again'
-  - 'Updating…'
+  - 'Writing the walkthrough'
   - 'By step'
   - 'Your call'
   - 'Not in the walkthrough yet'
@@ -57,18 +57,18 @@ git -C "$REPO" add --all && git -C "$REPO" commit -m "Add notes"
 ### 1. Writing and reading
 
 1. Navigate to `/`. Expect selected tab "Changes" and a matching window title, with "Walkthrough" beside it. Select "Walkthrough"; expect "No walkthrough yet." and "Write walkthrough". Reload after a run is running, ready or failed; it opens on Walkthrough.
-2. `printf hold > "$REPO/.git/porcelain-fake-walkthrough"`, click "Write walkthrough". Expect status "Reading the change".
+2. `printf hold > "$REPO/.git/porcelain-fake-walkthrough"`, click "Write walkthrough". Expect status "Writing the walkthrough".
 3. `rm "$REPO/.git/porcelain-fake-walkthrough"`. Expect heading ending "One call is yours.", then "How the system grew" and "What the code doesn't say"; the Changes panel on Branch with "By step".
 4. Click button "See the code for step 1". Expect tab "Step 1", heading "Step 1 of N: …", previous and next arrows in that one header row; no second title block and no "Mark all reviewed".
 
 ### 2. Uncommitted and out of date
 
 5. Edit a file the walkthrough covers and add a new one, then choose tab "Uncommitted" in the panel. Expect "All changes", only steps with edits, and "Not in the walkthrough yet" listing the new file.
-6. Commit exactly the content already explained: the page stays fresh. Edit a file or commit different content. Expect "The work changed after this was written." and button "Update walkthrough"; clicking it writes a new attempt (the meta line names the new head commit).
+6. Commit exactly the content already explained: the page stays fresh. Edit a file or commit different content. Expect "The work changed after this walkthrough’s snapshot. Update to include the latest changes." and button "Update walkthrough"; clicking it writes a new attempt (the meta line names the new head commit).
 
 ### Uncommitted-only journey
 
-Start a branch at its base with no later commits. Leave a tracked edit and an untracked non-ignored file, then load the worktree: it opens on Changes, with a Changes window title and a Walkthrough tab beside it. Click Walkthrough once and expect "No walkthrough yet." and "Write walkthrough". Write it and expect a ready page whose meta line includes "and uncommitted work". Under Changes > Uncommitted, the captured files appear by step. Commit exactly that content: no out-of-date warning appears and an explicit repeated start reuses the run. Edit a file: without reloading, expect "The work changed after this was written." and "Update walkthrough"; Update captures the new content. An added file outside the ready page stays under "Not in the walkthrough yet" until updated. Branch still groups committed files by step.
+Start a branch at its base with no later commits. Leave a tracked edit and an untracked non-ignored file, then load the worktree: it opens on Changes, with a Changes window title and a Walkthrough tab beside it. Click Walkthrough once and expect "No walkthrough yet." and "Write walkthrough". Write it and expect a ready page whose meta line includes "and uncommitted work". Under Changes > Uncommitted, the captured files appear by step. Commit exactly that content: no out-of-date warning appears and an explicit repeated start reuses the run. Edit a file: without reloading, expect "The work changed after this walkthrough’s snapshot. Update to include the latest changes." and "Update walkthrough"; Update captures the new content. An added file outside the ready page stays under "Not in the walkthrough yet" until updated. Branch still groups committed files by step.
 
 ### Code scopes
 
@@ -76,10 +76,10 @@ For each of uncommitted-only, committed-only, and committed plus a later edit to
 
 ### 3. Failure
 
-7. During an update, the last ready page, its conversations and composer, the saved bar, Step tabs and Changes grouping stay available with “Updating…”. A failed update keeps that page and its conversation controls and shows the failure using the failed attempt’s writer, even when the kept page was written by another provider, with “Try again”. The sidebar keeps the last ready title for the current branch while updating and after failure; a ready title from another branch never replaces it. With no ready page the initial running/failure states remain.
+7. During an update, the last ready page, its conversations and composer, the saved bar, Step tabs and Changes grouping stay available with “Writing the walkthrough”. A failed update keeps that page and its conversation controls and shows the failure using the failed attempt’s writer, even when the kept page was written by another provider, with “Try again”. The sidebar keeps the last ready title for the current branch while updating and after failure; a ready title from another branch never replaces it. With no ready page the initial running/failure states remain.
 8. `printf signed-out > "$REPO/.git/porcelain-fake-walkthrough"`, press Update or Write. Expect one sentence "Sign in to Claude again with claude auth login, then try again." (Codex names `codex login`) in both the initial failure and failed-update line; after removing the file, "Try again" writes the walkthrough.
 
-After a ready page, add an untracked `.gitattributes` with `*.secret filter=example` and an untracked `new.secret`. Reload: the saved page remains visible and out of date. Update reports "This change uses Git conversion filters, which Porcelain will not execute." without removing the saved page.
+After a ready page, add an untracked `.gitattributes` with `*.secret filter=example` and an untracked `new.secret`. Reload: the saved page remains visible with “Couldn’t check whether the work changed. Your saved walkthrough is still available.” Update reports "This change uses Git conversion filters, which Porcelain will not execute." without removing the saved page.
 
 ### 4. Short page
 
@@ -108,3 +108,7 @@ Conversation browser proof: `apps/web/spec/integration/walkthrough-conversations
 With a PR behind the local captured head, write a walkthrough. It becomes ready and keeps the PR target for comments, with no PR images or checks. The meta line says once: “Screenshots and checks are not shown: the pull request is at another commit. Push, then update.” Update remains available even without local edits. Push that head, then Update: the new run clears the notice and can show matching evidence. Missing GitHub accounts and GitHub read failures likewise leave the page ready with their shared explanatory notice. A walkthrough without a PR needs no notice.
 
 A successfully loaded list supplies the open PR for the current branch, including during background refresh and when it replaces the displayed run's PR. If no open PR for this branch is known from that list, retain the displayed run's PR. With neither, the write has no PR target. A failed read with cached success still uses that last loaded list; a never-loaded list or failure without cached success supplies none.
+
+### Progress and update log
+
+The status area stays visible after completion and says “Up to date with the current work.” when verified. “Walkthrough stages” is a progress bar with named stages: Queued, Reading pull request evidence, Reading the coding conversation, Writing the walkthrough, Checking the walkthrough, Walkthrough saved. The bar counts stages, not estimated time. Expand “Update log” to read timestamped events. Reload while the fake is held: the same stage and events remain. Release it: the log retains queueing, evidence, conversation, writing, validation and completion. Change work while held: completion shows that the snapshot is behind current work instead of claiming it is up to date. A failed update keeps the saved content, the failed attempt’s log and “Try again”. No update button appears between accepting the request and observing the server attempt. Older saved runs say they predate the log; they never invent events.

@@ -35,8 +35,6 @@ export function growthSign(growth: Growth) {
 
 const GROWTH_SHOWN = 4;
 const SHORT_OID = 7;
-export const WALKTHROUGH_STALE_TEXT =
-  'The work changed after this was written.';
 const NOT_SAID_SHOWN = 3;
 
 export function foldedGrowth(content: WalkthroughContent, open: boolean) {

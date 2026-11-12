@@ -364,7 +364,7 @@ test('recovers an interrupted automatic walkthrough without losing evidence and 
         'The server stopped while this walkthrough was running. The interrupted writer was not restarted.',
     },
   });
-  expect(after.outOfDate).toBe(false);
+  expect(after.freshness).toBe('current');
   const asset = await fixture.fetch(
     `${fixture.path}/${after.walkthrough?.id}/assets/fixture-image`,
   );
@@ -393,7 +393,7 @@ test('keeps a failed automatic PR handled across repeated startup polls and late
   await fixture.restart();
   const changed = await fixture.read();
   expect(changed.walkthrough?.id).toBe(before.walkthrough?.id);
-  expect(changed.outOfDate).toBe(false);
+  expect(changed.freshness).toBe('current');
   expect(await fixture.writerCalls()).toEqual(['called']);
   expect(fixture.githubCalls()).toBeGreaterThanOrEqual(3);
 });

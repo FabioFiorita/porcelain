@@ -42,7 +42,7 @@ test('a developer writes a walkthrough, watches it run, reads the step and opens
     .getByRole('button', { name: 'Write walkthrough', exact: true })
     .click();
   await expect
-    .element(page.getByText('Reading the change', { exact: true }))
+    .element(page.getByText('Writing the walkthrough', { exact: true }))
     .toBeVisible();
 
   await repo.remove(SCENARIO);
@@ -288,7 +288,7 @@ test('a commit marks the walkthrough out of date and Update writes it again', as
     .getByRole('button', { name: 'Update walkthrough', exact: true })
     .click();
   await expect
-    .element(page.getByText('Updating…', { exact: true }))
+    .element(page.getByText('Writing the walkthrough', { exact: true }))
     .toBeVisible();
   await expect
     .element(
@@ -339,7 +339,7 @@ test('a commit marks the walkthrough out of date and Update writes it again', as
     .element(
       page.getByRole('button', { name: 'Update walkthrough', exact: true }),
     )
-    .not.toBeInTheDocument();
+    .toBeVisible();
 });
 
 test('a signed-out writer names the sign-in command and Try again runs it again', async ({
@@ -472,19 +472,22 @@ test('uncommitted-only work opens Changes, offers a Walkthrough tab and stays fr
   await repo.commit('Commit the explained content');
   const committedHead = (await server.gitStatus()).headOid;
   await expect(server.walkthrough()).resolves.toMatchObject({
-    outOfDate: false,
+    freshness: 'current',
   });
   await expect
     .element(
       page.getByRole('button', { name: 'Update walkthrough', exact: true }),
     )
-    .not.toBeInTheDocument();
+    .toBeVisible();
   await repo.write('notes.md', 'first line\nsecond line\nnew edit\n');
   await expect
     .element(
-      page.getByText('The work changed after this was written.', {
-        exact: true,
-      }),
+      page.getByText(
+        'The work changed after this walkthrough’s snapshot. Update to include the latest changes.',
+        {
+          exact: true,
+        },
+      ),
     )
     .toBeVisible();
   await expect(server.walkthrough()).resolves.toMatchObject({

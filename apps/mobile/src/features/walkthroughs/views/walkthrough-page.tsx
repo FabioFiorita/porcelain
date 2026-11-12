@@ -11,10 +11,9 @@ import {
   readyUpdate,
   stopPaths,
   walkthroughCalls,
-  walkthroughFailureCopy,
   walkthroughMeta,
   walkthroughEvidenceNotice,
-  WALKTHROUGH_STALE_TEXT,
+  acknowledgedWalkthroughPhase,
   type walkthroughPhase,
   walkthroughVerdict,
   type WalkthroughContent,
@@ -25,7 +24,6 @@ import { Box } from '../../../components/ui/box';
 import { Button } from '../../../components/ui/button';
 import { Card } from '../../../components/ui/card';
 import type { KeyboardScroller } from '../../../components/ui/keyboard-reveal';
-import { Loading } from '../../../components/ui/loading';
 import { RichText } from '../../../components/ui/rich-text';
 import { Separator } from '../../../components/ui/separator';
 import { Text } from '../../../components/ui/text';
@@ -40,6 +38,7 @@ import {
   WalkthroughConversation,
   useSavedSummary,
 } from './walkthrough-conversation';
+import { WalkthroughStatus } from './walkthrough-status';
 import { WalkthroughProof } from './walkthrough-evidence';
 
 type Phase = ReturnType<typeof walkthroughPhase>;
@@ -286,64 +285,24 @@ function Calls({
   ));
 }
 
-function updateText(failure: UpdateFailure | undefined, outOfDate: boolean) {
-  if (!failure) return outOfDate ? WALKTHROUGH_STALE_TEXT : undefined;
-  const { title } = walkthroughFailureCopy(failure.failure, failure.writer);
-  if (failure.failure.kind === 'signed_out') return title;
-  return `${title} ${failure.failure.message}`;
-}
-
-function UpdateNotice({
-  outOfDate,
-  updating,
-  failure,
-  onUpdate,
-}: {
-  outOfDate: boolean;
-  updating: boolean;
-  failure: UpdateFailure | undefined;
-  onUpdate: () => void;
-}) {
-  if (updating)
-    return (
-      <Box className="items-start">
-        <Loading label="Updating…" />
-      </Box>
-    );
-  return (
-    <Box className="flex-row flex-wrap items-center" gap={3}>
-      <Text
-        variant="secondary"
-        tone="muted"
-        className="shrink"
-        {...(failure ? { accessibilityRole: 'alert' as const } : {})}
-      >
-        {updateText(failure, outOfDate)}
-      </Text>
-      <Button
-        label={failure ? 'Try again' : 'Update walkthrough'}
-        variant="tonal"
-        size="sm"
-        onPress={onUpdate}
-      />
-    </Box>
-  );
-}
-
 function Written({
   workspace,
   run,
   content,
-  outOfDate,
-  updating,
+  freshness,
+  progressRun,
+  requesting,
+  reused,
   updateFailure,
   onUpdate,
 }: {
   workspace: Workspace;
   run: WalkthroughRun;
   content: WalkthroughContent;
-  outOfDate: boolean;
-  updating: boolean;
+  freshness: Parameters<typeof WalkthroughStatus>[0]['freshness'];
+  progressRun: WalkthroughRun;
+  requesting: boolean;
+  reused: boolean;
   updateFailure: UpdateFailure | undefined;
   onUpdate: () => void;
 }) {
@@ -363,14 +322,14 @@ function Written({
       <Meta run={run} content={content} />
       <Headline content={content} />
       <RichText text={content.summary} />
-      {outOfDate || run.evidenceUnavailable || updating || updateFailure ? (
-        <UpdateNotice
-          outOfDate={outOfDate}
-          updating={updating}
-          failure={updateFailure}
-          onUpdate={onUpdate}
-        />
-      ) : null}
+      <WalkthroughStatus
+        run={progressRun}
+        requesting={requesting}
+        reused={reused}
+        freshness={freshness}
+        failure={updateFailure}
+        onUpdate={onUpdate}
+      />
     </Box>
   );
   if (content.outcome === 'nothing')
@@ -548,11 +507,9 @@ function Writing({
   return (
     <Column workspace={workspace}>
       {() => (
-        <Box gap={3} accessibilityRole="progressbar">
+        <Box gap={3}>
           <Meta run={run} />
-          <Box className="items-start">
-            <Loading label="Reading the change" />
-          </Box>
+          <WalkthroughStatus run={run} />
         </Box>
       )}
     </Column>
@@ -577,6 +534,7 @@ function Failed({
     <Column workspace={workspace}>
       {() => (
         <Box gap={3} className="items-start">
+          {run && <WalkthroughStatus run={run} requesting={waiting} />}
           <Text variant="title" accessibilityRole="header">
             {copy.title}
           </Text>
@@ -590,15 +548,16 @@ function Failed({
 
 export function WalkthroughPage({
   workspace,
-  phase,
+  phase: observedPhase,
 }: {
   workspace: Workspace;
   phase: Phase;
 }) {
   const write = useStartWalkthrough(
     workspace,
-    phase.kind !== 'unwritten' ? phase.run : undefined,
+    observedPhase.kind !== 'unwritten' ? observedPhase.run : undefined,
   );
+  const phase = acknowledgedWalkthroughPhase(observedPhase, write.accepted);
   const startFailure =
     write.failure && (phase.kind === 'unwritten' || phase.kind === 'failed')
       ? write.failure
@@ -635,15 +594,20 @@ export function WalkthroughPage({
         />
       );
     case 'ready': {
-      const { updating, failure } = readyUpdate(phase, write);
+      const { failure } = readyUpdate(phase, write);
       return (
         <Written
           key={phase.run.id}
           workspace={workspace}
           run={phase.run}
           content={phase.content}
-          outOfDate={phase.outOfDate}
-          updating={updating}
+          freshness={phase.freshness}
+          progressRun={phase.attempt ?? phase.run}
+          requesting={write.waiting}
+          reused={
+            write.accepted?.state.status === 'ready' &&
+            write.accepted.id === phase.run.id
+          }
           updateFailure={failure}
           onUpdate={write.start}
         />

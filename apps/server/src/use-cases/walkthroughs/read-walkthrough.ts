@@ -1,7 +1,10 @@
 import type { WorktreeParams } from '@porcelain/contracts/shared';
 import { Context, Effect, Layer } from 'effect';
 import { ReadWalkthroughService } from '@porcelain/walkthroughs/services';
-import type { WalkthroughRun } from '@porcelain/walkthroughs/models';
+import type {
+  WalkthroughRun,
+  WalkthroughFreshness,
+} from '@porcelain/walkthroughs/models';
 import { WorktreeAccess } from '../../runtime/worktree-access.ts';
 import type { WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
 import type { GitIoFailure } from '@porcelain/git/errors';
@@ -12,7 +15,7 @@ export class ReadWalkthroughUseCase extends Context.Service<
       {
         walkthrough: WalkthroughRun | undefined;
         attempt: WalkthroughRun | undefined;
-        outOfDate: boolean;
+        freshness: WalkthroughFreshness;
       },
       WorktreeAccessFailure | GitIoFailure
     >;
@@ -27,9 +30,9 @@ export class ReadWalkthroughUseCase extends Context.Service<
         execute: Effect.fn('ReadWalkthroughUseCase.execute')(function* (input) {
           return yield* access.read(input.worktreeId, () =>
             Effect.gen(function* () {
-              const { walkthrough, attempt, outOfDate } =
+              const { walkthrough, attempt, freshness } =
                 yield* store.execute(input);
-              return { walkthrough, attempt, outOfDate };
+              return { walkthrough, attempt, freshness };
             }),
           );
         }),

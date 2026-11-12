@@ -62,6 +62,13 @@ export class StartWalkthroughService extends Context.Service<
                   writer,
                   sessionId: undefined,
                   createdAt,
+                  progress: [
+                    {
+                      stage: 'queued',
+                      at: createdAt,
+                      message: `Captured ${snapshot.files.length} ${snapshot.files.length === 1 ? 'file' : 'files'} for ${snapshot.headOid.slice(0, 7)}${snapshot.includesUncommitted ? ' and uncommitted work' : ''}. Waiting for the writer.`,
+                    },
+                  ],
                   state: { status: 'queued' },
                 },
               },

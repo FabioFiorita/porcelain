@@ -415,7 +415,10 @@ it.each(['signed_out', 'other'] as const)(
     const ready = await runtime.runPromise(
       Effect.gen(function* () {
         const writer = yield* WriteWalkthroughService;
-        yield* writer.execute({ ...job, run: { ...job.run, id: 'retry' } });
+        yield* writer.execute(
+          { ...job, run: { ...job.run, id: 'retry' } },
+          () => Effect.void,
+        );
         const store = yield* WalkthroughStore;
         return {
           attempts: yield* (yield* SqlClient.SqlClient)<{

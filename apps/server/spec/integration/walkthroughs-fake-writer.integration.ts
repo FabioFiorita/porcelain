@@ -36,6 +36,19 @@ test('the verification fake answers the displayed ready walkthrough after a late
   const runId = text(accepted.id);
   expect((await current()).walkthrough?.id).toBe(runId);
   expect((await current()).attempt).toBeUndefined();
+  const progress = (await current()).walkthrough?.progress;
+  expect(progress?.map((entry) => entry.stage)).toEqual([
+    'queued',
+    'evidence',
+    'transcript',
+    'writing',
+    'validating',
+    'ready',
+  ]);
+  expect(progress?.[0]?.message).toContain(
+    (await session.git('rev-parse', 'HEAD')).trim().slice(0, 7),
+  );
+  expect((await current()).walkthrough?.progress).toEqual(progress);
   await session.writeFile(
     'notes.md',
     'Notes explain the sample and its follow-up.\n',
@@ -56,7 +69,17 @@ test('the verification fake answers the displayed ready walkthrough after a late
   const displayed = await current();
   expect(displayed.walkthrough?.id).toBe(runId);
   expect(displayed.attempt?.id).toBe(text(update.id));
-  expect(displayed.outOfDate).toBe(true);
+  expect(displayed.freshness).toBe('changed');
+  expect(displayed.attempt?.progress?.map((entry) => entry.stage)).toEqual([
+    'queued',
+    'evidence',
+    'transcript',
+    'writing',
+    'failed',
+  ]);
+  expect(displayed.attempt?.progress?.at(-1)?.message).toContain(
+    'Sign in again',
+  );
   await session.writeFile('.git/porcelain-fake-walkthrough', 'ready');
   const root = `${path}/${runId}/conversations`;
   const conversations = async () =>
@@ -117,21 +140,21 @@ test('uncommitted content reaches ready, survives an identical commit and become
       },
     )
     .toBe('ready');
-  expect((await current()).outOfDate).toBe(false);
+  expect((await current()).freshness).toBe('current');
   expect((await current()).walkthrough?.includesUncommitted).toBe(true);
   await session.git('add', '--all');
   await session.git('commit', '-m', 'Commit explained content');
-  expect((await current()).outOfDate).toBe(false);
+  expect((await current()).freshness).toBe('current');
   expect((await start()).id).toBe(accepted.id);
   await session.writeFile('notes.md', 'first line\nsecond line\nnew edit\n');
-  expect((await current()).outOfDate).toBe(true);
+  expect((await current()).freshness).toBe('changed');
   const changed = await start();
   expect(changed.id).not.toBe(accepted.id);
   await expect
     .poll(async () => (await current()).walkthrough?.id, { timeout: 10000 })
     .toBe(changed.id);
   await session.git('branch', '-f', 'working-base', 'HEAD');
-  expect((await current()).outOfDate).toBe(true);
+  expect((await current()).freshness).toBe('changed');
 });
 
 test('edits during writing do not change the captured files or excerpt validation', async ({
@@ -172,7 +195,7 @@ test('edits during writing do not change the captured files or excerpt validatio
   await expect
     .poll(async () => (await current()).walkthrough?.id, { timeout: 10000 })
     .toBe(accepted.id);
-  expect((await current()).outOfDate).toBe(true);
+  expect((await current()).freshness).toBe('changed');
 });
 
 test.for(['conversion filter', 'empty nested repository'] as const)(
@@ -215,7 +238,7 @@ test.for(['conversion filter', 'empty nested repository'] as const)(
     }
     expect((await current()).walkthrough).toEqual(saved);
     expect((await current()).walkthrough?.id).toBe(accepted.id);
-    expect((await current()).outOfDate).toBe(true);
+    expect((await current()).freshness).toBe('unknown');
     const refused = await read(
       session,
       {
