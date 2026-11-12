@@ -12,8 +12,13 @@ import { record, text } from '@porcelain/server/kit/session';
 
 export async function archiveFixture(
   main: string,
-  options: { codeComment?: boolean; description?: string } = {},
+  options: {
+    codeComment?: boolean;
+    description?: string;
+    branch?: string;
+  } = {},
 ) {
+  const branch = options.branch ?? 'archive-fixture';
   const home = dirname(main);
   const tree = join(home, 'archive-fixture');
   const remote = join(home, 'archive-remote.git');
@@ -26,7 +31,7 @@ export async function archiveFixture(
   git('add', '--all');
   git('commit', '--allow-empty', '-qm', 'Prepare archive base');
   git('branch', 'archive-base');
-  git('worktree', 'add', '-qb', 'archive-fixture', tree);
+  git('worktree', 'add', '-qb', branch, tree);
   writeFileSync(join(tree, 'archive.txt'), 'A completed change.\n');
   writeFileSync(join(tree, 'archive-notes.txt'), 'Archive fixture notes.\n');
   execFileSync('git', ['-C', tree, 'add', '--all']);
@@ -37,19 +42,12 @@ export async function archiveFixture(
     '-qm',
     'Complete archive fixture',
   ]);
-  execFileSync('git', [
-    '-C',
-    tree,
-    'push',
-    '-qu',
-    'fixture',
-    'archive-fixture',
-  ]);
+  execFileSync('git', ['-C', tree, 'push', '-qu', 'fixture', branch]);
   writeFileSync(join(main, '.git/info/exclude'), 'node_modules/\n.env\n');
   writeFileSync(join(tree, '.env'), 'LOCAL_ONLY=archive-fixture\n');
   mkdirSync(join(tree, 'node_modules'));
   writeFileSync(join(tree, 'node_modules/ignored.js'), 'Ignored dependency');
-  const head = git('rev-parse', 'archive-fixture');
+  const head = git('rev-parse', branch);
   const pr = {
     number: 423,
     title: 'Completed archive fixture',
@@ -57,7 +55,7 @@ export async function archiveFixture(
     state: 'MERGED',
     isDraft: false,
     author: { login: 'fixture' },
-    headRefName: 'archive-fixture',
+    headRefName: branch,
     updatedAt: '2026-10-21T03:00:00Z',
     commits: { nodes: [] },
     body: options.description ?? 'Finished',
@@ -153,7 +151,7 @@ export async function archiveFixture(
       ]);
       if (destination === 'not-checked-out') return tree;
       const current = join(home, 'current-pr-checkout');
-      git('worktree', 'add', current, 'archive-fixture');
+      git('worktree', 'add', current, branch);
       return current;
     },
     setGitHubFailure,
@@ -165,7 +163,7 @@ export async function archiveFixture(
     remoteBranch: () =>
       execFileSync(
         'git',
-        ['-C', remote, 'show-ref', '--verify', 'refs/heads/archive-fixture'],
+        ['-C', remote, 'show-ref', '--verify', `refs/heads/${branch}`],
         { encoding: 'utf8' },
       ),
     tree,
