@@ -5,6 +5,7 @@ import {
   walkthroughContentSchema as domainContentSchema,
   writerSchema,
   walkthroughModelSchema,
+  walkthroughFreshnessSchema,
 } from '@porcelain/walkthroughs/models';
 import {
   WalkthroughFailedError,
@@ -90,7 +91,7 @@ const startWalkthroughRequestSchema = Schema.Struct({
 export const readWalkthroughResponseSchema = Schema.Struct({
   walkthrough: nullableAsUndefined(walkthroughRunSchema),
   attempt: Schema.optional(walkthroughRunSchema),
-  outOfDate: Schema.Boolean,
+  freshness: walkthroughFreshnessSchema,
 });
 export const walkthroughWriterSettingsSchema = Schema.Struct({
   writer: writerSchema,

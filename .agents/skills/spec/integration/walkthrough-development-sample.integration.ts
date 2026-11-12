@@ -27,7 +27,7 @@ test('the development walkthrough sample serves a ready page for the committed f
   const view = Schema.decodeUnknownSync(readWalkthroughResponseSchema)(
     response.body,
   );
-  expect(view.outOfDate).toBe(false);
+  expect(view.freshness).toBe('current');
   expect(view.walkthrough?.branch).toBe('feature/note-search');
   const run = view.walkthrough;
   expect(run?.state.status).toBe('ready');

@@ -48,5 +48,12 @@ export {
   growthSign,
   walkthroughMeta,
   walkthroughEvidenceNotice,
-  WALKTHROUGH_STALE_TEXT,
 } from './page.ts';
+
+export {
+  acknowledgedWalkthrough,
+  acknowledgedWalkthroughPhase,
+  type WalkthroughStatusInput,
+  walkthroughProgress,
+  walkthroughFreshnessText,
+} from './progress.ts';

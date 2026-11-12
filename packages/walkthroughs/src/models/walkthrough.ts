@@ -101,6 +101,27 @@ export const walkthroughContentSchema = Schema.Struct({
   stillUnclear: Schema.Array(Schema.String),
   checks: Schema.optional(Schema.String),
 });
+const walkthroughStageSchema = Schema.Literals([
+  'queued',
+  'evidence',
+  'transcript',
+  'writing',
+  'validating',
+  'ready',
+  'failed',
+]);
+const walkthroughProgressSchema = Schema.Struct({
+  stage: walkthroughStageSchema,
+  at: Schema.String,
+  message: Schema.String,
+});
+export type WalkthroughProgress = typeof walkthroughProgressSchema.Type;
+export const walkthroughFreshnessSchema = Schema.Literals([
+  'current',
+  'changed',
+  'unknown',
+]);
+export type WalkthroughFreshness = typeof walkthroughFreshnessSchema.Type;
 export const walkthroughRunSchema = Schema.Struct({
   id: Schema.String,
   projectId: Schema.String,
@@ -121,6 +142,7 @@ export const walkthroughRunSchema = Schema.Struct({
   writer: writerSchema,
   sessionId: Schema.optional(Schema.String),
   createdAt: Schema.String,
+  progress: Schema.optional(Schema.Array(walkthroughProgressSchema)),
   state: Schema.Union([
     Schema.Struct({ status: Schema.Literal('queued') }),
     Schema.Struct({ status: Schema.Literal('running') }),

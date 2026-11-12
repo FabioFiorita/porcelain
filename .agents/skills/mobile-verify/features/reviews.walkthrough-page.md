@@ -4,15 +4,15 @@ selectors:
   - 'Walkthrough'
   - 'No walkthrough yet.'
   - 'Write walkthrough'
-  - 'Reading the change'
+  - 'Writing the walkthrough'
   - 'How the system grew'
   - "What the code doesn't say"
   - 'See the code'
   - 'See every changed file'
   - 'See the change'
-  - 'The work changed after this was written.'
+  - 'The work changed after this walkthrough’s snapshot. Update to include the latest changes.'
   - 'Update walkthrough'
-  - 'Updating…'
+  - 'Writing the walkthrough'
   - 'Try again'
   - 'Your call'
   - 'Decide, or ask about this'
@@ -72,14 +72,14 @@ git -C "$REPO" add --all && git -C "$REPO" commit -m "Add notes"
 ### 1. Writing and reading
 
 1. Open the worktree. With no run, the four top-bar buttons Walkthrough, Changes, Files and History show with Changes selected. Choose Walkthrough for "No walkthrough yet." and "Write walkthrough". With an existing run (queued, running, failed or ready), the page opens on Walkthrough selected; Changes is one tap away in the same bar.
-2. `printf hold > "$REPO/.git/porcelain-fake-walkthrough"`, press Write walkthrough. Expect "Reading the change" under the `written for <sha>` line.
+2. `printf hold > "$REPO/.git/porcelain-fake-walkthrough"`, press Write walkthrough. Expect "Writing the walkthrough" under the `written for <sha>` line.
 3. `rm "$REPO/.git/porcelain-fake-walkthrough"`. Without leaving, expect the heading ending "One call is yours.", the call card ("Product call", "Step 1", the question, "Decide, or ask about this"), "How the system grew" with "1 more", the steps, "What the code doesn't say" with "2 more" and "See every changed file". Step 1 → scrolls to the step; Your call → back to the calls.
 4. Open See the code on an uncommitted-only ready walkthrough: the existing one-page diff reader shows its dirty file. Back → See every changed file shows the same file. With committed and dirty files, both entries show Branch first, then Uncommitted; each comparison appears once and opening a file preserves that comparison. The steps list includes dirty files, and All changes opens the same complete reader.
    Worktrees list: the row now leads with the walkthrough title and shows the branch as small text beneath it.
 
 ### 2. Out of date, failure and the short page
 
-5. Commit another change in `$REPO`. Expect "The work changed after this was written." with Update walkthrough. With `hold`, press it: the page and its conversations stay with "Updating…"; remove the file and the new page arrives.
+5. Commit another change in `$REPO`. Expect "The work changed after this walkthrough’s snapshot. Update to include the latest changes." with Update walkthrough. With `hold`, press it: the page and its conversations stay with "Writing the walkthrough"; remove the file and the new page arrives.
 6. `printf signed-out > …`, Update walkthrough: the page and its conversations stay, with "Sign in to Claude again with claude auth login, then try again." and Try again. With no ready page (a fresh worktree), Write walkthrough shows that sentence as the heading with Try again. With `hold` while an answer is pending, the answer reads "Working…"; switching to `signed-out` fails it with Try again.
 7. `printf nothing > …`, write again. Expect a heading ending "Nothing needs you." and "See the change", which opens All changes.
 
@@ -107,3 +107,7 @@ Automated coverage: `walkthrough.spec.ts` (opening rule, page rules, update stat
 With a PR behind the local captured head, write a walkthrough. It becomes ready and keeps the PR target for comments, with no PR images or checks. The meta line says once: “Screenshots and checks are not shown: the pull request is at another commit. Push, then update.” Update remains available even without local edits. Push that head, then Update: the new run clears the notice and can show matching evidence. Missing GitHub accounts and GitHub read failures likewise leave the page ready with their shared explanatory notice. A walkthrough without a PR needs no notice.
 
 A successfully loaded list supplies the open PR for the current branch, including during background refresh and when it replaces the displayed run's PR. If no open PR for this branch is known from that list, retain the displayed run's PR. With neither, the write has no PR target. A failed read with cached success still uses that last loaded list; a never-loaded list or failure without cached success supplies none.
+
+### Progress and update log
+
+The status area stays visible after completion and says “Up to date with the current work.” when verified. “Walkthrough stages” is a progress bar with named stages: Queued, Reading pull request evidence, Reading the coding conversation, Writing the walkthrough, Checking the walkthrough, Walkthrough saved. The bar counts stages, not estimated time. Expand “Update log” to read timestamped events. Reload while the fake is held: the same stage and events remain. Release it: the log retains queueing, evidence, conversation, writing, validation and completion. Change work while held: completion shows that the snapshot is behind current work instead of claiming it is up to date. A failed update keeps the saved content, the failed attempt’s log and “Try again”. No update button appears between accepting the request and observing the server attempt. Older saved runs say they predate the log; they never invent events.

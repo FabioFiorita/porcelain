@@ -34,7 +34,11 @@ export const startWalkthrough = Atom.family((selection: WorktreeSelection) =>
   ),
 );
 
-export function walkthroughStartBinding<A, E, PE>(
+export function walkthroughStartBinding<
+  A extends { readonly branch?: string | undefined } | undefined,
+  E,
+  PE,
+>(
   [result, send]: readonly [
     AsyncResult.AsyncResult<A, E>,
     (request: StartWalkthroughRequest) => Promise<Exit.Exit<A, E>>,
@@ -49,7 +53,9 @@ export function walkthroughStartBinding<A, E, PE>(
     pullRequests:
       available?.kind === 'available' ? available.pullRequests : undefined,
   });
+  const accepted = Option.getOrUndefined(AsyncResult.value(result));
   return {
+    accepted: accepted?.branch === input.branch ? accepted : undefined,
     waiting: AsyncResult.isWaiting(result),
     failure: AsyncResult.isFailure(result)
       ? walkthroughStartFailure(Cause.squash(result.cause))

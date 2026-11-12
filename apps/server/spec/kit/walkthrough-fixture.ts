@@ -1,5 +1,5 @@
 import { DatabaseSync } from 'node:sqlite';
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, rename, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { Effect, Schema } from 'effect';
 import { NodeServices } from '@effect/platform-node';
@@ -141,7 +141,7 @@ export async function scriptedWalkthroughs(
   const contentPath = join(session.projectHome, 'walkthrough-content.json');
   await writeFile(options.postsPath, '');
   await writeFile(
-    join(bin, 'claude'),
+    join(bin, 'claude.next'),
     `#!${process.execPath}
 const fs = require('node:fs');
 const args = process.argv.slice(2);
@@ -156,6 +156,7 @@ console.log(JSON.stringify({ session_id: first ? args[args.indexOf('--session-id
 `,
     { mode: 0o755 },
   );
+  await rename(join(bin, 'claude.next'), join(bin, 'claude'));
   await writeFile(
     join(bin, 'gh'),
     `#!${process.execPath}

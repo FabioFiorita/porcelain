@@ -35,7 +35,7 @@ export function useStartWalkthrough(
   );
   return walkthroughStartBinding([result, start], {
     pulls,
-    branch: overview?.branch?.name,
+    branch: overview?.branch?.name ?? displayedRun?.branch,
     displayedRun,
     base,
   });

@@ -18,7 +18,7 @@ export function worktreeOpening(input: {
   const read =
     input.walkthrough.status === 'read' ? input.walkthrough.value : undefined;
   const name = firstDocument(
-    read ?? { walkthrough: undefined, outOfDate: false },
+    read ?? { walkthrough: undefined, freshness: 'unknown' },
   );
   return {
     name,

@@ -49,7 +49,7 @@ test('reads the latest attempt and reports when its pinned head is out of date',
   const initial = Schema.decodeUnknownSync(readWalkthroughResponseSchema)(
     await read(session, { method: 'GET', path }),
   );
-  expect(initial.outOfDate).toBe(false);
+  expect(initial.freshness).toBe('current');
   expect(initial.walkthrough?.state.status).not.toBe('ready');
   expect(initial.attempt).toBeUndefined();
   expect(initial.walkthrough?.headOid).toBe(text(first.headOid));
@@ -59,7 +59,7 @@ test('reads the latest attempt and reports when its pinned head is out of date',
   const stale = Schema.decodeUnknownSync(readWalkthroughResponseSchema)(
     await read(session, { method: 'GET', path }),
   );
-  expect(stale.outOfDate).toBe(true);
+  expect(stale.freshness).toBe('changed');
   expect(stale.walkthrough?.id).toBe(text(first.id));
   expect(stale.walkthrough?.headOid).toBe(text(first.headOid));
   const updated = await read(session, {
@@ -72,7 +72,7 @@ test('reads the latest attempt and reports when its pinned head is out of date',
   const returned = Schema.decodeUnknownSync(readWalkthroughResponseSchema)(
     await read(session, { method: 'GET', path }),
   );
-  expect(returned.outOfDate).toBe(true);
+  expect(returned.freshness).toBe('changed');
   expect(returned.walkthrough?.id).toBe(text(updated.id));
 });
 
@@ -178,10 +178,10 @@ test('serves stored evidence bytes for a finished walkthrough and refuses assets
     const retained = await readState();
     expect(retained.walkthrough?.id).toBe(secondId);
     expect(retained.attempt?.state).toEqual(state);
-    expect(retained.outOfDate).toBe(false);
+    expect(retained.freshness).toBe('current');
   }
   await session.git('commit', '--allow-empty', '-m', 'Advance during update');
-  expect((await readState()).outOfDate).toBe(false);
+  expect((await readState()).freshness).toBe('current');
   await session.git('reset', '--hard', secondHead);
   await session.git('switch', '-c', 'no-walkthrough');
   expect((await readState()).walkthrough).toBeUndefined();

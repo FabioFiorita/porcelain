@@ -31,6 +31,11 @@ import {
   walkthroughMeta,
   walkthroughEvidenceNotice,
 } from './page.ts';
+import {
+  acknowledgedWalkthroughPhase,
+  walkthroughProgress,
+  walkthroughFreshnessText,
+} from './progress.ts';
 import { AsyncResult } from 'effect/reactivity';
 
 const stop = (over: Partial<WalkthroughStop> = {}): WalkthroughStop => ({
@@ -90,7 +95,10 @@ const run = (state: WalkthroughRun['state']): WalkthroughRun => ({
 const read = (
   walkthrough: WalkthroughRun | undefined,
   outOfDate = false,
-): WalkthroughRead => ({ walkthrough, outOfDate });
+): WalkthroughRead => ({
+  walkthrough,
+  freshness: outOfDate ? 'changed' : 'current',
+});
 
 describe('walkthroughVerdict', () => {
   it('counts the calls that are the reader’s', () => {
@@ -281,7 +289,7 @@ describe('walkthroughPhase', () => {
           true,
         ),
       ),
-    ).toMatchObject({ kind: 'ready', outOfDate: true });
+    ).toMatchObject({ kind: 'ready', freshness: 'changed' });
   });
 });
 
@@ -469,13 +477,13 @@ it.each([
   const phase = walkthroughPhase({
     walkthrough: ready,
     attempt: { ...run(state), id: 'newer' },
-    outOfDate: true,
+    freshness: 'changed',
   });
   expect(phase).toMatchObject({
     kind: 'ready',
     run: { id: 'run', headOid: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' },
     content: { stops: [{ title: 'A step' }] },
-    outOfDate: true,
+    freshness: 'changed',
     attempt: { id: 'newer' },
   });
 });
@@ -593,7 +601,7 @@ describe('walkthrough page rules', () => {
     const phase = (attempt: WalkthroughRun | undefined) => {
       const current = walkthroughPhase({
         walkthrough: ready,
-        outOfDate: true,
+        freshness: 'changed',
         attempt,
       });
       if (current.kind !== 'ready') throw new Error('Expected a ready page.');
@@ -726,4 +734,125 @@ it('explains missing PR evidence once with shared web and mobile copy and clears
     'Screenshots and checks are not shown: GitHub could not be reached. Try updating later.',
   );
   expect(walkthroughEvidenceNotice(ready)).toBeUndefined();
+});
+
+describe('walkthrough update status', () => {
+  const saved = () => ({
+    ...run({
+      status: 'ready',
+      content: content(),
+      writtenAt: '2026-11-12T12:00:00Z',
+      durationMs: 1,
+      costUsd: undefined,
+    }),
+    id: 'saved',
+    createdAt: '2026-11-12T11:00:00Z',
+  });
+  const accepted = () => ({
+    ...run({ status: 'queued' }),
+    id: 'accepted',
+    createdAt: '2026-11-12T12:00:00Z',
+  });
+
+  it('keeps an accepted update visible between the request finishing and the next server read', () => {
+    const before = walkthroughPhase(read(saved(), true));
+    const phase = acknowledgedWalkthroughPhase(before, accepted());
+    expect(phase).toMatchObject({
+      kind: 'ready',
+      run: { id: 'saved' },
+      attempt: { id: 'accepted', state: { status: 'queued' } },
+    });
+    const observed = walkthroughPhase({
+      walkthrough: saved(),
+      attempt: { ...accepted(), state: { status: 'running' } },
+      freshness: 'changed',
+    });
+    expect(acknowledgedWalkthroughPhase(observed, accepted())).toMatchObject({
+      attempt: { state: { status: 'running' } },
+    });
+    const complete = walkthroughPhase(
+      read({ ...saved(), id: 'accepted', createdAt: accepted().createdAt }),
+    );
+    expect(acknowledgedWalkthroughPhase(complete, accepted())).toMatchObject({
+      kind: 'ready',
+      run: { id: 'accepted' },
+      attempt: undefined,
+    });
+    expect(
+      acknowledgedWalkthroughPhase({ kind: 'unwritten' }, accepted()),
+    ).toMatchObject({ kind: 'writing', run: { id: 'accepted' } });
+  });
+
+  it('does not replace a newer server attempt or a different branch with an old acknowledgement', () => {
+    const newer = walkthroughPhase({
+      walkthrough: saved(),
+      attempt: {
+        ...accepted(),
+        id: 'newer',
+        createdAt: '2026-11-12T13:00:00Z',
+      },
+      freshness: 'changed',
+    });
+    expect(acknowledgedWalkthroughPhase(newer, accepted())).toEqual(newer);
+    const other = walkthroughPhase(read({ ...saved(), branch: 'other' }));
+    expect(acknowledgedWalkthroughPhase(other, accepted())).toEqual(other);
+  });
+
+  it('retains the stopped stage and real log on failure without claiming completion', () => {
+    const stopped = {
+      ...accepted(),
+      state: {
+        status: 'failed',
+        failure: { kind: 'other', message: 'Writer disconnected.' },
+      } as const,
+      progress: [
+        {
+          stage: 'queued' as const,
+          at: '2026-11-12T12:00:00Z',
+          message: 'Captured the change.',
+        },
+        {
+          stage: 'writing' as const,
+          at: '2026-11-12T12:00:01Z',
+          message: 'Claude is writing.',
+        },
+        {
+          stage: 'failed' as const,
+          at: '2026-11-12T12:00:02Z',
+          message: 'Writer disconnected.',
+        },
+      ],
+    };
+    const status = walkthroughProgress(stopped, false);
+    expect(status).toMatchObject({
+      label: 'Update failed',
+      completed: 3,
+      total: 5,
+      active: false,
+    });
+    expect(status.entries.at(-1)?.message).toBe('Writer disconnected.');
+    expect(walkthroughProgress(saved(), false)).toMatchObject({
+      label: 'Walkthrough saved',
+      completed: 5,
+      active: false,
+      entries: [],
+    });
+    expect(walkthroughProgress(saved(), true)).toMatchObject({
+      label: 'Requesting update',
+      completed: 0,
+      active: true,
+    });
+  });
+
+  it('distinguishes verified freshness from inability to check', () => {
+    expect(walkthroughFreshnessText('current')).toBe(
+      'Up to date with the current work.',
+    );
+    expect(walkthroughFreshnessText('unknown')).toBe(
+      'Couldn’t check whether the work changed. Your saved walkthrough is still available.',
+    );
+    expect(walkthroughFreshnessText('changed')).toBe(
+      'The work changed after this walkthrough’s snapshot. Update to include the latest changes.',
+    );
+  });
 });

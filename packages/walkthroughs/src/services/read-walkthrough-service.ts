@@ -3,7 +3,10 @@ import { WalkthroughStore } from '../ports/walkthrough-store.ts';
 import { WalkthroughHeadReader } from '../ports/walkthrough-head-reader.ts';
 import type { GitIoFailure } from '@porcelain/git/errors';
 import type { WorktreeRead } from '@porcelain/effects/worktree';
-import type { WalkthroughRun } from '../models/walkthrough.ts';
+import type {
+  WalkthroughRun,
+  WalkthroughFreshness,
+} from '../models/walkthrough.ts';
 export class ReadWalkthroughService extends Context.Service<
   ReadWalkthroughService,
   {
@@ -11,7 +14,7 @@ export class ReadWalkthroughService extends Context.Service<
       {
         walkthrough: WalkthroughRun | undefined;
         attempt: WalkthroughRun | undefined;
-        outOfDate: boolean;
+        freshness: WalkthroughFreshness;
       },
       GitIoFailure,
       WorktreeRead
@@ -51,10 +54,13 @@ export class ReadWalkthroughService extends Context.Service<
                   .pipe(Effect.catch(() => Effect.succeed(undefined)));
           return {
             walkthrough,
-            outOfDate:
-              walkthrough !== undefined &&
-              (identity?.baseOid !== walkthrough.baseOid ||
-                identity?.contentTreeOid !== walkthrough.contentTreeOid),
+            freshness:
+              walkthrough === undefined || identity === undefined
+                ? 'unknown'
+                : identity.baseOid !== walkthrough.baseOid ||
+                    identity.contentTreeOid !== walkthrough.contentTreeOid
+                  ? 'changed'
+                  : 'current',
             attempt:
               ready !== undefined &&
               latest !== undefined &&
