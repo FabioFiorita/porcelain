@@ -6,7 +6,7 @@ selectors:
   - 'More actions'
   - 'Workspace changed'
 tests:
-  - apps/mobile/src/shared/rules/highlight-diff.spec.ts
+  - apps/mobile/src/features/documents/adapters/code-highlighter.spec.ts
   - packages/client/src/features/files/queries/text.spec.ts
   - packages/client/src/features/files/queries/asset.spec.ts
 api:
@@ -29,6 +29,8 @@ Files opens read-only source, document and image previews for the selected workt
 Preconditions: [surface baseline](README.md).
 
 Open the document from its worktree. Confirm the native top bar contains the document actions with no Comment or Comments controls. Read source and diffs in light and dark, return with Back and reopen to check the reading place. On tablets verify landscape and portrait. For changed files, mark reviewed and unmark, checking the persisted fingerprint through the server; change the fixture and confirm Changed since review. For staged plus unstaged content, the Comparison menu still switches the displayed diff.
+
+Open an uncached syntax-heavy file. Literal source and line numbers appear before coloring finishes; coloring preserves the reading line and selection. Navigate away during highlighting, then return: unfinished work is cancelled when the screen loses focus, and completed colors remain available for five minutes. Compare minified production JavaScript on the same device and fixture when measuring first readable content separately from completed coloring.
 
 ## Gotchas
 

@@ -3,7 +3,7 @@ import { useState, type ReactNode } from 'react';
 import { useAtomSet, useAtomValue } from '@effect/atom-react';
 import { FlatList, View, type FlatListProps } from 'react-native';
 import { Box } from '../../../components/ui/box';
-import { DiffView } from '../../../components/ui/diff-view';
+import { DiffView } from '../../documents/index';
 import { PageHeader } from '../../../components/ui/document-header';
 import { ErrorState } from '../../../components/ui/error-state';
 import { Icon } from '../../../components/ui/icon';

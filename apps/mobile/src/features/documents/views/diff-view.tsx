@@ -1,11 +1,11 @@
-import { RenderSurface } from './render-surface';
-import type { RenderLine } from '../../shared/rules/render-model';
-import type { ReviewRange } from './code-range';
-import { useHighlightedCode } from './use-highlighted-code';
+import { RenderSurface } from '../../../components/ui/render-surface';
+import type { RenderLine } from '../../../shared/rules/render-model';
+import type { ReviewRange } from '../../../components/ui/code-range';
+import { useHighlightedCode } from '../queries/highlighted-code';
 import {
   diffSources,
   highlightDiffLines,
-} from '../../shared/rules/highlight-diff';
+} from '../../../shared/rules/highlight-diff';
 
 export function DiffView({
   lines,
@@ -33,11 +33,11 @@ export function DiffView({
   const newHighlight = useHighlightedCode(newSource, language);
   return (
     <RenderSurface
-      lines={
-        oldHighlight && newHighlight
-          ? highlightDiffLines(lines, oldHighlight.tokens, newHighlight.tokens)
-          : undefined
-      }
+      lines={highlightDiffLines(
+        lines,
+        oldHighlight?.tokens,
+        newHighlight?.tokens,
+      )}
       wrap={wrap}
       fit={fit}
       selection={selection}

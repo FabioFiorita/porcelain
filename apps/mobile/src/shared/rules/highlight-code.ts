@@ -36,9 +36,9 @@ export async function highlightCode(
     return lines.map((text) => (text ? [{ text }] : []));
   }
   const result: RenderToken[][] = [];
-  for (let start = 0; start < lines.length; start += 100) {
+  for (let start = 0; start < lines.length; start += 20) {
     if (signal?.aborted) return [];
-    const tokens = tokenize(lines.slice(start, start + 100).join('\n'));
+    const tokens = tokenize(lines.slice(start, start + 20).join('\n'));
     result.push(
       ...tokens.map((line) =>
         line
@@ -56,7 +56,7 @@ export async function highlightCode(
           })),
       ),
     );
-    if (start + 100 < lines.length) await yieldToUI();
+    if (start + 20 < lines.length) await yieldToUI();
   }
   return result;
 }

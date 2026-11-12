@@ -10,7 +10,7 @@ api:
   - GET /api/worktrees/:worktreeId/commits/:oid/files
   - POST /api/worktrees/:worktreeId/commits/:oid/diffs
 tests:
-  - apps/mobile/src/shared/rules/highlight-diff.spec.ts
+  - apps/mobile/src/features/documents/adapters/code-highlighter.spec.ts
 ---
 
 # history.diff
@@ -26,6 +26,8 @@ A commit file opens a read-only diff with its original comparison parent and lin
 Preconditions: [surface baseline](README.md).
 
 Open the document from its worktree. Confirm the native top bar contains the document actions with no Comment or Comments controls. Read source and diffs in light and dark, return with Back and reopen to check the reading place. On tablets verify landscape and portrait. For changed files, mark reviewed and unmark, checking the persisted fingerprint through the server; change the fixture and confirm Changed since review. For staged plus unstaged content, the Comparison menu still switches the displayed diff.
+
+Open an uncached syntax-heavy commit diff: literal rows and change markers appear before both sides finish coloring. Coloring must preserve the reading line and selection. Leave during coloring to release its live work; return to reuse completed colors.
 
 ## Gotchas
 

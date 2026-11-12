@@ -2,17 +2,85 @@ import { diffLines } from '@porcelain/client/changes/rules';
 import { createOnigurumaEngine } from 'shiki/engine/oniguruma';
 import { expect, it } from 'vitest';
 
-import { createCodeHighlighter } from '../../components/ui/code-highlighter';
-import { diffSources, highlightDiffLines } from './highlight-diff';
-import type { RenderLine } from './render-model';
+import { createCodeHighlighter } from './code-highlighter';
+import {
+  diffSources,
+  highlightDiffLines,
+} from '../../../shared/rules/highlight-diff';
+import type { RenderLine } from '../../../shared/rules/render-model';
 
 const signal = new AbortController().signal;
+
+it('gives the native view a turn before highlighting and drops a cancelled job', async () => {
+  const scheduled = Promise.withResolvers<void>();
+  const frame = Promise.withResolvers<void>();
+  const highlight = await createCodeHighlighter(
+    await createOnigurumaEngine(import('shiki/wasm')),
+    () => {
+      scheduled.resolve();
+      return frame.promise;
+    },
+  );
+  const controller = new AbortController();
+  const result = highlight(
+    'export const ready = true;',
+    'typescript',
+    'light',
+    controller.signal,
+  );
+  expect(
+    await Promise.race([
+      scheduled.promise.then(() => 'scheduled'),
+      result.then(() => 'finished'),
+    ]),
+  ).toBe('scheduled');
+  controller.abort();
+  frame.resolve();
+  expect(await result).toEqual([]);
+});
 
 async function highlighter() {
   return createCodeHighlighter(
     await createOnigurumaEngine(import('shiki/wasm')),
+    () => Promise.resolve(),
   );
 }
+
+it('keeps multiline grammar state across batches and isolated between files', async () => {
+  const highlight = await highlighter();
+  const source = [
+    '/*',
+    ...Array.from({ length: 45 }, () => 'export const commented = true;'),
+    '*/',
+    'export const ready = true;',
+  ].join('\n');
+  const [commented, ordinary] = await Promise.all([
+    highlight(source, 'typescript', 'light', signal),
+    highlight('export const ready = true;', 'typescript', 'light', signal),
+  ]);
+  expect(
+    commented
+      .map((line) => line.map((token) => token.text).join(''))
+      .join('\n'),
+  ).toBe(source);
+  expect(commented[1]).toEqual(commented[40]);
+  expect(commented[40]).toEqual([
+    { text: 'export const commented = true;', color: 0xff737373 },
+  ]);
+  expect(commented.at(-1)).toEqual(ordinary[0]);
+  expect(ordinary[0]?.map((token) => token.text)).toEqual([
+    'export',
+    ' ',
+    'const',
+    ' ',
+    'ready',
+    ' ',
+    '=',
+    ' ',
+    'true',
+    ';',
+  ]);
+});
 
 async function colouredDiff(patch: string, language: string) {
   const parsed = diffLines(patch);

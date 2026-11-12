@@ -20,10 +20,11 @@ import go from '@shikijs/langs/go';
 import html from '@shikijs/langs/html';
 import css from '@shikijs/langs/css';
 import markdown from '@shikijs/langs/markdown';
-import type { RenderToken } from '../../shared/rules/render-model.js';
-import { highlightCode } from '../../shared/rules/highlight-code.ts';
+import type { RenderToken } from '../../../shared/rules/render-model.js';
+import { highlightCode } from '../../../shared/rules/highlight-code.ts';
 
-function nextFrame(signal: AbortSignal): Promise<void> {
+export function nextFrame(signal: AbortSignal): Promise<void> {
+  if (signal.aborted) return Promise.resolve();
   return new Promise((resolve) => {
     const finish = () => {
       signal.removeEventListener('abort', abort);
@@ -38,9 +39,12 @@ function nextFrame(signal: AbortSignal): Promise<void> {
   });
 }
 
-const MAX_BUSY_MS = 100;
+const MAX_BUSY_MS = 8;
 
-export async function createCodeHighlighter(engine: RegexEngine) {
+export async function createCodeHighlighter(
+  engine: RegexEngine,
+  yieldToUI: (signal: AbortSignal) => Promise<void>,
+) {
   const highlighter = await createHighlighterCore({
     engine,
     themes: [pierreLight, pierreDark].map((theme) => ({
@@ -73,6 +77,8 @@ export async function createCodeHighlighter(engine: RegexEngine) {
     scheme: 'light' | 'dark',
     signal: AbortSignal,
   ): Promise<RenderToken[][]> => {
+    if (signal.aborted) return [];
+    await yieldToUI(signal);
     let grammarState: GrammarState | undefined;
     const tokenize =
       language &&
@@ -90,7 +96,7 @@ export async function createCodeHighlighter(engine: RegexEngine) {
     let resumedAt = performance.now();
     return highlightCode(source, tokenize, signal, async () => {
       if (performance.now() - resumedAt < MAX_BUSY_MS) return;
-      await nextFrame(signal);
+      await yieldToUI(signal);
       resumedAt = performance.now();
     });
   };
