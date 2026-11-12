@@ -12,7 +12,7 @@ import {
   listAway,
   listOver,
   listPresence,
-  tabOwned,
+  listTab,
   type KeyOwner,
 } from './key-registry';
 import {
@@ -124,8 +124,9 @@ export function useListCursor({
   useAtomMount(focused && !hidden && over ? listOver(owner) : absentList);
   useAtomMount(focused && hidden ? listAway(owner) : absentList);
   const present = useAtomValue(keyLists);
-  const ownsTab = useAtomValue(tabOwned);
-  const active = useAtomValue(focusedList) === owner;
+  const tab = useAtomValue(listTab);
+  const current = useAtomValue(focusedList);
+  const active = current === owner;
   const choose = useAtomSet(chosenList);
   const [highlighted, setHighlighted] = useState<string>();
   const live = rows.some((row) => row.key === highlighted)
@@ -156,7 +157,7 @@ export function useListCursor({
               ]
             : []),
           ...(onSearch ? [{ binding: 'search' as const, run: onSearch }] : []),
-          ...(ownsTab
+          ...(tab === 'lists'
             ? [
                 {
                   binding: 'nextList' as const,
@@ -164,6 +165,20 @@ export function useListCursor({
                 },
               ]
             : []),
+        ]
+      : [],
+  );
+  useScreenKeyCommands(
+    'list-away',
+    hidden && tab === 'away'
+      ? [
+          {
+            binding: 'nextList',
+            run: () => {
+              const next = nextList(present, current);
+              if (next !== undefined) choose(next);
+            },
+          },
         ]
       : [],
   );

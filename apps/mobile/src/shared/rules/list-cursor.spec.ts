@@ -1,9 +1,9 @@
 import { expect, it } from 'vitest';
 import {
   activeList,
-  listsOwnTab,
   moveCursor,
   nextList,
+  tabHolder,
   treeStep,
 } from './list-cursor';
 
@@ -157,27 +157,33 @@ it.each([
   {
     lists: ['worktrees', 'files'],
     away: false,
-    owned: true,
+    holder: 'lists',
     why: 'two lists on screen take Tab to move between them',
   },
   {
     lists: ['files'],
     away: true,
-    owned: true,
-    why: 'a list slid away keeps Tab on the page so it cannot reach the hidden search',
-  },
-  {
-    lists: ['files'],
-    away: false,
-    owned: false,
-    why: 'a single list with nothing slid away leaves Tab to the system',
+    holder: 'away',
+    why: 'with the worktrees list slid away over Files or History, Tab stays on the page list',
   },
   {
     lists: [],
     away: true,
-    owned: false,
-    why: 'with no list taking keys Tab stays with the system',
+    holder: 'away',
+    why: 'with the worktrees list slid away over Changes or the Walkthrough, Tab is still claimed so it cannot reach the hidden search',
   },
-] as const)('$why', ({ lists, away, owned }) => {
-  expect(listsOwnTab(lists, away)).toBe(owned);
+  {
+    lists: ['worktrees'],
+    away: false,
+    holder: undefined,
+    why: 'a single visible list leaves Tab to the system',
+  },
+  {
+    lists: [],
+    away: false,
+    holder: undefined,
+    why: 'with no list at all Tab stays with the system',
+  },
+] as const)('$why', ({ lists, away, holder }) => {
+  expect(tabHolder(lists, away)).toBe(holder);
 });

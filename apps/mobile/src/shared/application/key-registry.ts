@@ -1,11 +1,13 @@
 import { Atom } from 'effect/reactivity';
 import type { KeyCommand } from '../rules/key-commands';
-import { activeList, keyedLists, listsOwnTab } from '../rules/list-cursor';
+import { activeList, keyedLists, tabHolder } from '../rules/list-cursor';
 
 export type KeyOwner =
   | 'app'
   | 'worktree-sections'
   | 'list-cursor'
+  | 'list-away'
+  | 'worktree-search'
   | `document:${string}`;
 
 export const keyRegistrations = Atom.make<
@@ -63,8 +65,8 @@ export const keyLists = Atom.make((get) =>
   keyedLists(get(lists), get(over.slot)),
 );
 
-export const tabOwned = Atom.make((get) =>
-  listsOwnTab(get(keyLists), get(away.slot) !== undefined),
+export const listTab = Atom.make((get) =>
+  tabHolder(get(keyLists), get(away.slot) !== undefined),
 );
 
 export const focusedList = Atom.make((get) =>

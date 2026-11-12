@@ -57,8 +57,11 @@ export function keyedLists(lists: readonly string[], over: string | undefined) {
   return over !== undefined && lists.includes(over) ? [over] : lists;
 }
 
-export function listsOwnTab(lists: readonly string[], away: boolean) {
-  return lists.length > 1 || (away && lists.length > 0);
+export type TabHolder = 'lists' | 'away' | undefined;
+
+export function tabHolder(lists: readonly string[], away: boolean): TabHolder {
+  if (away) return 'away';
+  return lists.length > 1 ? 'lists' : undefined;
 }
 
 export function nextList(lists: readonly string[], chosen: string | undefined) {
