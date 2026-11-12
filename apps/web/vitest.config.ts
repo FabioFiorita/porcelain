@@ -9,11 +9,11 @@ export default defineConfig({
   ...web,
   root: import.meta.dirname,
   optimizeDeps: {
+    ...web.optimizeDeps,
     include: [
+      ...(web.optimizeDeps?.include ?? []),
       '@base-ui/react/select',
       '@base-ui/react/avatar',
-      '@pierre/diffs/worker',
-      '@pierre/diffs/worker/worker.js',
     ],
   },
   server: { ...web.server, proxy: serverProxy },

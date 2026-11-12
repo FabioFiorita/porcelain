@@ -21,6 +21,9 @@ test('long files highlight in workers, reuse unchanged revisions and refresh cha
   await workspace
     .getByRole('menuitem', { name: 'Open file', exact: true })
     .click();
+  await expect
+    .element(workspace.getByRole('heading', { name: path, exact: true }))
+    .toBeVisible();
   const code = workspace.getByRole('region', {
     name: 'Code content',
     exact: true,
