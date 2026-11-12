@@ -240,7 +240,7 @@ test('a posted comment keeps its original pull request number when the latest wa
 });
 
 for (const { scenario, notice } of [
-  { scenario: 'running-update', notice: 'Updating…' },
+  { scenario: 'running-update', notice: 'Writing the walkthrough' },
   {
     scenario: 'failed-update',
     notice: 'Sign in to Codex again with codex login, then try again.',
@@ -254,6 +254,29 @@ for (const { scenario, notice } of [
     await browserPage.viewport(1280, 896);
     const { page } = await render.route('/');
     await expect.element(page.getByText(notice, { exact: true })).toBeVisible();
+    const progress = page.getByRole('progressbar', {
+      name: 'Walkthrough stages',
+      exact: true,
+    });
+    await expect.element(progress).toHaveAttribute('aria-valuenow', '3');
+    await expect.element(progress).toHaveAttribute('aria-valuemax', '5');
+    await expect
+      .element(progress)
+      .toHaveAttribute(
+        'aria-valuetext',
+        scenario === 'running-update'
+          ? 'Writing the walkthrough'
+          : 'Update failed',
+      );
+    await expect
+      .element(
+        page.getByRole('button', { name: 'Update walkthrough', exact: true }),
+      )
+      .not.toBeInTheDocument();
+    await page.getByText('Update log', { exact: true }).click();
+    await expect
+      .element(page.getByText(/Codex is writing the updated walkthrough\.$/))
+      .toBeVisible();
     await expect
       .element(
         page.getByRole('heading', {

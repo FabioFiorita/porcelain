@@ -147,6 +147,14 @@ export async function walkthroughConversationsFixture(
               message: 'The update writer stopped.',
             },
           };
+    const at = '2026-11-12T12:00:00.000Z';
+    const progress: NonNullable<WalkthroughRun['progress']> = [
+      {
+        stage: 'writing',
+        at,
+        message: 'Codex is writing the updated walkthrough.',
+      },
+    ];
     seedStoredWalkthroughs(
       join(session.projectHome, session.fixture.folders.state),
       {
@@ -155,6 +163,13 @@ export async function walkthroughConversationsFixture(
             run: {
               ...run,
               id: 'update-attempt',
+              progress:
+                state.status === 'failed'
+                  ? [
+                      ...progress,
+                      { stage: 'failed', at, message: state.failure.message },
+                    ]
+                  : progress,
               writer: {
                 provider: 'codex',
                 model: 'gpt-6.1-sol',
