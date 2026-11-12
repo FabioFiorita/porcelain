@@ -147,7 +147,7 @@ export function ReviewWorkspace({
   } = useTabLayoutStore(worktree.id);
   const overview = useReviewOverview(scope, context.connection);
   const branchChanges = useBranchChanges(
-    scope,
+    firstDocument.guided && search.scope === undefined ? scope : undefined,
     context.connection,
     search.base,
   ).result;

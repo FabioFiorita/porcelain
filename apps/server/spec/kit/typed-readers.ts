@@ -69,6 +69,13 @@ export function serverReaders(transport: ServerTransport) {
   };
   const hits = transport.hits;
   return {
+    branchChangeHits: async () =>
+      (await hits()).filter(
+        (hit) =>
+          !hit.kit &&
+          hit.method === 'GET' &&
+          hit.route === '/api/worktrees/:worktreeId/branch-changes',
+      ),
     liveTicketHits: async () =>
       (await hits()).filter(
         (hit) =>

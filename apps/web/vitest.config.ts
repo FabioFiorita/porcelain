@@ -8,7 +8,14 @@ import { BrowserShardSequencer } from './spec/kit/browser-shards.ts';
 export default defineConfig({
   ...web,
   root: import.meta.dirname,
-  optimizeDeps: { include: ['@base-ui/react/select', '@base-ui/react/avatar'] },
+  optimizeDeps: {
+    include: [
+      '@base-ui/react/select',
+      '@base-ui/react/avatar',
+      '@pierre/diffs/worker',
+      '@pierre/diffs/worker/worker.js',
+    ],
+  },
   server: { ...web.server, proxy: serverProxy },
   test: {
     name: 'integration',

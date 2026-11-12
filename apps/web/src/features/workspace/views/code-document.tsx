@@ -9,7 +9,7 @@ import type {
   CodeViewLineSelection,
 } from '@pierre/diffs';
 import { DEFAULT_VIRTUAL_FILE_METRICS } from '@pierre/diffs';
-import { CodeView, type CodeViewReactOptions } from '@pierre/diffs/react';
+import type { CodeViewReactOptions } from '@pierre/diffs/react';
 import { useHotkey } from '@tanstack/react-hotkeys';
 import {
   Tooltip,
@@ -46,6 +46,7 @@ import {
   useTheme,
 } from '@/features/preferences/index';
 import { fileChangeBars } from '../adapters/file-changes';
+import { PierreCodeView as CodeView } from '../adapters/pierre-workers';
 import {
   type CodeEntry,
   codeTarget,
@@ -506,7 +507,7 @@ function CodeSurface({
               </div>
             );
           }}
-          disableWorkerPool={decision || column || compactThreads || framed}
+          review={decision || column || compactThreads || framed}
           options={options}
           className={cn(
             compactHeight && 'max-h-48 flex-none overflow-auto',
