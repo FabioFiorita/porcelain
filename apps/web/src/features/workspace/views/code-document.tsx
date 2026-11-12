@@ -286,7 +286,7 @@ function CodeSurface({
   const collapseControl = entries.length > 1 ? collapseButton : null;
   const paneFile =
     interaction.toolbarTarget !== undefined &&
-    (/^(file|review-file|review-change|change|branch|walkthrough-step):/.test(
+    (/^(file|review-file|review-change|change|branch):/.test(
       interaction.entry,
     ) ||
       (interaction.singleHeader && interaction.entry === 'branch'));
@@ -345,6 +345,7 @@ function CodeSurface({
         createPortal(paneActions, interaction.toolbarTarget)}
       {interaction.active && entries.length > 0 && (
         <CodeShortcuts
+          reviewEnabled={!interaction.entry.startsWith('walkthrough-step:')}
           next={() => focusEntry(Math.min(focused + 1, entries.length - 1))}
           previous={() => focusEntry(Math.max(focused - 1, 0))}
           review={() => {
@@ -570,10 +571,12 @@ const COLUMN_GUTTERS =
   'px-[max(--spacing(4),calc((100%-var(--container-reading))/2))] @2xl/pane:px-[max(--spacing(7),calc((100%-var(--container-reading))/2))]';
 
 function CodeShortcuts({
+  reviewEnabled,
   next,
   previous,
   review,
 }: {
+  reviewEnabled: boolean;
   next: () => void;
   previous: () => void;
   review: () => void;
@@ -581,7 +584,11 @@ function CodeShortcuts({
   const options = { ignoreInputs: true };
   useHotkey(SHORTCUTS.nextFile, next, options);
   useHotkey(SHORTCUTS.previousFile, previous, options);
-  useHotkey(SHORTCUTS.toggleReviewed, review, options);
+  return reviewEnabled ? <FileReviewShortcut review={review} /> : null;
+}
+
+function FileReviewShortcut({ review }: { review: () => void }) {
+  useHotkey(SHORTCUTS.toggleReviewed, review, { ignoreInputs: true });
   return null;
 }
 

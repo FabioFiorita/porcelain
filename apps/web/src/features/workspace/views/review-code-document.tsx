@@ -165,7 +165,7 @@ export function ReviewCodeDocument({
   const renderedPaths = new Set(entries.map((entry) => entry.path));
   const paneFile =
     interaction.toolbarTarget !== undefined &&
-    /^(file|change|branch|walkthrough-step):/.test(interaction.entry);
+    /^(file|change|branch):/.test(interaction.entry);
   const omittedFile =
     paneFile && entries.length === 0 && items.length === 1
       ? unrenderable[0]?.item

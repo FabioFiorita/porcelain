@@ -1,3 +1,15 @@
+import { createPortal } from 'react-dom';
+import { useHotkey } from '@tanstack/react-hotkeys';
+import { BarAction } from '@/shared/workspace/bar-action';
+import { SHORTCUTS } from '@/shared/workspace/shortcuts';
+import type { DocumentInteraction } from '../rules/documents';
+import { useReviewedMarks } from '../queries/reviewed';
+import {
+  mergeBranchChanges,
+  mergeReviewChanges,
+  type BranchFile,
+  type ChangeList,
+} from '@porcelain/client/changes/rules';
 import { useId } from 'react';
 import { TruncatedText } from '@/shared/views/truncated-text';
 import {
@@ -7,6 +19,7 @@ import {
 } from '@/components/ui/tooltip';
 import { reviewedCommandFailure } from '@porcelain/client/changes';
 import { Cause } from 'effect';
+import { toast } from '@/components/ui/toast';
 import { AsyncResult } from 'effect/reactivity';
 import {
   CheckIcon,
@@ -20,6 +33,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/shared/lib/utils';
 import {
   useMarkAllReviewed,
+  useToggleStepReviewed,
   useMarkReviewed,
   useUnmarkReviewed,
 } from '../commands/reviewed';
@@ -205,6 +219,70 @@ export function ReviewedCheckbox({
       )}
     </>
   );
+}
+
+export function StepReviewed({
+  scope,
+  context,
+  interaction,
+  branchFiles,
+  changes,
+  committed,
+  dirty,
+  range,
+}: {
+  scope: ReviewScope;
+  context: ConnectionContext;
+  interaction: DocumentInteraction;
+  branchFiles: readonly BranchFile[];
+  changes: ChangeList;
+  committed: readonly string[];
+  dirty: readonly string[];
+  range: ReviewRange;
+}) {
+  const branch = mergeBranchChanges(
+    branchFiles,
+    useReviewedMarks(scope, context, range),
+    committed,
+  );
+  const worktree = mergeReviewChanges(
+    changes,
+    useReviewedMarks(scope, context),
+    dirty,
+  );
+  const { reviewed, disabled, toggle } = useToggleStepReviewed(
+    scope,
+    context,
+    range,
+    branch,
+    worktree,
+    (notice) => toast.add(notice),
+  );
+
+  if (!interaction.toolbarTarget) return null;
+  return createPortal(
+    <>
+      {interaction.active && <StepReviewShortcut toggle={toggle} />}
+      <BarAction
+        label="Reviewed"
+        description={
+          reviewed ? 'Mark this step unreviewed' : 'Mark this step reviewed'
+        }
+        variant="outline"
+        icon={CheckIcon}
+        shortcut={SHORTCUTS.toggleReviewed}
+        pressed={reviewed}
+        disabled={disabled}
+        onClick={toggle}
+      />
+    </>,
+    interaction.toolbarTarget,
+  );
+}
+
+function StepReviewShortcut({ toggle }: { toggle: () => void }) {
+  useHotkey(SHORTCUTS.toggleReviewed, toggle, { ignoreInputs: true });
+  return null;
 }
 
 export function MarkAllReviewed({
