@@ -287,22 +287,9 @@ export function WalkthroughConversation({
   call,
 }: Props & { title: string; call: boolean }) {
   const { view, failed, refresh } = useConversations(owner);
-  const [asking, setAsking] = useState(false);
   const conversations = stopConversations(view, title);
-  const visible =
-    call || asking || conversations.some((item) => item.messages.length > 0);
   return (
     <div className="flex flex-col gap-3">
-      {!call && (
-        <Button
-          variant="link"
-          size="sm"
-          className="self-start"
-          onClick={() => setAsking(!asking)}
-        >
-          Ask about this
-        </Button>
-      )}
       {failed && (
         <p role="alert" className="text-caption">
           Comments could not be read.{' '}
@@ -311,31 +298,25 @@ export function WalkthroughConversation({
           </Button>
         </p>
       )}
-      {visible && (
-        <>
-          {conversations.length > 0 && (
-            <div className="border-t pt-3">
-              <MessageGroup>
-                {conversations.map((conversation) => (
-                  <Messages
-                    key={conversation.runId}
-                    owner={owner}
-                    conversation={conversation}
-                    number={view?.pullRequestNumber}
-                  />
-                ))}
-              </MessageGroup>
-            </div>
-          )}
-          <Composer
-            owner={owner}
-            anchor={{ kind: 'stop', title }}
-            placeholder={
-              call ? 'Decide, or ask about this' : 'Ask about this step'
-            }
-          />
-        </>
+      {conversations.length > 0 && (
+        <div className="border-t pt-3">
+          <MessageGroup>
+            {conversations.map((conversation) => (
+              <Messages
+                key={conversation.runId}
+                owner={owner}
+                conversation={conversation}
+                number={view?.pullRequestNumber}
+              />
+            ))}
+          </MessageGroup>
+        </div>
       )}
+      <Composer
+        owner={owner}
+        anchor={{ kind: 'stop', title }}
+        placeholder={call ? 'Decide, or ask about this' : 'Ask about this step'}
+      />
     </div>
   );
 }

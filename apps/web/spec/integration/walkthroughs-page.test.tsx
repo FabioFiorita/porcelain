@@ -95,8 +95,31 @@ test('a developer writes a walkthrough, watches it run, reads the step and opens
     .toBeVisible();
 
   await page
+    .getByRole('button', {
+      name: 'Open code for step 2 in split view',
+      exact: true,
+    })
+    .click();
+  const left = page.getByRole('region', { name: 'Left pane', exact: true });
+  const right = page.getByRole('region', { name: 'Right pane', exact: true });
+  await expect
+    .element(left.getByRole('heading', { name: /^Teach the sample/ }))
+    .toBeVisible();
+  await expect
+    .element(right.getByRole('heading', { name: /^Step 2 of 3: / }))
+    .toBeVisible();
+  await right
+    .getByRole('tab', { name: 'Step 2', exact: true })
+    .click({ button: 'right' });
+  await page.getByRole('menuitem', { name: 'Close pane', exact: true }).click();
+  await expect.element(right).not.toBeInTheDocument();
+
+  await page
     .getByRole('button', { name: 'See the code for step 1', exact: true })
     .click();
+  await expect
+    .element(page.getByRole('region', { name: 'Right pane', exact: true }))
+    .not.toBeInTheDocument();
   await expect
     .element(page.getByRole('tab', { name: 'Step 1', exact: true }))
     .toBeVisible();

@@ -176,7 +176,6 @@ export function DocumentTabs({
   pinned,
   active,
   side,
-  focused,
   leading,
   trailing,
   commitContext,
@@ -187,7 +186,6 @@ export function DocumentTabs({
   pinned: readonly string[];
   active: string | null;
   side: 'left' | 'right' | null;
-  focused: boolean;
   leading?: ReactNode;
   trailing?: ReactNode;
   commitContext?: { connection: Connection; scope: HistoryScope };
@@ -198,7 +196,6 @@ export function DocumentTabs({
       className={cn(
         'flex h-12 shrink-0 items-center gap-1.5 border-b px-2.5 text-[length:var(--text-ui)] leading-[1.4]',
         side !== null && side !== undefined && 'gap-2',
-        side !== null && side !== undefined && focused && 'bg-muted/40',
       )}
     >
       {leading !== null && leading !== undefined && (

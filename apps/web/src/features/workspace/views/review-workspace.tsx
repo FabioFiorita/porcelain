@@ -679,7 +679,6 @@ function PaneView({
         active={shownEntry}
 
         side={paneSide(split, index)}
-        focused={focused}
         {...paneTabActions(layout, index)}
         trailing={
           <>
