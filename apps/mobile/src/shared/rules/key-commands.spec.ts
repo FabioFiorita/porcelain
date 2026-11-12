@@ -55,24 +55,6 @@ it('runs the handler of the pressed live shortcut only', () => {
   expect(log.pressed).toEqual(['next row']);
 });
 
-it('keeps a plain key in a text field when its command asks to', () => {
-  expect(
-    nativeKeyCommand({
-      binding: 'backEscape',
-      title: 'End Search',
-      whileTyping: true,
-      run: () => undefined,
-    }),
-  ).toEqual({
-    id: 'backEscape',
-    title: 'End Search',
-    group: 'Go',
-    input: 'escape',
-    modifiers: [],
-    whileTyping: true,
-  });
-});
-
 it('tells the native menu which shortcuts still fire inside a text field', () => {
   expect(nativeKeyCommand({ binding: 'search', run: () => undefined })).toEqual(
     {

@@ -7,7 +7,6 @@ export type KeyOwner =
   | 'worktree-sections'
   | 'list-cursor'
   | 'list-away'
-  | 'worktree-search'
   | `document:${string}`;
 
 export const keyRegistrations = Atom.make<
