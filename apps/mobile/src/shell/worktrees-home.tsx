@@ -25,6 +25,7 @@ import { WalkthroughGuide } from '../features/walkthroughs';
 import { headerIcon } from '../shared/icons/header-icon';
 import {
   closedListDrawer,
+  listActionEffect,
   listDrawer,
   worktreeList,
   type ListAction,
@@ -84,18 +85,14 @@ export function WorktreesHome() {
     query: search.query,
   });
   const act = (action: ListAction) => {
-    switch (action) {
-      case 'open':
-        return send('show');
-      case 'close':
-        searchBarRef.current?.cancelSearch();
-        search.setQuery('');
-        return send('close');
-      case 'hide':
-        return setHidden(true);
-      case 'unhide':
-        return setHidden(false);
+    const effect = listActionEffect(action);
+    if (effect.endSearch) {
+      searchBarRef.current?.cancelSearch();
+      search.setQuery('');
     }
+    if (effect.drawer) send(effect.drawer);
+    if (effect.hiddenInLandscape !== undefined)
+      setHidden(effect.hiddenInLandscape);
   };
   const close = () => {
     if (view.closing === 'close') act('close');

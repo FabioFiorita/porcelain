@@ -1,12 +1,15 @@
 import { expect, it } from 'vitest';
 import {
   closedListDrawer,
+  listActionEffect,
   listDrawer,
   listDetailMode,
   layoutMove,
   listDetailModeChange,
   movesWithLayout,
   worktreeList,
+  type ListAction,
+  type ListDrawer,
   type ListDrawerEvent,
 } from './list-detail';
 
@@ -379,3 +382,152 @@ it.each([
     ).toEqual({ place, closing, toggle });
   },
 );
+
+type Situation = Parameters<typeof worktreeList>[0];
+
+const pressed = (situation: Situation, action: ListAction): Situation => {
+  const effect = listActionEffect(action);
+  return {
+    ...situation,
+    drawer: effect.drawer
+      ? listDrawer(situation.drawer, effect.drawer)
+      : situation.drawer,
+    query: effect.endSearch ? '' : situation.query,
+    hiddenInLandscape: effect.hiddenInLandscape ?? situation.hiddenInLandscape,
+  };
+};
+
+const drawerAfter = (events: readonly ListDrawerEvent[]): ListDrawer =>
+  events.reduce(listDrawer, closedListDrawer);
+
+const shownTablet = { layout: 'beside', selected: true } as const;
+
+it.each([
+  {
+    situation: {
+      portrait: false,
+      hiddenInLandscape: false,
+      events: [],
+      query: 'mai',
+    },
+    via: 'Hide worktrees',
+    why: 'Hide worktrees in landscape ends a typed search and hides the list in one press',
+  },
+  {
+    situation: {
+      portrait: false,
+      hiddenInLandscape: false,
+      events: ['searchFocus'],
+      query: '',
+    },
+    via: 'Hide worktrees',
+    why: 'Hide worktrees in landscape ends a focused search and hides the list in one press',
+  },
+  {
+    situation: {
+      portrait: false,
+      hiddenInLandscape: false,
+      events: [],
+      query: '',
+    },
+    via: 'Hide worktrees',
+    why: 'Hide worktrees in landscape hides a browsed list',
+  },
+  {
+    situation: {
+      portrait: false,
+      hiddenInLandscape: true,
+      events: [],
+      query: 'mai',
+    },
+    via: 'Hide worktrees',
+    why: 'Hide worktrees on a list a search kept in landscape ends the search and hides it',
+  },
+  {
+    situation: {
+      portrait: true,
+      hiddenInLandscape: false,
+      events: ['show'],
+      query: '',
+    },
+    via: 'Hide worktrees',
+    why: 'Hide worktrees in portrait slides a browsed list away',
+  },
+  {
+    situation: {
+      portrait: true,
+      hiddenInLandscape: false,
+      events: ['searchFocus', 'searchBlur'],
+      query: 'mai',
+    },
+    via: 'Hide worktrees',
+    why: 'Hide worktrees in portrait ends a typed search and slides the list away',
+  },
+  {
+    situation: {
+      portrait: true,
+      hiddenInLandscape: true,
+      events: ['show', 'searchFocus'],
+      query: 'mai',
+    },
+    via: 'a row, a destination, the dimmed page or Back',
+    why: 'any other close in portrait ends the search and slides the list away',
+  },
+  {
+    situation: {
+      portrait: true,
+      hiddenInLandscape: false,
+      events: ['searchFocus'],
+      query: '',
+    },
+    via: 'a row, a destination, the dimmed page or Back',
+    why: 'any other close in portrait ends a focused search',
+  },
+] as const satisfies readonly {
+  situation: {
+    portrait: boolean;
+    hiddenInLandscape: boolean;
+    events: readonly ListDrawerEvent[];
+    query: string;
+  };
+  via: 'Hide worktrees' | 'a row, a destination, the dimmed page or Back';
+  why: string;
+}[])('$why', ({ situation: { events, ...rest }, via }) => {
+  const before: Situation = {
+    ...shownTablet,
+    ...rest,
+    drawer: drawerAfter(events),
+  };
+  const view = worktreeList(before);
+  expect(view.place).not.toBe('away');
+  const action =
+    via === 'Hide worktrees'
+      ? view.toggle?.label === 'hide'
+        ? view.toggle.press
+        : undefined
+      : view.closing === 'close'
+        ? 'close'
+        : undefined;
+  expect(action).toBeDefined();
+  const after = pressed(before, action ?? 'open');
+  expect(worktreeList(after).place).toBe('away');
+  expect(after.query).toBe('');
+  expect(after.drawer.focused).toBe(false);
+});
+
+it('Show worktrees after hiding in landscape brings the list back unfiltered', () => {
+  const searching: Situation = {
+    ...shownTablet,
+    portrait: false,
+    hiddenInLandscape: false,
+    drawer: drawerAfter(['searchFocus']),
+    query: 'mai',
+  };
+  const hidden = pressed(
+    searching,
+    worktreeList(searching).toggle?.press ?? 'open',
+  );
+  const shown = pressed(hidden, worktreeList(hidden).toggle?.press ?? 'close');
+  expect(worktreeList(shown).place).toBe('beside');
+  expect(shown.query).toBe('');
+});

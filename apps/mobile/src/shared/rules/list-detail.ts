@@ -104,6 +104,25 @@ export function listDrawer(
 
 export type ListAction = 'open' | 'close' | 'hide' | 'unhide';
 
+export type ListActionEffect = {
+  endSearch: boolean;
+  drawer: ListDrawerEvent | undefined;
+  hiddenInLandscape: boolean | undefined;
+};
+
+export function listActionEffect(action: ListAction): ListActionEffect {
+  switch (action) {
+    case 'open':
+      return { endSearch: false, drawer: 'show', hiddenInLandscape: undefined };
+    case 'close':
+      return { endSearch: true, drawer: 'close', hiddenInLandscape: undefined };
+    case 'hide':
+      return { endSearch: true, drawer: 'close', hiddenInLandscape: true };
+    case 'unhide':
+      return { endSearch: false, drawer: undefined, hiddenInLandscape: false };
+  }
+}
+
 export type WorktreeListView = {
   place: ListPlace;
   closing: 'close' | 'none';
