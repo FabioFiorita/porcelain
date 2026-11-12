@@ -30,6 +30,7 @@ Each map has one short behavior paragraph, then three sections: How to get to it
 
 ## Features
 
+- [access.demo](access.demo.md) — Explore the bundled sample project without pairing or a server.
 - [access.computer](access.computer.md) — A saved computer's page: ways in, devices and pairing guidance.
 - [access.computers](access.computers.md) — Computer management, trust and batch updates.
 - [access.connections](access.connections.md) — Connection preference, fallback and removal.

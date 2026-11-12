@@ -18,6 +18,7 @@ import { usePreferences } from '../../preferences';
 import { useServiceUpdates } from '../queries/service-updates';
 import { useEnvironments, useEnvironmentStorageStatus } from '../store';
 import { SettingsAbout } from './settings-about';
+import { DemoControls } from './demo-controls';
 
 const DevelopmentSettingsSection = __DEV__
   ? lazy(() => import('./development-settings'))
@@ -127,6 +128,7 @@ export function SettingsScreen({
             Pair a computer, check its connection or update it here.
           </Text>
         </Box>
+        <DemoControls />
         {__DEV__ ? (
           <Suspense fallback={null}>
             <DevelopmentSettingsSection
