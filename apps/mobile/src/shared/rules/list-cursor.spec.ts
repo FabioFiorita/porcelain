@@ -1,5 +1,11 @@
 import { expect, it } from 'vitest';
-import { activeList, moveCursor, nextList, treeStep } from './list-cursor';
+import {
+  activeList,
+  listsOwnTab,
+  moveCursor,
+  nextList,
+  treeStep,
+} from './list-cursor';
 
 const rows = [{ key: 'a' }, { key: 'b' }, { key: 'c' }];
 
@@ -145,4 +151,33 @@ it('lets the list the developer last chose take the keys while it is on screen',
 it('moves to the next list on screen and wraps around', () => {
   expect(nextList(['worktrees', 'files'], 'worktrees')).toBe('files');
   expect(nextList(['worktrees', 'files'], undefined)).toBe('worktrees');
+});
+
+it.each([
+  {
+    lists: ['worktrees', 'files'],
+    away: false,
+    owned: true,
+    why: 'two lists on screen take Tab to move between them',
+  },
+  {
+    lists: ['files'],
+    away: true,
+    owned: true,
+    why: 'a list slid away keeps Tab on the page so it cannot reach the hidden search',
+  },
+  {
+    lists: ['files'],
+    away: false,
+    owned: false,
+    why: 'a single list with nothing slid away leaves Tab to the system',
+  },
+  {
+    lists: [],
+    away: true,
+    owned: false,
+    why: 'with no list taking keys Tab stays with the system',
+  },
+] as const)('$why', ({ lists, away, owned }) => {
+  expect(listsOwnTab(lists, away)).toBe(owned);
 });

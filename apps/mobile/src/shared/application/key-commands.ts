@@ -9,8 +9,10 @@ import {
   keyLists,
   keyRegistration,
   keyRegistrations,
+  listAway,
   listOver,
   listPresence,
+  tabOwned,
   type KeyOwner,
 } from './key-registry';
 import {
@@ -120,7 +122,9 @@ export function useListCursor({
   const focused = useIsFocused();
   useAtomMount(focused && !hidden ? listPresence(owner) : absentList);
   useAtomMount(focused && !hidden && over ? listOver(owner) : absentList);
+  useAtomMount(focused && hidden ? listAway(owner) : absentList);
   const present = useAtomValue(keyLists);
+  const ownsTab = useAtomValue(tabOwned);
   const active = useAtomValue(focusedList) === owner;
   const choose = useAtomSet(chosenList);
   const [highlighted, setHighlighted] = useState<string>();
@@ -152,7 +156,7 @@ export function useListCursor({
               ]
             : []),
           ...(onSearch ? [{ binding: 'search' as const, run: onSearch }] : []),
-          ...(present.length > 1
+          ...(ownsTab
             ? [
                 {
                   binding: 'nextList' as const,

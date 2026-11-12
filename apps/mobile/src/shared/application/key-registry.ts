@@ -1,6 +1,6 @@
 import { Atom } from 'effect/reactivity';
 import type { KeyCommand } from '../rules/key-commands';
-import { activeList, keyedLists } from '../rules/list-cursor';
+import { activeList, keyedLists, listsOwnTab } from '../rules/list-cursor';
 
 export type KeyOwner =
   | 'app'
@@ -37,10 +37,34 @@ export const chosenList = Atom.make<string | undefined>(undefined).pipe(
   Atom.keepAlive,
 );
 
-const overList = Atom.make<string | undefined>(undefined).pipe(Atom.keepAlive);
+function listSlot() {
+  const slot = Atom.make<string | undefined>(undefined).pipe(Atom.keepAlive);
+  const claim = Atom.family((owner: string) =>
+    Atom.make((get) => {
+      get.set(slot, owner);
+      const registry = get.registry;
+      get.addFinalizer(() => {
+        if (registry.get(slot) === owner) registry.set(slot, undefined);
+      });
+    }).pipe(Atom.setIdleTTL(0)),
+  );
+  return { slot, claim };
+}
+
+const over = listSlot();
+
+const away = listSlot();
+
+export const listOver = over.claim;
+
+export const listAway = away.claim;
 
 export const keyLists = Atom.make((get) =>
-  keyedLists(get(lists), get(overList)),
+  keyedLists(get(lists), get(over.slot)),
+);
+
+export const tabOwned = Atom.make((get) =>
+  listsOwnTab(get(keyLists), get(away.slot) !== undefined),
 );
 
 export const focusedList = Atom.make((get) =>
@@ -48,16 +72,6 @@ export const focusedList = Atom.make((get) =>
 );
 
 export const absentList = Atom.make(undefined);
-
-export const listOver = Atom.family((owner: string) =>
-  Atom.make((get) => {
-    get.set(overList, owner);
-    const registry = get.registry;
-    get.addFinalizer(() => {
-      if (registry.get(overList) === owner) registry.set(overList, undefined);
-    });
-  }).pipe(Atom.setIdleTTL(0)),
-);
 
 export const listPresence = Atom.family((owner: string) =>
   Atom.make((get) => {

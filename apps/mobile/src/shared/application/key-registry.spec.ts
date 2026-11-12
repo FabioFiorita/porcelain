@@ -7,9 +7,11 @@ import {
   keyLists,
   keyRegistration,
   keyRegistrations,
+  listAway,
   listOver,
   listPresence,
   lists,
+  tabOwned,
 } from './key-registry';
 import { nextList } from '../rules/list-cursor';
 
@@ -104,4 +106,19 @@ test('a list that stops covering the page shares the keys again', () => {
   flush();
   expect(registry.get(keyLists)).toEqual(['files', 'worktrees']);
   expect(nextList(registry.get(keyLists), 'worktrees')).toBe('files');
+});
+
+test('a list slid away leaves the page its keys and Tab', () => {
+  const { registry, flush } = scheduledRegistry(appIdleTTL);
+  registry.mount(focusedList);
+  registry.mount(tabOwned);
+  registry.mount(listPresence('files'));
+  const leaveAway = registry.mount(listAway('worktrees'));
+  expect(registry.get(keyLists)).toEqual(['files']);
+  expect(registry.get(focusedList)).toBe('files');
+  expect(registry.get(tabOwned)).toBe(true);
+  expect(nextList(registry.get(keyLists), 'files')).toBe('files');
+  leaveAway();
+  flush();
+  expect(registry.get(tabOwned)).toBe(false);
 });
