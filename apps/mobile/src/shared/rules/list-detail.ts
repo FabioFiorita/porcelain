@@ -71,7 +71,7 @@ export function layoutMove({
     : { kind: 'none' };
 }
 
-export type ListPlace = 'beside' | 'over' | 'away' | 'hidden';
+export type ListPlace = 'beside' | 'over' | 'away';
 
 export type ListDrawer = { open: boolean; focused: boolean };
 
@@ -159,7 +159,7 @@ export function worktreeList({
         toggle: { label: 'hide', press: 'close' },
       }
     : {
-        place: 'hidden',
+        place: 'away',
         closing: 'none',
         toggle: { label: 'show', press: 'unhide' },
       };

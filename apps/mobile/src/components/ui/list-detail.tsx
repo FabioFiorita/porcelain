@@ -133,7 +133,7 @@ export function ListDetail({
   const focused = useIsFocused();
   const { mode, onLayout } = layout ?? own;
   const beside = mode === 'beside';
-  const sliding = beside && (place === 'over' || place === 'away');
+  const sliding = beside && place !== 'beside';
   const over = beside && place === 'over';
   useAtomMount(
     over && focused && onDismiss ? dismissOnBack(onDismiss) : keepBack,
@@ -152,7 +152,7 @@ export function ListDetail({
     () => ({ opacity: withTiming(over ? 1 : 0) }),
     [over],
   );
-  const showList = beside ? place !== 'hidden' : collapse === 'list';
+  const showList = beside || collapse === 'list';
   const showDetail = beside || collapse === 'detail';
   const shown = !sliding || over;
   const listPlace = beside ? place : 'beside';

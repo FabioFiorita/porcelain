@@ -252,7 +252,7 @@ it.each([
   },
   {
     situation: { ...tablet, portrait: false, hiddenInLandscape: true },
-    place: 'hidden',
+    place: 'away',
     closing: 'none',
     toggle: { label: 'show', press: 'unhide' },
     why: 'landscape honours the saved hide preference',

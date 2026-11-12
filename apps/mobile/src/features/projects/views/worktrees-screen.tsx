@@ -34,7 +34,7 @@ export function WorktreesScreen({
   const remember = useAtomSet(openedWorktree);
   return (
     <WorktreeNavigator
-      hidden={presentation === 'away' || presentation === 'hidden'}
+      hidden={presentation === 'away'}
       over={presentation === 'over'}
       onSearchFocusChange={onSearchFocusChange}
       searchBarRef={searchBarRef}
