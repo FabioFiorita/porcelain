@@ -67,25 +67,39 @@ describe('environment status', () => {
     [
       'another environment',
       { ...environment, environmentId: 'another-environment' },
+      'other-server',
     ],
     [
       'a newer protocol',
       { ...environment, protocol: ENVIRONMENT_PROTOCOL + 1 },
+      'incompatible',
     ],
     [
       'an older protocol',
       { ...environment, protocol: ENVIRONMENT_PROTOCOL - 1 },
+      'incompatible',
+    ],
+    [
+      'the protocol 3 boolean-walkthrough server',
+      { ...environment, protocol: 3 },
+      'incompatible',
     ],
   ])(
     'returns the descriptor of %s without an authenticated read',
-    async (_, descriptor) => {
+    async (_, descriptor, kind) => {
       const paths: string[] = [];
+      const answer = await status((path) => {
+        paths.push(path);
+        return Promise.resolve(
+          Response.json(
+            path === '/api/environment' ? descriptor : { kind: 'owner' },
+          ),
+        );
+      });
+      expect(answer).toEqual({ kind: 'described', environment: descriptor });
       expect(
-        await status((path) => {
-          paths.push(path);
-          return Promise.resolve(Response.json(descriptor));
-        }),
-      ).toEqual({ kind: 'described', environment: descriptor });
+        remoteStatusResult(environment, AsyncResult.success(answer)),
+      ).toEqual({ kind });
       expect(paths).toEqual(['/api/environment']);
     },
   );

@@ -20,7 +20,7 @@ async function known(session: Session) {
   };
 }
 
-test('anyone asks which environment the server is without a credential', async ({
+test('anyone can identify the freshness-aware protocol without a credential', async ({
   session,
 }) => {
   const before = await known(session);
@@ -43,7 +43,7 @@ test('anyone asks which environment the server is without a credential', async (
     environmentId: before.environmentId,
     name: before.name,
     version: before.version,
-    protocol: ENVIRONMENT_PROTOCOL,
+    protocol: 4,
   });
 });
 
