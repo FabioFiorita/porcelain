@@ -88,7 +88,7 @@ export function listPresentation({
   return hidden ? 'hidden' : 'beside';
 }
 
-export type ListDrawer = { open: boolean; searching: boolean };
+export type ListDrawer = { open: boolean; focused: boolean };
 
 export type ListDrawerEvent =
   | 'show'
@@ -97,7 +97,7 @@ export type ListDrawerEvent =
   | 'searchBlur'
   | 'rotate';
 
-export const closedListDrawer: ListDrawer = { open: false, searching: false };
+export const closedListDrawer: ListDrawer = { open: false, focused: false };
 
 export function listDrawer(
   drawer: ListDrawer,
@@ -107,12 +107,16 @@ export function listDrawer(
     case 'show':
       return { ...drawer, open: true };
     case 'close':
-      return { ...drawer, open: false };
+      return closedListDrawer;
     case 'searchFocus':
-      return { open: true, searching: true };
+      return { ...drawer, focused: true };
     case 'searchBlur':
-      return { ...drawer, searching: false };
+      return { ...drawer, focused: false };
     case 'rotate':
-      return { ...drawer, open: drawer.searching };
+      return { ...drawer, open: false };
   }
+}
+
+export function listDrawerShown(drawer: ListDrawer, query: string) {
+  return drawer.open || drawer.focused || query !== '';
 }

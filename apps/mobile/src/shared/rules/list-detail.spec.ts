@@ -2,6 +2,7 @@ import { expect, it } from 'vitest';
 import {
   closedListDrawer,
   listDrawer,
+  listDrawerShown,
   listPresentation,
   listDetailMode,
   layoutMove,
@@ -247,38 +248,53 @@ it.each([
 it.each([
   {
     events: ['searchFocus', 'rotate'],
-    open: true,
+    query: 'mai',
+    shown: true,
     why: 'rotating while typing a search keeps its results on screen',
   },
   {
-    events: ['show', 'searchFocus', 'rotate', 'rotate'],
-    open: true,
-    why: 'turning back keeps the search and its list open',
+    events: ['searchFocus', 'searchBlur', 'rotate'],
+    query: 'mai',
+    shown: true,
+    why: 'a query left after the keyboard went away keeps the list through rotation',
+  },
+  {
+    events: ['searchFocus', 'rotate', 'rotate'],
+    query: '',
+    shown: true,
+    why: 'a focused search keeps the list open in both directions',
   },
   {
     events: ['show', 'rotate'],
-    open: false,
+    query: '',
+    shown: false,
     why: 'rotating closes a list that is only being browsed',
   },
   {
     events: ['searchFocus', 'searchBlur', 'rotate'],
-    open: false,
-    why: 'a search that lost focus no longer holds the list open',
+    query: '',
+    shown: false,
+    why: 'a search that was left empty no longer holds the list open',
   },
   {
-    events: ['searchFocus', 'close', 'searchBlur', 'rotate'],
-    open: false,
-    why: 'a closed list stays closed once its search ends',
+    events: ['show', 'searchFocus', 'close'],
+    query: '',
+    shown: false,
+    why: 'closing the list ends its search',
   },
   {
-    events: ['searchFocus', 'close', 'rotate'],
-    open: true,
-    why: 'a search still focused after the list closed brings it back on rotation',
+    events: ['show'],
+    query: '',
+    shown: true,
+    why: 'Show worktrees opens the list',
   },
 ] as const satisfies readonly {
   events: readonly ListDrawerEvent[];
-  open: boolean;
+  query: string;
+  shown: boolean;
   why: string;
-}[])('$why', ({ events, open }) => {
-  expect(events.reduce(listDrawer, closedListDrawer).open).toBe(open);
+}[])('$why', ({ events, query, shown }) => {
+  expect(
+    listDrawerShown(events.reduce(listDrawer, closedListDrawer), query),
+  ).toBe(shown);
 });

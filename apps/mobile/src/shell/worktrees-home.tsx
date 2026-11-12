@@ -17,6 +17,7 @@ import {
   WorktreesScreen,
   useSelectedWorkspaceKey,
   useSelectedWorktree,
+  useWorktreeNavigator,
   worktreeListHidden,
   worktreeSection,
 } from '../features/projects';
@@ -25,6 +26,7 @@ import { headerIcon } from '../shared/icons/header-icon';
 import {
   closedListDrawer,
   listDrawer,
+  listDrawerShown,
   type ListDrawerEvent,
 } from '../shared/rules/list-detail';
 
@@ -60,12 +62,15 @@ export function WorktreesHome() {
     () => (event: ListDrawerEvent) =>
       setDrawer((current) => listDrawer(current, event)),
   );
-  const { open } = drawer;
+  const search = useWorktreeNavigator();
+  const open = listDrawerShown(drawer, search.query);
   const [searchBarRef] = useState(() => ({
     current: null as SearchBarCommands | null,
   }));
   const close = () => {
-    if (portrait) searchBarRef.current?.cancelSearch();
+    if (!portrait) return;
+    searchBarRef.current?.cancelSearch();
+    search.setQuery('');
     send('close');
   };
   const [searchFocusChange] = useState(
