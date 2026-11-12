@@ -28,6 +28,8 @@ Each map has one short behavior paragraph, then three sections: How to get to it
 
 ## Features
 
+- [app.images](app.images.md) — HTTPS images in PR descriptions and Markdown.
+
 - [access.remote-credentials](access.remote-credentials.md) — Encrypted credentials, unreadable storage and summaries.
 - [app.menus](app.menus.md) — Settings, project, zoom and full-screen menus.
 - [app.update](app.update.md) — App update checks, download, installation and refusal.
