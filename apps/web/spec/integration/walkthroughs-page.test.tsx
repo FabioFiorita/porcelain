@@ -611,6 +611,7 @@ for (const state of ['uncommitted', 'mixed', 'committed'] as const) {
     if (state === 'mixed') {
       await repo.write('README.md', '# Sample repository\n\nLater edit\n');
       await repo.write('alpha.md', 'Later alpha edit\n');
+      await repo.write('zebra.md', 'Later change in another step\n');
     }
     await codingTool.install();
     await repo.write(SCENARIO, 'grouped');
@@ -630,13 +631,35 @@ for (const state of ['uncommitted', 'mixed', 'committed'] as const) {
       (await server.reviewedFiles(branch)).marks
         .map((mark) => mark.path)
         .toSorted();
+    for (const entry of [
+      ...(state !== 'uncommitted' ? ['branch:zebra.md'] : []),
+      ...(state !== 'committed' ? ['change:zebra.md'] : []),
+    ]) {
+      await app.navigate(
+        `${app.location().split('?')[0]}?base=refs%2Fheads%2Freview-base&entry=${entry}`,
+      );
+      await expect.element(reviewed).toHaveAttribute('aria-pressed', 'false');
+      await reviewed.click();
+      await expect
+        .poll(() =>
+          marks(
+            entry.startsWith('branch:')
+              ? 'refs/heads/review-feature'
+              : undefined,
+          ),
+        )
+        .toEqual(['zebra.md']);
+    }
+    await page.getByRole('tab', { name: 'Step 1', exact: true }).click();
     await reviewed.click();
     if (state !== 'uncommitted')
       await expect
         .poll(() => marks('refs/heads/review-feature'))
-        .toEqual(['README.md', 'alpha.md']);
+        .toEqual(['README.md', 'alpha.md', 'zebra.md']);
     if (state !== 'committed')
-      await expect.poll(() => marks()).toEqual(['README.md', 'alpha.md']);
+      await expect
+        .poll(() => marks())
+        .toEqual(['README.md', 'alpha.md', 'zebra.md']);
     await expect.element(reviewed).toHaveAttribute('aria-pressed', 'true');
     await expect
       .element(page.getByText('Step marked reviewed', { exact: true }))
@@ -649,8 +672,12 @@ for (const state of ['uncommitted', 'mixed', 'committed'] as const) {
       )
       .not.toBeInTheDocument();
     await userEvent.keyboard('r');
-    await expect.poll(() => marks('refs/heads/review-feature')).toEqual([]);
-    await expect.poll(() => marks()).toEqual([]);
+    await expect
+      .poll(() => marks('refs/heads/review-feature'))
+      .toEqual(state === 'uncommitted' ? [] : ['zebra.md']);
+    await expect
+      .poll(() => marks())
+      .toEqual(state === 'committed' ? [] : ['zebra.md']);
     await expect.element(reviewed).toHaveAttribute('aria-pressed', 'false');
     const path = state === 'committed' ? 'branch:alpha.md' : 'change:alpha.md';
     await app.navigate(
@@ -661,19 +688,25 @@ for (const state of ['uncommitted', 'mixed', 'committed'] as const) {
       .poll(() =>
         marks(state === 'committed' ? 'refs/heads/review-feature' : undefined),
       )
-      .toEqual(['alpha.md']);
+      .toEqual(['alpha.md', 'zebra.md']);
     await page.getByRole('tab', { name: 'Step 1', exact: true }).click();
     await expect.element(reviewed).toHaveAttribute('aria-pressed', 'false');
     await userEvent.keyboard('r');
     if (state !== 'uncommitted')
       await expect
         .poll(() => marks('refs/heads/review-feature'))
-        .toEqual(['README.md', 'alpha.md']);
+        .toEqual(['README.md', 'alpha.md', 'zebra.md']);
     if (state !== 'committed')
-      await expect.poll(() => marks()).toEqual(['README.md', 'alpha.md']);
+      await expect
+        .poll(() => marks())
+        .toEqual(['README.md', 'alpha.md', 'zebra.md']);
     await expect.element(reviewed).toHaveAttribute('aria-pressed', 'true');
     await reviewed.click();
-    await expect.poll(() => marks('refs/heads/review-feature')).toEqual([]);
-    await expect.poll(() => marks()).toEqual([]);
+    await expect
+      .poll(() => marks('refs/heads/review-feature'))
+      .toEqual(state === 'uncommitted' ? [] : ['zebra.md']);
+    await expect
+      .poll(() => marks())
+      .toEqual(state === 'committed' ? [] : ['zebra.md']);
   });
 }
