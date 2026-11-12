@@ -37,10 +37,10 @@ const headline = [
 
 /* Points on the walkthrough picture, as fractions of its width and height. */
 const callouts = [
-  { n: 1, label: 'The calls only you can make', side: 'left', y: 0.31, x: 0.229 },
-  { n: 2, label: 'How the system grew', side: 'left', y: 0.54, x: 0.224 },
-  { n: 3, label: 'One step per decision', side: 'left', y: 0.733, x: 0.224 },
-  { n: 4, label: 'Decide, or ask the agent', side: 'right', y: 0.438, x: 0.688 },
+  { n: 1, label: 'The calls only you can make', side: 'left', y: 0.458, x: 0.232 },
+  { n: 2, label: 'How the system grew', side: 'left', y: 0.601, x: 0.232 },
+  { n: 3, label: 'One step per decision', side: 'left', y: 0.746, x: 0.232 },
+  { n: 4, label: 'Decide, or ask the agent', side: 'right', y: 0.525, x: 0.688 },
 ] as const;
 
 /* Light and dark captures of one screen share their size, so the crop maths reads the light one. */
@@ -67,37 +67,37 @@ const stops = [
   {
     id: 'walkthrough',
     shot: 0,
-    region: [0.225, 0.265, 0.695, 0.495],
+    region: [0.225, 0.4, 0.695, 0.567],
     title: 'The calls only you can make',
     body: 'A product or architecture question the code cannot settle, with the trade-off in one line. Decide right there, or ask about it.',
   },
   {
     id: 'grew',
     shot: 0,
-    region: [0.225, 0.515, 0.695, 0.635],
+    region: [0.225, 0.585, 0.695, 0.67],
     title: 'How the system grew',
     body: 'New pieces and moved boundaries, a sentence each. You keep a picture of the system even when you did not write a line of it.',
   },
   {
     id: 'steps',
     shot: 1,
-    region: [0.225, 0.21, 0.695, 0.735],
+    region: [0.225, 0.395, 0.695, 0.795],
     title: 'One step per decision',
     body: 'Each step says what changed and why. Screenshots from the pull request sit on the step they prove; a step with no proof shows none, because the agent never makes any up.',
   },
   {
     id: 'unsaid',
     shot: 1,
-    region: [0.225, 0.755, 0.695, 0.855],
+    region: [0.225, 0.815, 0.695, 0.885],
     title: 'What the code doesn’t say',
     body: 'The agent reads the code first. Then it reads your own messages to the builder, and whatever only those explained is written down here, where the next reader will find it.',
   },
   {
     id: 'by-step',
     shot: 2,
-    region: [0.185, 0.06, 0.965, 0.49],
+    region: [0.185, 0.045, 0.965, 0.375],
     title: 'Read the code by step',
-    body: 'Open a step and read only its files. The Changes panel groups committed and uncommitted work by step, marks the step with your call, and keeps reviewed checkboxes on plain changes.',
+    body: 'Open a step beside the Walkthrough or in its own tab and read only its files. The Changes panel groups committed and uncommitted work by step, marks the step with your call, and keeps reviewed checkboxes on plain changes.',
   },
 ] as const;
 
@@ -515,7 +515,7 @@ const treeRows = [
           <div class="sticky top-0 flex h-svh items-center pt-16">
             <div class="w-full">
             <div class="rounded-[1.4rem] bg-muted/80 p-2 shadow-[inset_0_0_0_1px_var(--border),0_40px_120px_-50px_rgb(0_0_0/0.35)]">
-              <div class="relative aspect-[1.6] overflow-hidden rounded-2xl bg-card shadow-[0_0_0_1px_var(--border)]">
+              <div class="relative aspect-[1.2] overflow-hidden rounded-2xl bg-card shadow-[0_0_0_1px_var(--border)]">
                 {
                   shots.map((shot, index) => (
                     <div data-camera={index} class="absolute inset-0 origin-top-left" style={index === 0 ? '' : 'opacity: 0'}>
