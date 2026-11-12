@@ -3,8 +3,9 @@ import {
   idleClientAtoms,
 } from '../../../../spec/kit/client-fixture.ts';
 import { expect, it } from '@effect/vitest';
-import { Effect, Option } from 'effect';
+import { Effect, HashMap, Option } from 'effect';
 import { AtomRegistry, AsyncResult } from 'effect/reactivity';
+import { ReadSubscriptions } from '../../../shared/api/read-subscriptions.ts';
 
 import {
   readFileTimeline,
@@ -12,6 +13,7 @@ import {
   readHistory,
   readHistoryWindow,
   historyPlace,
+  readCommit,
 } from './history.ts';
 
 const scope = {
@@ -41,6 +43,206 @@ const firstPage = {
   boundary: null,
   restarted: false,
 };
+
+it.effect(
+  'returns retained commit metadata while revalidating its exact parent comparison',
+  () =>
+    Effect.gen(function* () {
+      const started = Promise.withResolvers<void>();
+      const held = Promise.withResolvers<Response>();
+      const answer = {
+        commit: commit(tip, 'Confirmed'),
+        comparison: { kind: 'parent', parentNumber: 2, baseOid: root },
+        files: [],
+      };
+      let reads = 0;
+      const subject = yield* fixture(() => {
+        if (++reads === 1) return Promise.resolve(Response.json(answer));
+        started.resolve();
+        return held.promise;
+      });
+      const query = readCommit({
+        connection: subject.connection,
+        scope,
+        oid: tip,
+        parent: 2,
+      });
+      let stop = subject.registry.mount(query);
+      yield* Effect.addFinalizer(() => Effect.sync(() => stop()));
+      yield* AtomRegistry.getResult(subject.registry, query);
+      stop();
+      yield* Effect.promise(() => idleClientAtoms(subject.registry));
+      stop = subject.registry.mount(query);
+      yield* Effect.promise(() => started.promise);
+      expect(subject.registry.get(query)).toMatchObject({
+        _tag: 'Success',
+        waiting: true,
+      });
+      expect(
+        Option.getOrThrow(AsyncResult.value(subject.registry.get(query))),
+      ).toMatchObject({
+        commit: { oid: tip, subject: 'Confirmed' },
+        comparison: answer.comparison,
+        files: [],
+      });
+      held.resolve(Response.json(answer));
+      expect(
+        yield* AtomRegistry.getResult(subject.registry, query, {
+          suspendOnWaiting: true,
+        }),
+      ).toMatchObject({
+        commit: { oid: tip, subject: 'Confirmed' },
+        comparison: answer.comparison,
+        files: [],
+      });
+      expect(reads).toBe(2);
+    }),
+);
+
+it.effect(
+  'returns the complete retained History depth until every restored page is fresh',
+  () =>
+    Effect.gen(function* () {
+      const started = Promise.withResolvers<void>();
+      const held = Promise.withResolvers<Response>();
+      let reads = 0;
+      const subject = yield* fixture((path) => {
+        const older = new URL(path, 'http://fixture').searchParams.has('after');
+        reads++;
+        if (reads === 4) {
+          started.resolve();
+          return held.promise;
+        }
+        return Promise.resolve(
+          Response.json({
+            ...firstPage,
+            commits: [
+              commit(
+                older ? root : tip,
+                `${reads >= 3 ? 'Fresh' : 'Old'} ${older ? 'oldest' : 'newest'}`,
+              ),
+            ],
+            nextAfter: older ? null : firstPage.nextAfter,
+          }),
+        );
+      });
+      const selection = { connection: subject.connection, scope };
+      const history = readHistory(selection);
+      const window = readHistoryWindow(selection);
+      let stop = subject.registry.mount(window);
+      yield* Effect.addFinalizer(() => Effect.sync(() => stop()));
+      yield* AtomRegistry.getResult(subject.registry, window);
+      subject.registry.set(history, undefined);
+      yield* AtomRegistry.getResult(subject.registry, window, {
+        suspendOnWaiting: true,
+      });
+      const place = historyPlace({ ...selection, kind: 'commits' });
+      subject.registry.set(place, {
+        ...subject.registry.get(place),
+        selected: root,
+        scrollOffset: 240,
+        graphScrollOffset: 320,
+      });
+      stop();
+      yield* Effect.promise(() => idleClientAtoms(subject.registry));
+      expect(
+        yield* Effect.promise(() =>
+          subject.connection.runtime.runPromise(
+            ReadSubscriptions.use((reads) =>
+              Effect.map(reads.snapshot, HashMap.size),
+            ),
+          ),
+        ),
+      ).toBe(0);
+      stop = subject.registry.mount(window);
+      yield* Effect.promise(() => started.promise);
+      const pending = subject.registry.get(window);
+      expect(pending.waiting).toBe(true);
+      expect(
+        Option.getOrThrow(AsyncResult.value(pending)).commits.map(
+          (entry) => entry.subject,
+        ),
+      ).toEqual(['Old newest', 'Old oldest']);
+      expect(subject.registry.get(place)).toMatchObject({
+        loaded: 2,
+        selected: root,
+        scrollOffset: 240,
+        graphScrollOffset: 320,
+        resetId: 0,
+      });
+      held.resolve(
+        Response.json({
+          ...firstPage,
+          commits: [commit(root, 'Fresh oldest')],
+          nextAfter: null,
+        }),
+      );
+      expect(
+        (yield* AtomRegistry.getResult(subject.registry, window, {
+          suspendOnWaiting: true,
+        })).commits.map((entry) => entry.subject),
+      ).toEqual(['Fresh newest', 'Fresh oldest']);
+      expect(reads).toBe(4);
+    }),
+);
+
+it.effect(
+  'a returning History restart replaces retained rows and resets its place once',
+  () =>
+    Effect.gen(function* () {
+      const started = Promise.withResolvers<void>();
+      const held = Promise.withResolvers<Response>();
+      let reads = 0;
+      const subject = yield* fixture(() => {
+        if (++reads === 1) return Promise.resolve(Response.json(firstPage));
+        started.resolve();
+        return held.promise;
+      });
+      const selection = { connection: subject.connection, scope };
+      const window = readHistoryWindow(selection);
+      const place = historyPlace({ ...selection, kind: 'commits' });
+      let stop = subject.registry.mount(window);
+      yield* Effect.addFinalizer(() => Effect.sync(() => stop()));
+      yield* AtomRegistry.getResult(subject.registry, window);
+      subject.registry.set(place, {
+        ...subject.registry.get(place),
+        selected: tip,
+        scrollOffset: 240,
+        graphScrollOffset: 320,
+      });
+      stop();
+      yield* Effect.promise(() => idleClientAtoms(subject.registry));
+      stop = subject.registry.mount(window);
+      yield* Effect.promise(() => started.promise);
+      expect(
+        Option.getOrThrow(
+          AsyncResult.value(subject.registry.get(window)),
+        ).commits.map((entry) => entry.subject),
+      ).toEqual(['Newest']);
+      held.resolve(
+        Response.json({
+          ...firstPage,
+          commits: [commit(root, 'Replacement')],
+          tip: root,
+          nextAfter: null,
+          restarted: true,
+          snapshot: { ...firstPage.snapshot, tipOid: root },
+        }),
+      );
+      expect(
+        (yield* AtomRegistry.getResult(subject.registry, window, {
+          suspendOnWaiting: true,
+        })).commits.map((entry) => entry.subject),
+      ).toEqual(['Replacement']);
+      expect(subject.registry.get(place)).toMatchObject({
+        loaded: 1,
+        selected: undefined,
+        scrollOffset: 0,
+        graphScrollOffset: 0,
+        resetId: 1,
+      });
+    }),
+);
 
 it.effect(
   'retrying a failed multi-page restoration rereads the whole retained depth',
@@ -104,34 +306,39 @@ it.effect(
   () =>
     Effect.gen(function* () {
       let reads = 0;
+      const started = Promise.withResolvers<void>();
+      const held = Promise.withResolvers<void>();
       const subject = yield* fixture(() => {
         reads++;
         const first = reads === 1 || reads === 3;
-        return Promise.resolve(
-          Response.json({
-            commits: [
-              {
-                commit: commit(
-                  first ? tip : root,
-                  reads >= 3
-                    ? first
-                      ? 'Fresh newest'
-                      : 'Fresh oldest'
-                    : first
-                      ? 'Newest'
-                      : 'Oldest',
-                ),
-                path: 'notes.md',
-                previousPath: null,
-                status: first ? 'modified' : 'added',
-              },
-            ],
-            nextAfter: first ? { tip, offset: 1 } : null,
-            tip,
-            boundary: null,
-            restarted: false,
-          }),
-        );
+        const answer = Response.json({
+          commits: [
+            {
+              commit: commit(
+                first ? tip : root,
+                reads >= 3
+                  ? first
+                    ? 'Fresh newest'
+                    : 'Fresh oldest'
+                  : first
+                    ? 'Newest'
+                    : 'Oldest',
+              ),
+              path: 'notes.md',
+              previousPath: null,
+              status: first ? 'modified' : 'added',
+            },
+          ],
+          nextAfter: first ? { tip, offset: 1 } : null,
+          tip,
+          boundary: null,
+          restarted: false,
+        });
+        if (reads === 4) {
+          started.resolve();
+          return held.promise.then(() => answer);
+        }
+        return Promise.resolve(answer);
       });
       const selection = {
         connection: subject.connection,
@@ -140,7 +347,7 @@ it.effect(
       };
       const timeline = readFileTimeline(selection);
       const window = readFileTimelineWindow(selection);
-      const stop = subject.registry.mount(timeline);
+      const stop = subject.registry.mount(window);
       yield* AtomRegistry.getResult(subject.registry, timeline);
       subject.registry.set(timeline, undefined);
       yield* AtomRegistry.getResult(subject.registry, timeline, {
@@ -152,11 +359,19 @@ it.effect(
         selected: root,
         scrollOffset: 240,
       });
+      yield* AtomRegistry.getResult(subject.registry, window);
       stop();
       yield* Effect.promise(() => idleClientAtoms(subject.registry));
-      subject.registry.refresh(timeline);
-      const release = subject.registry.mount(timeline);
+      const release = subject.registry.mount(window);
       yield* Effect.addFinalizer(() => Effect.sync(release));
+      yield* Effect.promise(() => started.promise);
+      expect(
+        Option.getOrThrow(
+          AsyncResult.value(subject.registry.get(window)),
+        ).commits.map((entry) => entry.commit.subject),
+      ).toEqual(['Newest', 'Oldest']);
+      expect(subject.registry.get(window).waiting).toBe(true);
+      held.resolve();
       yield* AtomRegistry.getResult(subject.registry, timeline, {
         suspendOnWaiting: true,
       });

@@ -12,6 +12,7 @@ import { clientRuntime } from '../../../shared/api/runtime.ts';
 import {
   worktreePull,
   worktreeRead,
+  retainRead,
 } from '../../../shared/api/worktree-read.ts';
 import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
 
@@ -115,7 +116,7 @@ export const readCommit = Atom.family(
         return answer;
       }),
       clientRuntime(connection),
-    ),
+    ).pipe(retainRead),
 );
 
 export const readFileTimeline = Atom.family(
@@ -209,12 +210,12 @@ export const readFileTimelineWindow = Atom.family(
   (selection: Parameters<typeof readFileTimeline>[0]) =>
     Atom.map(readFileTimeline(selection), (result) =>
       AsyncResult.map(result, (value) => fileTimelineWindow(value.items)),
-    ).pipe(Atom.setIdleTTL(0)),
+    ).pipe(retainRead),
 );
 
 export const readHistoryWindow = Atom.family(
   (selection: Parameters<typeof readHistory>[0]) =>
     Atom.map(readHistory(selection), (result) =>
       AsyncResult.map(result, (value) => historyWindow(value.items)),
-    ).pipe(Atom.setIdleTTL(0)),
+    ).pipe(retainRead),
 );
