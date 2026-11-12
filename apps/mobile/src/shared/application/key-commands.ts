@@ -6,35 +6,28 @@ import {
   absentList,
   chosenList,
   focusedList,
-  keyLists,
   keyRegistration,
-  keyRegistrations,
   listAway,
   listOver,
   listPresence,
-  listTab,
+  liveKeyCommands,
   type KeyOwner,
+  type OwnedKeyCommand,
 } from './key-registry';
 import {
   activeKeyCommands,
   nativeKeyCommand,
   pressKeyCommand,
-  type KeyBindingName,
-  type KeyCommand,
+  type ScreenKeyBinding,
 } from '../rules/key-commands';
-import {
-  moveCursor,
-  nextList,
-  treeStep,
-  type CursorRow,
-} from '../rules/list-cursor';
+import { moveCursor, treeStep, type CursorRow } from '../rules/list-cursor';
 import {
   onNativeKeyCommand,
   setNativeKeyCommands,
 } from '../adapters/key-commands';
 
 const nativeKeyPayload = Atom.make((get) => {
-  const { commands, conflicts } = activeKeyCommands(get(keyRegistrations));
+  const { commands, conflicts } = activeKeyCommands(get(liveKeyCommands));
   if (conflicts.length > 0)
     console.error('Two live owners claim the same shortcut', conflicts);
   return JSON.stringify(commands.map(nativeKeyCommand));
@@ -48,21 +41,21 @@ export const keyCommandRouting = Atom.make((get) => {
   const registry = get.registry;
   get.addFinalizer(
     onNativeKeyCommand((id) =>
-      pressKeyCommand(registry.get(keyRegistrations), id),
+      pressKeyCommand(registry.get(liveKeyCommands), id),
     ),
   );
 });
 
 export function useKeyCommands(
   owner: KeyOwner,
-  commands: readonly KeyCommand[],
+  commands: readonly OwnedKeyCommand[],
 ) {
   useAtomMount(keyRegistration({ owner, commands }));
 }
 
 export function useScreenKeyCommands(
   owner: KeyOwner,
-  commands: readonly KeyCommand[],
+  commands: readonly OwnedKeyCommand[],
 ) {
   const focused = useIsFocused();
   useKeyCommands(owner, focused ? commands : []);
@@ -72,7 +65,7 @@ export function useDocumentKeys(
   actions: readonly {
     kind: string;
     label: string;
-    shortcut?: KeyBindingName | undefined;
+    shortcut?: ScreenKeyBinding | undefined;
     disabled?: boolean | undefined;
     onPress?: () => void;
   }[],
@@ -123,10 +116,7 @@ export function useListCursor({
   useAtomMount(focused && !hidden ? listPresence(owner) : absentList);
   useAtomMount(focused && !hidden && over ? listOver(owner) : absentList);
   useAtomMount(focused && hidden ? listAway(owner) : absentList);
-  const present = useAtomValue(keyLists);
-  const tab = useAtomValue(listTab);
-  const current = useAtomValue(focusedList);
-  const active = current === owner;
+  const active = useAtomValue(focusedList) === owner;
   const choose = useAtomSet(chosenList);
   const [highlighted, setHighlighted] = useState<string>();
   const live = rows.some((row) => row.key === highlighted)
@@ -157,28 +147,6 @@ export function useListCursor({
               ]
             : []),
           ...(onSearch ? [{ binding: 'search' as const, run: onSearch }] : []),
-          ...(tab === 'lists'
-            ? [
-                {
-                  binding: 'nextList' as const,
-                  run: () => choose(nextList(present, owner)),
-                },
-              ]
-            : []),
-        ]
-      : [],
-  );
-  useScreenKeyCommands(
-    'list-away',
-    hidden && tab === 'away'
-      ? [
-          {
-            binding: 'nextList',
-            run: () => {
-              const next = nextList(present, current);
-              if (next !== undefined) choose(next);
-            },
-          },
         ]
       : [],
   );

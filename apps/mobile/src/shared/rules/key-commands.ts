@@ -147,6 +147,8 @@ export const keyBindings = {
 
 export type KeyBindingName = keyof typeof keyBindings;
 
+export type ScreenKeyBinding = Exclude<KeyBindingName, 'nextList'>;
+
 export type KeyCommand = {
   binding: KeyBindingName;
   title?: string | undefined;

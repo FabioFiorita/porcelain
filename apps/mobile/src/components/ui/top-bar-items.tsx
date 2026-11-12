@@ -2,7 +2,7 @@ import { Stack } from 'expo-router';
 import type { ReactNode } from 'react';
 import { headerIcon } from '../../shared/icons/header-icon';
 import type { HeaderIconName } from '../../shared/icons/icon';
-import type { KeyBindingName } from '../../shared/rules/key-commands';
+import type { ScreenKeyBinding } from '../../shared/rules/key-commands';
 
 type TopBarChoice = {
   label: string;
@@ -19,7 +19,7 @@ export type TopBarAction =
       icon: HeaderIconName;
       onPress: () => void;
       disabled?: boolean | undefined;
-      shortcut?: KeyBindingName | undefined;
+      shortcut?: ScreenKeyBinding | undefined;
     }
   | {
       kind: 'choice';
