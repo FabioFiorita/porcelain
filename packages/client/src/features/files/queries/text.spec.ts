@@ -1,12 +1,16 @@
-import { abortingTransport } from '../../../../spec/kit/held-transport.ts';
+import {
+  abortingTransport,
+  holdReturningRead,
+} from '../../../../spec/kit/held-transport.ts';
 import {
   clientFixtures,
   idleClientAtoms,
+  mountRetainedClientRead,
 } from '../../../../spec/kit/client-fixture.ts';
 import { Deferred } from 'effect';
 import { expect, it } from 'vitest';
-import { Cause, Effect, Exit, HashMap, Option } from 'effect';
-import { AtomRegistry, AsyncResult } from 'effect/reactivity';
+import { Cause, Effect, Exit, HashMap } from 'effect';
+import { AtomRegistry } from 'effect/reactivity';
 import { ReadSubscriptions } from '../../../shared/api/read-subscriptions.ts';
 import {
   retryWorktreeReads,
@@ -37,14 +41,8 @@ const response = {
 };
 
 it('returns confirmed text during remount revalidation and releases its inactive watch', async () => {
-  const held = Promise.withResolvers<Response>();
-  const started = Promise.withResolvers<void>();
-  let requests = 0;
-  const subject = fixture(() => {
-    if (++requests === 1) return Promise.resolve(Response.json(response));
-    started.resolve();
-    return held.promise;
-  });
+  const returning = holdReturningRead(response);
+  const subject = fixture(returning.read);
   const atom = readTextFile({
     connection: subject.connection,
     scope,
@@ -62,16 +60,14 @@ it('returns confirmed text during remount revalidation and releases its inactive
         ),
       ),
     ).toBe(0);
-    stop = subject.registry.mount(atom);
-    await started.promise;
-    expect(subject.registry.get(atom)).toMatchObject({
-      _tag: 'Success',
-      waiting: true,
-    });
-    expect(
-      Option.getOrThrow(AsyncResult.value(subject.registry.get(atom))),
-    ).toMatchObject({ text: 'Hello' });
-    held.resolve(Response.json({ ...response, text: 'Fresh' }));
+    const back = await mountRetainedClientRead(
+      subject.registry,
+      atom,
+      returning.started.promise,
+    );
+    stop = back.stop;
+    expect(back.value).toMatchObject({ text: 'Hello' });
+    returning.held.resolve(Response.json({ ...response, text: 'Fresh' }));
     expect(
       await Effect.runPromise(
         AtomRegistry.getResult(subject.registry, atom, {
@@ -79,9 +75,9 @@ it('returns confirmed text during remount revalidation and releases its inactive
         }),
       ),
     ).toMatchObject({ text: 'Fresh' });
-    expect(requests).toBe(2);
+    expect(returning.readCount()).toBe(2);
   } finally {
-    held.resolve(Response.json(response));
+    returning.held.resolve(Response.json(response));
     stop();
   }
 });

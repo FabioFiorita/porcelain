@@ -1,5 +1,16 @@
 import { controlledPromise } from './promise.ts';
 import type { Transport } from '../../src/shared/api/transport.ts';
+export function holdReturningRead(answer: unknown) {
+  const held = controlledPromise<Response>();
+  const started = controlledPromise<void>();
+  let reads = 0;
+  const read: Transport = () => {
+    if (++reads === 1) return Promise.resolve(Response.json(answer));
+    started.resolve();
+    return held.promise;
+  };
+  return { held, started, read, readCount: () => reads };
+}
 export function holdFirstRead() {
   const held = controlledPromise<Response>();
   const started = controlledPromise<void>();

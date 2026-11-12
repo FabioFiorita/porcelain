@@ -16,51 +16,28 @@ import {
   readCommit,
 } from './history.ts';
 
-const scope = {
-  projectId: 'project',
-  worktreeId: '00000000000000000000000000000000',
-};
-const tip = 'a'.repeat(40);
-const frontier = 'b'.repeat(40);
-const root = 'c'.repeat(40);
-function commit(oid: string, subject: string) {
-  return {
-    oid,
-    subject,
-    parentOids: [],
-    author: { name: 'Author', timestamp: '2026-10-06T00:00:00.000Z' },
-    subjectTruncated: false,
-    body: null,
-    bodyTruncated: false,
-    refs: [],
-  };
-}
-const firstPage = {
-  snapshot: { tipOid: tip, head: { kind: 'attached', ref: 'refs/heads/main' } },
-  commits: [commit(tip, 'Newest')],
-  nextAfter: [frontier, root],
+import {
+  scope,
   tip,
-  boundary: null,
-  restarted: false,
-};
+  frontier,
+  root,
+  commit,
+  firstPage,
+  restoredHistoryPage,
+} from '../../../../spec/kit/history-pages.ts';
+import { holdReturningRead } from '../../../../spec/kit/held-transport.ts';
 
 it.effect(
   'returns retained commit metadata while revalidating its exact parent comparison',
   () =>
     Effect.gen(function* () {
-      const started = Promise.withResolvers<void>();
-      const held = Promise.withResolvers<Response>();
       const answer = {
         commit: commit(tip, 'Confirmed'),
         comparison: { kind: 'parent', parentNumber: 2, baseOid: root },
         files: [],
       };
-      let reads = 0;
-      const subject = yield* fixture(() => {
-        if (++reads === 1) return Promise.resolve(Response.json(answer));
-        started.resolve();
-        return held.promise;
-      });
+      const returning = holdReturningRead(answer);
+      const subject = yield* fixture(returning.read);
       const query = readCommit({
         connection: subject.connection,
         scope,
@@ -73,7 +50,7 @@ it.effect(
       stop();
       yield* Effect.promise(() => idleClientAtoms(subject.registry));
       stop = subject.registry.mount(query);
-      yield* Effect.promise(() => started.promise);
+      yield* Effect.promise(() => returning.started.promise);
       expect(subject.registry.get(query)).toMatchObject({
         _tag: 'Success',
         waiting: true,
@@ -85,7 +62,7 @@ it.effect(
         comparison: answer.comparison,
         files: [],
       });
-      held.resolve(Response.json(answer));
+      returning.held.resolve(Response.json(answer));
       expect(
         yield* AtomRegistry.getResult(subject.registry, query, {
           suspendOnWaiting: true,
@@ -95,7 +72,7 @@ it.effect(
         comparison: answer.comparison,
         files: [],
       });
-      expect(reads).toBe(2);
+      expect(returning.readCount()).toBe(2);
     }),
 );
 
@@ -114,16 +91,7 @@ it.effect(
           return held.promise;
         }
         return Promise.resolve(
-          Response.json({
-            ...firstPage,
-            commits: [
-              commit(
-                older ? root : tip,
-                `${reads >= 3 ? 'Fresh' : 'Old'} ${older ? 'oldest' : 'newest'}`,
-              ),
-            ],
-            nextAfter: older ? null : firstPage.nextAfter,
-          }),
+          Response.json(restoredHistoryPage(older, reads >= 3)),
         );
       });
       const selection = { connection: subject.connection, scope };
@@ -190,14 +158,8 @@ it.effect(
   'a returning History restart replaces retained rows and resets its place once',
   () =>
     Effect.gen(function* () {
-      const started = Promise.withResolvers<void>();
-      const held = Promise.withResolvers<Response>();
-      let reads = 0;
-      const subject = yield* fixture(() => {
-        if (++reads === 1) return Promise.resolve(Response.json(firstPage));
-        started.resolve();
-        return held.promise;
-      });
+      const returning = holdReturningRead(firstPage);
+      const subject = yield* fixture(returning.read);
       const selection = { connection: subject.connection, scope };
       const window = readHistoryWindow(selection);
       const place = historyPlace({ ...selection, kind: 'commits' });
@@ -213,13 +175,13 @@ it.effect(
       stop();
       yield* Effect.promise(() => idleClientAtoms(subject.registry));
       stop = subject.registry.mount(window);
-      yield* Effect.promise(() => started.promise);
+      yield* Effect.promise(() => returning.started.promise);
       expect(
         Option.getOrThrow(
           AsyncResult.value(subject.registry.get(window)),
         ).commits.map((entry) => entry.subject),
       ).toEqual(['Newest']);
-      held.resolve(
+      returning.held.resolve(
         Response.json({
           ...firstPage,
           commits: [commit(root, 'Replacement')],
@@ -255,16 +217,7 @@ it.effect(
         return Promise.resolve(
           reads === 4
             ? Response.json({ message: 'Unavailable' }, { status: 500 })
-            : Response.json({
-                ...firstPage,
-                commits: [
-                  commit(
-                    older ? root : tip,
-                    `${reads >= 3 ? 'Fresh' : 'Old'} ${older ? 'oldest' : 'newest'}`,
-                  ),
-                ],
-                nextAfter: older ? null : firstPage.nextAfter,
-              }),
+            : Response.json(restoredHistoryPage(older, reads >= 3)),
         );
       });
       const history = yield* mountedHistory(subject);

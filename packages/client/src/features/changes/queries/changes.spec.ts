@@ -2,7 +2,9 @@ import {
   clientFixtures,
   visitClientRead,
   idleClientAtoms,
+  mountRetainedClientRead,
 } from '../../../../spec/kit/client-fixture.ts';
+import { holdReturningRead } from '../../../../spec/kit/held-transport.ts';
 import { editFile } from '@porcelain/client/files';
 import { expect, it } from 'vitest';
 import { Effect, HashMap, Option, Schema, Stream } from 'effect';
@@ -337,9 +339,6 @@ function windowInput() {
 it.each(['commit', 'branch'] as const)(
   'returns an immutable %s diff during remount revalidation',
   async (kind) => {
-    const held = Promise.withResolvers<Response>();
-    const started = Promise.withResolvers<void>();
-    let requests = 0;
     const oid = 'a'.repeat(40);
     const answer = {
       commitOid: oid,
@@ -347,11 +346,8 @@ it.each(['commit', 'branch'] as const)(
         { paths: ['notes.md'], content: { kind: 'text', patch: 'Confirmed' } },
       ],
     };
-    const subject = fixture(() => {
-      if (++requests === 1) return Promise.resolve(Response.json(answer));
-      started.resolve();
-      return held.promise;
-    });
+    const returning = holdReturningRead(answer);
+    const subject = fixture(returning.read);
     const selection = { connection: subject.connection, scope };
     const atom =
       kind === 'commit'
@@ -380,16 +376,14 @@ it.each(['commit', 'branch'] as const)(
       ).toEqual(answer.diffs);
       stop();
       await idleClientAtoms(subject.registry);
-      stop = subject.registry.mount(atom);
-      await started.promise;
-      expect(subject.registry.get(atom)).toMatchObject({
-        _tag: 'Success',
-        waiting: true,
-      });
-      expect(
-        Option.getOrThrow(AsyncResult.value(subject.registry.get(atom))).diffs,
-      ).toEqual(answer.diffs);
-      held.resolve(Response.json(answer));
+      const back = await mountRetainedClientRead(
+        subject.registry,
+        atom,
+        returning.started.promise,
+      );
+      stop = back.stop;
+      expect(back.value.diffs).toEqual(answer.diffs);
+      returning.held.resolve(Response.json(answer));
       expect(
         (
           await Effect.runPromise(
@@ -399,9 +393,9 @@ it.each(['commit', 'branch'] as const)(
           )
         ).diffs,
       ).toEqual(answer.diffs);
-      expect(requests).toBe(2);
+      expect(returning.readCount()).toBe(2);
     } finally {
-      held.resolve(Response.json(answer));
+      returning.held.resolve(Response.json(answer));
       stop();
     }
   },
