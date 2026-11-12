@@ -7,3 +7,4 @@ export { createWorktreeConnection } from './worktree-connection.ts';
 
 export { queryKeys } from './query-keys.ts';
 export { retryWorktreeReads } from './read-recovery.ts';
+export { retainRead } from './worktree-read.ts';
