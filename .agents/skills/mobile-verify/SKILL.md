@@ -23,6 +23,8 @@ When a device tool supplies a bound driver, pass its executable, private configu
 
 For a developer walkthrough, use `--manual-pairing`. It opens the development client and leaves pairing to Settings → Computers → Add computer → Use development server → Pair.
 
+For performance comparisons, use `--production-js` on both the baseline and candidate. It starts Metro with `--no-dev --minify`, records the mode in the connection card, and leaves pairing manual because development-only pairing controls are absent. Use the card's pairing-link command and the normal paste-link screen. Keep device, fixture, connection, orientation and cache state matched; record raw runs and sample counts. Production JavaScript in a development client does not establish Release-native or physical-device performance. Collect development-only React profiles separately from production timings.
+
 The default `--fixture development` seeds Dispatch Desk: nested source/docs, previews, long lines, two worktrees, merge history, varied Git changes. `fixture.json` records its seed operations. `--fixture focused` uses the small README fixture. For a ready walkthrough with screenshots, run `walkthrough sample` ([walkthrough page](features/reviews.walkthrough-page.md)). Restart to reset either fixture.
 
 ## Restart and stop

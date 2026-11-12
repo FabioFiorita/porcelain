@@ -135,6 +135,7 @@ export function serve(folder: string): Promise<void> {
         serverAddress: environment.server.address,
       },
       platform,
+      options.productionJs,
     );
     life.own(metro.pid);
     life.onStop(() => metro.stop());
@@ -286,6 +287,7 @@ export async function start(
   fixture: 'development' | 'focused' = 'development',
   agentSession?: string,
   codingTool = false,
+  productionJs = false,
 ): Promise<string> {
   const { remote, simulatorLimit, androidSerial } = deviceHost();
   const host = kind === 'android' ? undefined : remote;
@@ -301,6 +303,7 @@ export async function start(
       kind,
       manualPairing,
       codingTool,
+      productionJs,
       fixture,
       host: host ?? null,
       simulatorLimit: Math.min(simulatorLimit ?? 2, 2),
@@ -315,5 +318,5 @@ export async function start(
   );
   const target =
     card.mobile.platform === 'android' ? card.mobile.serial : card.mobile.udid;
-  return `${connectionCard(card, instance.connectionPath)}fixture ${fixture}${codingTool ? ' with the fake walkthrough writer' : ''}\nsimulator ${target} (${card.mobile.simulator})\nmetro ${card.mobile.metroUrl}\nagent-device ${card.mobile.agentDevice.command}\n`;
+  return `${connectionCard(card, instance.connectionPath)}fixture ${fixture}${codingTool ? ' with the fake walkthrough writer' : ''}\nsimulator ${target} (${card.mobile.simulator})\nJavaScript ${productionJs ? 'production, minified' : 'development'}\nmetro ${card.mobile.metroUrl}\nagent-device ${card.mobile.agentDevice.command}\n`;
 }

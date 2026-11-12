@@ -33,6 +33,7 @@ const usage = `Usage: .agents/skills/mobile-verify/scripts/cli <command> [--inst
                            --coding-tool installs the fake walkthrough writer
   --agent-device-command <executable> --agent-device-config <private-file> --agent-device-session <session>
                            preserve an externally supplied device driver for doctor/start and the resulting journey
+  --production-js          use minified production JavaScript with manual pairing for performance comparisons
   status                   report passive lifecycle status and connection metadata
   logs                     record app, Metro and server logs
   evidence                 list retained evidence
@@ -129,6 +130,7 @@ async function command(args: readonly string[]): Promise<string> {
       'agent-device-config': { type: 'string' },
       'agent-device-command': { type: 'string' },
       'manual-pairing': { type: 'boolean', default: false },
+      'production-js': { type: 'boolean', default: false },
       'coding-tool': { type: 'boolean', default: false },
       fixture: { type: 'string', default: 'development' },
     },
@@ -166,10 +168,11 @@ async function command(args: readonly string[]): Promise<string> {
       values.device === 'android' ? values.serial : values.udid,
       values['agent-device-config'],
       values['agent-device-command'],
-      values['manual-pairing'],
+      values['manual-pairing'] || values['production-js'],
       values.fixture,
       values['agent-device-session'],
       values['coding-tool'],
+      values['production-js'],
     );
   }
   if (name === 'doctor')
