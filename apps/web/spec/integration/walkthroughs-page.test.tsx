@@ -1,4 +1,4 @@
-import { page as browserPage } from 'vitest/browser';
+import { page as browserPage, userEvent } from 'vitest/browser';
 import { expect, test, type Repo } from './fixtures.tsx';
 
 const SCENARIO = '.git/porcelain-fake-walkthrough';
@@ -591,5 +591,89 @@ for (const state of ['uncommitted', 'mixed', 'committed'] as const) {
           ),
         )
         .toBeVisible();
+  });
+}
+
+for (const state of ['uncommitted', 'mixed', 'committed'] as const) {
+  test(`the ${state} step review toggles its files together and leaves other steps alone`, async ({
+    repo,
+    codingTool,
+    render,
+    server,
+  }) => {
+    await browserPage.viewport(1280, 896);
+    await repo.branch('review-base');
+    await repo.branch('review-feature');
+    await repo.switch('review-feature');
+    await repo.write('alpha.md', 'Alpha change\n');
+    await repo.write('zebra.md', 'Other step\n');
+    if (state !== 'uncommitted') await repo.commit('Commit step changes');
+    if (state === 'mixed') {
+      await repo.write('README.md', '# Sample repository\n\nLater edit\n');
+      await repo.write('alpha.md', 'Later alpha edit\n');
+    }
+    await codingTool.install();
+    await repo.write(SCENARIO, 'grouped');
+    const app = await render.route('/?base=refs%2Fheads%2Freview-base');
+    const page = app.page;
+    await page.getByRole('tab', { name: 'Walkthrough', exact: true }).click();
+    await page
+      .getByRole('button', { name: 'Write walkthrough', exact: true })
+      .click();
+    await page
+      .getByRole('button', { name: 'See the code for step 1', exact: true })
+      .click();
+    const reviewed = page
+      .getByRole('toolbar', { name: 'Document controls', exact: true })
+      .getByRole('button', { name: 'Reviewed', exact: true });
+    const marks = async (branch?: string) =>
+      (await server.reviewedFiles(branch)).marks
+        .map((mark) => mark.path)
+        .toSorted();
+    await reviewed.click();
+    if (state !== 'uncommitted')
+      await expect
+        .poll(() => marks('refs/heads/review-feature'))
+        .toEqual(['README.md', 'alpha.md']);
+    if (state !== 'committed')
+      await expect.poll(() => marks()).toEqual(['README.md', 'alpha.md']);
+    await expect.element(reviewed).toHaveAttribute('aria-pressed', 'true');
+    await expect
+      .element(page.getByText('Step marked reviewed', { exact: true }))
+      .toBeVisible();
+    await expect
+      .element(
+        page
+          .getByRole('toolbar', { name: 'Document controls', exact: true })
+          .getByText(/Marked \d+ files?\./),
+      )
+      .not.toBeInTheDocument();
+    await userEvent.keyboard('r');
+    await expect.poll(() => marks('refs/heads/review-feature')).toEqual([]);
+    await expect.poll(() => marks()).toEqual([]);
+    await expect.element(reviewed).toHaveAttribute('aria-pressed', 'false');
+    const path = state === 'committed' ? 'branch:alpha.md' : 'change:alpha.md';
+    await app.navigate(
+      `${app.location().split('?')[0]}?base=refs%2Fheads%2Freview-base&entry=${path}`,
+    );
+    await reviewed.click();
+    await expect
+      .poll(() =>
+        marks(state === 'committed' ? 'refs/heads/review-feature' : undefined),
+      )
+      .toEqual(['alpha.md']);
+    await page.getByRole('tab', { name: 'Step 1', exact: true }).click();
+    await expect.element(reviewed).toHaveAttribute('aria-pressed', 'false');
+    await userEvent.keyboard('r');
+    if (state !== 'uncommitted')
+      await expect
+        .poll(() => marks('refs/heads/review-feature'))
+        .toEqual(['README.md', 'alpha.md']);
+    if (state !== 'committed')
+      await expect.poll(() => marks()).toEqual(['README.md', 'alpha.md']);
+    await expect.element(reviewed).toHaveAttribute('aria-pressed', 'true');
+    await reviewed.click();
+    await expect.poll(() => marks('refs/heads/review-feature')).toEqual([]);
+    await expect.poll(() => marks()).toEqual([]);
   });
 }

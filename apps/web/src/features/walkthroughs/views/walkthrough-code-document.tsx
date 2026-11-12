@@ -1,3 +1,4 @@
+import { branchReviewRange } from '@porcelain/client/changes/rules';
 import { useState } from 'react';
 import { useChanges } from '@/features/changes/index';
 import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
@@ -9,6 +10,7 @@ import {
 import { Button } from '@/components/ui/button';
 import {
   BranchDocument,
+  StepReviewed,
   PlainChangesDocument,
   type DocumentHeading,
   type WalkthroughCodeProps,
@@ -113,6 +115,18 @@ function WalkthroughChangeDocument(
         });
         return (
           <div className="flex min-h-0 flex-1 flex-col">
+            {props.only && (
+              <StepReviewed
+                scope={props.scope}
+                context={props.context}
+                interaction={props.interaction}
+                branchFiles={branch.files}
+                changes={changes}
+                committed={committed}
+                dirty={dirty}
+                range={branchReviewRange(branch)}
+              />
+            )}
             {both && (
               <DocumentToolbar
                 inline

@@ -128,8 +128,11 @@ function walkthroughContent(files: readonly string[], outcome: string) {
       { change: 'added', what: 'Glossary', note: 'Terms live in one place.' },
       { change: 'added', what: 'Changelog', note: 'Kept by hand for now.' },
     ],
-    stops: files.map((path, index) => ({
-      title: `Step about \`${path}\``,
+    stops: (outcome === 'grouped'
+      ? [files.slice(0, 2), ...files.slice(2).map((path) => [path])]
+      : files.map((path) => [path])
+    ).map((paths, index) => ({
+      title: `Step about \`${paths[0]}\``,
       explanation: 'A file changed here, and this explains why it did.',
       attention:
         index === 0
@@ -141,7 +144,7 @@ function walkthroughContent(files: readonly string[], outcome: string) {
           : null,
       excerpts: [],
       evidence: [],
-      files: [{ path, note: 'Changed' }],
+      files: paths.map((path) => ({ path, note: 'Changed' })),
     })),
     onlyInTranscript: [
       { point: 'Why notes exist.', answer: 'The owner asked for them.' },

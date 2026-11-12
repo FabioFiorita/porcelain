@@ -29,3 +29,5 @@ export type { ReviewWorkspaceProps } from './views/review-workspace';
 
 export { BranchState } from './views/branch-state';
 export { DocumentToolbar } from './views/document-toolbar';
+
+export { StepReviewed } from './views/reviewed-control';
