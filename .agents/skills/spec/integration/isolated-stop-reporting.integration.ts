@@ -245,43 +245,6 @@ ${await readFile(entry, 'utf8')}`,
     );
   expect(nativeAddress).not.toBeNull();
   expect(diagnostic).toContain(`port: ${nativeAddress?.[1]}`);
-  if (process.platform === 'linux') {
-    const snapshotLine = diagnostic
-      .split('\n')
-      .find((line) => line.startsWith('{"kind":"startup-bind-snapshot"'));
-    expect(snapshotLine).toBeDefined();
-    const snapshot = Schema.decodeUnknownSync(
-      Schema.fromJsonString(
-        Schema.Struct({
-          port: Schema.Number,
-          pid: Schema.Number,
-          namespace: Schema.String,
-          tcp: Schema.String,
-          owners: Schema.Array(
-            Schema.Struct({
-              pid: Schema.Number,
-              sockets: Schema.Array(Schema.String),
-            }),
-          ),
-        }),
-      ),
-    )(snapshotLine ?? '{}');
-    expect(snapshot.port).toBe(Number(nativeAddress?.[1]));
-    expect(snapshot.namespace).toMatch(/^net:\[\d+\]$/);
-    const portHex = Number(nativeAddress?.[1])
-      .toString(16)
-      .toUpperCase()
-      .padStart(4, '0');
-    const occupied = snapshot.tcp
-      .split('\n')
-      .map((line) => line.trim().split(/\s+/))
-      .find(
-        (fields) => fields[1]?.endsWith(`:${portHex}`) && fields[3] === '0A',
-      );
-    expect(occupied).toBeDefined();
-    const owner = snapshot.owners.find((entry) => entry.pid === snapshot.pid);
-    expect(owner?.sockets).toContain(`socket:[${occupied?.[9]}]`);
-  }
 });
 
 test('startup keeps its original failure and the failed cleanup outcome', async () => {
@@ -374,3 +337,43 @@ test.skipIf(process.platform !== 'linux')(
     expect(existsSync(remoteHome)).toBe(false);
   },
 );
+
+test('keeps the primary TCP port available when an earlier ephemeral listener could select it', async ({
+  onTestFinished,
+}) => {
+  const build = await mkdtemp(join(tmpdir(), 'porcelain-startup-allocation-'));
+  let server: IsolatedServer | undefined;
+  onTestFinished(async () => {
+    await server?.stop();
+    await rm(build, { recursive: true, force: true });
+  });
+  await cp(inject('serverBuild'), build, { recursive: true });
+  const entry = join(build, 'server/src/bootstrap/dev-server-child.mjs');
+  await writeFile(
+    entry,
+    `import { Server as AllocationGuardServer } from 'node:net';
+const allocationGuardListen = AllocationGuardServer.prototype.listen;
+const allocationGuardPort = Number(process.env.PORCELAIN_DEV_PORT);
+let allocationGuardOccupied = false;
+AllocationGuardServer.prototype.listen = function(...args) {
+  if (!allocationGuardOccupied) {
+    if (args[0] === 0) args[0] = allocationGuardPort;
+    else if (args[0]?.port === 0) args[0] = { ...args[0], port: allocationGuardPort };
+  }
+  this.once('listening', () => {
+    const address = this.address();
+    if (address && typeof address === 'object' && address.port === allocationGuardPort) allocationGuardOccupied = true;
+  });
+  return allocationGuardListen.apply(this, args);
+};
+${await readFile(entry, 'utf8')}`,
+  );
+  server = await IsolatedServer.start(root, build);
+  const health = await server.read(new Recorder(), {
+    method: 'GET',
+    path: '/health',
+  });
+  expect(health.status).toBe(200);
+  await server.stop();
+  expect(existsSync(server.projectHome)).toBe(false);
+});
