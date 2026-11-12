@@ -45,6 +45,8 @@ import {
   demoFingerprint,
   demoTime,
   demoBranch,
+  demoBranchRef,
+  demoBaseRef,
   demoFiles,
   demoOldText,
   demoPatch,
@@ -314,7 +316,7 @@ export function createDemoTransport(): Transport {
       const scopeInput = Schema.decodeUnknownSync(
         Schema.Struct({
           scope: Schema.optional(Schema.String),
-          base: Schema.optional(Schema.String),
+          branch: Schema.optional(Schema.String),
         }),
       )(body);
       const scope =
@@ -322,7 +324,9 @@ export function createDemoTransport(): Transport {
       const key = JSON.stringify([
         scope,
         scope === 'branch'
-          ? (scopeInput.base ?? url.searchParams.get('branch') ?? 'main')
+          ? (scopeInput.branch ??
+            url.searchParams.get('branch') ??
+            demoBranchRef)
           : '',
       ]);
       const marks =
@@ -421,14 +425,14 @@ export function createDemoTransport(): Transport {
     }
     if (path === `${worktree}/branch-bases`)
       return json(listBranchBasesResponseSchema, {
-        defaultRef: 'main',
-        bases: [{ ref: 'main', name: 'main', remote: false }],
+        defaultRef: demoBaseRef,
+        bases: [{ ref: demoBaseRef, name: 'main', remote: false }],
       });
     if (path === `${worktree}/branch-changes`)
       return json(readBranchChangesResponseSchema, {
         worktreeId: demoWorktreeId,
-        head: { oid: demoHead, branch: demoBranch },
-        base: { ref: 'main', oid: demoBase },
+        head: { oid: demoHead, branch: demoBranchRef },
+        base: { ref: demoBaseRef, oid: demoBase },
         mergeBaseOid: demoBase,
         commits: 1,
         files: commitPaths(demoHead).map((path) => ({
@@ -512,17 +516,24 @@ export function createDemoTransport(): Transport {
     }
     if (path === conversationPath)
       return json(walkthroughConversationsResponseSchema, view());
-    if (path.startsWith(`${conversationPath}/`) && path.endsWith('/brief'))
+    if (path.startsWith(`${conversationPath}/`) && path.endsWith('/brief')) {
+      const messageId = url.searchParams.get('messageId');
       return jsonResponse({
         text:
           conversations
             .flatMap((entry) =>
               entry.messages.flatMap((message) =>
-                message.author === 'developer' ? [message.text] : [],
+                message.author === 'developer' &&
+                (messageId === null
+                  ? message.post.status === 'saved'
+                  : message.id === messageId)
+                  ? [message.text]
+                  : [],
               ),
             )
             .join('\n\n') || null,
       });
+    }
     if (
       path.startsWith(`${conversationPath}/messages/`) &&
       path.endsWith('/saved') &&

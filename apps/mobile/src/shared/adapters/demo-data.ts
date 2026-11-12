@@ -21,6 +21,8 @@ export const demoBase = 'b'.repeat(40);
 export const demoFingerprint = 'c'.repeat(64);
 export const demoTime = '2026-01-01T12:00:00.000Z';
 export const demoBranch = 'feat/welcome-message';
+export const demoBranchRef = `refs/heads/${demoBranch}`;
+export const demoBaseRef = 'refs/heads/main';
 export const demoFiles: Readonly<Record<string, string>> = {
   'README.md':
     '# Hello Garden\n\nA small example project for exploring Porcelain.\n\nOpen the Walkthrough to understand the change, read the diff, or explore the file history.\nAll demo data stays on this device.\n',
@@ -86,7 +88,7 @@ export const demoChanges: ReadChangesResponse = {
 export const demoCommits: ListCommitsResponse = {
   snapshot: {
     tipOid: demoHead,
-    head: { kind: 'attached', ref: `refs/heads/${demoBranch}` },
+    head: { kind: 'attached', ref: demoBranchRef },
   },
   commits: [
     {

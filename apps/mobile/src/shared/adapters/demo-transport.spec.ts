@@ -1,5 +1,12 @@
 import { expect, test } from 'vitest';
-import { Schema } from 'effect';
+import { Effect, Layer, Schema } from 'effect';
+import { AtomRegistry } from 'effect/reactivity';
+import { readBranchBases, readBranchChanges } from '@porcelain/client/changes';
+import {
+  createWorktreeConnection,
+  type Transport,
+} from '@porcelain/client/transport';
+import { scheduledRegistry } from '../../../spec/kit/atom-registry';
 import { readServiceUpdateResponseSchema } from '@porcelain/contracts/access';
 import { readInventoryResponseSchema } from '@porcelain/contracts/projects';
 import { readTextFileResponseSchema } from '@porcelain/contracts/files';
@@ -20,6 +27,12 @@ const request = (method: string, body: unknown): RequestInit => ({
   method,
   body: JSON.stringify(body),
 });
+
+async function readDemoChanges(send: Transport) {
+  return Schema.decodeUnknownSync(readChangesResponseSchema)(
+    await (await send(`${worktree}/changes`)).json(),
+  );
+}
 
 test('the demo computer has no managed service or update to install', async () => {
   const response = await createDemoTransport()('/api/service/update');
@@ -79,9 +92,7 @@ test('sample source is readable and file mutations require a real computer', asy
 
 test('reviewed marks can be set and removed without changing another demo session', async () => {
   const send = createDemoTransport();
-  const changes = Schema.decodeUnknownSync(readChangesResponseSchema)(
-    await (await send(`${worktree}/changes`)).json(),
-  );
+  const changes = await readDemoChanges(send);
   const fingerprint = changes.changes[0]?.fingerprint;
   const response = await send(
     `${worktree}/reviewed`,
@@ -107,7 +118,7 @@ test('reviewed marks can be set and removed without changing another demo sessio
       reviewed: true,
       fingerprint,
       scope: 'branch',
-      base: 'main',
+      base: 'refs/heads/main',
     }),
   );
   const worktreeMarks = Schema.decodeUnknownSync(
@@ -181,4 +192,167 @@ test('the sample file timeline opens a diff for that file', async () => {
   );
   expect(patches[0]).toContain('+# Hello Garden');
   expect(patches[0]).not.toContain('name.trim()');
+});
+
+test('branch marks survive a read and single or bulk removal uses the head branch', async () => {
+  const send = createDemoTransport();
+  const changes = await readDemoChanges(send);
+  const fingerprint = changes.changes[0]?.fingerprint;
+  const branchQuery =
+    'scope=branch&branch=refs%2Fheads%2Ffeat%2Fwelcome-message';
+  const read = async () =>
+    Schema.decodeUnknownSync(listReviewedFilesResponseSchema)(
+      await (await send(`${worktree}/reviewed?${branchQuery}`)).json(),
+    );
+  await send(
+    `${worktree}/reviewed`,
+    request('PUT', {
+      scope: 'branch',
+      base: 'refs/heads/main',
+      path: 'src/welcome.ts',
+      reviewed: true,
+      fingerprint,
+    }),
+  );
+  expect((await read()).marks.map((mark) => mark.path)).toEqual([
+    'src/welcome.ts',
+  ]);
+  await send(`${worktree}/reviewed?${branchQuery}&path=src%2Fwelcome.ts`, {
+    method: 'DELETE',
+  });
+  expect((await read()).marks).toEqual([]);
+  await send(
+    `${worktree}/reviewed-bulk`,
+    request('PUT', {
+      scope: 'branch',
+      base: 'refs/heads/main',
+      files: [
+        { path: 'src/welcome.ts', fingerprint },
+        { path: 'src/welcome.test.ts', fingerprint },
+      ],
+    }),
+  );
+  expect((await read()).marks.map((mark) => mark.path)).toEqual([
+    'src/welcome.ts',
+    'src/welcome.test.ts',
+  ]);
+  await send(
+    `${worktree}/reviewed-bulk`,
+    request('DELETE', {
+      scope: 'branch',
+      branch: 'refs/heads/feat/welcome-message',
+      paths: ['src/welcome.ts'],
+    }),
+  );
+  expect((await read()).marks.map((mark) => mark.path)).toEqual([
+    'src/welcome.test.ts',
+  ]);
+  await send(
+    `${worktree}/reviewed-bulk`,
+    request('DELETE', {
+      scope: 'branch',
+      branch: 'refs/heads/feat/welcome-message',
+      paths: ['src/welcome.test.ts'],
+    }),
+  );
+  expect((await read()).marks).toEqual([]);
+});
+
+test('the sample branch comparison loads through the shared client using its advertised base', async () => {
+  const { connection, close } = createWorktreeConnection(
+    {
+      environmentId: '83d90de8-793b-4f8c-ae11-b091581c9537',
+      timeoutMs: 10_000,
+      transport: createDemoTransport(),
+    },
+    undefined,
+    Layer.empty,
+  );
+  const { registry } = scheduledRegistry();
+  const selection = {
+    connection,
+    scope: {
+      projectId: 'f5dd81bf-c039-4345-927a-e55315a50029',
+      worktreeId: '9e939510f914ca5886ccab463c94166f',
+    },
+  };
+  try {
+    const bases = await Effect.runPromise(
+      AtomRegistry.getResult(registry, readBranchBases(selection), {
+        suspendOnWaiting: true,
+      }),
+    );
+    const branch = await Effect.runPromise(
+      AtomRegistry.getResult(
+        registry,
+        readBranchChanges({
+          ...selection,
+          ...(bases.defaultRef ? { base: bases.defaultRef } : {}),
+        }),
+        { suspendOnWaiting: true },
+      ),
+    );
+    expect(branch.base?.ref).toBe('refs/heads/main');
+    expect(branch.head.branch).toBe('refs/heads/feat/welcome-message');
+    expect(branch.files.map((file) => file.path)).toEqual([
+      'src/welcome.ts',
+      'src/welcome.test.ts',
+    ]);
+  } finally {
+    registry.dispose();
+    await close();
+  }
+});
+
+test('copied briefs contain only the chosen question or the saved questions', async () => {
+  const send = createDemoTransport();
+  const conversation = `${worktree}/walkthrough/demo-welcome/conversations`;
+  const add = (text: string) =>
+    send(
+      `${conversation}/messages`,
+      request('POST', { anchor: { kind: 'walkthrough' }, text }),
+    );
+  await add('First question');
+  const view = Schema.decodeUnknownSync(walkthroughConversationsResponseSchema)(
+    await (await add('Second question')).json(),
+  );
+  const messages = view.conversations.flatMap((entry) => entry.messages);
+  const firstId = messages.find(
+    (message) =>
+      message.author === 'developer' && message.text === 'First question',
+  )?.id;
+  const secondId = messages.find(
+    (message) =>
+      message.author === 'developer' && message.text === 'Second question',
+  )?.id;
+  expect(firstId).toBeTypeOf('string');
+  expect(secondId).toBeTypeOf('string');
+  const brief = async (messageId?: string) => {
+    const answer: unknown = await (
+      await send(
+        `${conversation}/brief${messageId ? `?messageId=${encodeURIComponent(messageId)}` : ''}`,
+      )
+    ).json();
+    return answer;
+  };
+  expect(await brief(firstId)).toEqual({ text: 'First question' });
+  expect(await brief(secondId)).toEqual({ text: 'Second question' });
+  expect(await brief()).toEqual({ text: null });
+  await send(
+    `${conversation}/messages/${secondId}/saved`,
+    request('PUT', { saved: true }),
+  );
+  expect(await brief()).toEqual({ text: 'Second question' });
+  expect(await brief(firstId)).toEqual({ text: 'First question' });
+  expect(await brief('missing-message')).toEqual({ text: null });
+  await send(
+    `${conversation}/messages/${firstId}/saved`,
+    request('PUT', { saved: true }),
+  );
+  expect(await brief()).toEqual({ text: 'First question\n\nSecond question' });
+  await send(
+    `${conversation}/messages/${secondId}/saved`,
+    request('PUT', { saved: false }),
+  );
+  expect(await brief()).toEqual({ text: 'First question' });
 });
