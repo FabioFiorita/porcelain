@@ -150,6 +150,7 @@ export type KeyBindingName = keyof typeof keyBindings;
 export type KeyCommand = {
   binding: KeyBindingName;
   title?: string | undefined;
+  whileTyping?: boolean | undefined;
   run: () => void;
 };
 
@@ -218,9 +219,9 @@ export function nativeKeyCommand(command: KeyCommand): NativeKeyCommand {
     group: keyGroups[binding.group],
     input: binding.key,
     modifiers: binding.modifiers,
-    whileTyping: (binding.modifiers as readonly KeyModifier[]).includes(
-      'command',
-    ),
+    whileTyping:
+      command.whileTyping ??
+      (binding.modifiers as readonly KeyModifier[]).includes('command'),
   };
 }
 

@@ -23,6 +23,7 @@ import {
 } from '../features/projects';
 import { WalkthroughGuide } from '../features/walkthroughs';
 import { headerIcon } from '../shared/icons/header-icon';
+import { useScreenKeyCommands } from '../shared/application/key-commands';
 import {
   closedListDrawer,
   listActionEffect,
@@ -94,6 +95,22 @@ export function WorktreesHome() {
     if (effect.hiddenInLandscape !== undefined)
       setHidden(effect.hiddenInLandscape);
   };
+  useScreenKeyCommands(
+    'worktree-search',
+    drawer.focused
+      ? [
+          {
+            binding: 'backEscape',
+            title: 'End Search',
+            whileTyping: true,
+            run: () => {
+              searchBarRef.current?.cancelSearch();
+              search.setQuery('');
+            },
+          },
+        ]
+      : [],
+  );
   const close = () => {
     if (view.closing === 'close') act('close');
   };
