@@ -1,5 +1,5 @@
 import { type ReactNode, useState } from 'react';
-import { SparklesIcon } from 'lucide-react';
+import { ArrowUpRightIcon, Columns2Icon, SparklesIcon } from 'lucide-react';
 import { AsyncResult } from 'effect/reactivity';
 import {
   attentionLabel,
@@ -21,8 +21,14 @@ import {
   type WalkthroughStop,
 } from '@porcelain/client/walkthroughs/rules';
 import { Button } from '@/components/ui/button';
+import { ButtonGroup, ButtonGroupText } from '@/components/ui/button-group';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Spinner } from '@/components/ui/spinner';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { type DocumentProps } from '@/features/workspace/index';
 import { cn } from '@/shared/lib/utils';
 import { StateFailure, StateSkeleton } from '@/shared/views/state-notice';
@@ -264,16 +270,46 @@ function Step({
         />
       )}
       {stopPaths(stop).length > 0 && (
-        <div className="-ml-2">
-          <Button
-            variant="link"
-            size="sm"
-            aria-label={`See the code for step ${step}`}
-            onClick={() => props.onOpen({ kind: 'walkthrough-step', step })}
-          >
-            See the code
-          </Button>
-        </div>
+        <ButtonGroup aria-label={`See the code for step ${step}`}>
+          <ButtonGroupText>See the code</ButtonGroupText>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="outline"
+                  size="icon"
+                  aria-label={`Open code for step ${step} in split view`}
+                  onClick={() =>
+                    props.onOpen(
+                      { kind: 'walkthrough-step', step },
+                      { toSide: true },
+                    )
+                  }
+                />
+              }
+            >
+              <Columns2Icon aria-hidden="true" />
+            </TooltipTrigger>
+            <TooltipContent>Open in split view</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="outline"
+                  size="icon"
+                  aria-label={`See the code for step ${step}`}
+                  onClick={() =>
+                    props.onOpen({ kind: 'walkthrough-step', step })
+                  }
+                />
+              }
+            >
+              <ArrowUpRightIcon aria-hidden="true" />
+            </TooltipTrigger>
+            <TooltipContent>Open in a new tab</TooltipContent>
+          </Tooltip>
+        </ButtonGroup>
       )}
       {conversation?.({ kind: 'step', step })}
     </li>

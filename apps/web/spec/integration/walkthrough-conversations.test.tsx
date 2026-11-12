@@ -33,13 +33,15 @@ test('asks, preserves a draft through an answer, saves two, and posts them toget
   await expect
     .element(page.getByText('1 comment saved', { exact: true }))
     .toBeVisible();
-  await page
-    .getByRole('button', { name: 'Ask about this', exact: true })
-    .last()
-    .click();
+  await expect
+    .element(
+      page.getByRole('button', { name: 'Ask about this', exact: true }).first(),
+    )
+    .not.toBeInTheDocument();
   const step = page
     .getByRole('textbox', { name: 'Ask about this step', exact: true })
     .last();
+  await expect.element(step).toBeVisible();
   await step.fill('Handle failures here.');
   await userEvent.keyboard('{Enter}');
   await expect
