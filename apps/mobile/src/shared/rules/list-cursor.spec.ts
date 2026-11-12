@@ -1,5 +1,11 @@
 import { expect, it } from 'vitest';
-import { activeList, moveCursor, nextList, treeStep } from './list-cursor';
+import {
+  activeList,
+  moveCursor,
+  nextList,
+  tabHolder,
+  treeStep,
+} from './list-cursor';
 
 const rows = [{ key: 'a' }, { key: 'b' }, { key: 'c' }];
 
@@ -145,4 +151,39 @@ it('lets the list the developer last chose take the keys while it is on screen',
 it('moves to the next list on screen and wraps around', () => {
   expect(nextList(['worktrees', 'files'], 'worktrees')).toBe('files');
   expect(nextList(['worktrees', 'files'], undefined)).toBe('worktrees');
+});
+
+it.each([
+  {
+    lists: ['worktrees', 'files'],
+    away: false,
+    holder: 'lists',
+    why: 'two lists on screen take Tab to move between them',
+  },
+  {
+    lists: ['files'],
+    away: true,
+    holder: 'away',
+    why: 'with the worktrees list slid away over Files or History, Tab stays on the page list',
+  },
+  {
+    lists: [],
+    away: true,
+    holder: 'away',
+    why: 'with the worktrees list slid away over Changes or the Walkthrough, Tab is still claimed so it cannot reach the hidden search',
+  },
+  {
+    lists: ['worktrees'],
+    away: false,
+    holder: undefined,
+    why: 'a single visible list leaves Tab to the system',
+  },
+  {
+    lists: [],
+    away: false,
+    holder: undefined,
+    why: 'with no list at all Tab stays with the system',
+  },
+] as const)('$why', ({ lists, away, holder }) => {
+  expect(tabHolder(lists, away)).toBe(holder);
 });

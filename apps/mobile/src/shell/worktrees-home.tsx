@@ -1,3 +1,4 @@
+import type { SearchBarCommands } from 'react-native-screens';
 import { useAtom, useAtomValue } from '@effect/atom-react';
 import { Stack, useRouter } from 'expo-router';
 import { useState } from 'react';
@@ -7,6 +8,7 @@ import {
   ListDetail,
   useLayoutMove,
   useListDetailLayout,
+  usePortrait,
 } from '../components/ui/list-detail';
 import { SettingsToolbar } from '../features/access';
 import { useOpenedFile } from '../features/files';
@@ -15,11 +17,20 @@ import {
   WorktreesScreen,
   useSelectedWorkspaceKey,
   useSelectedWorktree,
+  useWorktreeNavigator,
   worktreeListHidden,
   worktreeSection,
 } from '../features/projects';
 import { WalkthroughGuide } from '../features/walkthroughs';
 import { headerIcon } from '../shared/icons/header-icon';
+import {
+  closedListDrawer,
+  listActionEffect,
+  listDrawer,
+  worktreeList,
+  type ListAction,
+  type ListDrawerEvent,
+} from '../shared/rules/list-detail';
 
 export function WorktreesHome() {
   const selected = useSelectedWorktree();
@@ -47,22 +58,73 @@ export function WorktreesHome() {
     },
   });
   const beside = layout.mode === 'beside' && selected !== undefined;
+  const portrait = usePortrait();
+  const [drawer, setDrawer] = useState(closedListDrawer);
+  const [send] = useState(
+    () => (event: ListDrawerEvent) =>
+      setDrawer((current) => listDrawer(current, event)),
+  );
+  const search = useWorktreeNavigator();
+  const [searchBarRef] = useState(() => ({
+    current: null as SearchBarCommands | null,
+  }));
+  const [searchFocusChange] = useState(
+    () => (focused: boolean) => send(focused ? 'searchFocus' : 'searchBlur'),
+  );
+  const [seenPortrait, setSeenPortrait] = useState(portrait);
+  if (seenPortrait !== portrait) {
+    setSeenPortrait(portrait);
+    setDrawer(listDrawer(drawer, 'rotate'));
+  }
+  const view = worktreeList({
+    layout: layout.mode,
+    selected: selected !== undefined,
+    portrait,
+    hiddenInLandscape: hidden,
+    drawer,
+    query: search.query,
+  });
+  const act = (action: ListAction) => {
+    const effect = listActionEffect(action);
+    if (effect.endSearch) {
+      searchBarRef.current?.cancelSearch();
+      search.setQuery('');
+    }
+    if (effect.drawer) send(effect.drawer);
+    if (effect.hiddenInLandscape !== undefined)
+      setHidden(effect.hiddenInLandscape);
+  };
+  const close = () => {
+    if (view.closing === 'close') act('close');
+  };
+  const { toggle } = view;
   return (
     <>
       <Stack.Screen options={{ headerLargeTitleEnabled: !beside }} />
       <SettingsToolbar>
-        {beside ? (
+        {toggle ? (
           <Stack.Toolbar.Button
-            icon={headerIcon(hidden ? 'showList' : 'hideList')}
-            accessibilityLabel={hidden ? 'Show worktrees' : 'Hide worktrees'}
-            onPress={() => setHidden(!hidden)}
+            icon={headerIcon(toggle.label === 'hide' ? 'hideList' : 'showList')}
+            accessibilityLabel={
+              toggle.label === 'hide' ? 'Hide worktrees' : 'Show worktrees'
+            }
+            onPress={() => act(toggle.press)}
           />
         ) : null}
       </SettingsToolbar>
       <ListDetail
         layout={layout}
-        listHidden={beside && hidden}
-        list={(mode) => <WorktreesScreen mode={mode} />}
+        place={view.place}
+        onDismiss={close}
+        list={(mode, presentation) => (
+          <WorktreesScreen
+            mode={mode}
+            presentation={presentation}
+            onOpen={close}
+            onSearchFocusChange={searchFocusChange}
+            searchBarRef={searchBarRef}
+          />
+        )}
         detail={
           selected ? (
             <WorktreeDetail
@@ -71,6 +133,7 @@ export function WorktreesHome() {
               mode="beside"
               content={WorktreeSectionView}
               guide={WalkthroughGuide}
+              onDestination={close}
             />
           ) : (
             <Empty

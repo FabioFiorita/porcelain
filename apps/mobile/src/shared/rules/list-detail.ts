@@ -70,3 +70,116 @@ export function layoutMove({
     ? { kind: 'push', file }
     : { kind: 'none' };
 }
+
+export type ListPlace = 'beside' | 'over' | 'away';
+
+export type ListDrawer = { open: boolean; focused: boolean };
+
+export type ListDrawerEvent =
+  | 'show'
+  | 'close'
+  | 'searchFocus'
+  | 'searchBlur'
+  | 'rotate';
+
+export const closedListDrawer: ListDrawer = { open: false, focused: false };
+
+export function listDrawer(
+  drawer: ListDrawer,
+  event: ListDrawerEvent,
+): ListDrawer {
+  switch (event) {
+    case 'show':
+      return { ...drawer, open: true };
+    case 'close':
+      return closedListDrawer;
+    case 'searchFocus':
+      return { ...drawer, focused: true };
+    case 'searchBlur':
+      return { ...drawer, focused: false };
+    case 'rotate':
+      return { ...drawer, open: false };
+  }
+}
+
+export type ListAction = 'open' | 'close' | 'hide' | 'unhide';
+
+export type ListActionEffect = {
+  endSearch: boolean;
+  drawer: ListDrawerEvent | undefined;
+  hiddenInLandscape: boolean | undefined;
+};
+
+export function listActionEffect(action: ListAction): ListActionEffect {
+  switch (action) {
+    case 'open':
+      return { endSearch: false, drawer: 'show', hiddenInLandscape: undefined };
+    case 'close':
+      return { endSearch: true, drawer: 'close', hiddenInLandscape: undefined };
+    case 'hide':
+      return { endSearch: true, drawer: 'close', hiddenInLandscape: true };
+    case 'unhide':
+      return { endSearch: false, drawer: undefined, hiddenInLandscape: false };
+  }
+}
+
+export type WorktreeListView = {
+  place: ListPlace;
+  closing: 'close' | 'none';
+  toggle: { label: 'show' | 'hide'; press: ListAction } | undefined;
+};
+
+export function worktreeList({
+  layout,
+  selected,
+  portrait,
+  hiddenInLandscape,
+  drawer,
+  query,
+}: {
+  layout: ListDetailMode;
+  selected: boolean;
+  portrait: boolean;
+  hiddenInLandscape: boolean;
+  drawer: ListDrawer;
+  query: string;
+}): WorktreeListView {
+  if (layout === 'stack')
+    return { place: 'beside', closing: 'none', toggle: undefined };
+  if (!selected)
+    return {
+      place: 'beside',
+      closing: portrait ? 'close' : 'none',
+      toggle: undefined,
+    };
+  const live = drawer.focused || query !== '';
+  if (portrait)
+    return drawer.open || live
+      ? {
+          place: 'over',
+          closing: 'close',
+          toggle: { label: 'hide', press: 'close' },
+        }
+      : {
+          place: 'away',
+          closing: 'close',
+          toggle: { label: 'show', press: 'open' },
+        };
+  if (!hiddenInLandscape)
+    return {
+      place: 'beside',
+      closing: 'none',
+      toggle: { label: 'hide', press: 'hide' },
+    };
+  return live
+    ? {
+        place: 'beside',
+        closing: 'none',
+        toggle: { label: 'hide', press: 'close' },
+      }
+    : {
+        place: 'away',
+        closing: 'none',
+        toggle: { label: 'show', press: 'unhide' },
+      };
+}

@@ -3,6 +3,7 @@ export { useSelectedWorkspaceKey } from './views/workspace';
 export type { Workspace } from './commands/workspace-connection';
 export {
   useComputerConnection,
+  useWorktreeNavigator,
   worktreeSection,
   worktreeListHidden,
 } from './store';
