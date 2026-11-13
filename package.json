@@ -1,6 +1,6 @@
 {
   "name": "porcelain",
-  "version": "0.82.3",
+  "version": "0.83.0",
   "description": "A fresh, read-only agent explains what your coding agent changed. Read it from a browser, Mac or phone.",
   "license": "MIT",
   "repository": {
