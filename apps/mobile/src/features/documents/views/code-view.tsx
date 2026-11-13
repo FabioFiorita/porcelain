@@ -1,9 +1,9 @@
-import { RenderSurface } from './render-surface';
-import type { RenderToken } from '../../shared/rules/render-model';
-import type { ReviewRange } from './code-range';
-import { useHighlightedCode } from './use-highlighted-code';
+import { RenderSurface } from '../../../components/ui/render-surface';
+import type { RenderToken } from '../../../shared/rules/render-model';
+import type { ReviewRange } from '../../../components/ui/code-range';
+import { useHighlightedCode } from '../queries/highlighted-code';
 import { View } from 'react-native';
-import { Text } from './text';
+import { Text } from '../../../components/ui/text';
 
 export function CodeView({
   source,
@@ -27,21 +27,19 @@ export function CodeView({
   onSelect?: ((range: ReviewRange) => void) | undefined;
 }) {
   const result = useHighlightedCode(source, tokens ? undefined : language);
-  const settled = tokens ? { source, tokens } : result;
-  const lines = settled
-    ? source
-        .replaceAll('\r\n', '\n')
-        .split('\n')
-        .map((text, index) => {
-          const lineTokens = settled.tokens?.[index];
-          return {
-            id: String(index + 1),
-            text,
-            newLine: index + 1,
-            ...(lineTokens ? { tokens: lineTokens } : {}),
-          };
-        })
-    : undefined;
+  const highlighted = tokens ?? result?.tokens;
+  const lines = source
+    .replaceAll('\r\n', '\n')
+    .split('\n')
+    .map((text, index) => {
+      const lineTokens = highlighted?.[index];
+      return {
+        id: String(index + 1),
+        text,
+        newLine: index + 1,
+        ...(lineTokens ? { tokens: lineTokens } : {}),
+      };
+    });
   return (
     <View className="flex-1">
       {result?.error ? (

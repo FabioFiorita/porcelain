@@ -32,6 +32,9 @@ export const optionsSchema = Schema.Struct({
   agentSession: Schema.optional(Schema.String),
   simulatorLimit: Schema.Finite,
   manualPairing: Schema.Boolean,
+  productionJs: Schema.Boolean.pipe(
+    Schema.withDecodingDefaultKey(Effect.succeed(false)),
+  ),
   codingTool: Schema.Boolean.pipe(
     Schema.withDecodingDefaultKey(Effect.succeed(false)),
   ),
@@ -68,6 +71,7 @@ const detailSchema = Schema.Struct({
   }),
 });
 const mobileFields = {
+  productionJs: optionsSchema.fields.productionJs,
   simulator: Schema.String,
   bundleIdentifier: Schema.String,
   metroUrl: Schema.String,
@@ -152,6 +156,7 @@ function mobileConnection(instance: MobileInstance) {
     logsCommand: command('logs'),
     stopCommand: command('stop'),
     mobile: {
+      productionJs: detail.productionJs,
       ...(detail.kind === 'android'
         ? { platform: 'android' as const, serial: detail.udid }
         : { platform: 'ios' as const, udid: detail.udid }),

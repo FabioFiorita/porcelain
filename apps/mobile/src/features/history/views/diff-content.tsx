@@ -7,7 +7,7 @@ import { Empty } from '../../../components/ui/empty';
 import { ErrorState } from '../../../components/ui/error-state';
 import { Loading } from '../../../components/ui/loading';
 import { DocumentHeader } from '../../../components/ui/document-header';
-import { DiffView } from '../../../components/ui/diff-view';
+import { DiffView } from '../../documents/index';
 import { diffLines } from '@porcelain/client/changes/rules';
 import { usePreferences } from '../../preferences/index';
 import {

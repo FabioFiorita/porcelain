@@ -44,8 +44,9 @@ async function warmBundle(
   url: string,
   child: ChildProcess,
   platform: MobilePlatform,
+  productionJs: boolean,
 ): Promise<void> {
-  const bundle = `${url}/.expo/.virtual-metro-entry.bundle?platform=${platform}&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=src%2Fapp`;
+  const bundle = `${url}/.expo/.virtual-metro-entry.bundle?platform=${platform}&dev=${!productionJs}&minify=${productionJs}&hot=false&lazy=${!productionJs}&transform.engine=hermes&transform.routerRoot=src%2Fapp`;
   const deadline = Date.now() + bundleLimitMs;
   while (Date.now() < deadline && !exited(child)) {
     const response = await fetch(bundle, {
@@ -65,6 +66,7 @@ export async function startMetro(
   requestedPort?: number,
   pairing?: { ownerSocket: string; serverAddress: string },
   platform: MobilePlatform = 'ios',
+  productionJs = false,
 ): Promise<Metro> {
   const port = requestedPort ?? (await freePort());
   const url = `http://localhost:${port}`;
@@ -80,12 +82,14 @@ export async function startMetro(
       String(port),
       '--max-workers',
       '2',
+      ...(productionJs ? ['--no-dev', '--minify'] : []),
     ],
     {
       cwd: mobileRoot,
       detached: true,
       env: {
         ...process.env,
+        NODE_ENV: productionJs ? 'production' : process.env.NODE_ENV,
         EXPO_NO_TELEMETRY: '1',
         APP_VARIANT: 'development',
         BROWSER: 'none',
@@ -114,7 +118,7 @@ export async function startMetro(
         throw new Error(`Metro did not answer ${url}/status; read ${log}`);
       await sleep(pollMs);
     }
-    await warmBundle(url, child, platform);
+    await warmBundle(url, child, platform, productionJs);
   } catch (error) {
     stop();
     throw error;

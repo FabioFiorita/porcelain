@@ -16,7 +16,7 @@ import { Text } from '../../../components/ui/text';
 import { Button } from '../../../components/ui/button';
 import { ErrorState } from '../../../components/ui/error-state';
 import { Loading } from '../../../components/ui/loading';
-import { MarkdownView } from '../../../components/ui/markdown-view';
+import { MarkdownView } from '../../documents/index';
 import { usePreviewLink } from '../../../shared/adapters/preview-link';
 import { pullRequestMarkdown } from '../rules/pull-request-document';
 import type { PullRequestTarget } from '../../../shared/rules/pull-request-target';

@@ -29,15 +29,14 @@ import {
   DocumentHeader,
   DocumentScreen,
 } from '../../../components/ui/document-header';
-import { CodeView } from '../../../components/ui/code-view';
 import {
+  CodeView,
   MarkdownContent,
   markdownModeToggle,
-} from '../../../components/ui/markdown-view';
-import {
   HtmlContent,
   htmlModeToggle,
-} from '../../../components/ui/html-preview';
+} from '../../documents/index';
+
 import { ImageView } from '../../../components/ui/image-view';
 import { Text } from '../../../components/ui/text';
 import {

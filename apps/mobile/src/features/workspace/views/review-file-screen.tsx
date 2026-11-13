@@ -16,8 +16,8 @@ import { readTextFile } from '@porcelain/client/files';
 import { selectionKey, type Change } from '@porcelain/client/changes/rules';
 import { Empty } from '../../../components/ui/empty';
 import { Text } from '../../../components/ui/text';
-import { DiffView } from '../../../components/ui/diff-view';
-import { CodeView } from '../../../components/ui/code-view';
+import { DiffView, CodeView } from '../../documents/index';
+
 import {
   DocumentHeader,
   DocumentScreen,

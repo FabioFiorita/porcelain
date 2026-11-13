@@ -1,19 +1,9 @@
-import type { ReviewRange } from './code-range';
-import { parseMarkdown } from '../../shared/rules/markdown';
-import { externalLink } from '@porcelain/client/links/rules';
-import { useRenderTokens } from './use-render-tokens';
+import type { ReviewRange } from '../../../components/ui/code-range';
 import { useState } from 'react';
-import { requireNativeView } from 'expo';
-import { View, type NativeSyntheticEvent } from 'react-native';
-import { Button } from './button';
+import { Button } from '../../../components/ui/button';
+import { Box } from '../../../components/ui/box';
+import { MarkdownSurface } from '../../../components/ui/markdown-surface';
 import { CodeView } from './code-view';
-
-const NativeMarkdown = requireNativeView<{
-  data: string;
-  tokens: string;
-  onLink: (event: NativeSyntheticEvent<{ url: string }>) => void;
-  style: { flex: number };
-}>('PorcelainRenderer', 'MarkdownSurface');
 export type MarkdownMode = 'reader' | 'source';
 
 export function markdownModeToggle(mode: MarkdownMode) {
@@ -29,17 +19,17 @@ export function MarkdownView({
   const [mode, setMode] = useState(initialMode);
   const toggle = markdownModeToggle(mode);
   return (
-    <View className="flex-1 bg-background">
-      <View className="flex-row justify-end border-b border-border p-2">
+    <Box className="flex-1" surface="background">
+      <Box className="flex-row justify-end" padding={2} divider="bottom">
         <Button
           label={toggle.label}
           size="sm"
           variant="plain"
           onPress={() => setMode(toggle.mode)}
         />
-      </View>
+      </Box>
       <MarkdownContent {...props} mode={mode} />
-    </View>
+    </Box>
   );
 }
 
@@ -60,10 +50,8 @@ export function MarkdownContent({
   selection,
   onSelect,
 }: MarkdownContentProps) {
-  const data = JSON.stringify(parseMarkdown(source));
-  const tokens = useRenderTokens();
   return (
-    <View className="flex-1 bg-background">
+    <Box className="flex-1" surface="background">
       {mode === 'source' ? (
         <CodeView
           source={source}
@@ -73,16 +61,8 @@ export function MarkdownContent({
           onSelect={onSelect}
         />
       ) : (
-        <NativeMarkdown
-          data={data}
-          tokens={JSON.stringify(tokens)}
-          onLink={(event) => {
-            if (externalLink(event.nativeEvent.url))
-              onLink?.(event.nativeEvent.url);
-          }}
-          style={{ flex: 1 }}
-        />
+        <MarkdownSurface source={source} onLink={onLink} />
       )}
-    </View>
+    </Box>
   );
 }

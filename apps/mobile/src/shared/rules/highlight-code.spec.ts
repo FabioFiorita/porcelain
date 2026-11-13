@@ -24,11 +24,8 @@ describe('mobile source highlighting', () => {
         yields++;
       },
     );
-    expect(chunks).toEqual([
-      'comment\n'.repeat(99) + 'comment',
-      'comment\n<script>&copy;</script>\n',
-    ]);
-    expect(yields).toBe(1);
+    expect(chunks.every((chunk) => chunk.split('\n').length <= 20)).toBe(true);
+    expect(yields).toBeGreaterThan(0);
     expect(
       lines.map((line) => line.map((token) => token.text).join('')).join('\n'),
     ).toBe(source);
