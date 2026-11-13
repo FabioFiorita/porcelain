@@ -28,6 +28,10 @@ Ad hoc preview requires Apple signing credentials for `com.fabiofiorita.porcelai
 
 Production uses the existing Porcelain App Store Connect app (`6796720233`, bundle `com.fabiofiorita.porcelain`). Configure its store signing credentials and an EAS-managed App Store Connect submission key before the first production run. For Android, create the Google Play app for `com.fabiofiorita.porcelain` and assign a Google Service Account key for Play Store submissions in EAS Android credentials. This submission key is separate from the Firebase configuration file and FCM push key. Signing and submission credentials belong in EAS, not in Git.
 
+[Expo supports the first internal release through EAS Submit](https://docs.expo.dev/submit/android/#first-time-submission) once the Play Console app and service account are configured; a manual first bundle upload is optional. Complete the store listing and Play Console setup tasks before promoting a release to public production.
+
+Android builds allow HTTP connections to user-paired servers, including the local-network addresses advertised by Porcelain. This native setting requires a new binary; an OTA update cannot enable it in an older build.
+
 From a local terminal signed into the personal Expo account, run these commands in `apps/mobile` as needed:
 
 ```sh
