@@ -6,17 +6,17 @@ Linux contributors can build and drive the native Android development client wit
 
 The [Porcelain Expo project](https://expo.dev/accounts/fabiofiorita/projects/porcelain) uses the repository's `apps/mobile` base directory. In Expo, open **Workflows → Run a workflow**, choose `main` and select **Preview delivery** or **Production delivery**. Both workflows are manual only; pushes and pull requests do not start EAS jobs.
 
-| Profile       | Delivery                                        | App               |
-| ------------- | ----------------------------------------------- | ----------------- |
-| `development` | Simulator development client, loaded from Metro | Porcelain Dev     |
-| `preview`     | Standalone, ad hoc iOS install link             | Porcelain Preview |
-| `production`  | Store-signed iOS build uploaded to TestFlight   | Porcelain         |
+| Profile       | Delivery                                                   | App               |
+| ------------- | ---------------------------------------------------------- | ----------------- |
+| `development` | Simulator development client, loaded from Metro            | Porcelain Dev     |
+| `preview`     | Standalone, ad hoc iOS install link                        | Porcelain Preview |
+| `production`  | iOS to TestFlight; Android to Google Play internal testing | Porcelain         |
 
-Preview builds include the JavaScript bundle and connect directly to a paired Porcelain service; Metro is only needed for development. One iOS build supports iPhone and iPad. These workflows intentionally build iOS only.
+Preview builds include the JavaScript bundle and connect directly to a paired Porcelain service; Metro is only needed for development. One iOS build supports iPhone and iPad. Preview delivery builds iOS only. Production delivery handles iOS and Android independently.
 
 Each manual run fingerprints the selected variant and looks for a compatible build on its own channel. If one exists, the workflow publishes an OTA update; if the native runtime changed, it creates a signed binary. Set **force_build** to create a new binary regardless, for example after changing the ad hoc provisioning profile. A matching in-progress build is awaited instead of starting another one.
 
-Production submits a newly built binary to App Store Connect for TestFlight. An OTA-only run has no store submission. A production OTA reaches compatible installations on the production channel, including TestFlight and any future store installations. App Store review and public release remain separate actions. Build numbers increment on EAS.
+Production submits newly built iOS binaries to App Store Connect for TestFlight and Android app bundles to Google Play internal testing. An OTA-only run has no store submission. A production OTA reaches compatible installations on the production channel, including TestFlight and any future store installations. Public store review and release remain separate actions. Build numbers increment on EAS.
 
 Expo Updates checks for compatible updates at launch without delaying startup for the network. Downloaded updates take effect on a later cold launch; the bundled code remains available offline and Expo's default error-recovery protections remain enabled. Preview and production use separate native identities and channels. Expo Observe and behavioral analytics are not included; the privacy-page OTA disclosure is tracked separately.
 
@@ -26,7 +26,7 @@ Connect `FabioFiorita/porcelain` in the project's GitHub settings and set its ba
 
 Ad hoc preview requires Apple signing credentials for `com.fabiofiorita.porcelain.preview` and a provisioning profile that includes each physical iPhone/iPad. Register devices and configure the `preview` profile before running it from the dashboard. Existing provisioning profiles do not automatically gain newly registered devices; regenerate the profile before building for additional devices.
 
-Production uses the existing Porcelain App Store Connect app (`6796720233`, bundle `com.fabiofiorita.porcelain`). Configure its store signing credentials and an EAS-managed App Store Connect submission key before the first production run. Signing credentials belong in EAS, not in Git.
+Production uses the existing Porcelain App Store Connect app (`6796720233`, bundle `com.fabiofiorita.porcelain`). Configure its store signing credentials and an EAS-managed App Store Connect submission key before the first production run. For Android, create the Google Play app for `com.fabiofiorita.porcelain` and assign a Google Service Account key for Play Store submissions in EAS Android credentials. This submission key is separate from the Firebase configuration file and FCM push key. Signing and submission credentials belong in EAS, not in Git.
 
 From a local terminal signed into the personal Expo account, run these commands in `apps/mobile` as needed:
 
@@ -40,8 +40,21 @@ The last command configures the production submission key through **App Store Co
 
 ```sh
 eas workflow:run .eas/workflows/preview.yml --ref main
-# Only when intentionally preparing TestFlight:
+# Only when intentionally preparing TestFlight and Google Play internal testing:
 eas workflow:run .eas/workflows/production.yml --ref main
+```
+
+For local Android production builds, pull the production file variables and explicitly supply the Firebase file to EAS CLI so local and hosted runtime fingerprints include the same native configuration:
+
+```sh
+eas env:pull production --non-interactive
+GOOGLE_SERVICES_JSON="$PWD/.eas/.env/GOOGLE_SERVICES_JSON" eas build --platform android --profile production
+```
+
+The generated `.env.local` and `.eas/.env` files stay out of Git. Hosted fingerprint, update and build jobs use the production EAS environment directly. To submit a specific completed Android build:
+
+```sh
+APP_VARIANT=production eas submit --platform android --profile production --id <build-id>
 ```
 
 ## Push notifications
@@ -53,4 +66,4 @@ Settings → Notifications offers the phone's Expo push token to every paired co
 
 References: [push notifications setup](https://docs.expo.dev/push-notifications/push-notifications-setup/), [FCM V1 credentials](https://docs.expo.dev/push-notifications/fcm-credentials/), [sending notifications](https://docs.expo.dev/push-notifications/sending-notifications/).
 
-References: [workflow syntax](https://docs.expo.dev/eas/workflows/syntax/), [ad hoc distribution](https://docs.expo.dev/build/internal-distribution/), [iOS submission](https://docs.expo.dev/submit/ios/).
+References: [workflow syntax](https://docs.expo.dev/eas/workflows/syntax/), [ad hoc distribution](https://docs.expo.dev/build/internal-distribution/), [iOS submission](https://docs.expo.dev/submit/ios/), [Android submission](https://docs.expo.dev/submit/android/).
