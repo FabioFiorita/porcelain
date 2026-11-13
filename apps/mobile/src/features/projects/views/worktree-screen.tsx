@@ -36,6 +36,7 @@ import {
 import { useOpenPullRequest } from './open-pull-request';
 import { PickerNotices } from './picker-notices';
 import { WorkspaceGate } from './workspace-gate';
+import { DemoNotice } from '../../access';
 import { useWorkspacePickerModel } from './workspace-picker-model';
 
 export type WorktreeSectionContent = ComponentType<{
@@ -158,14 +159,17 @@ export function WorktreeDetail({
         ) : (
           <Guide key={workspace.key} workspace={workspace}>
             {(guide) => (
-              <WorktreeSections
-                workspace={workspace.key}
-                details={details}
-                mode={mode}
-                content={content}
-                guide={guide}
-                onDestination={onDestination}
-              />
+              <Box className="flex-1">
+                <DemoNotice environmentId={details.environment} />
+                <WorktreeSections
+                  workspace={workspace.key}
+                  details={details}
+                  mode={mode}
+                  content={content}
+                  guide={guide}
+                  onDestination={onDestination}
+                />
+              </Box>
             )}
           </Guide>
         )

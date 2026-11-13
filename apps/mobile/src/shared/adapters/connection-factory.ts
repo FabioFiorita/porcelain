@@ -11,6 +11,8 @@ import { operationStorage } from './operation-storage';
 import { mobileSocket } from './live-socket';
 import { secureRandomLayer } from './secure-random';
 import { REQUEST_TIMEOUT_MS } from '../../config/limits';
+import { demoRemote } from './demo-data';
+import { openDemoConnection } from './demo-connection';
 
 export function remoteConnectionFactoryLayer(memoMap: Layer.MemoMap) {
   return Layer.effect(
@@ -21,34 +23,37 @@ export function remoteConnectionFactoryLayer(memoMap: Layer.MemoMap) {
         open: (remote) =>
           Effect.acquireRelease(
             Effect.sync(() =>
-              openRemoteConnection(
-                {
-                  ...remote,
-                  send: platform.send,
-                  ...(platform.statusActivity
-                    ? { activity: platform.statusActivity }
-                    : {}),
-                  socket: mobileSocket,
-                  onStatusChange: () =>
-                    revalidateRemoteStatus(platform, remote),
-                  timeoutMs: REQUEST_TIMEOUT_MS,
-                },
-                Layer.merge(
-                  secureRandomLayer,
-                  Layer.succeed(
-                    OperationStorage,
-                    operationStorage(
-                      operationJournalKey(remote) ??
-                        JSON.stringify([
-                          remote.environmentId,
-                          remote.address,
-                          remote.deviceId,
-                        ]),
+              remote.environmentId === demoRemote.environmentId &&
+              remote.address === demoRemote.address
+                ? openDemoConnection(remote, memoMap)
+                : openRemoteConnection(
+                    {
+                      ...remote,
+                      send: platform.send,
+                      ...(platform.statusActivity
+                        ? { activity: platform.statusActivity }
+                        : {}),
+                      socket: mobileSocket,
+                      onStatusChange: () =>
+                        revalidateRemoteStatus(platform, remote),
+                      timeoutMs: REQUEST_TIMEOUT_MS,
+                    },
+                    Layer.merge(
+                      secureRandomLayer,
+                      Layer.succeed(
+                        OperationStorage,
+                        operationStorage(
+                          operationJournalKey(remote) ??
+                            JSON.stringify([
+                              remote.environmentId,
+                              remote.address,
+                              remote.deviceId,
+                            ]),
+                        ),
+                      ),
                     ),
+                    memoMap,
                   ),
-                ),
-                memoMap,
-              ),
             ),
             (connection) => Effect.promise(() => connection.close()),
           ),

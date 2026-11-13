@@ -1,4 +1,5 @@
 export { SettingsScreen } from './views/settings-screen';
+export { DemoControls, DemoNotice } from './views/demo-controls';
 export { EnvironmentsSettings } from './views/environments-settings';
 export { PairComputerSheet } from './views/pair-computer-sheet';
 export { ScanPairingLinkScreen } from './views/scan-pairing-link-screen';

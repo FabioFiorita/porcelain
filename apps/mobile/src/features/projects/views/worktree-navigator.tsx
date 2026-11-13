@@ -5,7 +5,11 @@ import {
   connectionErrorMessage,
   type EnvironmentIcon,
 } from '@porcelain/client/access/rules';
-import { useEnvironments, useEnvironmentStorageStatus } from '../../access';
+import {
+  DemoControls,
+  useEnvironments,
+  useEnvironmentStorageStatus,
+} from '../../access';
 import { ActivityIndicator, ScrollView } from 'react-native';
 import { useScrollReveal } from '../../../components/ui/scroll-reveal';
 import { Stack, useRouter } from 'expo-router';
@@ -147,6 +151,7 @@ export function WorktreeNavigator({
               onPress={openComputers}
             />
           </Box>
+          <DemoControls />
         </Box>
       </Box>
     );
