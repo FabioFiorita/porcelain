@@ -6,14 +6,14 @@ Agents write the code. Porcelain is where you understand it. It never runs the a
 
 You comment on a call or a step and the walkthrough agent answers. A requested change is posted on the pull request in one click, alone or saved and posted together, or copied as a brief when there is no pull request. A walkthrough is written when you press Write walkthrough, or automatically when a pull request opens on a project where you turned that on. New commits or edits mark it out of date and offer Update.
 
-Around the walkthrough, Porcelain has a file tree for very large repositories (pin files, hide folders), Git history with a per-file timeline, commit, pull and push, and reviewed checkboxes on plain changes. It runs on the machine that holds your repositories: the Mac app runs on Apple silicon; the server runs on Linux or Mac and starts with `npx @fabiofiorita/porcelain@latest serve`. You read in a browser or the Mac app, locally, over your network or across remote machines; an iPhone and iPad app is coming. Porcelain has no account and no analytics. It is open source under the MIT license.
+Around the walkthrough, Porcelain has a file tree for very large repositories (pin files, hide folders), Git history with a per-file timeline, commit, pull and push, and reviewed checkboxes on plain changes. It runs on the machine that holds your repositories: the Mac app runs on Apple silicon; the server runs on Linux or Mac and starts with `npx @fabiofiorita/porcelain@latest serve`. You read in a browser, the Mac app or the mobile companion, locally, over your network or across remote machines. Porcelain has no account service or advertising trackers. Its mobile app uses Expo Update, which processes installation identifiers and launch diagnostics for update delivery. It is open source under the MIT license.
 
 ## Pages
 
 - [Porcelain](https://porcelain.fabiofiorita.com/): The Walkthrough, how the fresh agent works, comments, files, history and remote environments.
 - [Guide](https://porcelain.fabiofiorita.com/guide/): What the walkthrough agent reads, how pull request screenshots reach a step, and the habits that make a repository agent-ready, with instructions to paste into AGENTS.md.
 - [Install](https://porcelain.fabiofiorita.com/install/): The Mac app, or a server on Linux or Mac, on the machine that holds your repositories.
-- [Privacy](https://porcelain.fabiofiorita.com/privacy/): No account, no analytics and no Porcelain server. What the walkthrough agent sends to your own Claude or Codex account, and nothing else.
+- [Privacy](https://porcelain.fabiofiorita.com/privacy/): Local repositories and pairing, your chosen Claude or Codex account, mobile storage and camera use, and Expo update and push-token processing.
 
 ## Source
 

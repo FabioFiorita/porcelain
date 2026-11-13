@@ -3,7 +3,7 @@ import Site from '../layouts/site.astro';
 import GithubMark from '../components/github-mark.astro';
 
 const description =
-  'Porcelain has no account, no analytics and no server of its own. Your code stays on your machine, except what the walkthrough agent sends to the Claude or Codex account you already use.';
+  'Your repositories stay on your computer. Read how Porcelain pairs your devices, uses your Claude or Codex account, and delivers mobile updates through Expo.';
 const github = 'https://github.com/FabioFiorita/porcelain';
 
 const headline = [
@@ -20,7 +20,7 @@ const answers = [
   {
     question: 'Where does my code go?',
     answer:
-      'It stays on the computer that holds the repository. The browser, the Mac app and, soon, your phone read it from there. Pairing gives each device its own key to that one computer, and nothing to us. The one thing that reads your code somewhere else is the walkthrough agent, next.',
+      'It stays on the computer that holds the repository. The browser, the Mac app and the mobile app read it from there. Pairing gives each device its own key to that one computer, and nothing to us. The walkthrough agent can send repository context to your chosen AI provider, next.',
   },
   {
     question: 'Who writes the walkthrough?',
@@ -40,7 +40,7 @@ const answers = [
   {
     question: 'And the walkthroughs and comments?',
     answer:
-      'Same computer, in Porcelain’s own folder, ~/.porcelain unless you choose another, along with the pull request screenshots each walkthrough places. Delete it and they are gone. A comment leaves only when you press Post, and then it goes to your pull request on GitHub.',
+      'Same computer, in Porcelain’s own folder, ~/.porcelain unless you choose another, along with the pull request screenshots each walkthrough places. Removing that local data does not remove anything already sent to your AI provider or posted to GitHub. Publishing a comment to your pull request happens only when you press Post.',
   },
   {
     question: 'Does it talk to GitHub?',
@@ -50,22 +50,52 @@ const answers = [
   {
     question: 'Analytics? Crash reports? One tiny pixel?',
     answer:
-      'None in the app and none on this site. We genuinely do not know how many people read this page. If it is just you, hello.',
+      'This site has no analytics or tracking pixels. The mobile app uses Expo Update to deliver updates. Expo receives a random installation identifier, the device’s IP address, build and update information, and launch-failure diagnostics. It uses request records to count installations and failed updates and manage update delivery. This is update infrastructure, not advertising or tracking across apps.',
   },
   {
     question: 'What else talks to the internet?',
     answer:
-      'The Mac app asks GitHub whether a new version is out, and updating the server asks npm the same question. Those requests carry a version number, not your code. Your computer sends no phone notifications today.',
+      'The Mac app asks GitHub whether a new version is out, and updating the server asks npm the same question. Those requests carry a version number, not your code. Mobile update checks go to Expo over HTTPS. They can include a previous launch error, so the mobile app is not network-silent even when you use the local demo.',
   },
   {
     question: 'What about working remotely?',
     answer:
-      'You reach your own computer over your own network or your own Tailscale. There is no Porcelain server in the middle, because there is no Porcelain server.',
+      'You reach your own computer over a local connection or a remote route you configure, such as Tailscale or Cloudflare. Porcelain does not operate a relay or repository backend. Expo requests use HTTPS, but local computer connections can use plain HTTP, which does not encrypt the traffic. A remote route’s protection depends on the route you configure.',
+  },
+  {
+    question: 'What stays on my phone or tablet?',
+    answer:
+      'Saved computer names and addresses, preferences, project selections and Git operation receipts are stored on the device. Pairing secrets use the operating system’s secure storage. The demo uses bundled sample data and simulated replies; its changes reset when you restart, reset or exit it. Real repositories and their saved walkthroughs remain on your computer.',
+  },
+  {
+    question: 'Why does it ask for the camera?',
+    answer:
+      'Only to scan the pairing QR code shown by your computer. The scanner reads the QR text on the device; it does not upload camera images or record audio. You can paste a pairing link instead. Copy actions write the text you selected to your clipboard.',
+  },
+  {
+    question: 'What about phone notifications?',
+    answer:
+      'If you enable a notification switch and allow the system permission, the mobile app can register a push token with Expo. Expo stores that token to address the installation. Notification delivery is currently disabled: your computer clears registrations rather than sending notifications. Enabling the switch does not make delivery available today.',
+  },
+  {
+    question: 'How long does Expo keep this?',
+    answer:
+      'Expo retains update request records containing installation and update information. Its update documentation says launch-error text in raw request logs is deleted after three days. Expo also stores push tokens used by its notification service. Porcelain does not set those services’ retention periods. Their policies and processing details are linked below.',
+  },
+  {
+    question: 'How do I remove my data?',
+    answer:
+      'Forget a computer in mobile Settings to remove its saved connection and pairing credentials from that device. Revoke the device on your computer to stop its access. Your repositories, walkthroughs and comments on that computer are separate: forgetting the connection does not delete them. Data already sent to GitHub, your AI provider or Expo follows that service’s controls and retention; uninstalling Porcelain does not promise to delete those records.',
   },
   {
     question: 'And my coding agent?',
     answer:
       'The agent that builds your feature is its own app with its own policy, and Porcelain never runs it. Read its provider’s privacy page too. You are clearly the kind of person who does.',
+  },
+  {
+    question: 'Who can I contact about privacy?',
+    answer:
+      'Fábio Fiorita maintains Porcelain. For privacy questions or a data request, email fabiolfp@gmail.com. There is no Porcelain account database to delete, and we cannot delete repositories on your computer or records held under your own provider accounts. We can explain which service handles a request and what controls are available.',
   },
   {
     question: 'This website?',
@@ -105,7 +135,7 @@ const answers = [
         }
       </h1>
       <p data-reveal class="mt-8 max-w-2xl text-lg leading-relaxed text-muted-foreground lg:text-xl lg:leading-relaxed">
-        So you care where your code goes. Good, so do we. Here is everything Porcelain has ever collected about you, and exactly where your code goes when an agent reads it.
+        So you care where your code goes. Good, so do we. Here is what stays on your devices, what your chosen AI provider receives, and what the mobile update service processes.
       </p>
 
       <div
@@ -120,9 +150,9 @@ const answers = [
           0
         </p>
         <div>
-          <p class="text-2xl font-semibold tracking-[-0.035em] lg:text-3xl">Bytes of your code we have received.</p>
-          <p class="mt-3 text-muted-foreground">Also zero: accounts, emails, cookies, analytics events and crash reports. There is no Porcelain server to send them to.</p>
-          <p class="mt-5 font-mono text-sm text-muted-foreground/80">// That was the whole database.</p>
+          <p class="text-2xl font-semibold tracking-[-0.035em] lg:text-3xl">Bytes of your code stored in a Porcelain cloud backend.</p>
+          <p class="mt-3 text-muted-foreground">There is no Porcelain cloud repository or account service. Your own computer holds the code. Mobile updates use Expo, which processes installation identifiers and diagnostics as described below.</p>
+          <p class="mt-5 font-mono text-sm text-muted-foreground/80">Your repository and the update service take different paths.</p>
         </div>
       </div>
     </section>
@@ -145,6 +175,15 @@ const answers = [
           ))
         }
       </dl>
+      <p class="mt-8 max-w-3xl text-base leading-relaxed text-muted-foreground">
+        Service details:{' '}
+        <a class="text-foreground underline" href="https://docs.expo.dev/eas-update/store-privacy-declarations/">Expo Update data processing</a>,{' '}
+        <a class="text-foreground underline" href="https://expo.dev/privacy">Expo’s privacy policy</a>,{' '}
+        <a class="text-foreground underline" href="https://www.anthropic.com/legal/privacy">Anthropic’s privacy policy</a>{' '}
+        and{' '}
+        <a class="text-foreground underline" href="https://openai.com/policies/privacy-policy/">OpenAI’s privacy policy</a>.{' '}
+        Privacy questions:{' '} <a class="text-foreground underline" href="mailto:fabiolfp@gmail.com">fabiolfp@gmail.com</a>.
+      </p>
     </section>
 
     <section class="mx-auto max-w-[1440px] px-5 pt-24 pb-24 lg:px-10 lg:pt-32 lg:pb-32">
