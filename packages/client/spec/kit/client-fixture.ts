@@ -1,7 +1,7 @@
 import { createLiveUpdates } from '../../src/features/live/commands/live-updates.ts';
-import { afterEach } from 'vitest';
-import { Effect, Layer } from 'effect';
-import { AtomRegistry, type Atom, type AsyncResult } from 'effect/reactivity';
+import { afterEach, expect } from 'vitest';
+import { Effect, Layer, Option } from 'effect';
+import { AtomRegistry, type Atom, AsyncResult } from 'effect/reactivity';
 import { createWorktreeConnection } from '../../src/shared/api/worktree-connection.ts';
 import type { Transport } from '../../src/shared/api/transport.ts';
 
@@ -93,6 +93,18 @@ export function idleClientAtoms(registry: AtomRegistry.AtomRegistry) {
   return new Promise<void>((resolve) =>
     registry.schedulerAsync.makeDispatcher().scheduleTask(resolve, 0),
   );
+}
+
+export async function mountRetainedClientRead<A, E>(
+  registry: AtomRegistry.AtomRegistry,
+  atom: Atom.Atom<AsyncResult.AsyncResult<A, E>>,
+  started: Promise<void>,
+) {
+  const stop = registry.mount(atom);
+  await started;
+  const result = registry.get(atom);
+  expect(result).toMatchObject({ _tag: 'Success', waiting: true });
+  return { stop, value: Option.getOrThrow(AsyncResult.value(result)) };
 }
 
 export async function visitClientRead<A, E>(

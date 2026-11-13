@@ -1,7 +1,7 @@
 import { clientRuntime } from './runtime.ts';
 import { requestApi, type PorcelainApi } from './client.ts';
 import type { WorktreeSelection } from './connection.ts';
-import { type Cause, Effect, Stream } from 'effect';
+import { type Cause, Effect, Option, Stream } from 'effect';
 import { Atom, AtomRegistry, AsyncResult } from 'effect/reactivity';
 import type { ConfirmedResource } from './confirmed-resource.ts';
 import type { RuntimeConnection, WorktreeScope } from './connection.ts';
@@ -9,6 +9,7 @@ import { queryKeys } from './query-keys.ts';
 import { currentAnswerEffect } from './stale-answer.ts';
 import type { ConnectionError } from './connection-error.ts';
 import { ReadSubscriptions } from './read-subscriptions.ts';
+import { READ_RETAIN_IDLE_MS } from '../../config/limits.ts';
 
 export function worktreeRead<A, E, R>(
   connection: RuntimeConnection,
@@ -48,13 +49,17 @@ export function retainRead<A, E>(
 ) {
   const retained = Atom.make<AsyncResult.AsyncResult<A, E>>(
     AsyncResult.initial(),
-  ).pipe(Atom.keepAlive);
-  const fallback = read.pipe(Atom.withFallback(retained));
-  return Atom.transform(fallback, (get) => {
+  ).pipe(Atom.setIdleTTL(READ_RETAIN_IDLE_MS));
+  return Atom.transform(read, (get) => {
+    const previous = get(retained);
     const result = get(read);
-    if (AsyncResult.isSuccess(result) && get.once(retained) !== result)
+    if (AsyncResult.isSuccess(result) && !result.waiting && previous !== result)
       get.set(retained, result);
-    return get(fallback);
+    if (AsyncResult.isInitial(result)) return AsyncResult.waiting(previous);
+    return AsyncResult.isFailure(result) &&
+      Option.isNone(result.previousSuccess)
+      ? AsyncResult.replacePrevious(result, Option.some(previous))
+      : result;
   }).pipe(Atom.setIdleTTL(0));
 }
 

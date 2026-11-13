@@ -35,6 +35,7 @@ Preconditions: [surface baseline](README.md).
 
 1. At 1280 × 800 open the worktree in a fresh profile. Expect navigation "Side panel" with Files pressed and complementary "Review sidebar" showing Files: the panel starts open. The bar has no visible button "Review". Click "Files": the panel closes. Click it again: the panel returns with heading "Files".
 2. Click "Changes" and "History": the heading follows. Click the pressed button again: the panel closes, no view button is pressed and button "Show side panel" has `aria-expanded="false"`. Click it: the panel returns on the last view.
+   A cold panel names its own loading state: "Loading files", "Loading changes" or "Loading history". Returning to recently read History keeps confirmed rows visible during revalidation.
 3. Press `Alt+Shift+R`: the panel closes and focus lands on "Show side panel". Press `Alt+3`, `Alt+2`, `Alt+1`: each opens its view.
 4. In History, check region "Branch" (branch name, `n ahead · n behind`, `against <upstream>`), write a file in `REPO`, then click "Uncommitted changes 1 file": tab "All changes" opens. Click "Open graph": tab "Commit graph" opens.
 5. Measure the page (region "Review content") with the panel shown and hidden; it widens by the panel plus its 8px gap.

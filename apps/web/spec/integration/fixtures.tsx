@@ -49,6 +49,10 @@ import {
 } from '../kit/shapes.ts';
 import { createPierreCodeView } from './pierre-code-view.ts';
 import { createPierreEditor } from './pierre-editor.ts';
+import {
+  createMixedPierrePanes,
+  observePierreWorkers,
+} from './pierre-workers.tsx';
 import { refChips } from './ref-chips.ts';
 import { reviewLayout } from './review-layout.ts';
 import { host } from './commands.ts';
@@ -549,6 +553,16 @@ export const test = base
     const editor = createPierreEditor();
     onCleanup(() => editor.dispose());
     return editor;
+  })
+  .extend('pierreWorkers', ({ world: _world }, { onCleanup }) => {
+    const workers = observePierreWorkers();
+    onCleanup(() => workers.dispose());
+    return workers;
+  })
+  .extend('pierrePanes', ({ pierreWorkers: _workers }, { onCleanup }) => {
+    const panes = createMixedPierrePanes();
+    onCleanup(() => panes.dispose());
+    return panes;
   })
   .extend('refChips', () => refChips)
   .extend('reviewLayout', () => reviewLayout)

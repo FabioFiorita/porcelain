@@ -1,6 +1,9 @@
 import { Atom } from 'effect/reactivity';
 import type { WorktreeSelection } from '../../../shared/api/connection.ts';
-import { clientWorktreeRead } from '../../../shared/api/worktree-read.ts';
+import {
+  clientWorktreeRead,
+  retainRead,
+} from '../../../shared/api/worktree-read.ts';
 import { Effect } from 'effect';
 import {
   FileTooLargeError,
@@ -38,5 +41,5 @@ export const readTextFile = Atom.family(
         'reason' in answer ||
         (answer.worktreeId === scope.worktreeId && answer.path === path),
       [path],
-    ),
+    ).pipe(retainRead),
 );

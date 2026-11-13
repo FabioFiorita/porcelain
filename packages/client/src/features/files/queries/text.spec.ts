@@ -1,9 +1,17 @@
-import { abortingTransport } from '../../../../spec/kit/held-transport.ts';
-import { clientFixtures } from '../../../../spec/kit/client-fixture.ts';
+import {
+  abortingTransport,
+  holdReturningRead,
+} from '../../../../spec/kit/held-transport.ts';
+import {
+  clientFixtures,
+  idleClientAtoms,
+  mountRetainedClientRead,
+} from '../../../../spec/kit/client-fixture.ts';
 import { Deferred } from 'effect';
 import { expect, it } from 'vitest';
-import { Cause, Effect, Exit } from 'effect';
+import { Cause, Effect, Exit, HashMap } from 'effect';
 import { AtomRegistry } from 'effect/reactivity';
+import { ReadSubscriptions } from '../../../shared/api/read-subscriptions.ts';
 import {
   retryWorktreeReads,
   type Transport,
@@ -31,6 +39,83 @@ const response = {
   byteLength: 5,
   text: 'Hello',
 };
+
+it('returns confirmed text during remount revalidation and releases its inactive watch', async () => {
+  const returning = holdReturningRead(response);
+  const subject = fixture(returning.read);
+  const atom = readTextFile({
+    connection: subject.connection,
+    scope,
+    path: 'README.md',
+  });
+  let stop = subject.registry.mount(atom);
+  try {
+    expect(await read(subject)).toMatchObject({ text: 'Hello' });
+    stop();
+    await idleClientAtoms(subject.registry);
+    expect(
+      await subject.connection.runtime.runPromise(
+        ReadSubscriptions.use((reads) =>
+          Effect.map(reads.snapshot, HashMap.size),
+        ),
+      ),
+    ).toBe(0);
+    const back = await mountRetainedClientRead(
+      subject.registry,
+      atom,
+      returning.started.promise,
+    );
+    stop = back.stop;
+    expect(back.value).toMatchObject({ text: 'Hello' });
+    returning.held.resolve(Response.json({ ...response, text: 'Fresh' }));
+    expect(
+      await Effect.runPromise(
+        AtomRegistry.getResult(subject.registry, atom, {
+          suspendOnWaiting: true,
+        }),
+      ),
+    ).toMatchObject({ text: 'Fresh' });
+    expect(returning.readCount()).toBe(2);
+  } finally {
+    returning.held.resolve(Response.json(response));
+    stop();
+  }
+});
+
+it('does not reuse retained text for a replacement session in the same registry', async () => {
+  const first = fixture(() => Promise.resolve(Response.json(response)));
+  const atom = readTextFile({
+    connection: first.connection,
+    scope,
+    path: 'README.md',
+  });
+  const stop = first.registry.mount(atom);
+  expect(await read(first)).toMatchObject({ text: 'Hello' });
+  stop();
+  await idleClientAtoms(first.registry);
+  await first.close();
+  const held = Promise.withResolvers<Response>();
+  const replacement = fixture(() => held.promise);
+  const next = readTextFile({
+    connection: replacement.connection,
+    scope,
+    path: 'README.md',
+  });
+  const release = first.registry.mount(next);
+  try {
+    expect(first.registry.get(next)).toMatchObject({
+      _tag: 'Initial',
+      waiting: true,
+    });
+    held.resolve(Response.json({ ...response, text: 'Replacement' }));
+    expect(
+      await Effect.runPromise(AtomRegistry.getResult(first.registry, next)),
+    ).toMatchObject({ text: 'Replacement' });
+  } finally {
+    held.resolve(Response.json(response));
+    release();
+  }
+});
 function read(
   subject: ReturnType<typeof fixture>,
   path = 'README.md',

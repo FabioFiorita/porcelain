@@ -17,6 +17,7 @@ export const REMOTE_STATUS_REFRESH_MS = 30_000;
 export const REMOTE_ROUTE_TIMEOUT_MS = 2_500;
 export const REMOTE_STATUS_TIMEOUT_MS = 5_000;
 export const COMMIT_MODELS_STALE_MS = 60_000;
+export const READ_RETAIN_IDLE_MS = 5 * 60_000;
 
 export const FILE_PREVIEW_MAX_ASSETS = 64;
 export const FILE_PREVIEW_MAX_BYTES = 28 * 1024 * 1024;

@@ -85,6 +85,9 @@ export default defineConfig({
   resolve: {
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },
+  optimizeDeps: {
+    include: ['@pierre/diffs/worker', '@pierre/diffs/worker/worker.js'],
+  },
   server: {
     host: '127.0.0.1',
     ...(proxy ? { proxy } : {}),

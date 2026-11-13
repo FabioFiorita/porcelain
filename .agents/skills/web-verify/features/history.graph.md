@@ -82,7 +82,7 @@ Automated coverage: `history-graph.e2e.ts`.
 
 ## Graph presentation
 
-Opening a commit and returning through Graph retains its selected OID, loaded depth and reading offset. The shared History query rereads current data to that depth after unmounting. Append pages and compare the existing row/lane prefix before and after; a new checkout must never reuse a different commit under the selected row identity.
+Opening a commit and returning through Graph retains its selected OID, loaded depth and reading offset. For five minutes after leaving, confirmed History rows remain readable while the shared query rereads current data to that depth. Hold a returning History request and confirm those rows remain visible without a full loading placeholder, then release it and inspect the refreshed rows. A restarted cursor replaces the retained rows and resets reading position. Append pages and compare the existing row/lane prefix before and after; a new checkout must never reuse a different commit under the selected row identity.
 
 History and Graph share loaded commits and selection, but retain separate reading offsets. Scroll Graph, open a commit, then switch the side panel to Files and back to History: its earlier list position remains. A rewritten history resets both positions.
 

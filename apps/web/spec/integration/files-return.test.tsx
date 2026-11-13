@@ -1,6 +1,24 @@
 import { page, userEvent } from 'vitest/browser';
 import { expect, test } from './fixtures.tsx';
 
+test('opening a file without a guided comparison does not inspect branch changes', async ({
+  repo,
+  render,
+  server,
+}) => {
+  await repo.write('plain.ts', 'export const plain = "Readable source";\n');
+  const project = await server.project();
+  const worktree = project.worktrees.find((worktree) => worktree.main);
+  if (!worktree) throw new Error('The fixture has no main worktree.');
+  const app = await render.route(
+    `/${project.id}/${worktree.id}?entry=file:plain.ts`,
+  );
+  await expect
+    .element(app.page.getByRole('heading', { name: 'plain.ts', exact: true }))
+    .toBeVisible();
+  await expect.poll(() => server.branchChangeHits()).toEqual([]);
+});
+
 test('returning to a file tab restores its reading position without marking it reviewed', async ({
   repo,
   render,
@@ -14,8 +32,15 @@ test('returning to a file tab restores its reading position without marking it r
       '\n',
     ),
   );
-  const app = await render.route('/');
-  await app.navigate(`${app.location().split('?')[0]}?entry=file:${path}`);
+  const project = await server.project();
+  const worktree = project.worktrees.find((worktree) => worktree.main);
+  if (!worktree) throw new Error('The fixture has no main worktree.');
+  const app = await render.route(
+    `/${project.id}/${worktree.id}?entry=file:${path}`,
+  );
+  await expect
+    .element(app.page.getByRole('heading', { name: path, exact: true }))
+    .toBeVisible();
   const code = app.page.getByRole('region', {
     name: 'Code content',
     exact: true,

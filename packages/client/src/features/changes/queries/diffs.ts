@@ -10,7 +10,7 @@ import type {
 } from '../../../shared/api/connection.ts';
 import { porcelainClient } from '../../../shared/api/client.ts';
 import { clientRuntime } from '../../../shared/api/runtime.ts';
-import { worktreeRead } from '../../../shared/api/worktree-read.ts';
+import { retainRead, worktreeRead } from '../../../shared/api/worktree-read.ts';
 import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
 import { selectionKey, type DiffContent } from '../rules/changes.ts';
 
@@ -67,7 +67,7 @@ export const readBranchDiffs = Atom.family(
         );
       }),
       clientRuntime(connection),
-    ),
+    ).pipe(retainRead),
 );
 
 export const readCommitDiffs = Atom.family(
@@ -101,7 +101,7 @@ export const readCommitDiffs = Atom.family(
         return answer;
       }),
       clientRuntime(connection),
-    ),
+    ).pipe(retainRead),
 );
 
 type DiffRead =
@@ -147,5 +147,5 @@ export const readCompleteDiffWindow = Atom.family(
         ),
         (entries) => new Map(entries.flatMap((entry) => [...entry])),
       ),
-    ).pipe(Atom.setIdleTTL(0)),
+    ).pipe(retainRead),
 );
