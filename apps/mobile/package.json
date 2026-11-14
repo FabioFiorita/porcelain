@@ -9,7 +9,6 @@
   "scripts": {
     "dev": "expo start --dev-client",
     "build": "node spec/kit/production-bundle.ts",
-    "prebuild": "expo prebuild",
     "typecheck": "tsc --noEmit",
     "test": "pnpm --dir ../.. test --project @porcelain/mobile"
   },

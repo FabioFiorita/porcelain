@@ -26,7 +26,7 @@ import { walkthroughCommand } from './walkthrough.ts';
 
 const usage = `Usage: .agents/skills/mobile-verify/scripts/cli <command> [--instance <id>]
   doctor                   check startup dependencies, matching native build and active instances
-  build                    build the matching development client (--device android on Linux)
+  build                    build the matching development client (iOS on macOS; --device android on Linux or macOS)
   start [--device iphone|ipad|android] [--udid <owned-ios-udid> | --serial <owned-android-serial>] [--manual-pairing] [--fixture development|focused] [--coding-tool]
                            prepare a disposable server, Metro and development client; manual pairing leaves the app for the developer
                            android selects either an owned phone or tablet emulator by serial

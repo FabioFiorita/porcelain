@@ -88,7 +88,7 @@ export async function simulatorHost(request: HostRequest) {
     throw error;
   }
 }
-if (process.argv[1] === import.meta.filename) {
+if (import.meta.main) {
   const request = Schema.decodeUnknownSync(
     Schema.Union([requestSchema, inspectSchema]),
   )(JSON.parse(process.argv[2] ?? '{}'));

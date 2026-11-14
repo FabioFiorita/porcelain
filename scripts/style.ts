@@ -3,7 +3,6 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { isDeepStrictEqual } from 'node:util';
 import { basename, join, relative } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import {
   domainPackages,
   mobileNativeSourceProblem,
@@ -586,5 +585,5 @@ export async function checkStyle(
   return exitCode;
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url))
+if (import.meta.main)
   process.exitCode = await checkStyle(process.argv[2], process.argv[3]);

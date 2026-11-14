@@ -1,6 +1,6 @@
 # Local development
 
-Linux contributors can build and drive the native Android development client without a Mac or an Expo account. Follow [Android development and verification](../../.agents/skills/mobile-verify/references/android.md) for SDK setup, an explicit emulator selection, the disposable server/Metro fixture, pairing, evidence and cleanup. The same mobile verification launcher supports iOS on macOS; see [mobile verification](../../.agents/skills/mobile-verify/SKILL.md).
+Contributors on Linux or macOS can build and drive the native Android development client without an Expo account. Follow [Android development and verification](../../.agents/skills/mobile-verify/references/android.md) for SDK setup, an explicit emulator selection, the disposable server/Metro fixture, pairing, evidence and cleanup. The same mobile verification launcher supports iOS on macOS with Xcode and CocoaPods; see [mobile verification](../../.agents/skills/mobile-verify/SKILL.md).
 
 # Porcelain mobile delivery
 

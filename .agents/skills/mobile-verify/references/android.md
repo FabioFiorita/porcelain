@@ -1,4 +1,4 @@
-# Android development on Linux
+# Android development
 
 The mobile launcher builds and runs Porcelain Dev locally on Linux or macOS. It uses the same disposable server, fixture, pairing, Metro, evidence and cleanup owners as iOS.
 

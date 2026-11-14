@@ -337,7 +337,7 @@ test('empty quick open lists open file tabs by activation then deduplicated pinn
   await page
     .getByRole('tab', { name: 'second.txt', exact: true })
     .click({ button: 'right' });
-  await page.getByRole('menuitem', { name: /^Close Alt/ }).click();
+  await page.getByRole('menuitem', { name: /^Close (?:Alt|⌥)/ }).click();
   await userEvent.keyboard('{ControlOrMeta>}p{/ControlOrMeta}');
   await expect.element(options.nth(0)).toHaveAccessibleName('third.txt');
   await expect.element(options.nth(1)).toHaveAccessibleName('first.txt');

@@ -398,7 +398,7 @@ export function featureMapProblems(root: string): string[] {
     ...markdownLinkProblems(root, files),
   ];
 }
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (import.meta.main) {
   const started = performance.now();
   const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
   const problems = featureMapProblems(root);
