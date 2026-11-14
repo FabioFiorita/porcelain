@@ -811,5 +811,4 @@ export async function runGuardrailCases(named = []) {
   process.stdout.write(`PASS ${cases.length} guardrail fixtures\n`);
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url))
-  await runGuardrailCases(process.argv.slice(2));
+if (import.meta.main) await runGuardrailCases(process.argv.slice(2));

@@ -59,4 +59,16 @@ pnpm check:local
 pnpm test --project @porcelain/client packages/client/src/features/walkthroughs/rules/conversations.spec.ts
 ```
 
+Browser integration and E2E tests also need Playwright's pinned Chromium headless shell. Install it after installing or updating dependencies, then run a named file:
+
+```sh
+pnpm exec playwright install --only-shell chromium
+pnpm --filter @porcelain/web test:integration spec/integration/files-quick-open.test.tsx
+pnpm --filter @porcelain/web test:e2e spec/e2e/access-pairing.e2e.ts --project web --workers=1
+```
+
+On macOS, `pnpm dev --desktop` runs Porcelain Dev with a disposable profile. `pnpm desktop:build` builds the Mac app into `dist/desktop/`; it does not install it. Native iOS development requires Xcode and CocoaPods. Android development works on Linux or macOS with an Android SDK and compatible JDK; follow the [Android setup](.agents/skills/mobile-verify/references/android.md).
+
+`pnpm --filter @porcelain/mobile build` checks the production JavaScript export without generating native projects or installing CocoaPods. To build a native development client, use `.agents/skills/mobile-verify/scripts/cli build` for iOS on macOS, or add `--device android` for Android. The [mobile verification guide](.agents/skills/mobile-verify/SKILL.md) covers device selection, startup, pairing and cleanup.
+
 Run the tests you changed by name; CI owns the full suites. For a feature's running proof, use the relevant [verification skill](.agents/skills) and its map, such as the [web feature map](.agents/skills/web-verify/features/README.md). Development uses disposable instances and profiles; never point verification at the installed app or its data.

@@ -60,7 +60,7 @@ export function reactCompilerProblems(path: string, source: string): string[] {
   }
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (import.meta.main) {
   const started = performance.now();
   const files = globSync('apps/mobile/src/**/*.{ts,tsx}', {
     cwd: root,

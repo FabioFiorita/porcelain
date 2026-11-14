@@ -16,6 +16,7 @@ apps/marketing/.astro/
 /dist-porcelain/
 .tanstack/
 test-results/
+__traces__/
 .mobile-device-host.json
 
 .playwright-cli/

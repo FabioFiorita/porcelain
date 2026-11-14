@@ -122,14 +122,19 @@ registerHooks({ load(url, context, next) {
       );
       imports.push('--import', join(directory, 'scanner.mjs'));
     }
+    const executable = join(directory, 'check.ts');
+    symlinkSync(
+      join(
+        directory,
+        entry.lint ? 'scripts/style.ts' : 'scripts/architecture.ts',
+      ),
+      executable,
+    );
     const result = spawnSync(
       process.execPath,
       [
         ...imports,
-        join(
-          directory,
-          entry.lint ? 'scripts/style.ts' : 'scripts/architecture.ts',
-        ),
+        executable,
         ...(entry.lint ? ['lint', 'server'] : ['check', '--all']),
       ],
       { cwd: directory, encoding: 'utf8' },

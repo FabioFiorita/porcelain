@@ -1,6 +1,5 @@
 import { mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { flipFuses } from '@electron/fuses';
 import { packager } from '@electron/packager';
 import { NodeFileSystem } from '@effect/platform-node';
@@ -183,7 +182,7 @@ export async function buildDesktop(
   };
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (import.meta.main) {
   try {
     const built = await buildDesktop({
       mode: desktopBuildMode(process.argv.slice(2)),

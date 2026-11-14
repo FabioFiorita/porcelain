@@ -359,7 +359,7 @@ export async function buildPackage(): Promise<string> {
 
   return packageOutput;
 }
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (import.meta.main) {
   try {
     const output = await buildPackage();
     process.stdout.write(`Built ${output}\n`);
