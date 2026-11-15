@@ -107,6 +107,8 @@ import {
   FolderNotReadableError,
   NoWorktreeAtPathError,
   ProjectNotFoundError,
+  ProjectReconnectionRefusedError,
+  RepositoryInspectionFailedError,
   UnsupportedFolderNameError,
   WorktreeUnavailableError,
 } from '@porcelain/projects/errors';
@@ -224,6 +226,7 @@ const rules: readonly StatusRule[] = [
 
       ReviewedMarkConflictError,
       BranchArchiveRefusedError,
+      ProjectReconnectionRefusedError,
       UnrelatedBranchError,
       UnbornBranchError,
       ServiceNotManagedError,
@@ -266,6 +269,7 @@ const rules: readonly StatusRule[] = [
       IncompleteDiffReadError,
       PathNotReadableError,
       FolderNotReadableError,
+      RepositoryInspectionFailedError,
       UnsupportedEntryNameError,
       UnsupportedFolderNameError,
       DirectoryTooLargeError,
