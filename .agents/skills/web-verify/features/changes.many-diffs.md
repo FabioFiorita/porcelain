@@ -7,6 +7,7 @@ selectors:
   - 'Loading changes…'
 tests:
   - apps/web/spec/integration/changes-many-diffs.test.tsx
+  - apps/web/spec/integration/changes-presentation.test.tsx
 api:
   - GET /api/worktrees/:worktreeId/changes
   - POST /api/worktrees/:worktreeId/changes/diffs
@@ -14,7 +15,7 @@ api:
 
 # changes.many-diffs
 
-All changes shows the diffs of more tracked changes than one diff request may carry (200 files) by splitting them over several requests, with no failure notice.
+All changes shows the diffs of more tracked changes than one diff request may carry (200 files) by splitting them over several requests, with no failure notice. While the initial diff is pending, a file-shaped skeleton names the first changed path and reserves code-line space below its header; already loaded diffs stay readable during later reads. Loading placeholders do not claim an exact final diff height.
 
 ## How to get to it (user POV)
 
@@ -43,6 +44,10 @@ git -C "$REPO" status --porcelain | wc -l   # prints 205
    Expect: the sheet closes; heading "205 uncommitted changes" (All changes is the document titled "Changes"); the URL contains `entry=handoff`; the complete file table. Click its "note-000.md +1 −1" row to scroll to that diff and read "note-000.md changed" (the first file's new line); no text "The changes in this document could not be read."; "Loading changes…" gone once the reads finish.
 4. Inspect HTTP traffic
    Expect: at least two `POST /api/worktrees/<worktreeId>/changes/diffs` with status 200 after the click and none with an error status (`[FAILED] net::ERR_ABORTED` lines are requests the page cancelled and sent again, not failures).
+
+### Loading presentation
+
+Hold the initial change-diff request through the browser harness. The Loading changes status names the first file and contains a header plus reserved code-line space instead of a small text box. Release the request: the placeholder disappears and the real diff becomes readable. Repeat after an already loaded file is selected to confirm later reads do not hide its content. Errors retain Load the changes again.
 
 ### Observable proof
 

@@ -11,7 +11,7 @@ test('leaving the workspace and settings restores the application title', async 
   await pairedPage
     .getByRole('button', { name: 'Settings', exact: true })
     .click();
-  await expect(pairedPage).toHaveTitle('Settings');
+  await expect(pairedPage).toHaveTitle('Settings — Porcelain');
   await closeSettings(pairedPage);
   await expect(pairedPage).toHaveTitle(/^Changes — /);
   await pairedPage

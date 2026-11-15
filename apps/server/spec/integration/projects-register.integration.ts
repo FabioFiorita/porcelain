@@ -2,17 +2,12 @@ import { registerProjectResponseSchema } from '@porcelain/contracts/projects';
 import * as Schema from 'effect/Schema';
 import { expect } from 'vitest';
 import { apiError } from '../kit/answers.ts';
-import { inventory } from '../kit/reads.ts';
+import { worktreePath } from '../kit/requests.ts';
+import { fingerprintOf, inventory } from '../kit/reads.ts';
 import { test } from '../kit/server-test.ts';
 import { list, record, text } from '../kit/session.ts';
 
 const byText = (left: string, right: string) => left.localeCompare(right);
-
-const uninspectable = apiError(
-  422,
-  'Unprocessable Entity',
-  'Repository could not be inspected',
-);
 
 test('registering a second repository names the project after its folder, lists its worktrees and adds it to the inventory', async ({
   session,
@@ -86,9 +81,116 @@ test('registering a missing folder or a folder that is not a repository cannot b
     }),
   ];
 
-  for (const response of responses) {
-    expect(response.status).toBe(422);
-    expect(response.body).toStrictEqual(uninspectable);
-  }
+  expect(responses[0]?.status).toBe(422);
+  expect(responses[0]?.body).toStrictEqual(
+    apiError(
+      422,
+      'Unprocessable Entity',
+      `The folder no longer exists: ${session.projectHome}/missing`,
+    ),
+  );
+  expect(responses[1]?.status).toBe(422);
+  expect(responses[1]?.body).toStrictEqual(
+    apiError(
+      422,
+      'Unprocessable Entity',
+      `Git could not inspect this folder. Check that it is a readable Git repository: ${session.projectHome}/home`,
+    ),
+  );
   expect(await inventory(session)).toStrictEqual(before);
+});
+
+test('reconnecting a replaced repository retains the project, isolates fresh review marks and preserves the original marks', async ({
+  session,
+}) => {
+  const before = await inventory(session);
+  await session.read({
+    method: 'PUT',
+    path: worktreePath(session, '/reviewed'),
+    body: {
+      path: session.fixture.readme.path,
+      reviewed: true,
+      fingerprint: await fingerprintOf(session, session.fixture.readme.path),
+    },
+  });
+  const originalMarks = await session.read({
+    method: 'GET',
+    path: worktreePath(session, '/reviewed'),
+  });
+  expect(list(record(originalMarks.body).marks).length).toBeGreaterThan(0);
+  const savedGit = `${session.projectHome}/original-git`;
+  await session.rename(`${session.repository}/.git`, savedGit);
+  try {
+    await session.git('init', '-b', 'replacement', session.repository);
+    const offered = await session.send({
+      method: 'POST',
+      path: '/api/projects',
+      body: { path: session.repository },
+    });
+    expect(offered.status).toBe(200);
+    expect(offered.body).toMatchObject({
+      id: session.projectId,
+      available: false,
+      unavailableReason: 'moved',
+    });
+    expect(list((await inventory(session)).projects)).toHaveLength(
+      list(before.projects).length,
+    );
+    expect(
+      (
+        await session.send({
+          method: 'GET',
+          path: worktreePath(session, '/changes'),
+        })
+      ).status,
+    ).toBe(422);
+    const connected = await session.send({
+      method: 'POST',
+      path: '/api/projects',
+      body: { path: session.repository, reconnectProjectId: session.projectId },
+    });
+    expect(connected.status).toBe(200);
+    expect(connected.body).toMatchObject({
+      id: session.projectId,
+      available: true,
+    });
+    const replacement = record(list(record(connected.body).worktrees)[0]);
+    expect(replacement.id).not.toBe(session.worktreeId);
+    const newMarks = await session.read({
+      method: 'GET',
+      path: `/api/worktrees/${text(replacement.id)}/reviewed`,
+    });
+    expect(newMarks.body).toMatchObject({ marks: [] });
+    expect(
+      (
+        await session.send({
+          method: 'GET',
+          path: worktreePath(session, '/reviewed'),
+        })
+      ).status,
+    ).not.toBe(200);
+    expect(list((await inventory(session)).projects)).toHaveLength(
+      list(before.projects).length,
+    );
+  } finally {
+    await session.rename(
+      `${session.repository}/.git`,
+      `${session.projectHome}/replacement-git`,
+    );
+    await session.rename(savedGit, `${session.repository}/.git`);
+    await session.read({ method: 'POST', path: '/api/inventory/refresh' });
+    await session.read({
+      method: 'POST',
+      path: '/api/projects',
+      body: { path: session.repository, reconnectProjectId: session.projectId },
+    });
+  }
+  expect(
+    (
+      await session.read({
+        method: 'GET',
+        path: worktreePath(session, '/reviewed'),
+      })
+    ).body,
+  ).toEqual(originalMarks.body);
 });

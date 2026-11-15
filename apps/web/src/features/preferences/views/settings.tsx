@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router';
 import {
   confirmedReviewGitSettings,
   reviewGitSettingsBlock,
@@ -45,6 +46,7 @@ import {
 } from '@/components/ui/item';
 import { Separator } from '@/components/ui/separator';
 import { useState, type ReactNode } from 'react';
+import { CheckIcon } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SettingsHeading } from '@/shared/views/settings-heading';
@@ -115,7 +117,18 @@ function ChoiceItem<V extends string>({
               value={option.value}
               disabled={disabled}
             >
-              {option.label}
+              <span className="inline-flex items-center gap-1">
+                {value === option.value && (
+                  <CheckIcon aria-hidden className="size-3.5" />
+                )}
+                <span
+                  className={
+                    value === option.value ? 'font-semibold' : undefined
+                  }
+                >
+                  {option.label}
+                </span>
+              </span>
             </TabsTrigger>
           ))}
         </TabsList>
@@ -156,15 +169,19 @@ function SwitchItem({
 }: {
   label: string;
   description: string;
-  checked: boolean;
+  checked: boolean | undefined;
   disabled: boolean;
   onChange: (checked: boolean) => void;
 }) {
+  const state = checked === true ? 'On' : 'Off';
   return (
     <SettingItem label={label} description={description}>
+      <span aria-hidden className="text-xs text-muted-foreground">
+        {checked === undefined ? 'Unavailable' : state}
+      </span>
       <Switch
         aria-label={label}
-        checked={checked}
+        checked={checked ?? false}
         disabled={disabled}
         onCheckedChange={onChange}
       />
@@ -240,10 +257,19 @@ function ReviewGitSettingsForm({
           <AlertDescription>
             <p>
               Every device connected to {computer.phrase} uses the same Changes
-              &amp; Git settings. These are the ones this browser used before;
-              check the archive deletions below, then use them for{' '}
-              {computer.phrase}.
+              &amp; Git settings. These preview values come from this device’s
+              preferences or the defaults. Controls stay disabled until you use
+              them for {computer.phrase}.
             </p>
+            <Link
+              to="/settings/$section"
+              params={{ section: 'git' }}
+              hash="archive-settings"
+              replace
+              className="w-fit text-foreground underline underline-offset-4"
+            >
+              Review archive deletions
+            </Link>
             {untrusted && <p>{untrusted}</p>}
             <div className="mt-3 flex flex-wrap gap-2">
               <Button
@@ -287,7 +313,7 @@ function ReviewGitSettingsForm({
           <SwitchItem
             label="Spec files"
             description="Group specs separately and start them collapsed, in the changed files."
-            checked={settings?.collapseSpecs ?? false}
+            checked={settings?.collapseSpecs}
             disabled={!editable}
             onChange={(collapseSpecs) => change({ collapseSpecs })}
           />
@@ -311,15 +337,18 @@ function ReviewGitSettingsForm({
       </FieldSet>
       <WalkthroughSettings connection={connection} />
       <GitHubAccounts connection={connection} />
-      <FieldSet>
+      <FieldSet id="archive-settings" className="scroll-mt-4">
         <FieldLegend variant="label">When archiving</FieldLegend>
+        <FieldDescription>
+          Archive asks you to confirm these deletions before running them.
+        </FieldDescription>
         <ItemGroup>
           {archiveSettings.map(({ key, label, description }) => (
             <SwitchItem
               key={key}
               label={label}
               description={description}
-              checked={settings?.[key] ?? false}
+              checked={settings?.[key]}
               disabled={!editable}
               onChange={(checked) => change({ [key]: checked })}
             />

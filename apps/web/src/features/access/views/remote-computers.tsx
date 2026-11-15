@@ -175,7 +175,7 @@ export function RemoteComputers({
       >
         <p className="mt-3.5 flex max-w-160 items-start gap-2 text-ui leading-5 text-muted-foreground">
           <GlobeIcon aria-hidden className="mt-0.75 size-3.5 shrink-0" />
-          Browser tabs each connect to one computer.
+          Connect to your computers to review their projects and worktrees.
         </p>
       </SettingsHeading>
       {unreadable !== undefined && (

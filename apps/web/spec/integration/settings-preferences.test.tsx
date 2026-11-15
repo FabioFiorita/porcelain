@@ -45,3 +45,95 @@ test('reopening configured preferences retains values without checking update pe
     held.release();
   }
 });
+
+test('fresh archive preferences keep remote branches and require explicit initialization', async ({
+  render,
+  server,
+}) => {
+  const page = await render.preferences();
+  const remote = page.getByRole('switch', {
+    name: 'Delete remote branch',
+    exact: true,
+  });
+  const worktree = page.getByRole('switch', {
+    name: 'Delete local worktree',
+    exact: true,
+  });
+  const merge = page.getByRole('tab', { name: 'Merge', exact: true });
+  await expect.element(remote).toBeDisabled();
+  await expect.element(remote).not.toBeChecked();
+  await expect.element(worktree).toBeDisabled();
+  await expect.element(worktree).toBeChecked();
+  await expect.element(merge).toBeDisabled();
+  await expect.element(merge).toHaveAttribute('aria-selected', 'true');
+  await expect
+    .element(
+      page.getByText(
+        /These preview values come from this device’s preferences or the defaults\./,
+      ),
+    )
+    .toBeVisible();
+  await expect
+    .element(
+      page.getByRole('link', { name: 'Review archive deletions', exact: true }),
+    )
+    .toHaveAttribute('href', '/settings/git#archive-settings');
+  const archive = page.getByRole('group', {
+    name: 'When archiving',
+    exact: true,
+  });
+  await expect.element(archive).toHaveAttribute('id', 'archive-settings');
+  await expect.element(archive.getByText('Off', { exact: true })).toBeVisible();
+  await expect
+    .element(
+      archive.getByText(
+        'Archive asks you to confirm these deletions before running them.',
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+  await page
+    .getByRole('button', {
+      name: 'Use these settings for this computer',
+      exact: true,
+    })
+    .click();
+  await expect.element(remote).toBeEnabled();
+  await expect.element(remote).not.toBeChecked();
+  await expect
+    .poll(() => server.reviewGitSettings())
+    .toMatchObject({
+      kind: 'configured',
+      settings: {
+        archiveDeleteRemoteBranch: false,
+        archiveDeleteWorktree: true,
+        pullStrategy: 'merge',
+      },
+    });
+});
+
+test('global Settings titles name Porcelain across sections and restore the workspace title', async ({
+  render,
+}) => {
+  const app = await render.route('/settings/general');
+  await expect.poll(() => app.title()).toBe('Settings — Porcelain');
+  for (const path of [
+    '/settings/git',
+    '/settings/computers',
+    '/settings/computers/this-computer',
+  ]) {
+    await app.navigate(path);
+    await expect.poll(() => app.title()).toBe('Settings — Porcelain');
+  }
+  await app.navigate('/settings/computers');
+  await expect
+    .element(
+      app.page.getByText(
+        'Connect to your computers to review their projects and worktrees.',
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+  await app.navigate('/');
+  await expect.poll(() => app.title()).toMatch(/^Changes — /);
+});

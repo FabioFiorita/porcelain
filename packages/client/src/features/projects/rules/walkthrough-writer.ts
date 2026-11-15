@@ -1,11 +1,30 @@
 import * as Schema from 'effect/Schema';
-import { writerSchema } from '@porcelain/contracts/walkthroughs';
+import {
+  writerSchema,
+  type WalkthroughWriterSettings,
+} from '@porcelain/contracts/walkthroughs';
 export const selectedWalkthroughWriter = (key: string, effort: string) => {
   const [provider, model] = key.split(':');
   return Schema.decodeUnknownSync(writerSchema)({ provider, model, effort });
 };
 
 export type { WalkthroughWriterSettings as WriterSettings } from '@porcelain/contracts/walkthroughs';
+
+export function walkthroughWriterStatus(
+  settings: WalkthroughWriterSettings,
+  override?: WalkthroughWriterSettings['writer'],
+) {
+  const writer = override ?? settings.writer;
+  const model = settings.models.find(
+    (entry) =>
+      entry.provider === writer.provider && entry.model === writer.model,
+  );
+  const provider = writer.provider === 'claude' ? 'Claude' : 'Codex';
+  return {
+    available: model !== undefined,
+    label: `${provider} / ${model?.label ?? writer.model} · ${writer.effort}`,
+  };
+}
 
 export function canSaveWalkthroughWriter(input: {
   writer: string;

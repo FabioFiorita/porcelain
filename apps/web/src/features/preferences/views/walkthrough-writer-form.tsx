@@ -1,4 +1,4 @@
-import { useAtomValue } from '@effect/atom-react';
+import { useAtomRefresh, useAtomValue } from '@effect/atom-react';
 import { useForm } from '@tanstack/react-form';
 import { AsyncResult } from 'effect/reactivity';
 import { Option } from 'effect';
@@ -11,6 +11,7 @@ import {
 import {
   selectedWalkthroughWriter,
   canSaveWalkthroughWriter,
+  walkthroughWriterStatus,
   type Project,
 } from '@porcelain/client/projects/rules';
 import type { Connection } from '@/shared/workspace/connection';
@@ -28,6 +29,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
+import { NoWalkthroughWriters } from '@/shared/views/no-walkthrough-writers';
 import { submitForm } from '@/shared/lib/submit-form';
 
 export function WalkthroughWriterForm({
@@ -41,7 +43,9 @@ export function WalkthroughWriterForm({
   unavailable?: string | undefined;
   onSaved?: (() => void) | undefined;
 }) {
-  const result = useAtomValue(readWalkthroughWriterSettings(connection));
+  const atom = readWalkthroughWriterSettings(connection);
+  const result = useAtomValue(atom);
+  const refresh = useAtomRefresh(atom);
   const settings = Option.getOrUndefined(AsyncResult.value(result));
   if (AsyncResult.isFailure(result))
     return (
@@ -51,6 +55,8 @@ export function WalkthroughWriterForm({
       </p>
     );
   if (!settings) return <Spinner />;
+  if (settings.models.length === 0 && !project)
+    return <NoWalkthroughWriters checking={result.waiting} onCheck={refresh} />;
   return (
     <WriterForm
       connection={connection}
@@ -58,6 +64,8 @@ export function WalkthroughWriterForm({
       unavailable={unavailable}
       onSaved={onSaved}
       settings={settings}
+      checking={result.waiting}
+      onCheck={refresh}
     />
   );
 }
@@ -67,12 +75,16 @@ function WriterForm({
   unavailable,
   onSaved,
   settings,
+  checking,
+  onCheck,
 }: {
   connection: Connection;
   project: Project | undefined;
   unavailable: string | undefined;
   onSaved: (() => void) | undefined;
   settings: WriterSettings;
+  checking: boolean;
+  onCheck: () => void;
 }) {
   const [projectResult, saveProject] = useCommand(
     saveWalkthroughSettings(connection),
@@ -83,7 +95,7 @@ function WriterForm({
   const current = project
     ? project.walkthroughSettings?.writer
     : settings.writer;
-  const defaultLabel = `${settings.writer.provider === 'claude' ? 'Claude' : 'Codex'} / ${settings.models.find((model) => model.provider === settings.writer.provider && model.model === settings.writer.model)?.label ?? settings.writer.model} · ${settings.writer.effort}`;
+  const defaultLabel = walkthroughWriterStatus(settings).label;
   const result: AsyncResult.AsyncResult<unknown, unknown> = project
     ? projectResult
     : defaultResult;
@@ -109,120 +121,129 @@ function WriterForm({
       className="grid gap-4"
       onSubmit={(event) => submitForm(event, () => form.handleSubmit())}
     >
-      <form.Field name="writer">
-        {(field) => {
-          const selected = settings.models.find(
-            (model) => `${model.provider}:${model.model}` === field.state.value,
-          );
-          let label = `${current?.provider} / ${current?.model} (unavailable)`;
-          if (selected)
-            label = `${selected.provider === 'claude' ? 'Claude' : 'Codex'} / ${selected.label}`;
-          if (field.state.value === 'default')
-            label = `Use the default · ${defaultLabel}`;
-          return (
-            <div className="grid gap-2">
-              <Label htmlFor="walkthrough-writer">Writer</Label>
-              <Select
-                value={field.state.value}
-                disabled={result.waiting || unavailable !== undefined}
-                onValueChange={(value) => {
-                  if (value === null) return;
-                  field.handleChange(value);
-                  const model = settings.models.find(
-                    (model) => `${model.provider}:${model.model}` === value,
-                  );
-                  form.setFieldValue(
-                    'effort',
-                    model?.defaultEffort ?? settings.writer.effort,
-                  );
-                }}
-              >
-                <SelectTrigger
-                  id="walkthrough-writer"
-                  aria-label="Walkthrough writer"
-                  className="w-full"
-                >
-                  <SelectValue>{label}</SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {project && (
-                    <SelectItem value="default">
-                      Use the default · {defaultLabel}
-                    </SelectItem>
-                  )}
-                  {!selected && field.state.value !== 'default' && (
-                    <SelectItem value={field.state.value} disabled>
-                      {label}
-                    </SelectItem>
-                  )}
-                  {settings.models.map((model) => (
-                    <SelectItem
-                      key={`${model.provider}:${model.model}`}
-                      value={`${model.provider}:${model.model}`}
-                    >
-                      {model.provider === 'claude' ? 'Claude' : 'Codex'} /{' '}
-                      {model.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {field.state.value !== 'default' && !selected && (
-                <p role="status" className="text-ui text-muted-foreground">
-                  This model is unavailable. Install its CLI and sign in, or
-                  select an available model. Runs will fail clearly while it is
-                  unavailable.
-                </p>
-              )}
-            </div>
-          );
-        }}
-      </form.Field>
-      <form.Subscribe selector={(state) => state.values.writer}>
-        {(writer) => {
-          const model = settings.models.find(
-            (model) => `${model.provider}:${model.model}` === writer,
-          );
-          return (
-            <form.Field name="effort">
-              {(field) => (
+      {settings.models.length === 0 ? (
+        <NoWalkthroughWriters checking={checking} onCheck={onCheck} />
+      ) : (
+        <>
+          <form.Field name="writer">
+            {(field) => {
+              const selected = settings.models.find(
+                (model) =>
+                  `${model.provider}:${model.model}` === field.state.value,
+              );
+              let label = `${current?.provider} / ${current?.model} (unavailable)`;
+              if (selected)
+                label = `${selected.provider === 'claude' ? 'Claude' : 'Codex'} / ${selected.label}`;
+              if (field.state.value === 'default')
+                label = `Use the default · ${defaultLabel}`;
+              return (
                 <div className="grid gap-2">
-                  <Label htmlFor="walkthrough-effort">Effort</Label>
+                  <Label htmlFor="walkthrough-writer">Writer</Label>
                   <Select
-                    value={
-                      writer === 'default'
-                        ? settings.writer.effort
-                        : field.state.value
-                    }
-                    disabled={writer === 'default' || !model || result.waiting}
+                    value={field.state.value}
+                    disabled={result.waiting || unavailable !== undefined}
                     onValueChange={(value) => {
-                      if (value !== null) field.handleChange(value);
+                      if (value === null) return;
+                      field.handleChange(value);
+                      const model = settings.models.find(
+                        (model) => `${model.provider}:${model.model}` === value,
+                      );
+                      form.setFieldValue(
+                        'effort',
+                        model?.defaultEffort ?? settings.writer.effort,
+                      );
                     }}
                   >
                     <SelectTrigger
-                      id="walkthrough-effort"
-                      aria-label="Walkthrough effort"
+                      id="walkthrough-writer"
+                      aria-label="Walkthrough writer"
                       className="w-full"
                     >
-                      <SelectValue>
-                        {writer === 'default'
-                          ? settings.writer.effort
-                          : field.state.value}
-                      </SelectValue>
+                      <SelectValue>{label}</SelectValue>
                     </SelectTrigger>
                     <SelectContent>
-                      {model?.efforts.map((effort) => (
-                        <SelectItem key={effort} value={effort}>
-                          {effort}
+                      {project && (
+                        <SelectItem value="default">
+                          Use the default · {defaultLabel}
+                        </SelectItem>
+                      )}
+                      {!selected && field.state.value !== 'default' && (
+                        <SelectItem value={field.state.value} disabled>
+                          {label}
+                        </SelectItem>
+                      )}
+                      {settings.models.map((model) => (
+                        <SelectItem
+                          key={`${model.provider}:${model.model}`}
+                          value={`${model.provider}:${model.model}`}
+                        >
+                          {model.provider === 'claude' ? 'Claude' : 'Codex'} /{' '}
+                          {model.label}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                  {field.state.value !== 'default' && !selected && (
+                    <p role="status" className="text-ui text-muted-foreground">
+                      This model is unavailable. Install its CLI and sign in, or
+                      select an available model. Runs will fail clearly while it
+                      is unavailable.
+                    </p>
+                  )}
                 </div>
-              )}
-            </form.Field>
-          );
-        }}
-      </form.Subscribe>
+              );
+            }}
+          </form.Field>
+          <form.Subscribe selector={(state) => state.values.writer}>
+            {(writer) => {
+              const model = settings.models.find(
+                (model) => `${model.provider}:${model.model}` === writer,
+              );
+              return (
+                <form.Field name="effort">
+                  {(field) => (
+                    <div className="grid gap-2">
+                      <Label htmlFor="walkthrough-effort">Effort</Label>
+                      <Select
+                        value={
+                          writer === 'default'
+                            ? settings.writer.effort
+                            : field.state.value
+                        }
+                        disabled={
+                          writer === 'default' || !model || result.waiting
+                        }
+                        onValueChange={(value) => {
+                          if (value !== null) field.handleChange(value);
+                        }}
+                      >
+                        <SelectTrigger
+                          id="walkthrough-effort"
+                          aria-label="Walkthrough effort"
+                          className="w-full"
+                        >
+                          <SelectValue>
+                            {writer === 'default'
+                              ? settings.writer.effort
+                              : field.state.value}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {model?.efforts.map((effort) => (
+                            <SelectItem key={effort} value={effort}>
+                              {effort}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </form.Field>
+              );
+            }}
+          </form.Subscribe>
+        </>
+      )}
       {project && (
         <form.Field name="mode">
           {(field) => (

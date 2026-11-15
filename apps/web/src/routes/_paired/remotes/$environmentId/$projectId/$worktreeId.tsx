@@ -1,8 +1,11 @@
 import { Schema } from 'effect';
-import { selectedWorktreeInProject } from '@porcelain/client/projects/rules';
-import { createFileRoute, Navigate } from '@tanstack/react-router';
+import {
+  createFileRoute,
+  Navigate,
+  useRouterState,
+} from '@tanstack/react-router';
 import { useRemoteConnection, useRemoteStatus } from '@/features/access/index';
-import { useInventory } from '@/features/projects/index';
+import { WorktreeRoute } from '@/app/worktree-route';
 import { ConnectedWorkspace } from '@/app/connected-workspace';
 import { WorkspaceError } from '@/app/workspace-error';
 import { WorkspacePending } from '@/app/workspace-pending';
@@ -26,16 +29,25 @@ type Shown = {
   projectId: string;
   worktreeId: string;
   search: WorkspaceSearch;
+  settled: boolean;
 };
 
 function RemoteWorktreeLayout() {
   const { environmentId, projectId, worktreeId } = Route.useParams();
   const search = Route.useSearch();
+  const settled = useRouterState({
+    select: (state) =>
+      state.status === 'idle' &&
+      state.location.pathname ===
+        `/remotes/${environmentId}/${projectId}/${worktreeId}`,
+  });
   const remote = useRemoteConnection(environmentId);
-  if (!desktopShell || !remote)
+  if (!desktopShell || !remote) {
+    if (!settled) return <WorkspacePending />;
     return (
       <Navigate to="/" search={{ ...search, worktree: worktreeId }} replace />
     );
+  }
   return (
     <RemoteStatusGate
       key={environmentId}
@@ -43,6 +55,7 @@ function RemoteWorktreeLayout() {
       projectId={projectId}
       worktreeId={worktreeId}
       search={search}
+      settled={settled}
     />
   );
 }
@@ -52,20 +65,5 @@ function RemoteStatusGate(shown: Shown) {
   if (status.kind === 'checking') return <WorkspacePending />;
   if (status.kind !== 'online')
     return <ConnectedWorkspace remote={shown.remote} unavailable={status} />;
-  return <RemoteWorktree {...shown} />;
-}
-
-function RemoteWorktree({ remote, projectId, worktreeId, search }: Shown) {
-  const inventory = useInventory(remote.connection);
-  const selection = selectedWorktreeInProject(inventory, worktreeId);
-  if (selection?.projectId !== projectId)
-    return (
-      <Navigate to="/" search={{ ...search, worktree: worktreeId }} replace />
-    );
-  return (
-    <ConnectedWorkspace
-      review={{ selection, search, inventory }}
-      remote={remote}
-    />
-  );
+  return <WorktreeRoute {...shown} />;
 }

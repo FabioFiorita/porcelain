@@ -7,3 +7,5 @@ export { UnsupportedFolderNameError } from './unsupported-folder-name-error.ts';
 export { WorktreeUnavailableError } from './worktree-unavailable-error.ts';
 
 export { BranchArchiveRefusedError } from './branch-archive-refused-error.ts';
+export { ProjectReconnectionRefusedError } from './project-reconnection-refused-error.ts';
+export { RepositoryInspectionFailedError } from './repository-inspection-failed-error.ts';

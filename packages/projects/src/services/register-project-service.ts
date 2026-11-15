@@ -1,4 +1,6 @@
 import { Effect, Context, Layer } from 'effect';
+import { ProjectNotFoundError } from '../errors/project-not-found-error.ts';
+import { ProjectReconnectionRefusedError } from '../errors/project-reconnection-refused-error.ts';
 import { IdSource } from '@porcelain/kernel/ports';
 import {
   type RegisterProjectInput,
@@ -16,7 +18,10 @@ export class RegisterProjectService extends Context.Service<
   {
     readonly execute: (
       input: RegisterProjectInput,
-    ) => Effect.Effect<RegisterProjectResult, never>;
+    ) => Effect.Effect<
+      RegisterProjectResult,
+      ProjectNotFoundError | ProjectReconnectionRefusedError
+    >;
   }
 >()('@porcelain/projects/RegisterProjectService') {
   static readonly layer = Layer.effect(
@@ -28,22 +33,59 @@ export class RegisterProjectService extends Context.Service<
       return {
         execute: Effect.fn('RegisterProjectService.execute')(function* (
           input: RegisterProjectInput,
-        ): Effect.fn.Return<RegisterProjectResult, never> {
+        ): Effect.fn.Return<
+          RegisterProjectResult,
+          ProjectNotFoundError | ProjectReconnectionRefusedError
+        > {
           const { repository } = input;
           const { projects } = yield* inventoryCapability.read();
-          const previous = projects.find(
+          const sameIdentity = projects.find(
             (project) =>
               project.repositoryIdentity === repository.repositoryIdentity,
           );
+          const reconnecting = input.reconnectProjectId !== undefined;
+          const selected = reconnecting
+            ? projects.find(
+                (project) => project.id === input.reconnectProjectId,
+              )
+            : undefined;
+          if (reconnecting && !selected)
+            return yield* new ProjectNotFoundError();
+          if (
+            selected?.available &&
+            selected.repositoryIdentity !== repository.repositoryIdentity
+          )
+            return yield* new ProjectReconnectionRefusedError({
+              message:
+                'This project is available. Refresh the project list before reconnecting it.',
+            });
+          if (selected && sameIdentity && selected.id !== sameIdentity.id)
+            return yield* new ProjectReconnectionRefusedError({
+              message:
+                'This repository already belongs to another registered project. Choose a different folder.',
+            });
+          const atPath = projects.find(
+            (project) => project.commonDirectory === repository.commonDirectory,
+          );
+          if (selected && atPath && selected.id !== atPath.id)
+            return yield* new ProjectReconnectionRefusedError({
+              message:
+                'This folder already belongs to another registered project. Choose a different folder.',
+            });
+          if (!reconnecting && atPath && !sameIdentity)
+            return { project: atPath, changed: false };
+          const previous = selected ?? sameIdentity;
           const project: RegisteredProject = {
             id: previous?.id ?? idSourceCapability.next(),
-            name: previous?.namedByOwner
-              ? previous.name
-              : deriveProjectName(
-                  input.originUrl,
-                  repository.worktrees.find((worktree) => worktree.main)
-                    ?.path ?? parentFolder(repository.commonDirectory),
-                ),
+            name: selected
+              ? selected.name
+              : previous?.namedByOwner
+                ? previous.name
+                : deriveProjectName(
+                    input.originUrl,
+                    repository.worktrees.find((worktree) => worktree.main)
+                      ?.path ?? parentFolder(repository.commonDirectory),
+                  ),
             namedByOwner: previous?.namedByOwner ?? false,
             commonDirectory: repository.commonDirectory,
             repositoryIdentity: repository.repositoryIdentity,

@@ -43,6 +43,7 @@ export {
   attentionLabel,
   failureCopy,
   readyUpdate,
+  initialWriteFailure,
   foldedGrowth,
   foldedNotSaid,
   growthSign,

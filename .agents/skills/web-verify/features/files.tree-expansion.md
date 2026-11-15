@@ -5,6 +5,7 @@ selectors:
   - 'Files'
   - 'All files'
   - 'Search files'
+  - 'No files match your search.'
 tests:
   - packages/client/src/features/files/rules/file-icons.spec.ts
   - apps/web/spec/integration/files-tree-expansion.test.tsx
@@ -45,7 +46,7 @@ printf 'Stay closed\n' > "$REPO/closed/b/x/closed.txt"
 4. Click "c" once. After the reads for `c`, `c/d` and `c/d/e`, "c / d / e" is expanded and "deep.txt" is visible.
 5. To check a close during loading, start from a full page load with cold reads. Hold `GET .../directory?path=a` and arm a separate hold for `path=a/b` before page initialization using browser-context routing. Click "a" to open, wait for the held read to arrive, click again to close, then release the response. Open "w" and wait for "loaded.txt" before checking that "a / b" stays collapsed, the separate `a/b` hold was never requested and its files stay absent. Restore routing in `finally`.
 6. As a separate observational check, click "x" once to load and open "x / nested". Observe the tree's shadow root for childList, subtree and attributes. On every callback look up rows by name again: "visible.txt" must exist and "x / nested" must retain `aria-expanded="true"`. Click "w" (which sorts before "x"): "loaded.txt" appears without a recorded disappearance or collapse. A held sibling read can also check the pending state.
-7. With `c` never opened, type `deep` immediately after focusing "Search files". Every character remains in the field; only `deep.txt` and its expanded parent chain appear. Search `no-such-file`: no tree rows remain. Clear the filter: the previous expansion returns. Search `deep` again and choose "Clear search and collapse all": the field clears and normal folders are collapsed. Repeat with a deeply nested untracked filename and search substrings from its start and end.
+7. With `c` never opened, type `deep` immediately after focusing "Search files". Every character remains in the field; only `deep.txt` and its expanded parent chain appear. Search `no-such-file`: after the filename index succeeds, no tree rows remain and "No files match your search." appears under All files. A pending or failed index read must not show that empty-state message; failure keeps its retry action. Search `deep` again: its file reappears and the message goes. Clear the filter: the previous expansion returns with no empty-state message. Search `deep` again and choose "Clear search and collapse all": the field clears and normal folders are collapsed. Repeat with a deeply nested untracked filename and search substrings from its start and end. Hidden files stay excluded until Show is enabled; the no-match state still leaves that control available.
 8. Repeat the first-click screenshot in dark mode. Repeat at desktop width; repeat native bridge behavior separately in desktop verification. Native Electron bridge behavior is outside this map.
 9. Open "closed" and then its child "x" until "closed.txt" is visible. Collapse "closed / b", then remove the empty fixture directory `closed/b/y` on disk. After the live rebuild, "closed / b / x" stays collapsed and "closed.txt" stays absent.
 

@@ -4,6 +4,8 @@ selectors:
   - 'Walkthrough'
   - 'No walkthrough yet.'
   - 'Write walkthrough'
+  - 'No writers available'
+  - 'Check writers again'
   - 'Writing the walkthrough'
   - 'How the system grew'
   - 'See every changed file'
@@ -19,6 +21,7 @@ selectors:
   - 'Next step'
 tests:
   - apps/web/spec/integration/walkthroughs-page.test.tsx
+  - apps/web/spec/integration/walkthrough-writer-availability.test.tsx
   - apps/web/spec/integration/walkthrough-conversations.test.tsx
   - apps/server/spec/integration/walkthroughs-fake-writer.integration.ts
 api:
@@ -35,7 +38,7 @@ A worktree can have one Walkthrough for its whole change since the base branch, 
 ## How to get to it (user POV)
 
 - A worktree opens on "Walkthrough" only when its current branch has a queued, running, failed or ready walkthrough run, regardless of commits.
-- Without a run, every worktree opens on Changes, regardless of commits. With no run yet, tab "Walkthrough" sits beside Changes; click it once for "No walkthrough yet." and "Write walkthrough". Once a current-branch run exists (queued, running, failed or ready), the worktree opens on Walkthrough.
+- Without a run, every worktree opens on Changes, regardless of commits. With no run yet, tab "Walkthrough" sits beside Changes; click it once for "No walkthrough yet." and "Write walkthrough". The empty state names the effective project/default writer and the whole comparison since its base, including uncommitted work. With no available coding CLI it shows No writers available, install/sign-in commands and Check writers again; Write walkthrough stays disabled until the chosen writer is available. A missing saved project writer is never replaced with the default. Once a current-branch run exists (queued, running, failed or ready), the worktree opens on Walkthrough.
 - A worktree with no change since the base keeps tab "Changes".
 - Each step: “See the code” has two icon buttons: “Open code for step N in split view” keeps the Walkthrough beside the code, and the diagonal arrow “See the code for step N” (tooltip “Open in a new tab”) opens document "Step N" (`entry=walkthrough-step:N`); the code view selects the comparisons containing the step’s files independently of the selected Changes tab. Uncommitted-only work shows its working diff, committed-only work shows Branch, and mixed work shows Branch then Uncommitted in one scrollable document, each file once per comparison. "See every changed file" opens both comparisons as "All changes" (`entry=walkthrough-changes`); buttons "Previous step" and "Next step" in its header row move between steps.
 - Changes panel on a walkthrough worktree opens by default, on Uncommitted when there are local files and no committed files, otherwise Branch (an explicit tab choice wins): "All changes" with its count, "By step" with file counts and a "Your call" dot; under Uncommitted, empty step groups and their "By step" heading are hidden and files the walkthrough never read are under "Not in the walkthrough yet".

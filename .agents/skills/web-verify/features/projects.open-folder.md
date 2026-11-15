@@ -9,7 +9,10 @@ selectors:
   - 'Pick a folder that is a Git repository.'
   - 'Up'
   - 'Every worktree appears in the sidebar.'
+  - 'Reconnect'
+  - 'Choose folder'
 tests:
+  - apps/web/spec/e2e/projects-reconnect.desktop.e2e.ts
   - apps/web/spec/e2e/projects-open-folder.e2e.ts
   - apps/web/spec/integration/projects-open-folder.test.tsx
 api:
@@ -76,3 +79,21 @@ Automated coverage: `projects-open-folder.e2e.ts`, `projects-open-folder.test.ts
 
 - The navigator sheet stays open after dialog close. Reopening the folder browser starts at project home.
 - Fixture names home/repository/state/web already exist; avoid collisions with directory/sidebar controls. Remove browsed or reset before another map.
+
+## Repository recovery
+
+Unavailable project groups show the inspection reason inline, with `Reconnect` and `Choose folder`, even when collapsed. Project actions also offer `Reconnect project`. Reconnect opens a confirmation for that project and its saved path; Choose folder browses the selected server's filesystem and asks for confirmation after choosing a repository. Folder choice itself does not accept a new identity.
+
+For an isolated fixture, move its `.git` outside the checkout without deleting it, then initialize a new Git repository at the same checkout path. Refresh inventory. Expect the original project to be unavailable with the different-identity explanation. Capture this sidebar as the after image for report 26.
+
+- Open the same path through Open project: expect `Reconnect <original name>` and the selected path, one original project in inventory and no duplicate. Cancel: old worktree routes stay unavailable.
+- From inline Reconnect, inspect the trust warning and press `Reconnect`: expect the original project id and name, a newly identified main worktree and empty current review marks. No old review or Walkthrough rows are deleted or reassigned. Replacement worktrees do not display saved records from the old filesystem identity.
+- From Choose folder, navigate on the affected computer, choose a repository, then cancel the confirmation: inventory must remain unchanged. Confirming a folder already registered to another project is refused.
+- Make the confirmation path disappear before pressing Reconnect: expect an inline error naming the missing folder. Git inspection errors identify a present but unreadable or invalid repository. Browsing a broken Git marker reports that error with Try again and Home folder controls.
+- Restore the saved `.git`, refresh and explicitly reconnect it: the original worktree id and its saved review marks return. The server regression `apps/server/spec/integration/projects-register.integration.ts` covers this round trip with real Git and saved marks.
+
+Retain sidebar, confirmation and connected sidebar screenshots; compare with the baseline gallery. Repeat folder selection against a connected remote: requests and filesystem browsing belong to that environment, never the local machine. Mobile remains a reader and has no project recovery controls.
+
+Saved old records stay under their original worktree ids. This flow does not add an archive reader or migrate old records into replacement worktrees; that requires a separate owner decision if history must be browsed while the original filesystem identity is absent.
+
+A confirmed reconnect opens the replacement worktree before dismissing the dialog. The route must contain its new worktree id and show Changes; it must not remain on Worktree not found. Cancellation leaves the original unavailable binding unchanged. The named desktop-mode reconnect regression covers this navigation and return behavior.

@@ -4,7 +4,7 @@ import { projectFixture } from '../kit/project-fixture.ts';
 const faults = [
   [
     'replacement',
-    "Porcelain doesn't recognise this repository as the one it registered. Remove the project and add it again.",
+    'This folder contains a different repository identity. Reconnect it only if you replaced or restored this repository.',
   ],
   ['missing', 'The repository folder is missing.'],
   ['denied', 'Porcelain cannot read this repository because access is denied.'],
@@ -53,13 +53,15 @@ for (const width of [1440, 414]) {
           if ((await toggle.getAttribute('aria-expanded')) === 'false')
             await toggle.click();
           await actionsButton.click();
-          await expect(page.getByText(message, { exact: true })).toBeVisible();
           const actions = page.getByRole('menu').filter({
             has: page.getByRole('menuitem', {
               name: 'Remove from Porcelain',
               exact: true,
             }),
           });
+          await expect(
+            actions.getByText(message, { exact: true }),
+          ).toBeVisible();
           await expect
             .poll(() =>
               actions.evaluate((node, viewportWidth) => {
@@ -81,7 +83,7 @@ for (const width of [1440, 414]) {
             await toggle.click();
           await actionsButton.click();
           await expect(
-            page.getByText(message, { exact: true }),
+            actions.getByText(message, { exact: true }),
           ).not.toBeAttached();
           await expect(
             page.getByRole('menuitem', { name: 'Rename project', exact: true }),

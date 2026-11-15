@@ -5,6 +5,7 @@ selectors:
   - porcelain:pick-project-folder
   - 'Open project'
 tests:
+  - apps/web/spec/e2e/projects-reconnect.desktop.e2e.ts
   - apps/desktop/spec/e2e/folder-picker.e2e.ts
 api: []
 ---
@@ -35,3 +36,11 @@ Automated coverage: `folder-picker.e2e.ts`.
 - A real sheet waits until a folder is chosen or Cancel is pressed. CDP cannot operate it; use Computer Use.
 - Substituted picker answers in the named regression prove bridge behavior separately from an observed real sheet.
 - After the first registration, wait for the destination's Changes tab before using the project cards or Filter worktrees. The URL changes before that route renders, and navigation replaces the first-run sidebar and any menu opened on it. Wait for Changes after reload as well.
+
+## Replaced repository recovery
+
+The native picker, File → Open Project… and its keyboard shortcut use the same registration command. When the chosen folder has a replacement Git identity, selecting it offers `Reconnect <original project name>` in the renderer instead of adding a second project or navigating to its old saved data. Capture the confirmation and cancel once; inventory must still contain one original project and its old worktrees remain unavailable. Confirm Reconnect and verify the same project id/name with fresh current worktree ids and review marks. Sidebar Reconnect / Choose folder and project-menu Reconnect project reach that same confirmation; recovery folder browsing runs on the project's server. Exercise remote recovery with the web feature map on the selected remote.
+
+Follow the isolated `.git` replacement and restoration recipe in the web `projects.open-folder` map, and retain before/after sidebar plus confirmation images. Native picker substitution proves the bridge entry path only; record a separate real sheet observation when using the macOS picker. No installed profile or user repository participates.
+
+A confirmed reconnect opens the replacement worktree before dismissing the dialog. The route must contain its new worktree id and show Changes; it must not remain on Worktree not found. Cancellation leaves the original unavailable binding unchanged. The named desktop-mode reconnect regression covers this navigation and return behavior.

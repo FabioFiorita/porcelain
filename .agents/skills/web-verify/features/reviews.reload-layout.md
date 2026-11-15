@@ -27,6 +27,7 @@ The document tabs (which are open, which are pinned) and each diff's collapsed s
 - Open file contents as tabs: Review → sidebar tab "Files" → click a file, or right-click its treeitem → menuitem "Open file". Explicit Changes/review entrances own diffs.
 - Pin a tab: right-click the tab → menuitem "Pin"; the tab's close button becomes "Unpin <name>" and pinned tabs move to the front. Right-click → "Unpin" or the "Unpin <name>" button undoes it.
 - Collapse a diff: the chevron button "Collapse <path>" in a diff header (shown when a document holds more than one file); it becomes "Expand <path>". "Collapse all" / "Expand all" folds every file; in Changes, open File review actions at the progress count to reach it.
+- Reach a tab that is outside the visible strip: use "Open document list" beside the tabs, then choose its full path. The selected item is marked; pin/close/split remain on the tab. See [workspace shell](reviews.workspace-shell.md).
 - Reload: any full page load of the workspace.
 
 ## Driving it with browser

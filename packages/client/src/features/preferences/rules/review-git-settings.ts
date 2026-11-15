@@ -20,7 +20,7 @@ export const defaultReviewGitSettings: ReviewGitSettings = {
   collapseSpecs: false,
   archiveDeleteWorktree: true,
   archiveDeleteLocalBranch: true,
-  archiveDeleteRemoteBranch: true,
+  archiveDeleteRemoteBranch: false,
 };
 
 const UNREADABLE = 'Reviews & Git settings could not be read.';

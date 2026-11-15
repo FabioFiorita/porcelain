@@ -1,5 +1,5 @@
 import { type ReactNode, useState } from 'react';
-import { ArrowUpRightIcon, Columns2Icon, SparklesIcon } from 'lucide-react';
+import { ArrowUpRightIcon, Columns2Icon } from 'lucide-react';
 import { AsyncResult } from 'effect/reactivity';
 import {
   attentionLabel,
@@ -8,6 +8,7 @@ import {
   foldedNotSaid,
   growthSign,
   readyUpdate,
+  initialWriteFailure,
   stopPaths,
   walkthroughCalls,
   walkthroughMeta,
@@ -41,6 +42,7 @@ import {
 } from './walkthrough-conversation';
 import { WalkthroughStatus } from './walkthrough-status';
 import { WalkthroughProof } from './walkthrough-evidence';
+import { WalkthroughStart } from './walkthrough-start';
 
 const scrollToId = (id: string) =>
   document
@@ -430,32 +432,6 @@ function Written({
   );
 }
 
-function Unwritten({
-  waiting,
-  onWrite,
-}: {
-  waiting: boolean;
-  onWrite: () => void;
-}) {
-  return (
-    <Column>
-      <header className="flex flex-col items-start gap-3">
-        <h1 className="text-subpage-title font-semibold tracking-tight @3xl:text-page-title">
-          No walkthrough yet.
-        </h1>
-        <p className="text-prose text-foreground-2">
-          A fresh agent reads this change and explains it. It never edits the
-          code.
-        </p>
-        <Button disabled={waiting} onClick={onWrite}>
-          <SparklesIcon data-icon="inline-start" />
-          Write walkthrough
-        </Button>
-      </header>
-    </Column>
-  );
-}
-
 function Writing({ run }: { run: WalkthroughRun }) {
   return (
     <Column>
@@ -527,22 +503,27 @@ export function WalkthroughDocument(props: DocumentProps) {
       <StateSkeleton label="Loading walkthrough" />
     );
   const body = () => {
-    const startFailure =
-      write.failure && (phase.kind === 'unwritten' || phase.kind === 'failed')
-        ? write.failure
-        : undefined;
+    const startFailure = initialWriteFailure(phase, write.failure);
     if (startFailure)
       return (
         <Failed
-          run={phase.kind === 'failed' ? phase.run : undefined}
-          failure={startFailure}
+          run={startFailure.run}
+          failure={startFailure.failure}
           waiting={write.waiting}
           onRetry={write.start}
         />
       );
     switch (phase.kind) {
       case 'unwritten':
-        return <Unwritten waiting={write.waiting} onWrite={write.start} />;
+        return (
+          <Column>
+            <WalkthroughStart
+              document={props}
+              waiting={write.waiting}
+              onWrite={write.start}
+            />
+          </Column>
+        );
       case 'writing':
         return <Writing run={phase.run} />;
       case 'failed':

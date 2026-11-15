@@ -1,6 +1,7 @@
 import { BrowseProjectFoldersOptions } from '../ports/browse-project-folders-options.ts';
 import { Effect, Context, Layer } from 'effect';
 import { withoutGitDirectory } from '@porcelain/kernel/rules';
+import type { RepositoryInspectionFailedError } from '../errors/repository-inspection-failed-error.ts';
 import { FolderNotFoundError } from '../errors/folder-not-found-error.ts';
 import { FolderNotReadableError } from '../errors/folder-not-readable-error.ts';
 import { UnsupportedFolderNameError } from '../errors/unsupported-folder-name-error.ts';
@@ -18,7 +19,10 @@ export class BrowseProjectFoldersService extends Context.Service<
       input: BrowseProjectFoldersInput,
     ) => Effect.Effect<
       BrowseProjectFoldersResult,
-      FolderNotFoundError | FolderNotReadableError | UnsupportedFolderNameError
+      | FolderNotFoundError
+      | FolderNotReadableError
+      | UnsupportedFolderNameError
+      | RepositoryInspectionFailedError
     >;
   }
 >()('@porcelain/projects/BrowseProjectFoldersService') {
@@ -37,6 +41,7 @@ export class BrowseProjectFoldersService extends Context.Service<
           | FolderNotFoundError
           | FolderNotReadableError
           | UnsupportedFolderNameError
+          | RepositoryInspectionFailedError
         > {
           const read = yield* projectFolderReaderCapability.read({
             path: input.path ?? optionsCapability.home,

@@ -1,5 +1,8 @@
 import type { SaveDefaultWalkthroughWriterRequest } from '@porcelain/contracts/walkthroughs';
-import type { WalkthroughSettings } from '@porcelain/contracts/projects';
+import type {
+  RegisterProjectRequest,
+  WalkthroughSettings,
+} from '@porcelain/contracts/projects';
 import { Context, Effect, Layer } from 'effect';
 import { Atom } from 'effect/reactivity';
 import type { RuntimeConnection } from '../../../shared/api/connection.ts';
@@ -14,10 +17,10 @@ function makeProjectCommands(connection: RuntimeConnection) {
     const inventory = yield* InventoryState;
     const drafts = yield* FileDrafts;
     return {
-      register: (path: string) =>
+      register: (input: RegisterProjectRequest) =>
         inventory.confirm(
           client.request((api) =>
-            api.projects.registerProject({ payload: { path } }),
+            api.projects.registerProject({ payload: input }),
           ),
           (inventory, project) => ({
             ...inventory,
@@ -114,7 +117,14 @@ const projectCommandRuntime = Atom.family((connection: RuntimeConnection) =>
 export const registerProject = Atom.family((connection: RuntimeConnection) =>
   projectCommandRuntime(connection).fn(
     (path: string) =>
-      ProjectCommands.use((commands) => commands.register(path)),
+      ProjectCommands.use((commands) => commands.register({ path })),
+    { concurrent: true },
+  ),
+);
+export const reconnectProject = Atom.family((connection: RuntimeConnection) =>
+  projectCommandRuntime(connection).fn(
+    (input: { path: string; reconnectProjectId: string }) =>
+      ProjectCommands.use((commands) => commands.register(input)),
     { concurrent: true },
   ),
 );

@@ -1,4 +1,6 @@
 import type { ComponentProps, ReactNode } from 'react';
+import { useState } from 'react';
+import type { PanelImperativeHandle } from 'react-resizable-panels';
 import {
   ResizableHandle,
   ResizablePanel,
@@ -7,6 +9,7 @@ import {
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { ProjectNavigator } from './project-navigator';
 import { cn } from '@/shared/lib/utils';
+import { useElement } from '@/shared/hooks/use-element';
 
 export function ProjectWorkspaceProvider({
   open,
@@ -35,6 +38,10 @@ export function ProjectWorkspace({
   open: boolean;
   children: ReactNode;
 }) {
+  const [navigatorWidth, setNavigatorWidth] = useState(248);
+  const [navigatorPanel, setNavigatorPanel] =
+    useState<PanelImperativeHandle | null>(null);
+  const group = useElement<HTMLDivElement>();
   return (
     <div
       className={cn(
@@ -42,12 +49,32 @@ export function ProjectWorkspace({
         (isMobile || !open) && 'desktop-workspace-without-navigator',
       )}
     >
-      <ResizablePanelGroup orientation="horizontal">
+      <ResizablePanelGroup
+        orientation="horizontal"
+        elementRef={group.attach}
+        onLayoutChanged={(layout, { isUserInteraction }) => {
+          if (!navigatorPanel || !group.element || isMobile || !open) return;
+          if (isUserInteraction) {
+            const available = Array.from(group.element.children).reduce(
+              (width, child) =>
+                child instanceof HTMLElement && child.hasAttribute('data-panel')
+                  ? width + child.offsetWidth
+                  : width,
+              0,
+            );
+            setNavigatorWidth((available * (layout.navigator ?? 0)) / 100);
+          } else {
+            navigatorPanel.resize(navigatorWidth);
+          }
+        }}
+      >
         {!isMobile && open && (
           <>
             <ResizablePanel
               id="navigator"
-              defaultSize={248}
+              panelRef={setNavigatorPanel}
+              groupResizeBehavior="preserve-pixel-size"
+              defaultSize={navigatorWidth}
               minSize={220}
               maxSize={420}
             >

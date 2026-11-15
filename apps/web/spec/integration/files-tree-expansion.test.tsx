@@ -117,6 +117,45 @@ test('closing a folder before its lazy read finishes keeps its new chain closed'
   }
 });
 
+test('a filename search explains no matches and restores matching and unfiltered files', async ({
+  repo,
+  render,
+}) => {
+  await repo.write('notes.md', '# Notes\n');
+  await repo.write('reference.md', '# Reference\n');
+  const page = await render.workspace();
+  await page.getByRole('button', { name: 'Review', exact: true }).click();
+  await page.getByRole('tab', { name: 'Files', exact: true }).click();
+  const search = page.getByRole('textbox', {
+    name: 'Search files',
+    exact: true,
+  });
+  const files = page.getByRole('region', { name: 'All files', exact: true });
+  const empty = files.getByText('No files match your search.', { exact: true });
+  await search.fill('surely-not-a-real-filename-xyz');
+  await expect.element(empty).toBeVisible();
+  await expect.element(files.getByRole('treeitem')).not.toBeInTheDocument();
+  await search.fill('notes');
+  await expect
+    .element(files.getByRole('treeitem', { name: 'notes.md', exact: true }))
+    .toBeVisible();
+  await expect.element(empty).not.toBeInTheDocument();
+  await expect
+    .element(files.getByRole('treeitem', { name: 'reference.md', exact: true }))
+    .not.toBeInTheDocument();
+  await search.fill('');
+  await expect.element(empty).not.toBeInTheDocument();
+  await expect
+    .element(files.getByRole('treeitem', { name: 'README.md', exact: true }))
+    .toBeVisible();
+  await expect
+    .element(files.getByRole('treeitem', { name: 'notes.md', exact: true }))
+    .toBeVisible();
+  await expect
+    .element(files.getByRole('treeitem', { name: 'reference.md', exact: true }))
+    .toBeVisible();
+});
+
 test('Collapse all closes loaded folders and explicitly clears an active search', async ({
   repo,
   render,

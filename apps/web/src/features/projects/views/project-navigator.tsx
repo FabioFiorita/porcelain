@@ -1,3 +1,8 @@
+import { openProjectDialog } from '../overlays';
+import {
+  projectPath,
+  projectUnavailableMessage,
+} from '@porcelain/client/projects/rules';
 import {
   Toast,
   ToastAction,
@@ -424,6 +429,38 @@ export function ProjectNavigator({
                     </TooltipContent>
                   </Tooltip>
                 </div>
+                {!source.project.available && (
+                  <div className="flex flex-col gap-2 px-2 py-2">
+                    <p role="status" className="text-xs text-muted-foreground">
+                      {projectUnavailableMessage(source.project)}
+                    </p>
+                    <div className="flex flex-wrap gap-1">
+                      {['Reconnect', 'Choose folder'].map((label) => (
+                        <Button
+                          key={label}
+                          variant="outline"
+                          size="xs"
+                          onClick={() =>
+                            openProjectDialog.openWithPayload({
+                              remote:
+                                source.connection.environmentId ===
+                                connection.environmentId
+                                  ? null
+                                  : source.connection.environmentId,
+                              project: source.project,
+                              ...(label === 'Reconnect' &&
+                              projectPath(source.project)
+                                ? { path: projectPath(source.project) }
+                                : {}),
+                            })
+                          }
+                        >
+                          {label}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <CollapsibleContent>
                   <SidebarMenu>
                     {source.entries.map((entry) => {

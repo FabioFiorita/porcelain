@@ -10,6 +10,7 @@ import { ScrollArea as ScrollAreaPrimitive } from '@base-ui/react/scroll-area';
 import { formatForDisplay } from '@tanstack/react-hotkeys';
 import {
   Columns2Icon,
+  ChevronDownIcon,
   FileDiffIcon,
   FileTextIcon,
   FlaskConicalIcon,
@@ -37,6 +38,13 @@ import {
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
 import { Kbd } from '@/components/ui/kbd';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { ScrollBar } from '@/components/ui/scroll-area';
 import { shortOid } from '@porcelain/client/history/rules';
 import { cn } from '@/shared/lib/utils';
@@ -208,7 +216,7 @@ export function DocumentTabs({
             ? 'Open documents'
             : `Open documents, ${side} pane`
         }
-        className="flex h-full min-w-0 flex-1 items-center gap-1"
+        className="flex h-full min-w-0 flex-1 items-center gap-1 overflow-hidden"
       >
         {tabs.includes('handoff') && (
           <span className="flex shrink-0">
@@ -301,8 +309,74 @@ export function DocumentTabs({
           />
         </ScrollAreaPrimitive.Root>
       </div>
+      {tabs.length > 1 && (
+        <DropdownMenu>
+          <Tooltip disableHoverablePopup>
+            <TooltipTrigger
+              render={
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      className="shrink-0"
+                      aria-label="Open document list"
+                    />
+                  }
+                />
+              }
+            >
+              <ChevronDownIcon />
+            </TooltipTrigger>
+            <TooltipContent>Open document list</TooltipContent>
+          </Tooltip>
+          <DropdownMenuContent
+            align="end"
+            className="w-auto max-w-[min(28rem,90vw)] min-w-56"
+          >
+            <DropdownMenuRadioGroup
+              value={active ?? ''}
+              onValueChange={(key: unknown) => {
+                if (typeof key === 'string' && tabs.includes(key))
+                  actions.onActivate(key);
+              }}
+            >
+              {tabs.map((key) => {
+                const {
+                  Icon,
+                  title,
+                  hint,
+                  accessibleName = title,
+                } = describeTab(
+                  key,
+                  key === 'handoff' ? changesTabCount(changeCount) : undefined,
+                );
+                return (
+                  <DropdownMenuRadioItem
+                    key={key}
+                    value={key}
+                    closeOnClick
+                    aria-label={accessibleName}
+                    className="items-start"
+                  >
+                    <Icon className="mt-0.5" />
+                    <span className="min-w-0 whitespace-normal break-all">
+                      {hint}
+                    </span>
+                    {pinned.includes(key) && (
+                      <PinIcon aria-label="Pinned" className="mt-0.5" />
+                    )}
+                  </DropdownMenuRadioItem>
+                );
+              })}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
       {trailing !== null && trailing !== undefined && (
-        <div className="flex shrink-0 items-center gap-0.5">{trailing}</div>
+        <div className="ml-1 flex shrink-0 items-center gap-0.5 border-l pl-2">
+          {trailing}
+        </div>
       )}
     </div>
   );

@@ -23,12 +23,46 @@ it.each([null, '{}', 'not-json', 'null', '[]', '42', '"text"'])(
         collapseSpecs: false,
         archiveDeleteWorktree: true,
         archiveDeleteLocalBranch: true,
-        archiveDeleteRemoteBranch: true,
+        archiveDeleteRemoteBranch: false,
       },
       notifications: { reviewReady: false, agentReply: false },
     });
   },
 );
+it('starts remote branch deletion off while retaining explicit legacy and current choices', () => {
+  const saved = {
+    pullStrategy: 'rebase',
+    collapseSpecs: true,
+    archiveDeleteWorktree: false,
+    archiveDeleteLocalBranch: false,
+    archiveDeleteRemoteBranch: true,
+  };
+  const remoteDeletion = (record: string | null) =>
+    readPreferences(record).reviewGitSettingsImportCandidate
+      .archiveDeleteRemoteBranch;
+  expect({
+    fresh: remoteDeletion(null),
+    legacyEnabled: remoteDeletion('{"archiveDeleteRemoteBranch":true}'),
+    legacyDisabled: remoteDeletion('{"archiveDeleteRemoteBranch":false}'),
+    savedEnabled: remoteDeletion(
+      JSON.stringify({ reviewGitSettingsImportCandidate: saved }),
+    ),
+    savedDisabled: remoteDeletion(
+      JSON.stringify({
+        reviewGitSettingsImportCandidate: {
+          ...saved,
+          archiveDeleteRemoteBranch: false,
+        },
+      }),
+    ),
+  }).toEqual({
+    fresh: false,
+    legacyEnabled: true,
+    legacyDisabled: false,
+    savedEnabled: true,
+    savedDisabled: false,
+  });
+});
 it.each([true, false])(
   'migrates an old mobile record with wrap=%s',
   (wrapLongLines) => {

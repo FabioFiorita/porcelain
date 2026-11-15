@@ -6,6 +6,8 @@ selectors:
   - 'Walkthrough writer'
   - 'Walkthrough effort'
   - 'Walkthrough mode'
+  - 'No writers available'
+  - 'Check writers again'
   - 'Save'
 tests:
   - apps/server/spec/integration/walkthrough-settings.integration.ts
@@ -13,6 +15,7 @@ tests:
   - packages/agents/src/walkthrough-writing/installed-walkthrough-model-reader.spec.ts
   - apps/web/spec/integration/projects-rename.test.tsx
   - packages/client/src/features/projects/rules/walkthrough-writer.spec.ts
+  - apps/web/spec/integration/walkthrough-writer-availability.test.tsx
 api:
   - GET /api/walkthrough-settings
   - PUT /api/walkthrough-settings
@@ -30,7 +33,7 @@ Open Settings → Changes & Git → Default walkthrough writer, or use a project
 
 ## Driving it with browser
 
-Start one disposable instance with `start --coding-tool` for signed-in fixture Claude discovery. Without the fake tool the empty installed-model list is intentional. Open default settings, choose Sonnet and medium effort, save and reload. Read `/api/walkthrough-settings` independently. Capture the settings page with its note.
+Start one disposable instance with `start --coding-tool` for signed-in fixture Claude discovery. Without the fake tool, the page shows No writers available with install/sign-in commands and Check writers again instead of disabled Writer/Effort dropdowns. Project Manual / Automatic controls remain available so automation can be disabled without an available model. Install the fixture tool and choose Check writers again: available model controls return. Open default settings, choose Sonnet and medium effort, save and reload. Read `/api/walkthrough-settings` independently. Capture the settings page with its note.
 
 Open the project menu and capture it, then open Walkthrough settings. The first option says Use the default and shows the current provider/model/effort. Save Automatic without overriding the writer; `/api/inventory` must contain mode automatic with no writer override. Change the global default, reopen the project dialog, and confirm its default option follows the new value. Select Opus 5.5 and a supported effort as an override, save and reopen; the explicit override remains. Return to Use the default and Manual. Capture the dialog. Model choices include only installed signed-in providers; Codex uses CODEX_HOME model metadata and its per-model effort list. A saved model that disappears remains visibly unavailable and is never silently substituted.
 

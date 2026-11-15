@@ -9,6 +9,7 @@ import {
   growthSign,
   plainText,
   readyUpdate,
+  initialWriteFailure,
   stopPaths,
   walkthroughCalls,
   walkthroughMeta,
@@ -558,16 +559,13 @@ export function WalkthroughPage({
     observedPhase.kind !== 'unwritten' ? observedPhase.run : undefined,
   );
   const phase = acknowledgedWalkthroughPhase(observedPhase, write.accepted);
-  const startFailure =
-    write.failure && (phase.kind === 'unwritten' || phase.kind === 'failed')
-      ? write.failure
-      : undefined;
+  const startFailure = initialWriteFailure(phase, write.failure);
   if (startFailure)
     return (
       <Failed
         workspace={workspace}
-        run={phase.kind === 'failed' ? phase.run : undefined}
-        failure={startFailure}
+        run={startFailure.run}
+        failure={startFailure.failure}
         waiting={write.waiting}
         onRetry={write.start}
       />

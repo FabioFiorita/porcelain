@@ -88,6 +88,18 @@ export function failureCopy(
   );
 }
 
+export function initialWriteFailure(
+  phase: ReturnType<typeof walkthroughPhase>,
+  failure: WalkthroughFailure | undefined,
+) {
+  if (!failure || (phase.kind !== 'unwritten' && phase.kind !== 'failed'))
+    return undefined;
+  return {
+    failure,
+    run: phase.kind === 'failed' ? phase.run : undefined,
+  };
+}
+
 type ReadyPhase = Extract<
   ReturnType<typeof walkthroughPhase>,
   { kind: 'ready' }

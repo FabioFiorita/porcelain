@@ -39,7 +39,7 @@ Changes & Git settings (Spec files, Pull strategy and the three archive deletion
 
 Preconditions: [surface baseline](README.md).
 
-1. On a fresh instance open Settings → Changes & Git. Every control is disabled and shows this browser's earlier values; the notice explains the computer has no settings yet. A browser that never chose them shows Merge, Spec files off and all three deletions on. The Git menu's Pull and Archive are disabled with "Choose Changes & Git settings for this computer in Settings first."
+1. On a fresh instance open Settings → Changes & Git. Every control is disabled and shows this device's earlier values or the defaults; the notice explains the computer has no settings yet and that Use these settings enables editing. A fresh profile shows Merge, Spec files off, local worktree and local branch deletion on, and remote branch deletion off. Explicit saved browser or computer choices remain unchanged. Each switch has a visible On/Off label; the selected Merge/Rebase option shows a checkmark and emphasized label even while disabled. Review archive deletions scrolls directly to When archiving, beside the existing confirmation explanation. Close still returns to the worktree after that jump. The Git menu's Pull and Archive are disabled with "Choose Changes & Git settings for this computer in Settings first."
 2. Choose Use these settings for this computer. The notice goes and the controls enable. `$C server` GET `/api/review-git-settings` answers `configured` with revision 1 and the previewed values.
 3. Change Pull strategy to Rebase in one tab and Delete remote branch off in a second tab of the same browser; both tabs converge on both changes without reloading.
 4. Pair a second device through the server CLI without trust and PATCH a change with its bearer from another origin: 403 "An owner must trust this device…". The browser on this computer can still change settings.
@@ -60,4 +60,4 @@ Automated coverage: `settings-preferences.test.tsx` (actual form remount, retain
 ## Gotchas
 
 - An older computer without the route shows Update this computer to sync settings (or names the chosen remote) and keeps Pull and Archive disabled for it.
-- The preview values come from this browser's old local preferences and never change after the upgrade; General settings stay on this device.
+- The preview values come from this device's old local preferences or the defaults and never change after the upgrade; General settings stay on this device.

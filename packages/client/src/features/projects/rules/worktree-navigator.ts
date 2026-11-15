@@ -93,7 +93,8 @@ export function navigatorChangesLabel(changes: NavigatorChanges) {
 }
 export function navigatorCardChangesLabel(changes: NavigatorChanges) {
   if (changes.state === 'unavailable') return '—';
-  if (changes.state === 'available' && changes.count === 0) return '';
+  if (changes.state === 'available')
+    return changes.count === 0 ? '' : `${changes.count} uncommitted`;
   return navigatorChangesLabel(changes);
 }
 export function navigatorChecksLabel(

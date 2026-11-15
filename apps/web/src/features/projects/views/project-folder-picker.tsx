@@ -22,10 +22,12 @@ export function ProjectFolderPicker({
   connection,
   disabled,
   onOpen,
+  action,
 }: {
   connection: Connection;
   disabled: boolean;
   onOpen: (path: string) => void;
+  action?: string | undefined;
 }) {
   const path = useAtomValue(projectFolder);
   const setPath = useAtomSet(projectFolder);
@@ -109,7 +111,10 @@ export function ProjectFolderPicker({
           {disabled && <Spinner />}
           <TruncatedText
             className="max-w-36"
-            text={`Open ${current?.path.split('/').filter(Boolean).at(-1) ?? 'folder'}`}
+            text={
+              action ??
+              `Open ${current?.path.split('/').filter(Boolean).at(-1) ?? 'folder'}`
+            }
           />
         </Button>
       </div>
