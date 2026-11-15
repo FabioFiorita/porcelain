@@ -1,6 +1,5 @@
 import { page, userEvent } from 'vitest/browser';
 import { expect, test } from './fixtures.tsx';
-
 test('opening a file without a guided comparison does not inspect branch changes', async ({
   repo,
   render,
@@ -87,6 +86,7 @@ test('reopening Files keeps its confirmed tree visible while folder reads refres
   render,
   fetchGate,
   repo,
+  collectGarbage,
 }) => {
   await page.viewport(1440, 900);
   const held = fetchGate.holdNextDirectoryRead();
@@ -116,6 +116,7 @@ test('reopening Files keeps its confirmed tree visible while folder reads refres
       .getByRole('button', { name: 'Hide side panel', exact: true })
       .click();
     await expect.element(file).not.toBeInTheDocument();
+    await collectGarbage();
     await files.click();
     await expect.element(file).toBeVisible();
     await expect
