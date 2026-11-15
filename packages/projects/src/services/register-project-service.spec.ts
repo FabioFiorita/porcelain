@@ -3,7 +3,10 @@ import {
   ProjectReconnectionRefusedError,
 } from '@porcelain/projects/errors';
 import { IdSource } from '@porcelain/kernel/ports';
-import { InventoryStore } from '@porcelain/projects/ports';
+import {
+  InventoryStore,
+  WorktreePresenceStore,
+} from '@porcelain/projects/ports';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { SequentialIdSource } from '@porcelain/kernel/fakes';
@@ -12,6 +15,7 @@ import {
   type RegisteredProject,
 } from '@porcelain/projects/models';
 import { InMemoryInventoryStore } from '../../spec/fakes/in-memory-inventory-store.ts';
+import { InMemoryWorktreePresenceStore } from '../../spec/fakes/in-memory-worktree-presence-store.ts';
 import { RegisterProjectService } from './register-project-service.ts';
 
 const repository: ProjectRepository = {
@@ -38,14 +42,16 @@ function registered(overrides: Partial<RegisteredProject>): RegisteredProject {
 
 function setup(projects: RegisteredProject[] = []) {
   const inventory = new InMemoryInventoryStore(projects);
+  const presence = new InMemoryWorktreePresenceStore();
   const service = Effect.runSync(
     RegisterProjectService.pipe(
       Effect.provide(RegisterProjectService.layer),
       Effect.provideService(InventoryStore, inventory),
+      Effect.provideService(WorktreePresenceStore, presence),
       Effect.provideService(IdSource, new SequentialIdSource()),
     ),
   );
-  return { inventory, service };
+  return { inventory, presence, service };
 }
 
 describe('RegisterProjectService', () => {
@@ -215,6 +221,7 @@ describe('RegisterProjectService', () => {
       changed: true,
       project: {
         ...saved,
+        namedByOwner: true,
         commonDirectory: repository.commonDirectory,
         repositoryIdentity: 'replacement',
         available: true,
@@ -225,6 +232,28 @@ describe('RegisterProjectService', () => {
       project: result.project,
       changed: false,
     });
+  });
+
+  it('keeps the recovered name when opening the replacement folder again', () => {
+    const saved = registered({ name: 'api' });
+    const { service } = setup([saved]);
+    const replacement = {
+      commonDirectory: '/srv/restored/.git',
+      repositoryIdentity: 'replacement',
+      worktrees: [{ path: '/srv/restored', main: true, available: true }],
+    };
+    Effect.runSync(
+      service.execute({
+        repository: replacement,
+        originUrl: undefined,
+        reconnectProjectId: saved.id,
+      }),
+    );
+    const reopened = Effect.runSync(
+      service.execute({ repository: replacement, originUrl: undefined }),
+    );
+    expect(reopened.project.name).toBe('api');
+    expect(reopened.changed).toBe(false);
   });
 
   it('refuses to reconnect over another registered repository', async () => {

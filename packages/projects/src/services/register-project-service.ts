@@ -8,6 +8,7 @@ import {
 } from '../models/register-project.ts';
 import { type RegisteredProject } from '../models/project.ts';
 import { InventoryStore } from '../ports/inventory-store.ts';
+import { WorktreePresenceStore } from '../ports/worktree-presence-store.ts';
 import { deriveProjectName } from '../rules/derive-project-name.ts';
 import { nextPosition } from '../rules/next-position.ts';
 import { parentFolder } from '../rules/parent-folder.ts';
@@ -28,6 +29,7 @@ export class RegisterProjectService extends Context.Service<
     RegisterProjectService,
     Effect.gen(function* () {
       const inventoryCapability = yield* InventoryStore;
+      const presenceCapability = yield* WorktreePresenceStore;
       const idSourceCapability = yield* IdSource;
 
       return {
@@ -75,6 +77,15 @@ export class RegisterProjectService extends Context.Service<
           if (!reconnecting && atPath && !sameIdentity)
             return { project: atPath, changed: false };
           const previous = selected ?? sameIdentity;
+          if (
+            selected &&
+            selected.repositoryIdentity !== repository.repositoryIdentity
+          )
+            yield* presenceCapability.save({
+              rows: (yield* presenceCapability.read({
+                projectId: selected.id,
+              })).map((row) => ({ ...row, preserved: true })),
+            });
           const project: RegisteredProject = {
             id: previous?.id ?? idSourceCapability.next(),
             name: selected
@@ -86,7 +97,7 @@ export class RegisterProjectService extends Context.Service<
                     repository.worktrees.find((worktree) => worktree.main)
                       ?.path ?? parentFolder(repository.commonDirectory),
                   ),
-            namedByOwner: previous?.namedByOwner ?? false,
+            namedByOwner: selected ? true : (previous?.namedByOwner ?? false),
             commonDirectory: repository.commonDirectory,
             repositoryIdentity: repository.repositoryIdentity,
             available: true,

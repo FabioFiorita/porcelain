@@ -4,6 +4,7 @@ import {
   type ReadServiceUpdateResponse,
 } from '@porcelain/contracts/access';
 
+import type { WalkthroughSettings } from '@porcelain/contracts/projects';
 import type { EditFileRequest } from '@porcelain/contracts/files';
 import type {
   AgentAction,
@@ -19,6 +20,8 @@ export function sampleRepository(step: Step, fixture: RepoFixture) {
   return {
     ...rest,
     initialBranch,
+    walkthroughSettings: (projectId: string, settings: WalkthroughSettings) =>
+      step({ kind: 'walkthrough-settings-fixture', projectId, settings }),
     serviceUpdate: (state: ReadServiceUpdateResponse | 'error' | null) =>
       step({
         kind: 'service-update-fixture',

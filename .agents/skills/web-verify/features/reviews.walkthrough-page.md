@@ -6,6 +6,7 @@ selectors:
   - 'Write walkthrough'
   - 'No writers available'
   - 'Check writers again'
+  - 'Project walkthrough settings'
   - 'Writing the walkthrough'
   - 'How the system grew'
   - 'See every changed file'

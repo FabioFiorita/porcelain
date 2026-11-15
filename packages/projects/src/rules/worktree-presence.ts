@@ -26,7 +26,7 @@ export function observed(
 ): WorktreePresence[] {
   const present = new Set(presentIds);
   return sighted(rows, projectId, presentIds).map((row) =>
-    present.has(row.worktreeId)
+    present.has(row.worktreeId) || row.preserved
       ? row
       : { ...row, missingSince: row.missingSince ?? at },
   );
@@ -40,6 +40,7 @@ export function expired(
   return rows
     .filter(
       (row) =>
+        !row.preserved &&
         row.missingSince !== undefined &&
         Date.parse(now) - Date.parse(row.missingSince) > graceMs,
     )

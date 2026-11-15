@@ -15,6 +15,7 @@ tests:
   - apps/web/spec/e2e/projects-reconnect.desktop.e2e.ts
   - apps/web/spec/e2e/projects-open-folder.e2e.ts
   - apps/web/spec/integration/projects-open-folder.test.tsx
+  - apps/server/spec/projects-reconnection-retention.spec.ts
 api:
   - GET /api/projects/folders
   - POST /api/projects
@@ -94,6 +95,6 @@ For an isolated fixture, move its `.git` outside the checkout without deleting i
 
 Retain sidebar, confirmation and connected sidebar screenshots; compare with the baseline gallery. Repeat folder selection against a connected remote: requests and filesystem browsing belong to that environment, never the local machine. Mobile remains a reader and has no project recovery controls.
 
-Saved old records stay under their original worktree ids. This flow does not add an archive reader or migrate old records into replacement worktrees; that requires a separate owner decision if history must be browsed while the original filesystem identity is absent.
+Saved old records stay under their original worktree ids and are preserved outside ordinary absent-worktree collection. The retention regression advances beyond thirty days, reopens the database, restores the original identity and reads back its marks; replacement worktrees removed normally still expire. Once an original worktree returns, its ordinary absence policy resumes. Explicit project removal can still remove its records. Reopen the replacement folder through Open project and confirm the retained name remains. This flow does not add an archive reader or migrate old records into replacement worktrees; that requires a separate owner decision if history must be browsed while the original filesystem identity is absent.
 
 A confirmed reconnect opens the replacement worktree before dismissing the dialog. The route must contain its new worktree id and show Changes; it must not remain on Worktree not found. Cancellation leaves the original unavailable binding unchanged. The named desktop-mode reconnect regression covers this navigation and return behavior.

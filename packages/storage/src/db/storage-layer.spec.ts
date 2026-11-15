@@ -53,7 +53,7 @@ function legacyDatabase(directory: string, count?: number) {
   const database = applyLegacyMigrations(directory, count);
   database.exec(`INSERT INTO environment VALUES (1, '${environmentId}');
     INSERT INTO inventory_projects VALUES ('project', 'Preserved project', 1, '/repo/.git', 'repository', 1, 4);
-    INSERT INTO worktree_presence VALUES ('worktree', 'project', NULL);
+    INSERT INTO worktree_presence (worktree_id, project_id, missing_since) VALUES ('worktree', 'project', NULL);
     INSERT INTO devices (id, label, platform, secret_hash, created_at, last_seen_at, last_seen_address, route, route_inferred, revoked_at) VALUES ('device', 'Owner tablet', 'ios', 'hash', '${at}', '${at}', NULL, 'lan', 0, NULL);
     UPDATE comment_revision SET revision = 37 WHERE singleton = 1;`);
   if (count === undefined)
@@ -176,6 +176,7 @@ describe('Native storage adoption', () => {
         { migration_id: 14, name: 'retire_review_push_kinds' },
         { migration_id: 15, name: 'working_tree_walkthroughs' },
         { migration_id: 16, name: 'remove_saved_reviews_and_comments' },
+        { migration_id: 17, name: 'preserve_reconnected_worktrees' },
       ]);
     } finally {
       database.close();
@@ -195,7 +196,7 @@ describe('Native storage adoption', () => {
       ]) {
         seeded.exec(`
           INSERT INTO inventory_projects VALUES ('${prefix}', '${prefix} project', 1, '/${prefix}/.git', '${identity}', 1, 4);
-          INSERT INTO worktree_presence VALUES ('${prefix}-worktree', '${prefix}', NULL);
+          INSERT INTO worktree_presence (worktree_id, project_id, missing_since) VALUES ('${prefix}-worktree', '${prefix}', NULL);
           INSERT INTO reviews VALUES ('${prefix}-worktree', 3, '${at}', 1, '<p>Keep review</p>', '${prefix}-token', 'secret', NULL, '[]', NULL);
           INSERT INTO reviewed_files VALUES ('${prefix}-worktree', 'worktree', '', 'README.md', 'file-print', '${at}', 0);
           INSERT INTO reviewed_layers VALUES ('${prefix}-worktree', 'layer', 'layer-print', '${at}');
@@ -241,6 +242,7 @@ describe('Native storage adoption', () => {
             worktree_id: 'new-worktree',
             project_id: 'new',
             missing_since: null,
+            preserved: 0,
           },
         ],
       );
@@ -528,6 +530,7 @@ describe('Native storage adoption', () => {
         { migration_id: 14, name: 'retire_review_push_kinds' },
         { migration_id: 15, name: 'working_tree_walkthroughs' },
         { migration_id: 16, name: 'remove_saved_reviews_and_comments' },
+        { migration_id: 17, name: 'preserve_reconnected_worktrees' },
       ]);
       expect(database.prepare('PRAGMA foreign_key_check').all()).toEqual([]);
     } finally {
@@ -593,6 +596,7 @@ describe('Native storage adoption', () => {
           { migration_id: 14, name: 'retire_review_push_kinds' },
           { migration_id: 15, name: 'working_tree_walkthroughs' },
           { migration_id: 16, name: 'remove_saved_reviews_and_comments' },
+          { migration_id: 17, name: 'preserve_reconnected_worktrees' },
         ]);
         expect(
           stored
@@ -666,7 +670,7 @@ describe('Native storage adoption', () => {
     const database = new DatabaseSync(join(directory, 'inventory.sqlite'));
     database.exec('PRAGMA foreign_keys = OFF');
     database.exec(
-      "INSERT INTO worktree_presence VALUES ('orphan', 'missing-project', NULL)",
+      "INSERT INTO worktree_presence (worktree_id, project_id, missing_since) VALUES ('orphan', 'missing-project', NULL)",
     );
     database.close();
     const before = snapshot(directory);

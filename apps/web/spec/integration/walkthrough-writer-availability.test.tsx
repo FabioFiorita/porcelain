@@ -129,3 +129,58 @@ test('project automation stays editable when no writers are available and checki
     .poll(async () => (await server.project()).walkthroughSettings?.mode)
     .toBe('manual');
 });
+
+test('an unavailable project override opens its own settings and clearing it enables writing', async ({
+  repo,
+  render,
+  codingTool,
+  server,
+}) => {
+  await codingTool.install();
+  const project = await server.project();
+  await repo.walkthroughSettings(project.id, {
+    mode: 'manual',
+    writer: { provider: 'codex', model: 'removed-model', effort: 'high' },
+  });
+  const app = await render.route('/');
+  const page = app.page;
+  await page.getByRole('tab', { name: 'Walkthrough', exact: true }).click();
+  await expect
+    .element(
+      page.getByText('Writer: Codex / removed-model · high', { exact: true }),
+    )
+    .toBeVisible();
+  const write = page.getByRole('button', {
+    name: 'Write walkthrough',
+    exact: true,
+  });
+  await expect.element(write).toBeDisabled();
+  await page
+    .getByRole('button', { name: 'Project walkthrough settings', exact: true })
+    .click();
+  const dialog = page.getByRole('dialog', {
+    name: `Walkthroughs for ${project.name}`,
+    exact: true,
+  });
+  await expect.element(dialog).toBeVisible();
+  await dialog
+    .getByRole('combobox', { name: 'Walkthrough writer', exact: true })
+    .click();
+  await page
+    .getByRole('option', {
+      name: 'Use the default · Claude / Opus 5.5 · high',
+      exact: true,
+    })
+    .click();
+  await dialog.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect
+    .poll(async () => (await server.project()).walkthroughSettings)
+    .toEqual({ mode: 'manual' });
+  await expect.element(dialog).not.toBeInTheDocument();
+  await expect
+    .element(
+      page.getByText('Writer: Claude / Opus 5.5 · high', { exact: true }),
+    )
+    .toBeVisible();
+  await expect.element(write).toBeEnabled();
+});

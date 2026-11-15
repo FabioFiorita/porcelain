@@ -3,6 +3,7 @@ route: /settings/$section
 selectors:
   - 'Default walkthrough writer'
   - 'Walkthrough settings'
+  - 'Project walkthrough settings'
   - 'Walkthrough writer'
   - 'Walkthrough effort'
   - 'Walkthrough mode'
@@ -42,5 +43,7 @@ Open the project menu and capture it, then open Walkthrough settings. The first 
 The fake coding tool authenticates locally and drafts commits; it does not write a real walkthrough. Writer process flags, two-pass effort and unavailable-model failures are covered by the named adapter and server tests. This loopback journey does not establish native mobile/desktop or remote connectivity. Mobile consumes the shared client API; its views are owned separately.
 
 A project with a saved unavailable writer still shows the unavailable warning. Changing Automatic to Manual must leave Save enabled when provider, model and effort are unchanged; save and independently read inventory to confirm Manual with the same override. A different unavailable writer or effort remains unsavable.
+
+With an unavailable project override and another available writer, the empty Walkthrough's Project walkthrough settings action opens that project's dialog on its own computer. Choose Use the default, save and independently read inventory: the override is absent, the effective available writer is shown and Write walkthrough is enabled. An unavailable global default instead links to Changes & Git.
 
 The default writer uses the same outlined setting row as Spec files and Pull strategy, with its description beside the controls. Changes & Git describes change grouping, walkthrough writers, GitHub accounts, pull and archive; its shared-computer notice names Changes & Git.

@@ -120,6 +120,16 @@ export class World {
 
   async repo(step: RepoStep, server: ServerName): Promise<string> {
     const repository = await this.session(server);
+    if (step.kind === 'walkthrough-settings-fixture') {
+      const response = await repository.read({
+        method: 'PUT',
+        path: `/api/projects/${step.projectId}/walkthrough-settings`,
+        body: step.settings,
+      });
+      if (response.status !== 200)
+        throw new Error('The project writer fixture could not be saved');
+      return '';
+    }
     if (step.kind === 'service-update-fixture') {
       const instance = await this.handle(server);
       const path = join(

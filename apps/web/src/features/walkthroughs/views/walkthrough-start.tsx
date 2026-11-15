@@ -7,7 +7,11 @@ import { readWalkthroughWriterSettings } from '@porcelain/client/projects';
 import { walkthroughWriterStatus } from '@porcelain/client/projects/rules';
 import { refLabel } from '@porcelain/client/history/rules';
 import { Button } from '@/components/ui/button';
-import { useInventory } from '@/features/projects/index';
+import {
+  useInventory,
+  walkthroughSettingsDialog,
+} from '@/features/projects/index';
+import { useLocalConnection } from '@/features/access/index';
 import { NoWalkthroughWriters } from '@/shared/views/no-walkthrough-writers';
 import { useBranchBases } from '@/features/changes/index';
 import type { DocumentProps } from '@/features/workspace/index';
@@ -22,6 +26,7 @@ export function WalkthroughStart({
   onWrite: () => void;
 }) {
   const { connection } = document.context;
+  const local = useLocalConnection();
   const atom = readWalkthroughWriterSettings(connection);
   const result = useAtomValue(atom);
   const refresh = useAtomRefresh(atom);
@@ -76,13 +81,31 @@ export function WalkthroughStart({
       {!failed && !noWriters && writer && !writer.available && (
         <p role="status" className="text-ui text-muted-foreground">
           This writer is unavailable. Choose an available writer in{' '}
-          <Link
-            to="/settings/$section"
-            params={{ section: 'git' }}
-            className="underline underline-offset-4"
-          >
-            Settings → Changes &amp; Git
-          </Link>
+          {project?.walkthroughSettings?.writer ? (
+            <Button
+              variant="link"
+              size="sm"
+              onClick={() =>
+                walkthroughSettingsDialog.openWithPayload({
+                  project,
+                  remote:
+                    connection.environmentId === local?.environmentId
+                      ? null
+                      : connection.environmentId,
+                })
+              }
+            >
+              Project walkthrough settings
+            </Button>
+          ) : (
+            <Link
+              to="/settings/$section"
+              params={{ section: 'git' }}
+              className="underline underline-offset-4"
+            >
+              Settings → Changes &amp; Git
+            </Link>
+          )}
           .
         </p>
       )}

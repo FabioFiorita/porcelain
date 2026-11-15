@@ -1,6 +1,6 @@
 export { useSetHidden, useSetPinned } from './commands/file-preferences';
 export { useNativeProjectPicker } from './commands/open-project';
-export { openProjectDialog } from './overlays';
+export { openProjectDialog, walkthroughSettingsDialog } from './overlays';
 export {
   useHiddenPaths,
   usePinnedPaths,
