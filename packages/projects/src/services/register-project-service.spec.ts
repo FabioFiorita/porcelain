@@ -1,5 +1,12 @@
+import {
+  ProjectNotFoundError,
+  ProjectReconnectionRefusedError,
+} from '@porcelain/projects/errors';
 import { IdSource } from '@porcelain/kernel/ports';
-import { InventoryStore } from '@porcelain/projects/ports';
+import {
+  InventoryStore,
+  WorktreePresenceStore,
+} from '@porcelain/projects/ports';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { SequentialIdSource } from '@porcelain/kernel/fakes';
@@ -8,6 +15,7 @@ import {
   type RegisteredProject,
 } from '@porcelain/projects/models';
 import { InMemoryInventoryStore } from '../../spec/fakes/in-memory-inventory-store.ts';
+import { InMemoryWorktreePresenceStore } from '../../spec/fakes/in-memory-worktree-presence-store.ts';
 import { RegisterProjectService } from './register-project-service.ts';
 
 const repository: ProjectRepository = {
@@ -34,14 +42,16 @@ function registered(overrides: Partial<RegisteredProject>): RegisteredProject {
 
 function setup(projects: RegisteredProject[] = []) {
   const inventory = new InMemoryInventoryStore(projects);
+  const presence = new InMemoryWorktreePresenceStore();
   const service = Effect.runSync(
     RegisterProjectService.pipe(
       Effect.provide(RegisterProjectService.layer),
       Effect.provideService(InventoryStore, inventory),
+      Effect.provideService(WorktreePresenceStore, presence),
       Effect.provideService(IdSource, new SequentialIdSource()),
     ),
   );
-  return { inventory, service };
+  return { inventory, presence, service };
 }
 
 describe('RegisterProjectService', () => {
@@ -184,5 +194,133 @@ describe('RegisterProjectService', () => {
         (entry) => entry.id,
       ),
     ).toEqual(['existing', 'later']);
+  });
+  it('offers the original project without accepting a replacement identity at the same path', () => {
+    const saved = registered({ commonDirectory: repository.commonDirectory });
+    const { inventory, service } = setup([saved]);
+    const result = Effect.runSync(
+      service.execute({
+        repository: { ...repository, repositoryIdentity: 'replacement' },
+        originUrl: undefined,
+      }),
+    );
+    expect(result).toEqual({ project: saved, changed: false });
+    expect(Effect.runSync(inventory.read()).projects).toEqual([saved]);
+  });
+
+  it('reconnects an explicitly chosen unavailable project while retaining its id, name and position', () => {
+    const saved = registered({ name: 'Original project', position: 7 });
+    const { inventory, service } = setup([saved]);
+    const input = {
+      repository: { ...repository, repositoryIdentity: 'replacement' },
+      originUrl: 'https://example.com/team/replacement.git',
+      reconnectProjectId: saved.id,
+    };
+    const result = Effect.runSync(service.execute(input));
+    expect(result).toEqual({
+      changed: true,
+      project: {
+        ...saved,
+        namedByOwner: true,
+        commonDirectory: repository.commonDirectory,
+        repositoryIdentity: 'replacement',
+        available: true,
+      },
+    });
+    expect(Effect.runSync(inventory.read()).projects).toEqual([result.project]);
+    expect(Effect.runSync(service.execute(input))).toEqual({
+      project: result.project,
+      changed: false,
+    });
+  });
+
+  it('keeps the recovered name when opening the replacement folder again', () => {
+    const saved = registered({ name: 'api' });
+    const { service } = setup([saved]);
+    const replacement = {
+      commonDirectory: '/srv/restored/.git',
+      repositoryIdentity: 'replacement',
+      worktrees: [{ path: '/srv/restored', main: true, available: true }],
+    };
+    Effect.runSync(
+      service.execute({
+        repository: replacement,
+        originUrl: undefined,
+        reconnectProjectId: saved.id,
+      }),
+    );
+    const reopened = Effect.runSync(
+      service.execute({ repository: replacement, originUrl: undefined }),
+    );
+    expect(reopened.project.name).toBe('api');
+    expect(reopened.changed).toBe(false);
+  });
+
+  it('refuses to reconnect over another registered repository', async () => {
+    const saved = registered({});
+    const other = registered({
+      id: 'other',
+      commonDirectory: repository.commonDirectory,
+      repositoryIdentity: 'replacement',
+    });
+    const { inventory, service } = setup([saved, other]);
+    await expect(
+      Effect.runPromise(
+        service.execute({
+          repository: { ...repository, repositoryIdentity: 'replacement' },
+          originUrl: undefined,
+          reconnectProjectId: saved.id,
+        }),
+      ),
+    ).rejects.toThrow(ProjectReconnectionRefusedError);
+    expect(Effect.runSync(inventory.read()).projects).toEqual([saved, other]);
+  });
+
+  it('refuses an unknown reconnect target instead of creating a new project', async () => {
+    const { inventory, service } = setup();
+    await expect(
+      Effect.runPromise(
+        service.execute({
+          repository,
+          originUrl: undefined,
+          reconnectProjectId: 'missing',
+        }),
+      ),
+    ).rejects.toThrow(ProjectNotFoundError);
+    expect(Effect.runSync(inventory.read()).projects).toEqual([]);
+  });
+
+  it('refuses to replace the identity of a project still known to be available', async () => {
+    const saved = registered({ available: true });
+    const { inventory, service } = setup([saved]);
+    await expect(
+      Effect.runPromise(
+        service.execute({
+          repository: { ...repository, repositoryIdentity: 'replacement' },
+          originUrl: undefined,
+          reconnectProjectId: saved.id,
+        }),
+      ),
+    ).rejects.toThrow(ProjectReconnectionRefusedError);
+    expect(Effect.runSync(inventory.read()).projects).toEqual([saved]);
+  });
+  it('refuses a replacement folder claimed by another project even when its identity changed', async () => {
+    const saved = registered({});
+    const other = registered({
+      id: 'other',
+      commonDirectory: repository.commonDirectory,
+      repositoryIdentity: 'other-old-identity',
+    });
+    const { inventory, service } = setup([saved, other]);
+    await expect(
+      Effect.runPromise(
+        service.execute({
+          repository: { ...repository, repositoryIdentity: 'replacement' },
+          originUrl: undefined,
+          reconnectProjectId: saved.id,
+        }),
+      ),
+    ).rejects.toThrow(ProjectReconnectionRefusedError);
+    expect(Effect.runSync(inventory.read()).projects).toEqual([saved, other]);
   });
 });

@@ -67,6 +67,7 @@ export const readInventoryResponseSchema = Schema.toStandardSchemaV1(
 );
 export const registerProjectRequestSchema = Schema.Struct({
   path: absolutePathSchema,
+  reconnectProjectId: Schema.optionalKey(projectIdSchema),
 });
 export const registerProjectResponseSchema =
   Schema.toStandardSchemaV1(projectSchema);

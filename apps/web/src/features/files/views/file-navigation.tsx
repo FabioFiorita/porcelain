@@ -509,6 +509,17 @@ function ScopedFileNavigation({
             </Button>
           </div>
         )}
+        {searching &&
+          AsyncResult.isSuccess(indexed.result) &&
+          !indexed.result.waiting &&
+          matches.length === 0 && (
+            <p
+              role="status"
+              className="px-3 py-2 text-xs text-muted-foreground"
+            >
+              No files match your search.
+            </p>
+          )}
         <PierreFileTree key={treeInput.owner} {...treeInput} />
         {hidden.size > 0 && (
           <div className="flex shrink-0 items-center gap-1.5 px-3.5 py-2 text-2xs text-muted-foreground">

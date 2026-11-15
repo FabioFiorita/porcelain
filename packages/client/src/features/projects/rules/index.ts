@@ -44,6 +44,7 @@ export {
 
 export {
   selectedWalkthroughWriter,
+  walkthroughWriterStatus,
   type WriterSettings,
 } from './walkthrough-writer.ts';
 

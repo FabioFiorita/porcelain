@@ -55,7 +55,7 @@ test('the owner names this computer and picks its icon in Settings, tab titles a
       exact: true,
     }),
   ).toBeVisible();
-  await expect.poll(() => app.title()).toBe('Settings · Workstation');
+  await expect.poll(() => app.title()).toBe('Settings — Porcelain');
   await closeSettings(settings.page());
   await closeSettings(settings.page());
   await expect
@@ -98,7 +98,7 @@ test('the owner names this computer and picks its icon in Settings, tab titles a
   await expect
     .poll(async () => (await server.inventory()).environment)
     .toEqual({ name: host, custom: false });
-  await expect.poll(() => app.title()).toBe('Settings');
+  await expect.poll(() => app.title()).toBe('Settings — Porcelain');
   await closeSettings(settings.page());
   await closeSettings(settings.page());
   await expect.poll(() => app.title()).toBe(`Changes — ${project}`);

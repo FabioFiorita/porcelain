@@ -28,6 +28,7 @@ import {
   foldedNotSaid,
   growthSign,
   readyUpdate,
+  initialWriteFailure,
   walkthroughMeta,
   walkthroughEvidenceNotice,
 } from './page.ts';
@@ -855,4 +856,23 @@ describe('walkthrough update status', () => {
       'The work changed after this walkthrough’s snapshot. Update to include the latest changes.',
     );
   });
+});
+
+it('shows a start failure only before a page exists and retains the failed run identity', () => {
+  const failure = { kind: 'signed_out', message: 'Sign in again.' } as const;
+  expect(initialWriteFailure({ kind: 'unwritten' }, failure)).toEqual({
+    failure: { kind: 'signed_out', message: 'Sign in again.' },
+    run: undefined,
+  });
+  const failed = run({ status: 'failed', failure });
+  expect(
+    initialWriteFailure({ kind: 'failed', run: failed, failure }, failure),
+  ).toMatchObject({ run: { id: 'run' }, failure: { kind: 'signed_out' } });
+  expect(initialWriteFailure({ kind: 'unwritten' }, undefined)).toBeUndefined();
+  expect(
+    initialWriteFailure(
+      { kind: 'writing', run: run({ status: 'running' }) },
+      failure,
+    ),
+  ).toBeUndefined();
 });

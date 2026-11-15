@@ -34,6 +34,8 @@ Each map has one short behavior paragraph, then three sections: How to get to it
 
 - [app.board-comparison](app.board-comparison.md) — Compare mapped roles against approved HTML boards.
 
+- [reviews.workspace-shell](reviews.workspace-shell.md) — Navigator pixel width, document menu and compact comparison controls.
+
 - [reviews.walkthrough-page](reviews.walkthrough-page.md) — The Walkthrough tab, its Step documents and the Changes panel by step.
 
 - [access.device-trust](access.device-trust.md) (desktop) — Trust grants, revocation and trusted pairing links.

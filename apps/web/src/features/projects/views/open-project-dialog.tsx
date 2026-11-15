@@ -1,3 +1,11 @@
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import {
+  projectUnavailableMessage,
+  type Project,
+} from '@porcelain/client/projects/rules';
+import { projectFolder } from '../store';
+import { useAtomSet } from '@effect/atom-react';
 import { Cause } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';
@@ -50,11 +58,13 @@ export function OpenProjectDialog({
           target && (
             <DialogContent className="flex max-h-[90svh] flex-col sm:max-w-lg">
               <OpenProjectContent
-                key={payload.remote}
+                key={`${payload.remote}:${payload.project?.id ?? 'open'}`}
                 connection={target.connection}
                 remote={payload.remote}
                 name={target.name}
                 onOpened={onOpened}
+                project={payload.project}
+                path={payload.path}
               />
             </DialogContent>
           )
@@ -69,17 +79,27 @@ function OpenProjectContent({
   remote,
   name,
   onOpened,
+  project,
+  path,
 }: {
   connection: Connection;
   remote: string | null;
   name: string | undefined;
   onOpened: Opened;
+  project: Project | undefined;
+  path: string | undefined;
 }) {
+  const [recovery, setRecovery] = useState(
+    project ? { project, path } : undefined,
+  );
+  const setFolder = useAtomSet(projectFolder);
   const opening = useOpenProject(
     connection,
     remote,
     () => openProjectDialog.close(),
     onOpened,
+    (project, path) => setRecovery({ project, path }),
+    recovery?.project.id,
   );
   return (
     <>
@@ -88,7 +108,9 @@ function OpenProjectContent({
           <FolderGit2Icon aria-hidden="true" />
         </span>
         <div className="flex min-w-0 flex-col gap-1">
-          <DialogTitle>Open project</DialogTitle>
+          <DialogTitle>
+            {recovery ? `Reconnect ${recovery.project.name}` : 'Open project'}
+          </DialogTitle>
           <DialogDescription>
             {name === undefined
               ? 'Browse for a repository on the Porcelain server.'
@@ -98,11 +120,55 @@ function OpenProjectContent({
       </DialogHeader>
       <ScrollArea className="min-h-0 [&>[data-slot=scroll-area-viewport]]:max-h-[calc(90svh-8rem)]">
         <div className="flex flex-col gap-3">
-          <ProjectFolderPicker
-            disabled={opening.result.waiting}
-            connection={connection}
-            onOpen={(path) => void opening.submit(path)}
-          />
+          {recovery && (
+            <div className="flex flex-col gap-3">
+              <p className="text-sm">
+                {projectUnavailableMessage(recovery.project)}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Reconnect only a repository you trust as the replacement for{' '}
+                {recovery.project.name}. The project and saved history stay in
+                Porcelain. Replacement worktrees start with fresh review marks
+                and Walkthroughs; old records are not applied to them.
+              </p>
+              {recovery.path && (
+                <>
+                  <p className="text-sm wrap-anywhere">{recovery.path}</p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      disabled={opening.result.waiting}
+                      onClick={() => {
+                        if (recovery.path) void opening.submit(recovery.path);
+                      }}
+                    >
+                      Reconnect
+                    </Button>
+                    <Button
+                      variant="outline"
+                      disabled={opening.result.waiting}
+                      onClick={() => {
+                        setFolder(recovery.path);
+                        setRecovery({ ...recovery, path: undefined });
+                      }}
+                    >
+                      Choose folder
+                    </Button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+          {!recovery?.path && (
+            <ProjectFolderPicker
+              disabled={opening.result.waiting}
+              connection={connection}
+              onOpen={(path) => {
+                if (recovery) setRecovery({ ...recovery, path });
+                else void opening.submit(path);
+              }}
+              action={recovery ? 'Choose folder' : undefined}
+            />
+          )}
           {AsyncResult.isFailure(opening.result) && (
             <Alert variant="destructive">
               <AlertDescription>

@@ -45,7 +45,7 @@ it('allows first-use Pull with merge and honors a configured strategy only while
     collapseSpecs: false,
     archiveDeleteWorktree: true,
     archiveDeleteLocalBranch: true,
-    archiveDeleteRemoteBranch: true,
+    archiveDeleteRemoteBranch: false,
   });
   expect({
     firstUse: reviewGitPullStrategy({ kind: 'unconfigured' }),

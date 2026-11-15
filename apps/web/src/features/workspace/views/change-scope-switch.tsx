@@ -27,10 +27,14 @@ export function ChangeScopeSwitch({
         if (isChangeScope(next)) onValueChange(next);
       }}
     >
-      <TabsList aria-label="Compare">
+      <TabsList
+        aria-label="Compare"
+        aria-description={`Current comparison: ${SCOPES.find((scope) => scope.value === value)?.label}`}
+      >
         {SCOPES.map(({ value: scope, label, Icon }) => (
           <Tooltip key={scope}>
             <TooltipTrigger
+              delay={0}
               render={<TabsTrigger value={scope} aria-label={label} />}
             >
               <Icon className="@min-3xl/pane:hidden" />
@@ -38,7 +42,10 @@ export function ChangeScopeSwitch({
                 {label}
               </span>
             </TooltipTrigger>
-            <TooltipContent>{label}</TooltipContent>
+            <TooltipContent side="bottom">
+              {label}
+              {value === scope ? ' (current comparison)' : ''}
+            </TooltipContent>
           </Tooltip>
         ))}
       </TabsList>

@@ -141,7 +141,7 @@ test('Settings keeps worktrees beside its section navigation and owns Close in t
     exact: true,
   });
   await expect(worktrees).toBeVisible();
-  await expect(pairedPage).toHaveTitle('Settings');
+  await expect(pairedPage).toHaveTitle('Settings — Porcelain');
   await expect(
     settings.getByRole('navigation', {
       name: 'Settings sections',
@@ -175,4 +175,33 @@ test('Settings keeps worktrees beside its section navigation and owns Close in t
   await close.focus();
   await close.press('Escape');
   await expect(settings).not.toBeAttached();
+});
+
+test('reviewing archive deletions keeps Close returning to the worktree', async ({
+  pairedPage,
+}) => {
+  await pairedPage.setViewportSize({ width: 1440, height: 900 });
+  await expect(pairedPage).toHaveTitle(/^Changes — /);
+  const reviewUrl = pairedPage.url();
+  await pairedPage
+    .getByRole('button', { name: 'Settings', exact: true })
+    .click();
+  const settings = pairedPage.getByRole('main', {
+    name: 'Settings',
+    exact: true,
+  });
+  await settings
+    .getByRole('button', { name: 'Changes & Git', exact: true })
+    .click();
+  await settings
+    .getByRole('link', { name: 'Review archive deletions', exact: true })
+    .click();
+  await expect(
+    settings.getByRole('switch', { name: 'Delete remote branch', exact: true }),
+  ).toBeInViewport();
+  await closeSettings(pairedPage);
+  await expect(pairedPage).toHaveURL(reviewUrl);
+  await expect(
+    pairedPage.getByRole('region', { name: 'Review content', exact: true }),
+  ).toBeVisible();
 });

@@ -1,4 +1,5 @@
 import { Schema } from 'effect';
+import type { WalkthroughSettings } from '@porcelain/contracts/projects';
 import type { readServiceUpdateResponseSchema } from '@porcelain/contracts/access';
 import type { AgentAction } from '@porcelain/server/kit/session';
 
@@ -17,6 +18,11 @@ export type ServerRead = {
 };
 
 export type RepoStep =
+  | {
+      kind: 'walkthrough-settings-fixture';
+      projectId: string;
+      settings: WalkthroughSettings;
+    }
   | {
       kind: 'service-update-fixture';
       state: typeof readServiceUpdateResponseSchema.Encoded | 'error' | null;

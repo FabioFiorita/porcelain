@@ -1,7 +1,8 @@
 import { Effect, Layer } from 'effect';
 import { captureGitPlatform } from '@porcelain/git/discovery';
 import { listWorktrees, readOriginUrl } from '@porcelain/git/discovery';
-import { isRepositoryUnavailable } from '@porcelain/git/errors';
+import { repositoryUnavailableReason } from '@porcelain/git/errors';
+import { RepositoryInspectionFailedError } from '@porcelain/projects/errors';
 import type { RepositoryLocation } from '@porcelain/projects/models';
 import { ProjectRepositoryReader } from '@porcelain/projects/ports';
 import type { Limits } from '../../config/limits.ts';
@@ -16,11 +17,18 @@ export const gitProjectRepositoryReaderLayer = (limits: Limits['git']) =>
           input: RepositoryLocation,
         ) {
           const repository = yield* listWorktrees(input.path, limits).pipe(
-            Effect.catchIf(isRepositoryUnavailable, () =>
-              Effect.succeed(undefined),
-            ),
             provideGit,
-            Effect.orDie,
+            Effect.mapError((error) => {
+              const reason = repositoryUnavailableReason(error);
+              return new RepositoryInspectionFailedError({
+                message:
+                  reason === 'missing'
+                    ? `The folder no longer exists: ${input.path}`
+                    : reason === 'permission'
+                      ? `Porcelain cannot read this folder. Check its access permissions: ${input.path}`
+                      : `Git could not inspect this folder. Check that it is a readable Git repository: ${input.path}`,
+              });
+            }),
           );
           if (!repository) return undefined;
           return {

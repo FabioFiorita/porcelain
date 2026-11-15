@@ -36,6 +36,12 @@ function historyScroller(locator: Locator) {
 }
 
 export const reviewLayout = {
+  codeContentEdges(locator: Locator) {
+    const content = locator.element().querySelector('diffs-container');
+    if (!content) throw new Error('The code content has no rendered file');
+    const bounds = content.getBoundingClientRect();
+    return { left: bounds.left, right: bounds.right };
+  },
   filenameVisible(row: Locator, filename: string) {
     const root = row.element();
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);

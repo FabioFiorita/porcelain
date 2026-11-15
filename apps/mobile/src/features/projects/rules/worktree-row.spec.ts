@@ -59,7 +59,7 @@ it('keeps pending and failed reads distinct from a clean checkout without a revi
   });
 });
 
-it('shows a quiet changed-file count', () => {
+it('labels the file count as uncommitted', () => {
   expect(
     worktreeRow({
       ...entry,
@@ -68,7 +68,7 @@ it('shows a quiet changed-file count', () => {
         count: 2,
       },
     }).changes,
-  ).toBe('2 files changed');
+  ).toBe('2 uncommitted');
 });
 
 it('leads with the walkthrough or pull request title and keeps the branch as small text', () => {

@@ -4,6 +4,8 @@ import { DesktopHost } from '@/shared/adapters/desktop';
 import type { WorktreeTarget } from '../rules/worktree-target';
 import { projectFolder } from '../store';
 import { useAtom, useAtomSet, useAtomValue } from '@effect/atom-react';
+import { openProjectDialog } from '../overlays';
+import type { RegisterProjectResponse } from '@porcelain/contracts/projects';
 import { openProject } from '@porcelain/client/projects';
 import { ConnectionError } from '@porcelain/client/transport';
 import { type Connection } from '@/shared/workspace/connection';
@@ -15,6 +17,8 @@ export function useOpenProject(
   remote: string | null,
   close: () => void,
   selectWorktree: Opened,
+  recover: (project: RegisterProjectResponse, path: string) => void,
+  reconnectProjectId?: string,
 ) {
   const [registration, register] = useAtom(openProject(connection), {
     mode: 'promiseExit',
@@ -25,6 +29,8 @@ export function useOpenProject(
     return register({
       path,
       remote,
+      recover,
+      ...(reconnectProjectId ? { reconnectProjectId } : {}),
       complete: () => {
         setFolder(undefined);
         close();
@@ -63,6 +69,8 @@ const pickProject = Atom.family((connection: Connection) =>
       yield* get.setResult(openProject(connection), {
         path,
         remote: null,
+        recover: (project, path) =>
+          openProjectDialog.openWithPayload({ remote: null, project, path }),
         complete: () => undefined,
         select: (target) =>
           Effect.tryPromise({

@@ -1,6 +1,7 @@
 import { Effect, Context, Layer } from 'effect';
 import {
   type FolderNotFoundError,
+  type RepositoryInspectionFailedError,
   type FolderNotReadableError,
   type UnsupportedFolderNameError,
 } from '@porcelain/projects/errors';
@@ -19,7 +20,10 @@ export class BrowseProjectFoldersUseCase extends Context.Service<
       input: BrowseProjectFoldersQuery,
     ) => Effect.Effect<
       BrowseProjectFoldersResponse,
-      FolderNotFoundError | FolderNotReadableError | UnsupportedFolderNameError
+      | FolderNotFoundError
+      | FolderNotReadableError
+      | UnsupportedFolderNameError
+      | RepositoryInspectionFailedError
     >;
   }
 >()('@porcelain/server/BrowseProjectFoldersUseCase') {
@@ -38,6 +42,7 @@ export class BrowseProjectFoldersUseCase extends Context.Service<
           | FolderNotFoundError
           | FolderNotReadableError
           | UnsupportedFolderNameError
+          | RepositoryInspectionFailedError
         > {
           return yield* lanesCapability.run(
             laneKeysCapability.filesystem(),

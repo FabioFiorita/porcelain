@@ -88,6 +88,19 @@ export function worktreePresenceStoreContract(
       ]);
     });
 
+    it('persists preservation across reads, clears it when sighted again and permits explicit removal', async () => {
+      const kept: WorktreePresence = { ...present('one'), preserved: true };
+      await Effect.runPromise(store.save({ rows: [kept] }));
+      expect(await Effect.runPromise(store.read({ projectId: 'api' }))).toEqual(
+        [kept],
+      );
+      await Effect.runPromise(store.save({ rows: [present('one')] }));
+      expect(await Effect.runPromise(store.list())).toEqual([present('one')]);
+      await Effect.runPromise(store.save({ rows: [kept] }));
+      await Effect.runPromise(store.remove({ worktreeIds: ['one'] }));
+      expect(await Effect.runPromise(store.list())).toEqual([]);
+    });
+
     it('changes nothing when no rows are saved', async () => {
       await Effect.runPromise(store.save({ rows: [present('one')] }));
       await Effect.runPromise(store.save({ rows: [] }));

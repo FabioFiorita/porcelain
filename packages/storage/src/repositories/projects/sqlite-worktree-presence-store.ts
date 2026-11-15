@@ -9,6 +9,7 @@ function presence(row: WorktreePresenceRow) {
     worktreeId: row.worktreeId,
     projectId: row.projectId,
     missingSince: row.missingSince ?? undefined,
+    ...(row.preserved ? { preserved: true as const } : {}),
   };
 }
 export const sqliteWorktreePresenceStoreLayer = Layer.effect(
@@ -45,6 +46,7 @@ export const sqliteWorktreePresenceStoreLayer = Layer.effect(
               worktreeId: presence.worktreeId,
               projectId: presence.projectId,
               missingSince: presence.missingSince ?? null,
+              preserved: presence.preserved ? 1 : 0,
             };
             yield* sql`INSERT INTO worktree_presence ${sql.insert(row)} ON CONFLICT (worktree_id) DO UPDATE SET ${sql.update(row, ['worktreeId'])}`;
           }

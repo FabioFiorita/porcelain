@@ -15,6 +15,8 @@ import {
   FolderNotFoundError,
   FolderNotReadableError,
   ProjectNotFoundError,
+  ProjectReconnectionRefusedError,
+  RepositoryInspectionFailedError,
   UnsupportedFolderNameError,
 } from '@porcelain/projects/errors';
 import { httpFailure } from '../shared/http-failure.ts';
@@ -64,6 +66,9 @@ export class ProjectsApi extends porcelainApi.add(
         query: browseProjectFoldersQuerySchema.fields,
         success: browseProjectFoldersResponseSchema,
         error: [
+          httpFailure(RepositoryInspectionFailedError, 'UnprocessableEntity', {
+            message: { fromError: true },
+          }),
           httpFailure(FolderNotFoundError, 'NotFound'),
           httpFailure(FolderNotReadableError, 'UnprocessableEntity'),
           httpFailure(UnsupportedFolderNameError, 'UnprocessableEntity'),
@@ -95,6 +100,12 @@ export class ProjectsApi extends porcelainApi.add(
         success: registerProjectResponseSchema,
         error: [
           projectNotFound,
+          httpFailure(ProjectReconnectionRefusedError, 'Conflict', {
+            message: { fromError: true },
+          }),
+          httpFailure(RepositoryInspectionFailedError, 'UnprocessableEntity', {
+            message: { fromError: true },
+          }),
           httpFailure(RepositoryUnavailableError, 'UnprocessableEntity', {
             message: 'Repository could not be inspected',
           }),

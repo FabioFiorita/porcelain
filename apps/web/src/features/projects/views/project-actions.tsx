@@ -2,6 +2,7 @@ import {
   CopyIcon,
   EllipsisIcon,
   FolderMinusIcon,
+  FolderGit2Icon,
   PencilIcon,
   SettingsIcon,
 } from 'lucide-react';
@@ -21,6 +22,7 @@ import {
 } from '@/components/ui/tooltip';
 import { copyText } from '@/shared/workspace/copy';
 import {
+  openProjectDialog,
   removeProjectDialog,
   renameProjectDialog,
   walkthroughSettingsDialog,
@@ -42,6 +44,20 @@ export function ProjectActions({
 }) {
   const target = { project, remote: environmentId };
   const actions = [
+    ...(!project.available
+      ? [
+          {
+            label: 'Reconnect project',
+            icon: FolderGit2Icon,
+            run: () =>
+              openProjectDialog.openWithPayload({
+                ...target,
+                ...(projectPath(project) ? { path: projectPath(project) } : {}),
+              }),
+            destructive: false,
+          },
+        ]
+      : []),
     {
       label: 'Copy path',
       icon: CopyIcon,

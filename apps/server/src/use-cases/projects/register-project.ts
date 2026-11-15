@@ -5,7 +5,11 @@ import {
   type RegisterProjectRequest,
   type RegisterProjectResponse,
 } from '@porcelain/contracts/projects';
-import { type ProjectNotFoundError } from '@porcelain/projects/errors';
+import {
+  type ProjectReconnectionRefusedError,
+  type RepositoryInspectionFailedError,
+  type ProjectNotFoundError,
+} from '@porcelain/projects/errors';
 import {
   InspectProjectRepositoryService,
   ListKnownWorktreesService,
@@ -26,7 +30,10 @@ export class RegisterProjectUseCase extends Context.Service<
       input: RegisterProjectRequest,
     ) => Effect.Effect<
       RegisterProjectResponse,
-      RepositoryUnavailableError | ProjectNotFoundError
+      | RepositoryUnavailableError
+      | RepositoryInspectionFailedError
+      | ProjectReconnectionRefusedError
+      | ProjectNotFoundError
     >;
   }
 >()('@porcelain/server/RegisterProjectUseCase') {
@@ -50,7 +57,10 @@ export class RegisterProjectUseCase extends Context.Service<
           input: RegisterProjectRequest,
         ): Effect.fn.Return<
           RegisterProjectResponse,
-          RepositoryUnavailableError | ProjectNotFoundError
+          | RepositoryUnavailableError
+          | RepositoryInspectionFailedError
+          | ProjectReconnectionRefusedError
+          | ProjectNotFoundError
         > {
           const registered = yield* lanesCapability.run(
             laneKeysCapability.inventory(),
@@ -64,6 +74,9 @@ export class RegisterProjectUseCase extends Context.Service<
                 return yield* registerProjectCapability.execute({
                   repository,
                   originUrl,
+                  ...(input.reconnectProjectId
+                    ? { reconnectProjectId: input.reconnectProjectId }
+                    : {}),
                 });
               }),
           );

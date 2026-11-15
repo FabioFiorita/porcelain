@@ -24,7 +24,7 @@ The Mac app's application menu: Porcelain (About, Settings… with ⌘,, Service
 Preconditions: [surface baseline](README.md).
 
 1. Through Computer Use, choose Porcelain Dev → Settings…, then repeat with ⌘,. Expect Settings, app version and the reinstall message under Computers → This computer.
-2. In an in-process Electron journey, inspect `Menu.getApplicationMenu()` through `electron.evaluate`. View contains `resetZoom`, `zoomIn`, `zoomOut`, `togglefullscreen`; no `reload`, `forceReload` or `toggleDevTools`. Invoke `open-settings` and confirm Settings in `electron.firstWindow()`.
+2. In an in-process Electron journey, inspect `Menu.getApplicationMenu()` through `electron.evaluate`. View contains `resetZoom`, `zoomIn`, `zoomOut`, `togglefullscreen`; no `reload`, `forceReload` or `toggleDevTools`. Invoke `open-settings` and confirm Settings in `electron.firstWindow()`. Read both `document.title` and the native BrowserWindow `getTitle()`: global settings and computer detail use Settings — Porcelain, then closing Settings restores the workspace title. The hidden macOS title bar does not expose that text, so screenshots alone do not prove it.
 3. Drive File → Open Project… and ⌘O through [folder picker](projects.folder-picker.md). An action sent before the renderer is ready must still open its destination.
 
 Automated coverage: `menus.e2e.ts`, `folder-picker.e2e.ts`.

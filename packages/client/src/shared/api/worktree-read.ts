@@ -47,20 +47,33 @@ export function worktreeRead<A, E, R>(
 export function retainRead<A, E>(
   read: Atom.Atom<AsyncResult.AsyncResult<A, E>>,
 ) {
-  const retained = Atom.make<AsyncResult.AsyncResult<A, E>>(
-    AsyncResult.initial(),
+  type Retained = {
+    result: AsyncResult.AsyncResult<A, E>;
+    owner: Atom.Atom<AsyncResult.AsyncResult<A, E>>;
+  };
+  const retained = Atom.writable(
+    (): Retained => ({ result: AsyncResult.initial(), owner: answer }),
+    (get, value: Retained) => get.setSelf(value),
   ).pipe(Atom.setIdleTTL(READ_RETAIN_IDLE_MS));
-  return Atom.transform(read, (get) => {
-    const previous = get(retained);
-    const result = get(read);
-    if (AsyncResult.isSuccess(result) && !result.waiting && previous !== result)
-      get.set(retained, result);
-    if (AsyncResult.isInitial(result)) return AsyncResult.waiting(previous);
-    return AsyncResult.isFailure(result) &&
-      Option.isNone(result.previousSuccess)
-      ? AsyncResult.replacePrevious(result, Option.some(previous))
-      : result;
-  }).pipe(Atom.setIdleTTL(0));
+  const answer: Atom.Atom<AsyncResult.AsyncResult<A, E>> = Atom.transform(
+    read,
+    (get) => {
+      const previous = get(retained).result;
+      const result = get(read);
+      if (
+        AsyncResult.isSuccess(result) &&
+        !result.waiting &&
+        previous !== result
+      )
+        get.set(retained, { result, owner: answer });
+      if (AsyncResult.isInitial(result)) return AsyncResult.waiting(previous);
+      return AsyncResult.isFailure(result) &&
+        Option.isNone(result.previousSuccess)
+        ? AsyncResult.replacePrevious(result, Option.some(previous))
+        : result;
+    },
+  ).pipe(Atom.setIdleTTL(0));
+  return answer;
 }
 
 export function worktreePull<A, E, R>(

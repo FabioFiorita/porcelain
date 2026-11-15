@@ -6,6 +6,7 @@ export class WorktreePresenceRow extends Model.Class<WorktreePresenceRow>(
   worktreeId: Schema.String,
   projectId: Schema.String,
   missingSince: Schema.NullOr(Schema.String),
+  preserved: Schema.BooleanFromBit,
 }) {
   static readonly tableName = 'worktree_presence';
 }

@@ -40,6 +40,42 @@ function errorClasses(): { name: string; instance: unknown }[] {
 }
 
 describe('status policy', () => {
+  it.each([
+    {
+      error: new projectsErrors.ProjectReconnectionRefusedError({
+        message:
+          'This repository already belongs to another registered project. Choose a different folder.',
+      }),
+      expected: {
+        statusCode: 409,
+        body: {
+          statusCode: 409,
+          error: 'Conflict',
+          message:
+            'This repository already belongs to another registered project. Choose a different folder.',
+        },
+      },
+    },
+    {
+      error: new projectsErrors.RepositoryInspectionFailedError({
+        message: 'The folder no longer exists: /projects/restored',
+      }),
+      expected: {
+        statusCode: 422,
+        body: {
+          statusCode: 422,
+          error: 'Unprocessable Entity',
+          message: 'The folder no longer exists: /projects/restored',
+        },
+      },
+    },
+  ])(
+    'preserves the actionable reason for $error._tag',
+    ({ error, expected }) => {
+      expect(toStatusResponse(error)).toEqual(expected);
+    },
+  );
+
   it('answers a worktree cleanup refusal as a conflict with its safety reason', () => {
     expect(
       toStatusResponse(

@@ -36,6 +36,10 @@ const nativeHistorySchema = Schema.Array(
 );
 
 export const nativeMigrations = Migrator.fromRecord({
+  '017_preserve_reconnected_worktrees': Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`ALTER TABLE worktree_presence ADD COLUMN preserved INTEGER NOT NULL DEFAULT 0 CHECK(preserved IN (0, 1))`;
+  }),
   '016_remove_saved_reviews_and_comments': Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     yield* sql`CREATE TABLE retained_reviewed_files (

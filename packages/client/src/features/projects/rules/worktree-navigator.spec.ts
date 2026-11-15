@@ -36,8 +36,8 @@ it.each<{ changes: NavigatorChanges; label: string }>([
   { changes: { state: 'loading' }, label: 'Reading changes…' },
   { changes: { state: 'unavailable' }, label: '—' },
   { changes: { state: 'available', count: 0 }, label: '' },
-  { changes: { state: 'available', count: 1 }, label: '1 file changed' },
-  { changes: { state: 'available', count: 3 }, label: '3 files changed' },
+  { changes: { state: 'available', count: 1 }, label: '1 uncommitted' },
+  { changes: { state: 'available', count: 3 }, label: '3 uncommitted' },
 ])('shows a quiet uncommitted file count: $label', ({ changes, label }) => {
   expect(navigatorCardChangesLabel(changes)).toBe(label);
 });

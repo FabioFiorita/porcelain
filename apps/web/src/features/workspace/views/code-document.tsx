@@ -90,6 +90,7 @@ type Props = {
   range?: ReviewRange;
   decision?: boolean;
   column?: boolean;
+  readingColumn?: boolean;
   framed?: boolean;
 };
 export type CodeHeaderControls = {
@@ -137,6 +138,7 @@ function CodeSurface({
   collapsible = false,
   decision = false,
   column = false,
+  readingColumn = column,
   framed = false,
   range,
   onToggleReviewed,
@@ -389,7 +391,7 @@ function CodeSurface({
         <div
           className={cn(
             'min-h-0 flex-1 overflow-auto',
-            column && COLUMN_GUTTERS,
+            readingColumn && COLUMN_GUTTERS,
           )}
           data-testid="empty-code-document"
         >
@@ -513,7 +515,7 @@ function CodeSurface({
             compactHeight && 'max-h-48 flex-none overflow-auto',
             !compactHeight && fullHeight && 'flex-none overflow-visible',
             !compactHeight && !fullHeight && 'min-h-0 flex-1 overflow-auto',
-            column && COLUMN_GUTTERS,
+            readingColumn && COLUMN_GUTTERS,
           )}
           {...(renderHeader ? { renderCodeViewHeader: renderHeader } : {})}
           {...(footer ? { renderCodeViewFooter: footer } : {})}

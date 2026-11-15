@@ -1,4 +1,5 @@
 import { Effect, Context, Layer } from 'effect';
+import type { RepositoryInspectionFailedError } from '../errors/repository-inspection-failed-error.ts';
 import { RepositoryUnavailableError } from '@porcelain/kernel/errors';
 import {
   type InspectProjectRepositoryInput,
@@ -13,7 +14,7 @@ export class InspectProjectRepositoryService extends Context.Service<
       input: InspectProjectRepositoryInput,
     ) => Effect.Effect<
       InspectProjectRepositoryResult,
-      RepositoryUnavailableError
+      RepositoryUnavailableError | RepositoryInspectionFailedError
     >;
   }
 >()('@porcelain/projects/InspectProjectRepositoryService') {
@@ -28,7 +29,7 @@ export class InspectProjectRepositoryService extends Context.Service<
             input: InspectProjectRepositoryInput,
           ): Effect.fn.Return<
             InspectProjectRepositoryResult,
-            RepositoryUnavailableError
+            RepositoryUnavailableError | RepositoryInspectionFailedError
           > {
             const repository = yield* projectRepositoryReaderCapability.find({
               path: input.path,
