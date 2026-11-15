@@ -78,8 +78,10 @@ test('reading more of a long branch keeps its diffs during loading and after a n
   await workspace.getByText('note 25', { exact: true }).click();
   await workspace.getByRole('tab', { name: 'Changes', exact: true }).click();
   await workspace
-    .getByRole('tablist', { name: 'Open documents', exact: true })
-    .getByRole('tab', { name: 'Branch', exact: true })
+    .getByRole('button', { name: 'Open document list', exact: true })
+    .click();
+  await workspace
+    .getByRole('menuitemradio', { name: 'Branch', exact: true })
     .click();
   await expect
     .element(workspace.getByText('note 25', { exact: true }))
