@@ -168,9 +168,9 @@ test('the persistent Files tree reopens its selected file after focus moves to t
     await readme.click();
     await expect.element(row).toHaveAttribute('aria-selected', 'false');
     await expect.element(readme).toHaveAttribute('aria-selected', 'true');
-    await userEvent.keyboard('{Control>}');
+    await userEvent.keyboard('{ControlOrMeta>}');
     await row.click();
-    await userEvent.keyboard('{/Control}');
+    await userEvent.keyboard('{/ControlOrMeta}');
     await expect.element(row).toHaveAttribute('aria-selected', 'true');
     await expect.element(readme).toHaveAttribute('aria-selected', 'true');
     await row.click();
