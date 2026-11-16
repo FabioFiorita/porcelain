@@ -1,3 +1,4 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { NodeServices } from '@effect/platform-node';
 import {
   type ArchivePullRequestRequest,
@@ -30,7 +31,6 @@ import { execFile } from 'node:child_process';
 import { channel } from 'node:diagnostics_channel';
 
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { expect } from 'vitest';
@@ -83,7 +83,7 @@ async function withArchive<E>(
   run: (fixture: Fixture) => Effect.Effect<void, E, Scope.Scope>,
   main = false,
 ) {
-  const root = await mkdtemp(join(tmpdir(), 'porcelain-archive-lanes-'));
+  const root = await mkdtemp(join(temporaryRoot, 'porcelain-archive-lanes-'));
   const repository = join(root, 'repository');
   const worktree = join(root, 'feature');
   const remote = join(root, 'remote.git');

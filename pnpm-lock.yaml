@@ -229,6 +229,10 @@ importers:
       playwright:
         specifier: 1.64.1
         version: 1.64.1
+    devDependencies:
+      '@porcelain/kernel':
+        specifier: workspace:*
+        version: link:../../packages/kernel
 
   apps/desktop:
     dependencies:
@@ -260,6 +264,9 @@ importers:
       '@playwright/test':
         specifier: 1.64.1
         version: 1.64.1
+      '@porcelain/kernel':
+        specifier: workspace:*
+        version: link:../../packages/kernel
 
   apps/marketing:
     dependencies:
@@ -415,6 +422,9 @@ importers:
         specifier: 1.12.1
         version: 1.12.1(patch_hash=32fe31014189972f643c8f3af5a58f59ecd63c7cbc0b7f21e9de5aa24e515f14)(@expo/metro-config@58.0.20(expo@58.0.23)(supports-color@7.2.0)(typescript@7.1.0-beta))(metro-cache@0.87.1(supports-color@7.2.0))(metro-transform-worker@0.87.1(supports-color@7.2.0))(metro@0.87.1(supports-color@7.2.0))(react-native@0.88.1(@babel/core@7.29.7(supports-color@7.2.0))(@react-native/metro-config@0.88.1(@babel/core@7.29.7(supports-color@7.2.0))(supports-color@7.2.0))(@types/react@19.3.0)(react@19.3.0)(supports-color@7.2.0))(react@19.3.0)(tailwindcss@4.3.3)
     devDependencies:
+      '@porcelain/kernel':
+        specifier: workspace:*
+        version: link:../../packages/kernel
       '@porcelain/server':
         specifier: workspace:*
         version: link:../server
@@ -582,6 +592,9 @@ importers:
       '@playwright/test':
         specifier: 1.64.1
         version: 1.64.1
+      '@porcelain/kernel':
+        specifier: workspace:*
+        version: link:../../packages/kernel
       '@porcelain/server':
         specifier: workspace:*
         version: link:../server
@@ -621,6 +634,10 @@ importers:
       openai:
         specifier: 7.51.0
         version: 7.51.0(undici@8.11.2)(ws@8.21.3)(zod@4.5.4)
+    devDependencies:
+      '@porcelain/kernel':
+        specifier: workspace:*
+        version: link:../packages/kernel
 
   packages/access:
     dependencies:
@@ -649,6 +666,9 @@ importers:
       '@effect/platform-node':
         specifier: 4.1.2
         version: 4.1.2(effect@4.1.2)(redis@6.3.0(@opentelemetry/api@1.9.1))
+      '@porcelain/kernel':
+        specifier: workspace:*
+        version: link:../kernel
       '@types/node':
         specifier: 24.13.3
         version: 24.13.3
@@ -836,6 +856,10 @@ importers:
       effect:
         specifier: 4.1.2
         version: 4.1.2
+    devDependencies:
+      '@porcelain/kernel':
+        specifier: workspace:*
+        version: link:../kernel
 
   packages/theme: {}
 

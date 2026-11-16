@@ -1,8 +1,8 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { NodeServices } from '@effect/platform-node';
 import { Effect } from 'effect';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { readOriginUrl } from './read-origin-url.ts';
@@ -11,7 +11,7 @@ import { gitLimits } from '../../../spec/fixtures/git-limits.ts';
 let repository: string;
 
 beforeEach(() => {
-  repository = mkdtempSync(join(tmpdir(), 'porcelain-origin-'));
+  repository = mkdtempSync(join(temporaryRoot, 'porcelain-origin-'));
   execFileSync('git', ['init', '-q', repository]);
 });
 
@@ -43,7 +43,9 @@ describe('readOriginUrl', () => {
   });
 
   it('fails with the Git refusal for a folder that is not a repository', async () => {
-    const folder = mkdtempSync(join(tmpdir(), 'porcelain-not-a-repository-'));
+    const folder = mkdtempSync(
+      join(temporaryRoot, 'porcelain-not-a-repository-'),
+    );
     try {
       const error = await Effect.runPromise(
         Effect.flip(readOriginUrl(folder, gitLimits)).pipe(

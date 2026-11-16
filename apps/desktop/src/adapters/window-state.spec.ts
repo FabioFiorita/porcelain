@@ -1,3 +1,4 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { NodeFileSystem } from '@effect/platform-node';
 import { readdir } from 'node:fs/promises';
 import { expect, it } from '@effect/vitest';
@@ -17,9 +18,7 @@ const third = { ...second, maximized: true };
 
 const fixture = Effect.gen(function* () {
   const profile = yield* (yield* FileSystem.FileSystem).makeTempDirectoryScoped(
-    {
-      prefix: 'porcelain-desktop-persistence-',
-    },
+    { directory: temporaryRoot, prefix: 'porcelain-desktop-persistence-' },
   );
   const state = yield* openWindowState(profile, 50);
   return { profile, state };

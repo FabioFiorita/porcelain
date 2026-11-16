@@ -6,6 +6,7 @@ import {
   openSync,
   readFileSync,
   readdirSync,
+  realpathSync,
   renameSync,
   writeFileSync,
 } from 'node:fs';
@@ -88,6 +89,18 @@ export type SessionStopResult = StopResult & {
   evidence: string;
   alreadyStopped: boolean;
 };
+export function registryHome(
+  surface: string,
+  root: string = repositoryRoot,
+): string {
+  return join(
+    tmpdir(),
+    'porcelain-verify',
+    createHash('sha256').update(realpathSync(root)).digest('hex').slice(0, 16),
+    surface,
+  );
+}
+
 export class Registry<Detail> {
   readonly home: string;
   private readonly surface: Surface<Detail>;
@@ -95,12 +108,7 @@ export class Registry<Detail> {
   constructor(surface: Surface<Detail>) {
     this.surface = surface;
     this.cli = fileURLToPath(surface.cli);
-    this.home = join(
-      tmpdir(),
-      'porcelain-verify',
-      createHash('sha256').update(repositoryRoot).digest('hex').slice(0, 16),
-      surface.name,
-    );
+    this.home = registryHome(surface.name);
   }
   fingerprint(): string {
     return buildFingerprint(repositoryRoot, this.surface.inputs, [

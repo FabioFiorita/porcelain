@@ -1,9 +1,9 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { NodeServices } from '@effect/platform-node';
 import { Effect, Layer, ManagedRuntime } from 'effect';
 import { EnvironmentLabelStore } from '@porcelain/access/ports';
 import { storageLayer } from '../../index.ts';
 import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { environmentLabelStoreContract } from '@porcelain/access/store-contracts';
@@ -18,7 +18,7 @@ function open(dataDirectory: string) {
 }
 
 environmentLabelStoreContract('SqliteEnvironmentLabelStore', async () => {
-  const dataDirectory = mkdtempSync(join(tmpdir(), 'porcelain-storage-'));
+  const dataDirectory = mkdtempSync(join(temporaryRoot, 'porcelain-storage-'));
   const session = open(dataDirectory);
   return {
     store: await session.runPromise(EnvironmentLabelStore),
@@ -33,7 +33,7 @@ describe('SqliteEnvironmentLabelStore persistence', () => {
   let dataDirectory: string;
 
   beforeEach(() => {
-    dataDirectory = mkdtempSync(join(tmpdir(), 'porcelain-storage-'));
+    dataDirectory = mkdtempSync(join(temporaryRoot, 'porcelain-storage-'));
   });
 
   afterEach(() => {

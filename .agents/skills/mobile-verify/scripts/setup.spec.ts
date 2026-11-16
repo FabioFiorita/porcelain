@@ -1,5 +1,5 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, expect, it } from 'vitest';
 import { Schema } from 'effect';
@@ -7,7 +7,9 @@ import { driver as makeDriver, pairClient } from './setup.ts';
 
 let directory: string;
 beforeEach(async () => {
-  directory = await mkdtemp(join(tmpdir(), 'porcelain-mobile-setup-spec-'));
+  directory = await mkdtemp(
+    join(temporaryRoot, 'porcelain-mobile-setup-spec-'),
+  );
 });
 afterEach(async () => {
   await rm(directory, { recursive: true, force: true });

@@ -1,3 +1,4 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { NodeServices } from '@effect/platform-node';
 import { Effect, Layer, ManagedRuntime } from 'effect';
 import {
@@ -7,14 +8,13 @@ import {
 import { GitActionReceiptStore } from '@porcelain/git-actions/ports';
 import { storageLayer } from '../../index.ts';
 import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { GitActionReceipt } from '@porcelain/git-actions/models';
 import { gitActionReceiptStoreContract } from '@porcelain/git-actions/store-contracts';
 
 async function openScoped(projectId: string, worktreeIds: readonly string[]) {
-  const dataDirectory = mkdtempSync(join(tmpdir(), 'porcelain-storage-'));
+  const dataDirectory = mkdtempSync(join(temporaryRoot, 'porcelain-storage-'));
   const session = ManagedRuntime.make(
     storageLayer(dataDirectory, {
       worktreeIdLength: 32,

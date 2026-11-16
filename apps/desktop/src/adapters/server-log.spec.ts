@@ -1,3 +1,4 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { NodeFileSystem } from '@effect/platform-node';
 import { readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { expect, it } from '@effect/vitest';
@@ -7,6 +8,7 @@ import { openServerLog } from './server-log.ts';
 
 const fixture = Effect.gen(function* () {
   const folder = yield* (yield* FileSystem.FileSystem).makeTempDirectoryScoped({
+    directory: temporaryRoot,
     prefix: 'porcelain-desktop-persistence-',
   });
   return { directory: join(folder, 'logs') };

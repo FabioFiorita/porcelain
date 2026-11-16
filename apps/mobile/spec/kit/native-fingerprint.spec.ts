@@ -1,7 +1,7 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { afterEach, beforeEach, expect, it } from 'vitest';
 import { cp, mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
-import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { mobileRoot, nativeFingerprint } from './development-client.ts';
 
@@ -14,7 +14,7 @@ async function file(path: string, contents: string) {
 }
 
 beforeEach(async () => {
-  root = await mkdtemp(join(tmpdir(), 'porcelain-fingerprint-'));
+  root = await mkdtemp(join(temporaryRoot, 'porcelain-fingerprint-'));
 });
 
 afterEach(async () => {

@@ -1,3 +1,4 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { WalkthroughModelReader } from '@porcelain/walkthroughs/ports';
 import { Lanes } from './lanes.ts';
 import { LaneKeys } from './lane-keys.ts';
@@ -5,7 +6,6 @@ import { LaneOptions } from '../ports/lane-options.ts';
 import { mkdtemp, writeFile, rm, readFile } from 'node:fs/promises';
 import { watch } from 'node:fs';
 import { join } from 'node:path';
-import { tmpdir } from 'node:os';
 import { execFileSync } from 'node:child_process';
 import { Effect, Deferred, Layer, ManagedRuntime } from 'effect';
 import { WorkflowEngine } from 'effect/workflow';
@@ -32,7 +32,7 @@ const processGroup = { lingerMs: 20, cleanupMs: 1000, pollMs: 5 };
 it('accepts one durable active run per head, serializes writers, drains foreign processes and defines restart recovery without losing evidence', async ({
   onTestFinished,
 }) => {
-  const folder = await mkdtemp(join(tmpdir(), 'walkthrough-durable-'));
+  const folder = await mkdtemp(join(temporaryRoot, 'walkthrough-durable-'));
   onTestFinished(() => rm(folder, { recursive: true, force: true }));
   const repo = join(folder, 'repository');
   execFileSync('git', ['init', '-q', repo]);
@@ -258,7 +258,7 @@ it('accepts one durable active run per head, serializes writers, drains foreign 
 it.each(['signed_out', 'other'] as const)(
   'starts a new attempt after %s failure and shares queued, running and ready attempts for that head',
   async (kind) => {
-    const folder = await mkdtemp(join(tmpdir(), 'walkthrough-retry-'));
+    const folder = await mkdtemp(join(temporaryRoot, 'walkthrough-retry-'));
     onTestFinished(() => rm(folder, { recursive: true, force: true }));
     const repo = join(folder, 'repository');
     execFileSync('git', ['init', '-q', repo]);

@@ -1,3 +1,4 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { NodeFileSystem } from '@effect/platform-node';
 import { readFile, readdir, stat, writeFile } from 'node:fs/promises';
 import { expect, it } from '@effect/vitest';
@@ -10,9 +11,7 @@ import {
 
 const fixture = Effect.gen(function* () {
   const profile = yield* (yield* FileSystem.FileSystem).makeTempDirectoryScoped(
-    {
-      prefix: 'porcelain-desktop-persistence-',
-    },
+    { directory: temporaryRoot, prefix: 'porcelain-desktop-persistence-' },
   );
   const encryptedValues = new Map<string, string>();
   const staleKeys = new Set<string>();

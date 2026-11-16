@@ -1,3 +1,4 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { NodeServices } from '@effect/platform-node';
 import { Effect, Layer, ManagedRuntime } from 'effect';
 import {
@@ -6,7 +7,6 @@ import {
 } from '@porcelain/access/ports';
 import { storageLayer } from '../../index.ts';
 import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { pushRegistrationStoreContract } from '@porcelain/access/store-contracts';
@@ -47,7 +47,7 @@ async function pair(session: ReturnType<typeof open>, id: string) {
 }
 
 pushRegistrationStoreContract('SqlitePushRegistrationStore', async () => {
-  const dataDirectory = mkdtempSync(join(tmpdir(), 'porcelain-storage-'));
+  const dataDirectory = mkdtempSync(join(temporaryRoot, 'porcelain-storage-'));
   const session = open(dataDirectory);
   await pair(session, 'phone');
   await pair(session, 'tablet');
@@ -64,7 +64,7 @@ describe('SqlitePushRegistrationStore persistence', () => {
   let dataDirectory: string;
 
   beforeEach(() => {
-    dataDirectory = mkdtempSync(join(tmpdir(), 'porcelain-storage-'));
+    dataDirectory = mkdtempSync(join(temporaryRoot, 'porcelain-storage-'));
   });
 
   afterEach(() => {

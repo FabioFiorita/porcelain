@@ -1,6 +1,6 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { createHash } from 'node:crypto';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { NodeServices } from '@effect/platform-node';
@@ -101,7 +101,7 @@ function runtime(directory: string) {
 describe('Native storage adoption', () => {
   let directory: string;
   beforeEach(() => {
-    directory = mkdtempSync(join(tmpdir(), 'porcelain-legacy-storage-'));
+    directory = mkdtempSync(join(temporaryRoot, 'porcelain-legacy-storage-'));
   });
   afterEach(() => {
     rmSync(directory, { recursive: true, force: true });

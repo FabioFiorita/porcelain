@@ -1,3 +1,4 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { NodeServices } from '@effect/platform-node';
 import {
   DeviceStore,
@@ -24,7 +25,6 @@ import {
 import { storageLayer } from '@porcelain/storage';
 import { Deferred, Effect, Exit, Fiber, Layer, ManagedRuntime } from 'effect';
 import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { cachedDeviceStoreLayer } from '../../adapters/access/cached-device-store.ts';
@@ -58,7 +58,9 @@ afterEach(async () => {
 
 function computer() {
   const finds: Deferred.Deferred<void>[] = [];
-  const dataDirectory = mkdtempSync(join(tmpdir(), 'porcelain-ways-in-race-'));
+  const dataDirectory = mkdtempSync(
+    join(temporaryRoot, 'porcelain-ways-in-race-'),
+  );
   const storage = storageLayer(dataDirectory, {
     worktreeIdLength: 32,
     busyTimeoutMs: 5000,

@@ -1,16 +1,18 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { NodeServices } from '@effect/platform-node';
 import { Effect } from 'effect';
 import { ProjectRepositoryReader } from '@porcelain/projects/ports';
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { tmpdir } from 'node:os';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { gitLimits } from '../../../spec/fixtures/git-limits.ts';
 import { gitProjectRepositoryReaderLayer } from './git-project-repository-reader.ts';
 
 let root: string;
 beforeEach(() => {
-  root = realpathSync(mkdtempSync(join(tmpdir(), 'porcelain-inspection-')));
+  root = realpathSync(
+    mkdtempSync(join(temporaryRoot, 'porcelain-inspection-')),
+  );
 });
 afterEach(() => {
   rmSync(root, { recursive: true, force: true });

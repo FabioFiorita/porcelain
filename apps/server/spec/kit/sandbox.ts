@@ -1,3 +1,4 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { Schema } from 'effect';
 import { execFileSync, spawn } from 'node:child_process';
 import {
@@ -11,7 +12,7 @@ import {
 } from 'node:fs';
 import { chmod, cp, mkdir, mkdtemp, rm, symlink } from 'node:fs/promises';
 import { connect, createServer, Socket } from 'node:net';
-import { tmpdir, userInfo } from 'node:os';
+import { userInfo } from 'node:os';
 import { delimiter, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
@@ -77,7 +78,7 @@ async function vendor(
       await vendor(dependency, source, into, copied);
 }
 export async function temporaryServerBuild() {
-  const folder = await mkdtemp(join(tmpdir(), 'porcelain-server-build-'));
+  const folder = await mkdtemp(join(temporaryRoot, 'porcelain-server-build-'));
   const remove = () => rm(folder, { recursive: true, force: true });
   try {
     await buildIsolatedServer(folder);
@@ -384,11 +385,8 @@ function portOption(): number | undefined {
   const port = option('--port');
   return port === undefined ? undefined : Number(port);
 }
-export function scratchFolder(): string {
-  return process.platform === 'darwin' ? '/tmp' : tmpdir();
-}
 async function temporary(prefix: string, scratch: string[]): Promise<string> {
-  const path = realpathSync(await mkdtemp(join(scratchFolder(), prefix)));
+  const path = realpathSync(await mkdtemp(join(temporaryRoot, prefix)));
   scratch.push(path);
   return path;
 }

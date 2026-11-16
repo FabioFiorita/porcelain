@@ -1,15 +1,17 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import assert from 'node:assert/strict';
 import { Schema } from 'effect';
 import { execFile } from 'node:child_process';
 import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
 const mobileRoot = fileURLToPath(new URL('../..', import.meta.url));
 
-const directory = await mkdtemp(join(tmpdir(), 'porcelain-release-bundle-'));
+const directory = await mkdtemp(
+  join(temporaryRoot, 'porcelain-release-bundle-'),
+);
 try {
   await promisify(execFile)(
     join(mobileRoot, 'node_modules/.bin/expo'),

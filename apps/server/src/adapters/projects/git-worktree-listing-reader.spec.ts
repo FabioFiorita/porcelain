@@ -1,3 +1,4 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { NodeServices } from '@effect/platform-node';
 import { Cause, Deferred, Duration, Effect, Exit, Fiber, Layer } from 'effect';
 import { ChildProcessSpawner } from 'effect/process';
@@ -15,7 +16,6 @@ import {
   chmodSync,
   renameSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { type FailureReport, Logger } from '../../ports/logger.ts';
@@ -26,7 +26,7 @@ let root: string;
 const writers: number[] = [];
 
 beforeEach(() => {
-  root = realpathSync(mkdtempSync(join(tmpdir(), 'porcelain-listing-')));
+  root = realpathSync(mkdtempSync(join(temporaryRoot, 'porcelain-listing-')));
 });
 
 afterEach(() => {

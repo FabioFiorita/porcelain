@@ -1,3 +1,4 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { NodeServices } from '@effect/platform-node';
 import { Duration, Effect, Exit, Scope } from 'effect';
 import { execFileSync } from 'node:child_process';
@@ -8,7 +9,6 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { afterEach, expect, it } from 'vitest';
@@ -31,7 +31,9 @@ afterEach(() => {
 });
 
 function folder(): string {
-  const directory = realpathSync(mkdtempSync(join(tmpdir(), 'pc-watch-host-')));
+  const directory = realpathSync(
+    mkdtempSync(join(temporaryRoot, 'pc-watch-host-')),
+  );
   directories.push(directory);
   return directory;
 }

@@ -1,8 +1,8 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { Effect } from 'effect';
 import { NodeServices } from '@effect/platform-node';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { expect, it } from 'vitest';
 import { readBranchDiffs } from './read-branch-diffs.ts';
@@ -11,7 +11,7 @@ import { pinReviewRevision } from '../../inspection/index.ts';
 import { gitLimits } from '../../../spec/fixtures/git-limits.ts';
 
 it('pins a commit idempotently and reads retained text and diffs after removing its worktree and branch', async () => {
-  const root = mkdtempSync(join(tmpdir(), 'porcelain-review-pin-'));
+  const root = mkdtempSync(join(temporaryRoot, 'porcelain-review-pin-'));
   const repo = join(root, 'repo');
   const worktree = join(root, 'worktree');
   const git = (path: string, ...args: string[]) =>

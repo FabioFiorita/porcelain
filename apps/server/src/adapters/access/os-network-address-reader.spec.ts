@@ -1,3 +1,4 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { it, expect } from '@effect/vitest';
 import { Context, Effect, FileSystem, Layer } from 'effect';
 import { NodeServices } from '@effect/platform-node';
@@ -9,7 +10,9 @@ it.effect(
   () =>
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
-      const root = yield* fs.makeTempDirectoryScoped();
+      const root = yield* fs.makeTempDirectoryScoped({
+        directory: temporaryRoot,
+      });
       yield* fs.writeFileString(
         `${root}/route`,
         'Iface Destination Gateway Flags RefCnt Use Metric Mask\neth0 00000000 0101A8C0 0003 0 0 100 00000000\n',

@@ -1,3 +1,4 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { NodeServices } from '@effect/platform-node';
 import { Effect, Layer, ManagedRuntime } from 'effect';
 import {
@@ -9,7 +10,6 @@ import { ReviewedFileStore } from '@porcelain/reviews/ports';
 import { GitActionReceiptStore } from '@porcelain/git-actions/ports';
 import { storageLayer } from '../../index.ts';
 import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { GitActionReceipt } from '@porcelain/git-actions/models';
@@ -19,7 +19,7 @@ import { inventoryStoreContract } from '@porcelain/projects/store-contracts';
 const at = '2026-09-01T00:00:00.000Z';
 
 inventoryStoreContract('SqliteInventoryStore', async () => {
-  const dataDirectory = mkdtempSync(join(tmpdir(), 'porcelain-storage-'));
+  const dataDirectory = mkdtempSync(join(temporaryRoot, 'porcelain-storage-'));
   const session = ManagedRuntime.make(
     storageLayer(dataDirectory, {
       worktreeIdLength: 32,
@@ -152,7 +152,7 @@ describe('SqliteInventoryStore removal', () => {
   >;
 
   beforeEach(() => {
-    dataDirectory = mkdtempSync(join(tmpdir(), 'porcelain-storage-'));
+    dataDirectory = mkdtempSync(join(temporaryRoot, 'porcelain-storage-'));
     session = ManagedRuntime.make(
       storageLayer(dataDirectory, {
         worktreeIdLength: 32,

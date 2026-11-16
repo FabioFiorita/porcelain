@@ -1,3 +1,4 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { NodeServices } from '@effect/platform-node';
 import { ConfigProvider, Effect, FileSystem, Path } from 'effect';
 import { expect, it } from 'vitest';
@@ -55,7 +56,9 @@ it.each(
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
-      const root = yield* fs.makeTempDirectoryScoped();
+      const root = yield* fs.makeTempDirectoryScoped({
+        directory: temporaryRoot,
+      });
       const fixture = path.join(root, 'fixture');
       const ambient = path.join(root, 'ambient');
       yield* fs.makeDirectory(fixture);

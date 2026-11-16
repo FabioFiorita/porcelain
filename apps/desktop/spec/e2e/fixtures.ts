@@ -1,3 +1,4 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { existsSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
@@ -413,7 +414,7 @@ export const test = base.extend<DesktopFixtures, WorkerFixtures>({
   app: [stagedApp(), { scope: 'worker', option: true }],
   workspace: async ({ app: _app }, use) => {
     const folder = await realpath(
-      await mkdtemp(join('/tmp', 'porcelain-desktop-')),
+      await mkdtemp(join(temporaryRoot, 'porcelain-desktop-')),
     );
     await use({
       folder,

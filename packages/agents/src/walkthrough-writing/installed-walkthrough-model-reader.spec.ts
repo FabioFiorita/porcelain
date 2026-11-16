@@ -1,13 +1,13 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { mkdtemp, writeFile, chmod, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { tmpdir } from 'node:os';
 import { ConfigProvider, Layer, ManagedRuntime } from 'effect';
 import { NodeServices } from '@effect/platform-node';
 import { expect, it } from 'vitest';
 import { WalkthroughModelReader } from '@porcelain/walkthroughs/ports';
 import { installedWalkthroughModelReaderLayer } from './installed-walkthrough-model-reader.ts';
 it('lists signed-in installed writers, includes Opus, and uses each Codex model’s cached effort levels and default', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'writer-models-'));
+  const root = await mkdtemp(join(temporaryRoot, 'writer-models-'));
   const state = join(root, 'signed-in');
   await writeFile(state, 'yes');
   const script = `#!${process.execPath}\nconst fs=require('fs');if(process.argv[2]==='login' && process.env.CODEX_HOME!==${JSON.stringify(root)}){process.exit(1)}const signed=fs.readFileSync(${JSON.stringify(state)},'utf8')==='yes';if(process.argv[2]==='auth') console.log(JSON.stringify({loggedIn:signed}));else process.exitCode=signed?0:1;`;

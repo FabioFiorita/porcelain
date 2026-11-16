@@ -1,7 +1,7 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { NodeServices } from '@effect/platform-node';
 import { Effect, type FileSystem, type Path } from 'effect';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
@@ -19,7 +19,7 @@ let folder: string;
 let path: string;
 
 beforeEach(() => {
-  folder = mkdtempSync(join(tmpdir(), 'porcelain-service-configuration-'));
+  folder = mkdtempSync(join(temporaryRoot, 'porcelain-service-configuration-'));
   path = join(folder, 'configuration.json');
 });
 

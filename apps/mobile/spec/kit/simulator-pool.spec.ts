@@ -1,7 +1,7 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, expect, it } from 'vitest';
 import {
@@ -14,7 +14,7 @@ import {
 
 let directory: string;
 beforeEach(async () => {
-  directory = await mkdtemp(join(tmpdir(), 'porcelain-pool-spec-'));
+  directory = await mkdtemp(join(temporaryRoot, 'porcelain-pool-spec-'));
 });
 afterEach(async () => {
   await rm(directory, { recursive: true, force: true });

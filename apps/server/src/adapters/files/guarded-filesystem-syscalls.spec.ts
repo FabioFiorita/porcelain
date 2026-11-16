@@ -1,3 +1,4 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { it, expect } from '@effect/vitest';
 import { Effect, Fiber, FileSystem } from 'effect';
 import { NodeServices } from '@effect/platform-node';
@@ -14,7 +15,9 @@ it.effect(
   () =>
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
-      const root = yield* fs.makeTempDirectoryScoped();
+      const root = yield* fs.makeTempDirectoryScoped({
+        directory: temporaryRoot,
+      });
       yield* fs.writeFileString(`${root}/source`, 'guarded contents');
       yield* fs.symlink(`${root}/source`, `${root}/link`);
       const rejected = yield* Effect.scoped(

@@ -1,6 +1,6 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { Schema } from 'effect';
 import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { TestProject } from 'vitest/node';
@@ -65,7 +65,7 @@ async function judgeHandlers(folder: string, project: CoverageProject) {
 }
 export default async function setup(project: TestProject) {
   const build = await temporaryServerBuild();
-  const routes = await mkdtemp(join(tmpdir(), 'porcelain-server-routes-'));
+  const routes = await mkdtemp(join(temporaryRoot, 'porcelain-server-routes-'));
   project.provide('serverBuild', build.folder);
   project.provide('serverRoutes', routes);
   return () => integrationTeardown(project, routes, build);

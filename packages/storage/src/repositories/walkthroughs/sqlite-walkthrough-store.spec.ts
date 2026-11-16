@@ -1,3 +1,4 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { DatabaseSync } from 'node:sqlite';
 import { prepareNativeDatabase } from '../../../spec/kit/native-database.ts';
 import { NodeServices } from '@effect/platform-node';
@@ -14,7 +15,6 @@ import { InventoryStore } from '@porcelain/projects/ports';
 import type { WalkthroughJob } from '@porcelain/walkthroughs/models';
 import { storageLayer } from '../../index.ts';
 import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { expect, it } from 'vitest';
 
@@ -45,7 +45,7 @@ function job(
   };
 }
 it('defaults to manual and persists preferences and one automatic attempt per PR across failure, changed heads and restart', async () => {
-  const directory = mkdtempSync(join(tmpdir(), 'automatic-walkthrough-'));
+  const directory = mkdtempSync(join(temporaryRoot, 'automatic-walkthrough-'));
   const open = () =>
     ManagedRuntime.make(
       storageLayer(directory, {
@@ -159,7 +159,9 @@ it('defaults to manual and persists preferences and one automatic attempt per PR
 });
 
 it('resolves every comment answer from request, project, changed default and built-in without resuming another model', async () => {
-  const directory = mkdtempSync(join(tmpdir(), 'walkthrough-answer-writer-'));
+  const directory = mkdtempSync(
+    join(temporaryRoot, 'walkthrough-answer-writer-'),
+  );
   const seen: WalkthroughJob['run'][] = [];
   const database = storageLayer(directory, {
     worktreeIdLength: 32,
@@ -316,7 +318,7 @@ it('resolves every comment answer from request, project, changed default and bui
 it.each(['queued', 'running', 'ready'] as const)(
   'only reuses the current %s attempt and makes a returning writer current after another writer fails',
   async (status) => {
-    const directory = mkdtempSync(join(tmpdir(), 'current-walkthrough-'));
+    const directory = mkdtempSync(join(temporaryRoot, 'current-walkthrough-'));
     const runtime = ManagedRuntime.make(
       storageLayer(directory, {
         worktreeIdLength: 32,
@@ -397,7 +399,7 @@ it.each(['queued', 'running', 'ready'] as const)(
 
 it('keeps manual same-head acceptance and deduplication on each branch', async () => {
   const automaticKey = undefined;
-  const directory = mkdtempSync(join(tmpdir(), 'branch-walkthrough-'));
+  const directory = mkdtempSync(join(temporaryRoot, 'branch-walkthrough-'));
   const runtime = ManagedRuntime.make(
     storageLayer(directory, {
       worktreeIdLength: 32,
@@ -451,7 +453,9 @@ it('keeps manual same-head acceptance and deduplication on each branch', async (
 });
 
 it('never starts another automatic run for one PR after branch, worktree, head, failure and restart change', async () => {
-  const directory = mkdtempSync(join(tmpdir(), 'once-per-pr-walkthrough-'));
+  const directory = mkdtempSync(
+    join(temporaryRoot, 'once-per-pr-walkthrough-'),
+  );
   const open = () =>
     ManagedRuntime.make(
       storageLayer(directory, {
@@ -520,7 +524,9 @@ it('never starts another automatic run for one PR after branch, worktree, head, 
 });
 
 it('deduplicates identical base and content across commits, and accepts changed content or base', async () => {
-  const directory = mkdtempSync(join(tmpdir(), 'walkthrough-content-dedup-'));
+  const directory = mkdtempSync(
+    join(temporaryRoot, 'walkthrough-content-dedup-'),
+  );
   const runtime = ManagedRuntime.make(
     storageLayer(directory, { worktreeIdLength: 32, busyTimeoutMs: 5000 }).pipe(
       Layer.provide(NodeServices.layer),
@@ -573,7 +579,7 @@ it('deduplicates identical base and content across commits, and accepts changed 
 
 it('preserves the once-per-PR marker when the migration retires old walkthroughs', async () => {
   const directory = mkdtempSync(
-    join(tmpdir(), 'walkthrough-automatic-migration-'),
+    join(temporaryRoot, 'walkthrough-automatic-migration-'),
   );
   const open = () =>
     ManagedRuntime.make(

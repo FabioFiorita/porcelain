@@ -1,6 +1,6 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { expect, it } from 'vitest';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { boardDiffOptions } from './board-options.ts';
 import { stylesMatch, styleTable } from './board-styles.ts';
@@ -65,7 +65,7 @@ it('escapes role and value cells in the pasteable table', () => {
 });
 
 it('accepts defaults, deduplicates widths and finds a board by its HTML name', () => {
-  const directory = mkdtempSync(join(tmpdir(), 'board-diff-options-'));
+  const directory = mkdtempSync(join(temporaryRoot, 'board-diff-options-'));
   try {
     writeFileSync(
       join(directory, 'Narrative-settings-general.html'),

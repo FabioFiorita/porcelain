@@ -1,3 +1,4 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { NodeServices } from '@effect/platform-node';
 import { Effect, Layer, ManagedRuntime } from 'effect';
 import {
@@ -7,12 +8,11 @@ import {
 import { ReviewedFileStore } from '@porcelain/reviews/ports';
 import { storageLayer } from '../../index.ts';
 import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { reviewedFileStoreContract } from '@porcelain/reviews/store-contracts';
 
 reviewedFileStoreContract('SqliteReviewedFileStore', async (worktreeIds) => {
-  const dataDirectory = mkdtempSync(join(tmpdir(), 'porcelain-storage-'));
+  const dataDirectory = mkdtempSync(join(temporaryRoot, 'porcelain-storage-'));
   const session = ManagedRuntime.make(
     storageLayer(dataDirectory, {
       worktreeIdLength: 32,

@@ -1,6 +1,6 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { Effect } from 'effect';
 import { mkdtempSync, renameSync, rmSync, statSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { identity, formatIdentity } from './identity.ts';
@@ -9,7 +9,7 @@ describe('filesystem identity', () => {
   it('preserves the exact inode and nanosecond birth time across a move', async ({
     onTestFinished,
   }) => {
-    const root = mkdtempSync(join(tmpdir(), 'porcelain-identity-'));
+    const root = mkdtempSync(join(temporaryRoot, 'porcelain-identity-'));
     const moved = `${root}-moved`;
     onTestFinished(() => rmSync(moved, { recursive: true, force: true }));
     const info = statSync(root, { bigint: true });

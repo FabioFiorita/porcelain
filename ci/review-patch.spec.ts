@@ -1,6 +1,6 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { judgeReview, type JudgmentHost } from './review-judgment.ts';
@@ -19,7 +19,7 @@ function unavailableHostedPatch(): string {
 
 describe('review patch', () => {
   it('delivers a large patch from the exact Git commits when GitHub refuses the diff, including an approved retry', async () => {
-    const remote = mkdtempSync(join(tmpdir(), 'porcelain-review-remote-'));
+    const remote = mkdtempSync(join(temporaryRoot, 'porcelain-review-remote-'));
     try {
       git(remote, 'init', '-q', '-b', 'main');
       git(remote, 'config', 'user.name', 'Review fixture');

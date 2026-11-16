@@ -1,3 +1,4 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { ServiceUpdateRunningError } from '@porcelain/access/errors';
 import { NodeServices } from '@effect/platform-node';
 import { Clock, Effect, FileSystem, Layer, Schema } from 'effect';
@@ -19,7 +20,6 @@ import {
   truncateSync,
   writeFileSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { DatabaseSync } from 'node:sqlite';
 import { dirname, join } from 'node:path';
 import { afterEach, beforeEach, expect, it } from 'vitest';
@@ -275,7 +275,7 @@ function candidate() {
 }
 
 beforeEach(() => {
-  home = mkdtempSync(join(tmpdir(), "porcelain installer's "));
+  home = mkdtempSync(join(temporaryRoot, "porcelain installer's "));
   root = join(home, '.local/share/porcelain/service');
   data = join(home, 'data');
   source = join(home, 'package');

@@ -1,7 +1,7 @@
 {
   "name": "@porcelain/verification",
-  "description": "Workspace package so verification CLIs can import the app packages.",
   "private": true,
+  "description": "Workspace package so verification CLIs can import the app packages.",
   "type": "module",
   "scripts": {
     "test": "pnpm --dir ../.. test --project @porcelain/verification",
@@ -15,5 +15,8 @@
     "@porcelain/web": "workspace:*",
     "effect": "4.1.2",
     "playwright": "1.64.1"
+  },
+  "devDependencies": {
+    "@porcelain/kernel": "workspace:*"
   }
 }

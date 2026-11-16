@@ -1,3 +1,4 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { Effect } from 'effect';
 import { NodeServices } from '@effect/platform-node';
 import { execFileSync } from 'node:child_process';
@@ -9,7 +10,7 @@ import {
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
-import { tmpdir, devNull } from 'node:os';
+import { devNull } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, expect, it } from 'vitest';
 import { readWorktreeSummary } from './read-worktree-summary.ts';
@@ -37,7 +38,7 @@ const read = () =>
     ).pipe(Effect.provide(NodeServices.layer)),
   );
 beforeEach(() => {
-  checkout = mkdtempSync(join(tmpdir(), 'porcelain-numstat-'));
+  checkout = mkdtempSync(join(temporaryRoot, 'porcelain-numstat-'));
   git('init', '-q', '-b', 'main');
   git('config', 'user.name', 'Fixture');
   git('config', 'user.email', 'fixture@example.invalid');

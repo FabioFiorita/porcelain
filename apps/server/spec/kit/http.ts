@@ -1,3 +1,4 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { createServer, type RequestListener } from 'node:http';
 import { connect } from 'node:net';
 import {
@@ -203,7 +204,10 @@ export async function stalledUpgrade(address: string) {
 export const openOwnerProbePeer = Effect.fn('ownerPeer')(function* () {
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
-  const directory = yield* fs.makeTempDirectoryScoped({ prefix: 'pc-owner-' });
+  const directory = yield* fs.makeTempDirectoryScoped({
+    directory: temporaryRoot,
+    prefix: 'pc-owner-',
+  });
   const socketPath = path.join(directory, 'peer.sock');
   const server = yield* NodeHttpServer.make(createServer, { path: socketPath });
   const received = yield* Deferred.make<void>();

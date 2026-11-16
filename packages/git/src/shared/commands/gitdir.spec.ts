@@ -1,3 +1,4 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { NodeServices } from '@effect/platform-node';
 import { Effect } from 'effect';
 import { execFileSync } from 'node:child_process';
@@ -8,7 +9,6 @@ import {
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
@@ -48,7 +48,9 @@ describe('Effect Git metadata', () => {
   it('resolves the real linked worktree and refuses an administrative directory outside its registry', async ({
     onTestFinished,
   }) => {
-    const root = realpathSync(mkdtempSync(join(tmpdir(), 'porcelain-gitdir-')));
+    const root = realpathSync(
+      mkdtempSync(join(temporaryRoot, 'porcelain-gitdir-')),
+    );
     onTestFinished(() => rmSync(root, { recursive: true, force: true }));
     const main = join(root, 'main');
     const linked = join(root, 'linked');
@@ -113,7 +115,7 @@ describe('Effect Git metadata', () => {
   it('treats a metadata path that is not a directory as missing registry metadata', async ({
     onTestFinished,
   }) => {
-    const root = mkdtempSync(join(tmpdir(), 'porcelain-gitdir-missing-'));
+    const root = mkdtempSync(join(temporaryRoot, 'porcelain-gitdir-missing-'));
     onTestFinished(() => rmSync(root, { recursive: true, force: true }));
     const file = join(root, 'file');
     writeFileSync(file, 'ordinary file');

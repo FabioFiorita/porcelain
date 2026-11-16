@@ -1,3 +1,4 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { it, expect } from 'vitest';
 import { NodeServices } from '@effect/platform-node';
 import { Effect, FileSystem } from 'effect';
@@ -9,7 +10,9 @@ it.for(['add', 'remove', 'rename'] as const)(
     const result = await Effect.runPromise(
       Effect.gen(function* () {
         const fs = yield* FileSystem.FileSystem;
-        const root = yield* fs.makeTempDirectoryScoped();
+        const root = yield* fs.makeTempDirectoryScoped({
+          directory: temporaryRoot,
+        });
         yield* fs.makeDirectory(`${root}/folder`);
         yield* fs.writeFileString(`${root}/folder/before`, 'before');
         const target = { root, path: 'folder' };
@@ -36,7 +39,9 @@ it.for([
   const result = await Effect.runPromise(
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
-      const root = yield* fs.makeTempDirectoryScoped();
+      const root = yield* fs.makeTempDirectoryScoped({
+        directory: temporaryRoot,
+      });
       yield* fs.makeDirectory(`${root}/parent/folder`, { recursive: true });
       yield* fs.writeFileString(`${root}/parent/folder/file`, 'before');
       const target = {

@@ -1,7 +1,7 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import type { ChildProcessSpawner } from 'effect/process';
 import { Schema } from 'effect';
 import { mkdtemp, writeFile, readFile, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Effect } from 'effect';
 import { NodeServices } from '@effect/platform-node';
@@ -13,7 +13,7 @@ import {
   readGitHubApi,
 } from './github-read.ts';
 async function fixture(onCleanup: (fn: () => Promise<void> | void) => void) {
-  const folder = await mkdtemp(join(tmpdir(), 'porcelain-gh-'));
+  const folder = await mkdtemp(join(temporaryRoot, 'porcelain-gh-'));
   onCleanup(() => rm(folder, { recursive: true, force: true }));
   const original = {
     PATH: process.env.PATH,

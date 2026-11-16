@@ -1,7 +1,7 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { existsSync, watch } from 'node:fs';
 import { once } from 'node:events';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { NodeServices } from '@effect/platform-node';
 import { Clock, Effect, Layer } from 'effect';
@@ -84,9 +84,7 @@ function cliRunner() {
 }
 
 export async function stopCliProcess(signal: 'SIGINT' | 'SIGTERM') {
-  const root = await mkdtemp(
-    join(process.platform === 'darwin' ? '/tmp' : tmpdir(), 'porcelain-cli-'),
-  );
+  const root = await mkdtemp(join(temporaryRoot, 'porcelain-cli-'));
   const child = cliProcess(root);
   try {
     const address = await child.ready;

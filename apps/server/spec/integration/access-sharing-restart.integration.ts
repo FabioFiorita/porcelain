@@ -1,3 +1,4 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { ghPullRequestReaderLayer } from '../../src/adapters/reviews/gh-pull-request-reader.ts';
 import { NodeServices } from '@effect/platform-node';
 import type { ReadRemoteAccessResponse } from '@porcelain/contracts/access';
@@ -15,7 +16,6 @@ import { FixedNetworkAddressReader } from '../fakes/fixed-network-address-reader
 import { InMemoryRouteListenerRunner } from '../fakes/in-memory-route-listener-runner.ts';
 import { ScriptedServiceUpdateRunner } from '../fakes/scripted-service-update-runner.ts';
 import { ScriptedTunnelProbe } from '../fakes/scripted-tunnel-probe.ts';
-import { scratchFolder } from '../kit/sandbox.ts';
 import { test } from '../kit/server-test.ts';
 
 const LAN_ADDRESS = '192.168.1.20';
@@ -94,7 +94,7 @@ function settledLan(state: string) {
 
 test('local network sharing turned on stays on at the same address after the server restarts on the same data directory', async () => {
   const root = realpathSync(
-    await mkdtemp(join(scratchFolder(), 'porcelain-sharing-')),
+    await mkdtemp(join(temporaryRoot, 'porcelain-sharing-')),
   );
   const state = join(root, 'state');
   const runtime = ManagedRuntime.make(

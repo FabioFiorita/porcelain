@@ -1,6 +1,6 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { NodeServices } from '@effect/platform-node';
 import { Effect, Layer } from 'effect';
@@ -15,7 +15,7 @@ import { LIMITS } from '../../config/limits.ts';
 import { gitWalkthroughHeadReaderLayer } from './git-walkthrough-head-reader.ts';
 
 it('returns a recoverable failure when content capture exceeds the Git output limit', async () => {
-  const checkout = mkdtempSync(join(tmpdir(), 'walkthrough-head-limit-'));
+  const checkout = mkdtempSync(join(temporaryRoot, 'walkthrough-head-limit-'));
   const git = (...args: string[]) =>
     execFileSync('git', ['-C', checkout, ...args], { encoding: 'utf8' }).trim();
   try {

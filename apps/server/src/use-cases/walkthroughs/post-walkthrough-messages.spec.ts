@@ -1,9 +1,9 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { ReadRepositoryOriginService } from '@porcelain/projects/services';
 import { ProjectRepositoryReader } from '@porcelain/projects/ports';
 import { withReadLease } from '@porcelain/effects';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { tmpdir } from 'node:os';
 import { Deferred, Effect, Layer, ManagedRuntime } from 'effect';
 import { NodeServices } from '@effect/platform-node';
 import { expect, it } from 'vitest';
@@ -104,7 +104,7 @@ async function fixture(
     pullRequestNumber !== undefined && repositoryRecorded
       ? { owner: 'o', repo: 'r' }
       : undefined;
-  const folder = await mkdtemp(join(tmpdir(), 'walkthrough-post-'));
+  const folder = await mkdtemp(join(temporaryRoot, 'walkthrough-post-'));
   onTestFinished(() => rm(folder, { recursive: true, force: true }));
   const comments: {
     body: string;

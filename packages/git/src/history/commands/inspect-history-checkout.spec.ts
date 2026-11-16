@@ -1,3 +1,4 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { NodeServices } from '@effect/platform-node';
 import { Effect } from 'effect';
 import { execFileSync } from 'node:child_process';
@@ -8,7 +9,6 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
@@ -20,7 +20,7 @@ let root: string;
 let checkout: Parameters<typeof confirmHistoryCheckout>[0];
 
 beforeEach(() => {
-  root = mkdtempSync(join(tmpdir(), 'porcelain-history-checkout-'));
+  root = mkdtempSync(join(temporaryRoot, 'porcelain-history-checkout-'));
   execFileSync('git', ['init', '-q', '-b', 'main', root]);
   const directory = join(root, '.git');
   const info = statSync(directory, { bigint: true });

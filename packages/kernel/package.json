@@ -8,10 +8,11 @@
     "./rules": "./src/rules/index.ts",
     "./errors": "./src/errors/index.ts",
     "./fakes": "./spec/fakes/index.ts",
-    "./test-kit": "./spec/kit/test-clock.ts"
+    "./test-kit": "./spec/kit/test-clock.ts",
+    "./test-kit/temporary-root": "./spec/kit/temporary-root.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.spec.json",
     "test": "pnpm --dir ../.. test --project @porcelain/kernel"
   },
   "dependencies": {

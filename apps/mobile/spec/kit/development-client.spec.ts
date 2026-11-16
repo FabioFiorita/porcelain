@@ -1,8 +1,8 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { afterEach, beforeEach, expect, it } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import {
   androidDevelopmentAbi,
@@ -17,7 +17,7 @@ let fixture: Awaited<ReturnType<typeof project>>;
 const caches: string[] = [];
 
 async function project() {
-  const root = await mkdtemp(join(tmpdir(), 'porcelain-native-build-'));
+  const root = await mkdtemp(join(temporaryRoot, 'porcelain-native-build-'));
   caches.push(root);
   const apk = join(root, 'android/app/build/outputs/apk/debug/app-debug.apk');
   const marker = join(root, 'android/app/build/native-fingerprint');

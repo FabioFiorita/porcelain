@@ -1,3 +1,4 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { Schema } from 'effect';
 import { stageDesktop } from '@porcelain/desktop/kit/stage';
 import { execFile } from 'node:child_process';
@@ -34,7 +35,9 @@ const originalPath = process.env.PATH;
 let rendererFixture: string | undefined;
 beforeAll(async () => {
   if (!CAN_LAUNCH) return;
-  rendererFixture = await mkdtemp('/tmp/porcelain-desktop-renderer-');
+  rendererFixture = await mkdtemp(
+    join(temporaryRoot, 'porcelain-desktop-renderer-'),
+  );
   const artifact = join(rendererFixture, 'app');
   await stageDesktop({
     directory: artifact,
@@ -95,7 +98,9 @@ function alive(pid: number) {
 test.runIf(CAN_LAUNCH)(
   'the shared lifecycle exposes raw Electron and renderer tools, then removes its owned runtime and keeps evidence',
   async ({ onTestFinished }) => {
-    const evidenceDirectory = await mkdtemp('/tmp/porcelain-desktop-evidence-');
+    const evidenceDirectory = await mkdtemp(
+      join(temporaryRoot, 'porcelain-desktop-evidence-'),
+    );
     onTestFinished(() =>
       rm(evidenceDirectory, { recursive: true, force: true }),
     );
