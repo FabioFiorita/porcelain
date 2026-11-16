@@ -1,3 +1,13 @@
+import { spawnSync } from 'node:child_process';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
+import { join } from 'node:path';
 import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { NodeServices } from '@effect/platform-node';
 import {
@@ -85,6 +95,13 @@ const receiptSchema = Schema.fromJsonString(
     args: Schema.Array(Schema.String),
     prompt: Schema.String,
     cwd: Schema.String,
+    files: Schema.Array(
+      Schema.Struct({
+        argument: Schema.String,
+        name: Schema.String,
+        parent: Schema.String,
+      }),
+    ),
     schema: Schema.Struct({
       type: Schema.String,
       additionalProperties: Schema.Boolean,
@@ -227,7 +244,19 @@ describe('CommitPlanner', () => {
               '--model',
               'small',
             ]);
-          else
+          else {
+            expect(
+              invocation.files.map(({ name, parent }) => ({ name, parent })),
+            ).toEqual([
+              {
+                name: 'schema.json',
+                parent: invocation.cwd,
+              },
+              {
+                name: 'result.json',
+                parent: invocation.cwd,
+              },
+            ]);
             expect(invocation.args).toEqual([
               'exec',
               '--ignore-user-config',
@@ -249,18 +278,79 @@ describe('CommitPlanner', () => {
               '-c',
               'web_search="disabled"',
               '--output-schema',
-              path.join(invocation.cwd, 'schema.json'),
+              invocation.files[0]?.argument,
               '--output-last-message',
-              path.join(invocation.cwd, 'result.json'),
+              invocation.files[1]?.argument,
               '--model',
               'small',
               '-',
             ]);
+          }
           expect(yield* fs.exists(invocation.cwd)).toBe(false);
         }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
       );
     },
   );
+
+  it('records raw Codex file arguments and their live directory identity through a real symlink', async ({
+    onTestFinished,
+  }) => {
+    const root = mkdtempSync(join(temporaryRoot, 'provider-alias-'));
+    onTestFinished(() => rmSync(root, { recursive: true, force: true }));
+    const directory = join(root, 'directory');
+    const alias = join(root, 'alias');
+    mkdirSync(directory);
+    symlinkSync(directory, alias, 'dir');
+    const receipt = join(root, 'receipt.json');
+    const command = join(root, 'codex');
+    const args = [
+      '--output-schema',
+      join(alias, 'schema.json'),
+      '--output-last-message',
+      join(alias, 'result.json'),
+    ];
+    writeFileSync(
+      join(directory, 'schema.json'),
+      JSON.stringify({ type: 'object' }),
+    );
+    writeFileSync(
+      command,
+      codingToolScript({
+        provider: 'codex',
+        runner: process.execPath,
+        receipt,
+        reply: plan,
+      }),
+    );
+    const child = spawnSync(process.execPath, [command, ...args], {
+      cwd: alias,
+      input: 'commit evidence',
+      encoding: 'utf8',
+    });
+    expect(child.status, child.stderr).toBe(0);
+    const invocation: unknown = JSON.parse(readFileSync(receipt, 'utf8'));
+    expect(invocation).toEqual({
+      args,
+      cwd: directory,
+      files: [
+        {
+          argument: join(alias, 'schema.json'),
+          name: 'schema.json',
+          parent: directory,
+        },
+        {
+          argument: join(alias, 'result.json'),
+          name: 'result.json',
+          parent: directory,
+        },
+      ],
+      schema: { type: 'object' },
+      prompt: 'commit evidence',
+    });
+    expect(readFileSync(join(directory, 'result.json'), 'utf8')).toBe(
+      JSON.stringify(plan),
+    );
+  });
 
   it.each([{ exitCode: 3 }, { resultBytes: 65537 }])(
     'refuses a failed or oversized Codex result and cleans its temporary directory: %j',
