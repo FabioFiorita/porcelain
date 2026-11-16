@@ -1,3 +1,4 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { NodeServices } from '@effect/platform-node';
 import { Effect } from 'effect';
 import { execFileSync, spawnSync } from 'node:child_process';
@@ -10,7 +11,6 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { commitPaths } from './commit-paths.ts';
@@ -104,7 +104,7 @@ const initialise = () => {
 };
 
 beforeEach(() => {
-  fixtureRoot = mkdtempSync(join(tmpdir(), 'porcelain-commit-paths-'));
+  fixtureRoot = mkdtempSync(join(temporaryRoot, 'porcelain-commit-paths-'));
   checkout = fixtureRoot;
   initialise();
   write('a.txt', 'a\n');

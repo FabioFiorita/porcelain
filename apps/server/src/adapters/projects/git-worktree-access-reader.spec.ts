@@ -1,3 +1,4 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { NodeServices } from '@effect/platform-node';
 import { Effect, Layer } from 'effect';
 import { execFileSync } from 'node:child_process';
@@ -8,7 +9,6 @@ import {
   rmSync,
   statSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { beforeEach, afterEach, describe, expect, it } from 'vitest';
 import type { ListedWorktree } from '@porcelain/projects/models';
@@ -21,7 +21,7 @@ import { gitWorktreeAccessReaderLayer } from './git-worktree-access-reader.ts';
 
 let root: string;
 beforeEach(() => {
-  root = realpathSync(mkdtempSync(join(tmpdir(), 'porcelain-access-')));
+  root = realpathSync(mkdtempSync(join(temporaryRoot, 'porcelain-access-')));
 });
 afterEach(() => {
   rmSync(root, { recursive: true, force: true });

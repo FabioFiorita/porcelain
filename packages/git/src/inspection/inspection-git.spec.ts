@@ -1,8 +1,8 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { NodeServices } from '@effect/platform-node';
 import { Cause, Effect, Exit } from 'effect';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { readBranchDetails, readCheckoutStatus } from './inspection-git.ts';
@@ -28,7 +28,7 @@ const session = (): Effect.Effect<Parameters<typeof readCheckoutStatus>[0]> =>
 
 beforeEach(() => {
   checkout = realpathSync(
-    mkdtempSync(join(tmpdir(), 'porcelain-native-inspection-')),
+    mkdtempSync(join(temporaryRoot, 'porcelain-native-inspection-')),
   );
   execFileSync('git', ['init', '-q', '-b', 'main', checkout]);
   git('config', 'user.name', 'T');

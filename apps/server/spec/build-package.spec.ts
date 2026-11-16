@@ -1,3 +1,4 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { spawnSync } from 'node:child_process';
 import {
   copyFileSync,
@@ -8,7 +9,6 @@ import {
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterEach, beforeEach, expect, it } from 'vitest';
 
@@ -51,7 +51,7 @@ const pinEffectRuntimeDependencies = (
 };
 
 beforeEach(() => {
-  root = mkdtempSync(join(tmpdir(), 'porcelain-package-metadata-'));
+  root = mkdtempSync(join(temporaryRoot, 'porcelain-package-metadata-'));
   mkdirSync(join(root, 'scripts'));
   copyFileSync(
     resolve('scripts/build-package.ts'),

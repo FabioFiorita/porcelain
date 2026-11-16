@@ -1,8 +1,8 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { ServiceUpdateRunningError } from '@porcelain/access/errors';
 import { NodeServices } from '@effect/platform-node';
 import { Clock, Effect } from 'effect';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { afterEach, beforeEach, expect, it } from 'vitest';
@@ -16,7 +16,7 @@ let packageRoot: string;
 const originalSearchPath = process.env.PATH;
 
 beforeEach(() => {
-  home = mkdtempSync(join(tmpdir(), 'porcelain-cli-update-'));
+  home = mkdtempSync(join(temporaryRoot, 'porcelain-cli-update-'));
   const service = join(home, '.local/share/porcelain/service');
   packageRoot = join(service, 'runtime/node_modules/@fabiofiorita/porcelain');
   mkdirSync(packageRoot, { recursive: true });

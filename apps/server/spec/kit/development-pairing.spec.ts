@@ -1,6 +1,7 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { createServer, type Server } from 'node:http';
 import { mkdtemp, rm } from 'node:fs/promises';
-import { tmpdir, networkInterfaces } from 'node:os';
+import { networkInterfaces } from 'node:os';
 import { join } from 'node:path';
 import { once } from 'node:events';
 import { beforeEach, afterEach, it, expect } from 'vitest';
@@ -22,7 +23,7 @@ afterEach(async () => {
 });
 
 async function startHelper() {
-  const directory = await mkdtemp(join(tmpdir(), 'porcelain-dev-pair-'));
+  const directory = await mkdtemp(join(temporaryRoot, 'porcelain-dev-pair-'));
   const socket = join(directory, 'owner.sock');
   const requests: {
     method: string | undefined;

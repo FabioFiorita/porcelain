@@ -1,6 +1,6 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { NodeServices } from '@effect/platform-node';
 import { Effect, Layer } from 'effect';
@@ -12,7 +12,7 @@ import { LIMITS } from '../../config/limits.ts';
 import { gitWalkthroughSourceReaderLayer } from './git-walkthrough-source-reader.ts';
 
 it('uses the captured head when a commit lands after the branch range was read', async () => {
-  const checkout = mkdtempSync(join(tmpdir(), 'walkthrough-head-race-'));
+  const checkout = mkdtempSync(join(temporaryRoot, 'walkthrough-head-race-'));
   const git = (...args: string[]) =>
     execFileSync('git', ['-C', checkout, ...args], { encoding: 'utf8' }).trim();
   try {

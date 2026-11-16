@@ -1,5 +1,5 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import {
   expect,
@@ -343,7 +343,9 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
   shell: ['web', { scope: 'worker', option: true }],
   vite: [
     async ({ shell }, use) => {
-      const cacheRoot = await mkdtemp(join(tmpdir(), 'porcelain-e2e-vite-'));
+      const cacheRoot = await mkdtemp(
+        join(temporaryRoot, 'porcelain-e2e-vite-'),
+      );
       try {
         const vite = await startVite(
           shell,
@@ -509,7 +511,7 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
 });
 
 export async function keptEvidence(world: World): Promise<string> {
-  const folder = await mkdtemp(join(tmpdir(), 'porcelain-e2e-evidence-'));
+  const folder = await mkdtemp(join(temporaryRoot, 'porcelain-e2e-evidence-'));
   await world.keepEvidence(folder);
   const saved = [
     await readFile(join(folder, 'kit.json'), 'utf8'),

@@ -1,7 +1,7 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { Schema } from 'effect';
 import { afterEach, beforeEach, expect, it } from 'vitest';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { delimiter, join } from 'node:path';
 import {
   claimAndroid,
@@ -13,7 +13,7 @@ import {
 let directory: string;
 let path: string | undefined;
 beforeEach(async () => {
-  directory = await mkdtemp(join(tmpdir(), 'porcelain-android-spec-'));
+  directory = await mkdtemp(join(temporaryRoot, 'porcelain-android-spec-'));
   path = process.env.PATH;
   process.env.PATH = `${directory}${delimiter}${path ?? ''}`;
 });

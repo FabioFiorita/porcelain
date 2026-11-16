@@ -1,6 +1,6 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { afterEach, beforeEach, expect, it } from 'vitest';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { delimiter, join } from 'node:path';
 import { hostProblems } from './host.ts';
 
@@ -19,7 +19,7 @@ const local = 'local-fingerprint';
 let directory: string;
 let path: string | undefined;
 beforeEach(async () => {
-  directory = await mkdtemp(join(tmpdir(), 'porcelain-mobile-host-spec-'));
+  directory = await mkdtemp(join(temporaryRoot, 'porcelain-mobile-host-spec-'));
   path = process.env.PATH;
   process.env.PATH = `${directory}${delimiter}${path ?? ''}`;
 });

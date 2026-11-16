@@ -1,8 +1,8 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { Effect } from 'effect';
 import { NodeServices } from '@effect/platform-node';
 import { execFileSync } from 'node:child_process';
 import { chmodSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
@@ -59,7 +59,7 @@ const modifiedPatch = (path: string, from: string, to: string) =>
   `diff --git a/${path} b/${path}\nindex ${from}..${to} 100644\n--- a/${path}\n+++ b/${path}\n`;
 
 beforeEach(() => {
-  checkout = mkdtempSync(join(tmpdir(), 'porcelain-read-diff-'));
+  checkout = mkdtempSync(join(temporaryRoot, 'porcelain-read-diff-'));
   execFileSync('git', ['init', '-q', '-b', 'main', checkout]);
   git('config', 'user.name', 'T');
   git('config', 'user.email', 't@e');

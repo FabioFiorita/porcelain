@@ -1,3 +1,4 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { NodeServices } from '@effect/platform-node';
 import { Cause, Effect, Exit, Fiber, Schedule } from 'effect';
 import { execFileSync, spawnSync } from 'node:child_process';
@@ -11,7 +12,6 @@ import {
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { executeGitAction } from './actions-git.ts';
@@ -68,7 +68,7 @@ const action = (
   );
 
 beforeEach(() => {
-  root = mkdtempSync(join(tmpdir(), 'porcelain-native-actions-'));
+  root = mkdtempSync(join(temporaryRoot, 'porcelain-native-actions-'));
   checkout = join(root, 'checkout');
   execFileSync('git', ['init', '-q', '-b', 'main', checkout]);
   git('config', 'user.name', 'T');

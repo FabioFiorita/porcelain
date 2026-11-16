@@ -1,8 +1,8 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { NodeServices } from '@effect/platform-node';
 import { Effect } from 'effect';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { pullBranch } from './pull-branch.ts';
@@ -91,7 +91,7 @@ const pull = (command: Command) => run(pullBranch(runner, command, remote()));
 const head = () => git(clone, 'rev-parse', 'HEAD');
 
 beforeEach(() => {
-  base = mkdtempSync(join(tmpdir(), 'porcelain-pull-'));
+  base = mkdtempSync(join(temporaryRoot, 'porcelain-pull-'));
   origin = join(base, 'origin.git');
   upstream = join(base, 'upstream');
   clone = join(base, 'clone');

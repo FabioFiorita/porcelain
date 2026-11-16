@@ -1,8 +1,8 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { Effect } from 'effect';
 import { NodeServices } from '@effect/platform-node';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { readBlobAtOid } from './read-blob-at-oid.ts';
@@ -16,7 +16,7 @@ function git(...args: string[]) {
 }
 
 beforeEach(() => {
-  base = mkdtempSync(join(tmpdir(), 'porcelain-head-blob-'));
+  base = mkdtempSync(join(temporaryRoot, 'porcelain-head-blob-'));
   checkout = join(base, 'repo');
   execFileSync('git', ['init', '-q', checkout]);
   writeFileSync(join(checkout, 'README.md'), 'committed\n');

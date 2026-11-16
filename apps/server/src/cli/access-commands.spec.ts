@@ -1,8 +1,8 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { Effect, Layer, Option } from 'effect';
 import { createServer, type Server } from 'node:http';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { tmpdir } from 'node:os';
 import { afterEach, expect, it } from 'vitest';
 import { EnvironmentSettings } from '../config/environment-settings.ts';
 import { ownerSocketPath } from '../config/owner-socket-settings.ts';
@@ -53,7 +53,7 @@ function limits() {
 }
 
 async function fixture(answer: () => { status: number; body: unknown }) {
-  const directory = await mkdtemp(join(tmpdir(), 'pc-access-'));
+  const directory = await mkdtemp(join(temporaryRoot, 'pc-access-'));
   const calls: {
     method: string | undefined;
     path: string | undefined;

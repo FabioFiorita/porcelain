@@ -9,5 +9,8 @@
   "dependencies": {
     "effect": "4.1.2",
     "openai": "7.51.0"
+  },
+  "devDependencies": {
+    "@porcelain/kernel": "workspace:*"
   }
 }

@@ -1,8 +1,8 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { NodeServices } from '@effect/platform-node';
 import { Cause, Duration, Effect, Exit, Fiber, Schedule } from 'effect';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { runInspection } from './run-inspection.ts';
@@ -22,7 +22,7 @@ function running(pid: number) {
 }
 
 beforeEach(() => {
-  checkout = mkdtempSync(join(tmpdir(), 'porcelain-inspection-process-'));
+  checkout = mkdtempSync(join(temporaryRoot, 'porcelain-inspection-process-'));
   execFileSync('git', ['init', '-q', checkout]);
 });
 afterEach(() => rmSync(checkout, { recursive: true, force: true }));

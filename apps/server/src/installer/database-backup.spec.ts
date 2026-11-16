@@ -1,3 +1,4 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { NodeServices } from '@effect/platform-node';
 import { Effect, FileSystem } from 'effect';
 import { createHash } from 'node:crypto';
@@ -12,7 +13,6 @@ import {
   truncateSync,
   writeFileSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { DatabaseSync } from 'node:sqlite';
 import { join } from 'node:path';
 import { afterEach, beforeEach, expect, it } from 'vitest';
@@ -37,7 +37,7 @@ function backups(count: number) {
   }
 }
 beforeEach(() => {
-  root = mkdtempSync(join(tmpdir(), 'porcelain-backups-'));
+  root = mkdtempSync(join(temporaryRoot, 'porcelain-backups-'));
 });
 afterEach(() => {
   rmSync(root, { recursive: true, force: true });

@@ -1,8 +1,8 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { NodeServices } from '@effect/platform-node';
 import { Duration, Effect, Fiber, Schedule } from 'effect';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { gitRead, gitWrite } from './run-git.ts';
@@ -11,7 +11,7 @@ import { gitLimits } from '../../../spec/fixtures/git-limits.ts';
 let repository: string;
 
 beforeAll(() => {
-  repository = mkdtempSync(join(tmpdir(), 'porcelain-run-git-'));
+  repository = mkdtempSync(join(temporaryRoot, 'porcelain-run-git-'));
   execFileSync('git', ['init', '-q', repository]);
 });
 

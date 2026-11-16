@@ -1,3 +1,4 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { NodeServices } from '@effect/platform-node';
 import { Effect } from 'effect';
 import { execFileSync, spawnSync } from 'node:child_process';
@@ -8,7 +9,6 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { discardPath } from './discard-path.ts';
@@ -76,7 +76,7 @@ const write = (path: string, content: string) => {
 const read = (path: string) => readFileSync(join(checkout, path), 'utf8');
 
 beforeEach(() => {
-  checkout = mkdtempSync(join(tmpdir(), 'porcelain-discard-path-'));
+  checkout = mkdtempSync(join(temporaryRoot, 'porcelain-discard-path-'));
   execFileSync('git', ['init', '-q', '-b', 'main', checkout]);
   git('config', 'user.name', 'T');
   git('config', 'user.email', 't@e');

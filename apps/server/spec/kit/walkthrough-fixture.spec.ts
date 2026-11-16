@@ -1,5 +1,5 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Layer, ManagedRuntime } from 'effect';
 import { NodeServices } from '@effect/platform-node';
@@ -29,7 +29,9 @@ const legacy: WalkthroughJob = {
   },
 };
 it('rolls back every seeded row when a stored fixture cannot be committed', async () => {
-  const directory = mkdtempSync(join(tmpdir(), 'walkthrough-fixture-atomic-'));
+  const directory = mkdtempSync(
+    join(temporaryRoot, 'walkthrough-fixture-atomic-'),
+  );
   const runtime = ManagedRuntime.make(
     storageLayer(directory, { worktreeIdLength: 32, busyTimeoutMs: 5000 }).pipe(
       Layer.provide(NodeServices.layer),

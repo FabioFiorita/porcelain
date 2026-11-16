@@ -1,16 +1,18 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { NodeServices } from '@effect/platform-node';
 import { Effect, Layer, ManagedRuntime } from 'effect';
 import { PairingGrantStore, DeviceStore } from '@porcelain/access/ports';
 import { storageLayer } from '@porcelain/storage';
 import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { deviceStoreContract } from '@porcelain/access/store-contracts';
 
 import { cachedDeviceStoreLayer } from './cached-device-store.ts';
 
 deviceStoreContract('CachedDeviceStore over SQLite', async (devices) => {
-  const dataDirectory = mkdtempSync(join(tmpdir(), 'porcelain-cached-device-'));
+  const dataDirectory = mkdtempSync(
+    join(temporaryRoot, 'porcelain-cached-device-'),
+  );
   const session = ManagedRuntime.make(
     cachedDeviceStoreLayer.pipe(
       Layer.provideMerge(

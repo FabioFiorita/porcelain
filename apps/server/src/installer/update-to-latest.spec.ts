@@ -1,3 +1,4 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { TestClock } from 'effect/testing';
 import { Effect, Schema } from 'effect';
 import { NodeServices } from '@effect/platform-node';
@@ -9,7 +10,6 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from '@effect/vitest';
 import type { CommandRunner } from './command-runner.ts';
@@ -163,7 +163,7 @@ const update = Effect.fn('Test.updateToLatest')(function* (
 });
 
 beforeEach(() => {
-  home = mkdtempSync(join(tmpdir(), 'porcelain-update-to-latest-'));
+  home = mkdtempSync(join(temporaryRoot, 'porcelain-update-to-latest-'));
   mkdirSync(serviceRoot(), { recursive: true });
   published = ok(JSON.stringify('1.1.0'));
   updaterResult = { stage: 'updated' };

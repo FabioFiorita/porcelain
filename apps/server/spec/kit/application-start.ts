@@ -1,6 +1,6 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { existsSync } from 'node:fs';
 import { request } from 'node:http';
-import { tmpdir } from 'node:os';
 import { NodeServices } from '@effect/platform-node';
 import {
   Cause,
@@ -27,9 +27,7 @@ export async function applicationStartFixture(
   ownerFails = false,
   pauseAtJob = false,
 ) {
-  const root = await mkdtemp(
-    join(process.platform === 'darwin' ? '/tmp' : tmpdir(), 'porcelain-start-'),
-  );
+  const root = await mkdtemp(join(temporaryRoot, 'porcelain-start-'));
   const settings = readServerSettings({
     dataDirectory: join(root, 'data'),
     projectHome: root,

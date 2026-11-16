@@ -1,5 +1,5 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { execFile, spawnSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
 import {
   cp,
   mkdtemp,
@@ -9,10 +9,10 @@ import {
   symlink,
   writeFile,
 } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, expect, type TestContext } from 'vitest';
+import { registryHome } from '../../verify-core/registry.ts';
 import { list, record, text } from '@porcelain/server/kit/session';
 
 const sourceRoot = resolve(
@@ -61,15 +61,7 @@ export function instanceFile(
   surface: string,
   id: string,
 ): string {
-  return join(
-    tmpdir(),
-    'porcelain-verify',
-    createHash('sha256').update(root).digest('hex').slice(0, 16),
-    surface,
-    'instances',
-    id,
-    'instance.json',
-  );
+  return join(registryHome(surface, root), 'instances', id, 'instance.json');
 }
 
 export async function started(
@@ -124,7 +116,7 @@ export async function evidenceOf(folder: string) {
 }
 
 export async function checkoutCopy(onTestFinished: Finished): Promise<string> {
-  const copy = await mkdtemp(join(tmpdir(), 'porcelain-checkout-'));
+  const copy = await mkdtemp(join(temporaryRoot, 'porcelain-checkout-'));
   onTestFinished(() => rm(copy, { recursive: true, force: true }));
   const linked: string[] = [];
   await cp(sourceRoot, copy, {

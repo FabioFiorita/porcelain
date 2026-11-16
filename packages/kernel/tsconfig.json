@@ -7,5 +7,6 @@
     "src/**/*.ts",
     "spec/**/*.ts",
     "../../architecture/platform/domain-globals.d.ts"
-  ]
+  ],
+  "exclude": ["spec"]
 }

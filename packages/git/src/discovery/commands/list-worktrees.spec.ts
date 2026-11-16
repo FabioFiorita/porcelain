@@ -1,8 +1,8 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { NodeServices } from '@effect/platform-node';
 import { Effect } from 'effect';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { listWorktrees } from './list-worktrees.ts';
@@ -11,7 +11,7 @@ import { gitLimits } from '../../../spec/fixtures/git-limits.ts';
 let root: string;
 
 beforeEach(() => {
-  root = realpathSync(mkdtempSync(join(tmpdir(), 'porcelain-worktrees-')));
+  root = realpathSync(mkdtempSync(join(temporaryRoot, 'porcelain-worktrees-')));
 });
 
 afterEach(() => {

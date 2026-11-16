@@ -1,3 +1,4 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { NodeServices } from '@effect/platform-node';
 import {
   ClaudeProvider,
@@ -166,6 +167,7 @@ describe('CommitPlanner', () => {
           const fs = yield* FileSystem.FileSystem;
           const path = yield* Path.Path;
           const root = yield* fs.makeTempDirectoryScoped({
+            directory: temporaryRoot,
             prefix: 'porcelain-provider-test-',
           });
           const receipt = path.join(root, 'receipt.json');
@@ -268,6 +270,7 @@ describe('CommitPlanner', () => {
           const fs = yield* FileSystem.FileSystem;
           const path = yield* Path.Path;
           const root = yield* fs.makeTempDirectoryScoped({
+            directory: temporaryRoot,
             prefix: 'porcelain-provider-test-',
           });
           const receipt = path.join(root, 'receipt.json');
@@ -314,6 +317,7 @@ describe('CommitPlanner', () => {
         const fs = yield* FileSystem.FileSystem;
         const path = yield* Path.Path;
         const root = yield* fs.makeTempDirectoryScoped({
+          directory: temporaryRoot,
           prefix: 'porcelain-provider-test-',
         });
         yield* fs.writeFileString(

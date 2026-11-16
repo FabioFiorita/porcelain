@@ -1,3 +1,4 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { NodeServices } from '@effect/platform-node';
 import { Effect, type FileSystem, type Path } from 'effect';
 import type { ChildProcessSpawner } from 'effect/process';
@@ -9,7 +10,6 @@ import {
   writeFileSync,
   mkdirSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { cleanupWorktree } from './cleanup-worktree.ts';
@@ -42,7 +42,7 @@ const input = () => ({
   options,
 });
 beforeEach(() => {
-  root = mkdtempSync(join(tmpdir(), 'porcelain-archive-'));
+  root = mkdtempSync(join(temporaryRoot, 'porcelain-archive-'));
   main = join(root, 'main');
   tree = join(root, 'feature');
   remote = join(root, 'remote.git');

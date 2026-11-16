@@ -1,3 +1,4 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { execFileSync } from 'node:child_process';
 import {
   mkdtempSync,
@@ -9,7 +10,6 @@ import {
   mkdirSync,
   renameSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
 import { NodeServices } from '@effect/platform-node';
 import { Effect } from 'effect';
@@ -39,7 +39,7 @@ const bytes = (root: string): Record<string, string> =>
   );
 
 beforeEach(() => {
-  checkout = mkdtempSync(join(tmpdir(), 'walkthrough-tree-test-'));
+  checkout = mkdtempSync(join(temporaryRoot, 'walkthrough-tree-test-'));
   execFileSync('git', ['init', '-q', '-b', 'main', checkout]);
   git('config', 'user.name', 'Fixture');
   git('config', 'user.email', 'fixture@example.test');

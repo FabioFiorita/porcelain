@@ -1,3 +1,4 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { NodeServices } from '@effect/platform-node';
 import { afterEach, beforeEach, describe, expect, it } from '@effect/vitest';
 import { ServiceUpdateRunningError } from '@porcelain/access/errors';
@@ -11,7 +12,6 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { acquireDirectoryLock } from '../runtime/directory-lock.ts';
 import type { CommandRunner } from './command-runner.ts';
@@ -108,7 +108,7 @@ const runner = Effect.fn('Test.openUpdateRunner')(function* (
 const check = (now: string, staleBefore: string) => ({ now, staleBefore });
 
 beforeEach(() => {
-  home = mkdtempSync(join(tmpdir(), 'porcelain-service-updates-'));
+  home = mkdtempSync(join(temporaryRoot, 'porcelain-service-updates-'));
   published = '1.1.0';
   updaterActive = false;
   npmViews = 0;

@@ -1,7 +1,7 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { withReadLease } from '@porcelain/effects';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { tmpdir } from 'node:os';
 import { Effect, Layer, ManagedRuntime, Schema } from 'effect';
 import { WorkflowEngine } from 'effect/workflow';
 import { NodeServices } from '@effect/platform-node';
@@ -91,7 +91,7 @@ const wait = () => new Promise((resolve) => setTimeout(resolve, 10));
 async function fixture(
   onTestFinished: (callback: () => Promise<void>) => void,
 ) {
-  const folder = await mkdtemp(join(tmpdir(), 'walkthrough-answers-'));
+  const folder = await mkdtemp(join(temporaryRoot, 'walkthrough-answers-'));
   onTestFinished(() => rm(folder, { recursive: true, force: true }));
   const command = join(folder, 'claude');
   await writeFile(command, SCRIPT(folder), { mode: 0o700 });

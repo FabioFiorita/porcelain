@@ -1,3 +1,4 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import {
   IsolatedServer,
   Recorder,
@@ -11,7 +12,6 @@ import {
 import { test } from '@porcelain/server/kit/server-test';
 import { list, record, text } from '@porcelain/server/kit/session';
 import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
 import { expect, inject } from 'vitest';
 import { cli, repositoryRoot, started, WEB_CLI } from './verification-cli.ts';
@@ -61,7 +61,7 @@ async function filesUnder(folder: string) {
 test('a sweep records its complete state, theme and width matrix beside its boards', async ({
   onTestFinished,
 }) => {
-  const boards = await mkdtemp(join(tmpdir(), 'porcelain-sweep-board-'));
+  const boards = await mkdtemp(join(temporaryRoot, 'porcelain-sweep-board-'));
   onTestFinished(() => rm(boards, { recursive: true, force: true }));
   const board = join(boards, 'Fixture.png');
   await writeFile(board, onePixelPng);
@@ -199,7 +199,7 @@ test.for([
     const address = host.server.address();
     if (!address || typeof address === 'string')
       throw new Error('The capture fixture has no TCP address');
-    const directory = await mkdtemp(join(tmpdir(), 'porcelain-capture-'));
+    const directory = await mkdtemp(join(temporaryRoot, 'porcelain-capture-'));
     onTestFinished(() => rm(directory, { recursive: true, force: true }));
     const file = join(directory, 'capture.png');
     const shot = {

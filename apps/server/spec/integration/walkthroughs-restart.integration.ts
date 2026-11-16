@@ -1,3 +1,4 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { mkdtemp, mkdir, writeFile, rm, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -25,7 +26,6 @@ import { FixedNetworkAddressReader } from '../fakes/fixed-network-address-reader
 import { InMemoryRouteListenerRunner } from '../fakes/in-memory-route-listener-runner.ts';
 import { ScriptedServiceUpdateRunner } from '../fakes/scripted-service-update-runner.ts';
 import { ScriptedTunnelProbe } from '../fakes/scripted-tunnel-probe.ts';
-import { scratchFolder } from '../kit/sandbox.ts';
 import { test } from '../kit/server-test.ts';
 import { record, list, text } from '../kit/session.ts';
 
@@ -34,7 +34,7 @@ async function automaticFixture(
   writer: 'hold' | 'fail' | 'missing' = 'fail',
 ) {
   const root = await mkdtemp(
-    join(scratchFolder(), 'porcelain-walkthrough-restart-'),
+    join(temporaryRoot, 'porcelain-walkthrough-restart-'),
   );
   const repo = join(root, 'repository');
   const state = join(root, 'state');

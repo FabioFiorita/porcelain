@@ -1,3 +1,4 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { makeGitSession } from './request-git-session.ts';
 import { NodeServices } from '@effect/platform-node';
 import { execFileSync } from 'node:child_process';
@@ -11,7 +12,6 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { gitLimits } from '../../spec/fixtures/git-limits.ts';
 import { gitWorktree } from '../../spec/fixtures/git-worktree.ts';
@@ -26,7 +26,7 @@ describe('Effect checkout session', () => {
     onTestFinished,
   }) => {
     const root = realpathSync(
-      mkdtempSync(join(tmpdir(), 'porcelain-checkout-')),
+      mkdtempSync(join(temporaryRoot, 'porcelain-checkout-')),
     );
     onTestFinished(() => rmSync(root, { recursive: true, force: true }));
     const actual = repository(root);
@@ -67,7 +67,7 @@ describe('Effect checkout session', () => {
     onTestFinished,
   }) => {
     const root = realpathSync(
-      mkdtempSync(join(tmpdir(), 'porcelain-mismatched-checkout-')),
+      mkdtempSync(join(temporaryRoot, 'porcelain-mismatched-checkout-')),
     );
     onTestFinished(() => rmSync(root, { recursive: true, force: true }));
     const actual = repository(root);
@@ -98,7 +98,7 @@ describe('Effect checkout session', () => {
     onTestFinished,
   }) => {
     const root = realpathSync(
-      mkdtempSync(join(tmpdir(), 'porcelain-checkout-filters-')),
+      mkdtempSync(join(temporaryRoot, 'porcelain-checkout-filters-')),
     );
     onTestFinished(() => rmSync(root, { recursive: true, force: true }));
     const actual = repository(root);
@@ -136,7 +136,7 @@ describe('Effect checkout session', () => {
     onTestFinished,
   }) => {
     const root = realpathSync(
-      mkdtempSync(join(tmpdir(), 'porcelain-checkout-deadline-')),
+      mkdtempSync(join(temporaryRoot, 'porcelain-checkout-deadline-')),
     );
     onTestFinished(() => rmSync(root, { recursive: true, force: true }));
     const actual = repository(root);
@@ -166,7 +166,7 @@ describe('Effect checkout session', () => {
     onTestFinished,
   }) => {
     const root = realpathSync(
-      mkdtempSync(join(tmpdir(), 'porcelain-checkout-interrupt-')),
+      mkdtempSync(join(temporaryRoot, 'porcelain-checkout-interrupt-')),
     );
     onTestFinished(() => rmSync(root, { recursive: true, force: true }));
     const actual = repository(root);

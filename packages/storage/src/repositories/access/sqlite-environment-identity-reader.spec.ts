@@ -1,9 +1,9 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { NodeServices } from '@effect/platform-node';
 import { Effect, Layer, ManagedRuntime } from 'effect';
 import { EnvironmentIdentityReader } from '@porcelain/access/ports';
 import { storageLayer } from '../../index.ts';
 import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { environmentIdentityReaderContract } from '@porcelain/access/store-contracts';
@@ -23,7 +23,9 @@ function open(dataDirectory: string) {
 environmentIdentityReaderContract(
   'SqliteEnvironmentIdentityReader',
   async () => {
-    const dataDirectory = mkdtempSync(join(tmpdir(), 'porcelain-storage-'));
+    const dataDirectory = mkdtempSync(
+      join(temporaryRoot, 'porcelain-storage-'),
+    );
     const session = open(dataDirectory);
     return {
       store: await session.runPromise(EnvironmentIdentityReader),
@@ -39,7 +41,7 @@ describe('SqliteEnvironmentIdentityReader persistence', () => {
   let dataDirectory: string;
 
   beforeEach(() => {
-    dataDirectory = mkdtempSync(join(tmpdir(), 'porcelain-storage-'));
+    dataDirectory = mkdtempSync(join(temporaryRoot, 'porcelain-storage-'));
   });
 
   afterEach(() => {
@@ -73,7 +75,9 @@ describe('SqliteEnvironmentIdentityReader persistence', () => {
   });
 
   it('gives each data directory its own identity', async () => {
-    const otherDirectory = mkdtempSync(join(tmpdir(), 'porcelain-storage-'));
+    const otherDirectory = mkdtempSync(
+      join(temporaryRoot, 'porcelain-storage-'),
+    );
     const first = open(dataDirectory);
     const other = open(otherDirectory);
     const identities = [

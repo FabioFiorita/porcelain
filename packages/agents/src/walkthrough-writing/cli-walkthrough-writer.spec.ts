@@ -1,3 +1,4 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import {
   mkdtemp,
   writeFile,
@@ -8,7 +9,6 @@ import {
 } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
-import { tmpdir } from 'node:os';
 import { Effect, Layer, ManagedRuntime, Schema } from 'effect';
 import { NodeServices } from '@effect/platform-node';
 import { expect, it, onTestFinished } from 'vitest';
@@ -39,7 +39,7 @@ async function fixture(
   onTestFinished: (callback: () => Promise<void>) => void,
   deadlineMs = 5000,
 ) {
-  const folder = await mkdtemp(join(tmpdir(), 'walkthrough-cli-'));
+  const folder = await mkdtemp(join(temporaryRoot, 'walkthrough-cli-'));
   const command = join(folder, 'writer');
   await writeFile(command, '#!/usr/bin/env node\n' + script, { mode: 0o700 });
   const runtime = ManagedRuntime.make(
@@ -561,7 +561,9 @@ it.each([
 it('does not run a configured Codex notify command outside the worktree on either pass', async ({
   onTestFinished,
 }) => {
-  const notifications = await mkdtemp(join(tmpdir(), 'walkthrough-notify-'));
+  const notifications = await mkdtemp(
+    join(temporaryRoot, 'walkthrough-notify-'),
+  );
   onTestFinished(() => rm(notifications, { recursive: true, force: true }));
   const test = await fixture(
     `const fs=require('fs');const args=process.argv.slice(2);fs.readFileSync(0,'utf8');if(args[0]==='mcp'){console.log('[]');process.exit(0)}const notify=JSON.parse(fs.readFileSync('config.toml','utf8').slice('notify = '.length));if(!args.includes('notify=[]')&&!args.includes('--ignore-user-config'))require('child_process').execFileSync(notify[0],notify.slice(1));const answer=args.includes('resume')?{outcome:'nothing',title:'A small change',summary:'Done',growth:[],stops:[],onlyInTranscript:[],stillUnclear:[],checks:null}:{understood:'First',could_not_tell:[]};fs.writeFileSync(args[args.indexOf('--output-last-message')+1],JSON.stringify(answer));console.log(JSON.stringify({type:'thread.started',thread_id:'codex-session'}));`,

@@ -1,3 +1,4 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { NodeServices } from '@effect/platform-node';
 import { withReadLease } from '@porcelain/effects';
 import { WorktreeNotFoundError } from '@porcelain/kernel/errors';
@@ -9,14 +10,13 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { readGitEffect } from './git-io.ts';
 
 let root: string;
 beforeEach(() => {
-  root = mkdtempSync(join(tmpdir(), 'porcelain-git-io-'));
+  root = mkdtempSync(join(temporaryRoot, 'porcelain-git-io-'));
 });
 afterEach(() => {
   rmSync(root, { recursive: true, force: true });

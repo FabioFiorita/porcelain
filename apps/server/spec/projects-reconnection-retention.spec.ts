@@ -1,7 +1,7 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { NodeServices } from '@effect/platform-node';
 import { Clock, Effect, Layer, ManagedRuntime } from 'effect';
 import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { expect, it } from 'vitest';
 import { testClock } from '@porcelain/kernel/test-kit';
@@ -23,7 +23,7 @@ import { storageLayer } from '@porcelain/storage';
 
 it('preserves original marks beyond the absence grace period and a restart, then restores ordinary collection when that identity returns', async () => {
   const directory = mkdtempSync(
-    join(tmpdir(), 'porcelain-reconnect-retention-'),
+    join(temporaryRoot, 'porcelain-reconnect-retention-'),
   );
   const clock = await testClock('2026-09-01T00:00:00.000Z');
   const options = { worktreeIdLength: 32, busyTimeoutMs: 5000 };

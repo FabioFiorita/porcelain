@@ -1,8 +1,8 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { Effect } from 'effect';
 import { NodeServices } from '@effect/platform-node';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { isHistoryAncestor as isHistoryAncestorEffect } from './is-ancestor.ts';
@@ -27,7 +27,7 @@ const git = (...args: string[]) =>
   ).trim();
 
 beforeAll(() => {
-  checkout = mkdtempSync(join(tmpdir(), 'porcelain-ancestor-'));
+  checkout = mkdtempSync(join(temporaryRoot, 'porcelain-ancestor-'));
   execFileSync('git', ['init', '-q', '-b', 'main', checkout]);
   git('commit', '-q', '--allow-empty', '-m', 'first');
   first = git('rev-parse', 'HEAD');

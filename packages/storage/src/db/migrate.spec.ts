@@ -1,3 +1,4 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { NodeServices } from '@effect/platform-node';
 import { Effect, Layer, ManagedRuntime, Schema } from 'effect';
 import {
@@ -8,7 +9,6 @@ import { SqlClient } from 'effect/sql';
 import { DatabaseSync } from 'node:sqlite';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { tmpdir } from 'node:os';
 import { expect, it } from 'vitest';
 import { databaseLayer } from './connection.ts';
 import { prepareNativeDatabase } from '../../spec/kit/native-database.ts';
@@ -16,7 +16,9 @@ import { prepareNativeDatabase } from '../../spec/kit/native-database.ts';
 it.each([false, true])(
   'reopen=%s deletes saved reviews and discussions while preserving walkthroughs, settings and worktree marks',
   async (reopen) => {
-    const directory = mkdtempSync(join(tmpdir(), 'porcelain-retire-reviews-'));
+    const directory = mkdtempSync(
+      join(temporaryRoot, 'porcelain-retire-reviews-'),
+    );
     const filename = join(directory, 'inventory.sqlite');
     const options = { worktreeIdLength: 32, busyTimeoutMs: 5000 };
     try {
@@ -187,7 +189,9 @@ it.each([false, true])(
 );
 
 it('clears retired push kinds before the remaining registration reader decodes stored JSON', async () => {
-  const directory = mkdtempSync(join(tmpdir(), 'porcelain-push-migration-'));
+  const directory = mkdtempSync(
+    join(temporaryRoot, 'porcelain-push-migration-'),
+  );
   const options = { worktreeIdLength: 32, busyTimeoutMs: 5000 };
   const open = () =>
     ManagedRuntime.make(
@@ -219,7 +223,7 @@ it('clears retired push kinds before the remaining registration reader decodes s
 
 it('upgrades migration 012 writer defaults while retaining the saved conversation', async () => {
   const directory = mkdtempSync(
-    join(tmpdir(), 'porcelain-writer-default-upgrade-'),
+    join(temporaryRoot, 'porcelain-writer-default-upgrade-'),
   );
   const filename = join(directory, 'inventory.sqlite');
   try {
@@ -269,7 +273,7 @@ it.each([12, 14])(
   'prefix=%i drops old commit-bound walkthrough runs and their dependent data at the content identity switch',
   async (prefix) => {
     const directory = mkdtempSync(
-      join(tmpdir(), 'walkthrough-tree-migration-'),
+      join(temporaryRoot, 'walkthrough-tree-migration-'),
     );
     const options = { worktreeIdLength: 32, busyTimeoutMs: 5000 };
     const open = () =>

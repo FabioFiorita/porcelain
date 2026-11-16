@@ -1,3 +1,4 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { NodeServices } from '@effect/platform-node';
 import { testClock } from '@porcelain/kernel/test-kit';
 import {
@@ -21,7 +22,6 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { acquireDirectoryLock, directoryLockIsHeld } from './directory-lock.ts';
@@ -51,7 +51,7 @@ function takeLock(
 }
 
 function lockPath(): string {
-  const root = mkdtempSync(join(tmpdir(), 'porcelain-lock-'));
+  const root = mkdtempSync(join(temporaryRoot, 'porcelain-lock-'));
   roots.push(root);
   return join(root, 'server.lock');
 }

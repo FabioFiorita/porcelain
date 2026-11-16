@@ -1,3 +1,4 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { ghPullRequestReaderLayer } from '../../src/adapters/reviews/gh-pull-request-reader.ts';
 import { InMemoryRouteListenerRunner } from '../fakes/in-memory-route-listener-runner.ts';
 import { ScriptedTunnelProbe } from '../fakes/scripted-tunnel-probe.ts';
@@ -18,7 +19,6 @@ import { readServerSettings } from '../../src/config/server-settings.ts';
 import type { Runtime } from '../../src/ports/runtime.ts';
 import { FixedNetworkAddressReader } from '../fakes/fixed-network-address-reader.ts';
 import { ScriptedServiceUpdateRunner } from '../fakes/scripted-service-update-runner.ts';
-import { scratchFolder } from './sandbox.ts';
 
 const execute = promisify(execFile);
 
@@ -43,7 +43,7 @@ function running(pid: number): boolean {
 
 export async function closeRunningCommit(): Promise<CloseRunningCommit> {
   const root = realpathSync(
-    await mkdtemp(join(scratchFolder(), 'porcelain-close-')),
+    await mkdtemp(join(temporaryRoot, 'porcelain-close-')),
   );
   const repository = join(root, 'repository');
   const state = join(root, 'state');

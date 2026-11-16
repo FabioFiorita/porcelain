@@ -1,10 +1,10 @@
+import { registryHome } from '../../verify-core/registry.ts';
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { execFile } from 'node:child_process';
-import { createHash } from 'node:crypto';
 import { request } from 'node:http';
 import type { Socket } from 'node:net';
 import { existsSync } from 'node:fs';
 import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { basename, join, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { Schema } from 'effect';
@@ -28,12 +28,7 @@ import {
 const execute = promisify(execFile);
 const root = resolve(import.meta.dirname, '../../../..');
 const cli = join(root, '.agents/skills/server-verify/scripts/cli');
-const registry = join(
-  tmpdir(),
-  'porcelain-verify',
-  createHash('sha256').update(root).digest('hex').slice(0, 16),
-  'server',
-);
+const registry = registryHome('server', root);
 
 async function command(...args: string[]) {
   try {
@@ -182,7 +177,7 @@ for (const failed of [false, true])
 test('a failed owned startup preserves the native bind cause and stops its processes', async ({
   onTestFinished,
 }) => {
-  const build = await mkdtemp(join(tmpdir(), 'porcelain-startup-error-'));
+  const build = await mkdtemp(join(temporaryRoot, 'porcelain-startup-error-'));
   const marker = `held-${basename(build)}`;
   let child: ProcessIdentity | undefined;
   let starting: Promise<unknown> | undefined;
@@ -341,7 +336,9 @@ test.skipIf(process.platform !== 'linux')(
 test('keeps the primary TCP port available when an earlier ephemeral listener could select it', async ({
   onTestFinished,
 }) => {
-  const build = await mkdtemp(join(tmpdir(), 'porcelain-startup-allocation-'));
+  const build = await mkdtemp(
+    join(temporaryRoot, 'porcelain-startup-allocation-'),
+  );
   let server: IsolatedServer | undefined;
   onTestFinished(async () => {
     await server?.stop();

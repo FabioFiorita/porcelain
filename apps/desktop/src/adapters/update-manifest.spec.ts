@@ -1,3 +1,4 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { NodeFileSystem } from '@effect/platform-node';
 import { expect, it } from '@effect/vitest';
 import { Effect, FileSystem } from 'effect';
@@ -10,6 +11,7 @@ it.effect(
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       const folder = yield* fs.makeTempDirectoryScoped({
+        directory: temporaryRoot,
         prefix: 'porcelain-update-manifest-',
       });
       const zip = join(folder, 'Porcelain-0.66.0-arm64-mac.zip');

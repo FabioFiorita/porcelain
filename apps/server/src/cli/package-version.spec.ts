@@ -1,7 +1,7 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { Effect } from 'effect';
 import { NodeServices } from '@effect/platform-node';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { afterEach, beforeEach, expect, it } from 'vitest';
@@ -19,7 +19,7 @@ const read = (
   );
 
 beforeEach(() => {
-  root = mkdtempSync(join(tmpdir(), 'porcelain-version-'));
+  root = mkdtempSync(join(temporaryRoot, 'porcelain-version-'));
 });
 afterEach(() => {
   rmSync(root, { recursive: true, force: true });

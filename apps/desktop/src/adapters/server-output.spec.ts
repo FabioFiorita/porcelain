@@ -1,5 +1,5 @@
+import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { spawn } from 'node:child_process';
 import { createReadStream } from 'node:fs';
 import { join } from 'node:path';
@@ -16,7 +16,7 @@ const output = Effect.fn('output')(function* (
 ) {
   const folder = yield* Effect.acquireRelease(
     Effect.tryPromise(() =>
-      mkdtemp(join(tmpdir(), 'porcelain-desktop-output-')),
+      mkdtemp(join(temporaryRoot, 'porcelain-desktop-output-')),
     ),
     (folder) =>
       Effect.tryPromise(() =>
@@ -122,7 +122,7 @@ it.effect('missing and broken pipes cannot acknowledge shutdown', () =>
     ).toMatchObject({ message: 'The server output pipe is missing' });
     const folder = yield* Effect.acquireRelease(
       Effect.tryPromise(() =>
-        mkdtemp(join(tmpdir(), 'porcelain-desktop-output-')),
+        mkdtemp(join(temporaryRoot, 'porcelain-desktop-output-')),
       ),
       (folder) =>
         Effect.tryPromise(() =>
