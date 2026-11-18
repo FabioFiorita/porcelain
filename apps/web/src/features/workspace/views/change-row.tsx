@@ -29,6 +29,7 @@ export function ChangeRow({
   sideLabel,
   onReview,
   canReview,
+  writeBlock,
   onDiscard,
   indented = false,
 }: {
@@ -43,6 +44,7 @@ export function ChangeRow({
   sideLabel: string;
   onReview: () => void;
   canReview: boolean;
+  writeBlock?: string | undefined;
   onDiscard?: () => void;
   indented?: boolean;
 }) {
@@ -82,6 +84,7 @@ export function ChangeRow({
         sideLabel,
         canDiscard: onDiscard !== undefined,
       })}
+      writeBlock={writeBlock}
       onAction={act}
     >
       {(menu) => (

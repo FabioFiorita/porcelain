@@ -479,3 +479,203 @@ test('a healthy remote survives failed status probes and foreground, then reconn
   await expect(row).not.toBeAttached();
   await expect.poll(() => sessions[1]?.closed).toBe(true);
 });
+
+test('an open remote review and its file tree stay visible while live updates reconnect', async ({
+  pairedPage: page,
+  app,
+  remote,
+  live,
+}) => {
+  const inventory = await remote.server.inventory();
+  const project = await remote.server.project();
+  const link = await app.remoteLink();
+  await openRemotes(page);
+  await page
+    .getByRole('textbox', { name: 'Pairing link', exact: true })
+    .fill(link);
+  await page.getByRole('button', { name: 'Add', exact: true }).click();
+  await openComputer(page, inventory.environment.name);
+  const worktree = project.worktrees.find((item) => item.main);
+  if (!worktree) throw new Error('The remote has no main worktree');
+  await app.follow(
+    `/remotes/${inventory.environmentId}/${project.id}/${worktree.id}`,
+  );
+  const review = page.getByRole('region', {
+    name: 'Review content',
+    exact: true,
+    includeHidden: true,
+  });
+  await expect(review).toBeVisible();
+  await page.getByRole('button', { name: 'Review', exact: true }).click();
+  await page.getByRole('tab', { name: 'Files', exact: true }).click();
+  const readme = page.getByRole('treeitem', {
+    name: remote.repo.readme.path,
+    exact: true,
+  });
+  await expect(readme).toBeVisible();
+
+  const tickets = (await remote.server.liveTicketHits()).length;
+  live.drop();
+  try {
+    await expect
+      .poll(async () => (await remote.server.liveTicketHits()).length)
+      .toBeGreaterThan(tickets);
+    await expect(review).toBeVisible();
+    await expect(readme).toBeVisible();
+  } finally {
+    live.restore();
+  }
+});
+
+test('a dropped computer keeps the focused editor and refreshes the workspace on return', async ({
+  pairedPage: page,
+  app,
+  remote,
+}) => {
+  const inventory = await remote.server.inventory();
+  const project = await remote.server.project();
+  const link = await app.remoteLink();
+  await openRemotes(page);
+  await page
+    .getByRole('textbox', { name: 'Pairing link', exact: true })
+    .fill(link);
+  await page.getByRole('button', { name: 'Add', exact: true }).click();
+  await openComputer(page, inventory.environment.name);
+  await expect(page.getByText('Online', { exact: true })).toBeVisible();
+  const worktree = project.worktrees.find((item) => item.main);
+  if (!worktree) throw new Error('The remote has no main worktree');
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await app.follow(
+    `/remotes/${inventory.environmentId}/${project.id}/${worktree.id}`,
+  );
+
+  const review = page.getByRole('region', {
+    name: 'Review content',
+    exact: true,
+  });
+  await expect(review).toBeVisible();
+  await page.keyboard.press('Alt+1');
+  const readme = remote.repo.readme.path;
+  const file = page.getByRole('treeitem', { name: readme, exact: true });
+  await file.click({ button: 'right' });
+  await page.getByRole('menuitem', { name: 'Open file', exact: true }).click();
+  const tab = page.getByRole('tab', { name: readme, exact: true });
+  await expect(tab).toHaveAttribute('aria-selected', 'true');
+  await page.getByRole('button', { name: 'Edit', exact: true }).click();
+  const editor = page.getByRole('textbox', { name: readme, exact: true });
+  await expect(editor).toBeVisible();
+  const done = page.getByRole('button', { name: 'Done', exact: true });
+  const draft = 'Keep this draft during the outage';
+  const disk = (await remote.server.text(readme)).text;
+  const url = page.url();
+
+  const clockStart = new Date('2026-01-01T00:00:00Z');
+  await page.clock.install({ time: clockStart });
+  await page.clock.pauseAt(new Date('2026-01-01T00:00:01Z'));
+  await replaceEditorContent(editor, draft);
+
+  const indicator = page.getByText('Reconnecting', { exact: true });
+  const outage = await app.dropRemoteComputer(link);
+  try {
+    await expect(done).toBeDisabled();
+    await expect(done).toHaveAccessibleDescription('Computer is offline');
+    await expect(
+      page.getByRole('button', { name: 'Git actions', exact: true }),
+    ).toBeDisabled();
+    await expect(
+      page.getByRole('button', { name: 'Commit', exact: true }),
+    ).toBeDisabled();
+    await expect(
+      page.getByRole('button', { name: 'Create file or folder', exact: true }),
+    ).toBeDisabled();
+    await page.clock.runFor(500);
+    await outage.healthFailure;
+    await expect(indicator).toHaveCount(0);
+    await page.clock.runFor(1499);
+    await expect(indicator).toHaveCount(0);
+    await page.clock.runFor(1);
+    await expect(indicator).toHaveCount(1);
+    await page.clock.runFor(1000);
+    await editor.press('ControlOrMeta+s');
+    await expect(review).toBeVisible();
+    await expect(file).toBeVisible();
+    await expect(tab).toHaveAttribute('aria-selected', 'true');
+    await expect(editor).toHaveText(draft);
+    await expect(
+      page.getByText('Unsaved changes', { exact: true }),
+    ).toBeVisible();
+    await expect(page).toHaveURL(url);
+    await expect
+      .poll(async () => (await remote.server.text(readme)).text)
+      .toBe(disk);
+    await remote.repo.write(
+      'arrived-during-outage.txt',
+      'Written while disconnected\n',
+    );
+  } finally {
+    await outage.restore();
+    await page.clock.resume();
+  }
+  await expect(indicator).toHaveCount(0);
+  await expect(
+    page.getByRole('treeitem', {
+      name: 'arrived-during-outage.txt',
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(editor).toHaveText(draft);
+  await expect(tab).toHaveAttribute('aria-selected', 'true');
+  await expect(done).toBeEnabled();
+  await expect(page).toHaveURL(url);
+});
+
+test('a rename confirmed after the computer drops keeps the real file in the tree', async ({
+  pairedPage: page,
+  app,
+  remote,
+}) => {
+  const inventory = await remote.server.inventory();
+  const project = await remote.server.project();
+  const link = await app.remoteLink();
+  await openRemotes(page);
+  await page
+    .getByRole('textbox', { name: 'Pairing link', exact: true })
+    .fill(link);
+  await page.getByRole('button', { name: 'Add', exact: true }).click();
+  await openComputer(page, inventory.environment.name);
+  await expect(page.getByText('Online', { exact: true })).toBeVisible();
+  const worktree = project.worktrees.find((item) => item.main);
+  if (!worktree) throw new Error('The remote has no main worktree');
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await app.follow(
+    `/remotes/${inventory.environmentId}/${project.id}/${worktree.id}`,
+  );
+  await page.keyboard.press('Alt+1');
+  const readme = remote.repo.readme.path;
+  const row = (name: string) =>
+    page.getByRole('treeitem', { name, exact: true });
+  await row(readme).click({ button: 'right' });
+  await page.getByRole('menuitem', { name: 'Rename', exact: true }).click();
+  const rename = page.getByRole('textbox', { name: /^Rename / });
+  await expect(rename).toBeFocused();
+  await rename.fill('Renamed.md');
+  const before = (await remote.server.text(readme)).text;
+
+  const outage = await app.dropRemoteComputer(link);
+  try {
+    await outage.healthFailure;
+    await expect(
+      page.getByRole('button', { name: 'Create file or folder', exact: true }),
+    ).toBeDisabled();
+    await rename.press('Enter');
+    await expect(row(readme)).toBeVisible();
+    await expect(row('Renamed.md')).toHaveCount(0);
+  } finally {
+    await outage.restore();
+  }
+  await expect(row(readme)).toBeVisible();
+  await expect(row('Renamed.md')).toHaveCount(0);
+  await expect
+    .poll(async () => (await remote.server.text(readme)).text)
+    .toBe(before);
+});

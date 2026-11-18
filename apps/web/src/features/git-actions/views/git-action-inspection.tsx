@@ -1,3 +1,4 @@
+import { useWorkspaceWriteBlock } from '@/shared/workspace/connection';
 import { Cause } from 'effect';
 import type { ReactNode } from 'react';
 import { AsyncResult } from 'effect/reactivity';
@@ -243,6 +244,7 @@ function ActionForm({
   const [message, setMessage] = useState('Porcelain review');
   const [stashOid, setStash] = useState(branch?.stashes?.[0]?.oid ?? '');
   const [option, setOption] = useState(action === 'stash-create');
+  const writeBlock = useWorkspaceWriteBlock(context);
   const git = useActionForm(scope, action, context, {
     expectedStatus,
     onBusy,
@@ -254,7 +256,8 @@ function ActionForm({
       className="flex min-w-0 flex-col gap-4"
       onSubmit={(event) => {
         event.preventDefault();
-        git.onSubmit(actionFormInput(action, { message, stashOid, option }));
+        if (!writeBlock)
+          git.onSubmit(actionFormInput(action, { message, stashOid, option }));
       }}
     >
       <fieldset
@@ -343,8 +346,12 @@ function ActionForm({
       )}
       <Button
         type="submit"
+        aria-description={writeBlock}
         disabled={
-          busy || uncertain || Boolean(outcome && changedSinceLooked(outcome))
+          Boolean(writeBlock) ||
+          busy ||
+          uncertain ||
+          Boolean(outcome && changedSinceLooked(outcome))
         }
       >
         {busy ? 'Working…' : gitActionLabel(action)}

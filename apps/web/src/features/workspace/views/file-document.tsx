@@ -1,4 +1,5 @@
 import type { FileDraftHandle } from '@porcelain/client/files';
+import { useWorkspaceWriteBlock } from '@/shared/workspace/connection';
 import { CopyIcon, FileDiffIcon, HistoryIcon, PencilIcon } from 'lucide-react';
 import { useHotkey } from '@tanstack/react-hotkeys';
 import { createPortal } from 'react-dom';
@@ -111,9 +112,8 @@ function TextFileDocument({
   path,
   onOpen,
 }: FileDocumentProps) {
-  const { connection } = context;
   const { file, draft, state, reset, edit } = useFileDraft(
-    connection,
+    context,
     scope,
     path,
   );
@@ -183,6 +183,7 @@ function ReadableFileDocument({
   edit: (owner: string) => boolean;
 }) {
   const { preferences } = usePreferences();
+  const writeBlock = useWorkspaceWriteBlock(context);
   const { connection } = context;
   const changes = useChanges(scope, connection);
   const kind = fileKind(path);
@@ -264,8 +265,10 @@ function ReadableFileDocument({
                 variant="ghost"
                 size="icon-sm"
                 disabled={
-                  draftState.owner !== null && draftState.owner !== editorId
+                  Boolean(writeBlock) ||
+                  (draftState.owner !== null && draftState.owner !== editorId)
                 }
+                aria-description={writeBlock}
                 aria-label={
                   draftState.text !== draftState.savedText
                     ? 'Resume edit'
@@ -280,9 +283,10 @@ function ReadableFileDocument({
             <PencilIcon />
           </TooltipTrigger>
           <TooltipContent role="tooltip">
-            {draftState.owner !== null && draftState.owner !== editorId
-              ? 'Editing in another pane'
-              : 'Edit'}
+            {writeBlock ??
+              (draftState.owner !== null && draftState.owner !== editorId
+                ? 'Editing in another pane'
+                : 'Edit')}
           </TooltipContent>
         </Tooltip>
       )}
@@ -318,6 +322,7 @@ function ReadableFileDocument({
         draft={draft}
         state={draftState}
         active={active}
+        writeBlock={writeBlock}
         changed={changed}
         onDone={() => setEditing(false)}
         onDiscard={() => {

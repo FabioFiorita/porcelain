@@ -111,9 +111,12 @@ export function CodeDocument(props: Props) {
       <CodeSurface
         key={JSON.stringify([props.interaction.entry, props.range])}
         {...props}
-        onToggleReviewed={
-          props.onReview ?? ((entry) => review.toggle(entry.review))
-        }
+        writeBlock={review.writeBlock}
+        onToggleReviewed={(entry) => {
+          if (review.writeBlock) return;
+          if (props.onReview) props.onReview(entry);
+          else review.toggle(entry.review);
+        }}
       />
     </>
   );
@@ -142,7 +145,9 @@ function CodeSurface({
   framed = false,
   range,
   onToggleReviewed,
+  writeBlock,
 }: Props & {
+  writeBlock: string | undefined;
   onToggleReviewed: (entry: CodeEntry) => void;
 }) {
   const { dark } = useTheme();
@@ -304,7 +309,8 @@ function CodeSurface({
             variant="outline"
             icon={focusedEntry?.review?.reviewed ? CheckIcon : SquareIcon}
             shortcut={SHORTCUTS.toggleReviewed}
-            disabled={!focusedEntry?.review?.fingerprint}
+            description={writeBlock}
+            disabled={Boolean(writeBlock) || !focusedEntry?.review?.fingerprint}
             pressed={focusedEntry?.review?.reviewed}
             onClick={() => {
               if (focusedEntry) onToggleReviewed(focusedEntry);

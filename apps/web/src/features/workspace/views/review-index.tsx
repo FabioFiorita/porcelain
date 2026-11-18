@@ -202,6 +202,7 @@ function LayersView({
       active={activeEntry === entryKey({ kind: 'change', path })}
       onOpen={onOpen}
       sideLabel={sideLabel}
+      writeBlock={reviewed.writeBlock}
       canReview={
         changeByPath.get(path)?.fingerprint !== null &&
         changeByPath.get(path)?.fingerprint !== undefined

@@ -5,6 +5,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { usePullRequestCheckout } from '../queries/pull-request';
 
 import {
+  remoteConnectionStatus,
   useConnectedContext,
   useRemoteConnections,
 } from '@/features/access/index';
@@ -169,13 +170,19 @@ function ScopedPullRequestDocument({
 }) {
   const local = useConnectedContext();
   const remotes = useRemoteConnections();
-  const connection =
-    document.environmentId === undefined
-      ? context.connection
-      : [local.connection, ...remotes.map((remote) => remote.connection)].find(
-          (connection) => connection.environmentId === document.environmentId,
-        );
-  if (!connection)
+  const environmentId =
+    document.environmentId ?? context.connection.environmentId;
+  const remote = remotes.find(
+    (entry) => entry.connection.environmentId === environmentId,
+  );
+  const source =
+    environmentId === local.connection.environmentId
+      ? local
+      : remote && {
+          connection: remote.connection,
+          remoteStatus: remoteConnectionStatus(environmentId),
+        };
+  if (!source)
     return (
       <StateNotice
         title="Computer not paired"
@@ -185,7 +192,7 @@ function ScopedPullRequestDocument({
   return (
     <PullRequestSourceDocument
       document={document}
-      context={{ connection }}
+      context={source}
       localEnvironmentId={local.connection.environmentId}
       toolbarTarget={toolbarTarget}
     />

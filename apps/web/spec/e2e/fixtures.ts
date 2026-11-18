@@ -24,6 +24,8 @@ import {
   failInventory,
   failSharingRead,
   failRemoteStatus,
+  failRemoteRequests,
+  waitForRemoteHealthFailure,
   waitForRemoteStatusFailure,
   failChangesRead,
   holdNextPost,
@@ -275,6 +277,22 @@ async function appOf(page: Page, world: World, live: LiveFixture) {
       waitForRemoteStatusFailure(page, new URL(link).origin),
     failRemoteStatus: (link: string) =>
       failRemoteStatus(page.context(), new URL(link).origin),
+    async dropRemoteComputer(link: string) {
+      const address = new URL(link);
+      const restoreHttp = await failRemoteRequests(
+        page.context(),
+        address.origin,
+      );
+      const healthFailure = waitForRemoteHealthFailure(page, address.origin);
+      live.drop(address.host);
+      return {
+        healthFailure,
+        async restore() {
+          await restoreHttp();
+          live.restore(address.host);
+        },
+      };
+    },
     async failSessionRestore() {
       const end = await failInventory(page.context());
       return {

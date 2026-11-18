@@ -1,3 +1,4 @@
+import { useWorkspaceWriteBlock } from '@/shared/workspace/connection';
 import { AsyncResult } from 'effect/reactivity';
 import { Cause, Option } from 'effect';
 import { Button } from '@/components/ui/button';
@@ -17,6 +18,7 @@ export function InterruptedActionNotice({
   const overview = Option.getOrUndefined(
     AsyncResult.value(useReviewOverview(scope, connection)),
   );
+  const writeBlock = useWorkspaceWriteBlock(context);
   const dismiss = useDismissInterrupted(scope, context);
   const interrupted = overview?.interrupted;
   if (!interrupted) return null;
@@ -42,7 +44,8 @@ export function InterruptedActionNotice({
       <Button
         size="xs"
         variant="ghost"
-        disabled={dismiss.result.waiting}
+        disabled={dismiss.result.waiting || Boolean(writeBlock)}
+        aria-description={writeBlock}
         onClick={() => dismiss.dismiss(interrupted.requestId)}
       >
         Got it

@@ -158,6 +158,7 @@ function mountTree(
     },
     dragAndDrop: {
       canDrag: () => {
+        if (read().writeBlock) return false;
         syncing = true;
         queueMicrotask(() => {
           syncing = false;
@@ -165,8 +166,10 @@ function mountTree(
         return true;
       },
       canDrop: ({ draggedPaths, target }) =>
+        !read().writeBlock &&
         canDropPaths(draggedPaths, target.directoryPath ?? ''),
       onDropComplete: (event) => {
+        if (read().writeBlock) return;
         const onMove = read().onMove;
         void Effect.runPromise(
           moveFileEntries(
@@ -407,7 +410,7 @@ function mountTree(
   }
 
   function keyDown(event: KeyboardEvent) {
-    if (event.key === 'F2' && !pendingCreate) {
+    if (event.key === 'F2' && !pendingCreate && !read().writeBlock) {
       const path = model.getFocusedPath();
       if (path) {
         event.preventDefault();

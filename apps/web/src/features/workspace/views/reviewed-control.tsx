@@ -1,3 +1,4 @@
+import { useWorkspaceWriteBlock } from '@/shared/workspace/connection';
 import { createPortal } from 'react-dom';
 import { useHotkey } from '@tanstack/react-hotkeys';
 import { BarAction } from '@/shared/workspace/bar-action';
@@ -96,6 +97,7 @@ export function ReviewedControl({
   compact?: boolean;
   range?: ReviewRange;
 }) {
+  const writeBlock = useWorkspaceWriteBlock(context);
   const mark = useMarkReviewed(scope, context, range);
   const unmark = useUnmarkReviewed(scope, context, range);
   const pending = mark.result.waiting || unmark.result.waiting;
@@ -124,7 +126,8 @@ export function ReviewedControl({
               size={compact ? 'icon-xs' : 'xs'}
               variant={reviewed ? 'ghost' : 'outline'}
               aria-pressed={reviewed}
-              disabled={pending}
+              disabled={pending || Boolean(writeBlock)}
+              aria-description={writeBlock}
               aria-label={label}
               onClick={() => {
                 if (reviewed) unmark.start(path);
@@ -141,7 +144,7 @@ export function ReviewedControl({
           }
         />
         <TooltipContent role="tooltip" className="break-all">
-          {label}
+          {writeBlock ?? label}
         </TooltipContent>
       </Tooltip>
       {error !== undefined && (
@@ -172,6 +175,7 @@ export function ReviewedCheckbox({
   latest: boolean;
   onStart: () => void;
 }) {
+  const writeBlock = useWorkspaceWriteBlock(context);
   const mark = useMarkReviewed(scope, context, WORKTREE_RANGE);
   const unmark = useUnmarkReviewed(scope, context, WORKTREE_RANGE);
   const busy = mark.result.waiting || unmark.result.waiting;
@@ -182,7 +186,8 @@ export function ReviewedCheckbox({
   const reviewable = fingerprint !== null && fingerprint !== undefined;
   const staleHint =
     status === 'stale' ? 'Changed since reviewed' : 'Toggle reviewed';
-  const hint = reviewable ? staleHint : unavailableReviewText([path]);
+  const hint =
+    writeBlock ?? (reviewable ? staleHint : unavailableReviewText([path]));
   return (
     <>
       <Tooltip>
@@ -193,10 +198,15 @@ export function ReviewedCheckbox({
               aria-label={`${path} reviewed`}
               aria-describedby={hintId}
               aria-invalid={error !== undefined}
-              disabled={busy || !reviewable}
+              disabled={busy || !reviewable || Boolean(writeBlock)}
               aria-busy={busy}
               onCheckedChange={() => {
-                if (busy || fingerprint === null || fingerprint === undefined)
+                if (
+                  writeBlock ||
+                  busy ||
+                  fingerprint === null ||
+                  fingerprint === undefined
+                )
                   return;
                 onStart();
                 if (reviewed) unmark.start(path);
@@ -250,7 +260,7 @@ export function StepReviewed({
     useReviewedMarks(scope, context),
     dirty,
   );
-  const { reviewed, disabled, toggle } = useToggleStepReviewed(
+  const { reviewed, disabled, toggle, writeBlock } = useToggleStepReviewed(
     scope,
     context,
     range,
@@ -266,7 +276,8 @@ export function StepReviewed({
       <BarAction
         label="Reviewed"
         description={
-          reviewed ? 'Mark this step unreviewed' : 'Mark this step reviewed'
+          writeBlock ??
+          (reviewed ? 'Mark this step unreviewed' : 'Mark this step reviewed')
         }
         variant="outline"
         icon={CheckIcon}
@@ -301,7 +312,8 @@ export function MarkAllReviewed({
   const bulk = useMarkAllReviewed(scope, context, range);
   const plan = markAllPlan(entries);
   const pending = bulk.result.waiting;
-  const disabled = plan.blocked || pending;
+  const writeBlock = useWorkspaceWriteBlock(context);
+  const disabled = plan.blocked || pending || Boolean(writeBlock);
   const submit = () => {
     if (disabled) return;
     if (plan.unmarking)
@@ -320,6 +332,7 @@ export function MarkAllReviewed({
               variant="outline"
               disabled={disabled}
               aria-label={plan.label}
+              aria-description={writeBlock}
               onClick={submit}
             >
               <MarkAllIcon pending={pending} unmarking={plan.unmarking} />
@@ -328,7 +341,7 @@ export function MarkAllReviewed({
           }
         />
         <TooltipContent role="tooltip" className="break-all">
-          {plan.label}
+          {writeBlock ?? plan.label}
         </TooltipContent>
       </Tooltip>
       {bulk.report && <BulkReport report={bulk.report} />}

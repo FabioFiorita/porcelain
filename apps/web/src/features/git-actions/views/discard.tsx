@@ -1,3 +1,4 @@
+import { useWorkspaceWriteBlock } from '@/shared/workspace/connection';
 import { TruncatedText } from '@/shared/views/truncated-text';
 import { AsyncResult } from 'effect/reactivity';
 import { Option } from 'effect';
@@ -72,6 +73,7 @@ export function DiscardButton({
     close: () => setOpen(false),
   });
   const { busy, error, uncertain } = discard;
+  const writeBlock = useWorkspaceWriteBlock(context);
   const shown = Boolean(candidate && (file || isOpen));
   const [openedSignal, setOpenedSignal] = useState<number>();
   if (signal !== undefined && signal !== openedSignal && status) {
@@ -83,6 +85,8 @@ export function DiscardButton({
     shown && !hiddenTrigger ? (
       <Button
         size={variant === 'button' ? 'sm' : 'xs'}
+        disabled={Boolean(writeBlock)}
+        aria-description={writeBlock}
         variant={variant === 'button' ? 'destructive' : 'ghost'}
         aria-label={
           hunk
@@ -143,7 +147,8 @@ export function DiscardButton({
             ) : (
               <Button
                 variant="destructive"
-                disabled={busy}
+                disabled={busy || Boolean(writeBlock)}
+                aria-description={writeBlock}
                 onClick={discard.run}
               >
                 {busy ? 'Discarding…' : 'Discard'}

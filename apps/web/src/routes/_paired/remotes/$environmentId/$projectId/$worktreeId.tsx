@@ -4,7 +4,14 @@ import {
   Navigate,
   useRouterState,
 } from '@tanstack/react-router';
-import { useRemoteConnection, useRemoteStatus } from '@/features/access/index';
+import { useAtomValue } from '@effect/atom-react';
+import {
+  remoteConnectionStatus,
+  remoteWorkspaceNotice,
+  remoteWorktreeInterrupted,
+  shownRemoteWorkspace,
+  useRemoteConnection,
+} from '@/features/access/index';
 import { WorktreeRoute } from '@/app/worktree-route';
 import { ConnectedWorkspace } from '@/app/connected-workspace';
 import { WorkspaceError } from '@/app/workspace-error';
@@ -61,9 +68,21 @@ function RemoteWorktreeLayout() {
 }
 
 function RemoteStatusGate(shown: Shown) {
-  const status = useRemoteStatus(shown.remote.remote);
+  const statusAtom = remoteConnectionStatus(shown.remote.remote.environmentId);
+  const status = useAtomValue(statusAtom);
+  const previouslyShown = useAtomValue(
+    shownRemoteWorkspace(shown.remote.remote.environmentId),
+  );
+  const showNotice = useAtomValue(remoteWorkspaceNotice(statusAtom));
+  const interrupted = remoteWorktreeInterrupted(status.kind);
+  if (status.kind === 'online' || (previouslyShown && interrupted))
+    return (
+      <WorktreeRoute
+        {...shown}
+        remoteStatus={statusAtom}
+        showRemoteNotice={interrupted && showNotice}
+      />
+    );
   if (status.kind === 'checking') return <WorkspacePending />;
-  if (status.kind !== 'online')
-    return <ConnectedWorkspace remote={shown.remote} unavailable={status} />;
-  return <WorktreeRoute {...shown} />;
+  return <ConnectedWorkspace remote={shown.remote} unavailable={status} />;
 }

@@ -1,3 +1,4 @@
+import { useWorkspaceWriteBlock } from '@/shared/workspace/connection';
 import { useState, type ReactNode } from 'react';
 import {
   Tooltip,
@@ -52,6 +53,8 @@ function PostActions({
   const { notice, waiting, copy, save, post } = usePostActions(owner, message);
   const state = postControls(message);
   const action = number === undefined ? copy : post;
+  const writeBlock = useWorkspaceWriteBlock(owner.context);
+  const postBlock = number === undefined ? undefined : writeBlock;
   const labels = postLabels(number);
   return (
     <div className="flex flex-col gap-2">
@@ -71,7 +74,8 @@ function PostActions({
           <Button
             variant="link"
             size="sm"
-            disabled={waiting}
+            disabled={waiting || Boolean(writeBlock)}
+            aria-description={writeBlock}
             onClick={() => save(false)}
           >
             Undo
@@ -84,7 +88,8 @@ function PostActions({
             size="sm"
             variant={message ? 'outline' : 'default'}
 
-            disabled={waiting}
+            disabled={waiting || Boolean(postBlock)}
+            aria-description={postBlock}
             onClick={action}
           >
             {message ? labels.single : labels.together}
@@ -93,7 +98,8 @@ function PostActions({
             <Button
               variant="link"
               size="sm"
-              disabled={waiting}
+              disabled={waiting || Boolean(writeBlock)}
+              aria-description={writeBlock}
               onClick={() => save(true)}
             >
               Save for later
@@ -138,6 +144,7 @@ function AgentReply({
   });
   const { failure, waiting, retry } = useRetryAnswer(owner, message.replyTo);
   const state = message.state;
+  const writeBlock = useWorkspaceWriteBlock(owner.context);
   return (
     <Message>
       <MessageContent>
@@ -167,7 +174,8 @@ function AgentReply({
             <Button
               variant="link"
               size="sm"
-              disabled={waiting}
+              disabled={waiting || Boolean(writeBlock)}
+              aria-description={writeBlock}
               onClick={() => retry()}
             >
               Try again
@@ -222,10 +230,11 @@ function Composer({
   placeholder: string;
 }) {
   const [draft, setDraft] = useState('');
+  const writeBlock = useWorkspaceWriteBlock(owner.context);
   const { failure, waiting, send: submit } = useSendMessage(owner);
   const send = () => {
     const text = draft.trim();
-    if (!text || waiting) return;
+    if (!text || waiting || writeBlock) return;
     submit({ anchor, text }, () =>
       setDraft((current) => (current === draft ? '' : current)),
     );
@@ -260,7 +269,8 @@ function Composer({
                   size="icon-xs"
                   variant="default"
                   aria-label="Send"
-                  disabled={!draft.trim() || waiting}
+                  disabled={!draft.trim() || waiting || Boolean(writeBlock)}
+                  aria-description={writeBlock}
 
                   onClick={() => send()}
                 >

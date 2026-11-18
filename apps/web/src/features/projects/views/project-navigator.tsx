@@ -57,6 +57,7 @@ import {
 } from '@porcelain/client/projects/rules';
 import {
   EnvironmentGlyph,
+  remoteConnectionStatus,
   UpdatesMenu,
   useConnectedContext,
 } from '@/features/access/index';
@@ -175,7 +176,10 @@ function statusDescription(issue: WorktreeStatusIssue) {
 
 type Props = {
   remotes: readonly RemoteConnection[] | undefined;
-  selected: Pick<WorktreeTarget, 'remote' | 'worktreeId'> | undefined;
+  selected:
+    | Pick<WorktreeTarget, 'remote' | 'projectId' | 'worktreeId'>
+    | undefined;
+  showRemoteNotice?: boolean | undefined;
   onSelect: (target: WorktreeTarget) => void;
   onOpenPullRequest: (entry: NavigatorEntry) => void;
   onOpenProject: (remote: RemoteConnection | null) => void;
@@ -192,6 +196,7 @@ export function ProjectNavigator({
   onOpenProject,
   onOpenSettings,
   settingsOpen,
+  showRemoteNotice,
   onOpenShortcuts,
 }: Props) {
   const { connection } = useConnectedContext();
@@ -398,6 +403,11 @@ export function ProjectNavigator({
                     environmentName={source.environmentName}
                     environmentIcon={source.environmentIcon}
                     showEnvironment={connections.length > 1}
+                    reconnecting={
+                      showRemoteNotice &&
+                      selected?.remote === source.connection.environmentId &&
+                      selected.projectId === source.project.id
+                    }
                   />
                   <ProjectActions
                     project={source.project}
@@ -490,13 +500,21 @@ export function ProjectNavigator({
                               retry({ environmentId: entry.environmentId })
                             }
                             entry={entry}
-                            connection={
-                              connections.find(
-                                (candidate) =>
-                                  candidate.environmentId ===
-                                  source.connection.environmentId,
-                              ) ?? connection
-                            }
+                            context={{
+                              connection:
+                                connections.find(
+                                  (candidate) =>
+                                    candidate.environmentId ===
+                                    source.connection.environmentId,
+                                ) ?? connection,
+                              remoteStatus:
+                                source.connection.environmentId ===
+                                connection.environmentId
+                                  ? undefined
+                                  : remoteConnectionStatus(
+                                      source.connection.environmentId,
+                                    ),
+                            }}
                           >
                             <TruncatedText
                               text={

@@ -4,7 +4,10 @@ import { AlertDialog as AlertDialogPrimitive } from '@base-ui/react/alert-dialog
 import { archivePullRequestDialog } from '../overlays';
 import { AsyncResult } from 'effect/reactivity';
 import { Cause } from 'effect';
-import type { Connection } from '@/shared/workspace/connection';
+import {
+  useWorkspaceWriteBlock,
+  type ConnectionContext,
+} from '@/shared/workspace/connection';
 import {
   confirmedReviewGitSettings,
   reviewGitSettingsBlock,
@@ -33,27 +36,29 @@ import {
   AlertDialogCancel,
 } from '@/components/ui/alert-dialog';
 export function ArchivePullRequest({
-  connection,
+  context,
   projectId,
   number,
   beforeLeave = () => {},
   menuItem = false,
 }: {
-  connection: Connection;
+  context: ConnectionContext;
   projectId: string;
   number: number;
   beforeLeave?: () => void;
   menuItem?: boolean;
 }) {
+  const { connection } = context;
+  const writeBlock = useWorkspaceWriteBlock(context);
   const view = useReviewGitSettings(connection);
   const settings = confirmedReviewGitSettings(view);
-  const block = reviewGitSettingsBlock(view);
+  const block = writeBlock ?? reviewGitSettingsBlock(view);
   const { submit } = useArchivePullRequest(connection, projectId, number);
   const open = () => {
-    if (!settings) return;
+    if (!settings || writeBlock) return;
     const options = archiveOptions(settings);
     archivePullRequestDialog.openWithPayload({
-      connection,
+      context,
       projectId,
       number,
       options,
@@ -64,7 +69,11 @@ export function ArchivePullRequest({
   };
   if (menuItem)
     return (
-      <ContextMenuItem disabled={!settings} onClick={open}>
+      <ContextMenuItem
+        disabled={!settings || Boolean(writeBlock)}
+        aria-description={writeBlock}
+        onClick={open}
+      >
         <span className="flex min-w-0 flex-col">
           Archive
           {!settings && block && (
@@ -79,14 +88,15 @@ export function ArchivePullRequest({
     <Button
       variant="outline"
       size="sm"
-      disabled={!settings}
+      disabled={!settings || Boolean(writeBlock)}
+      aria-description={writeBlock}
       focusableWhenDisabled
       onClick={open}
     >
       Archive
     </Button>
   );
-  if (settings || !block) return button;
+  if ((settings && !writeBlock) || !block) return button;
   return (
     <Tooltip>
       <TooltipTrigger render={button} />
@@ -108,20 +118,21 @@ export function ArchivePullRequestDialog() {
 }
 
 function ArchivePullRequestContent({
-  connection,
+  context,
   projectId,
   number,
   options,
   beforeLeave,
 }: {
-  connection: Connection;
+  context: ConnectionContext;
   projectId: string;
   number: number;
   options: ReturnType<typeof archiveOptions>;
   beforeLeave: () => void;
 }) {
+  const writeBlock = useWorkspaceWriteBlock(context);
   const { result, submit } = useArchivePullRequest(
-    connection,
+    context.connection,
     projectId,
     number,
     () => archivePullRequestDialog.close(),
@@ -162,12 +173,14 @@ function ArchivePullRequestContent({
         <Button
           variant="destructive"
           disabled={
+            Boolean(writeBlock) ||
             result.waiting ||
             !plan ||
             ((plan.dirty || plan.unpushed) && !discardChanges)
           }
+          aria-description={writeBlock}
           onClick={() => {
-            if (plan)
+            if (plan && !writeBlock)
               void submit({
                 options,
                 confirmation: { plan, discardChanges },

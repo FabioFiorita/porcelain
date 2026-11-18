@@ -1,7 +1,13 @@
 import type { RemoteConnection } from '@porcelain/client/access';
 import { selectedWorktreeInProject } from '@porcelain/client/projects/rules';
 import { Navigate } from '@tanstack/react-router';
-import { useConnectedContext } from '@/features/access/index';
+import { useAtomMount } from '@effect/atom-react';
+import type { ComponentProps } from 'react';
+import { Atom } from 'effect/reactivity';
+import {
+  rememberRemoteWorkspace,
+  useConnectedContext,
+} from '@/features/access/index';
 import { useInventory } from '@/features/projects/index';
 import type { WorkspaceSearch } from '@/shared/workspace/search';
 import { ConnectedWorkspace } from './connected-workspace';
@@ -13,12 +19,16 @@ export function WorktreeRoute({
   search,
   remote,
   settled,
+  remoteStatus,
+  showRemoteNotice,
 }: {
   projectId: string;
   worktreeId: string;
   search: WorkspaceSearch;
   remote?: RemoteConnection;
   settled: boolean;
+  remoteStatus?: ComponentProps<typeof ConnectedWorkspace>['remoteStatus'];
+  showRemoteNotice?: boolean;
 }) {
   const { connection } = useConnectedContext(remote?.connection);
   const inventory = useInventory(connection);
@@ -30,9 +40,22 @@ export function WorktreeRoute({
     );
   }
   return (
-    <ConnectedWorkspace
+    <SelectedWorkspace
       review={{ selection, search, inventory }}
       {...(remote ? { remote } : {})}
+      remoteStatus={remoteStatus}
+      showRemoteNotice={showRemoteNotice}
     />
   );
+}
+
+const localWorkspace = Atom.make(undefined);
+
+function SelectedWorkspace(props: ComponentProps<typeof ConnectedWorkspace>) {
+  useAtomMount(
+    props.remote
+      ? rememberRemoteWorkspace(props.remote.remote.environmentId)
+      : localWorkspace,
+  );
+  return <ConnectedWorkspace {...props} />;
 }

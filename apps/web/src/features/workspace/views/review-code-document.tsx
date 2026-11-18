@@ -423,7 +423,8 @@ function OmittedActions({
         variant="outline"
         icon={target.reviewed ? CheckIcon : SquareIcon}
         shortcut={SHORTCUTS.toggleReviewed}
-        disabled={!target.fingerprint}
+        description={review.writeBlock}
+        disabled={Boolean(review.writeBlock) || !target.fingerprint}
         pressed={target.reviewed}
         onClick={toggle}
       />

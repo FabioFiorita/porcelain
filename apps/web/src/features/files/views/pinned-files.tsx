@@ -48,6 +48,7 @@ export function PinnedFiles({
   selected,
   onOpen,
   onUnpin,
+  writeBlock,
   menuFor,
 }: {
   entries: readonly PinnedFileEntry[];
@@ -58,6 +59,7 @@ export function PinnedFiles({
   statuses: readonly GitStatusEntry[];
   selected: string;
   onOpen: (path: string, toSide?: boolean) => void;
+  writeBlock?: string | undefined;
   onUnpin: (path: string) => void;
   menuFor: (path: string) => {
     actions: readonly { id: TreeAction; label: string }[];
@@ -171,6 +173,8 @@ export function PinnedFiles({
                         size="icon-xs"
                         variant="ghost"
                         aria-label={`Unpin ${path}`}
+                        disabled={Boolean(writeBlock)}
+                        aria-description={writeBlock}
                         onClick={() => onUnpin(path)}
                       />
                     }
@@ -188,6 +192,7 @@ export function PinnedFiles({
               </ContextMenuTrigger>
               <ContextMenuContent finalFocus={!openingSide}>
                 <FileTreeMenuList
+                  writeBlock={writeBlock}
                   actions={menu.actions}
                   hidden={menu.hidden}
                   onAction={(id) => {

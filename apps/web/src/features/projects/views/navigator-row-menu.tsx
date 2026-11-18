@@ -6,7 +6,10 @@ import {
 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import type { NavigatorEntry } from '@porcelain/client/projects/rules';
-import type { Connection } from '@/shared/workspace/connection';
+import {
+  useWorkspaceWriteBlock,
+  type ConnectionContext,
+} from '@/shared/workspace/connection';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -19,15 +22,16 @@ import { deleteWorktreeDialog, switchWorktreeBranchDialog } from '../overlays';
 
 export function NavigatorRowMenu({
   entry,
-  connection,
+  context,
   children,
   onRetryChanges,
 }: {
   entry: NavigatorEntry;
-  connection: Connection;
+  context: ConnectionContext;
   children: ReactNode;
   onRetryChanges: () => void;
 }) {
+  const writeBlock = useWorkspaceWriteBlock(context);
   const worktreeId = entry.worktreeId;
   return (
     <ContextMenu>
@@ -58,11 +62,12 @@ export function NavigatorRowMenu({
           {entry.kind === 'worktree' && worktreeId && (
             <ContextMenuItem
               className="cursor-pointer"
-              disabled={!entry.available}
+              disabled={!entry.available || Boolean(writeBlock)}
+              aria-description={writeBlock}
               onClick={() =>
                 switchWorktreeBranchDialog.openWithPayload({
                   entry,
-                  connection,
+                  context,
                   worktreeId,
                   requestId: crypto.randomUUID(),
                 })
@@ -76,11 +81,12 @@ export function NavigatorRowMenu({
             <ContextMenuItem
               variant="destructive"
               className="cursor-pointer"
-              disabled={!entry.available}
+              disabled={!entry.available || Boolean(writeBlock)}
+              aria-description={writeBlock}
               onClick={() =>
                 deleteWorktreeDialog.openWithPayload({
                   entry,
-                  connection,
+                  context,
                   worktreeId,
                   requestId: crypto.randomUUID(),
                 })

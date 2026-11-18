@@ -1,7 +1,7 @@
 import { AlertDialog } from '@base-ui/react/alert-dialog';
 import { Dialog } from '@base-ui/react/dialog';
 import type { NavigatorEntry } from '@porcelain/client/projects/rules';
-import type { Connection } from '@/shared/workspace/connection';
+import type { ConnectionContext } from '@/shared/workspace/connection';
 import type { ArchivePullRequestRequest } from '@porcelain/contracts/projects';
 import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
 
@@ -18,7 +18,7 @@ export const renameProjectDialog = Dialog.createHandle<ProjectTarget>();
 export const removeProjectDialog = AlertDialog.createHandle<ProjectTarget>();
 
 export const archivePullRequestDialog = AlertDialog.createHandle<{
-  connection: Connection;
+  context: ConnectionContext;
   projectId: string;
   number: number;
   options: ArchivePullRequestRequest['options'];
@@ -27,14 +27,14 @@ export const archivePullRequestDialog = AlertDialog.createHandle<{
 }>();
 
 export const deleteWorktreeDialog = AlertDialog.createHandle<{
-  connection: Connection;
+  context: ConnectionContext;
   entry: NavigatorEntry;
   worktreeId: string;
   requestId: string;
 }>();
 
 export const switchWorktreeBranchDialog = Dialog.createHandle<{
-  connection: Connection;
+  context: ConnectionContext;
   entry: NavigatorEntry;
   worktreeId: string;
   requestId: string;

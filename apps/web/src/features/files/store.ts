@@ -10,23 +10,29 @@ import {
   retainFileDraft,
   type FileDraftHandle,
 } from '@porcelain/client/files';
-import type { RuntimeConnection } from '@porcelain/client/transport';
+import {
+  workspaceWriteAvailability,
+  type ConnectionContext,
+} from '@/shared/workspace/connection';
 import type { FilesScope } from '@porcelain/client/files/rules';
 
 export const readFileDraft = Atom.family(
   (selection: {
-    connection: RuntimeConnection;
+    context: ConnectionContext;
     scope: FilesScope;
     path: string;
   }) =>
     Atom.make((get) =>
       Effect.gen(function* () {
-        const file = yield* get.result(readTextFile(selection), {
+        const { context, ...fileSelection } = selection;
+        const input = { ...fileSelection, connection: context.connection };
+        const file = yield* get.result(readTextFile(input), {
           suspendOnWaiting: true,
         });
         const draft = yield* get.result(
           retainFileDraft({
-            ...selection,
+            ...input,
+            writeAvailability: workspaceWriteAvailability(context),
             text: 'kind' in file ? '' : file.text,
             fingerprint: 'kind' in file ? '' : (file.contentFingerprint ?? ''),
           }),
@@ -98,6 +104,7 @@ export type PierreFileTreeInput = {
     | undefined;
   onRequestRename: (path: string) => void;
   onCreate: (path: string, kind: 'file' | 'directory') => Promise<void>;
+  writeBlock?: string | undefined;
   onMove: (from: string, to: string) => Promise<void>;
   gitStatus: readonly GitStatusEntry[];
   selected: string;

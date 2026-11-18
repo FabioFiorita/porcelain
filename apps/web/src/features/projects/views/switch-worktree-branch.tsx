@@ -24,7 +24,10 @@ import {
   CommandGroup,
   CommandItem,
 } from '@/components/ui/command';
-import type { Connection } from '@/shared/workspace/connection';
+import {
+  useWorkspaceWriteBlock,
+  type ConnectionContext,
+} from '@/shared/workspace/connection';
 import type { NavigatorEntry } from '@porcelain/client/projects/rules';
 import { switchWorktreeBranchDialog } from '../overlays';
 import { useSwitchWorktreeBranchAction } from '../commands/worktree-actions';
@@ -41,14 +44,16 @@ export function SwitchWorktreeBranchDialog() {
   );
 }
 function SwitchWorktreeBranchContent({
-  connection,
+  context,
   entry,
   worktreeId,
 }: {
-  connection: Connection;
+  context: ConnectionContext;
   entry: NavigatorEntry;
   worktreeId: string;
 }) {
+  const { connection } = context;
+  const writeBlock = useWorkspaceWriteBlock(context);
   const [chosen, setChosen] = useState<string>();
   const {
     result: outcome,
@@ -151,7 +156,10 @@ function SwitchWorktreeBranchContent({
           Cancel
         </DialogClose>
         <Button
-          disabled={pending || (!unresolved && !eligible)}
+          disabled={
+            Boolean(writeBlock) || pending || (!unresolved && !eligible)
+          }
+          aria-description={writeBlock}
           onClick={() =>
             void submit(chosen, () => switchWorktreeBranchDialog.close())
           }

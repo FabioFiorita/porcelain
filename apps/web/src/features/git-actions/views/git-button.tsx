@@ -1,3 +1,4 @@
+import { useWorkspaceWriteBlock } from '@/shared/workspace/connection';
 import { TruncatedText } from '@/shared/views/truncated-text';
 import { AsyncResult } from 'effect/reactivity';
 import { Option } from 'effect';
@@ -116,6 +117,7 @@ export function GitButton({
   const [openedStatus, setOpenedStatus] = useState<GitActionStatus | null>(
     null,
   );
+  const writeBlock = useWorkspaceWriteBlock(context);
   const menu = useGitMenu(scope, context, {
     details,
     enableDetails: () => setDetailsEnabled(true),
@@ -157,7 +159,8 @@ export function GitButton({
   const primaryBlocked =
     primary.kind === 'run' && primary.action === 'pull' && !pullStrategy;
   const primaryTip =
-    primaryBlocked && pullBlock ? pullBlock : primaryTooltip(primary, status);
+    writeBlock ??
+    (primaryBlocked && pullBlock ? pullBlock : primaryTooltip(primary, status));
   const count = suggestedCount(primary, status);
   const branch = branchStatus(status);
   const running = menu.running;
@@ -165,6 +168,7 @@ export function GitButton({
   const shownGroups = reading ? gitActionGroups.slice(0, 1) : gitActionGroups;
 
   const choose = (next: GitAction) => {
+    if (writeBlock) return;
     if (isNetworkAction(next)) {
       menu.runNetwork(next, status.branch);
       return;
@@ -201,12 +205,15 @@ export function GitButton({
                       }
                       disabled={
                         (running === null || running === undefined) &&
-                        (primary.kind === 'hint' || primaryBlocked)
+                        (primary.kind === 'hint' ||
+                          primaryBlocked ||
+                          Boolean(writeBlock))
                       }
+                      aria-description={writeBlock}
                       focusableWhenDisabled
                       className="aria-disabled:cursor-default"
                       onClick={() => {
-                        if (running || result) return;
+                        if (running || result || writeBlock) return;
                         if (primary.kind === 'commit') choose('commit');
                         else if (primary.kind === 'stash')
                           choose('stash-apply');
@@ -311,7 +318,11 @@ export function GitButton({
                       variant="outline"
                       size="icon"
                       aria-label="Git actions"
-                      disabled={running !== null && running !== undefined}
+                      disabled={
+                        Boolean(writeBlock) ||
+                        (running !== null && running !== undefined)
+                      }
+                      aria-description={writeBlock}
                     />
                   }
                 />
@@ -320,7 +331,7 @@ export function GitButton({
               <ChevronDownIcon className="size-3.5" />
             </TooltipTrigger>
             <TooltipContent role="tooltip" className="break-all">
-              Git actions
+              {writeBlock ?? 'Git actions'}
             </TooltipContent>
           </Tooltip>
           <DropdownMenuContent align="end" className="w-76" aria-busy={reading}>
@@ -358,7 +369,11 @@ export function GitButton({
                       >
                         <TooltipTrigger render={<span className="block" />}>
                           <DropdownMenuItem
-                            disabled={blocker !== null && blocker !== undefined}
+                            disabled={
+                              Boolean(writeBlock) ||
+                              (blocker !== null && blocker !== undefined)
+                            }
+                            aria-description={writeBlock}
                             onClick={() => choose(candidate.id)}
                           >
                             <GitActionIcon action={candidate.id} />

@@ -19,6 +19,7 @@ export class FileDraftWriter extends Context.Service<
       text: string,
       expectedFingerprint: string,
     ) => Effect.Effect<string, FileDraftWriteFailure>;
+    readonly canWrite?: () => boolean;
     readonly isBlockedError?: (error: unknown) => boolean;
   }
 >()('@porcelain/client/FileDraftWriter') {}
