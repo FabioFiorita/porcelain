@@ -87,12 +87,12 @@ test('reading more of a long branch keeps its diffs during loading and after a n
   await expect
     .element(
       workspace
-        .getByRole('tabpanel', { name: 'Branch changes', exact: true })
+        .getByRole('tabpanel', { name: 'Branch', exact: true })
         .getByText('note 25', { exact: true }),
     )
     .toBeVisible();
   await workspace
-    .getByRole('tabpanel', { name: 'Branch changes', exact: true })
+    .getByRole('tabpanel', { name: 'Branch', exact: true })
     .getByText('note 25', { exact: true })
     .click();
   await workspace.getByRole('tab', { name: 'Review', exact: true }).click();
@@ -105,7 +105,7 @@ test('reading more of a long branch keeps its diffs during loading and after a n
   await expect
     .element(
       workspace
-        .getByRole('tabpanel', { name: 'Branch changes', exact: true })
+        .getByRole('tabpanel', { name: 'Branch', exact: true })
         .getByText('note 25', { exact: true }),
     )
     .toBeVisible();
@@ -120,7 +120,7 @@ test('reading more of a long branch keeps its diffs during loading and after a n
   const contentPosition = reviewLayout.codeOffset(
     code,
     workspace
-      .getByRole('tabpanel', { name: 'Branch changes', exact: true })
+      .getByRole('tabpanel', { name: 'Branch', exact: true })
       .getByText('note 25', { exact: true }),
   );
   const height = reviewLayout.codeScrollHeight(code);
@@ -160,7 +160,7 @@ test('reading more of a long branch keeps its diffs during loading and after a n
       reviewLayout.codeOffset(
         code,
         workspace
-          .getByRole('tabpanel', { name: 'Branch changes', exact: true })
+          .getByRole('tabpanel', { name: 'Branch', exact: true })
           .getByText('note 25', { exact: true }),
       ),
     )
@@ -169,7 +169,7 @@ test('reading more of a long branch keeps its diffs during loading and after a n
   await expect
     .element(
       workspace
-        .getByRole('tabpanel', { name: 'Branch changes', exact: true })
+        .getByRole('tabpanel', { name: 'Branch', exact: true })
         .getByText('Added after reading more', { exact: true }),
     )
     .toBeVisible();

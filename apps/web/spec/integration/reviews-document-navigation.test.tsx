@@ -1,3 +1,4 @@
+import { userEvent } from 'vitest/browser';
 import { expect, test } from './fixtures.tsx';
 
 test.for(['arrive', 'return'] as const)(
@@ -117,4 +118,39 @@ test('an old Walkthrough entry for the right pane never opens a second Review', 
   await expect
     .element(route.page.getByRole('tab', { name: 'Review', exact: true }))
     .toHaveAttribute('aria-selected', 'true');
+});
+
+test('each document panel is labelled by its own tab as the keyboard switches tabs', async ({
+  repo,
+  render,
+  server,
+  reviewLayout,
+}) => {
+  await repo.write('notes.md', 'Notes\n');
+  const project = await server.project();
+  const worktree = project.worktrees.find((entry) => entry.main);
+  if (!worktree) throw new Error('The fixture has no main worktree');
+  reviewLayout.saveTabs(worktree.id, ['file:README.md', 'file:notes.md']);
+  const route = await render.route(
+    `/${project.id}/${worktree.id}?entry=file:README.md`,
+  );
+  const screen = route.page;
+  for (const [name, key] of [
+    ['Review', 'Enter'],
+    ['notes.md', ' '],
+    ['README.md', 'Enter'],
+  ] as const) {
+    const tab = screen.getByRole('tab', { name, exact: true });
+    tab.element().focus();
+    await userEvent.keyboard(key === ' ' ? '{ }' : '{Enter}');
+    await expect.element(tab).toHaveAttribute('aria-selected', 'true');
+    const panel = screen.getByRole('tabpanel', { name, exact: true });
+    await expect.element(panel).toBeVisible();
+    const tabId = tab.element().id;
+    expect(tabId).not.toBe('');
+    await expect.element(panel).toHaveAttribute('aria-labelledby', tabId);
+    await expect
+      .element(tab)
+      .toHaveAttribute('aria-controls', panel.element().id);
+  }
 });

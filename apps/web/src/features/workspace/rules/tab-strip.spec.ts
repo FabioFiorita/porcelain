@@ -13,6 +13,7 @@ import {
   openToSideText,
   parseTabLayout,
   sideEntry,
+  documentIds,
 } from './tab-strip.ts';
 
 describe('opening a document', () => {
@@ -291,4 +292,14 @@ it('closing a file returns to the Review tab', () => {
       closeInPane(before, 'file:notes.md'),
     ),
   ).toBe('review');
+});
+
+it('gives each document its own tab and panel ids, even for files with one name', () => {
+  const first = documentIds('pane', 'file:src/a b/index.ts');
+  const second = documentIds('pane', 'file:lib/index.ts');
+  expect(first).toEqual({
+    tab: 'pane-file%3Asrc%2Fa%20b%2Findex.ts-tab',
+    panel: 'pane-file%3Asrc%2Fa%20b%2Findex.ts-panel',
+  });
+  expect(second.panel).not.toBe(first.panel);
 });

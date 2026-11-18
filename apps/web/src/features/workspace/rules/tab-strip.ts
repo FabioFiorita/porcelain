@@ -13,6 +13,13 @@ export function permanentTab(key: string) {
   return key === REVIEW_TAB;
 }
 
+export type DocumentIds = { tab: string; panel: string };
+
+export function documentIds(pane: string, key: string): DocumentIds {
+  const id = `${pane}-${encodeURIComponent(key)}`;
+  return { tab: `${id}-tab`, panel: `${id}-panel` };
+}
+
 export function sideEntry(entry: string | undefined) {
   const key = canonicalEntry(entry);
   return key === undefined || permanentTab(key) ? undefined : key;

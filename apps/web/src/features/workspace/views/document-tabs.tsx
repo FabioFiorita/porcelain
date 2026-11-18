@@ -49,7 +49,12 @@ import { ScrollBar } from '@/components/ui/scroll-area';
 import { shortOid } from '@porcelain/client/history/rules';
 import { cn } from '@/shared/lib/utils';
 import { parseEntry } from '../rules/documents';
-import { permanentTab, openToSideText, REVIEW_TAB } from '../rules/tab-strip';
+import {
+  permanentTab,
+  openToSideText,
+  REVIEW_TAB,
+  type DocumentIds,
+} from '../rules/tab-strip';
 import { basename } from '@porcelain/client/changes/rules';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import {
@@ -172,8 +177,10 @@ export function DocumentTabs({
   leading,
   trailing,
   commitContext,
+  ids,
   ...actions
 }: TabActions & {
+  ids: (key: string) => DocumentIds;
   tabs: readonly string[];
   pinned: readonly string[];
   active: string | null;
@@ -206,6 +213,7 @@ export function DocumentTabs({
           <span className="flex shrink-0">
             <DocumentTab
               tabKey={REVIEW_TAB}
+              ids={ids(REVIEW_TAB)}
               active={active === REVIEW_TAB}
               pinned={false}
               hasUnpinned={tabs.some(
@@ -252,6 +260,7 @@ export function DocumentTabs({
                   const document = parseEntry(key);
                   const tabProps = {
                     tabKey: key,
+                    ids: ids(key),
                     active: key === active,
                     pinned: isPinned,
                     hasUnpinned: tabs.some(
@@ -364,6 +373,7 @@ export function DocumentTabs({
 function DocumentTab({
   tabKey,
   commitSubject,
+  ids,
   active,
   pinned,
   hasUnpinned,
@@ -377,6 +387,7 @@ function DocumentTab({
   onClosePane,
 }: TabActions & {
   tabKey: string;
+  ids: DocumentIds;
   commitSubject?: string | undefined;
   active: boolean;
   pinned: boolean;
@@ -417,6 +428,8 @@ function DocumentTab({
                     if (active) revealTab(tab);
                   }}
                   role="tab"
+                  id={ids.tab}
+                  aria-controls={active ? ids.panel : undefined}
                   tabIndex={0}
                   aria-selected={active}
                   aria-label={commitSubject ? tabTitle : accessibleName}

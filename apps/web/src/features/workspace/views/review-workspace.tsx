@@ -16,6 +16,7 @@ import {
   type ReactNode,
   type SyntheticEvent,
   useDeferredValue,
+  useId,
   useState,
 } from 'react';
 import {
@@ -62,13 +63,12 @@ import {
 } from '../adapters/tab-layout';
 import { useReviewPanelOpen, useTabLayoutStore } from '../store';
 import {
-  documentTitle,
   entryKey,
   type DocumentFileTarget,
   type OpenDocument,
   parseEntry,
 } from '../rules/documents';
-import { openToSideText, REVIEW_TAB } from '../rules/tab-strip';
+import { documentIds, openToSideText, REVIEW_TAB } from '../rules/tab-strip';
 
 import { DocumentTabs } from './document-tabs';
 import { DocumentView } from './documents';
@@ -600,6 +600,7 @@ function PaneView({
     ? deferredEntry
     : pane.active;
   const pending = shownEntry !== pane.active;
+  const paneId = useId();
   const [reviewOpened, setReviewOpened] = useState(false);
   if (!reviewOpened && shownEntry === REVIEW_TAB) setReviewOpened(true);
   const activeDocument = parseEntry(shownEntry ?? undefined);
@@ -631,6 +632,7 @@ function PaneView({
       )}
     >
       <DocumentTabs
+        ids={(key) => documentIds(paneId, key)}
         commitContext={{ connection: context.connection, scope }}
         leading={
           index === 0 ? (
@@ -718,7 +720,8 @@ function PaneView({
             <div
               key={ref.kind === 'review' ? REVIEW_TAB : 'document'}
               role="tabpanel"
-              aria-label={documentTitle(ref)}
+              id={documentIds(paneId, key).panel}
+              aria-labelledby={documentIds(paneId, key).tab}
               aria-hidden={!showing}
               inert={!showing || pending}
               className={cn(
