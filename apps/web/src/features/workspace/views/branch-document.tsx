@@ -286,7 +286,7 @@ function BranchDiffs({
   const more = items.length - reached.length;
   const uncommitted = overview?.changes.length ?? 0;
   const [first] = items;
-  const singleHeader = interaction.singleHeader || heading !== undefined;
+  const singleHeader = heading !== undefined;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">

@@ -230,7 +230,7 @@ export function walkthroughTabTitle(read: WalkthroughRead) {
   const phase = walkthroughPhase(read);
   return phase.kind === 'ready'
     ? plainText(phase.content.title).replace(/\.$/, '')
-    : 'Walkthrough';
+    : 'Review';
 }
 
 export function plainText(text: string) {

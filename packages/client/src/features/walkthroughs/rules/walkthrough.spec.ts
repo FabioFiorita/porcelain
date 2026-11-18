@@ -171,7 +171,7 @@ describe('stopPaths with the branch renames', () => {
 });
 
 describe('walkthroughTabTitle', () => {
-  it('names the window after a written walkthrough, else Walkthrough', () => {
+  it('names the window after a written walkthrough, else Review', () => {
     expect(
       walkthroughTabTitle(
         read(
@@ -185,9 +185,9 @@ describe('walkthroughTabTitle', () => {
         ),
       ),
     ).toBe('Add notes to the sample');
-    expect(walkthroughTabTitle(read(undefined))).toBe('Walkthrough');
+    expect(walkthroughTabTitle(read(undefined))).toBe('Review');
     expect(walkthroughTabTitle(read(run({ status: 'running' })))).toBe(
-      'Walkthrough',
+      'Review',
     );
   });
 });

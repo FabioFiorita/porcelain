@@ -80,11 +80,9 @@ export function DocumentView({
   toolbarTarget,
   review: Review,
   walkthroughCode: WalkthroughCode,
-  singleHeader = false,
   fileTarget,
 }: {
   walkthroughCode?: ComponentType<WalkthroughCodeProps> | undefined;
-  singleHeader?: boolean | undefined;
   scope: ReviewScope;
   context: ConnectionContext;
   toolbarTarget?: HTMLElement | null | undefined;
@@ -114,7 +112,6 @@ export function DocumentView({
       worktreeId: scope.worktreeId,
       entry: entryKey(document),
       fileTarget,
-      singleHeader,
     },
   };
   switch (document.kind) {
@@ -331,7 +328,7 @@ export function PlainChangesDocument({
   const inScope = (path: string) =>
     only ? only.includes(path) : !specsOnly || isSpecPath(path);
   const changes = allChanges.filter((item) => inScope(item.path));
-  const singleHeader = interaction.singleHeader || heading !== undefined;
+  const singleHeader = heading !== undefined;
   if (!specsOnly && changes.length === 0 && actionsOpen) setActionsOpen(false);
   if (only && changes.length === 0)
     return (
@@ -482,34 +479,21 @@ function ChangeDocument({
                   icon={HistoryIcon}
                   onClick={() => onOpen({ kind: 'timeline', path })}
                 />
-                {interaction.singleHeader && (
-                  <>
-                    <BarAction
-                      label="Open file"
-                      iconOnly
-                      icon={FileIcon}
-                      onClick={() => onOpen({ kind: 'file', path })}
-                    />
-                    {trigger}
-                  </>
-                )}
               </>
             }
             headerLeading={
-              interaction.singleHeader ? undefined : (
-                <>
-                  <Button
-                    variant="ghost"
-                    size="xs"
-                    aria-label="Open file"
-                    onClick={() => onOpen({ kind: 'file', path })}
-                  >
-                    <FileIcon />
-                    <span className="max-narrow:sr-only">Open file</span>
-                  </Button>
-                  {trigger}
-                </>
-              )
+              <>
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  aria-label="Open file"
+                  onClick={() => onOpen({ kind: 'file', path })}
+                >
+                  <FileIcon />
+                  <span className="max-narrow:sr-only">Open file</span>
+                </Button>
+                {trigger}
+              </>
             }
             scope={scope}
             context={context}

@@ -38,7 +38,7 @@ function WorkspaceReviewContent(props: Props) {
   useAtomMount(
     firstDocumentTitleOwner({
       worktreeId: props.worktree.id,
-      title: worktreeFirstDocument.guided ? walkthroughTitle : 'Review',
+      title: walkthroughTitle,
     }),
   );
   const firstDocument: FirstDocument = {

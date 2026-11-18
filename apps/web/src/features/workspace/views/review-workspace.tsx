@@ -735,7 +735,6 @@ function PaneView({
                 <DocumentView
                   review={review}
                   walkthroughCode={walkthroughCode}
-                  singleHeader={firstDocument.guided}
                   scope={scope}
                   context={context}
                   document={ref}

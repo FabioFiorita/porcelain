@@ -65,7 +65,7 @@ export function useWalkthroughTabTitle(
   context: ConnectionContext,
 ) {
   const { read } = useWalkthrough(scope, context);
-  return read ? walkthroughTabTitle(read) : 'Walkthrough';
+  return read ? walkthroughTabTitle(read) : 'Review';
 }
 
 export function useWorktreeFirstDocument(
