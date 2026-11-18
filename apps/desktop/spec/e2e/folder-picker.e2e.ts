@@ -74,8 +74,8 @@ test('the Open project button opens the chosen Git repository through the native
 
   await app.answerPicker({ canceled: false, filePaths: [desktop.repository] });
   await page.waitForURL((url) => url.pathname !== '/');
-  const changes = page.getByRole('tab', { name: 'Changes', exact: true });
-  await expect(changes).toBeVisible();
+  const review = page.getByRole('tab', { name: 'Review', exact: true });
+  await expect(review).toBeVisible();
   const project = page
     .getByRole('navigation', { name: 'Projects and worktrees', exact: true })
     .getByRole('button', { name: /, desktop-smoke,.*Main worktree/ });
@@ -84,7 +84,7 @@ test('the Open project button opens the chosen Git repository through the native
   expect(await registered(page)).toEqual([desktop.repository]);
   expect(browsing).toEqual([]);
   await page.reload();
-  await expect(changes).toBeVisible();
+  await expect(review).toBeVisible();
   await expect(project).toBeVisible();
   await expect(project).toHaveAttribute('aria-current', 'page');
   const reviewToggle = page.getByRole('button', {

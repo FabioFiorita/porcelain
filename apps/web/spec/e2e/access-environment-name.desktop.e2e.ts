@@ -60,7 +60,7 @@ test('the owner names this computer and picks its icon in Settings, tab titles a
   await closeSettings(settings.page());
   await expect
     .poll(() => app.title())
-    .toBe(`Changes — ${project} · Workstation`);
+    .toBe(`Review — ${project} · Workstation`);
   await pairedPage
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
@@ -101,7 +101,7 @@ test('the owner names this computer and picks its icon in Settings, tab titles a
   await expect.poll(() => app.title()).toBe('Settings — Porcelain');
   await closeSettings(settings.page());
   await closeSettings(settings.page());
-  await expect.poll(() => app.title()).toBe(`Changes — ${project}`);
+  await expect.poll(() => app.title()).toBe(`Review — ${project}`);
   await pairedPage
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
