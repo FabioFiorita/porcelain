@@ -628,3 +628,54 @@ test('a dropped computer keeps the focused editor and refreshes the workspace on
   await expect(done).toBeEnabled();
   await expect(page).toHaveURL(url);
 });
+
+test('a rename confirmed after the computer drops keeps the real file in the tree', async ({
+  pairedPage: page,
+  app,
+  remote,
+}) => {
+  const inventory = await remote.server.inventory();
+  const project = await remote.server.project();
+  const link = await app.remoteLink();
+  await openRemotes(page);
+  await page
+    .getByRole('textbox', { name: 'Pairing link', exact: true })
+    .fill(link);
+  await page.getByRole('button', { name: 'Add', exact: true }).click();
+  await openComputer(page, inventory.environment.name);
+  await expect(page.getByText('Online', { exact: true })).toBeVisible();
+  const worktree = project.worktrees.find((item) => item.main);
+  if (!worktree) throw new Error('The remote has no main worktree');
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await app.follow(
+    `/remotes/${inventory.environmentId}/${project.id}/${worktree.id}`,
+  );
+  await page.keyboard.press('Alt+1');
+  const readme = remote.repo.readme.path;
+  const row = (name: string) =>
+    page.getByRole('treeitem', { name, exact: true });
+  await row(readme).click({ button: 'right' });
+  await page.getByRole('menuitem', { name: 'Rename', exact: true }).click();
+  const rename = page.getByRole('textbox', { name: /^Rename / });
+  await expect(rename).toBeFocused();
+  await rename.fill('Renamed.md');
+  const before = (await remote.server.text(readme)).text;
+
+  const outage = await app.dropRemoteComputer(link);
+  try {
+    await outage.healthFailure;
+    await expect(
+      page.getByRole('button', { name: 'Create file or folder', exact: true }),
+    ).toBeDisabled();
+    await rename.press('Enter');
+    await expect(row(readme)).toBeVisible();
+    await expect(row('Renamed.md')).toHaveCount(0);
+  } finally {
+    await outage.restore();
+  }
+  await expect(row(readme)).toBeVisible();
+  await expect(row('Renamed.md')).toHaveCount(0);
+  await expect
+    .poll(async () => (await remote.server.text(readme)).text)
+    .toBe(before);
+});

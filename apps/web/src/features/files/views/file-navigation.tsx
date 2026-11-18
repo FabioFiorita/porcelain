@@ -351,12 +351,12 @@ function ScopedFileNavigation({
     },
     onCreate: (path, entryKind) =>
       writeBlock
-        ? Promise.resolve()
+        ? Promise.reject(new Error(writeBlock))
         : edit.create(path, entryKind, (created) =>
             onOpen({ kind: 'file', path: created }),
           ),
     onMove: (from, to) =>
-      writeBlock ? Promise.resolve() : edit.move(from, to),
+      writeBlock ? Promise.reject(new Error(writeBlock)) : edit.move(from, to),
     gitStatus,
     selected,
     bindRename,
