@@ -153,6 +153,22 @@ export function createFetchGate(filePath: string) {
         failing = true;
       };
     },
+    failWalkthroughReads() {
+      const original = window.fetch;
+      window.fetch = (input, init) =>
+        (init?.method ?? 'GET') === 'GET' &&
+        requestUrl(input).pathname.endsWith('/walkthrough')
+          ? Promise.resolve(
+              Response.json(
+                { message: 'Walkthrough unavailable' },
+                { status: 503 },
+              ),
+            )
+          : original(input, init);
+      restores.push(() => {
+        window.fetch = original;
+      });
+    },
     recordFileLookupReads() {
       const original = window.fetch;
       const paths: string[] = [];

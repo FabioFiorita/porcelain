@@ -762,3 +762,28 @@ for (const state of ['uncommitted', 'mixed', 'committed'] as const) {
       .toEqual(state === 'committed' ? [] : ['zebra.md']);
   });
 }
+
+test('a walkthrough that cannot be read still shows every changed file', async ({
+  fetchGate,
+  render,
+}) => {
+  fetchGate.failWalkthroughReads();
+  const workspace = await render.workspace();
+  await expect
+    .element(
+      workspace.getByText('The walkthrough could not be read.', {
+        exact: true,
+      }),
+    )
+    .toBeVisible();
+  await expect
+    .element(
+      workspace
+        .getByRole('region', {
+          name: 'Every changed file: uncommitted',
+          exact: true,
+        })
+        .getByText('A change to review.', { exact: true }),
+    )
+    .toBeVisible();
+});

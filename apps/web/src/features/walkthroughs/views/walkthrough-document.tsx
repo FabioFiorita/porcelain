@@ -563,10 +563,15 @@ export function ReviewDocument(props: DocumentProps) {
   );
   if (phase === undefined)
     return AsyncResult.isFailure(result) ? (
-      <StateFailure
-        description="The walkthrough could not be read."
-        onRetry={refresh}
-      />
+      <div className="@container h-full overflow-auto">
+        <Column>
+          <StateFailure
+            description="The walkthrough could not be read."
+            onRetry={refresh}
+          />
+          {everyFile}
+        </Column>
+      </div>
     ) : (
       <StateSkeleton label="Loading walkthrough" />
     );
