@@ -106,4 +106,32 @@ describe('labels on the pull request head', () => {
     });
     expect(marked('reviewed')).toBe(false);
   });
+
+  it.each(['reviewed', 'approved'])(
+    'recovers %s removed and added again in the same second after a push',
+    (name) => {
+      const second = '2026-11-18T12:00:13Z';
+      const marked = githubHistory({
+        events: [
+          label(name),
+          label(name, second, 'unlabeled'),
+          label(name, second),
+        ],
+        head: laterHead,
+        activity: { after: laterHead, ref, timestamp: '2026-11-18T12:00:12Z' },
+      });
+      expect(marked(name)).toBe(true);
+    },
+  );
+
+  it('does not recover a label added and removed in the same second', () => {
+    const second = '2026-11-18T12:00:13Z';
+    const marked = githubHistory({
+      events: [
+        label('reviewed', second),
+        label('reviewed', second, 'unlabeled'),
+      ],
+    });
+    expect(marked('reviewed')).toBe(false);
+  });
 });

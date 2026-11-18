@@ -225,15 +225,14 @@ export function labeledOnHead(
       request,
     )
       .flat()
-      .filter((event) => event.label?.name === label);
-    const last = (action: string) =>
-      Math.max(
-        ...events
-          .filter((event) => event.event === action)
-          .map((event) => Date.parse(event.created_at ?? '')),
+      .filter(
+        (event) =>
+          event.label?.name === label &&
+          (event.event === 'labeled' || event.event === 'unlabeled'),
       );
-    const added = last('labeled');
-    if (!(added > last('unlabeled'))) return false;
+    const lastChange = events.at(-1);
+    if (lastChange?.event !== 'labeled') return false;
+    const added = Date.parse(lastChange.created_at ?? '');
 
     const pull = Schema.decodeUnknownSync(
       Schema.fromJsonString(PullRequestHead),
