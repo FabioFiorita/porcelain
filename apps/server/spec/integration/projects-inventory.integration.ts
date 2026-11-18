@@ -75,7 +75,9 @@ test('an uncommitted edit dates its worktree and live viewers hear it as uncommi
   session,
 }) => {
   const connection = await watching(session);
-  const edited = new Date('2026-03-02T09:30:00.000Z');
+  const edited =
+    DateTime.toEpochMillis(DateTime.makeUnsafe('2026-03-02T09:30:00.000Z')) /
+    1000;
   await session.writeFile(
     session.fixture.readme.path,
     session.fixture.readme.changed,

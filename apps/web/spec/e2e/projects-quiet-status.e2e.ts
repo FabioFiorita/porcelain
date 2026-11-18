@@ -28,11 +28,7 @@ test('a failed background status read keeps the row’s last count and shows no 
   const shown = (await mainCard.textContent()) ?? '';
   const restore = await live.failWorktreeStatusRead(other.id);
   try {
-    const failed = page.waitForResponse(
-      (response) =>
-        response.url().endsWith(`/api/worktrees/${main.id}/git/status`) &&
-        response.status() === 503,
-    );
+    const failed = live.worktreeStatusFailed(main.id);
     await repo.write('quiet-two.md', 'Two\n');
     await failed;
     await expect(mainCard).toHaveText(shown);

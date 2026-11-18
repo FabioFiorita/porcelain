@@ -23,7 +23,7 @@ for (const width of [1440, 414]) {
     });
     if (width === 414) await toggle.click();
     const row = page.getByRole('button', {
-      name: `Completed archive fixture, ${branch}, `,
+      name: new RegExp(`^Completed archive fixture, ${branch}, `),
     });
     const card = page.getByRole('listitem').filter({ has: row });
     const label = card.getByText('Completed archive fixture', { exact: true });
@@ -48,7 +48,7 @@ for (const width of [1440, 414]) {
     await expect(row).toBeFocused();
     await expect(
       page.getByRole('tooltip', {
-        name: `Completed archive fixture · ${branch} · `,
+        name: new RegExp(`^Completed archive fixture · ${branch} · /`),
       }),
     ).toBeVisible();
   });

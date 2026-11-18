@@ -61,6 +61,14 @@ export async function liveRouter(context: BrowserContext) {
           !pathOf(request).includes(exceptWorktreeId),
         503,
       ),
+    worktreeStatusFailed: (worktreeId: string) =>
+      context.waitForEvent('response', (response) => {
+        const path = new URL(response.url()).pathname;
+        return (
+          path === `/api/worktrees/${worktreeId}/git/status` &&
+          response.status() === 503
+        );
+      }),
     releaseHeld: network.live.release,
   };
 }

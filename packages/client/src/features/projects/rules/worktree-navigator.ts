@@ -93,7 +93,7 @@ export function navigatorWorktreeOrder(a: NavigatorOrder, b: NavigatorOrder) {
     a.key.localeCompare(b.key)
   );
 }
-export const NAVIGATOR_RECENT_ROWS = 5;
+const NAVIGATOR_RECENT_ROWS = 5;
 export function navigatorVisibleRows<
   Row extends { key: string; main: boolean },
 >(
