@@ -2,7 +2,9 @@ import * as Schema from 'effect/Schema';
 import { DateTime } from 'effect';
 import { readInventoryResponseSchema } from '@porcelain/contracts/projects';
 import { expect } from 'vitest';
-import { eventually } from '../kit/reads.ts';
+import { stat, utimes } from 'node:fs/promises';
+import { join } from 'node:path';
+import { eventually, watching } from '../kit/reads.ts';
 import { test } from '../kit/server-test.ts';
 import {
   list,
@@ -40,6 +42,9 @@ const registered = async (session: Session, available: boolean) => ({
                 ).trim(),
               ),
             ),
+            uncommittedChangedAt: (
+              await stat(join(session.repository, session.fixture.readme.path))
+            ).mtime.toISOString(),
           }
         : {}),
     },
@@ -64,6 +69,39 @@ test('reading the inventory lists the registered project with its main worktree 
   expect(list(record(response.body).projects)).toStrictEqual([
     await registered(session, true),
   ]);
+});
+
+test('an uncommitted edit dates its worktree and live viewers hear it as uncommitted work only', async ({
+  session,
+}) => {
+  const connection = await watching(session);
+  const edited = new Date('2026-03-02T09:30:00.000Z');
+  await session.writeFile(
+    session.fixture.readme.path,
+    session.fixture.readme.changed,
+  );
+  await utimes(
+    join(session.repository, session.fixture.readme.path),
+    edited,
+    edited,
+  );
+
+  const refreshed = await session.send({
+    method: 'POST',
+    path: '/api/inventory/refresh',
+  });
+
+  expect(refreshed.status).toBe(200);
+  const [project] = list(record(refreshed.body).projects);
+  expect(list(record(project).worktrees)).toStrictEqual([
+    expect.objectContaining({
+      id: session.worktreeId,
+      uncommittedChangedAt: '2026-03-02T09:30:00.000Z',
+    }),
+  ]);
+  expect(
+    await connection.next((notice) => notice.type === 'inventory'),
+  ).toStrictEqual({ type: 'inventory', change: 'activity' });
 });
 
 test('a project whose folder has gone away stays registered as unavailable and is available again once the folder is back', async ({

@@ -101,10 +101,14 @@ const connectLiveSession = Effect.fn('Live.connect')(function* (
         queryKeys.environment(connection.environmentId),
       ]);
     if (notice.type === 'inventory')
-      yield* reactivity.invalidate([
-        queryKeys.inventory(connection.environmentId),
-        queryKeys.reviewGitSettings(connection.environmentId),
-      ]);
+      yield* reactivity.invalidate(
+        notice.change === 'activity'
+          ? [queryKeys.worktreeInventory(connection.environmentId)]
+          : [
+              queryKeys.inventory(connection.environmentId),
+              queryKeys.reviewGitSettings(connection.environmentId),
+            ],
+      );
     if (notice.type === 'worktree') {
       yield* reactivity.invalidate([
         queryKeys.worktreeInventory(connection.environmentId),

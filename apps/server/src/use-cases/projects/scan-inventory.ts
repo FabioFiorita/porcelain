@@ -9,7 +9,7 @@ import {
   RecordWorktreePresenceService,
   UpdateProjectAvailabilityService,
 } from '@porcelain/projects/services';
-import { knownWorktreesChanged } from '@porcelain/projects/rules';
+import { knownWorktreesChange } from '@porcelain/projects/rules';
 import { EventPublisher } from '../../ports/event-publisher.ts';
 import { LaneKeys } from '../../runtime/lane-keys.ts';
 import { Lanes } from '../../runtime/lanes.ts';
@@ -72,14 +72,18 @@ export class ScanInventoryUseCase extends Context.Service<
                         yield* listRegisteredProjectsCapability.execute();
                       const { listings: after } =
                         yield* listKnownWorktreesCapability.execute(refreshed);
-                      return knownWorktreesChanged(before, after);
+                      return knownWorktreesChange(before, after);
                     }),
                   );
                 }),
               )
               .pipe(
-                Effect.flatMap((changed) =>
-                  changed ? eventsCapability.inventoryChanged() : Effect.void,
+                Effect.flatMap((change) =>
+                  change === undefined
+                    ? Effect.void
+                    : eventsCapability.inventoryChanged(
+                        change === 'activity' ? 'activity' : undefined,
+                      ),
                 ),
               );
           },

@@ -6,6 +6,7 @@ type WorktreeReport = {
   main: boolean;
   branch: string | undefined;
   headCommittedAt?: string;
+  uncommittedChangedAt?: string;
   available: boolean;
 };
 
