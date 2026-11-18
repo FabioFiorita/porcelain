@@ -9,6 +9,10 @@ selectors:
   - 'Add'
   - 'Close Settings'
   - 'Online'
+  - 'Reconnecting'
+  - 'Done'
+  - 'Git actions'
+  - 'Create file or folder'
   - 'This computer'
   - 'Main worktree'
   - 'Computer:'
@@ -45,7 +49,7 @@ The desktop app lists projects from local and remote computers together, each wi
 - Desktop shell only. Settings → `Computers` (`/settings/computers`) → `Pairing link` → `Add`; then the sidebar (phone width: `Toggle Sidebar`, or `ControlOrMeta+b`) → project with the remote computer badge → its worktree card.
 - Route `/remotes/<environmentId>/<projectId>/<worktreeId>` (full page load works once the remote is saved; it redirects to `/` when the remote is unknown or the shell is not desktop).
 - An unavailable remote retains honest unavailable navigation states and its existing Settings recovery.
-- When the live connection drops after it has been established, the open review and Files panel stay mounted while it reconnects.
+- Once the app shows a worktree on this computer, the open review, Files panel, and editor stay mounted through connection checks, reconnects and offline periods. Writes are disabled until the computer is online. A computer that needs pairing or an update, reports a different identity, or has never shown a worktree in this session still uses the existing recovery flow.
 
 ## Driving it with browser
 
@@ -88,15 +92,19 @@ Required instance mode: `--desktop`.
 8. Navigate to `/`
    Expect: the local workspace with button "Mark README.md as reviewed" (this computer's README carries no mark).
 
-### Live updates reconnect
+### The computer drops off the network
 
-From the populated remote review with Files open, close only the remote live WebSocket and block its replacement while HTTP still answers. Confirm a reconnect attempt, then check that Review content and the README.md tree item stay visible at the same address. Restore the socket and repeat the remote disk edit to confirm it appears through live updates.
+At 1440px wide with both sidebars open, open README.md from Files, choose Edit, and type a draft. Before autosave, close the remote live WebSocket and refuse both replacement sockets and HTTP requests to that remote origin. Confirm a failed remote health check.
+
+- Review content, the Files tree, the selected README.md tab, and the draft stay visible at the same address. Done, Git actions and Create file or folder are disabled and describe why.
+- The remote project's computer badge shows Reconnecting only after two seconds. The draft still says Unsaved changes. Check the remote README on disk to confirm the draft never reached it.
+- Add a file on the remote disk while it is unreachable. Restore HTTP and the WebSocket. The reconnect badge clears, the new file appears in the same tree, Done becomes enabled, and the editor retains the draft.
 
 ### Observable proof
 
 Read both servers: only remote marks/text change. Remote summary opens its decision; local README/marks remain unchanged.
 
-Automated coverage: `projects-remote-workspace.desktop.e2e.ts`.
+Automated coverage: `access-remote-detail.desktop.e2e.ts`.
 
 ## Gotchas
 

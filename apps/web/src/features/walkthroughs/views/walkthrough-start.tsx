@@ -1,3 +1,4 @@
+import { useWorkspaceWriteBlock } from '@/shared/workspace/connection';
 import { useAtomRefresh, useAtomValue } from '@effect/atom-react';
 import { Link } from '@tanstack/react-router';
 import { Option } from 'effect';
@@ -26,6 +27,7 @@ export function WalkthroughStart({
   onWrite: () => void;
 }) {
   const { connection } = document.context;
+  const writeBlock = useWorkspaceWriteBlock(document.context);
   const local = useLocalConnection();
   const atom = readWalkthroughWriterSettings(connection);
   const result = useAtomValue(atom);
@@ -111,8 +113,12 @@ export function WalkthroughStart({
       )}
       <Button
         disabled={
-          waiting || !writer?.available || AsyncResult.isFailure(result)
+          Boolean(writeBlock) ||
+          waiting ||
+          !writer?.available ||
+          AsyncResult.isFailure(result)
         }
+        aria-description={writeBlock}
         onClick={onWrite}
       >
         <SparklesIcon data-icon="inline-start" />

@@ -54,20 +54,36 @@ export function SidebarActionMenu({
   actions,
   label,
   description,
+  writeBlock,
   onAction,
   children,
 }: {
   actions: readonly ReviewSidebarAction[];
   label: string;
   description?: string;
+  writeBlock?: string | undefined;
   onAction: (id: ReviewSidebarAction['id']) => void;
   children: (menu: ReactNode) => ReactNode;
 }) {
   const descriptionId = useId();
   const [openingSide, setOpeningSide] = useState(false);
+  const blocked = (id: ReviewSidebarAction['id']) =>
+    id === 'review' || id === 'discard' ? writeBlock : undefined;
   const act = (id: ReviewSidebarAction['id']) => {
+    if (blocked(id)) return;
     if (id === 'open-to-side') flushSync(() => setOpeningSide(true));
     onAction(id);
+  };
+  const itemProps = (action: ReviewSidebarAction) => {
+    const reason = blocked(action.id);
+    return {
+      disabled: action.disabled || Boolean(reason),
+      'aria-description': reason,
+      variant: action.destructive
+        ? ('destructive' as const)
+        : ('default' as const),
+      onClick: () => act(action.id),
+    };
   };
   const reset = (open: boolean) => {
     if (open) setOpeningSide(false);
@@ -108,12 +124,7 @@ export function SidebarActionMenu({
             </Tooltip>
             <DropdownMenuContent align="end" finalFocus={!openingSide}>
               {actions.map((action) => (
-                <DropdownMenuItem
-                  key={action.id}
-                  disabled={action.disabled}
-                  variant={action.destructive ? 'destructive' : 'default'}
-                  onClick={() => act(action.id)}
-                >
+                <DropdownMenuItem key={action.id} {...itemProps(action)}>
                   <ActionIcon action={action} />
                   {action.label}
                 </DropdownMenuItem>
@@ -124,12 +135,7 @@ export function SidebarActionMenu({
       </ContextMenuTrigger>
       <ContextMenuContent finalFocus={!openingSide}>
         {actions.map((action) => (
-          <ContextMenuItem
-            key={action.id}
-            disabled={action.disabled}
-            variant={action.destructive ? 'destructive' : 'default'}
-            onClick={() => act(action.id)}
-          >
+          <ContextMenuItem key={action.id} {...itemProps(action)}>
             <ActionIcon action={action} />
             {action.label}
           </ContextMenuItem>

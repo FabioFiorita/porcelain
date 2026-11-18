@@ -21,7 +21,7 @@ export function BarAction({
   iconOnly = false,
 }: {
   label: string;
-  description?: string;
+  description?: string | undefined;
   icon: LucideIcon;
   shortcut?: string;
   onClick: () => void;

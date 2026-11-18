@@ -25,6 +25,7 @@ import type { TreeAction } from '@porcelain/client/files/rules';
 type MenuListProps = {
   actions: readonly { id: TreeAction; label: string }[];
   hidden: boolean;
+  writeBlock?: string | undefined;
   onAction: (id: TreeAction) => void;
 };
 
@@ -55,6 +56,7 @@ export function FileTreeMenu({
   finalFocus,
   actions,
   hidden,
+  writeBlock,
   onAction,
 }: Props) {
   const popup = useElement<HTMLDivElement>();
@@ -79,18 +81,29 @@ export function FileTreeMenu({
         return stayed ? finalFocus() : false;
       }}
     >
-      <FileTreeMenuList actions={actions} hidden={hidden} onAction={onAction} />
+      <FileTreeMenuList
+        actions={actions}
+        hidden={hidden}
+        onAction={onAction}
+        writeBlock={writeBlock}
+      />
     </ContextMenuContent>
   );
 }
 
-export function FileTreeMenuList({ actions, hidden, onAction }: MenuListProps) {
+export function FileTreeMenuList({
+  actions,
+  hidden,
+  onAction,
+  writeBlock,
+}: MenuListProps) {
   return actions.map((action) => (
     <FileTreeMenuAction
       key={action.id}
       action={action}
       onAction={onAction}
       hidden={hidden}
+      writeBlock={writeBlock}
     />
   ));
 }
@@ -99,11 +112,23 @@ function FileTreeMenuAction({
   action,
   onAction,
   hidden,
+  writeBlock,
 }: {
   action: { id: TreeAction; label: string };
   onAction: (id: TreeAction) => void;
   hidden: boolean;
+  writeBlock?: string | undefined;
 }) {
+  const affectsComputer = [
+    'new-file',
+    'new-folder',
+    'rename',
+    'duplicate',
+    'pin',
+    'hide',
+    'trash',
+  ].includes(action.id);
+  const blocked = affectsComputer ? writeBlock : undefined;
   const Icon = action.id === 'hide' && hidden ? EyeIcon : icons[action.id];
   return (
     <>
@@ -111,6 +136,8 @@ function FileTreeMenuAction({
         action.id === 'copy-relative' ||
         action.id === 'trash') && <ContextMenuSeparator />}
       <ContextMenuItem
+        disabled={Boolean(blocked)}
+        aria-description={blocked}
         variant={action.id === 'trash' ? 'destructive' : 'default'}
         onClick={() => onAction(action.id)}
       >

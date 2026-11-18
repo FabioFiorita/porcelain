@@ -160,6 +160,7 @@ function BranchFileList({
       }
       onOpen={onOpen}
       sideLabel={sideLabel}
+      writeBlock={reviewed.writeBlock}
       canReview={item.fingerprint !== null && item.fingerprint !== undefined}
       onReview={() =>
         reviewed.toggle({

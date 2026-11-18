@@ -1,3 +1,4 @@
+import { useWorkspaceWriteBlock } from '@/shared/workspace/connection';
 import { useAtom, useAtomSet } from '@effect/atom-react';
 import { Cause, Exit, Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
@@ -72,10 +73,13 @@ export function useToggleReviewed(
   notify: (notice: ReviewNotice) => void,
   range: ReviewRange = WORKTREE_RANGE,
 ) {
+  const writeBlock = useWorkspaceWriteBlock(context);
   const mark = useMarkReviewed(scope, context, range);
   const unmark = useUnmarkReviewed(scope, context, range);
   return {
+    writeBlock,
     toggle(target: ReviewToggleTarget | undefined) {
+      if (writeBlock) return;
       const toggle = reviewToggle(
         target,
         mark.result.waiting || unmark.result.waiting,
@@ -105,6 +109,7 @@ export function useToggleStepReviewed(
   worktree: readonly ReviewableItem[],
   notify: (notice: ReviewNotice | { title: string; type: 'success' }) => void,
 ) {
+  const writeBlock = useWorkspaceWriteBlock(context);
   const branchPlan = markAllPlan(branch);
   const worktreePlan = markAllPlan(worktree);
   const branchCommand = useMarkAllReviewed(scope, context, range);
@@ -115,7 +120,10 @@ export function useToggleStepReviewed(
     entries.every((entry) => entry.reviewStatus === 'reviewed');
   const pending =
     branchCommand.result.waiting || worktreeCommand.result.waiting;
-  const disabled = pending || (branchPlan.blocked && worktreePlan.blocked);
+  const disabled =
+    Boolean(writeBlock) ||
+    pending ||
+    (branchPlan.blocked && worktreePlan.blocked);
   const toggle = () => {
     if (disabled) return;
     const operations = [
@@ -157,5 +165,5 @@ export function useToggleStepReviewed(
     });
   };
 
-  return { reviewed, disabled, toggle };
+  return { reviewed, disabled, toggle, writeBlock };
 }

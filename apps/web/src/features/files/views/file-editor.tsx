@@ -16,6 +16,7 @@ function FileEditor({
   draft,
   state,
   active,
+  writeBlock,
   changed,
   onDone,
   onDiscard,
@@ -26,6 +27,7 @@ function FileEditor({
   draft: FileDraftHandle;
   state: FileDraftState;
   active: boolean;
+  writeBlock?: string | undefined;
   changed: boolean;
   onDone: () => void;
   onDiscard: () => void;
@@ -48,11 +50,14 @@ function FileEditor({
   const controls = (
     <>
       <span role="status" className="text-xs text-muted-foreground">
-        {label}
+        {writeBlock && state.text !== state.savedText
+          ? 'Unsaved changes'
+          : label}
       </span>
       <Button
         size="sm"
-        disabled={changedOnDisk}
+        disabled={changedOnDisk || Boolean(writeBlock)}
+        aria-description={writeBlock}
         onClick={() => void done(onDone)}
       >
         <CheckIcon className="size-3.5" />
@@ -62,7 +67,13 @@ function FileEditor({
   );
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      {active && <SaveShortcut onSave={() => void save()} />}
+      {active && (
+        <SaveShortcut
+          onSave={() => {
+            if (!writeBlock) void save();
+          }}
+        />
+      )}
       {renderToolbar?.(controls)}
       {changed && (
         <p className="border-b bg-graph-4/10 px-3.5 py-1.5 text-xs text-graph-4">
@@ -84,7 +95,13 @@ function FileEditor({
             Copy draft
           </Button>
           {!changedOnDisk && (
-            <Button size="xs" variant="outline" onClick={() => void save()}>
+            <Button
+              size="xs"
+              variant="outline"
+              disabled={Boolean(writeBlock)}
+              aria-description={writeBlock}
+              onClick={() => void save()}
+            >
               Retry save
             </Button>
           )}

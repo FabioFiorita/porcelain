@@ -3,7 +3,14 @@ export { pairBrowser } from './commands/pairing';
 export { restoreSession } from './commands/restore-session';
 
 export { useSignOutWhenUnauthorized } from './commands/unauthorized';
-export { useRemoteStatus } from './queries/remotes';
+export {
+  remoteConnectionStatus,
+  remoteWorkspaceNotice,
+  remoteWorktreeInterrupted,
+  rememberRemoteWorkspace,
+  shownRemoteWorkspace,
+  useRemoteStatus,
+} from './queries/remotes';
 export { remoteStatusVariant } from './rules/remotes';
 export {
   accessSession,

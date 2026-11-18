@@ -1,3 +1,4 @@
+import { useWorkspaceWriteBlock } from '@/shared/workspace/connection';
 import { type ReactNode, useState } from 'react';
 import { ArrowUpRightIcon, Columns2Icon } from 'lucide-react';
 import { AsyncResult } from 'effect/reactivity';
@@ -342,6 +343,7 @@ function Written({
     | undefined;
 }) {
   const owner = { ...props, runId: run.id };
+  const writeBlock = useWorkspaceWriteBlock(props.context);
   const conversation: Conversation = ({ kind, step }) => {
     const title = content.stops[step - 1]!.title;
     return (
@@ -361,6 +363,7 @@ function Written({
       freshness={freshness}
       failure={updateFailure}
       onUpdate={onUpdate}
+      writeBlock={writeBlock}
     />
   );
   if (content.outcome === 'nothing')
@@ -450,11 +453,13 @@ function Failed({
   failure,
   waiting,
   onRetry,
+  writeBlock,
 }: {
   run: WalkthroughRun | undefined;
   failure: WalkthroughFailure;
   waiting: boolean;
   onRetry: () => void;
+  writeBlock: string | undefined;
 }) {
   const copy = failureCopy(failure, run);
   return (
@@ -467,7 +472,11 @@ function Failed({
         {copy.message && (
           <p className="text-prose text-foreground-2">{copy.message}</p>
         )}
-        <Button disabled={waiting} onClick={onRetry}>
+        <Button
+          disabled={waiting || Boolean(writeBlock)}
+          aria-description={writeBlock}
+          onClick={onRetry}
+        >
           Try again
         </Button>
       </header>
@@ -476,6 +485,7 @@ function Failed({
 }
 
 export function WalkthroughDocument(props: DocumentProps) {
+  const writeBlock = useWorkspaceWriteBlock(props.context);
   const {
     result,
     phase: observedPhase,
@@ -511,6 +521,7 @@ export function WalkthroughDocument(props: DocumentProps) {
           failure={startFailure.failure}
           waiting={write.waiting}
           onRetry={write.start}
+          writeBlock={writeBlock}
         />
       );
     switch (phase.kind) {
@@ -533,6 +544,7 @@ export function WalkthroughDocument(props: DocumentProps) {
             failure={phase.failure}
             waiting={write.waiting}
             onRetry={write.start}
+            writeBlock={writeBlock}
           />
         );
       case 'ready': {

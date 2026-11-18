@@ -139,7 +139,12 @@ class FileDraft extends Context.Service<
             (current) => {
               if (current)
                 return Effect.succeed([Fiber.join(current), current] as const);
-              if (disposed.value || blocked())
+              if (
+                disposed.value ||
+                blocked() ||
+                (state.value.text !== state.value.savedText &&
+                  writer.canWrite?.() === false)
+              )
                 return Effect.succeed([
                   Effect.succeed(false),
                   undefined,
@@ -152,6 +157,7 @@ class FileDraft extends Context.Service<
               update({ saving: true, error: null });
               const writing = Effect.gen(function* () {
                 while (state.value.text !== state.value.savedText) {
+                  if (writer.canWrite?.() === false) return false;
                   const text = state.value.text;
                   const fingerprint = yield* writer.write(
                     text,

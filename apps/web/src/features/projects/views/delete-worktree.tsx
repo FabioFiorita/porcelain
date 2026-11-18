@@ -9,7 +9,10 @@ import {
   worktreeCleanupFailureMessage,
 } from '@porcelain/client/projects/rules';
 import type { WorktreeCleanupPlan } from '@porcelain/client/projects';
-import type { Connection } from '@/shared/workspace/connection';
+import {
+  useWorkspaceWriteBlock,
+  type ConnectionContext,
+} from '@/shared/workspace/connection';
 import type { NavigatorEntry } from '@porcelain/client/projects/rules';
 import type { ReviewGitSettings } from '@porcelain/client/preferences';
 import {
@@ -44,14 +47,14 @@ export function DeleteWorktreeDialog() {
 }
 function DeleteWorktreeContent({
   entry,
-  connection,
+  context,
   worktreeId,
 }: {
   entry: NavigatorEntry;
-  connection: Connection;
+  context: ConnectionContext;
   worktreeId: string;
 }) {
-  const view = useReviewGitSettings(connection);
+  const view = useReviewGitSettings(context.connection);
   const settings = confirmedReviewGitSettings(view);
   const block = reviewGitSettingsBlock(view);
   return (
@@ -67,7 +70,7 @@ function DeleteWorktreeContent({
         <DeleteOptions
           settings={settings}
           entry={entry}
-          connection={connection}
+          context={context}
           worktreeId={worktreeId}
         />
       ) : (
@@ -82,14 +85,16 @@ function DeleteWorktreeContent({
 function DeleteOptions({
   settings,
   entry,
-  connection,
+  context,
   worktreeId,
 }: {
   settings: ReviewGitSettings;
   entry: NavigatorEntry;
-  connection: Connection;
+  context: ConnectionContext;
   worktreeId: string;
 }) {
+  const { connection } = context;
+  const writeBlock = useWorkspaceWriteBlock(context);
   const { detached } = entry;
   const [options, setOptions] = useState(() =>
     worktreeCleanupOptions(settings, detached),
@@ -183,8 +188,10 @@ function DeleteOptions({
       <AlertDialogFooter>
         <AlertDialogCancel disabled={pending}>Cancel</AlertDialogCancel>
         <Button
+          aria-description={writeBlock}
           variant={plan ? 'destructive' : 'default'}
           disabled={
+            Boolean(writeBlock) ||
             pending ||
             !selected ||
             Boolean(nothingToDelete || (risk && !discardChanges))

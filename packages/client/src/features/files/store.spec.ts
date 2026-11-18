@@ -192,6 +192,48 @@ describe('portable file draft', () => {
     });
   });
 
+  it('keeps a dirty draft unsaved while offline and accepts a clean draft', async () => {
+    const application = applicationRuntime();
+    const drafts = application.runSync(FileDrafts);
+    const writes: string[] = [];
+    let online = false;
+    const environmentId = 'offline-draft';
+    const draft = await application.runPromise(
+      drafts.retain({
+        environmentId,
+        scope: { projectId: 'p', worktreeId: 'w' },
+        path: 'note.md',
+        text: 'on disk',
+        fingerprint: 'old',
+        writer: {
+          canWrite: () => online,
+          write: ({ text }) =>
+            Effect.sync(() => {
+              writes.push(text);
+              return 'new';
+            }),
+        },
+      }),
+    );
+
+    expect(await application.runPromise(drafts.save(environmentId))).toBe(true);
+    await application.runPromise(draft.change('unsaved text'));
+    expect(await application.runPromise(drafts.save(environmentId))).toBe(
+      false,
+    );
+    expect(draft.state.value).toMatchObject({
+      text: 'unsaved text',
+      savedText: 'on disk',
+      error: null,
+    });
+    expect(writes).toEqual([]);
+
+    online = true;
+    expect(await application.runPromise(drafts.save(environmentId))).toBe(true);
+    expect(writes).toEqual(['unsaved text']);
+    expect(draft.state.value.savedText).toBe('unsaved text');
+  });
+
   it('preserves a retained draft while its write is in flight', async () => {
     const pending = Promise.withResolvers<string>();
     const { application, draft } = fixture('old disk', 'v1', () =>

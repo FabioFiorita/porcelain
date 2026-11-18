@@ -62,6 +62,7 @@ import type {
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import { desktopShell } from '@/shared/shell';
 import { cn } from '@/shared/lib/utils';
+import type { ConnectionContext } from '@/shared/workspace/connection';
 
 type Review = {
   selection: NonNullable<ReturnType<typeof selectedWorktreeInProject>>;
@@ -91,6 +92,8 @@ export function ConnectedWorkspace({
   review,
   remote,
   unavailable,
+  remoteStatus,
+  showRemoteNotice,
   notice,
   children,
   settingsOpen = false,
@@ -102,6 +105,8 @@ export function ConnectedWorkspace({
   review?: Review;
   remote?: RemoteConnection;
   unavailable?: RemoteStatus;
+  remoteStatus?: ConnectionContext['remoteStatus'];
+  showRemoteNotice?: boolean | undefined;
   notice?: 'not-found' | 'missing-worktree' | undefined;
 }) {
   const navigationTrigger = useElement<HTMLButtonElement>();
@@ -143,7 +148,7 @@ export function ConnectedWorkspace({
   const NoticeIcon = message.icon;
   const recoveryLabel = worktreeLabel(recovery?.worktree.branch || undefined);
   const remotes = useRemoteConnections();
-  const context = useConnectedContext(remote?.connection);
+  const context = { ...useConnectedContext(remote?.connection), remoteStatus };
   const shownOn = remote?.remote.environmentId ?? null;
   const shown = review && {
     remote: shownOn,
@@ -180,6 +185,7 @@ export function ConnectedWorkspace({
     settingsOpen,
     remotes: desktopShell ? remotes : undefined,
     selected: shown,
+    showRemoteNotice,
     onOpenPullRequest: (entry: NavigatorEntry) => {
       if (entry.pullRequest.state !== 'available' || !entry.pullRequest.number)
         return;

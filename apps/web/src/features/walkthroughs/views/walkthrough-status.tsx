@@ -13,7 +13,8 @@ export function WalkthroughStatus({
   freshness,
   failure,
   onUpdate,
-}: WalkthroughStatusInput) {
+  writeBlock,
+}: WalkthroughStatusInput & { writeBlock?: string | undefined }) {
   const progress = walkthroughProgress(run, requesting);
   return (
     <section
@@ -25,7 +26,13 @@ export function WalkthroughStatus({
           {progress.label}
         </p>
         {!progress.active && onUpdate && (
-          <Button size="sm" variant="outline" onClick={onUpdate}>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={Boolean(writeBlock)}
+            aria-description={writeBlock}
+            onClick={onUpdate}
+          >
             {failure ? 'Try again' : 'Update walkthrough'}
           </Button>
         )}

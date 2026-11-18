@@ -177,6 +177,7 @@ export const retainFileDraft = Atom.family(
     readonly path: string;
     readonly text: string;
     readonly fingerprint: string;
+    readonly writeAvailability?: Atom.Atom<boolean>;
   }) =>
     fileDraftsRuntime(input.connection).atom(
       Effect.gen(function* () {
@@ -186,6 +187,9 @@ export const retainFileDraft = Atom.family(
           ...input,
           environmentId: input.connection.environmentId,
           writer: {
+            canWrite: () =>
+              input.writeAvailability === undefined ||
+              registry.get(input.writeAvailability),
             write: ({ path, text, expectedFingerprint }) => {
               const runtime = fileEditRuntime({
                 connection: drafts.connection(input.connection),

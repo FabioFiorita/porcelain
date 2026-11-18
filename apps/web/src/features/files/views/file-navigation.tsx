@@ -83,11 +83,14 @@ import {
 import { FileTreeMenu } from './file-tree-menu';
 import { PinnedFiles } from './pinned-files';
 import { FileSectionHeader } from './file-section-header';
-import { type Connection } from '@/shared/workspace/connection';
+import {
+  useWorkspaceWriteBlock,
+  type ConnectionContext,
+} from '@/shared/workspace/connection';
 
 type Props = {
   scope: FilesScope;
-  connection: Connection;
+  context: ConnectionContext;
   worktreePath: string;
   selected: string;
   sideLabel: string;
@@ -100,19 +103,20 @@ type Props = {
 
 export function FileNavigation({
   scope,
-  connection,
+  context,
   worktreePath,
   selected,
   onOpen,
   sideLabel,
   actionsTarget,
 }: Props) {
+  const { connection } = context;
   const scopeKey = `${connection.environmentId}:${scope.projectId}:${scope.worktreeId}`;
   return (
     <ScopedFileNavigation
       key={scopeKey}
       scope={scope}
-      connection={connection}
+      context={context}
       worktreePath={worktreePath}
       selected={selected}
       onOpen={onOpen}
@@ -124,13 +128,15 @@ export function FileNavigation({
 
 function ScopedFileNavigation({
   scope,
-  connection,
+  context,
   worktreePath,
   selected,
   onOpen,
   sideLabel,
   actionsTarget,
 }: Props) {
+  const { connection } = context;
+  const writeBlock = useWorkspaceWriteBlock(context);
   const root = useDirectory(connection, scope, '');
   const edit = useEditFile(connection, scope);
   const editError = AsyncResult.isFailure(edit.result)
@@ -255,7 +261,7 @@ function ScopedFileNavigation({
   useHotkey(
     SHORTCUTS.duplicateFile,
     () => {
-      if (!edit.result.waiting) duplicate(selected);
+      if (!writeBlock && !edit.result.waiting) duplicate(selected);
     },
     { enabled: openable.has(selected), ignoreInputs: true },
   );
@@ -331,20 +337,26 @@ function ScopedFileNavigation({
     links: entries.filter(
       (entry) => entry.kind === 'symlink' || entry.kind === 'submodule',
     ),
-    creating,
-    renameRequest: renaming
-      ? { ...renaming, onStart: () => setRenaming(undefined) }
-      : undefined,
+    creating: writeBlock ? undefined : creating,
+    writeBlock,
+    renameRequest:
+      renaming && !writeBlock
+        ? { ...renaming, onStart: () => setRenaming(undefined) }
+        : undefined,
     onRequestRename: (path) => {
+      if (writeBlock) return;
       setRequested((current) => union(current, fileTreeAncestors(path)));
       setFileQuery('');
       setRenaming({ path, nonce: Date.now() });
     },
     onCreate: (path, entryKind) =>
-      edit.create(path, entryKind, (created) =>
-        onOpen({ kind: 'file', path: created }),
-      ),
-    onMove: edit.move,
+      writeBlock
+        ? Promise.resolve()
+        : edit.create(path, entryKind, (created) =>
+            onOpen({ kind: 'file', path: created }),
+          ),
+    onMove: (from, to) =>
+      writeBlock ? Promise.resolve() : edit.move(from, to),
     gitStatus,
     selected,
     bindRename,
@@ -364,6 +376,7 @@ function ScopedFileNavigation({
           finalFocus={context.finalFocus}
           actions={menu.actions}
           hidden={menu.hidden}
+          writeBlock={writeBlock}
           onAction={(id) => menu.run(id, context.close, rename)}
         />
       );
@@ -396,7 +409,8 @@ function ScopedFileNavigation({
                           size="icon-sm"
                           variant="ghost"
                           aria-label="Create file or folder"
-                          disabled={edit.result.waiting}
+                          disabled={edit.result.waiting || Boolean(writeBlock)}
+                          aria-description={writeBlock}
                         />
                       }
                     >
@@ -405,11 +419,13 @@ function ScopedFileNavigation({
                   }
                 />
                 <TooltipContent role="tooltip" className="break-all">
-                  Create file or folder
+                  {writeBlock ?? 'Create file or folder'}
                 </TooltipContent>
               </Tooltip>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem
+                  disabled={Boolean(writeBlock)}
+                  aria-description={writeBlock}
                   onClick={() =>
                     setCreating({
                       kind: 'file',
@@ -422,6 +438,8 @@ function ScopedFileNavigation({
                   New file
                 </DropdownMenuItem>
                 <DropdownMenuItem
+                  disabled={Boolean(writeBlock)}
+                  aria-description={writeBlock}
                   onClick={() =>
                     setCreating({
                       kind: 'directory',
@@ -474,6 +492,7 @@ function ScopedFileNavigation({
         statuses={gitStatus}
         selected={selected}
         onOpen={openFile}
+        writeBlock={writeBlock}
         onUnpin={(path) =>
           discardRejection(setPinned.submit({ path, pinned: false }))
         }
@@ -564,7 +583,8 @@ function ScopedFileNavigation({
             </AlertDialogCancel>
             <Button
               variant="destructive"
-              disabled={edit.result.waiting}
+              disabled={edit.result.waiting || Boolean(writeBlock)}
+              aria-description={writeBlock}
               onClick={() => {
                 if (deleting) edit.trash(deleting, () => setDeleting(null));
               }}

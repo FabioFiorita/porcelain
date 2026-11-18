@@ -1,3 +1,4 @@
+import { useWorkspaceWriteBlock } from '@/shared/workspace/connection';
 import { TruncatedText } from '@/shared/views/truncated-text';
 import { AsyncResult } from 'effect/reactivity';
 import { Option } from 'effect';
@@ -52,6 +53,7 @@ export function CommitForm(
     },
   );
   useDraftCancellation(form.controllers);
+  const writeBlock = useWorkspaceWriteBlock(props.context);
   const {
     mode,
     commitAction,
@@ -74,12 +76,12 @@ export function CommitForm(
       className="flex min-w-0 flex-col gap-4"
       onSubmit={(event) => {
         event.preventDefault();
-        if (!blocker && !working && !uncertain) form.commit();
+        if (!writeBlock && !blocker && !working && !uncertain) form.commit();
       }}
       onKeyDown={(event) => {
         if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
           event.preventDefault();
-          if (!blocker && !working && !uncertain) form.commit();
+          if (!writeBlock && !blocker && !working && !uncertain) form.commit();
         }
       }}
     >
@@ -147,7 +149,9 @@ export function CommitForm(
           <CommitFiles form={form} />
         )}
       </fieldset>
-      {commitAction === 'commit' && <CommitGeneration form={form} />}
+      {commitAction === 'commit' && (
+        <CommitGeneration form={form} writeBlock={writeBlock} />
+      )}
       {mode !== 'groups' && !form.currentMessage.trim() && (
         <p className="text-xs text-muted-foreground" role="status">
           Write or generate a message before committing.
@@ -192,7 +196,9 @@ export function CommitForm(
       )}
       <Button
         type="submit"
+        aria-description={writeBlock}
         disabled={
+          Boolean(writeBlock) ||
           working ||
           uncertain ||
           Boolean(receipt && changedSinceLooked(receipt)) ||
@@ -307,11 +313,17 @@ function CommitFiles({ form }: { form: CommitFormState }) {
   );
 }
 
-function CommitGeneration({ form }: { form: CommitFormState }) {
+function CommitGeneration({
+  form,
+  writeBlock,
+}: {
+  form: CommitFormState;
+  writeBlock: string | undefined;
+}) {
   const { models, model } = form;
   const choices = Option.getOrUndefined(AsyncResult.value(models));
   const chosen = choices?.find((entry) => entry.id === model);
-  const reason = generationReason(form);
+  const reason = writeBlock ?? generationReason(form);
   return (
     <div className="flex flex-wrap items-center gap-2">
       <Button
@@ -319,6 +331,7 @@ function CommitGeneration({ form }: { form: CommitFormState }) {
         variant="outline"
         size="sm"
         disabled={Boolean(reason) || form.working || form.uncertain}
+        aria-description={writeBlock}
         onClick={() => form.generate()}
       >
         <SparklesIcon />
@@ -373,6 +386,7 @@ function CommitGeneration({ form }: { form: CommitFormState }) {
           variant="outline"
           size="sm"
           disabled={Boolean(reason) || form.uncertain}
+          aria-description={writeBlock}
           onClick={form.generate}
         >
           Try again

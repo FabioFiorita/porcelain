@@ -11,6 +11,7 @@ export type RoutedCall = {
 };
 
 type RoutedSocket = {
+  url(): string;
   close(options?: {
     code?: number | undefined;
     reason?: string | undefined;
@@ -45,7 +46,9 @@ export function browserNetwork(context: RoutedContext) {
   const sockets = new Set<RoutedSocket>();
   const notices: Array<() => void> = [];
   let holding = false;
-  let down = false;
+  const unavailable = new Set<string | undefined>();
+  const atHost = (socket: RoutedSocket, host?: string) =>
+    host === undefined || new URL(socket.url()).host === host;
   const deliver = () => {
     holding = false;
     for (const send of notices.splice(0)) send();
@@ -53,7 +56,7 @@ export function browserNetwork(context: RoutedContext) {
   const live = {
     route: () =>
       context.routeWebSocket(/\/api\/live(?:\?|$)/, (socket) => {
-        if (down) {
+        if ([...unavailable].some((host) => atHost(socket, host))) {
           void socket.close();
           return;
         }
@@ -77,13 +80,16 @@ export function browserNetwork(context: RoutedContext) {
       return { release: deliver };
     },
     release: deliver,
-    drop: () => {
-      down = true;
-      for (const socket of sockets) void socket.close();
-      sockets.clear();
+    drop: (host?: string) => {
+      unavailable.add(host);
+      for (const socket of sockets) {
+        if (!atHost(socket, host)) continue;
+        sockets.delete(socket);
+        void socket.close();
+      }
     },
-    restore: () => {
-      down = false;
+    restore: (host?: string) => {
+      unavailable.delete(host);
     },
     connected: () => sockets.size > 0,
   };

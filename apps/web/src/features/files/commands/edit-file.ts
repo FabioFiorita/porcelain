@@ -9,6 +9,7 @@ import {
 import type { FilesScope } from '@porcelain/client/files/rules';
 import { readFileDraft, useFileDraftState, clearEditorFile } from '../store';
 import { copyText } from '@/shared/workspace/copy';
+import type { ConnectionContext } from '@/shared/workspace/connection';
 import type { RuntimeConnection } from '@porcelain/client/transport';
 
 const withoutTrailingSlash = (path: string) => path.replace(/\/$/, '');
@@ -61,7 +62,7 @@ export function useEditFile(connection: RuntimeConnection, scope: FilesScope) {
 }
 
 export function useFileDraft(
-  connection: RuntimeConnection,
+  context: ConnectionContext,
   scope: FilesScope,
   path: string,
 ) {
@@ -70,7 +71,7 @@ export function useFileDraft(
     value: { file, draft },
   } = useConfirmedRead(
     readFileDraft({
-      connection,
+      context,
       scope,
       path,
     }),

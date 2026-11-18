@@ -121,3 +121,17 @@ export function failSharingRead(context: BrowserContext) {
     503,
   );
 }
+
+export function failRemoteRequests(context: BrowserContext, address: string) {
+  return browserNetwork(context).fail(
+    (request) => new URL(request.url()).origin === address,
+    503,
+  );
+}
+
+export function waitForRemoteHealthFailure(page: Page, address: string) {
+  return page.waitForResponse(
+    (response) =>
+      response.url() === `${address}/api/health` && response.status() === 503,
+  );
+}

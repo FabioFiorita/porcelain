@@ -123,7 +123,7 @@ export function PullRequestDocument({
         archive={
           pull.state === 'merged' || pull.state === 'closed' ? (
             <ArchivePullRequest
-              connection={context.connection}
+              context={context}
               projectId={projectId}
               number={number}
             />

@@ -232,7 +232,7 @@ function SidebarSurface({
       {surface === 'files' && (
         <FileNavigation
           scope={scope}
-          connection={context.connection}
+          context={context}
           worktreePath={worktreePath}
           selected={
             activeEntry?.startsWith('file:') ? activeEntry.slice(5) : ''
