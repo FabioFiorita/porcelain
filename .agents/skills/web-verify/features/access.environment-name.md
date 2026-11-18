@@ -63,7 +63,7 @@ Required instance mode: `--desktop`.
 7. Click button `Computers`, then button named `Open This computer: <name>`, then button `Rename`
    Expect: textbox "Name of this computer" holds "Workstation"; button "Save" disabled.
 8. Click button `Close Settings` twice
-   Expect: URL `/<projectId>/<worktreeId>`; title "Changes — repository · Workstation".
+   Expect: URL `/<projectId>/<worktreeId>`; title "Review — repository · Workstation".
 9. Click button `Toggle Sidebar`
    Expect: navigation "Projects and worktrees" keeps application header "Porcelain" and updates the project controls to include Workstation in their accessible identity; old host-labelled controls are absent. A single computer still has no caption. With multiple computers, the static caption updates to `Computer: Workstation`, retaining its full accessible name.
 10. Click button `Settings`
@@ -75,7 +75,7 @@ Required instance mode: `--desktop`.
 13. Click button `Save`
     Expect: title "Settings"; the name field closes and the heading shows `$HOST`.
 14. Click button `Close Settings` twice
-    Expect: title "Changes — repository"; reopening the navigator restores `$HOST` in the project controls, without a single-computer caption.
+    Expect: title "Review — repository"; reopening the navigator restores `$HOST` in the project controls, without a single-computer caption.
 
 15. Click button `Settings`, then button `Computers`, then button named `Open This computer: <name>`, then button `Icon: Desktop`
     Expect: menu with label "Icon of this computer" and radio items Desktop (checked), Laptop, Server, Cloud.

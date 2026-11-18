@@ -70,7 +70,7 @@ Required instance mode: `--desktop`.
 4. Click button `elsewhere`
    Expect: text "Every worktree appears in the sidebar."; button "Open elsewhere" enabled.
 5. Click button `Open elsewhere`
-   Expect: the dialog is gone; URL `/remotes/<remote environmentId>/<projectId>/<worktreeId>`; title "Changes — elsewhere · Remote journey computer"; in the sheet, group "Remote journey computer" holds project button "elsewhere" and group "This computer" does not.
+   Expect: the dialog is gone; URL `/remotes/<remote environmentId>/<projectId>/<worktreeId>`; title "Review — elsewhere · Remote journey computer"; in the sheet, group "Remote journey computer" holds project button "elsewhere" and group "This computer" does not.
 6. Inspect HTTP traffic
    Expect: `POST /api/projects` sent to the remote's address (`127.0.0.1:<remote port>`) with status 200; none to this computer's web address.
 
@@ -79,7 +79,7 @@ Required instance mode: `--desktop`.
 7. Click button `Open project`, then click menuitem `This computer`
    Expect: dialog "Open project" with text "Browse for a repository on the Porcelain server."; folder button "here" (this computer's disk; no "elsewhere").
 8. Click button `here`, then click button `Open here`
-   Expect: the dialog is gone; URL `/<projectId>/<worktreeId>` (no `/remotes/`); title "Changes — here"; group "This computer" holds project button "here", and group "Remote journey computer" still holds "elsewhere".
+   Expect: the dialog is gone; URL `/<projectId>/<worktreeId>` (no `/remotes/`); title "Review — here"; group "This computer" holds project button "here", and group "Remote journey computer" still holds "elsewhere".
 
 ### Observable proof
 

@@ -32,7 +32,7 @@ Preconditions: [surface baseline](README.md).
 None before driving; the disk write happens between steps 6 and 7.
 
 1. Navigate to `/`
-   Expect: title "Changes — repository".
+   Expect: title "Review — repository".
 2. Click button `Review`
    Expect: dialog "Worktree review" with tab "Files".
 3. Click tab `Files`

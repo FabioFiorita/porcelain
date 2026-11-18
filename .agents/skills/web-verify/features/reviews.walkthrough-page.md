@@ -1,7 +1,7 @@
 ---
 route: /
 selectors:
-  - 'Walkthrough'
+  - 'Review'
   - 'No walkthrough yet.'
   - 'Write walkthrough'
   - 'No writers available'
@@ -9,9 +9,8 @@ selectors:
   - 'Project walkthrough settings'
   - 'Writing the walkthrough'
   - 'How the system grew'
-  - 'See every changed file'
-  - 'See the code'
-  - 'See the change'
+  - 'Not covered by the steps'
+  - 'Ask about this step'
   - 'Update walkthrough'
   - 'Try again'
   - 'Writing the walkthrough'
@@ -34,14 +33,15 @@ api:
 
 # reviews.walkthrough-page
 
-A worktree can have one Walkthrough for its whole change since the base branch, committed or uncommitted: a fresh agent reads the change and writes one page with the calls that need the developer, how the system grew and one step per decision. Its files are organized by step in the Changes panel, and the page marks itself out of date when its content or base changes.
+Every worktree opens on its review: the document tab "Review", pinned at the left of the first pane. A worktree can have one Walkthrough for its whole change since the base branch, committed or uncommitted: a fresh agent reads the change and writes one page with the calls that need the developer, how the system grew and one step per decision. With a Walkthrough, the review shows each step's prose with that step's own diffs inline (Branch, then Uncommitted, so a file changed in a commit and again locally shows both parts), then "Not covered by the steps" only when changed files are in no step. Without one (none yet, being written or failed), it shows the way to write one above every changed file's diff. Its files are also organized by step in the Changes panel, and the page marks itself out of date when its content or base changes.
 
 ## How to get to it (user POV)
 
-- A worktree opens on "Walkthrough" only when its current branch has a queued, running, failed or ready walkthrough run, regardless of commits.
-- Without a run, every worktree opens on Changes, regardless of commits. With no run yet, tab "Walkthrough" sits beside Changes; click it once for "No walkthrough yet." and "Write walkthrough". The empty state names the effective project/default writer and the whole comparison since its base, including uncommitted work. With no available coding CLI it shows No writers available, install/sign-in commands and Check writers again; Write walkthrough stays disabled until the chosen writer is available. A missing saved project writer is never replaced with the default. Once a current-branch run exists (queued, running, failed or ready), the worktree opens on Walkthrough.
-- A worktree with no change since the base keeps tab "Changes".
-- Each step: “See the code” has two icon buttons: “Open code for step N in split view” keeps the Walkthrough beside the code, and the diagonal arrow “See the code for step N” (tooltip “Open in a new tab”) opens document "Step N" (`entry=walkthrough-step:N`); the code view selects the comparisons containing the step’s files independently of the selected Changes tab. Uncommitted-only work shows its working diff, committed-only work shows Branch, and mixed work shows Branch then Uncommitted in one scrollable document, each file once per comparison. "See every changed file" opens both comparisons as "All changes" (`entry=walkthrough-changes`); buttons "Previous step" and "Next step" in its header row move between steps.
+- Every worktree opens on tab "Review"; there is no separate Changes or Walkthrough tab. Old links with `entry=handoff` or `entry=walkthrough` land on Review and the URL becomes `entry=review`. The window title is the Walkthrough's title once one is ready ("Walkthrough" while a run is writing or failed), otherwise "Review — <project>".
+- Without a run, Review shows "No walkthrough yet." and "Write walkthrough" above group "Code: Every changed file" (regions "Every changed file: branch" and "Every changed file: uncommitted"). While writing or after a failure, the status or failure sits above the same code. The empty state names the effective project/default writer and the whole comparison since its base, including uncommitted work. With no available coding CLI it shows No writers available, install/sign-in commands and Check writers again; Write walkthrough stays disabled until the chosen writer is available. A missing saved project writer is never replaced with the default. 
+- A worktree with no change since the base and no run shows "No changes to review" with Files and History buttons in Review.
+- Each step shows group "Code: Step N" under its prose: region "Step N: branch" for its committed files and "Step N: uncommitted" for its local edits, each diff rendered with Pierre; then textbox "Ask about this step". A file cited by two steps appears in both. Changed files no step cites appear under heading "Not covered by the steps" at the end (regions "Not covered by the steps: branch" / "…: uncommitted"); the heading is absent when every file is in a step.
+- The Changes panel's "By step" rows still open document "Step N" (`entry=walkthrough-step:N`) after Review: it selects the comparisons containing the step's files, with one Reviewed toggle for the step and buttons "Previous step" and "Next step" in its header row. Its "All changes" row opens the uncommitted file table ("All changes", `entry=all-changes`).
 - Changes panel on a walkthrough worktree opens by default, on Uncommitted when there are local files and no committed files, otherwise Branch (an explicit tab choice wins): "All changes" with its count, "By step" with file counts and a "Your call" dot; under Uncommitted, empty step groups and their "By step" heading are hidden and files the walkthrough never read are under "Not in the walkthrough yet".
 
 ## Driving it with browser
@@ -60,10 +60,10 @@ git -C "$REPO" add --all && git -C "$REPO" commit -m "Add notes"
 
 ### 1. Writing and reading
 
-1. Navigate to `/`. Expect selected tab "Changes" and a matching window title, with "Walkthrough" beside it. Select "Walkthrough"; expect "No walkthrough yet." and "Write walkthrough". Reload after a run is running, ready or failed; it opens on Walkthrough.
-2. `printf hold > "$REPO/.git/porcelain-fake-walkthrough"`, click "Write walkthrough". Expect status "Writing the walkthrough".
-3. `rm "$REPO/.git/porcelain-fake-walkthrough"`. Expect heading ending "One call is yours.", then "How the system grew" and "What the code doesn't say"; the Changes panel on Branch with "By step".
-4. Click button "See the code for step 1". Expect tab "Step 1", heading "Step 1 of N: …", previous and next arrows in that one header row; no second title block and no "Mark all reviewed".
+1. Navigate to `/`. Expect the only document tab "Review", selected, and title "Review — repository"; "No walkthrough yet.", "Write walkthrough" and below them the diff of notes.md in region "Every changed file: branch".
+2. `printf hold > "$REPO/.git/porcelain-fake-walkthrough"`, click "Write walkthrough". Expect status "Writing the walkthrough" with the diffs still below.
+3. `rm "$REPO/.git/porcelain-fake-walkthrough"`. Expect heading ending "One call is yours.", then "How the system grew" and "What the code doesn't say"; each step with its own diff (notes.md's "first line" in its step's branch region); no "Not covered by the steps"; the Changes panel on Branch with "By step". The title becomes the Walkthrough's title.
+4. In the Changes panel click "Step 1". Expect tab "Step 1" after Review, heading "Step 1 of N: …", previous and next arrows in that one header row; no second title block and no "Mark all reviewed". Click tab "Review": the page is where you left it.
 
 ### 2. Uncommitted and out of date
 
@@ -72,11 +72,11 @@ git -C "$REPO" add --all && git -C "$REPO" commit -m "Add notes"
 
 ### Uncommitted-only journey
 
-Start a branch at its base with no later commits. Leave a tracked edit and an untracked non-ignored file, then load the worktree: it opens on Changes, with a Changes window title and a Walkthrough tab beside it. Click Walkthrough once and expect "No walkthrough yet." and "Write walkthrough". Write it and expect a ready page whose meta line includes "and uncommitted work". Under Changes > Uncommitted, the captured files appear by step. Commit exactly that content: no out-of-date warning appears and an explicit repeated start reuses the run. Edit a file: without reloading, expect "The work changed after this walkthrough’s snapshot. Update to include the latest changes." and "Update walkthrough"; Update captures the new content. An added file outside the ready page stays under "Not in the walkthrough yet" until updated. Branch still groups committed files by step.
+Start a branch at its base with no later commits. Leave a tracked edit and an untracked non-ignored file, then load the worktree: it opens on Review with "No walkthrough yet.", "Write walkthrough" and both files' diffs in region "Every changed file: uncommitted". Write it and expect a ready page whose meta line includes "and uncommitted work". Under Changes > Uncommitted, the captured files appear by step. Commit exactly that content: no out-of-date warning appears and an explicit repeated start reuses the run. Edit a file: without reloading, expect "The work changed after this walkthrough’s snapshot. Update to include the latest changes." and "Update walkthrough"; Update captures the new content. An added file outside the ready page stays under "Not in the walkthrough yet" until updated. Branch still groups committed files by step.
 
 ### Code scopes
 
-For each of uncommitted-only, committed-only, and committed plus a later edit to the same file, write a walkthrough and open "See the code for step 1". Expect the captured file’s actual code under "Uncommitted code", "Branch code", or both respectively, with Branch first. A step has one Reviewed toolbar toggle for all its files across both comparisons. Its pressed state requires every file in both comparisons to be reviewed. Click Reviewed or press R to mark all remaining reviewable files; when all are reviewed, either action clears the whole step. A partially reviewed step marks its remaining files. Files in other steps are untouched. Results and failures appear in a toast, with no result message beside Reviewed in the toolbar. Individual diff tabs and per-file controls toggle only that file. Clicking either comparison changes code-navigation focus without changing the step review scope. Return to Walkthrough and choose "See every changed file": both applicable comparisons remain present. In the Changes sidebar, Branch lists committed files by step and Uncommitted lists dirty files by step, with no duplicate file within a comparison.
+For each of uncommitted-only, committed-only, and committed plus a later edit to the same file, write a walkthrough. In Review, expect the captured file’s actual code under region "Step 1: uncommitted", "Step 1: branch", or both respectively, with Branch first: a file changed in a commit and again locally shows its full change across both. Then open "Step 1" from the Changes panel: the Step document shows the same files under "Uncommitted code" and "Branch code". A step has one Reviewed toolbar toggle for all its files across both comparisons. Its pressed state requires every file in both comparisons to be reviewed. Click Reviewed or press R to mark all remaining reviewable files; when all are reviewed, either action clears the whole step. A partially reviewed step marks its remaining files. Files in other steps are untouched. Results and failures appear in a toast, with no result message beside Reviewed in the toolbar. Individual diff tabs and per-file controls toggle only that file. Clicking either comparison changes code-navigation focus without changing the step review scope. In the Changes sidebar, Branch lists committed files by step and Uncommitted lists dirty files by step, with no duplicate file within a comparison.
 
 ### 3. Failure
 
@@ -87,12 +87,15 @@ After a ready page, add an untracked `.gitattributes` with `*.secret filter=exam
 
 ### 4. Short page
 
-8. `printf nothing > "$REPO/.git/porcelain-fake-walkthrough"`, write again. Expect heading ending "Nothing needs you." and button "See the change", which opens document "All changes".
+8. `printf nothing > "$REPO/.git/porcelain-fake-walkthrough"`, write again. Expect heading ending "Nothing needs you." and below it group "Code: Every changed file" with every changed file's diff.
+
+A later commit outside the steps: commit a new file after the walkthrough is ready. Expect heading "Not covered by the steps" at the end of Review with that file's diff in region "Not covered by the steps: branch", and "Not in the walkthrough yet" in the Changes panel.
 
 ## Gotchas
 
 - The fake never produces evidence, because the fixture has no pull request; prove screenshots with seeded evidence or the real writer.
 - Provider credentials are stripped from verification instances; the real writer cannot run through this skill.
+- Review stays mounted (hidden) after you leave it, so its reading position survives; scope text checks to the shown document (`tabpanel`) because the hidden Review can hold the same code text. Opening a file directly (`entry=file:…`) does not mount Review until it is shown.
 
 ### 5. Conversations
 

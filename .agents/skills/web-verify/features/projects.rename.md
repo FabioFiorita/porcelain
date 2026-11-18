@@ -29,7 +29,7 @@ Preconditions: [surface baseline](README.md).
 ### Rename the sample project
 
 1. Navigate to `/`
-   Expect: title "Changes — repository".
+   Expect: title "Review — repository".
 2. Click button `Toggle Sidebar`
    Expect: dialog "Sidebar" with Filter worktrees.
 3. Activate `Project actions: repository · <computer>`
@@ -41,7 +41,7 @@ Preconditions: [surface baseline](README.md).
 6. Fill textbox `Name` with 'Browser renamed project'
    Expect: the alert is gone; button "Rename" enabled.
 7. Click button `Rename`
-   Expect: dialog "Rename project" is gone; project header "Browser renamed project · <computer>" in the sheet and no old "repository · <computer>" header; title "Changes — Browser renamed project".
+   Expect: dialog "Rename project" is gone; project header "Browser renamed project · <computer>" in the sheet and no old "repository · <computer>" header; title "Review — Browser renamed project".
 8. Inspect HTTP traffic
    Expect: `PATCH /api/projects/<projectId>` with status 200.
 9. Navigate to `/`, then click button `Toggle Sidebar`

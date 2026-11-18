@@ -44,7 +44,7 @@ done
 ### Nothing is registered by opening the app
 
 1. Navigate to `/`
-   Expect: title "Changes — repository".
+   Expect: title "Review — repository".
 2. Click button `Toggle Sidebar`
    Expect: dialog "Sidebar" holding navigation "Projects and worktrees" with an always-visible search field and Filter worktrees. Only the scoped "repository · <computer>" project header is registered; no "selected" or "unselected" project header.
 
@@ -55,7 +55,7 @@ done
 4. Click button `selected`
    Expect: text "Every worktree appears in the sidebar."; button "Open selected" enabled; the breadcrumb (navigation "Folder path") ends in "selected".
 5. Click button `Open selected`
-   Expect: dialog "Open project" is gone; URL `/<new projectId>/<worktreeId>`; title "Changes — selected"; open Worktrees: the "selected" checkout is marked "Current"; "repository" is also listed and "unselected" is absent. Press Escape.
+   Expect: dialog "Open project" is gone; URL `/<new projectId>/<worktreeId>`; title "Review — selected"; open Worktrees: the "selected" checkout is marked "Current"; "repository" is also listed and "unselected" is absent. Press Escape.
 6. Inspect HTTP traffic
    Expect: one `POST /api/projects` with status 200.
 7. Navigate to `/`, then click button `Toggle Sidebar` and inspect the project headers

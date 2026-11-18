@@ -26,7 +26,7 @@ Preconditions: [surface baseline](README.md).
 2. Inspect HTTP traffic
    Expect: `GET /api/health` answered 200 and NO `POST /api/pair` after it. `$C server devices` lists only "Development setup" and the "Verification browser" you paired with the card’s link.
 3. Navigate to `/`
-   Expect: the workspace again (region "Review content", title "Changes — repository"): the refused link did not touch this browser's existing session.
+   Expect: the workspace again (region "Review content", title "Review — repository"): the refused link did not touch this browser's existing session.
 
 ### Observable proof
 

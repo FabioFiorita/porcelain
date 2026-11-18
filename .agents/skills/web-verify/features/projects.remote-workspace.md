@@ -69,7 +69,7 @@ Required instance mode: `--desktop`.
 1. Click button `Close Settings`, then click button `Toggle Sidebar`
    Expect: repository and remote-sample project headers, each with its own visible computer badge. The remote main card belongs to Remote journey computer and its full path is `$REMOTE_REPO`.
 2. Click the main worktree card whose accessible label includes remote-sample and Remote journey computer
-   Expect: the sheet closes; URL `/remotes/<remote environmentId>/<projectId>/<worktreeId>?entry=handoff` (call its path and query `$REMOTE_PAGE`); title "Changes — remote-sample · Remote journey computer"; button "Mark README.md as reviewed".
+   Expect: the sheet closes; URL `/remotes/<remote environmentId>/<projectId>/<worktreeId>?entry=review` (call its path and query `$REMOTE_PAGE`); title "Review — remote-sample · Remote journey computer"; button "Mark README.md as reviewed".
 
 ### A reviewed mark lands on the remote only
 

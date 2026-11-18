@@ -40,7 +40,7 @@ On Linux the sandboxed server keeps its XDG data home in the instance folder, so
 ### 1. Trash removes the file
 
 1. Navigate to `/`
-   Expect: title "Changes — repository".
+   Expect: title "Review — repository".
 2. Click button `Review`
    Expect: dialog "Worktree review".
 3. Click tab `Files`

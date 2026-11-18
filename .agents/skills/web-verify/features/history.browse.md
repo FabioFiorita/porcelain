@@ -37,7 +37,7 @@ git -C "$REPO" branch before-commit
 1. Click button `Review`
    Expect: dialog "Worktree review" with a tablist holding tabs "Files", "Changes", "History".
 2. Click tab `History`
-   Expect: tab "History" selected; URL has `surface=history`; the current document stays open (title "Changes — repository" on the start fixture); one row, a button whose name starts "Initial commit" and goes on with the 7-character id, "Porcelain Development", the age and the ref chips "before-commit" and "main"; text "Start of history." below it.
+   Expect: tab "History" selected; URL has `surface=history`; the current document stays open (title "Review — repository" on the start fixture); one row, a button whose name starts "Initial commit" and goes on with the 7-character id, "Porcelain Development", the age and the ref chips "before-commit" and "main"; text "Start of history." below it.
 3. On disk: `git -C "$REPO" commit -am "Commit made on disk"`, then inspect the accessibility tree
    Expect: a new first row, button starting "Commit made on disk" with ref chip "main"; the "Initial commit" row now carries only "before-commit"; "Start of history." still last. Run an accessibility inspection again if the watcher has not caught up yet.
 

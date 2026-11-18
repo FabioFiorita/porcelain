@@ -37,7 +37,7 @@ Preconditions: [surface baseline](README.md).
 ### Hide README.md
 
 1. Navigate to `/`
-   Expect: title "Changes — repository"; button "Review".
+   Expect: title "Review — repository"; button "Review".
 2. Click button `Review`
    Expect: the review sheet (dialog "Worktree review") with tabs "Files", "Changes", "History".
 3. Click tab `Files`

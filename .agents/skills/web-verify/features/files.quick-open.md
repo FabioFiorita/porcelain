@@ -39,7 +39,7 @@ printf 'ignored output\n' > "$REPO/build.log"
 ### 1. Find a file by name and open it
 
 1. Navigate to `/`
-   Expect: title "Changes — repository".
+   Expect: title "Review — repository".
 2. Click button `Review`
    Expect: dialog "Worktree review".
 3. Click tab `Files`
