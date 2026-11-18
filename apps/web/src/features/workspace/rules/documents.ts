@@ -19,7 +19,7 @@ export type DocumentRef =
   | { kind: 'timeline'; path: string }
   | { kind: 'walkthrough-step'; step: number };
 
-export const REVIEW: DocumentRef = { kind: 'review' };
+const REVIEW: DocumentRef = { kind: 'review' };
 const REVIEW_LINKS = ['review', 'handoff', 'walkthrough'];
 export const ALL_CHANGES: DocumentRef = { kind: 'all-changes' };
 export const SPECS: DocumentRef = { kind: 'specs' };

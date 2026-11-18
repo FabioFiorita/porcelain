@@ -138,9 +138,7 @@ describe('permanent review tab', () => {
   ])('restores the first tab without losing documents or pins: %j', (saved) => {
     const restored = primaryPane(saved);
     expect(orderedTabs(restored)[0]).toBe('review');
-    expect(restored.tabs.filter((key) => key === 'review')).toEqual([
-      'review',
-    ]);
+    expect(restored.tabs.filter((key) => key === 'review')).toEqual(['review']);
     expect(restored.tabs.filter((key) => key !== 'review')).toEqual(
       saved.tabs.filter((key) => key !== 'review'),
     );

@@ -43,14 +43,20 @@ test('a developer writes a walkthrough, watches it run and reads each step with 
   await expect
     .element(
       everyFile
-        .getByRole('region', { name: 'Every changed file: branch' })
+        .getByRole('region', {
+          name: 'Every changed file: branch',
+          exact: true,
+        })
         .getByText('first line', { exact: true }),
     )
     .toBeVisible();
   await expect
     .element(
       everyFile
-        .getByRole('region', { name: 'Every changed file: branch' })
+        .getByRole('region', {
+          name: 'Every changed file: branch',
+          exact: true,
+        })
         .getByText('A change to review.', { exact: true }),
     )
     .toBeVisible();
@@ -113,7 +119,12 @@ test('a developer writes a walkthrough, watches it run and reads each step with 
     .element(notesStep.getByText('A term', { exact: true }))
     .not.toBeInTheDocument();
   await expect
-    .element(notesStep.getByRole('textbox', { name: 'Ask about this step' }))
+    .element(
+      notesStep.getByRole('textbox', {
+        name: 'Ask about this step',
+        exact: true,
+      }),
+    )
     .toBeVisible();
   await expect
     .element(
@@ -279,7 +290,10 @@ test('a later commit lists its file outside the steps, and a refused Update says
   await expect
     .element(
       page
-        .getByRole('region', { name: 'Not covered by the steps: branch' })
+        .getByRole('region', {
+          name: 'Not covered by the steps: branch',
+          exact: true,
+        })
         .getByText('later', { exact: true }),
     )
     .toBeVisible();
@@ -481,7 +495,10 @@ test('uncommitted-only work opens the review with its diffs and stays fresh when
   await expect
     .element(
       page
-        .getByRole('region', { name: 'Every changed file: uncommitted' })
+        .getByRole('region', {
+          name: 'Every changed file: uncommitted',
+          exact: true,
+        })
         .getByText('first line', { exact: true }),
     )
     .toBeVisible();

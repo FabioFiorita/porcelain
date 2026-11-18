@@ -383,12 +383,7 @@ function DocumentTab({
   hasUnpinned: boolean;
   side: 'left' | 'right' | null;
 }) {
-  const {
-    Icon,
-    title,
-    hint,
-    accessibleName = title,
-  } = describeTab(tabKey);
+  const { Icon, title, hint, accessibleName = title } = describeTab(tabKey);
   const tabTitle = commitSubject ? `${title} ${commitSubject}` : title;
   const tabHint = commitSubject ? `${hint} · ${commitSubject}` : hint;
   const [openingSide, setOpeningSide] = useState(false);
