@@ -203,7 +203,6 @@ function Navigator({
 }) {
   return (
     <ProjectNavigator
-      settingsOpen={false}
       remotes={remotes}
       selected={undefined}
       onSelect={() => {}}

@@ -1,4 +1,4 @@
-import type { Locator } from 'vitest/browser';
+import { page, userEvent, type Locator } from 'vitest/browser';
 
 function uncovered(element: Element) {
   const box = element.getBoundingClientRect();
@@ -36,6 +36,15 @@ function historyScroller(locator: Locator) {
 }
 
 export const reviewLayout = {
+  stillMounted(locator: Locator) {
+    const element = locator.element();
+    return () => element.isConnected;
+  },
+  pressPageCorner() {
+    return userEvent.click(page.elementLocator(document.body), {
+      position: { x: 8, y: 8 },
+    });
+  },
   codeContentEdges(locator: Locator) {
     const content = locator.element().querySelector('diffs-container');
     if (!content) throw new Error('The code content has no rendered file');

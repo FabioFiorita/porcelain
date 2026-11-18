@@ -509,7 +509,7 @@ test('restarting restores the saved window bounds, the maximized window, the dar
   const page = await app.window();
   await openSmokeProject(page, desktop.repository);
   await app.clickMenu('open-settings');
-  const settings = page.getByRole('main', { name: 'Settings', exact: true });
+  const settings = page.getByRole('dialog', { name: 'Settings', exact: true });
   await settings.getByRole('button', { name: 'General', exact: true }).click();
   await settings.getByRole('tab', { name: 'Dark', exact: true }).click();
   await expect(page.locator('.dark').first()).toBeAttached();
@@ -518,9 +518,7 @@ test('restarting restores the saved window bounds, the maximized window, the dar
       app.electron.evaluate(({ nativeTheme }) => nativeTheme.themeSource),
     )
     .toBe('dark');
-  await page
-    .getByRole('button', { name: 'Close Settings', exact: true })
-    .click();
+  await settings.getByRole('button', { name: 'Close', exact: true }).click();
   await expect(settings).toBeHidden();
 
   const bounds = await app.electron.evaluate(({ BrowserWindow, screen }) => {

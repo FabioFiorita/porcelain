@@ -30,7 +30,7 @@ test('browser Settings uses the same three sections and exposes host-gated Devic
   await pairedPage
     .getByRole('button', { name: 'Settings', exact: true })
     .click();
-  const settings = pairedPage.getByRole('main', {
+  const settings = pairedPage.getByRole('dialog', {
     name: 'Settings',
     exact: true,
   });

@@ -7,7 +7,7 @@ selectors:
   - 'History'
   - 'Toggle Sidebar'
   - 'Settings'
-  - 'Close Settings'
+  - 'Close'
 tests:
   - apps/web/spec/e2e/app-tab-title.e2e.ts
 api:
@@ -60,7 +60,7 @@ None before step 1. Step 5 commits on disk; do it only after step 4, because "Op
    Expect: title "`OID` — repository".
 8. Click button `Toggle Sidebar`, then click button `Settings`
    Expect: URL `/settings/general`; title "Settings".
-9. Click button `Close Settings`
+9. Click button `Close` in dialog "Settings"
    Expect: title "`OID` — repository" again.
 
 ### Observable proof

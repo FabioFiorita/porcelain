@@ -13,7 +13,7 @@ selectors:
   - 'Laptop'
   - 'Desktop'
   - 'Open This computer:'
-  - 'Close Settings'
+  - 'Close'
 tests:
   - apps/web/spec/e2e/access-environment-name.desktop.e2e.ts
 api:
@@ -62,7 +62,7 @@ Required instance mode: `--desktop`.
    Expect: the name field closes without saving; heading "Computers. Workstation".
 7. Click button `Computers`, then button named `Open This computer: <name>`, then button `Rename`
    Expect: textbox "Name of this computer" holds "Workstation"; button "Save" disabled.
-8. Click button `Close Settings` twice
+8. Click button `Close` in dialog "Settings"
    Expect: URL `/<projectId>/<worktreeId>`; title "Changes — repository · Workstation".
 9. Click button `Toggle Sidebar`
    Expect: navigation "Projects and worktrees" keeps application header "Porcelain" and updates the project controls to include Workstation in their accessible identity; old host-labelled controls are absent. A single computer still has no caption. With multiple computers, the static caption updates to `Computer: Workstation`, retaining its full accessible name.
@@ -74,7 +74,7 @@ Required instance mode: `--desktop`.
     Expect: textbox empty; button "Save" enabled.
 13. Click button `Save`
     Expect: title "Settings"; the name field closes and the heading shows `$HOST`.
-14. Click button `Close Settings` twice
+14. Click button `Close` in dialog "Settings"
     Expect: title "Changes — repository"; reopening the navigator restores `$HOST` in the project controls, without a single-computer caption.
 
 15. Click button `Settings`, then button `Computers`, then button named `Open This computer: <name>`, then button `Icon: Desktop`

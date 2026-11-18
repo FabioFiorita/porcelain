@@ -29,7 +29,7 @@ test('the owner names this computer and picks its icon in Settings, tab titles a
   await pairedPage
     .getByRole('button', { name: 'Settings', exact: true })
     .click();
-  const settings = pairedPage.getByRole('main', {
+  const settings = pairedPage.getByRole('dialog', {
     name: 'Settings',
     exact: true,
   });
@@ -56,7 +56,6 @@ test('the owner names this computer and picks its icon in Settings, tab titles a
     }),
   ).toBeVisible();
   await expect.poll(() => app.title()).toBe('Settings — Porcelain');
-  await closeSettings(settings.page());
   await closeSettings(settings.page());
   await expect
     .poll(() => app.title())
@@ -99,7 +98,6 @@ test('the owner names this computer and picks its icon in Settings, tab titles a
     .poll(async () => (await server.inventory()).environment)
     .toEqual({ name: host, custom: false });
   await expect.poll(() => app.title()).toBe('Settings — Porcelain');
-  await closeSettings(settings.page());
   await closeSettings(settings.page());
   await expect.poll(() => app.title()).toBe(`Changes — ${project}`);
   await pairedPage

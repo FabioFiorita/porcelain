@@ -23,7 +23,9 @@ test('returning from Settings restores the focused side pane for tab shortcuts',
   await expect.element(right).toHaveAttribute('data-focused', 'true');
   const destination = route.location();
   await route.navigate('/settings/general');
-  await expect.element(right).not.toBeInTheDocument();
+  await expect
+    .element(workspace.getByRole('dialog', { name: 'Settings', exact: true }))
+    .toBeVisible();
   await route.navigate(destination);
   await expect.element(right).toHaveAttribute('data-focused', 'true');
   await userEvent.keyboard('{Alt>}w{/Alt}');

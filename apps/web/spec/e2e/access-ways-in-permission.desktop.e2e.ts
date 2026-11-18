@@ -22,7 +22,7 @@ test('on This computer the owner lets a device paired through a tunnel edit ways
   await pairedPage
     .getByRole('button', { name: 'Settings', exact: true })
     .click();
-  const settings = pairedPage.getByRole('main', {
+  const settings = pairedPage.getByRole('dialog', {
     name: 'Settings',
     exact: true,
   });

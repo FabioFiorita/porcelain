@@ -102,7 +102,7 @@ export function routingPromises() {
       await expect.poll(() => app.address().path).toBe(path);
       await pairedPage.keyboard.press('Alt+Shift+S');
       await expect(
-        pairedPage.getByRole('main', { name: 'Settings', exact: true }),
+        pairedPage.getByRole('dialog', { name: 'Settings', exact: true }),
       ).toBeVisible();
       await closeSettings(pairedPage);
       await expect(

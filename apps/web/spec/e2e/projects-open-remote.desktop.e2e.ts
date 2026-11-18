@@ -7,7 +7,7 @@ async function addRemoteComputer(page: Page, link: string, name: string) {
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
-  const settings = page.getByRole('main', { name: 'Settings', exact: true });
+  const settings = page.getByRole('dialog', { name: 'Settings', exact: true });
   await settings
     .getByRole('button', { name: 'Computers', exact: true })
     .click();
@@ -51,7 +51,7 @@ test('the desktop app opens a project on another computer from the Open project 
   await pairedPage
     .getByRole('button', { name: 'Settings', exact: true })
     .click();
-  const settings = pairedPage.getByRole('main', {
+  const settings = pairedPage.getByRole('dialog', {
     name: 'Settings',
     exact: true,
   });

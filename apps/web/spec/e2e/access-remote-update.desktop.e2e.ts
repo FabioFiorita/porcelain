@@ -12,7 +12,7 @@ test('Computers shows each remote computer’s update on its detail page, tells 
   await pairedPage
     .getByRole('button', { name: 'Settings', exact: true })
     .click();
-  const settings = pairedPage.getByRole('main', {
+  const settings = pairedPage.getByRole('dialog', {
     name: 'Settings',
     exact: true,
   });

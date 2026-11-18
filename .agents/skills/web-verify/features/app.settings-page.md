@@ -10,10 +10,11 @@ selectors:
   - 'Open This computer:'
   - 'Name of this computer'
   - 'Documents open as'
-  - 'Close Settings'
+  - 'Close'
 tests:
   - apps/web/spec/e2e/app-settings-page.desktop.e2e.ts
   - apps/web/spec/e2e/app-settings-history.e2e.ts
+  - apps/web/spec/integration/settings-dialog.test.tsx
 api:
   - PUT /api/projects/:projectId/walkthrough-settings
   - GET /api/inventory
@@ -21,19 +22,19 @@ api:
 
 # app.settings-page
 
-Settings replaces the workspace while keeping the worktree sidebar, with section navigation inside the page, a breadcrumb. The navigator footer replaces Settings with Close and its Escape hint while Settings is open; the page header has no Close control.
+Settings opens as a dialog over the workspace, with section navigation, a breadcrumb and a Close button in its header. The workspace stays mounted behind it and inert: its shortcuts do not fire, and closing Settings shows it again without reloading.
 
 ## How to get to it (user POV)
 
-- Workspace sidebar → Settings; Alt+Shift+S; desktop native Settings menu. Open the sidebar if needed and use its footer Close, or press Escape outside an input, to return.
+- Workspace sidebar → Settings; Alt+Shift+S; desktop native Settings menu. Close, Escape outside an input, a click outside the dialog or browser Back returns.
 
 ## Driving it with browser
 
 Preconditions: [surface baseline](README.md).
 
-Section navigation replaces the current entry; opening a computer detail adds a detail entry. Close or Escape returns detail to Computers, then leaves Settings for its originating workspace. Each exit dismisses the mobile navigator sheet and retains the existing return-focus owner. Switching from a detail to another section still allows one Escape to leave Settings. Escape while typing keeps the field and Settings open.
+Section navigation replaces the current entry; opening a computer detail adds a detail entry. Escape returns detail to Computers, then leaves Settings for its originating workspace; Close and a click outside leave from anywhere. Focus returns to the control that opened Settings. Switching from a detail to another section still allows one Escape to leave Settings. Escape while typing keeps the field and Settings open.
 
-Start a desktop verification instance and open Settings from the workspace sidebar. Expect heading General and no Review content region. Choose Changes & Git; General's Diff layout is absent and Pull strategy appears. Close returns to the exact workspace and title.
+Start a desktop verification instance and open Settings from the workspace sidebar. Expect the Settings dialog with heading General over the review. Choose Changes & Git; General's Diff layout is absent and Pull strategy appears. Close returns to the exact workspace and title, with no loading state.
 
 Reopen Settings, click Computers and Open This computer: <name>. Click Rename, focus Name of this computer and press Escape: the field closes and you remain on detail. Click General and press Escape: return to the review. From detail without switching sections, Escape returns to the focusable Computers list; another Escape leaves Settings.
 
@@ -41,7 +42,7 @@ For direct-entry history, open `/settings/general` in a fresh tab of the paired 
 
 Finally remove the instance's only project through its project context menu and confirmation. Settings still opens on General. Close returns to the originating URL and Worktree not found, while the repository remains on disk. Run this destructive fixture case last.
 
-Automated coverage: `app-settings-page.desktop.e2e.ts`, `app-settings-history.e2e.ts`.
+Automated coverage: `app-settings-page.desktop.e2e.ts`, `app-settings-history.e2e.ts`, `settings-dialog.test.tsx`.
 
 ## Gotchas
 

@@ -52,13 +52,13 @@ for (const legacy of ['markdownDefault', 'htmlDefault']) {
 }
 
 for (const section of ['devices', 'integrations']) {
-  test(`old ${section} links redirect to This computer and preserve the way back`, async ({
+  test(`old ${section} links redirect to This computer, and Close opens the workspace`, async ({
     pairedPage,
     app,
   }) => {
     await app.follow(`/settings/${section}`);
     await expect(pairedPage).toHaveURL(/\/settings\/computers\/this-computer$/);
-    const settings = pairedPage.getByRole('main', {
+    const settings = pairedPage.getByRole('dialog', {
       name: 'Settings',
       exact: true,
     });
@@ -66,6 +66,9 @@ for (const section of ['devices', 'integrations']) {
       settings.getByText('Pair a device', { exact: true }),
     ).toBeVisible();
     await closeSettings(settings.page());
-    await expect(pairedPage).toHaveURL(/\/settings\/computers$/);
+    await expect(pairedPage).not.toHaveURL(/\/settings/);
+    await expect(
+      pairedPage.getByRole('region', { name: 'Review content', exact: true }),
+    ).toBeVisible();
   });
 }

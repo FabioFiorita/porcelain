@@ -18,7 +18,7 @@ for (const predecessor of [false, true]) {
           ).toBeVisible();
           await page.keyboard.press('Alt+Shift+S');
         }
-        const settings = page.getByRole('main', {
+        const settings = page.getByRole('dialog', {
           name: 'Settings',
           exact: true,
         });

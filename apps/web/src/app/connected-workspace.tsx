@@ -95,13 +95,9 @@ export function ConnectedWorkspace({
   remoteStatus,
   showRemoteNotice,
   notice,
-  children,
-  settingsOpen = false,
+  background = false,
 }: {
-  children?:
-    | ReactNode
-    | ((navigationTrigger: ElementTarget<HTMLButtonElement>) => ReactNode);
-  settingsOpen?: boolean;
+  background?: boolean;
   review?: Review;
   remote?: RemoteConnection;
   unavailable?: RemoteStatus;
@@ -158,22 +154,21 @@ export function ConnectedWorkspace({
   const firstTitle = useAtomValue(
     firstDocumentTitle(review?.selection.worktree.id ?? ''),
   );
-  useDocumentTitle(
-    review
-      ? workspaceTitle({
-          firstDocument: firstTitle,
-          entry: review.search.entry,
-          surface: review.search.surface,
-          project: review.inventory.projects.find(
-            (project) => project.id === review.selection.projectId,
-          )?.name,
-          environment:
-            remote || review.inventory.environment.custom
-              ? review.inventory.environment.name
-              : undefined,
-        })
-      : 'Porcelain',
-  );
+  const title = review
+    ? workspaceTitle({
+        firstDocument: firstTitle,
+        entry: review.search.entry,
+        surface: review.search.surface,
+        project: review.inventory.projects.find(
+          (project) => project.id === review.selection.projectId,
+        )?.name,
+        environment:
+          remote || review.inventory.environment.custom
+            ? review.inventory.environment.name
+            : undefined,
+      })
+    : 'Porcelain';
+  useDocumentTitle(background ? undefined : title);
   const openWorktree = (target: WorktreeTarget) =>
     navigate({ ...worktreeLocation(target), replace: review === undefined });
   const openHere = useOpenProjectOnThisComputer(local.connection, openWorktree);
@@ -182,7 +177,6 @@ export function ConnectedWorkspace({
     void navigate({ to: '/settings/$section', params: { section } });
   };
   const navigator = {
-    settingsOpen,
     remotes: desktopShell ? remotes : undefined,
     selected: shown,
     showRemoteNotice,
@@ -252,9 +246,6 @@ export function ConnectedWorkspace({
     ignoreInputs: true,
   });
 
-  const content =
-    typeof children === 'function' ? children(navigationTrigger) : children;
-
   return (
     <>
       {isMobile && (
@@ -276,94 +267,93 @@ export function ConnectedWorkspace({
         isMobile={isMobile}
         open={open}
       >
-        {content ??
-          (review ? (
-            <WorkspaceReview
-              key={`${shownOn ?? ''}:${review.selection.worktree.id}`}
-              navigationTrigger={navigationTrigger}
-              worktree={review.selection.worktree}
-              projectId={review.selection.projectId}
-              search={review.search}
-              onSearch={onSearch}
-              context={context}
-            />
-          ) : (
-            <EmptyWorkspace
-              navigationTrigger={navigationTrigger}
-              isMobile={isMobile}
-              open={open}
-              openMobile={openMobile}
-            >
-              {remote && unavailable ? (
-                <RemoteUnavailable
-                  name={remote.remote.name}
-                  status={unavailable}
-                  onOpenRemotes={() =>
-                    navigator.onOpenRemotes(remote.remote.environmentId)
-                  }
-                />
-              ) : (
-                <StateNotice
-                  title={message.title}
-                  description={message.description}
-                  icon={<NoticeIcon />}
-                >
-                  {firstRun && (
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setOpenMobile(false);
-                        openHere();
-                      }}
-                    >
-                      Open project
-                    </Button>
-                  )}
-                  {!notice && recovery && (
-                    <div className="flex w-full min-w-0 flex-col gap-2">
-                      <p className="text-sm text-muted-foreground">
-                        First that needs you
-                      </p>
-                      <Link
-                        className="flex min-w-0 flex-col rounded-lg border p-3 text-ui hover:bg-accent"
-                        to="/$projectId/$worktreeId"
-                        params={{
-                          projectId: recovery.projectId,
-                          worktreeId: recovery.worktree.id,
-                        }}
-                      >
-                        <TruncatedText
-                          text={recoveryLabel}
-                          className="font-medium"
-                        />
-                      </Link>
-                    </div>
-                  )}
-                  {notice === 'missing-worktree' && recovery && (
+        {review ? (
+          <WorkspaceReview
+            key={`${shownOn ?? ''}:${review.selection.worktree.id}`}
+            navigationTrigger={navigationTrigger}
+            worktree={review.selection.worktree}
+            projectId={review.selection.projectId}
+            search={review.search}
+            onSearch={onSearch}
+            context={context}
+          />
+        ) : (
+          <EmptyWorkspace
+            navigationTrigger={navigationTrigger}
+            isMobile={isMobile}
+            open={open}
+            openMobile={openMobile}
+          >
+            {remote && unavailable ? (
+              <RemoteUnavailable
+                name={remote.remote.name}
+                status={unavailable}
+                onOpenRemotes={() =>
+                  navigator.onOpenRemotes(remote.remote.environmentId)
+                }
+              />
+            ) : (
+              <StateNotice
+                title={message.title}
+                description={message.description}
+                icon={<NoticeIcon />}
+              >
+                {firstRun && (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setOpenMobile(false);
+                      openHere();
+                    }}
+                  >
+                    Open project
+                  </Button>
+                )}
+                {!notice && recovery && (
+                  <div className="flex w-full min-w-0 flex-col gap-2">
+                    <p className="text-sm text-muted-foreground">
+                      First that needs you
+                    </p>
                     <Link
-                      className={cn(buttonVariants())}
+                      className="flex min-w-0 flex-col rounded-lg border p-3 text-ui hover:bg-accent"
                       to="/$projectId/$worktreeId"
                       params={{
                         projectId: recovery.projectId,
                         worktreeId: recovery.worktree.id,
                       }}
                     >
-                      Open available worktree
+                      <TruncatedText
+                        text={recoveryLabel}
+                        className="font-medium"
+                      />
                     </Link>
-                  )}
-                  {notice && (
-                    <Link
-                      className={cn(buttonVariants({ variant: 'outline' }))}
-                      to="/"
-                      search={{}}
-                    >
-                      Back to workspace
-                    </Link>
-                  )}
-                </StateNotice>
-              )}
-            </EmptyWorkspace>
-          ))}
+                  </div>
+                )}
+                {notice === 'missing-worktree' && recovery && (
+                  <Link
+                    className={cn(buttonVariants())}
+                    to="/$projectId/$worktreeId"
+                    params={{
+                      projectId: recovery.projectId,
+                      worktreeId: recovery.worktree.id,
+                    }}
+                  >
+                    Open available worktree
+                  </Link>
+                )}
+                {notice && (
+                  <Link
+                    className={cn(buttonVariants({ variant: 'outline' }))}
+                    to="/"
+                    search={{}}
+                  >
+                    Back to workspace
+                  </Link>
+                )}
+              </StateNotice>
+            )}
+          </EmptyWorkspace>
+        )}
       </ProjectWorkspace>
 
       <ShortcutsDialog open={shortcuts} onOpenChange={setShortcuts} />

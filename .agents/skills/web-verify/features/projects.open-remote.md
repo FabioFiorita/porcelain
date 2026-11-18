@@ -7,7 +7,7 @@ selectors:
   - 'Computers'
   - 'Pairing link'
   - 'Add'
-  - 'Close Settings'
+  - 'Close'
   - 'Online'
   - 'Open project'
   - 'Open project on'
