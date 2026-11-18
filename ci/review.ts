@@ -23,7 +23,7 @@ import {
   findComment,
   gh,
   isAncestor,
-  labeledAfterPush,
+  labeledOnHead,
   pages,
   required,
   setStatus,
@@ -327,13 +327,7 @@ const markedReviewedHead =
   current.has(labels.reviewed) &&
   (reviewedNow ||
     saved?.markedReviewedHead === view.headRefOid ||
-    labeledAfterPush(
-      repository,
-      number,
-      labels.reviewed,
-      view.headRefOid,
-      'CI',
-    ))
+    labeledOnHead(repository, number, labels.reviewed, view.headRefOid))
     ? view.headRefOid
     : undefined;
 const skip =
@@ -444,13 +438,7 @@ try {
     : saved?.approvedHead === view.headRefOid
       ? saved.approvedHead
       : current.has(labels.approved) &&
-          labeledAfterPush(
-            repository,
-            number,
-            labels.approved,
-            view.headRefOid,
-            'CI',
-          )
+          labeledOnHead(repository, number, labels.approved, view.headRefOid)
         ? view.headRefOid
         : undefined;
   const state: ReviewState = {

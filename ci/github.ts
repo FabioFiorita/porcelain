@@ -35,9 +35,10 @@ export function gh(
 export function pages<A>(
   page: Schema.Codec<A, unknown>,
   path: string,
+  request: typeof gh = gh,
 ): readonly A[] {
   return Schema.decodeUnknownSync(Schema.fromJsonString(Schema.Array(page)))(
-    gh(['api', '--paginate', '--slurp', path]),
+    request(['api', '--paginate', '--slurp', path]),
   );
 }
 
@@ -189,39 +190,79 @@ export function changeLabels(
 
 const IssueEvent = Schema.Struct({
   event: Schema.String,
-  created_at: Schema.String,
-  label: Schema.optional(Schema.Struct({ name: Schema.String })),
-});
-const WorkflowRuns = Schema.Struct({
-  workflow_runs: Schema.Array(
-    Schema.Struct({ name: Schema.String, created_at: Schema.String }),
-  ),
+  created_at: Schema.optional(Schema.NullOr(Schema.String)),
+  label: Schema.optional(Schema.NullOr(Schema.Struct({ name: Schema.String }))),
 });
 
-export function labeledAfterPush(
+const PullRequestHead = Schema.Struct({
+  created_at: Schema.String,
+  head: Schema.Struct({
+    ref: Schema.String,
+    sha: Schema.String,
+    repo: Schema.NullOr(Schema.Struct({ full_name: Schema.String })),
+  }),
+});
+
+const BranchActivity = Schema.Array(
+  Schema.Struct({
+    after: Schema.String,
+    ref: Schema.String,
+    timestamp: Schema.String,
+  }),
+);
+
+export function labeledOnHead(
   repository: string,
   number: number,
   label: string,
   sha: string,
-  workflow: string,
+  request: typeof gh = gh,
 ): boolean {
-  const labeled = pages(
-    Schema.Array(IssueEvent),
-    `repos/${repository}/issues/${number}/events`,
-  )
-    .flat()
-    .filter((event) => event.event === 'labeled' && event.label?.name === label)
-    .map((event) => Date.parse(event.created_at));
-  const pushed = pages(
-    WorkflowRuns,
-    `repos/${repository}/actions/runs?head_sha=${sha}&event=pull_request`,
-  )
-    .flatMap((page) => page.workflow_runs)
-    .filter((run) => run.name === workflow)
-    .map((run) => Date.parse(run.created_at));
-  return (
-    labeled.length > 0 &&
-    pushed.length > 0 &&
-    Math.max(...labeled) > Math.max(...pushed)
-  );
+  try {
+    const events = pages(
+      Schema.Array(IssueEvent),
+      `repos/${repository}/issues/${number}/timeline`,
+      request,
+    )
+      .flat()
+      .filter((event) => event.label?.name === label);
+    const last = (action: string) =>
+      Math.max(
+        ...events
+          .filter((event) => event.event === action)
+          .map((event) => Date.parse(event.created_at ?? '')),
+      );
+    const added = last('labeled');
+    if (!(added > last('unlabeled'))) return false;
+
+    const pull = Schema.decodeUnknownSync(
+      Schema.fromJsonString(PullRequestHead),
+    )(request(['api', `repos/${repository}/pulls/${number}`]));
+    if (
+      pull.head.sha !== sha ||
+      !pull.head.repo ||
+      !(added >= Date.parse(pull.created_at))
+    )
+      return false;
+
+    const ref = `refs/heads/${pull.head.ref}`;
+    const [latest] = Schema.decodeUnknownSync(
+      Schema.fromJsonString(BranchActivity),
+    )(
+      request([
+        'api',
+        `repos/${pull.head.repo.full_name}/activity?ref=${encodeURIComponent(ref)}&per_page=1`,
+      ]),
+    );
+    return (
+      latest?.ref === ref &&
+      latest.after === sha &&
+      Date.parse(latest.timestamp) < added
+    );
+  } catch {
+    console.log(
+      `Could not verify the ${label} label against the head of #${number}`,
+    );
+    return false;
+  }
 }
