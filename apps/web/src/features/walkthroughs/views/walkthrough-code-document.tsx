@@ -6,6 +6,7 @@ import {
   plainText,
   stopPaths,
   walkthroughCodeScopes,
+  type ReviewCode as ReviewCodeFiles,
 } from '@porcelain/client/walkthroughs/rules';
 import { Button } from '@/components/ui/button';
 import {
@@ -32,28 +33,21 @@ export function WalkthroughCodeDocument({
 }: WalkthroughCodeProps) {
   const ready = useWalkthroughContent(props.scope, props.context);
   const renames = useBranchRenames(props.scope, props.context, props.base);
-  const step = document.kind === 'walkthrough-step' ? document.step : undefined;
-  const stop = step === undefined ? undefined : ready?.content.stops[step - 1];
-  if (!ready || (document.kind === 'walkthrough-step' && !stop))
+  const step = document.step;
+  const stop = ready?.content.stops[step - 1];
+  if (!ready || !stop)
     return (
       <StateNotice
         title="This step isn't available"
-        description="The walkthrough changed since this tab was opened. Open the Walkthrough tab for the current steps."
+        description="The walkthrough changed since this tab was opened. Open the Review tab for the current steps."
       >
         <Button
           variant="outline"
-          onClick={() => props.onOpen({ kind: 'walkthrough' })}
+          onClick={() => props.onOpen({ kind: 'review' })}
         >
-          Open walkthrough
+          Open review
         </Button>
       </StateNotice>
-    );
-  if (step === undefined || stop === undefined)
-    return (
-      <WalkthroughChangeDocument
-        {...props}
-        heading={{ title: 'All changes', titleLabel: 'All changes' }}
-      />
     );
   const total = ready.content.stops.length;
   const label = `Step ${step} of ${total}`;
@@ -90,8 +84,58 @@ export function WalkthroughCodeDocument({
   return <WalkthroughChangeDocument {...props} only={only} heading={heading} />;
 }
 
+export function ReviewCode({
+  document,
+  entry,
+  code,
+  label,
+}: {
+  document: DocumentProps;
+  entry: string;
+  code: ReviewCodeFiles;
+  label: string;
+}) {
+  if (code.branch.length === 0 && code.worktree.length === 0) return null;
+  const interaction = (scope: 'branch' | 'uncommitted') => ({
+    ...document.interaction,
+    active: false,
+    toolbarTarget: null,
+    fileTarget: undefined,
+    entry: `${entry}:${scope}`,
+  });
+  return (
+    <div
+      role="group"
+      aria-label={`Code: ${label}`}
+      className="-mx-5 flex flex-col gap-2 @3xl:-mx-8"
+    >
+      {code.branch.length > 0 && (
+        <BranchDocument
+          {...document}
+          only={code.branch}
+          fullHeight
+          interaction={interaction('branch')}
+          heading={{ title: 'Branch', titleLabel: `${label}: branch` }}
+        />
+      )}
+      {code.worktree.length > 0 && (
+        <PlainChangesDocument
+          {...document}
+          only={code.worktree}
+          fullHeight
+          interaction={interaction('uncommitted')}
+          heading={{
+            title: 'Uncommitted',
+            titleLabel: `${label}: uncommitted`,
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
 function WalkthroughChangeDocument(
-  props: DocumentProps & { only?: readonly string[]; heading: DocumentHeading },
+  props: DocumentProps & { only: readonly string[]; heading: DocumentHeading },
 ) {
   const changes = useChanges(props.scope, props.context.connection);
   const [focused, setFocused] = useState<'branch' | 'uncommitted'>('branch');
@@ -115,18 +159,16 @@ function WalkthroughChangeDocument(
         });
         return (
           <div className="flex min-h-0 flex-1 flex-col">
-            {props.only && (
-              <StepReviewed
-                scope={props.scope}
-                context={props.context}
-                interaction={props.interaction}
-                branchFiles={branch.files}
-                changes={changes}
-                committed={committed}
-                dirty={dirty}
-                range={branchReviewRange(branch)}
-              />
-            )}
+            <StepReviewed
+              scope={props.scope}
+              context={props.context}
+              interaction={props.interaction}
+              branchFiles={branch.files}
+              changes={changes}
+              committed={committed}
+              dirty={dirty}
+              range={branchReviewRange(branch)}
+            />
             {both && (
               <DocumentToolbar
                 inline

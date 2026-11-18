@@ -3,6 +3,7 @@ import type { ReadChangesResponse } from '@porcelain/contracts/changes';
 import {
   firstDocument,
   walkthroughCodeScopes,
+  reviewCodeSections,
   groupFilesByStep,
   plainText,
   richParts,
@@ -500,16 +501,14 @@ describe('worktreeOpening', () => {
       name: 'walkthrough',
       pending: false,
       guided: true,
-      companion: false,
     });
   });
 
-  it('opens Changes with a companion Walkthrough regardless of branch commits', () => {
+  it('opens an unguided review without a walkthrough, regardless of branch commits', () => {
     expect(settled(undefined)).toEqual({
       name: 'changes',
       pending: false,
       guided: false,
-      companion: true,
     });
   });
 
@@ -530,7 +529,6 @@ describe('worktreeOpening', () => {
       name: 'changes',
       pending: false,
       guided: false,
-      companion: false,
     });
   });
 });
@@ -635,6 +633,54 @@ it('describes captured uncommitted work in shared web and mobile metadata', () =
       includesUncommitted: true,
     }),
   ).toBe('written for bbbbbbb and uncommitted work');
+});
+
+describe('review code sections', () => {
+  const steps = content({
+    stops: [
+      stop({ files: [{ path: 'both.ts', note: 'Both.' }] }),
+      stop({ excerpts: [excerpt('old-name.ts')] }),
+    ],
+  });
+  const branch = [
+    { path: 'both.ts' },
+    { path: 'new-name.ts', oldPath: 'old-name.ts' },
+    { path: 'committed-elsewhere.ts' },
+  ];
+  const worktree = [{ path: 'both.ts' }, { path: 'dirty-elsewhere.ts' }];
+
+  it('gives a step the committed and the uncommitted change of a file changed in both', () => {
+    expect(
+      reviewCodeSections({ content: steps, branch, worktree }).steps[0],
+    ).toEqual({ branch: ['both.ts'], worktree: ['both.ts'] });
+  });
+
+  it('follows a rename into the step that cites the old path', () => {
+    expect(
+      reviewCodeSections({ content: steps, branch, worktree }).steps[1],
+    ).toEqual({ branch: ['new-name.ts'], worktree: [] });
+  });
+
+  it('leaves only files no step cites outside the steps', () => {
+    expect(
+      reviewCodeSections({ content: steps, branch, worktree }).outside,
+    ).toEqual({
+      branch: ['committed-elsewhere.ts'],
+      worktree: ['dirty-elsewhere.ts'],
+    });
+  });
+
+  it('puts every changed file outside the steps without a walkthrough', () => {
+    expect(
+      reviewCodeSections({ content: undefined, branch, worktree }),
+    ).toEqual({
+      steps: [],
+      outside: {
+        branch: ['both.ts', 'new-name.ts', 'committed-elsewhere.ts'],
+        worktree: ['both.ts', 'dirty-elsewhere.ts'],
+      },
+    });
+  });
 });
 
 describe('walkthrough code scopes', () => {

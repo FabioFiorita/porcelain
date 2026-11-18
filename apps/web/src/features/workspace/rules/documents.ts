@@ -1,10 +1,8 @@
 import { shortOid } from '@porcelain/client/history/rules';
 
 export type DocumentRef =
-  | { kind: 'handoff' }
-  | { kind: 'walkthrough' }
+  | { kind: 'review' }
   | { kind: 'all-changes' }
-  | { kind: 'walkthrough-changes' }
   | { kind: 'specs' }
   | { kind: 'change'; path: string }
   | { kind: 'file'; path: string }
@@ -21,7 +19,8 @@ export type DocumentRef =
   | { kind: 'timeline'; path: string }
   | { kind: 'walkthrough-step'; step: number };
 
-const HANDOFF: DocumentRef = { kind: 'handoff' };
+export const REVIEW: DocumentRef = { kind: 'review' };
+const REVIEW_LINKS = ['review', 'handoff', 'walkthrough'];
 export const ALL_CHANGES: DocumentRef = { kind: 'all-changes' };
 export const SPECS: DocumentRef = { kind: 'specs' };
 export const BRANCH: DocumentRef = { kind: 'branch' };
@@ -29,14 +28,10 @@ const GRAPH: DocumentRef = { kind: 'graph' };
 
 export function entryKey(ref: DocumentRef): string {
   switch (ref.kind) {
-    case 'handoff':
-      return 'handoff';
-    case 'walkthrough':
-      return 'walkthrough';
+    case 'review':
+      return 'review';
     case 'all-changes':
       return 'all-changes';
-    case 'walkthrough-changes':
-      return 'walkthrough-changes';
     case 'specs':
       return 'specs';
     case 'change':
@@ -62,10 +57,8 @@ export function entryKey(ref: DocumentRef): string {
 
 export function parseEntry(entry: string | undefined): DocumentRef | null {
   if (entry === null || entry === undefined || entry === '') return null;
-  if (entry === 'handoff') return HANDOFF;
-  if (entry === 'walkthrough') return { kind: 'walkthrough' };
+  if (REVIEW_LINKS.includes(entry)) return REVIEW;
   if (entry === 'all-changes') return ALL_CHANGES;
-  if (entry === 'walkthrough-changes') return { kind: 'walkthrough-changes' };
   if (entry === 'specs') return SPECS;
   if (entry === 'branch') return BRANCH;
   if (entry === 'graph') return GRAPH;
@@ -114,6 +107,11 @@ export function parseEntry(entry: string | undefined): DocumentRef | null {
   }
 }
 
+export function canonicalEntry(entry: string | undefined) {
+  const ref = parseEntry(entry);
+  return ref ? entryKey(ref) : undefined;
+}
+
 export function withDocument(
   open: readonly string[],
   key: string,
@@ -143,8 +141,6 @@ export type DocumentInteraction = {
   singleHeader?: boolean;
 };
 
-export type ReviewTitle = 'Walkthrough';
-
 type Surface = 'changes' | 'files' | 'history';
 
 export const surfaceTitles: Record<Surface, string> = {
@@ -155,12 +151,9 @@ export const surfaceTitles: Record<Surface, string> = {
 
 function documentTitle(ref: DocumentRef): string {
   switch (ref.kind) {
-    case 'handoff':
-      return 'Changes';
-    case 'walkthrough':
-      return 'Walkthrough';
+    case 'review':
+      return 'Review';
     case 'all-changes':
-    case 'walkthrough-changes':
       return 'All changes';
     case 'specs':
       return 'Specs';
@@ -192,7 +185,7 @@ export function workspaceTitle(input: {
 }): string {
   const ref = parseEntry(input.entry);
   const first =
-    input.firstDocument !== undefined && (!ref || ref.kind === 'walkthrough')
+    input.firstDocument !== undefined && (!ref || ref.kind === 'review')
       ? input.firstDocument
       : undefined;
   const shown =

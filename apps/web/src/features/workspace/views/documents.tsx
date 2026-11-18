@@ -52,10 +52,7 @@ import { type ConnectionContext } from '@/shared/workspace/connection';
 import { counted } from '@porcelain/client/changes/rules';
 
 export type WalkthroughCodeProps = DocumentProps & {
-  document: Extract<
-    DocumentRef,
-    { kind: 'walkthrough-step' | 'walkthrough-changes' }
-  >;
+  document: Extract<DocumentRef, { kind: 'walkthrough-step' }>;
 };
 
 export type DocumentProps = {
@@ -81,7 +78,7 @@ export function DocumentView({
   active = false,
   base,
   toolbarTarget,
-  walkthrough: Walkthrough,
+  review: Review,
   walkthroughCode: WalkthroughCode,
   singleHeader = false,
   fileTarget,
@@ -99,10 +96,10 @@ export function DocumentView({
   base?: string | undefined;
 } & (
   | {
-      document: Exclude<DocumentRef, { kind: 'handoff' | 'walkthrough' }>;
-      walkthrough?: never;
+      document: Exclude<DocumentRef, { kind: 'review' }>;
+      review?: never;
     }
-  | { document: DocumentRef; walkthrough: ComponentType<DocumentProps> }
+  | { document: DocumentRef; review: ComponentType<DocumentProps> }
 )) {
   const props = {
     base,
@@ -121,10 +118,8 @@ export function DocumentView({
     },
   };
   switch (document.kind) {
-    case 'handoff':
-      return <PlainChangesDocument {...props} />;
-    case 'walkthrough':
-      return Walkthrough ? <Walkthrough {...props} /> : null;
+    case 'review':
+      return Review ? <Review {...props} /> : null;
     case 'all-changes':
       return <PlainChangesDocument {...props} />;
     case 'specs':
@@ -140,7 +135,6 @@ export function DocumentView({
     case 'branch-file':
       return <BranchFileDocument {...props} path={document.path} />;
     case 'walkthrough-step':
-    case 'walkthrough-changes':
       return WalkthroughCode ? (
         <WalkthroughCode {...props} document={document} />
       ) : null;
@@ -217,7 +211,7 @@ function PullRequestSourceDocument({
     document.number,
   );
   const openSource = (
-    entry: { kind: 'handoff' } | { kind: 'file'; path: string },
+    entry: { kind: 'review' } | { kind: 'file'; path: string },
   ) => {
     if (!checkout) {
       void navigate({ to: '/' });
@@ -244,7 +238,7 @@ function PullRequestSourceDocument({
       number={document.number}
       context={context}
       toolbarTarget={toolbarTarget}
-      onBack={() => openSource({ kind: 'handoff' })}
+      onBack={() => openSource({ kind: 'review' })}
       onFile={
         checkout ? (path) => openSource({ kind: 'file', path }) : undefined
       }
@@ -357,36 +351,7 @@ export function PlainChangesDocument({
       </div>
     );
   if (!specsOnly && changes.length === 0)
-    return (
-      <div className="mx-auto w-full max-w-xl">
-        <StateNotice
-          title="No changes to review"
-          description={
-            <>
-              <span className="font-mono text-foreground">
-                {list.branch?.name ?? 'This worktree'}
-              </span>{' '}
-              matches its last commit. Browse files or history from the right.
-            </>
-          }
-        >
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={(event) => onBrowse('files', event.currentTarget)}
-          >
-            Files <Kbd>{formatForDisplay(SHORTCUTS.surfaceFiles)}</Kbd>
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={(event) => onBrowse('history', event.currentTarget)}
-          >
-            History <Kbd>{formatForDisplay(SHORTCUTS.surfaceHistory)}</Kbd>
-          </Button>
-        </StateNotice>
-      </div>
-    );
+    return <NoChanges scope={scope} context={context} onBrowse={onBrowse} />;
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <ReviewCodeDocument
@@ -436,6 +401,44 @@ export function PlainChangesDocument({
               ),
             })}
       />
+    </div>
+  );
+}
+
+export function NoChanges({
+  scope,
+  context,
+  onBrowse,
+}: Pick<DocumentProps, 'scope' | 'context' | 'onBrowse'>) {
+  const list = useChanges(scope, context.connection);
+  return (
+    <div className="mx-auto w-full max-w-xl">
+      <StateNotice
+        title="No changes to review"
+        description={
+          <>
+            <span className="font-mono text-foreground">
+              {list.branch?.name ?? 'This worktree'}
+            </span>{' '}
+            matches its last commit. Browse files or history from the right.
+          </>
+        }
+      >
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={(event) => onBrowse('files', event.currentTarget)}
+        >
+          Files <Kbd>{formatForDisplay(SHORTCUTS.surfaceFiles)}</Kbd>
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={(event) => onBrowse('history', event.currentTarget)}
+        >
+          History <Kbd>{formatForDisplay(SHORTCUTS.surfaceHistory)}</Kbd>
+        </Button>
+      </StateNotice>
     </div>
   );
 }

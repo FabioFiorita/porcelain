@@ -289,3 +289,31 @@ export function walkthroughCodeScopes({
   ]);
   return { branch: paths(branch), worktree: paths(working) };
 }
+
+export type ReviewCode = { branch: string[]; worktree: string[] };
+
+export function reviewCodeSections({
+  content,
+  branch,
+  worktree,
+}: {
+  content: WalkthroughContent | undefined;
+  branch: readonly CodeFile[];
+  worktree: readonly CodeFile[];
+}): { steps: ReviewCode[]; outside: ReviewCode } {
+  const steps = (content?.stops ?? []).map((stop) =>
+    walkthroughCodeScopes({ branch, worktree, only: stopPaths(stop, branch) }),
+  );
+  const every = walkthroughCodeScopes({ branch, worktree });
+  const covered = (pick: (code: ReviewCode) => readonly string[]) =>
+    new Set(steps.flatMap(pick));
+  const coveredBranch = covered((code) => code.branch);
+  const coveredWorktree = covered((code) => code.worktree);
+  return {
+    steps,
+    outside: {
+      branch: every.branch.filter((path) => !coveredBranch.has(path)),
+      worktree: every.worktree.filter((path) => !coveredWorktree.has(path)),
+    },
+  };
+}

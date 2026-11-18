@@ -3,7 +3,6 @@ import type { DocumentProps, WalkthroughCodeProps } from './documents';
 import type { ReviewIndexProps } from './review-index';
 
 import { StateSkeleton } from '@/shared/views/state-notice';
-import { type ReviewTitle } from '../rules/documents';
 import { useElement, type ElementTarget } from '@/shared/hooks/use-element';
 import { AsyncResult } from 'effect/reactivity';
 import { Cause, Option } from 'effect';
@@ -68,12 +67,11 @@ import {
   type OpenDocument,
   parseEntry,
 } from '../rules/documents';
-import { openToSideText } from '../rules/tab-strip';
+import { openToSideText, REVIEW_TAB } from '../rules/tab-strip';
 
 import { DocumentTabs } from './document-tabs';
 import { DocumentView } from './documents';
 
-import { ChangeScopeSwitch } from './change-scope-switch';
 import { BranchBasePicker } from './branch-base-picker';
 import { ReviewBoundary } from './review-boundary';
 import { ReviewSidebar, SURFACES, surfaceNames } from './review-sidebar';
@@ -84,14 +82,12 @@ import { FilesQuickOpen } from '@/features/files/index';
 type Worktree = Project['worktrees'][number];
 
 export type FirstDocument = {
-  title: ReviewTitle | undefined;
   pending: boolean;
   guided: boolean;
-  companion: boolean;
 };
 
 type ReviewContentProps = {
-  walkthrough: ComponentType<DocumentProps>;
+  review: ComponentType<DocumentProps>;
   changesNavigation: ComponentType<ReviewIndexProps>;
   walkthroughCode: ComponentType<WalkthroughCodeProps>;
   firstDocument: FirstDocument;
@@ -113,7 +109,7 @@ export function ReviewWorkspace({
   onSearch,
   context,
   navigationTrigger,
-  walkthrough,
+  review,
   changesNavigation,
   walkthroughCode,
   firstDocument,
@@ -160,17 +156,13 @@ export function ReviewWorkspace({
   const needsDefault =
     !saved && !parseEntry(search.entry) && !parseEntry(search.side);
   const ready = !needsDefault || (!awaitingChanges && !firstDocument.pending);
-  const firstEntry =
-    firstDocument.title === 'Walkthrough' ? 'walkthrough' : 'handoff';
   const defaultEntry =
-    firstDocument.title === 'Walkthrough' ||
+    firstDocument.guided ||
     (Option.getOrUndefined(AsyncResult.value(overview))?.changes.length ?? 0) >
       0
-      ? firstEntry
+      ? REVIEW_TAB
       : null;
   const layout = useTabLayout({
-    firstDocument: firstEntry,
-    companion: firstDocument.companion,
     worktreeId: worktree.id,
     entry: search.entry,
     side: search.side,
@@ -254,7 +246,6 @@ export function ReviewWorkspace({
   const sidebar = (layout: 'docked' | 'sheet') => (
     <ReviewSidebar
       changesNavigation={changesNavigation}
-      guided={firstDocument.title === 'Walkthrough'}
       layout={layout}
       scope={scope}
       context={context}
@@ -331,7 +322,7 @@ export function ReviewWorkspace({
               <InterruptedActionNotice scope={scope} context={context} />
               <ConflictGuidance scope={scope} context={context} onOpen={open} />
               <DocumentArea
-                walkthrough={walkthrough}
+                review={review}
                 walkthroughCode={walkthroughCode}
                 firstDocument={firstDocument}
                 changesNavigation={changesNavigation}
@@ -469,8 +460,7 @@ function DocumentArea(props: DocumentAreaProps) {
 }
 
 function DocumentPanes({
-  overview,
-  walkthrough,
+  review,
   changesNavigation,
   walkthroughCode,
   firstDocument,
@@ -518,14 +508,12 @@ function DocumentPanes({
   );
 
   const paneProps = (index: PaneIndex) => ({
-    walkthrough,
+    review,
     changesNavigation,
     walkthroughCode,
     firstDocument,
     fileTarget,
     index,
-    changeCount:
-      Option.getOrUndefined(AsyncResult.value(overview))?.changes.length ?? 0,
     layout,
     split: layout.split,
     focused: focused === index,
@@ -578,8 +566,7 @@ function paneSide(split: boolean, index: PaneIndex): 'left' | 'right' | null {
 }
 
 function PaneView({
-  changeCount,
-  walkthrough,
+  review,
   walkthroughCode,
   firstDocument,
   fileTarget,
@@ -600,7 +587,6 @@ function PaneView({
   tabControls,
 }: PaneContext & {
   index: PaneIndex;
-  changeCount: number;
   layout: ReturnType<typeof useTabLayout>;
   split: boolean;
   focused: boolean;
@@ -610,7 +596,7 @@ function PaneView({
   const pane = layout.panes[index] ?? { tabs: [], pinned: [], active: null };
   const deferredEntry = useDeferredValue(pane.active);
   const shownEntry =
-    pane.active !== 'handoff' && pane.tabs.includes(deferredEntry ?? '')
+    pane.tabs.includes(deferredEntry ?? '')
       ? deferredEntry
       : pane.active;
   const pending = shownEntry !== pane.active;
@@ -643,7 +629,6 @@ function PaneView({
       )}
     >
       <DocumentTabs
-        changeCount={changeCount}
         commitContext={{ connection: context.connection, scope }}
         leading={
           index === 0 ? (
@@ -689,15 +674,7 @@ function PaneView({
               aria-label="Document controls"
               className="flex items-center gap-1"
             >
-              {activeDocument?.kind === 'handoff' && (
-                <ChangeScopeSwitch
-                  value={changes.scope}
-                  onValueChange={changes.onScope}
-                />
-              )}
-              {(activeDocument?.kind === 'branch' ||
-                (activeDocument?.kind === 'handoff' &&
-                  changes.scope === 'branch')) &&
+              {activeDocument?.kind === 'branch' &&
                 !firstDocument.guided && (
                   <BranchBasePicker
                     scope={scope}
@@ -729,19 +706,14 @@ function PaneView({
         </div>
       )}
       {pane.tabs
-        .filter((key) => key === shownEntry || key === 'walkthrough')
+        .filter((key) => key === shownEntry || key === REVIEW_TAB)
         .map((key) => {
           const ref = parseEntry(key);
           if (!ref) return null;
           const showing = key === shownEntry;
-          let shownDocument = ref;
-          if (ref.kind === 'handoff')
-            shownDocument = {
-              kind: changes.scope === 'branch' ? 'branch' : 'all-changes',
-            };
           return (
             <div
-              key={ref.kind === 'walkthrough' ? 'walkthrough' : 'document'}
+              key={ref.kind === 'review' ? REVIEW_TAB : 'document'}
               aria-hidden={!showing}
               inert={!showing || pending}
               className={cn(
@@ -756,12 +728,12 @@ function PaneView({
                 scope={scope}
               >
                 <DocumentView
-                  walkthrough={walkthrough}
+                  review={review}
                   walkthroughCode={walkthroughCode}
                   singleHeader={firstDocument.guided}
                   scope={scope}
                   context={context}
-                  document={shownDocument}
+                  document={ref}
                   sideLabel={openToSideText(paneSide(split, index))}
                   base={base}
                   onOpen={onOpen}

@@ -12,12 +12,11 @@ import {
   openInPane,
   openToSideText,
   parseTabLayout,
-  changesTabCount,
 } from './tab-strip.ts';
 
 describe('opening a document', () => {
   it.each([
-    'handoff',
+    'review',
     'all-changes',
     'specs',
     'change:src/a.ts',
@@ -66,14 +65,27 @@ describe('parseTabLayout', () => {
     expect(
       parseTabLayout({
         panes: [
-          { tabs: ['handoff', 'file:a.ts'], pinned: ['file:a.ts'] },
+          { tabs: ['review', 'file:a.ts'], pinned: ['file:a.ts'] },
           { tabs: ['commit:abcd', 'graph'], pinned: ['graph'] },
         ],
       }),
     ).toEqual([
-      { tabs: ['handoff', 'file:a.ts'], pinned: ['file:a.ts'] },
+      { tabs: ['review', 'file:a.ts'], pinned: ['file:a.ts'] },
       { tabs: ['commit:abcd', 'graph'], pinned: ['graph'] },
     ]);
+  });
+
+  it('restores a saved Changes and Walkthrough pair as one Review tab', () => {
+    expect(
+      parseTabLayout({
+        panes: [
+          {
+            tabs: ['handoff', 'walkthrough', 'file:a.ts'],
+            pinned: ['file:a.ts'],
+          },
+        ],
+      }),
+    ).toEqual([{ tabs: ['review', 'file:a.ts'], pinned: ['file:a.ts'] }]);
   });
 
   it('drops unknown tabs and pins of tabs that are not open', () => {
@@ -104,7 +116,7 @@ describe('parseTabLayout', () => {
     expect([
       parseTabLayout(null),
       parseTabLayout([]),
-      parseTabLayout({ panes: 'handoff' }),
+      parseTabLayout({ panes: 'review' }),
       parseTabLayout({ panes: [] }),
     ]).toEqual([null, null, null, null]);
   });
@@ -122,38 +134,38 @@ describe('permanent review tab', () => {
   it.each([
     { tabs: [], pinned: [] },
     { tabs: ['file:a.ts'], pinned: ['file:a.ts'] },
-    { tabs: ['file:a.ts', 'handoff'], pinned: ['file:a.ts', 'handoff'] },
+    { tabs: ['file:a.ts', 'review'], pinned: ['file:a.ts', 'review'] },
   ])('restores the first tab without losing documents or pins: %j', (saved) => {
     const restored = primaryPane(saved);
-    expect(orderedTabs(restored)[0]).toBe('handoff');
-    expect(restored.tabs.filter((key) => key === 'handoff')).toEqual([
-      'handoff',
+    expect(orderedTabs(restored)[0]).toBe('review');
+    expect(restored.tabs.filter((key) => key === 'review')).toEqual([
+      'review',
     ]);
-    expect(restored.tabs.filter((key) => key !== 'handoff')).toEqual(
-      saved.tabs.filter((key) => key !== 'handoff'),
+    expect(restored.tabs.filter((key) => key !== 'review')).toEqual(
+      saved.tabs.filter((key) => key !== 'review'),
     );
     expect(restored.pinned).toEqual(
-      saved.pinned.filter((key) => key !== 'handoff'),
+      saved.pinned.filter((key) => key !== 'review'),
     );
   });
 
   it.each(['close', 'others', 'unpinned', 'pin'] as const)(
-    'keeps Review or Changes during %s',
+    'keeps Review first during %s',
     (action) => {
-      const pane = { tabs: ['handoff', 'file:a.ts', 'graph'], pinned: [] };
+      const pane = { tabs: ['review', 'file:a.ts', 'graph'], pinned: [] };
       const operations = {
-        close: () => closeInPane(pane, 'handoff'),
+        close: () => closeInPane(pane, 'review'),
         others: () => closeOthersInPane(pane, 'file:a.ts'),
         unpinned: () => closeUnpinnedInPane(pane),
-        pin: () => togglePinInPane(pane, 'handoff'),
+        pin: () => togglePinInPane(pane, 'review'),
       };
       const next = operations[action]();
-      expect(orderedTabs(next)[0]).toBe('handoff');
+      expect(orderedTabs(next)[0]).toBe('review');
       expect(next.pinned).toEqual([]);
       const expected = {
         close: pane.tabs,
-        others: ['handoff', 'file:a.ts'],
-        unpinned: ['handoff'],
+        others: ['review', 'file:a.ts'],
+        unpinned: ['review'],
         pin: pane.tabs,
       };
       expect(next.tabs).toEqual(expected[action]);
@@ -161,26 +173,26 @@ describe('permanent review tab', () => {
   );
 
   it.each([
-    ['handoff'],
-    ['handoff', 'file:a.ts'],
-    ['handoff', 'file:a.ts', 'graph'],
+    ['review'],
+    ['review', 'file:a.ts'],
+    ['review', 'file:a.ts', 'graph'],
   ])(
     'keeps the active permanent document after a refused close: %j',
     (...tabs) => {
       const pane = { tabs, pinned: [] };
       expect(
-        neighbourAfterClose(pane, 'handoff', closeInPane(pane, 'handoff')),
-      ).toBe('handoff');
+        neighbourAfterClose(pane, 'review', closeInPane(pane, 'review')),
+      ).toBe('review');
     },
   );
 
   it.each([
     {
-      tabs: ['handoff', 'file:a.ts', 'graph'],
+      tabs: ['review', 'file:a.ts', 'graph'],
       key: 'file:a.ts',
       expected: 'graph',
     },
-    { tabs: ['handoff', 'file:a.ts'], key: 'file:a.ts', expected: 'handoff' },
+    { tabs: ['review', 'file:a.ts'], key: 'file:a.ts', expected: 'review' },
     { tabs: ['file:a.ts'], key: 'file:a.ts', expected: null },
   ])(
     'selects the remaining neighbour after closing $key in $tabs',
@@ -199,25 +211,15 @@ describe('permanent review tab', () => {
   });
 });
 
-describe('first tab count', () => {
-  it.each([
-    [0, undefined],
-    [1, { value: '1', description: '1 uncommitted file' }],
-    [3, { value: '3', description: '3 uncommitted files' }],
-  ])('counts %i uncommitted files for Changes', (count, expected) => {
-    expect(changesTabCount(count)).toEqual(expected);
-  });
-});
-
 describe('session tab activation order', () => {
   it('seeds a cold session from the active tab then the current tabs without reordering them', () => {
-    const panes = [{ tabs: ['handoff', 'file:a.ts', 'file:b.ts'], pinned: [] }];
+    const panes = [{ tabs: ['review', 'file:a.ts', 'file:b.ts'], pinned: [] }];
     expect(recentTabEntries([], panes, 'file:b.ts')).toEqual([
       'file:b.ts',
-      'handoff',
+      'review',
       'file:a.ts',
     ]);
-    expect(panes[0]?.tabs).toEqual(['handoff', 'file:a.ts', 'file:b.ts']);
+    expect(panes[0]?.tabs).toEqual(['review', 'file:a.ts', 'file:b.ts']);
   });
 
   it('keeps actual activation order across panes and prunes closed entries', () => {
@@ -257,26 +259,13 @@ describe('session tab activation order', () => {
   });
 });
 
-it.each(['handoff', 'walkthrough'] as const)(
-  'closing a file returns to the %s default when both permanent tabs exist',
-  (first) => {
-    const before = primaryPane(
-      { tabs: ['handoff', 'file:notes.md'], pinned: [] },
-      first,
-      first === 'handoff',
-    );
-    expect(
-      neighbourAfterClose(
-        before,
-        'file:notes.md',
-        closeInPane(before, 'file:notes.md'),
-      ),
-    ).toBe(first);
-  },
-);
-
-it('keeps Changes before Walkthrough when writing changes the default document', () => {
-  const unwritten = primaryPane({ tabs: [], pinned: [] }, 'handoff', true);
-  const written = primaryPane(unwritten, 'walkthrough');
-  expect(orderedTabs(written)).toEqual(['handoff', 'walkthrough']);
+it('closing a file returns to the Review tab', () => {
+  const before = primaryPane({ tabs: ['file:notes.md'], pinned: [] });
+  expect(
+    neighbourAfterClose(
+      before,
+      'file:notes.md',
+      closeInPane(before, 'file:notes.md'),
+    ),
+  ).toBe('review');
 });

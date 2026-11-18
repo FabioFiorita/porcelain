@@ -7,7 +7,7 @@ import {
   type ReviewWorkspaceProps,
 } from '@/features/workspace/index';
 import {
-  WalkthroughDocument,
+  ReviewDocument,
   WalkthroughIndex,
   WalkthroughCodeDocument,
   useWalkthroughTabTitle,
@@ -17,7 +17,7 @@ import { useAtomMount } from '@effect/atom-react';
 
 type Props = Omit<
   ReviewWorkspaceProps,
-  'walkthrough' | 'changesNavigation' | 'walkthroughCode' | 'firstDocument'
+  'review' | 'changesNavigation' | 'walkthroughCode' | 'firstDocument'
 >;
 
 export function WorkspaceReview(props: Props) {
@@ -34,27 +34,21 @@ export function WorkspaceReview(props: Props) {
 function WorkspaceReviewContent(props: Props) {
   const scope = { projectId: props.projectId, worktreeId: props.worktree.id };
   const worktreeFirstDocument = useWorktreeFirstDocument(scope, props.context);
-  const showsWalkthrough = worktreeFirstDocument.name === 'walkthrough';
   const walkthroughTitle = useWalkthroughTabTitle(scope, props.context);
   useAtomMount(
     firstDocumentTitleOwner({
       worktreeId: props.worktree.id,
-      title:
-        showsWalkthrough || props.search.entry === 'walkthrough'
-          ? walkthroughTitle
-          : 'Changes',
+      title: worktreeFirstDocument.guided ? walkthroughTitle : 'Review',
     }),
   );
   const firstDocument: FirstDocument = {
-    title: showsWalkthrough ? 'Walkthrough' : undefined,
     pending: worktreeFirstDocument.pending,
     guided: worktreeFirstDocument.guided,
-    companion: worktreeFirstDocument.companion,
   };
   return (
     <ReviewWorkspace
       {...props}
-      walkthrough={WalkthroughDocument}
+      review={ReviewDocument}
       changesNavigation={
         worktreeFirstDocument.guided ? WalkthroughIndex : ReviewIndex
       }

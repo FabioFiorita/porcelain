@@ -37,7 +37,6 @@ type ChangesScope = {
 
 type SidebarProps = {
   changesNavigation: ComponentType<ReviewIndexProps>;
-  guided: boolean;
   scope: ReviewScope;
   context: ConnectionContext;
   worktreePath: string;
@@ -186,7 +185,6 @@ export function SurfaceIcon({
 
 function SidebarSurface({
   changesNavigation: ReviewIndex,
-  guided,
   scope,
   context,
   worktreePath,
@@ -226,7 +224,6 @@ function SidebarSurface({
           base={changes.base}
           onChangeScope={changes.onScope}
           onBase={changes.onBase}
-          allChanges={guided ? ALL_CHANGES : { kind: 'handoff' }}
         />
       )}
       {surface === 'files' && (

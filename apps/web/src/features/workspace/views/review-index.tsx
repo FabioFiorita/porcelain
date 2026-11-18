@@ -12,8 +12,8 @@ import { useToggleReviewed } from '../commands/reviewed';
 
 import { usePrefetchReviewed, useReviewChangeItems } from '../queries/reviewed';
 import {
+  ALL_CHANGES,
   SPECS,
-  type DocumentRef,
   entryKey,
   type OpenDocument,
 } from '../rules/documents';
@@ -45,7 +45,6 @@ const CHANGE_SCOPES: readonly { value: ChangeScope; label: string }[] = [
 ];
 
 type ScopeProps = {
-  allChanges: DocumentRef;
   changeScope: ChangeScope;
   base: string | undefined;
   onChangeScope: (scope: ChangeScope) => void;
@@ -80,7 +79,6 @@ export function ReviewIndex({
   base,
   onChangeScope,
   onBase,
-  allChanges,
 }: ReviewIndexProps & { grouping?: ChangeGrouping }) {
   const { connection } = context;
   usePrefetchReviewed(scope, context);
@@ -119,7 +117,6 @@ export function ReviewIndex({
           list={list}
           changes={changes}
           grouping={grouping?.uncommitted}
-          allChanges={allChanges}
           base={base}
         />
       )}
@@ -136,11 +133,9 @@ function LayersView({
   list,
   changes,
   grouping: Grouping,
-  allChanges,
   base,
 }: WorkspaceChangesProps & {
   base: string | undefined;
-  allChanges: DocumentRef;
   grouping: UncommittedFileGrouping | undefined;
   list: ChangeList;
   changes: readonly ReviewChangeItem[];
@@ -177,8 +172,8 @@ function LayersView({
     return (
       <SidebarDocumentRow
         label="All changes"
-        active={activeEntry === entryKey(allChanges)}
-        onOpen={() => onOpen(allChanges)}
+        active={activeEntry === entryKey(ALL_CHANGES)}
+        onOpen={() => onOpen(ALL_CHANGES)}
       >
         All changes
       </SidebarDocumentRow>

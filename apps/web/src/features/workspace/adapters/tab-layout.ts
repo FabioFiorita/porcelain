@@ -1,7 +1,7 @@
 import { useId, useState } from 'react';
 import { useAtomMount, useAtomValue } from '@effect/atom-react';
 import { Atom } from 'effect/reactivity';
-import { parseEntry } from '../rules/documents';
+import { canonicalEntry, parseEntry } from '../rules/documents';
 import {
   closeInPane,
   closeOthersInPane,
@@ -14,6 +14,7 @@ import {
   recentTabEntries,
   primaryPane,
   permanentTab,
+  REVIEW_TAB,
   type Pane,
   togglePinInPane,
 } from '../rules/tab-strip';
@@ -38,8 +39,6 @@ export function useTabLayout({
   ready,
   focusBoundary,
   focusBoundaryOpen,
-  firstDocument,
-  companion,
 }: {
   worktreeId: string;
   entry: string | undefined;
@@ -51,8 +50,6 @@ export function useTabLayout({
   setFocused: (pane: PaneIndex) => void;
   focusBoundary: HTMLElement | null;
   focusBoundaryOpen: boolean;
-  firstDocument: 'handoff' | 'walkthrough';
-  companion: boolean;
 }) {
   const { panes: stored, saved, save } = useTabLayoutStore(worktreeId);
   const [pending, setPending] = useState<[Target, Target]>([
@@ -66,14 +63,8 @@ export function useTabLayout({
   const focus = useAtomValue(tabFocus(useId()));
   const cancelDestinationFocus = focus.cancel;
   const urlActive: [string | undefined, string | undefined] = [
-    entry !== null &&
-    entry !== undefined &&
-    (parseEntry(entry) ?? null) !== null
-      ? entry
-      : undefined,
-    side !== null && side !== undefined && (parseEntry(side) ?? null) !== null
-      ? side
-      : undefined,
+    canonicalEntry(entry),
+    canonicalEntry(side),
   ];
 
   useAtomMount(tabRoute({ ready, entry, side, onSearch, fallback, saved }));
@@ -84,16 +75,16 @@ export function useTabLayout({
   };
 
   const base: readonly Pane[] = [
-    primaryPane(stored?.[0] ?? emptyPane(), firstDocument, companion),
+    primaryPane(stored?.[0] ?? emptyPane()),
     ...(stored?.slice(1) ?? []),
   ];
   const lastPrimary = orderedTabs(stored?.[0] ?? emptyPane()).at(-1);
   const restoredPrimary =
-    lastPrimary && !permanentTab(lastPrimary) ? lastPrimary : firstDocument;
+    lastPrimary && !permanentTab(lastPrimary) ? lastPrimary : REVIEW_TAB;
   const actives: [string | null, string | null] = [
     current(0) ??
       (stored === null || stored === undefined
-        ? (fallback ?? firstDocument)
+        ? (fallback ?? REVIEW_TAB)
         : restoredPrimary),
     current(1) ??
       (current(0) !== undefined || base[1] === null || base[1] === undefined
@@ -383,10 +374,10 @@ const tabRoute = Atom.family(
   }) =>
     Atom.make(() => {
       if (!ready) return;
-      if (entry !== undefined && parseEntry(entry) === null)
-        onSearch({ entry: undefined }, { replace: true });
-      if (side !== undefined && parseEntry(side) === null)
-        onSearch({ side: undefined }, { replace: true });
+      if (entry !== undefined && canonicalEntry(entry) !== entry)
+        onSearch({ entry: canonicalEntry(entry) }, { replace: true });
+      if (side !== undefined && canonicalEntry(side) !== side)
+        onSearch({ side: canonicalEntry(side) }, { replace: true });
       if (
         !saved &&
         entry === undefined &&

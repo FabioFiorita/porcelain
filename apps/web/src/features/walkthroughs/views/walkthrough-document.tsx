@@ -1,7 +1,8 @@
 import { useWorkspaceWriteBlock } from '@/shared/workspace/connection';
 import { type ReactNode, useState } from 'react';
-import { ArrowUpRightIcon, Columns2Icon } from 'lucide-react';
+import { Cause, Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
+import { branchErrorMessage } from '@porcelain/client/changes/rules';
 import {
   attentionLabel,
   failureCopy,
@@ -10,27 +11,23 @@ import {
   growthSign,
   readyUpdate,
   initialWriteFailure,
-  stopPaths,
+  reviewCodeSections,
   walkthroughCalls,
   walkthroughMeta,
   walkthroughEvidenceNotice,
   acknowledgedWalkthrough,
   walkthroughPhase,
   walkthroughVerdict,
+  type ReviewCode as ReviewCodeFiles,
   type WalkthroughContent,
   type WalkthroughFailure,
   type WalkthroughRun,
   type WalkthroughStop,
 } from '@porcelain/client/walkthroughs/rules';
 import { Button } from '@/components/ui/button';
-import { ButtonGroup, ButtonGroupText } from '@/components/ui/button-group';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
-import { type DocumentProps } from '@/features/workspace/index';
+import { NoChanges, type DocumentProps } from '@/features/workspace/index';
+import { useBranchChanges, useChanges } from '@/features/changes/index';
 import { cn } from '@/shared/lib/utils';
 import { StateFailure, StateSkeleton } from '@/shared/views/state-notice';
 import { useStartWalkthrough } from '../commands/start-walkthrough';
@@ -44,6 +41,7 @@ import {
 import { WalkthroughStatus } from './walkthrough-status';
 import { WalkthroughProof } from './walkthrough-evidence';
 import { WalkthroughStart } from './walkthrough-start';
+import { ReviewCode } from './walkthrough-code-document';
 
 const scrollToId = (id: string) =>
   document
@@ -233,12 +231,14 @@ function Step({
   step,
   run,
   props,
+  code,
   conversation,
 }: {
   stop: WalkthroughStop;
   step: number;
   run: WalkthroughRun;
   props: DocumentProps;
+  code: ReviewCodeFiles | undefined;
   conversation: Conversation | undefined;
 }) {
   return (
@@ -272,47 +272,13 @@ function Step({
           items={stop.evidence}
         />
       )}
-      {stopPaths(stop).length > 0 && (
-        <ButtonGroup aria-label={`See the code for step ${step}`}>
-          <ButtonGroupText>See the code</ButtonGroupText>
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  variant="outline"
-                  size="icon"
-                  aria-label={`Open code for step ${step} in split view`}
-                  onClick={() =>
-                    props.onOpen(
-                      { kind: 'walkthrough-step', step },
-                      { toSide: true },
-                    )
-                  }
-                />
-              }
-            >
-              <Columns2Icon aria-hidden="true" />
-            </TooltipTrigger>
-            <TooltipContent>Open in split view</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  variant="outline"
-                  size="icon"
-                  aria-label={`See the code for step ${step}`}
-                  onClick={() =>
-                    props.onOpen({ kind: 'walkthrough-step', step })
-                  }
-                />
-              }
-            >
-              <ArrowUpRightIcon aria-hidden="true" />
-            </TooltipTrigger>
-            <TooltipContent>Open in a new tab</TooltipContent>
-          </Tooltip>
-        </ButtonGroup>
+      {code && (
+        <ReviewCode
+          document={props}
+          entry={`review:step-${step}`}
+          code={code}
+          label={`Step ${step}`}
+        />
       )}
       {conversation?.({ kind: 'step', step })}
     </li>
@@ -329,7 +295,9 @@ function Written({
   progressRun,
   requesting,
   reused,
+  code,
 }: {
+  code: Code;
   run: WalkthroughRun;
   content: WalkthroughContent;
   freshness: Parameters<typeof WalkthroughStatus>[0]['freshness'];
@@ -376,16 +344,16 @@ function Written({
             <RichText text={content.summary} />
           </p>
           {status}
-          <div className="-ml-2">
-            <Button
-              variant="link"
-              size="sm"
-              onClick={() => props.onOpen({ kind: 'walkthrough-changes' })}
-            >
-              See the change
-            </Button>
-          </div>
         </header>
+        {code.notice}
+        {code.sections && (
+          <ReviewCode
+            document={props}
+            entry="review:all"
+            code={code.sections.outside}
+            label="Every changed file"
+          />
+        )}
         <EarlierComments owner={owner} titles={[]} />
         <PostSaved owner={owner} />
       </Column>
@@ -400,6 +368,7 @@ function Written({
         </p>
         {status}
       </header>
+      {code.notice}
       <Calls content={content} conversation={conversation} />
       {content.growth.length > 0 && <Growth content={content} />}
       <ol className="flex flex-col gap-10">
@@ -410,6 +379,7 @@ function Written({
             step={index + 1}
             run={run}
             props={props}
+            code={code.sections?.steps[index]}
             conversation={conversation}
           />
         ))}
@@ -419,23 +389,37 @@ function Written({
         owner={owner}
         titles={content.stops.map((stop) => stop.title)}
       />
-      <footer className="border-t pt-5">
-        <div className="-ml-2">
-          <Button
-            variant="link"
-            size="sm"
-            onClick={() => props.onOpen({ kind: 'walkthrough-changes' })}
+      {code.sections && hasCode(code.sections.outside) && (
+        <section
+          aria-labelledby="review-not-covered"
+          className="flex flex-col gap-2.5 border-t pt-5"
+        >
+          <h2
+            id="review-not-covered"
+            className="text-lg leading-6 font-semibold text-pretty"
           >
-            See every changed file
-          </Button>
-        </div>
-      </footer>
+            Not covered by the steps
+          </h2>
+          <ReviewCode
+            document={props}
+            entry="review:not-covered"
+            code={code.sections.outside}
+            label="Not covered by the steps"
+          />
+        </section>
+      )}
       <PostSaved owner={owner} />
     </Column>
   );
 }
 
-function Writing({ run }: { run: WalkthroughRun }) {
+function Writing({
+  run,
+  children,
+}: {
+  run: WalkthroughRun;
+  children: ReactNode;
+}) {
   return (
     <Column>
       <header className="flex flex-col gap-3">
@@ -444,6 +428,7 @@ function Writing({ run }: { run: WalkthroughRun }) {
         <Skeleton className="h-9 w-4/5" />
         <Skeleton className="h-20 w-full" />
       </header>
+      {children}
     </Column>
   );
 }
@@ -454,12 +439,14 @@ function Failed({
   waiting,
   onRetry,
   writeBlock,
+  children,
 }: {
   run: WalkthroughRun | undefined;
   failure: WalkthroughFailure;
   waiting: boolean;
   onRetry: () => void;
   writeBlock: string | undefined;
+  children: ReactNode;
 }) {
   const copy = failureCopy(failure, run);
   return (
@@ -480,11 +467,65 @@ function Failed({
           Try again
         </Button>
       </header>
+      {children}
     </Column>
   );
 }
 
-export function WalkthroughDocument(props: DocumentProps) {
+type Code = {
+  sections: ReturnType<typeof reviewCodeSections> | undefined;
+  notice: ReactNode;
+};
+
+const hasCode = (code: ReviewCodeFiles) =>
+  code.branch.length > 0 || code.worktree.length > 0;
+
+function useReviewCode(
+  props: DocumentProps,
+  content: WalkthroughContent | undefined,
+): Code {
+  const changes = useChanges(props.scope, props.context.connection);
+  const branch = useBranchChanges(
+    props.scope,
+    props.context.connection,
+    props.base,
+  );
+  const compared = Option.getOrUndefined(AsyncResult.value(branch.result));
+  const failed = AsyncResult.isFailure(branch.result) ? branch.result : null;
+  if (!compared && !failed) return { sections: undefined, notice: null };
+  const sections = reviewCodeSections({
+    content: content?.outcome === 'nothing' ? undefined : content,
+    branch: compared?.files ?? [],
+    worktree: changes.changes,
+  });
+  if (failed && !compared)
+    return {
+      sections,
+      notice: (
+        <p
+          role="alert"
+          className="flex flex-wrap items-center gap-2 text-ui text-muted-foreground"
+        >
+          {branchErrorMessage(Cause.squash(failed.cause))}
+          <Button size="xs" variant="outline" onClick={branch.refresh}>
+            Try again
+          </Button>
+        </p>
+      ),
+    };
+  return {
+    sections,
+    notice:
+      compared?.base === undefined ? (
+        <p className="text-ui text-muted-foreground">
+          No default branch: choose the branch this one is compared against in
+          the Branch list.
+        </p>
+      ) : null,
+  };
+}
+
+export function ReviewDocument(props: DocumentProps) {
   const writeBlock = useWorkspaceWriteBlock(props.context);
   const {
     result,
@@ -503,6 +544,23 @@ export function WalkthroughDocument(props: DocumentProps) {
   const phase = read
     ? walkthroughPhase(acknowledgedWalkthrough(read, write.accepted))
     : observedPhase;
+  const code = useReviewCode(
+    props,
+    phase?.kind === 'ready' ? phase.content : undefined,
+  );
+  const everyFile = (
+    <>
+      {code.notice}
+      {code.sections && (
+        <ReviewCode
+          document={props}
+          entry="review:all"
+          code={code.sections.outside}
+          label="Every changed file"
+        />
+      )}
+    </>
+  );
   if (phase === undefined)
     return AsyncResult.isFailure(result) ? (
       <StateFailure
@@ -522,10 +580,18 @@ export function WalkthroughDocument(props: DocumentProps) {
           waiting={write.waiting}
           onRetry={write.start}
           writeBlock={writeBlock}
-        />
+        >
+          {everyFile}
+        </Failed>
       );
     switch (phase.kind) {
       case 'unwritten':
+        if (
+          code.sections &&
+          code.notice === null &&
+          !hasCode(code.sections.outside)
+        )
+          return <NoChanges {...props} />;
         return (
           <Column>
             <WalkthroughStart
@@ -533,10 +599,11 @@ export function WalkthroughDocument(props: DocumentProps) {
               waiting={write.waiting}
               onWrite={write.start}
             />
+            {everyFile}
           </Column>
         );
       case 'writing':
-        return <Writing run={phase.run} />;
+        return <Writing run={phase.run}>{everyFile}</Writing>;
       case 'failed':
         return (
           <Failed
@@ -545,7 +612,9 @@ export function WalkthroughDocument(props: DocumentProps) {
             waiting={write.waiting}
             onRetry={write.start}
             writeBlock={writeBlock}
-          />
+          >
+            {everyFile}
+          </Failed>
         );
       case 'ready': {
         const update = readyUpdate(phase, write);
@@ -564,6 +633,7 @@ export function WalkthroughDocument(props: DocumentProps) {
               write.accepted.id === phase.run.id
             }
             updateFailure={update.failure}
+            code={code}
           />
         );
       }

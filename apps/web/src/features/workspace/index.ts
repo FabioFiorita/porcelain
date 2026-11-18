@@ -10,6 +10,7 @@ export { firstDocumentTitle, firstDocumentTitleOwner } from './store';
 export { ReviewBoundary } from './views/review-boundary';
 
 export {
+  NoChanges,
   PlainChangesDocument,
   type DocumentProps,
   type WalkthroughCodeProps,

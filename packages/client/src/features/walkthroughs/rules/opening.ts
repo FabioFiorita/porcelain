@@ -9,7 +9,6 @@ export type WorktreeOpening = {
   name: 'walkthrough' | 'changes';
   pending: boolean;
   guided: boolean;
-  companion: boolean;
 };
 
 export function worktreeOpening(input: {
@@ -24,6 +23,5 @@ export function worktreeOpening(input: {
     name,
     pending: input.walkthrough.status === 'reading',
     guided: read?.walkthrough !== undefined,
-    companion: read !== undefined && read.walkthrough === undefined,
   };
 }
