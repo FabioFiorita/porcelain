@@ -8,7 +8,7 @@ test('the browser tab follows the open surface, file and commit', async ({
 }, testInfo) => {
   const project = (await server.project()).name;
   const title = () => app.title();
-  await expect.poll(title).toBe(`Changes — ${project}`);
+  await expect.poll(title).toBe(`Review — ${project}`);
 
   await pairedPage.getByRole('button', { name: 'Review', exact: true }).click();
   const sidebar = pairedPage.getByRole('complementary', {

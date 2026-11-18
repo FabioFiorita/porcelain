@@ -102,9 +102,7 @@ for (const [width, colorScheme] of [
     });
     const commitTab = documents.getByRole('tab', { name: /^[0-9a-f]{7} / });
     for (const key of ['Enter', 'Space']) {
-      await documents
-        .getByRole('tab', { name: 'Changes', exact: true })
-        .click();
+      await documents.getByRole('tab', { name: 'Review', exact: true }).click();
       await commitTab.focus();
       await page.keyboard.press(key);
       await expect(commitTab).toHaveAttribute('aria-selected', 'true');
