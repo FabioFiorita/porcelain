@@ -26,6 +26,7 @@ export async function judgeReview(
     evidence: string;
     patch: string | undefined;
     requested: boolean;
+    markedReviewedHead?: string | undefined;
     previous: ReviewedCommit | undefined;
     headSha: string;
   },
@@ -40,23 +41,28 @@ export async function judgeReview(
     throw new Error(
       'The patch could not be read; Doorkeeper needs it to assess owner approval',
     );
-  const triage: Triage = previous
-    ? { source: 'continued' }
-    : input.requested
-      ? { source: 'requested' }
-      : patch.length > triagePatchCharacters
-        ? { source: 'oversized' }
-        : {
-            source: 'decision',
-            reviewProbability: await host.decide({
-              stage: 'Triage',
-              evidence: `${evidence}\n\nPatch:\n${patch}`,
-              name: 'needs_review',
-              instructions:
-                'Judged from the patch, not the description: the pull request changes behavior that a careful reviewer should read: product or server logic, persisted data, security or authentication, a public contract, CI or release machinery, or tests that guard behavior. It is false only when the change cannot alter behavior, such as wording in documentation, a version number bump made by the release process, or formatting.',
-            }),
-          };
-  host.report(`Triage: ${reviewReason(triage)}`);
+  const triage: Triage =
+    input.markedReviewedHead === input.headSha
+      ? { source: 'marked-reviewed' }
+      : previous
+        ? { source: 'continued' }
+        : input.requested
+          ? { source: 'requested' }
+          : patch.length > triagePatchCharacters
+            ? { source: 'oversized' }
+            : {
+                source: 'decision',
+                reviewProbability: await host.decide({
+                  stage: 'Triage',
+                  evidence: `${evidence}\n\nPatch:\n${patch}`,
+                  name: 'needs_review',
+                  instructions:
+                    'Judged from the patch, not the description: the pull request changes behavior that a careful reviewer should read: product or server logic, persisted data, security or authentication, a public contract, CI or release machinery, or tests that guard behavior. It is false only when the change cannot alter behavior, such as wording in documentation, a version number bump made by the release process, or formatting.',
+                }),
+              };
+  host.report(
+    `${triage.source === 'marked-reviewed' ? 'Reviewer' : 'Triage'}: ${reviewReason(triage)}`,
+  );
   if (needsReview(triage))
     host.report(
       previous?.sha === input.headSha

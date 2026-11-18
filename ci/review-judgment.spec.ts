@@ -16,7 +16,8 @@ function scenario(
     triageProbability?: number;
     ownerProbability?: number;
     requested?: boolean;
-    previous?: ReviewedCommit;
+    markedReviewedHead?: string;
+    previous?: ReviewedCommit | undefined;
     patch?: string;
   } = {},
 ) {
@@ -40,6 +41,7 @@ function scenario(
     evidence: 'Description: Door: two-way. No new dependency.',
     patch: options.patch ?? patch,
     requested: options.requested ?? false,
+    markedReviewedHead: options.markedReviewedHead,
     previous: options.previous,
     headSha,
   };
@@ -125,6 +127,38 @@ describe('review judgment', () => {
     expect(outcome(result).comment).toContain(
       'review explicitly requested with the agent-review label',
     );
+  });
+
+  it.each([undefined, { sha: 'earlier', review: cleanReview }])(
+    'asks only Doorkeeper on the marked head with review history %j',
+    async (previous) => {
+      const run = scenario({ markedReviewedHead: headSha, previous });
+      const result = await judgeReview(run.input, run.host);
+      expect(run.timeline).not.toContain('needs_review');
+      expect(run.timeline).not.toContain('Review API');
+      expect(run.evidence).toEqual([
+        `Description: Door: two-way. No new dependency.\n\nPatch:\n${patch}`,
+      ]);
+      expect(outcome(result).step).toMatchObject({
+        verdict: 'needs-owner',
+        status: 'failure',
+        merge: false,
+      });
+    },
+  );
+
+  it('runs Triage and the Reviewer when the reviewed label was added on an earlier head', async () => {
+    const run = scenario({
+      markedReviewedHead: 'earlier',
+      ownerProbability: 0.02,
+    });
+    const result = await judgeReview(run.input, run.host);
+    expect(run.timeline).toContain('needs_review');
+    expect(run.timeline).toContain('Review API');
+    expect(outcome(result).step).toMatchObject({
+      status: 'success',
+      merge: true,
+    });
   });
 
   it('distinguishes continuing review from an explicit request on a later push', async () => {

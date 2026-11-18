@@ -27,6 +27,7 @@ export type PullRequest = {
 };
 
 export type Triage =
+  | { source: 'marked-reviewed' }
   | { source: 'requested' }
   | { source: 'continued' }
   | { source: 'oversized' }
@@ -48,6 +49,7 @@ export const labels = {
   fixes: 'agent-fixes',
   decision: 'decision',
   approved: 'approved',
+  reviewed: 'reviewed',
   hold: 'hold',
 } as const;
 
@@ -57,6 +59,7 @@ export type ReviewedCommit = typeof ReviewedCommit.Type;
 export const ReviewState = Schema.Struct({
   reviewed: Schema.optional(ReviewedCommit),
   approvedHead: Schema.optional(Schema.String),
+  markedReviewedHead: Schema.optional(Schema.String),
 });
 export type ReviewState = typeof ReviewState.Type;
 
@@ -92,6 +95,7 @@ const ownerApprovalThreshold = 0.5;
 const reviewThreshold = 0.5;
 
 export function needsReview(triage: Triage): boolean {
+  if (triage.source === 'marked-reviewed') return false;
   return (
     triage.source !== 'decision' ||
     triage.reviewProbability === undefined ||
@@ -221,7 +225,9 @@ export function withState(
       reviewCommentMarker,
       line,
       '### Waiting for CI',
-      'The owner’s approval is saved for this commit; the verdict comes when CI passes.',
+      state.approvedHead
+        ? 'The owner’s approval is saved for this commit; the verdict comes when CI passes.'
+        : 'The verdict comes when CI passes.',
     ].join('\n\n');
   return stateLine.test(comment)
     ? comment.replace(stateLine, line)
@@ -275,6 +281,8 @@ function probability(value: number): string {
 }
 
 export function reviewReason(triage: Triage): string {
+  if (triage.source === 'marked-reviewed')
+    return 'skipped because this commit was marked reviewed';
   if (triage.source === 'requested')
     return 'review explicitly requested with the agent-review label';
   if (triage.source === 'continued')
@@ -308,14 +316,16 @@ export function reviewComment(
   const reasons = ownerReasons(assessment);
   const findings = [...assessment.fixes, ...assessment.notes];
   const reviewer = review ? [`- **Reviewer:** ${review.summary}`] : [];
+  const markedReviewed = triage.source === 'marked-reviewed';
   return [
     reviewCommentMarker,
     ...stateComment(state),
     `### ${headlines[verdict(assessment)]}`,
     `Judged commit \`${pullRequest.headSha.slice(0, 12)}\`.`,
     [
-      `- **Triage:** ${reviewReason(triage)}.`,
-      ...reviewer,
+      ...(markedReviewed
+        ? [`- **Reviewer:** ${reviewReason(triage)}.`]
+        : [`- **Triage:** ${reviewReason(triage)}.`, ...reviewer]),
       doorkeeperLine(assessment),
     ].join('\n'),
     ...(findings.length > 0
@@ -334,6 +344,10 @@ export function reviewComment(
           reasons.map((reason) => `- ${reason}`).join('\n'),
         ]
       : []),
-    `<sub>Triage and Doorkeeper: \`${decisionModel}\` on the OpenAI Decisions API. Reviewer: \`${reviewModel}\` on the OpenAI Agents API.</sub>`,
+    ...(markedReviewed
+      ? []
+      : [
+          `<sub>Triage and Doorkeeper: \`${decisionModel}\` on the OpenAI Decisions API. Reviewer: \`${reviewModel}\` on the OpenAI Agents API.</sub>`,
+        ]),
   ].join('\n\n');
 }

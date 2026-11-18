@@ -22,9 +22,9 @@ jobs:
         github.event.workflow_run.event == 'pull_request' &&
         github.event.workflow_run.conclusion == 'success') ||
       (github.event_name == 'pull_request_target' && github.event.action == 'labeled' &&
-        contains(fromJSON('["agent-review", "approved"]'), github.event.label.name)) ||
+        contains(fromJSON('["agent-review", "approved", "reviewed"]'), github.event.label.name)) ||
       (github.event_name == 'pull_request_target' && github.event.action == 'unlabeled' &&
-        github.event.label.name == 'hold') ||
+        contains(fromJSON('["hold", "reviewed"]'), github.event.label.name)) ||
       (github.event_name == 'pull_request_target' && github.event.action == 'ready_for_review')
     concurrency:
       group: agent-review-${{ github.event.workflow_run.head_repository.full_name || github.event.pull_request.head.repo.full_name }}-${{ github.event.workflow_run.head_branch || github.event.pull_request.head.ref }}-${{ github.event.workflow_run.head_sha || github.event.pull_request.head.sha }}

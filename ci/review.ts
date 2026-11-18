@@ -23,7 +23,7 @@ import {
   findComment,
   gh,
   isAncestor,
-  labeledAfterPush,
+  labeledOnHead,
   pages,
   required,
   setStatus,
@@ -303,19 +303,33 @@ const view = readView(repository, number);
 const current = new Set(view.labels.map((label) => label.name));
 const existing = findComment(repository, number, reviewCommentMarker);
 const saved = savedState(existing?.body);
-const approvedNow =
+const labelAddedOnHead =
   process.env.TRIGGER_ACTION === 'labeled' &&
-  process.env.TRIGGER_LABEL === labels.approved &&
   headSha !== undefined &&
   view.headRefOid === headSha;
-if (approvedNow && view.state === 'OPEN')
+const approvedNow =
+  labelAddedOnHead && process.env.TRIGGER_LABEL === labels.approved;
+const reviewedNow =
+  labelAddedOnHead && process.env.TRIGGER_LABEL === labels.reviewed;
+if ((approvedNow || reviewedNow) && view.state === 'OPEN')
   upsertComment(
     repository,
     number,
     reviewCommentMarker,
-    withState(existing?.body, { ...saved, approvedHead: headSha }),
+    withState(existing?.body, {
+      ...saved,
+      ...(approvedNow ? { approvedHead: headSha } : {}),
+      ...(reviewedNow ? { markedReviewedHead: headSha } : {}),
+    }),
   );
 const trusted = trustedAuthor(repository, number);
+const markedReviewedHead =
+  current.has(labels.reviewed) &&
+  (reviewedNow ||
+    saved?.markedReviewedHead === view.headRefOid ||
+    labeledOnHead(repository, number, labels.reviewed, view.headRefOid))
+    ? view.headRefOid
+    : undefined;
 const skip =
   view.state !== 'OPEN'
     ? 'it is not open'
@@ -327,7 +341,7 @@ const skip =
           ? 'a newer commit will be judged when its CI passes'
           : !checkPassed(repository, view.headRefOid, ciCheck)
             ? 'CI has not passed on its head yet'
-            : !trusted && !current.has(labels.review)
+            : !trusted && !current.has(labels.review) && !markedReviewedHead
               ? 'its author has no write access and nobody asked for a review'
               : undefined;
 if (skip) {
@@ -364,7 +378,12 @@ process.once('exit', (code) => {
   fail(`exit code ${code}`);
   if (!summarized) writeSummary(number, `stopped with exit code ${code}`);
 });
-report('pending', 'Triage: checking whether this commit needs review');
+report(
+  'pending',
+  markedReviewedHead
+    ? 'Preparing the verdict for this commit'
+    : 'Triage: checking whether this commit needs review',
+);
 
 let outcome = 'stopped before a verdict';
 try {
@@ -389,6 +408,7 @@ try {
         () => gh(['pr', 'diff', String(number), '--repo', repository]),
       ),
       requested: current.has(labels.review),
+      markedReviewedHead,
       previous,
       headSha: view.headRefOid,
     },
@@ -418,13 +438,7 @@ try {
     : saved?.approvedHead === view.headRefOid
       ? saved.approvedHead
       : current.has(labels.approved) &&
-          labeledAfterPush(
-            repository,
-            number,
-            labels.approved,
-            view.headRefOid,
-            'CI',
-          )
+          labeledOnHead(repository, number, labels.approved, view.headRefOid)
         ? view.headRefOid
         : undefined;
   const state: ReviewState = {
@@ -434,6 +448,7 @@ try {
         ? { reviewed: previous }
         : {}),
     ...(approvedHead ? { approvedHead } : {}),
+    ...(markedReviewedHead ? { markedReviewedHead } : {}),
   };
   const pullRequest: PullRequest = {
     repository,
@@ -464,7 +479,9 @@ try {
   const unchanged = (latest: PullRequestView) =>
     latest.headRefOid === view.headRefOid &&
     latest.baseRefName === landingBranch &&
-    latest.state === 'OPEN';
+    latest.state === 'OPEN' &&
+    (markedReviewedHead === undefined ||
+      latest.labels.some((label) => label.name === labels.reviewed));
   const before = readView(repository, number);
   const first = unchanged(before)
     ? judge(new Set(before.labels.map((label) => label.name)))
@@ -490,7 +507,7 @@ try {
       : undefined;
   if (!settled) {
     outcome = 'the pull request changed while it was judged';
-    report('failure', 'The head, target or state changed before this verdict');
+    report('failure', 'The pull request changed before this verdict');
   } else {
     report(settled.status, settled.description);
     const mergeError = settled.merge ? merge(repository, view) : undefined;
