@@ -12,13 +12,13 @@ function pathname(location: string) {
   return location.split('?')[0];
 }
 
-async function openWorktree(render: Render, server: Projects) {
+async function openWorktree(render: Render, server: Projects, entry = '') {
   await page.viewport(1440, 896);
   const project = await server.project();
   const worktree = project.worktrees.find((entry) => entry.main);
   if (!worktree) throw new Error('The fixture has no main worktree');
   const path = `/${project.id}/${worktree.id}`;
-  const app = await render.route(path);
+  const app = await render.route(`${path}${entry}`);
   const content = app.page.getByRole('region', {
     name: 'Review content',
     exact: true,
@@ -93,32 +93,46 @@ for (const way of ['Close', 'Escape', 'a click outside', 'Back'] as const) {
 test('workspace shortcuts stay inert while Settings is open', async ({
   render,
   server,
+  repo,
 }) => {
   try {
-    const { app, path, opener, settings } = await openWorktree(render, server);
+    const readme = repo.readme.path;
+    await repo.write(readme, 'Reviewed only on purpose\n');
+    const { app, path, opener, settings } = await openWorktree(
+      render,
+      server,
+      `?entry=change:${readme}`,
+    );
+    const reviewed = app.page
+      .getByRole('toolbar', { name: 'Document controls', exact: true })
+      .getByRole('button', { name: 'Reviewed', exact: true });
+    const tab = app.page.getByRole('tab', {
+      name: new RegExp(readme),
+      exact: true,
+    });
+    const quickOpen = app.page.getByRole('combobox', {
+      name: 'Find a file by name',
+      exact: true,
+    });
+    const marked = async () =>
+      (await server.reviewedFiles()).marks.map((mark) => mark.path);
+    await expect.element(reviewed).toHaveAttribute('aria-pressed', 'false');
     await opener.click();
     await expect.element(settings).toBeVisible();
+    await userEvent.keyboard('r');
+    await userEvent.keyboard('{Alt>}w{/Alt}');
     await userEvent.keyboard('{ControlOrMeta>}p{/ControlOrMeta}');
     await userEvent.keyboard('{Alt>}{Shift>}S{/Shift}{/Alt}');
-    await expect
-      .element(
-        app.page.getByRole('combobox', {
-          name: 'Find a file by name',
-          exact: true,
-        }),
-      )
-      .not.toBeInTheDocument();
+    await expect.element(quickOpen).not.toBeInTheDocument();
     await settings.getByRole('button', { name: 'Close', exact: true }).click();
     await expect.poll(() => pathname(app.location())).toBe(path);
+    await expect.element(tab).toBeVisible();
+    await expect.element(reviewed).toHaveAttribute('aria-pressed', 'false');
+    await expect.poll(marked).toEqual([]);
+    await userEvent.keyboard('r');
+    await expect.poll(marked).toContain(readme);
     await userEvent.keyboard('{ControlOrMeta>}p{/ControlOrMeta}');
-    await expect
-      .element(
-        app.page.getByRole('combobox', {
-          name: 'Find a file by name',
-          exact: true,
-        }),
-      )
-      .toBeVisible();
+    await expect.element(quickOpen).toBeVisible();
   } finally {
     await page.viewport(414, 896);
   }

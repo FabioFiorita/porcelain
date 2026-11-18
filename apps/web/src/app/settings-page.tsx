@@ -202,7 +202,7 @@ export function SettingsDialog({
         aria-label="Settings"
         className="flex h-[min(48rem,calc(100svh-2rem))] w-[min(64rem,calc(100vw-2rem))] max-w-none flex-col overflow-hidden sm:max-w-none"
       >
-        <div className="-m-4 flex min-h-0 flex-1 flex-col bg-card text-sm text-card-foreground">
+        <div className="-m-4 flex min-h-0 flex-1 flex-col bg-card text-base text-card-foreground">
           <header className="settings-bar flex min-h-12 shrink-0 items-center gap-2 border-b pr-12 pl-4">
             <Breadcrumb className="min-w-0 flex-1">
               <BreadcrumbList className="min-w-0 flex-nowrap">
