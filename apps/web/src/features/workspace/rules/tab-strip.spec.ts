@@ -12,6 +12,7 @@ import {
   openInPane,
   openToSideText,
   parseTabLayout,
+  sideEntry,
 } from './tab-strip.ts';
 
 describe('opening a document', () => {
@@ -86,6 +87,30 @@ describe('parseTabLayout', () => {
         ],
       }),
     ).toEqual([{ tabs: ['review', 'file:a.ts'], pinned: ['file:a.ts'] }]);
+  });
+
+  it('keeps Review out of the right pane while keeping its other documents', () => {
+    expect(
+      parseTabLayout({
+        panes: [
+          { tabs: ['review', 'file:a.ts'], pinned: [] },
+          { tabs: ['walkthrough', 'file:b.ts'], pinned: ['walkthrough'] },
+          { tabs: ['handoff'], pinned: [] },
+        ],
+      }),
+    ).toEqual([
+      { tabs: ['review', 'file:a.ts'], pinned: [] },
+      { tabs: ['file:b.ts'], pinned: [] },
+    ]);
+  });
+
+  it.each([
+    ['walkthrough', undefined],
+    ['handoff', undefined],
+    ['review', undefined],
+    ['file:b.ts', 'file:b.ts'],
+  ])('opens %s in the right pane as %s', (side, expected) => {
+    expect(sideEntry(side)).toBe(expected);
   });
 
   it('drops unknown tabs and pins of tabs that are not open', () => {

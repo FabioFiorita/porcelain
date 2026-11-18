@@ -13,6 +13,18 @@ export function permanentTab(key: string) {
   return key === REVIEW_TAB;
 }
 
+export function sideEntry(entry: string | undefined) {
+  const key = canonicalEntry(entry);
+  return key === undefined || permanentTab(key) ? undefined : key;
+}
+
+function sidePane(pane: Pane): Pane {
+  return {
+    tabs: pane.tabs.filter((key) => !permanentTab(key)),
+    pinned: pane.pinned.filter((key) => !permanentTab(key)),
+  };
+}
+
 export function primaryPane(pane: Pane): Pane {
   return {
     tabs: [REVIEW_TAB, ...pane.tabs.filter((key) => !permanentTab(key))],
@@ -138,6 +150,7 @@ export function parseTabLayout(value: unknown): Pane[] | null {
         ),
       };
     })
+    .map((pane, index) => (index === 0 ? pane : sidePane(pane)))
     .filter((pane, index) => index === 0 || pane.tabs.length > 0);
   return panes.length > 0 ? panes : null;
 }

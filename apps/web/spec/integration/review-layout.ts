@@ -100,11 +100,18 @@ export const reviewLayout = {
       .getByRole('button', { name: 'All changes', exact: true })
       .click();
   },
-  saveTabs(worktreeId: string, entries: readonly string[]) {
+  saveTabs(
+    worktreeId: string,
+    entries: readonly string[],
+    side: readonly string[] = [],
+  ) {
     localStorage.setItem(
       `porcelain.tabs.${worktreeId}`,
       JSON.stringify({
-        panes: [{ tabs: ['review', ...entries], pinned: [] }],
+        panes: [
+          { tabs: ['review', ...entries], pinned: [] },
+          ...(side.length > 0 ? [{ tabs: side, pinned: [] }] : []),
+        ],
         saved: true,
         focused: 0,
       }),

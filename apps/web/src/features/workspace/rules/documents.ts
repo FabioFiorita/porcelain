@@ -20,7 +20,12 @@ export type DocumentRef =
   | { kind: 'walkthrough-step'; step: number };
 
 const REVIEW: DocumentRef = { kind: 'review' };
-const REVIEW_LINKS = ['review', 'handoff', 'walkthrough'];
+const REVIEW_LINKS = [
+  'review',
+  'handoff',
+  'walkthrough',
+  'walkthrough-changes',
+];
 export const ALL_CHANGES: DocumentRef = { kind: 'all-changes' };
 export const SPECS: DocumentRef = { kind: 'specs' };
 export const BRANCH: DocumentRef = { kind: 'branch' };

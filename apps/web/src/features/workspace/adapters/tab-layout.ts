@@ -15,6 +15,7 @@ import {
   primaryPane,
   permanentTab,
   REVIEW_TAB,
+  sideEntry,
   type Pane,
   togglePinInPane,
 } from '../rules/tab-strip';
@@ -64,7 +65,7 @@ export function useTabLayout({
   const cancelDestinationFocus = focus.cancel;
   const urlActive: [string | undefined, string | undefined] = [
     canonicalEntry(entry),
-    canonicalEntry(side),
+    sideEntry(side),
   ];
 
   useAtomMount(tabRoute({ ready, entry, side, onSearch, fallback, saved }));
@@ -237,6 +238,7 @@ export function useTabLayout({
       );
     },
     openToSide(index: PaneIndex, key: string) {
+      if (permanentTab(key)) return;
       const target: PaneIndex = index === 0 ? 1 : 0;
       const next = [...panes];
       next[target] = openInPane(
@@ -376,8 +378,8 @@ const tabRoute = Atom.family(
       if (!ready) return;
       if (entry !== undefined && canonicalEntry(entry) !== entry)
         onSearch({ entry: canonicalEntry(entry) }, { replace: true });
-      if (side !== undefined && canonicalEntry(side) !== side)
-        onSearch({ side: canonicalEntry(side) }, { replace: true });
+      if (side !== undefined && sideEntry(side) !== side)
+        onSearch({ side: sideEntry(side) }, { replace: true });
       if (
         !saved &&
         entry === undefined &&

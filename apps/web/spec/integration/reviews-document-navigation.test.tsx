@@ -53,3 +53,68 @@ test.for(['arrive', 'return'] as const)(
     }
   },
 );
+
+test('the old All changes link lands on Review over a saved file tab', async ({
+  render,
+  server,
+  reviewLayout,
+}) => {
+  const project = await server.project();
+  const worktree = project.worktrees.find((entry) => entry.main);
+  if (!worktree) throw new Error('The fixture has no main worktree');
+  reviewLayout.saveTabs(worktree.id, ['file:README.md']);
+  const route = await render.route(
+    `/${project.id}/${worktree.id}?entry=walkthrough-changes`,
+  );
+  await expect
+    .element(route.page.getByRole('tab', { name: 'Review', exact: true }))
+    .toHaveAttribute('aria-selected', 'true');
+  await expect
+    .element(route.page.getByRole('tab', { name: 'README.md', exact: true }))
+    .toHaveAttribute('aria-selected', 'false');
+  await expect
+    .poll(() =>
+      new URL(route.location(), 'http://test').searchParams.get('entry'),
+    )
+    .toBe('review');
+});
+
+test('an old Walkthrough entry for the right pane never opens a second Review', async ({
+  repo,
+  render,
+  server,
+  reviewLayout,
+}) => {
+  await repo.write('notes.txt', 'Notes beside the review\n');
+  const project = await server.project();
+  const worktree = project.worktrees.find((entry) => entry.main);
+  if (!worktree) throw new Error('The fixture has no main worktree');
+  reviewLayout.saveTabs(
+    worktree.id,
+    ['file:README.md'],
+    ['walkthrough', 'file:notes.txt'],
+  );
+  const route = await render.route(`/${project.id}/${worktree.id}`);
+  const right = route.page.getByRole('region', {
+    name: 'Right pane',
+    exact: true,
+  });
+  await expect
+    .element(right.getByRole('tab', { name: 'notes.txt', exact: true }))
+    .toHaveAttribute('aria-selected', 'true');
+  await expect
+    .element(right.getByRole('tab', { name: 'Review', exact: true }))
+    .not.toBeInTheDocument();
+  await route.navigate(
+    `/${project.id}/${worktree.id}?entry=review&side=walkthrough`,
+  );
+  await expect
+    .poll(() =>
+      new URL(route.location(), 'http://test').searchParams.get('side'),
+    )
+    .toBeNull();
+  await expect.element(right).not.toBeInTheDocument();
+  await expect
+    .element(route.page.getByRole('tab', { name: 'Review', exact: true }))
+    .toHaveAttribute('aria-selected', 'true');
+});

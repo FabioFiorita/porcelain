@@ -48,7 +48,7 @@ it('names a walkthrough worktree after its first document until another tab is c
   ).toBe('Review — sample');
 });
 
-it.each(['handoff', 'walkthrough', 'review'])(
+it.each(['handoff', 'walkthrough', 'walkthrough-changes', 'review'])(
   'lands an old %s link on the Review tab',
   (entry) => {
     expect(parseEntry(entry)).toEqual({ kind: 'review' });

@@ -511,7 +511,7 @@ function DocumentTab({
             {pinned ? 'Unpin' : 'Pin'}
           </ContextMenuItem>
           <ContextMenuItem
-            disabled={onOpenToSide === undefined}
+            disabled={onOpenToSide === undefined || permanentTab(tabKey)}
             onClick={() => {
               flushSync(() => setOpeningSide(true));
               onOpenToSide?.(tabKey);
