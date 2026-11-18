@@ -35,7 +35,11 @@ test('a saved file pin opens directly when its parent listing fails', async ({
   await expect.element(open).toBeEnabled();
   await open.click();
   await expect
-    .element(app.getByText('Direct pinned file reading', { exact: true }))
+    .element(
+      app
+        .getByRole('tabpanel')
+        .getByText('Direct pinned file reading', { exact: true }),
+    )
     .toBeVisible();
 });
 
@@ -126,7 +130,11 @@ test('a pinned file is listed under Pinned, opens from there, and unpins', async
     .getByRole('treeitem', { name: repo.readme.path, exact: true })
     .click();
   await expect
-    .element(workspace.getByText('A change to review.', { exact: true }))
+    .element(
+      workspace
+        .getByRole('tabpanel')
+        .getByText('A change to review.', { exact: true }),
+    )
     .toBeVisible();
   await workspace.getByRole('button', { name: 'Review', exact: true }).click();
   await workspace.getByRole('tab', { name: 'Files', exact: true }).click();
@@ -135,7 +143,11 @@ test('a pinned file is listed under Pinned, opens from there, and unpins', async
     .first()
     .click();
   await expect
-    .element(workspace.getByText('Pinned reading', { exact: true }))
+    .element(
+      workspace
+        .getByRole('tabpanel')
+        .getByText('Pinned reading', { exact: true }),
+    )
     .toBeVisible();
 
   await workspace.getByRole('button', { name: 'Review', exact: true }).click();

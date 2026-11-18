@@ -21,7 +21,9 @@ test('finding in a file opened from the review sheet keeps focus while the sheet
   };
   await openFile();
   await expect
-    .element(workspace.getByText('needle one', { exact: true }))
+    .element(
+      workspace.getByRole('tabpanel').getByText('needle one', { exact: true }),
+    )
     .toBeVisible();
   await openFile();
   await userEvent.keyboard('{ControlOrMeta>}f{/ControlOrMeta}');

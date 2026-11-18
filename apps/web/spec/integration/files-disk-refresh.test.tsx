@@ -36,13 +36,23 @@ test.for(['clean', 'unsaved'] as const)(
     await repo.write(path, disk);
     await expect.element(right.getByText(disk, { exact: true })).toBeVisible();
     if (initial === 'clean') {
-      await expect.element(left.getByText(disk, { exact: true })).toBeVisible();
+      await expect
+        .element(left.getByRole('tabpanel').getByText(disk, { exact: true }))
+        .toBeVisible();
       await repo.write(path, '# Sample repository\n\nA change to review.\n');
       await expect
-        .element(left.getByText('A change to review.', { exact: true }))
+        .element(
+          left
+            .getByRole('tabpanel')
+            .getByText('A change to review.', { exact: true }),
+        )
         .toBeVisible();
       await expect
-        .element(right.getByText('A change to review.', { exact: true }))
+        .element(
+          right
+            .getByRole('tabpanel')
+            .getByText('A change to review.', { exact: true }),
+        )
         .toBeVisible();
       await left.getByRole('button', { name: 'Edit', exact: true }).click();
       await expect
@@ -59,7 +69,9 @@ test.for(['clean', 'unsaved'] as const)(
         .toMatchTextContent(/The file changed on disk since you opened it\./);
       await expect.poll(async () => (await server.text(path)).text).toBe(disk);
       await left.getByRole('button', { name: 'Reload', exact: true }).click();
-      await expect.element(left.getByText(disk, { exact: true })).toBeVisible();
+      await expect
+        .element(left.getByRole('tabpanel').getByText(disk, { exact: true }))
+        .toBeVisible();
     }
   },
 );
@@ -98,7 +110,11 @@ test('an open clean editor follows restored disk text and reopens on it', async 
 
   await workspace.getByRole('button', { name: 'Done', exact: true }).click();
   await expect
-    .element(workspace.getByText('Rewritten outside', { exact: true }))
+    .element(
+      workspace
+        .getByRole('tabpanel')
+        .getByText('Rewritten outside', { exact: true }),
+    )
     .toBeVisible();
   await workspace.getByRole('button', { name: 'Edit', exact: true }).click();
   await expect.element(editor).toHaveTextContent('Rewritten outside');
@@ -138,7 +154,9 @@ test('reopening an editor starts from a rewrite that landed while its draft was 
     exact: true,
   });
   await expect
-    .element(left.getByText('Saved text', { exact: true }))
+    .element(
+      left.getByRole('tabpanel').getByText('Saved text', { exact: true }),
+    )
     .toBeVisible();
   await left.getByRole('button', { name: 'Edit', exact: true }).click();
   const editor = left.getByRole('textbox', { name: path, exact: true });
@@ -147,13 +165,21 @@ test('reopening an editor starts from a rewrite that landed while its draft was 
   await expect.element(editor).toHaveTextContent('Saved text!');
   await repo.write(path, 'Rewritten outside');
   await expect
-    .element(right.getByText('Rewritten outside', { exact: true }))
+    .element(
+      right
+        .getByRole('tabpanel')
+        .getByText('Rewritten outside', { exact: true }),
+    )
     .toBeVisible();
   await userEvent.keyboard('{Backspace}');
   await expect.element(editor).not.toHaveTextContent('Saved text!');
   await left.getByRole('button', { name: 'Done', exact: true }).click();
   await expect
-    .element(left.getByText('Rewritten outside', { exact: true }))
+    .element(
+      left
+        .getByRole('tabpanel')
+        .getByText('Rewritten outside', { exact: true }),
+    )
     .toBeVisible();
 
   await left.getByRole('button', { name: 'Edit', exact: true }).click();

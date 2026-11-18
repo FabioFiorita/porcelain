@@ -4,6 +4,7 @@ test('marking all changed files reviewed marks each one, a file changed on disk 
   workspace,
   repo,
   server,
+  reviewLayout,
 }) => {
   const readme = repo.readme.path;
   const notes = 'NOTES.md';
@@ -27,6 +28,7 @@ test('marking all changed files reviewed marks each one, a file changed on disk 
     (await server.reviewedFiles()).marks.map((mark) => mark.path);
 
   await repo.write(notes, 'Notes to review\n');
+  await reviewLayout.openAllChanges();
   await workspace
     .getByRole('button', { name: /^File review actions:/ })
     .click();

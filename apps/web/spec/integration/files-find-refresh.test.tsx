@@ -16,7 +16,11 @@ test('the find count follows a file that changes on disk and stays within its ma
     .getByRole('menuitem', { name: 'Open file', exact: true })
     .click();
   await expect
-    .element(workspace.getByText('needle three', { exact: true }))
+    .element(
+      workspace
+        .getByRole('tabpanel')
+        .getByText('needle three', { exact: true }),
+    )
     .toBeVisible();
   await expect
     .element(
@@ -38,7 +42,9 @@ test('the find count follows a file that changes on disk and stays within its ma
 
   await repo.write(path, 'needle only\n');
   await expect
-    .element(workspace.getByText('needle only', { exact: true }))
+    .element(
+      workspace.getByRole('tabpanel').getByText('needle only', { exact: true }),
+    )
     .toBeVisible();
   await expect
     .element(workspace.getByText('1 of 1', { exact: true }))
