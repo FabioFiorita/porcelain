@@ -150,7 +150,8 @@ const connectLiveSession = Effect.fn('Live.connect')(function* (
     .connect({
       onNotice: (notice) => {
         if (connection.isClosed() || scope.state._tag === 'Closed') return;
-        if (notice.type === 'inventory') connection.onStatusChange?.();
+        if (notice.type === 'inventory' && notice.change !== 'activity')
+          connection.onStatusChange?.();
         if (notice.type === 'ready') recoverPending();
         run(
           Symbol(),

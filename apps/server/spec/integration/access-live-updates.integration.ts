@@ -9,6 +9,7 @@ import {
   expectation,
   fingerprintOf,
   inventory,
+  inventoryNotice,
   receiptOf,
   watching,
 } from '../kit/reads.ts';
@@ -515,9 +516,9 @@ test.for([
         );
         expect(updated.status).toBe(200);
         for (const connection of healthy)
-          expect(
-            await connection.next((notice) => notice.type === 'inventory'),
-          ).toStrictEqual({ type: 'inventory' });
+          expect(await connection.next(inventoryNotice)).toStrictEqual({
+            type: 'inventory',
+          });
       }
       await expect.poll(() => stalled.readyState).toBe(WebSocket.CLOSED);
       const recovered = await watching(session);
@@ -543,9 +544,9 @@ test.for([
         });
         expect(updated.status).toBe(200);
         for (const connection of [...healthy, recovered])
-          expect(
-            await connection.next((notice) => notice.type === 'inventory'),
-          ).toStrictEqual({ type: 'inventory' });
+          expect(await connection.next(inventoryNotice)).toStrictEqual({
+            type: 'inventory',
+          });
       } finally {
         await recovered.close();
       }

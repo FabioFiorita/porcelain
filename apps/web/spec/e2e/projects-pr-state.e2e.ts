@@ -31,6 +31,7 @@ for (const width of [1440, 414]) {
         name: /^Open PR #423/,
       });
       await expect(openPullRequest).toBeVisible();
+      await expect(openPullRequest).toHaveText('#423 merged');
       fixture.setGitHubFailure('rate-limited');
       const original = app.address().path;
       await openPullRequest.click();

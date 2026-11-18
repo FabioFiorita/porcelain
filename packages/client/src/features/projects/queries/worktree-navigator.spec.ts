@@ -791,25 +791,45 @@ it('keeps the last uncommitted file count when a later status read fails', async
   }
 });
 
-it('keeps the last inventory when a later inventory read fails', async () => {
-  let fail = false;
+function inventoryOutage(failing: boolean) {
+  const outage = { failing };
   const navigator = observeNavigator((path) =>
-    fail && path.startsWith('/api/inventory')
+    outage.failing && path.startsWith('/api/inventory')
       ? Promise.resolve(new Response('Unavailable', { status: 503 }))
       : navigatorResponse(path),
   );
+  return { navigator, outage };
+}
+
+it('keeps the last inventory when a later inventory read fails', async () => {
+  const { navigator, outage } = inventoryOutage(false);
   try {
     await expect
       .poll(() => topicEntry(navigator)?.changes.state)
       .toBe('available');
-    fail = true;
+    outage.failing = true;
     await navigator.refresh();
     await idleClientAtoms(navigator.registry);
     expect(navigator.view().projects[0]?.project.available).toBe(true);
+    expect(navigator.view().neverRead).toBe(false);
     expect(topicEntry(navigator)).toMatchObject({
       available: true,
       pullRequest: { state: 'available', number: 42 },
     });
+  } finally {
+    navigator.stop();
+  }
+});
+
+it('marks a computer whose first inventory read fails, until a read succeeds', async () => {
+  const { navigator, outage } = inventoryOutage(true);
+  try {
+    await expect.poll(() => navigator.view().neverRead).toBe(true);
+    expect(navigator.view().projects).toEqual([]);
+    outage.failing = false;
+    await navigator.refresh();
+    await expect.poll(() => navigator.view().neverRead).toBe(false);
+    expect(navigator.view().projects).toHaveLength(1);
   } finally {
     navigator.stop();
   }

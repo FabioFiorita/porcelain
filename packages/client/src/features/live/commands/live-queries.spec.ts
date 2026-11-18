@@ -321,6 +321,21 @@ it('an uncommitted-work notice rereads the inventory without rereading pull requ
   }
 });
 
+it('only an ordinary inventory notice rechecks the computer’s status', async () => {
+  let rechecks = 0;
+  const subject = await setup(undefined, undefined, () => {
+    rechecks += 1;
+  });
+  try {
+    subject.live()?.onNotice({ type: 'inventory', change: 'activity' });
+    expect(rechecks).toBe(0);
+    subject.live()?.onNotice({ type: 'inventory' });
+    expect(rechecks).toBe(1);
+  } finally {
+    await subject.cleanup();
+  }
+});
+
 it('inventory updates change the live project subscription', async () => {
   const initial = Promise.withResolvers<void>();
   const refreshed = Promise.withResolvers<void>();

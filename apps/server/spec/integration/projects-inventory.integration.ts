@@ -5,6 +5,7 @@ import { expect } from 'vitest';
 import { readFile, stat, utimes, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { eventually, watching } from '../kit/reads.ts';
+import { read } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
 import {
   list,
@@ -20,6 +21,13 @@ const everyProjectIs =
     list(body.projects).every(
       (project) => record(project).available === available,
     );
+
+const readsUncommittedWork = (body: Record<string, unknown>) =>
+  list(body.projects).every((project) =>
+    list(record(project).worktrees).every(
+      (worktree) => record(worktree).uncommittedChangedAt !== undefined,
+    ),
+  );
 
 const registered = async (session: Session, available: boolean) => ({
   id: session.projectId,
@@ -42,9 +50,17 @@ const registered = async (session: Session, available: boolean) => ({
                 ).trim(),
               ),
             ),
-            uncommittedChangedAt: (
-              await stat(join(session.repository, session.fixture.readme.path))
-            ).mtime.toISOString(),
+            uncommittedChangedAt: DateTime.formatIso(
+              DateTime.makeUnsafe(
+                Math.floor(
+                  (
+                    await stat(
+                      join(session.repository, session.fixture.readme.path),
+                    )
+                  ).mtimeMs,
+                ),
+              ),
+            ),
           }
         : {}),
     },
@@ -54,6 +70,7 @@ const registered = async (session: Session, available: boolean) => ({
 test('reading the inventory lists the registered project with its main worktree and is never cached', async ({
   session,
 }) => {
+  await read(session, { method: 'POST', path: '/api/inventory/refresh' });
   const response = await session.send({
     method: 'GET',
     path: '/api/inventory',
@@ -167,7 +184,15 @@ test('a project whose folder has gone away stays registered as unavailable and i
     await session.rename(moved, session.repository);
   }
   expect(
-    list((await eventually(session, inventory, everyProjectIs(true))).projects),
+    list(
+      (
+        await eventually(
+          session,
+          inventory,
+          (body) => everyProjectIs(true)(body) && readsUncommittedWork(body),
+        )
+      ).projects,
+    ),
   ).toStrictEqual([await registered(session, true)]);
 });
 

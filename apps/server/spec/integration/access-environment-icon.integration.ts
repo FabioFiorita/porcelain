@@ -2,7 +2,7 @@ import { setEnvironmentIconResponseSchema } from '@porcelain/contracts/access';
 import * as Schema from 'effect/Schema';
 import { expect } from 'vitest';
 import { apiError, invalidRequest } from '../kit/answers.ts';
-import { inventory, watching } from '../kit/reads.ts';
+import { inventory, inventoryNotice, watching } from '../kit/reads.ts';
 import { read } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
 import { record, type Session } from '../kit/session.ts';
@@ -48,9 +48,9 @@ test('the owner gives the environment an icon and live viewers hear of it', asyn
     custom: false,
     icon: 'laptop',
   });
-  expect(
-    await connection.next((entry) => entry.type === 'inventory'),
-  ).toStrictEqual({ type: 'inventory' });
+  expect(await connection.next(inventoryNotice)).toStrictEqual({
+    type: 'inventory',
+  });
 });
 
 test('renaming keeps the icon and changing the icon keeps the name', async ({

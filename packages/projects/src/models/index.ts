@@ -38,6 +38,5 @@ export {
 export * from './archive-branch.ts';
 export type {
   WorktreeActivity,
-  WorktreeActivityObservation,
   WorktreeActivityTarget,
 } from './worktree-activity.ts';

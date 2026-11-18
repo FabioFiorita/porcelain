@@ -78,6 +78,7 @@ import {
   EmptyHeader,
   EmptyTitle,
   EmptyDescription,
+  EmptyContent,
 } from '@/components/ui/empty';
 import { Item, ItemContent, ItemMedia } from '@/components/ui/item';
 
@@ -135,7 +136,7 @@ export function ProjectNavigator({
     connection,
     ...(remotes ?? []).map((entry) => entry.connection),
   ];
-  const { projects, filters, loading, messages } = useAtomValue(
+  const { projects, filters, loading, neverRead } = useAtomValue(
     readWorktreeNavigator(connections),
   );
   const state = useAtomValue(worktreeNavigatorState);
@@ -453,11 +454,7 @@ export function ProjectNavigator({
                           >
                             <TruncatedText
                               text={disclosure}
-                              disclose={
-                                entry.name !== title || entry.detached
-                                  ? 'always'
-                                  : 'clipped'
-                              }
+                              disclose="always"
                               renderTrigger={(_label, clip) => (
                                 <div
                                   data-navigator-card=""
@@ -564,7 +561,19 @@ export function ProjectNavigator({
               </Collapsible>
             </SidebarGroup>
           ))}
-          {!loading && messages.length === 0 && projects.length === 0 && (
+          {!loading && projects.length === 0 && neverRead && (
+            <Empty>
+              <EmptyHeader>
+                <EmptyTitle>Couldn’t reach Porcelain</EmptyTitle>
+              </EmptyHeader>
+              <EmptyContent>
+                <Button variant="outline" onClick={() => retry(undefined)}>
+                  Try again
+                </Button>
+              </EmptyContent>
+            </Empty>
+          )}
+          {!loading && projects.length === 0 && !neverRead && (
             <Empty>
               <EmptyHeader>
                 <EmptyTitle>{emptyTitle}</EmptyTitle>

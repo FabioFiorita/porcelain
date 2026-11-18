@@ -204,6 +204,10 @@ function connectionInventories(
   return {
     reads,
     loading: reads.some(({ result }) => AsyncResult.isInitial(result)),
+    neverRead: reads.some(
+      ({ result, inventory }) =>
+        AsyncResult.isFailure(result) && inventory === undefined,
+    ),
     messages: reads.flatMap(({ result, inventory }) =>
       AsyncResult.isFailure(result)
         ? [
@@ -362,6 +366,7 @@ function navigator(connections: readonly RuntimeConnection[]) {
       statusIssues: get(worktreeStatusNotices),
       filters,
       loading: inventories.loading || detailsLoading,
+      neverRead: inventories.neverRead,
       messages: [...new Set(messages)],
     };
   });
