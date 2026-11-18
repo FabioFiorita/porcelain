@@ -21,6 +21,7 @@ selectors:
   - 'Walkthrough'
 tests:
   - apps/web/spec/integration/access-remote-access.test.tsx
+  - apps/web/spec/e2e/access-remote-detail.desktop.e2e.ts
 api:
   - DELETE /api/worktrees/:worktreeId/reviewed
   - DELETE /api/worktrees/:worktreeId/reviewed-bulk
@@ -44,6 +45,7 @@ The desktop app lists projects from local and remote computers together, each wi
 - Desktop shell only. Settings → `Computers` (`/settings/computers`) → `Pairing link` → `Add`; then the sidebar (phone width: `Toggle Sidebar`, or `ControlOrMeta+b`) → project with the remote computer badge → its worktree card.
 - Route `/remotes/<environmentId>/<projectId>/<worktreeId>` (full page load works once the remote is saved; it redirects to `/` when the remote is unknown or the shell is not desktop).
 - An unavailable remote retains honest unavailable navigation states and its existing Settings recovery.
+- When the live connection drops after it has been established, the open review and Files panel stay mounted while it reconnects.
 
 ## Driving it with browser
 
@@ -85,6 +87,10 @@ Required instance mode: `--desktop`.
 
 8. Navigate to `/`
    Expect: the local workspace with button "Mark README.md as reviewed" (this computer's README carries no mark).
+
+### Live updates reconnect
+
+From the populated remote review with Files open, close only the remote live WebSocket and block its replacement while HTTP still answers. Confirm a reconnect attempt, then check that Review content and the README.md tree item stay visible at the same address. Restore the socket and repeat the remote disk edit to confirm it appears through live updates.
 
 ### Observable proof
 

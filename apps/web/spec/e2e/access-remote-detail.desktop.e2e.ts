@@ -479,3 +479,50 @@ test('a healthy remote survives failed status probes and foreground, then reconn
   await expect(row).not.toBeAttached();
   await expect.poll(() => sessions[1]?.closed).toBe(true);
 });
+
+test('an open remote review and its file tree stay visible while live updates reconnect', async ({
+  pairedPage: page,
+  app,
+  remote,
+  live,
+}) => {
+  const inventory = await remote.server.inventory();
+  const project = await remote.server.project();
+  const link = await app.remoteLink();
+  await openRemotes(page);
+  await page
+    .getByRole('textbox', { name: 'Pairing link', exact: true })
+    .fill(link);
+  await page.getByRole('button', { name: 'Add', exact: true }).click();
+  await openComputer(page, inventory.environment.name);
+  const worktree = project.worktrees.find((item) => item.main);
+  if (!worktree) throw new Error('The remote has no main worktree');
+  await app.follow(
+    `/remotes/${inventory.environmentId}/${project.id}/${worktree.id}`,
+  );
+  const review = page.getByRole('region', {
+    name: 'Review content',
+    exact: true,
+    includeHidden: true,
+  });
+  await expect(review).toBeVisible();
+  await page.getByRole('button', { name: 'Review', exact: true }).click();
+  await page.getByRole('tab', { name: 'Files', exact: true }).click();
+  const readme = page.getByRole('treeitem', {
+    name: remote.repo.readme.path,
+    exact: true,
+  });
+  await expect(readme).toBeVisible();
+
+  const tickets = (await remote.server.liveTicketHits()).length;
+  live.drop();
+  try {
+    await expect
+      .poll(async () => (await remote.server.liveTicketHits()).length)
+      .toBeGreaterThan(tickets);
+    await expect(review).toBeVisible();
+    await expect(readme).toBeVisible();
+  } finally {
+    live.restore();
+  }
+});

@@ -63,7 +63,11 @@ function RemoteWorktreeLayout() {
 function RemoteStatusGate(shown: Shown) {
   const status = useRemoteStatus(shown.remote.remote);
   if (status.kind === 'checking') return <WorkspacePending />;
-  if (status.kind !== 'online')
-    return <ConnectedWorkspace remote={shown.remote} unavailable={status} />;
-  return <WorktreeRoute {...shown} />;
+  if (
+    status.kind === 'online' ||
+    (status.kind === 'reconnecting' &&
+      shown.remote.connection.liveUpdates.state.value === 'reconnecting')
+  )
+    return <WorktreeRoute {...shown} />;
+  return <ConnectedWorkspace remote={shown.remote} unavailable={status} />;
 }
