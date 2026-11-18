@@ -24,7 +24,7 @@ for (const width of [1440, 414]) {
         exact: true,
       });
       const row = sidebar.getByRole('listitem').filter({
-        has: page.getByRole('button', { name: /^archive-fixture,/ }),
+        has: page.getByRole('button', { name: /(^|, )archive-fixture,/ }),
       });
       await expect(row).toBeVisible();
       const openPullRequest = row.getByRole('button', {

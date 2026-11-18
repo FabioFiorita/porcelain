@@ -12,6 +12,7 @@ import {
   reconcileNavigatorStatusNotices,
   navigatorFilterSections,
   navigatorWorktreeOrder,
+  navigatorDisplayTitle,
   type NavigatorEntry,
 } from '../rules/worktree-navigator.ts';
 import { worktreeLabel, type Project } from '../rules/inventory.ts';
@@ -48,7 +49,7 @@ function inventoryEntries(input: ProjectInput): NavigatorEntry[] {
   const { project, connection, environmentName } = input;
   return project.worktrees
     .map((worktree): NavigatorEntry => {
-      const title = worktree.walkthroughTitle || worktree.pullRequestTitle;
+      const displayTitle = navigatorDisplayTitle(worktree);
       return {
         key: `${connection.environmentId}/${project.id}/${worktree.id}`,
         kind: 'worktree',
@@ -62,11 +63,14 @@ function inventoryEntries(input: ProjectInput): NavigatorEntry[] {
           worktree.branch ??
           worktree.path.split('/').filter(Boolean).at(-1) ??
           worktree.path,
-        displayTitle: title !== worktree.branch ? title : undefined,
+        displayTitle,
         branch: worktreeLabel(worktree.branch),
         main: worktree.main,
         ...(worktree.headCommittedAt
           ? { headCommittedAt: worktree.headCommittedAt }
+          : {}),
+        ...(worktree.uncommittedChangedAt
+          ? { uncommittedChangedAt: worktree.uncommittedChangedAt }
           : {}),
         detached: !worktree.branch,
         available: project.available && worktree.available,
@@ -111,14 +115,22 @@ const readProjectEntries = Atom.family(
           )?.pullRequest;
           entry.pullRequest =
             known?.state === 'available'
-              ? { state: 'available', number: known.number }
+              ? {
+                  state: 'available',
+                  number: known.number,
+                  merged: known.merged,
+                }
               : { state: 'unavailable' };
         } else if (answer?.kind === 'available') {
           const pull = answer.pullRequests.find(
             (pull) => pull.headBranch === entry.branch,
           );
           entry.pullRequest = pull
-            ? { state: 'available', number: pull.number }
+            ? {
+                state: 'available',
+                number: pull.number,
+                merged: pull.state === 'merged',
+              }
             : { state: 'none' };
         }
       }
@@ -155,20 +167,19 @@ const readNavigatorProject = Atom.family(
               detail: Option.getOrUndefined(Cause.findErrorOption(status.cause))
                 ?.message,
             });
-          entry.changes = AsyncResult.isFailure(status)
-            ? { state: 'unavailable' }
-            : answer
-              ? {
-                  state: 'available',
-                  count: new Set(
-                    answer.changes.map((change) =>
-                      change.scope === 'untracked' ||
-                      change.scope === 'unmerged'
-                        ? change.path
-                        : (change.newPath ?? change.oldPath),
-                    ),
-                  ).size,
-                }
+          entry.changes = answer
+            ? {
+                state: 'available',
+                count: new Set(
+                  answer.changes.map((change) =>
+                    change.scope === 'untracked' || change.scope === 'unmerged'
+                      ? change.path
+                      : (change.newPath ?? change.oldPath),
+                  ),
+                ).size,
+              }
+            : AsyncResult.isFailure(status)
+              ? { state: 'unavailable' }
               : { state: 'loading' };
         }
         return entry;
@@ -334,7 +345,13 @@ function navigator(connections: readonly RuntimeConnection[]) {
         failures,
       })),
       recoveredKeys: observedEntries
-        .filter((entry) => entry.changes.state === 'available')
+        .filter(
+          (entry) =>
+            entry.changes.state === 'available' &&
+            !statusIssues.some((issue) =>
+              issue.failures.some((failure) => failure.entry.key === entry.key),
+            ),
+        )
         .map((entry) => entry.key),
       inventoryKeys: all.flatMap((source) =>
         source.project.worktrees.map(

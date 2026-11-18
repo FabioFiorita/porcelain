@@ -9,10 +9,12 @@ export const worktreeNavigatorState = Atom.make<{
   readonly query: string;
   readonly filter: NavigatorFilter;
   readonly expanded: Readonly<Record<string, boolean>>;
+  readonly showingAll: Readonly<Record<string, boolean>>;
 }>({
   query: '',
   filter: emptyNavigatorFilter,
   expanded: {},
+  showingAll: {},
 }).pipe(Atom.keepAlive);
 
 export const worktreeStatusNotices = Atom.make<

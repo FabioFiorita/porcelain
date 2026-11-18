@@ -28,7 +28,7 @@ for (const width of [1440, 414]) {
         pairedPage.getByText('No matching worktrees', { exact: true }),
       ).not.toBeAttached();
       const row = pairedPage.getByRole('listitem').filter({
-        has: pairedPage.getByRole('button', { name: /^archive-fixture,/ }),
+        has: pairedPage.getByRole('button', { name: /(^|, )archive-fixture,/ }),
       });
       await expect(row).toBeVisible();
       await expect(

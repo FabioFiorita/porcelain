@@ -22,10 +22,12 @@ export {
 export {
   emptyNavigatorFilter,
   navigatorCardChangesLabel,
-  navigatorChangesLabel,
   navigatorChecksLabel,
+  navigatorEntryLabel,
   navigatorEntrySelected,
-  type NavigatorStatusNotice,
+  navigatorRowTitle,
+  navigatorRowTrailing,
+  navigatorVisibleRows,
   type NavigatorFilterSection,
   type NavigatorEntry,
 } from './worktree-navigator.ts';

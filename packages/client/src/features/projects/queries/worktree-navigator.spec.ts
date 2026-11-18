@@ -188,6 +188,7 @@ it('keeps colliding projects distinct and mounts no hidden-project details or Gi
       [projectKey]: false,
       [`${secondEnvironmentId}/${projectId}`]: false,
     },
+    showingAll: {},
   });
   const connections = subjects.map((subject) => subject.connection);
   const list = readWorktreeNavigator(connections);
@@ -205,6 +206,7 @@ it('keeps colliding projects distinct and mounts no hidden-project details or Gi
       query: '',
       filter: { ...emptyNavigatorFilter, environments: [environmentId] },
       expanded: { [projectKey]: true },
+      showingAll: {},
     });
     await expect
       .poll(() => registry.get(list).projects[0]?.entries[0]?.pullRequest.state)
@@ -220,6 +222,7 @@ it('keeps colliding projects distinct and mounts no hidden-project details or Gi
       query: '',
       filter: { ...emptyNavigatorFilter, projects: [secondProjectKey] },
       expanded: {},
+      showingAll: {},
     });
     await expect
       .poll(() => registry.get(list).projects[0]?.key)
@@ -250,6 +253,7 @@ it('keeps colliding projects distinct and mounts no hidden-project details or Gi
       query: '',
       filter: { ...emptyNavigatorFilter, projects: [] },
       expanded: {},
+      showingAll: {},
     });
     expect(registry.get(list).projects).toEqual([]);
     expect(registry.get(list).allProjects).toHaveLength(2);
@@ -303,6 +307,7 @@ it('loads checks after useful cards without computing diff summaries or reading 
     query: 'topic',
     filter: emptyNavigatorFilter,
     expanded: {},
+    showingAll: {},
   });
   const list = readWorktreeNavigator([subject.connection]);
   const stop = subject.registry.mount(list);
@@ -553,6 +558,7 @@ it('keeps failed scopes and dismissal across collapse and remount, then retries 
       query: '',
       filter: emptyNavigatorFilter,
       expanded: { [projectKey]: false },
+      showingAll: {},
     });
     await idleClientAtoms(navigator.registry);
     paths.length = 0;
@@ -700,6 +706,86 @@ it('does not carry a known PR onto a changed branch when GitHub is unavailable',
     await expect
       .poll(() => entry()?.pullRequest)
       .toEqual({ state: 'unavailable' });
+  } finally {
+    navigator.stop();
+  }
+});
+
+it('carries a merged pull request through, also while GitHub cannot be read', async () => {
+  let unavailable = false;
+  const navigator = observeNavigator((path) => {
+    if (!path.endsWith('/pull-requests')) return navigatorResponse(path);
+    if (unavailable)
+      return Promise.resolve(
+        Response.json({ kind: 'unavailable', reason: 'rate-limited' }),
+      );
+    const list = pullList();
+    return Promise.resolve(
+      Response.json({
+        ...list,
+        pullRequests: list.pullRequests.map((pull) => ({
+          ...pull,
+          state: 'merged',
+        })),
+      }),
+    );
+  });
+  try {
+    await expect
+      .poll(() => topicEntry(navigator)?.pullRequest)
+      .toMatchObject({ state: 'available', number: 42, merged: true });
+    unavailable = true;
+    await navigator.refresh();
+    await idleClientAtoms(navigator.registry);
+    expect(topicEntry(navigator)?.pullRequest).toMatchObject({
+      state: 'available',
+      number: 42,
+      merged: true,
+    });
+  } finally {
+    navigator.stop();
+  }
+});
+
+it('keeps the last uncommitted file count when a later status read fails', async () => {
+  let fail = false;
+  const navigator = observeNavigator((path) => {
+    if (!path.endsWith('/git/status') || !path.includes(topicId))
+      return navigatorResponse(path);
+    if (fail)
+      return Promise.resolve(
+        Response.json(
+          {
+            statusCode: 503,
+            error: 'Service Unavailable',
+            message: 'Inspection failed',
+          },
+          { status: 503 },
+        ),
+      );
+    return Promise.resolve(
+      Response.json({
+        ...status(path),
+        changes: [
+          { scope: 'untracked', path: 'notes.md' },
+          { scope: 'untracked', path: 'draft.md' },
+        ],
+      }),
+    );
+  });
+  try {
+    await expect
+      .poll(() => topicEntry(navigator)?.changes)
+      .toEqual({ state: 'available', count: 2 });
+    fail = true;
+    await navigator.refresh();
+    await expect
+      .poll(() => navigator.view().statusIssues[0]?.failures.length)
+      .toBe(1);
+    expect(topicEntry(navigator)?.changes).toEqual({
+      state: 'available',
+      count: 2,
+    });
   } finally {
     navigator.stop();
   }
