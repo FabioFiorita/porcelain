@@ -201,6 +201,12 @@ describe('withState', () => {
     expect(updated).toContain('- **Reviewer:** Checked the diff.');
     expect(initial).toContain('### Waiting for CI');
   });
+
+  it('saves the reviewed label for its head while CI is still running', () => {
+    const initial = withState(undefined, { markedReviewedHead: headSha });
+    expect(savedState(initial)).toEqual({ markedReviewedHead: headSha });
+    expect(initial).toContain('### Waiting for CI');
+  });
 });
 
 describe('needsReview', () => {
@@ -222,6 +228,32 @@ describe('needsReview', () => {
 });
 
 describe('reviewComment', () => {
+  it('explains the skipped review and posts a ready verdict when the marked head needs no approval', () => {
+    const current = new Set(['reviewed']);
+    const pull = pullRequest(product);
+    const assessment = assess(pull, undefined, 0.02, current, owner);
+    expect(nextStep(assessment, false, current)).toMatchObject({
+      verdict: 'ready',
+      status: 'success',
+      add: [],
+      merge: true,
+    });
+    const comment = reviewComment(
+      pull,
+      { source: 'marked-reviewed' },
+      undefined,
+      assessment,
+      undefined,
+    );
+    expect(comment).toContain('### Ready to merge');
+    expect(comment).toContain(
+      '**Reviewer:** skipped because this commit was marked reviewed.',
+    );
+    expect(comment).toContain('**Doorkeeper:** no owner approval required');
+    expect(comment).not.toContain('**Triage:**');
+    expect(comment).not.toContain('<sub>');
+  });
+
   it('saves the review so the next push is reviewed from where it stopped', () => {
     const saved = {
       reviewed: { sha: headSha, review: review([finding(2)]) },
