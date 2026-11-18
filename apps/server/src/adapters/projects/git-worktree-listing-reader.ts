@@ -1,9 +1,6 @@
 import { type Duration, Effect, FileSystem, Layer, Semaphore } from 'effect';
 import { captureGitPlatform } from '@porcelain/git/discovery';
-import {
-  listWorktrees,
-  readUncommittedChangedAt,
-} from '@porcelain/git/discovery';
+import { listWorktrees } from '@porcelain/git/discovery';
 import { repositoryUnavailableReason } from '@porcelain/git/errors';
 import type {
   ListableProject,
@@ -14,8 +11,6 @@ import { WorktreeListingReader } from '@porcelain/projects/ports';
 import type { Limits } from '../../config/limits.ts';
 import { Logger } from '../../ports/logger.ts';
 import { makeSharedReads } from '../../runtime/shared-reads.ts';
-
-const ACTIVITY_READS = 2;
 
 type WorktreeListingOptions = {
   git: Limits['git'];
@@ -75,26 +70,13 @@ export const gitWorktreeListingReaderLayer = (
         );
         if (result.kind === 'unavailable') return result;
         const { repository } = result;
-        const changedAt = yield* Effect.forEach(
-          repository.worktrees,
-          (worktree) =>
-            worktree.metadataIdentity && worktree.available
-              ? readUncommittedChangedAt(worktree.path, options.git).pipe(
-                  provideGit,
-                  Effect.timeout(options.timeout),
-                  Effect.orElseSucceed(() => undefined),
-                )
-              : Effect.succeed(undefined),
-          { concurrency: ACTIVITY_READS },
-        );
         const worktrees: ListedWorktree[] = [];
         let unidentified = 0;
-        for (const [index, worktree] of repository.worktrees.entries()) {
+        for (const worktree of repository.worktrees) {
           if (!worktree.metadataIdentity) {
             unidentified += 1;
             continue;
           }
-          const uncommittedChangedAt = changedAt[index];
           worktrees.push({
             id: options.worktreeId(project.id, worktree.metadataIdentity),
             projectId: project.id,
@@ -103,7 +85,6 @@ export const gitWorktreeListingReaderLayer = (
             ...(worktree.headCommittedAt
               ? { headCommittedAt: worktree.headCommittedAt }
               : {}),
-            ...(uncommittedChangedAt ? { uncommittedChangedAt } : {}),
             main: worktree.main,
             available: worktree.available,
             metadataIdentity: worktree.metadataIdentity,

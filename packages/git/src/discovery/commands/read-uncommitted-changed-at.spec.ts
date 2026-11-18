@@ -28,12 +28,16 @@ function write(path: string, content: string, at: string) {
   utimesSync(target, new Date(at), new Date(at));
 }
 
-function read() {
+function read(limits = gitLimits) {
   return Effect.runPromise(
-    readUncommittedChangedAt(checkout, gitLimits).pipe(
+    readUncommittedChangedAt(checkout, limits).pipe(
       Effect.provide(NodeServices.layer),
     ),
   );
+}
+
+function at(time: string) {
+  utimesSync(checkout, new Date(time), new Date(time));
 }
 
 beforeEach(() => {
@@ -45,6 +49,7 @@ beforeEach(() => {
   write('kept.md', 'kept\n', '2026-01-01T00:00:00.000Z');
   write('docs/edited.md', 'first\n', '2026-01-01T00:00:00.000Z');
   write('removed.md', 'removed\n', '2026-01-01T00:00:00.000Z');
+  write('nested/docs/file.md', 'nested\n', '2026-01-01T00:00:00.000Z');
   git('add', '.');
   git(
     '-c',
@@ -63,8 +68,8 @@ afterEach(() => {
 });
 
 describe('readUncommittedChangedAt', () => {
-  it('has no time for a clean worktree', async () => {
-    expect(await read()).toBeUndefined();
+  it('reads a clean worktree as clean', async () => {
+    expect(await read()).toEqual({ kind: 'clean' });
   });
 
   it('is the newest change among edited and untracked files, ignoring unchanged and ignored ones', async () => {
@@ -72,16 +77,52 @@ describe('readUncommittedChangedAt', () => {
     write('notes/new/draft.md', 'draft\n', '2026-03-02T09:30:00.000Z');
     write('kept.md', 'kept\n', '2026-04-01T00:00:00.000Z');
     write('build/output.txt', 'output\n', '2026-05-01T00:00:00.000Z');
-    expect(await read()).toBe('2026-03-02T09:30:00.000Z');
+    expect(await read()).toEqual({
+      kind: 'dated',
+      at: '2026-03-02T09:30:00.000Z',
+    });
   });
 
   it('dates a deleted file by its folder', async () => {
     rmSync(join(checkout, 'removed.md'));
-    utimesSync(
-      checkout,
-      new Date('2026-06-01T12:00:00.000Z'),
-      new Date('2026-06-01T12:00:00.000Z'),
-    );
-    expect(await read()).toBe('2026-06-01T12:00:00.000Z');
+    at('2026-06-01T12:00:00.000Z');
+    expect(await read()).toEqual({
+      kind: 'dated',
+      at: '2026-06-01T12:00:00.000Z',
+    });
+  });
+
+  it('dates a deleted directory by the nearest folder that survives', async () => {
+    rmSync(join(checkout, 'nested'), { recursive: true });
+    at('2026-07-01T08:00:00.000Z');
+    expect(await read()).toEqual({
+      kind: 'dated',
+      at: '2026-07-01T08:00:00.000Z',
+    });
+  });
+
+  it('finds the newest change anywhere in a long list of changes', async () => {
+    for (let index = 0; index < 2100; index += 1)
+      write(
+        `many/file-${String(index).padStart(4, '0')}.md`,
+        'many\n',
+        '2026-02-01T00:00:00.000Z',
+      );
+    write('many/file-2100.md', 'newest\n', '2026-08-01T00:00:00.000Z');
+    expect(await read()).toEqual({
+      kind: 'dated',
+      at: '2026-08-01T00:00:00.000Z',
+    });
+  });
+
+  it('fails instead of dating a status cut at its output limit', async () => {
+    for (let index = 0; index < 50; index += 1)
+      write(`cut/file-${index}.md`, 'cut\n', '2026-02-01T00:00:00.000Z');
+    await expect(
+      read({
+        ...gitLimits,
+        inspection: { ...gitLimits.inspection, statusBytes: 200 },
+      }),
+    ).rejects.toThrow();
   });
 });

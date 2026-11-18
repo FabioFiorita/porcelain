@@ -2,7 +2,7 @@ import * as Schema from 'effect/Schema';
 import { DateTime } from 'effect';
 import { readInventoryResponseSchema } from '@porcelain/contracts/projects';
 import { expect } from 'vitest';
-import { stat, utimes } from 'node:fs/promises';
+import { readFile, stat, utimes, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { eventually, watching } from '../kit/reads.ts';
 import { test } from '../kit/server-test.ts';
@@ -104,6 +104,39 @@ test('an uncommitted edit dates its worktree and live viewers hear it as uncommi
   expect(
     await connection.next((notice) => notice.type === 'inventory'),
   ).toStrictEqual({ type: 'inventory', change: 'activity' });
+});
+
+test('a failed status read keeps the worktree’s last uncommitted-change date until a later read succeeds', async ({
+  session,
+}) => {
+  const edited =
+    DateTime.toEpochMillis(DateTime.makeUnsafe('2026-04-05T06:07:08.000Z')) /
+    1000;
+  await utimes(
+    join(session.repository, session.fixture.readme.path),
+    edited,
+    edited,
+  );
+  const changedAt = async () => {
+    const response = await session.send({
+      method: 'POST',
+      path: '/api/inventory/refresh',
+    });
+    expect(response.status).toBe(200);
+    const [project] = list(record(response.body).projects);
+    const [worktree] = list(record(project).worktrees);
+    return record(worktree).uncommittedChangedAt;
+  };
+  expect(await changedAt()).toBe('2026-04-05T06:07:08.000Z');
+  const index = join(session.repository, '.git', 'index');
+  const saved = await readFile(index);
+  await writeFile(index, 'not an index');
+  try {
+    expect(await changedAt()).toBe('2026-04-05T06:07:08.000Z');
+  } finally {
+    await writeFile(index, saved);
+  }
+  expect(await changedAt()).toBe('2026-04-05T06:07:08.000Z');
 });
 
 test('a project whose folder has gone away stays registered as unavailable and is available again once the folder is back', async ({

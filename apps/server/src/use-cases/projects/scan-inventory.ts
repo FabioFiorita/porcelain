@@ -5,6 +5,8 @@ import {
   ListProjectWorktreesService,
   ListRegisteredProjectsService,
   MarkProjectsUnavailableService,
+  ReadWorktreeActivityService,
+  RecordWorktreeActivityService,
   RecordWorktreeCatalogService,
   RecordWorktreePresenceService,
   UpdateProjectAvailabilityService,
@@ -35,13 +37,24 @@ export class ScanInventoryUseCase extends Context.Service<
         yield* RecordWorktreeCatalogService;
       const lanesCapability = yield* Lanes;
       const laneKeysCapability = yield* LaneKeys;
+      const readWorktreeActivityCapability = yield* ReadWorktreeActivityService;
+      const recordWorktreeActivityCapability =
+        yield* RecordWorktreeActivityService;
       const eventsCapability = yield* EventPublisher;
+      const announce = (change: 'inventory' | 'activity' | undefined) =>
+        change === undefined
+          ? Effect.void
+          : eventsCapability.inventoryChanged(
+              change === 'activity' ? 'activity' : undefined,
+            );
 
       return {
         execute: Effect.fn('ScanInventoryUseCase.execute')(
           function* (): Effect.fn.Return<void, ProjectNotFoundError> {
-            return yield* lanesCapability
-              .run(laneKeysCapability.inventory(), 'write', () =>
+            const listed = yield* lanesCapability.run(
+              laneKeysCapability.inventory(),
+              'write',
+              () =>
                 Effect.gen(function* () {
                   const inventory =
                     yield* listRegisteredProjectsCapability.execute();
@@ -72,20 +85,37 @@ export class ScanInventoryUseCase extends Context.Service<
                         yield* listRegisteredProjectsCapability.execute();
                       const { listings: after } =
                         yield* listKnownWorktreesCapability.execute(refreshed);
-                      return knownWorktreesChange(before, after);
+                      return {
+                        change: knownWorktreesChange(before, after),
+                        listings: after,
+                      };
                     }),
                   );
                 }),
-              )
-              .pipe(
-                Effect.flatMap((change) =>
-                  change === undefined
-                    ? Effect.void
-                    : eventsCapability.inventoryChanged(
-                        change === 'activity' ? 'activity' : undefined,
-                      ),
-                ),
-              );
+            );
+            yield* announce(listed.change);
+            const observations = yield* readWorktreeActivityCapability.execute({
+              listings: listed.listings,
+            });
+            if (observations.length === 0) return;
+            const recorded = yield* lanesCapability.run(
+              laneKeysCapability.inventory(),
+              'write',
+              () =>
+                Effect.gen(function* () {
+                  const inventory =
+                    yield* listRegisteredProjectsCapability.execute();
+                  const { listings: before } =
+                    yield* listKnownWorktreesCapability.execute(inventory);
+                  yield* recordWorktreeActivityCapability.execute({
+                    observations,
+                  });
+                  const { listings: after } =
+                    yield* listKnownWorktreesCapability.execute(inventory);
+                  return knownWorktreesChange(before, after);
+                }),
+            );
+            yield* announce(recorded);
           },
         ),
       };
