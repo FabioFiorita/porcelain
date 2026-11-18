@@ -94,12 +94,9 @@ const readProjectEntries = Atom.family(
         (project) => project.id === input.projectId,
       );
       if (!inventory || !savedProject) return { entries: [], messages: [] };
-      const project: Project = AsyncResult.isFailure(inventoryResult)
-        ? { ...savedProject, available: false }
-        : savedProject;
       const entries = inventoryEntries({
         ...input,
-        project,
+        project: savedProject,
         environmentName: inventory.environment.name,
       });
       const result = get(readProjectPullRequests(input));
@@ -137,7 +134,7 @@ const readProjectEntries = Atom.family(
       return {
         entries,
         messages: AsyncResult.isFailure(result)
-          ? [`Pull requests for ${project.name} could not be read.`]
+          ? [`Pull requests for ${savedProject.name} could not be read.`]
           : [],
       };
     }).pipe(Atom.setIdleTTL(0)),
@@ -235,10 +232,7 @@ function navigator(connections: readonly RuntimeConnection[]) {
     for (const { connection, result, inventory } of inventories.reads) {
       if (AsyncResult.isSuccess(result))
         readEnvironments.push(connection.environmentId);
-      for (const savedProject of inventory?.projects ?? []) {
-        const project: Project = AsyncResult.isFailure(result)
-          ? { ...savedProject, available: false }
-          : savedProject;
+      for (const project of inventory?.projects ?? []) {
         const key = `${connection.environmentId}/${project.id}`;
         all.push({
           key,

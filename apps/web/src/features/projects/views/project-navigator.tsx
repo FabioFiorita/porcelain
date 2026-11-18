@@ -135,7 +135,7 @@ export function ProjectNavigator({
     connection,
     ...(remotes ?? []).map((entry) => entry.connection),
   ];
-  const { projects, filters, loading } = useAtomValue(
+  const { projects, filters, loading, messages } = useAtomValue(
     readWorktreeNavigator(connections),
   );
   const state = useAtomValue(worktreeNavigatorState);
@@ -175,7 +175,8 @@ export function ProjectNavigator({
         (entry) =>
           selection !== undefined && navigatorEntrySelected(entry, selection),
       )?.key,
-      showAll: searching || state.showingAll[source.key] === true,
+      showAll: state.showingAll[source.key] === true,
+      searching,
     }),
   }));
   const setShowingAll = (key: string, showingAll: boolean) =>
@@ -563,7 +564,7 @@ export function ProjectNavigator({
               </Collapsible>
             </SidebarGroup>
           ))}
-          {!loading && projects.length === 0 && (
+          {!loading && messages.length === 0 && projects.length === 0 && (
             <Empty>
               <EmptyHeader>
                 <EmptyTitle>{emptyTitle}</EmptyTitle>

@@ -98,8 +98,13 @@ export function navigatorVisibleRows<
   Row extends { key: string; main: boolean },
 >(
   rows: readonly Row[],
-  options: { selectedKey: string | undefined; showAll: boolean },
+  options: {
+    selectedKey: string | undefined;
+    showAll: boolean;
+    searching: boolean;
+  },
 ) {
+  if (options.searching) return { rows, more: 0, less: false };
   const recent = new Set(
     rows
       .filter((row) => !row.main)

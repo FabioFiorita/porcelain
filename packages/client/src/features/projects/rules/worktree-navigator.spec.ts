@@ -187,6 +187,7 @@ describe('rows shown for an expanded project', () => {
     const shown = navigatorVisibleRows(rows, {
       selectedKey: 'b',
       showAll: false,
+      searching: false,
     });
     expect(keys(shown)).toEqual(['main', 'a', 'b', 'c', 'd', 'e']);
     expect(shown).toMatchObject({ more: 2, less: false });
@@ -196,6 +197,7 @@ describe('rows shown for an expanded project', () => {
     const shown = navigatorVisibleRows(rows, {
       selectedKey: 'g',
       showAll: false,
+      searching: false,
     });
     expect(keys(shown)).toEqual(['main', 'a', 'b', 'c', 'd', 'e', 'g']);
     expect(shown).toMatchObject({ more: 1, less: false });
@@ -205,18 +207,40 @@ describe('rows shown for an expanded project', () => {
     const shown = navigatorVisibleRows(rows, {
       selectedKey: undefined,
       showAll: true,
+      searching: false,
     });
     expect(keys(shown)).toEqual(rows.map((row) => row.key));
     expect(shown).toMatchObject({ more: 0, less: true });
   });
 
+  it.each([false, true])(
+    'shows every match while searching, without offering to show less (show all: %s)',
+    (showAll) => {
+      const shown = navigatorVisibleRows(rows, {
+        selectedKey: undefined,
+        showAll,
+        searching: true,
+      });
+      expect(keys(shown)).toEqual(rows.map((row) => row.key));
+      expect(shown).toMatchObject({ more: 0, less: false });
+    },
+  );
+
   it('offers nothing when every row already fits', () => {
     const few = rows.slice(0, 6);
     expect(
-      navigatorVisibleRows(few, { selectedKey: undefined, showAll: false }),
+      navigatorVisibleRows(few, {
+        selectedKey: undefined,
+        showAll: false,
+        searching: false,
+      }),
     ).toMatchObject({ more: 0, less: false });
     expect(
-      navigatorVisibleRows(few, { selectedKey: undefined, showAll: true }),
+      navigatorVisibleRows(few, {
+        selectedKey: undefined,
+        showAll: true,
+        searching: false,
+      }),
     ).toMatchObject({ more: 0, less: false });
   });
 });

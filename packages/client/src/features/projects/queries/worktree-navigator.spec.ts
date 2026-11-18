@@ -790,3 +790,27 @@ it('keeps the last uncommitted file count when a later status read fails', async
     navigator.stop();
   }
 });
+
+it('keeps the last inventory when a later inventory read fails', async () => {
+  let fail = false;
+  const navigator = observeNavigator((path) =>
+    fail && path.startsWith('/api/inventory')
+      ? Promise.resolve(new Response('Unavailable', { status: 503 }))
+      : navigatorResponse(path),
+  );
+  try {
+    await expect
+      .poll(() => topicEntry(navigator)?.changes.state)
+      .toBe('available');
+    fail = true;
+    await navigator.refresh();
+    await idleClientAtoms(navigator.registry);
+    expect(navigator.view().projects[0]?.project.available).toBe(true);
+    expect(topicEntry(navigator)).toMatchObject({
+      available: true,
+      pullRequest: { state: 'available', number: 42 },
+    });
+  } finally {
+    navigator.stop();
+  }
+});
