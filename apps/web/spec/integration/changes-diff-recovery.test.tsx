@@ -12,16 +12,19 @@ test('a file changed before its diff request reaches the server recovers to the 
   await repo.write('second.md', 'A second changed file.\n');
   const first = 'An earlier change to review.';
   await repo.write(repo.readme.path, `# Sample repository\n\n${first}\n`);
-  const opened = await render.workspace();
-  await opened.getByRole('button', { name: 'Review', exact: true }).click();
-  await opened
-    .getByRole('complementary', { name: 'Review sidebar', exact: true })
-    .getByRole('tab', { name: 'Changes', exact: true })
-    .click();
-  await opened
-    .getByRole('button', { name: 'All changes', exact: true })
-    .click();
-  await expect.element(opened.getByText(first, { exact: true })).toBeVisible();
+  const project = await server.project();
+  const worktree = project.worktrees.find((entry) => entry.main);
+  if (!worktree) throw new Error('The fixture has no main worktree.');
+  const opened = (
+    await render.route(`/${project.id}/${worktree.id}?entry=all-changes`)
+  ).page;
+  await expect
+    .element(
+      opened
+        .getByRole('region', { name: 'Code content', exact: true })
+        .getByText(first, { exact: true }),
+    )
+    .toBeVisible();
   held.arm();
   await opened.getByRole('button', { name: 'Review', exact: true }).click();
   await opened
@@ -45,7 +48,11 @@ test('a file changed before its diff request reaches the server recovers to the 
     .poll(async () => (await server.changeDiffHits()).map((hit) => hit.status))
     .toContain(409);
   await expect
-    .element(opened.getByText(rewritten, { exact: true }))
+    .element(
+      opened
+        .getByRole('region', { name: 'Code content', exact: true })
+        .getByText(rewritten, { exact: true }),
+    )
     .toBeVisible();
   await expect
     .element(

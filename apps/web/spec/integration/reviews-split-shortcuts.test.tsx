@@ -29,7 +29,7 @@ test('returning from Settings restores the focused side pane for tab shortcuts',
   await userEvent.keyboard('{Alt>}w{/Alt}');
   await expect.element(right).not.toBeInTheDocument();
   await expect
-    .element(workspace.getByRole('tab', { name: 'Changes', exact: true }))
+    .element(workspace.getByRole('tab', { name: 'Review', exact: true }))
     .toBeVisible();
 });
 

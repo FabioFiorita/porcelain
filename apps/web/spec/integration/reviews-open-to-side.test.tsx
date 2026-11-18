@@ -98,7 +98,7 @@ test('tree side menu preserves the source document and focuses the destination a
     exact: true,
   });
   await expect
-    .element(left.getByRole('tab', { name: 'Changes', exact: true }))
+    .element(left.getByRole('tab', { name: 'Review', exact: true }))
     .toHaveAttribute('aria-selected', 'true');
   await expect
     .element(destination)
@@ -115,7 +115,7 @@ test('tree side menu preserves the source document and focuses the destination a
     .element(
       workspace
         .getByRole('tablist', { name: 'Open documents', exact: true })
-        .getByRole('tab', { name: 'Changes', exact: true }),
+        .getByRole('tab', { name: 'Review', exact: true }),
     )
     .toHaveAttribute('aria-selected', 'true');
 });
@@ -571,7 +571,7 @@ test('closing the destination during sheet exit cancels its focus transfer and r
     .element(
       workspace
         .getByRole('tablist', { name: 'Open documents', exact: true })
-        .getByRole('tab', { name: 'Changes', exact: true }),
+        .getByRole('tab', { name: 'Review', exact: true }),
     )
     .toHaveAttribute('aria-selected', 'true');
   await expect.element(trigger).toHaveFocus();
@@ -618,7 +618,7 @@ test('switching to another tab during sheet exit cancels the older destination f
   });
   await expect.element(sheet).not.toBeInTheDocument();
   await expect.element(existing).toHaveFocus();
-  await left.getByRole('tab', { name: 'Changes', exact: true }).click();
+  await left.getByRole('tab', { name: 'Review', exact: true }).click();
   await userEvent.keyboard('{Alt>}{Shift>}r{/Shift}{/Alt}');
   await expect.element(sheet).toBeVisible();
   const release = reviewLayout.holdDialogExit(sheet);

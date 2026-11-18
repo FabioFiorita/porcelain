@@ -110,25 +110,29 @@ export function ReviewCode({
       className="-mx-5 flex flex-col gap-2 @3xl:-mx-8"
     >
       {code.branch.length > 0 && (
-        <BranchDocument
-          {...document}
-          only={code.branch}
-          fullHeight
-          interaction={interaction('branch')}
-          heading={{ title: 'Branch', titleLabel: `${label}: branch` }}
-        />
+        <section aria-label={`${label}: branch`} className="flex flex-col">
+          <BranchDocument
+            {...document}
+            only={code.branch}
+            fullHeight
+            interaction={interaction('branch')}
+            heading={{ title: 'Branch', titleLabel: `${label}: branch` }}
+          />
+        </section>
       )}
       {code.worktree.length > 0 && (
-        <PlainChangesDocument
-          {...document}
-          only={code.worktree}
-          fullHeight
-          interaction={interaction('uncommitted')}
-          heading={{
-            title: 'Uncommitted',
-            titleLabel: `${label}: uncommitted`,
-          }}
-        />
+        <section aria-label={`${label}: uncommitted`} className="flex flex-col">
+          <PlainChangesDocument
+            {...document}
+            only={code.worktree}
+            fullHeight
+            interaction={interaction('uncommitted')}
+            heading={{
+              title: 'Uncommitted',
+              titleLabel: `${label}: uncommitted`,
+            }}
+          />
+        </section>
       )}
     </div>
   );

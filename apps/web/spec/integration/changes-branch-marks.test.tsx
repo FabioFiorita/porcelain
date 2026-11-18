@@ -80,7 +80,11 @@ test.for([1280, 414])(
         .getByRole('button', { name: 'notes.md · added', exact: true })
         .click();
       await expect
-        .element(page.getByText('second line', { exact: true }))
+        .element(
+          page
+            .getByRole('region', { name: 'Code content', exact: true })
+            .getByText('second line', { exact: true }),
+        )
         .toBeVisible();
       const branchMarks = async () =>
         (await server.reviewedFiles('refs/heads/feature')).marks.map(

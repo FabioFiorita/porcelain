@@ -31,7 +31,11 @@ test('All changes shows the diffs of more tracked changes than one diff request 
     .getByRole('button', { name: `${paths[0]} +1 −1`, exact: true })
     .click();
   await expect
-    .element(opened.getByText(`${paths[0]} changed`, { exact: true }))
+    .element(
+      opened
+        .getByRole('region', { name: 'Code content', exact: true })
+        .getByText(`${paths[0]} changed`, { exact: true }),
+    )
     .toBeVisible();
   await expect
     .element(

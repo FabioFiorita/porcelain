@@ -62,6 +62,7 @@ import {
 } from '../adapters/tab-layout';
 import { useReviewPanelOpen, useTabLayoutStore } from '../store';
 import {
+  documentTitle,
   entryKey,
   type DocumentFileTarget,
   type OpenDocument,
@@ -595,11 +596,12 @@ function PaneView({
     useElement<HTMLDivElement>();
   const pane = layout.panes[index] ?? { tabs: [], pinned: [], active: null };
   const deferredEntry = useDeferredValue(pane.active);
-  const shownEntry =
-    pane.tabs.includes(deferredEntry ?? '')
-      ? deferredEntry
-      : pane.active;
+  const shownEntry = pane.tabs.includes(deferredEntry ?? '')
+    ? deferredEntry
+    : pane.active;
   const pending = shownEntry !== pane.active;
+  const [reviewOpened, setReviewOpened] = useState(false);
+  if (!reviewOpened && shownEntry === REVIEW_TAB) setReviewOpened(true);
   const activeDocument = parseEntry(shownEntry ?? undefined);
   const focusPane = (event: SyntheticEvent<HTMLElement>) => {
     const target = event.target;
@@ -674,16 +676,15 @@ function PaneView({
               aria-label="Document controls"
               className="flex items-center gap-1"
             >
-              {activeDocument?.kind === 'branch' &&
-                !firstDocument.guided && (
-                  <BranchBasePicker
-                    scope={scope}
-                    connection={context.connection}
-                    base={base}
-                    onBase={changes.onBase}
-                    compact
-                  />
-                )}
+              {activeDocument?.kind === 'branch' && !firstDocument.guided && (
+                <BranchBasePicker
+                  scope={scope}
+                  connection={context.connection}
+                  base={base}
+                  onBase={changes.onBase}
+                  compact
+                />
+              )}
             </div>
             {(!split || index === 1) && tabControls(index)}
           </>
@@ -706,7 +707,9 @@ function PaneView({
         </div>
       )}
       {pane.tabs
-        .filter((key) => key === shownEntry || key === REVIEW_TAB)
+        .filter(
+          (key) => key === shownEntry || (key === REVIEW_TAB && reviewOpened),
+        )
         .map((key) => {
           const ref = parseEntry(key);
           if (!ref) return null;
@@ -714,6 +717,8 @@ function PaneView({
           return (
             <div
               key={ref.kind === 'review' ? REVIEW_TAB : 'document'}
+              role="tabpanel"
+              aria-label={documentTitle(ref)}
               aria-hidden={!showing}
               inert={!showing || pending}
               className={cn(

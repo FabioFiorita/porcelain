@@ -17,7 +17,7 @@ test.for([
     await repo.rename(original, renamed);
     const app = await render.route('/');
     await expect
-      .element(app.page.getByRole('tab', { name: 'Changes', exact: true }))
+      .element(app.page.getByRole('tab', { name: 'Review', exact: true }))
       .toBeVisible();
     await app.navigate(
       `${app.location().split('?')[0]}?entry=change:${renamed}`,

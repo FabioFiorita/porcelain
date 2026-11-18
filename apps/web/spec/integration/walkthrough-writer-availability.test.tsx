@@ -10,7 +10,7 @@ test('an unwritten walkthrough explains its comparison and blocks writing until 
   await repo.write('notes.md', 'A change to explain\n');
   const app = await render.route('/');
   const page = app.page;
-  await page.getByRole('tab', { name: 'Walkthrough', exact: true }).click();
+  await page.getByRole('tab', { name: 'Review', exact: true }).click();
   await expect
     .element(
       page.getByText('Whole change since main, including uncommitted work.', {
@@ -144,7 +144,7 @@ test('an unavailable project override opens its own settings and clearing it ena
   });
   const app = await render.route('/');
   const page = app.page;
-  await page.getByRole('tab', { name: 'Walkthrough', exact: true }).click();
+  await page.getByRole('tab', { name: 'Review', exact: true }).click();
   await expect
     .element(
       page.getByText('Writer: Codex / removed-model · high', { exact: true }),

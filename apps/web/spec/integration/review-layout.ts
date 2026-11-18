@@ -1,4 +1,4 @@
-import type { Locator } from 'vitest/browser';
+import { page, userEvent, type Locator } from 'vitest/browser';
 
 function uncovered(element: Element) {
   const box = element.getBoundingClientRect();
@@ -94,11 +94,17 @@ export const reviewLayout = {
     viewport.scrollTop = viewport.scrollHeight;
   },
   historyScrollTop: (locator: Locator) => historyScroller(locator).scrollTop,
+  async openAllChanges() {
+    await userEvent.keyboard('{Alt>}2{/Alt}');
+    await page
+      .getByRole('button', { name: 'All changes', exact: true })
+      .click();
+  },
   saveTabs(worktreeId: string, entries: readonly string[]) {
     localStorage.setItem(
       `porcelain.tabs.${worktreeId}`,
       JSON.stringify({
-        panes: [{ tabs: ['handoff', ...entries], pinned: [] }],
+        panes: [{ tabs: ['review', ...entries], pinned: [] }],
         saved: true,
         focused: 0,
       }),

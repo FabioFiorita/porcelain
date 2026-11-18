@@ -2,7 +2,7 @@ import { page, userEvent } from 'vitest/browser';
 import { expect, test } from './fixtures.tsx';
 
 for (const surface of ['Files', 'History'] as const) {
-  test(`a clean worktree keeps Changes open and reaches ${surface} from its notice`, async ({
+  test(`a clean worktree keeps Review open and reaches ${surface} from its notice`, async ({
     repo,
     render,
   }) => {
@@ -10,7 +10,7 @@ for (const surface of ['Files', 'History'] as const) {
     const workspace = await render.workspace();
     const changes = workspace
       .getByRole('tablist', { name: 'Open documents', exact: true })
-      .getByRole('tab', { name: 'Changes', exact: true });
+      .getByRole('tab', { name: 'Review', exact: true });
     await expect
       .element(
         workspace.getByRole('heading', {
@@ -24,7 +24,7 @@ for (const surface of ['Files', 'History'] as const) {
     await expect.element(changes).toBeVisible();
     await expect
       .element(
-        workspace.getByRole('button', { name: 'Close Changes', exact: true }),
+        workspace.getByRole('button', { name: 'Close Review', exact: true }),
       )
       .not.toBeInTheDocument();
     await expect
@@ -65,10 +65,11 @@ for (const surface of ['Files', 'History'] as const) {
   });
 }
 
-test('Changes lists its files above the diff, marks them reviewed and switches to the branch from the bar at desktop width', async ({
+test('All changes lists its files above the diff and marks them reviewed at desktop width', async ({
   workspace,
   repo,
   server,
+  reviewLayout,
 }) => {
   await page.viewport(1440, 900);
   try {
@@ -80,15 +81,7 @@ test('Changes lists its files above the diff, marks them reviewed and switches t
         }),
       )
       .toBeVisible();
-    const tab = workspace.getByRole('tab', { name: 'Changes', exact: true });
-    await tab.hover();
-    await expect
-      .element(
-        page
-          .getByRole('tooltip')
-          .getByText('Changes · 1 uncommitted file', { exact: true }),
-      )
-      .toBeVisible();
+    await reviewLayout.openAllChanges();
     const table = workspace.getByRole('region', {
       name: '1 uncommitted change',
       exact: true,
@@ -137,36 +130,25 @@ test('Changes lists its files above the diff, marks them reviewed and switches t
       )
       .not.toHaveAttribute('aria-current');
     await expect
-      .element(workspace.getByText('Second note', { exact: true }))
+      .element(
+        workspace
+          .getByRole('region', { name: 'Code content', exact: true })
+          .getByText('Second note', { exact: true }),
+      )
       .toBeVisible();
-
-    const compare = workspace
-      .getByRole('toolbar', { name: 'Document controls', exact: true })
-      .getByRole('tablist', { name: 'Compare', exact: true });
-    await expect
-      .element(compare.getByRole('tab', { name: 'Uncommitted', exact: true }))
-      .toHaveAttribute('aria-selected', 'true');
-    await compare.getByRole('tab', { name: 'Branch', exact: true }).click();
-    await expect.element(both).not.toBeInTheDocument();
-    await expect
-      .element(compare.getByRole('tab', { name: 'Branch', exact: true }))
-      .toHaveAttribute('aria-selected', 'true');
-    await compare
-      .getByRole('tab', { name: 'Uncommitted', exact: true })
-      .click();
-    await expect.element(both).toBeVisible();
   } finally {
     await page.viewport(414, 896);
   }
 });
 
-test('Changes keeps file shortcuts without redundant header arrows', async ({
+test('All changes keeps file shortcuts without redundant header arrows', async ({
   repo,
   render,
   reviewLayout,
 }) => {
   await repo.write('zz-notes.md', 'First note\nSecond note\n');
   const workspace = await render.workspace();
+  await reviewLayout.openAllChanges();
   const table = workspace.getByRole('region', {
     name: '2 uncommitted changes',
     exact: true,
@@ -193,11 +175,15 @@ test('Changes keeps file shortcuts without redundant header arrows', async ({
   await expect.poll(currentRows).toEqual(['zz-notes.md+2−0']);
 });
 
-test('Changes reopens a collapsed file from its table', async ({
+test('All changes reopens a collapsed file from its table', async ({
   workspace,
   repo,
+  reviewLayout,
 }) => {
-  const code = workspace.getByText('A change to review.', { exact: true });
+  await reviewLayout.openAllChanges();
+  const code = workspace
+    .getByRole('region', { name: 'Code content', exact: true })
+    .getByText('A change to review.', { exact: true });
   await expect.element(code).toBeVisible();
   await workspace
     .getByRole('button', { name: `Collapse ${repo.readme.path}`, exact: true })
@@ -210,7 +196,7 @@ test('Changes reopens a collapsed file from its table', async ({
   await expect.element(code).toBeVisible();
 });
 
-test('Changes keeps the selected file when an earlier diff finishes loading', async ({
+test('All changes keeps the selected file when an earlier diff finishes loading', async ({
   repo,
   render,
   fetchGate,
@@ -222,6 +208,7 @@ test('Changes keeps the selected file when an earlier diff finishes loading', as
   try {
     const workspace = await render.workspace();
     await held.requested;
+    await reviewLayout.openAllChanges();
     const table = workspace.getByRole('region', {
       name: '2 uncommitted changes',
       exact: true,
@@ -233,7 +220,11 @@ test('Changes keeps the selected file when an earlier diff finishes loading', as
     await expect.poll(currentRows).toEqual(['zz-notes.md+1−0']);
     held.release();
     await expect
-      .element(workspace.getByText('A change to review.', { exact: true }))
+      .element(
+        workspace
+          .getByRole('region', { name: 'Code content', exact: true })
+          .getByText('A change to review.', { exact: true }),
+      )
       .toBeInTheDocument();
     await expect.poll(currentRows).toEqual(['zz-notes.md+1−0']);
   } finally {

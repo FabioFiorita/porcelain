@@ -60,7 +60,7 @@ test('returning to a file tab restores its reading position without marking it r
     .toEqual([]);
   reviewLayout.scrollCodeTo(code, 1200);
   await expect.poll(() => reviewLayout.codeScrollTop(code)).toBe(1200);
-  await app.page.getByRole('tab', { name: 'Changes', exact: true }).click();
+  await app.page.getByRole('tab', { name: 'Review', exact: true }).click();
   await app.page.getByRole('tab', { name: path, exact: true }).click();
   await expect
     .element(app.page.getByRole('heading', { name: path, exact: true }))

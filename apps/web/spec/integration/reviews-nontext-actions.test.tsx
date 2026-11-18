@@ -25,8 +25,9 @@ test.for([
     await repo.write(path, `${text}\n`);
     const app = await render.route('/');
     await expect
-      .element(app.page.getByRole('tab', { name: 'Changes', exact: true }))
+      .element(app.page.getByRole('tab', { name: 'Review', exact: true }))
       .toBeVisible();
+    await app.navigate(`${app.location().split('?')[0]}?entry=all-changes`);
     if (path === 'data.bin') {
       const content = app.page.getByRole('listitem', {
         name: 'data.bin: Binary change',

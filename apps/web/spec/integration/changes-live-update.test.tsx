@@ -18,7 +18,11 @@ test('an open file another writer rewrites on disk shows the new text without a 
     .getByRole('menuitem', { name: 'Open file', exact: true })
     .click();
   await expect
-    .element(workspace.getByText('A change to review.', { exact: true }))
+    .element(
+      workspace
+        .getByRole('tabpanel', { name: readme, exact: true })
+        .getByText('A change to review.', { exact: true }),
+    )
     .toBeVisible();
   const source = workspace.getByRole('tab', { name: 'Source', exact: true });
   await source.click();
@@ -29,10 +33,18 @@ test('an open file another writer rewrites on disk shows the new text without a 
     .poll(async () => (await server.text(readme)).text)
     .toContain(rewritten);
   await expect
-    .element(workspace.getByText(rewritten, { exact: true }))
+    .element(
+      workspace
+        .getByRole('tabpanel', { name: readme, exact: true })
+        .getByText(rewritten, { exact: true }),
+    )
     .toBeVisible();
   await expect
-    .element(workspace.getByText('A change to review.', { exact: true }))
+    .element(
+      workspace
+        .getByRole('tabpanel', { name: readme, exact: true })
+        .getByText('A change to review.', { exact: true }),
+    )
     .not.toBeInTheDocument();
   await expect.element(source).toHaveAttribute('aria-selected', 'true');
 });

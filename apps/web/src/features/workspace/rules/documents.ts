@@ -149,7 +149,7 @@ export const surfaceTitles: Record<Surface, string> = {
   history: 'History',
 };
 
-function documentTitle(ref: DocumentRef): string {
+export function documentTitle(ref: DocumentRef): string {
   switch (ref.kind) {
     case 'review':
       return 'Review';
