@@ -174,6 +174,8 @@ export class World {
       return repository.git('commit', '--message', step.message);
     }
     if (step.kind === 'branch') return repository.git('branch', step.name);
+    if (step.kind === 'orphan')
+      return repository.git('switch', '--orphan', step.name);
     if (step.kind === 'tag') return repository.git('tag', step.name);
     if (step.kind === 'merge')
       return repository.git('merge', '--no-ff', '--no-edit', step.name);

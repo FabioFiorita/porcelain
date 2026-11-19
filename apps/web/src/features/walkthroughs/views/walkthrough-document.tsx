@@ -1,8 +1,7 @@
 import { useWorkspaceWriteBlock } from '@/shared/workspace/connection';
 import { type ReactNode, useState } from 'react';
-import { Cause, Option } from 'effect';
+import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
-import { branchErrorMessage } from '@porcelain/client/changes/rules';
 import {
   attentionLabel,
   failureCopy,
@@ -25,11 +24,15 @@ import {
   type WalkthroughStop,
 } from '@porcelain/client/walkthroughs/rules';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
-import { NoChanges, type DocumentProps } from '@/features/workspace/index';
+import {
+  NoChanges,
+  type ComparedBranch,
+  type DocumentProps,
+} from '@/features/workspace/index';
 import { useBranchChanges, useChanges } from '@/features/changes/index';
 import { cn } from '@/shared/lib/utils';
-import { StateFailure, StateSkeleton } from '@/shared/views/state-notice';
+import { StateFailure, StateSpinner } from '@/shared/views/state-notice';
+import { useHeldWhileHidden } from '@/shared/hooks/use-held-while-hidden';
 import { useStartWalkthrough } from '../commands/start-walkthrough';
 import { useWalkthrough } from '../queries/walkthrough';
 import { RichText } from './rich-text';
@@ -232,6 +235,7 @@ function Step({
   run,
   props,
   code,
+  branch,
   conversation,
 }: {
   stop: WalkthroughStop;
@@ -239,6 +243,7 @@ function Step({
   run: WalkthroughRun;
   props: DocumentProps;
   code: ReviewCodeFiles | undefined;
+  branch: ComparedBranch | undefined;
   conversation: Conversation | undefined;
 }) {
   return (
@@ -277,6 +282,7 @@ function Step({
           document={props}
           entry={`review:step-${step}`}
           code={code}
+          branch={branch}
           label={`Step ${step}`}
         />
       )}
@@ -345,15 +351,13 @@ function Written({
           </p>
           {status}
         </header>
-        {code.notice}
-        {code.sections && (
-          <ReviewCode
-            document={props}
-            entry="review:all"
-            code={code.sections.outside}
-            label="Every changed file"
-          />
-        )}
+        <ReviewCode
+          document={props}
+          entry="review:all"
+          code={code.sections.outside}
+          branch={code.branch}
+          label="Every changed file"
+        />
         <EarlierComments owner={owner} titles={[]} />
         <PostSaved owner={owner} />
       </Column>
@@ -368,7 +372,6 @@ function Written({
         </p>
         {status}
       </header>
-      {code.notice}
       <Calls content={content} conversation={conversation} />
       {content.growth.length > 0 && <Growth content={content} />}
       <ol className="flex flex-col gap-10">
@@ -379,7 +382,8 @@ function Written({
             step={index + 1}
             run={run}
             props={props}
-            code={code.sections?.steps[index]}
+            code={code.sections.steps[index]}
+            branch={code.branch}
             conversation={conversation}
           />
         ))}
@@ -389,7 +393,7 @@ function Written({
         owner={owner}
         titles={content.stops.map((stop) => stop.title)}
       />
-      {code.sections && hasCode(code.sections.outside) && (
+      {hasCode(code.sections.outside, code.branch) && (
         <section
           aria-labelledby="review-not-covered"
           className="flex flex-col gap-2.5 border-t pt-5"
@@ -404,6 +408,7 @@ function Written({
             document={props}
             entry="review:not-covered"
             code={code.sections.outside}
+            branch={code.branch}
             label="Not covered by the steps"
           />
         </section>
@@ -425,8 +430,6 @@ function Writing({
       <header className="flex flex-col gap-3">
         <Meta run={run} />
         <WalkthroughStatus run={run} />
-        <Skeleton className="h-9 w-4/5" />
-        <Skeleton className="h-20 w-full" />
       </header>
       {children}
     </Column>
@@ -473,55 +476,36 @@ function Failed({
 }
 
 type Code = {
-  sections: ReturnType<typeof reviewCodeSections> | undefined;
-  notice: ReactNode;
+  sections: ReturnType<typeof reviewCodeSections>;
+  branch: ComparedBranch | undefined;
+  settled: boolean;
 };
 
-const hasCode = (code: ReviewCodeFiles) =>
-  code.branch.length > 0 || code.worktree.length > 0;
+const hasCode = (code: ReviewCodeFiles, branch: ComparedBranch | undefined) =>
+  (branch !== undefined && code.branch.length > 0) || code.worktree.length > 0;
 
 function useReviewCode(
   props: DocumentProps,
   content: WalkthroughContent | undefined,
 ): Code {
-  const changes = useChanges(props.scope, props.context.connection);
-  const branch = useBranchChanges(
-    props.scope,
-    props.context.connection,
-    props.base,
+  const hidden = props.interaction.hidden === true;
+  const changes = useHeldWhileHidden(
+    useChanges(props.scope, props.context.connection),
+    hidden,
   );
-  const compared = Option.getOrUndefined(AsyncResult.value(branch.result));
-  const failed = AsyncResult.isFailure(branch.result) ? branch.result : null;
-  if (!compared && !failed) return { sections: undefined, notice: null };
-  const sections = reviewCodeSections({
-    content: content?.outcome === 'nothing' ? undefined : content,
-    branch: compared?.files ?? [],
-    worktree: changes.changes,
-  });
-  if (failed && !compared)
-    return {
-      sections,
-      notice: (
-        <p
-          role="alert"
-          className="flex flex-wrap items-center gap-2 text-ui text-muted-foreground"
-        >
-          {branchErrorMessage(Cause.squash(failed.cause))}
-          <Button size="xs" variant="outline" onClick={branch.refresh}>
-            Try again
-          </Button>
-        </p>
-      ),
-    };
+  const result = useHeldWhileHidden(
+    useBranchChanges(props.scope, props.context.connection, props.base).result,
+    hidden,
+  );
+  const branch = Option.getOrUndefined(AsyncResult.value(result));
   return {
-    sections,
-    notice:
-      compared?.base === undefined ? (
-        <p className="text-ui text-muted-foreground">
-          No default branch: choose the branch this one is compared against in
-          the Branch list.
-        </p>
-      ) : null,
+    sections: reviewCodeSections({
+      content: content?.outcome === 'nothing' ? undefined : content,
+      branch: branch?.files ?? [],
+      worktree: changes.changes,
+    }),
+    branch,
+    settled: branch !== undefined || AsyncResult.isFailure(result),
   };
 }
 
@@ -549,17 +533,13 @@ export function ReviewDocument(props: DocumentProps) {
     phase?.kind === 'ready' ? phase.content : undefined,
   );
   const everyFile = (
-    <>
-      {code.notice}
-      {code.sections && (
-        <ReviewCode
-          document={props}
-          entry="review:all"
-          code={code.sections.outside}
-          label="Every changed file"
-        />
-      )}
-    </>
+    <ReviewCode
+      document={props}
+      entry="review:all"
+      code={code.sections.outside}
+      branch={code.branch}
+      label="Every changed file"
+    />
   );
   if (phase === undefined)
     return AsyncResult.isFailure(result) ? (
@@ -573,7 +553,7 @@ export function ReviewDocument(props: DocumentProps) {
         </Column>
       </div>
     ) : (
-      <StateSkeleton label="Loading walkthrough" />
+      <StateSpinner label="Loading walkthrough" />
     );
   const body = () => {
     const startFailure = initialWriteFailure(phase, write.failure);
@@ -591,11 +571,7 @@ export function ReviewDocument(props: DocumentProps) {
       );
     switch (phase.kind) {
       case 'unwritten':
-        if (
-          code.sections &&
-          code.notice === null &&
-          !hasCode(code.sections.outside)
-        )
+        if (code.settled && !hasCode(code.sections.outside, code.branch))
           return <NoChanges {...props} />;
         return (
           <Column>

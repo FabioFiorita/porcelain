@@ -19,6 +19,7 @@ import {
   useChanges,
 } from '@/features/changes/index';
 import { ImagePreview, useTextContents } from '@/features/files/index';
+import { useHeldWhileHidden } from '@/shared/hooks/use-held-while-hidden';
 import { type CodeEntry, fileEntry } from '../adapters/code-entries';
 
 import { omittedReasonText } from '../rules/omitted-reasons';
@@ -74,7 +75,11 @@ export function ReviewCodeDocument({
     target.scrollIntoView({ block: 'start' });
   };
   usePrefetchReviewed(scope, context);
-  const changes = useChanges(scope, connection);
+  const quiet = interaction.quiet === true;
+  const changes = useHeldWhileHidden(
+    useChanges(scope, connection),
+    interaction.hidden === true,
+  );
   const items = orderReviewChanges(
     useReviewChangeItems(scope, context, changes, paths),
     files,
@@ -107,11 +112,16 @@ export function ReviewCodeDocument({
       ),
     ),
   );
+  const [kept, setKept] = useState(diffs.diffs);
+  if (quiet && !diffs.pending && !diffs.failed && kept !== diffs.diffs)
+    setKept(diffs.diffs);
   const patchOf = (change: Change): DiffContent | undefined => {
     const selection = diffSelection(change);
-    return selection ? diffs.diffs.get(selectionKey(selection)) : undefined;
+    if (!selection) return undefined;
+    const key = selectionKey(selection);
+    return diffs.diffs.get(key) ?? (quiet ? kept.get(key) : undefined);
   };
-  const loading = diffs.pending || untracked.pending;
+  const loading = !quiet && (diffs.pending || untracked.pending);
   const failed = diffs.failed || untracked.failed;
   const notes = new Map(files.map((file) => [file.path, file.note]));
   const unrenderable = items.flatMap((item) => {

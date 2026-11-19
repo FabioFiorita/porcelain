@@ -73,6 +73,21 @@ export function StateSkeleton({
   );
 }
 
+export function StateSpinner({ label }: { label: string }) {
+  return (
+    <div
+      role="status"
+      aria-label={label}
+      className="flex min-h-24 w-full flex-1 items-start justify-center p-6"
+    >
+      <Spinner
+        aria-hidden="true"
+        className="size-4 text-muted-foreground animate-in fade-in-0 fill-mode-backwards delay-500 duration-200"
+      />
+    </div>
+  );
+}
+
 export function StateFailure({
   description,
   onRetry,

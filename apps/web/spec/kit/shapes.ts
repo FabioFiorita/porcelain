@@ -40,6 +40,7 @@ export function sampleRepository(step: Step, fixture: RepoFixture) {
     branch: (name: string) => step({ kind: 'branch', name }),
     tag: (name: string) => step({ kind: 'tag', name }),
     switch: (name: string) => step({ kind: 'switch', name }),
+    orphan: (name: string) => step({ kind: 'orphan', name }),
     merge: (name: string) => step({ kind: 'merge', name }),
     worktree: (name: string) => step({ kind: 'worktree', name }),
     detachWorktree: (name: string) => step({ kind: 'detach-worktree', name }),

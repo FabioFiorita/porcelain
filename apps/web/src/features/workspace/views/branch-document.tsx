@@ -56,13 +56,28 @@ export type DocumentHeading = {
   after?: ReactNode;
 };
 
-export function BranchDocument(
-  props: Props & {
-    only?: readonly string[] | undefined;
-    heading?: DocumentHeading | undefined;
-    fullHeight?: boolean | undefined;
-  },
-) {
+export type ComparedBranch = AsyncResult.AsyncResult.Success<
+  ReturnType<typeof useBranchChanges>['result']
+>;
+
+export function BranchDocument({
+  compared,
+  ...props
+}: Props & {
+  only?: readonly string[] | undefined;
+  heading?: DocumentHeading | undefined;
+  fullHeight?: boolean | undefined;
+  compared?: ComparedBranch | undefined;
+}) {
+  if (compared)
+    return (
+      <BranchMarkedCode
+        {...props}
+        branch={compared}
+        path={undefined}
+        fullHeight={props.fullHeight ?? false}
+      />
+    );
   return <BranchCode {...props} path={undefined} />;
 }
 
@@ -282,7 +297,13 @@ function BranchDiffs({
     ];
   });
   const rendered = new Set(entries.map((entry) => entry.path));
-  const omitted = reached.filter((item) => !rendered.has(item.path));
+  const omitted = reached.filter(
+    (item) =>
+      !rendered.has(item.path) &&
+      (interaction.quiet !== true ||
+        diffs.failed ||
+        patchOf(item) !== undefined),
+  );
   const more = items.length - reached.length;
   const uncommitted = overview?.changes.length ?? 0;
   const [first] = items;

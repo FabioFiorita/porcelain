@@ -231,3 +231,154 @@ test('All changes keeps the selected file when an earlier diff finishes loading'
     held.release();
   }
 });
+
+const reviewCode = (screen: typeof page, scope: 'branch' | 'uncommitted') =>
+  screen.getByRole('region', {
+    name: `Every changed file: ${scope}`,
+    exact: true,
+  });
+
+test('Review shows local changes while the branch comparison is still being read', async ({
+  render,
+  fetchGate,
+}) => {
+  const held = fetchGate.holdNextBranchRead();
+  held.arm();
+  try {
+    const app = await render.route('/');
+    await held.requested;
+    await expect
+      .element(
+        reviewCode(app.page, 'uncommitted').getByText('A change to review.', {
+          exact: true,
+        }),
+      )
+      .toBeVisible();
+  } finally {
+    held.release();
+  }
+});
+
+test('Review reads a held patch without loading words or placeholders', async ({
+  repo,
+  render,
+  fetchGate,
+}) => {
+  const held = fetchGate.holdNextChangeDiff(repo.readme.path);
+  held.arm();
+  try {
+    const app = await render.route('/');
+    await held.requested;
+    await expect
+      .element(
+        app.page.getByRole('heading', {
+          name: 'No walkthrough yet.',
+          exact: true,
+        }),
+      )
+      .toBeVisible();
+    await expect
+      .element(
+        app.page.getByRole('status', { name: 'Loading changes…', exact: true }),
+      )
+      .not.toBeInTheDocument();
+    await expect
+      .element(app.page.getByText('Loading changes…', { exact: true }))
+      .not.toBeInTheDocument();
+    held.release();
+    await expect
+      .element(
+        reviewCode(app.page, 'uncommitted').getByText('A change to review.', {
+          exact: true,
+        }),
+      )
+      .toBeVisible();
+  } finally {
+    held.release();
+  }
+});
+
+test('a first commit shows its local file in Review without a comparison error', async ({
+  repo,
+  render,
+}) => {
+  await repo.commit('Settle the sample change');
+  await repo.orphan('first');
+  await repo.write('first.md', 'The very first file\n');
+  const app = await render.route('/');
+  await expect
+    .element(
+      reviewCode(app.page, 'uncommitted').getByText('The very first file', {
+        exact: true,
+      }),
+    )
+    .toBeVisible();
+  await expect
+    .element(
+      app.page.getByText('The branch could not be compared. Try again.', {
+        exact: true,
+      }),
+    )
+    .not.toBeInTheDocument();
+  await expect
+    .element(app.page.getByRole('button', { name: 'Try again', exact: true }))
+    .not.toBeInTheDocument();
+});
+
+test('Review reads more local files only when asked', async ({
+  repo,
+  render,
+}) => {
+  for (let index = 0; index < 30; index += 1)
+    await repo.write(
+      `note-${String(index).padStart(2, '0')}.md`,
+      `Note number ${index}\n`,
+    );
+  const app = await render.route('/');
+  const local = reviewCode(app.page, 'uncommitted');
+  await expect
+    .element(local.getByText('Note number 23', { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(local.getByText('Note number 29', { exact: true }))
+    .not.toBeInTheDocument();
+  await local
+    .getByRole('button', { name: 'Read 6 more of 6', exact: true })
+    .click();
+  await expect
+    .element(local.getByText('Note number 29', { exact: true }))
+    .toBeVisible();
+});
+
+test('a hidden Review reads no patches until it is shown again', async ({
+  repo,
+  render,
+  server,
+}) => {
+  await repo.write('guide.txt', 'A committed guide\n');
+  await repo.commit('Add a guide');
+  await repo.write(repo.readme.path, '# Sample repository\n\nBefore\n');
+  const project = await server.project();
+  const worktree = project.worktrees.find((entry) => entry.main);
+  if (!worktree) throw new Error('The fixture has no main worktree.');
+  const app = await render.route(`/${project.id}/${worktree.id}`);
+  const local = reviewCode(app.page, 'uncommitted');
+  await expect
+    .element(local.getByText('Before', { exact: true }))
+    .toBeVisible();
+  await app.navigate(`/${project.id}/${worktree.id}?entry=file:guide.txt`);
+  await expect
+    .element(app.page.getByRole('heading', { name: 'guide.txt', exact: true }))
+    .toBeVisible();
+  const lists = (await server.changeListHits()).length;
+  const patches = (await server.changeDiffHits()).length;
+  await repo.write(repo.readme.path, '# Sample repository\n\nAfter\n');
+  await expect
+    .poll(async () => (await server.changeListHits()).length)
+    .toBeGreaterThan(lists);
+  await new Promise((resolve) => setTimeout(resolve, 1500));
+  expect((await server.changeDiffHits()).length).toBe(patches);
+  await app.page.getByRole('tab', { name: 'Review', exact: true }).click();
+  await expect.element(local.getByText('After', { exact: true })).toBeVisible();
+  expect((await server.changeDiffHits()).length).toBeGreaterThan(patches);
+});

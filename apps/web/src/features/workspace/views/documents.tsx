@@ -40,6 +40,8 @@ import { ChangeTable } from './change-table';
 
 import { FileDocument } from './file-document';
 import { ReviewCodeDocument } from './review-code-document';
+import { ReadMoreFiles } from './read-more-files';
+import { useHeldWhileHidden } from '@/shared/hooks/use-held-while-hidden';
 import { MarkAllReviewed } from './reviewed-control';
 import { formatForDisplay } from '@tanstack/react-hotkeys';
 import { Kbd } from '@/components/ui/kbd';
@@ -76,6 +78,7 @@ export function DocumentView({
   onBrowse,
   sideLabel,
   active = false,
+  hidden = false,
   base,
   toolbarTarget,
   review: Review,
@@ -90,6 +93,7 @@ export function DocumentView({
   sideLabel: string;
   onBrowse: DocumentProps['onBrowse'];
   active?: boolean;
+  hidden?: boolean;
   fileTarget?: DocumentFileTarget | undefined;
   base?: string | undefined;
 } & (
@@ -112,6 +116,7 @@ export function DocumentView({
       worktreeId: scope.worktreeId,
       entry: entryKey(document),
       fileTarget,
+      hidden,
     },
   };
   switch (document.kind) {
@@ -314,20 +319,28 @@ export function PlainChangesDocument({
   only,
   heading,
   fullHeight,
+  limit,
+  onReadMore,
 }: DocumentProps & {
   specsOnly?: boolean;
   only?: readonly string[] | undefined;
   heading?: DocumentHeading | undefined;
   fullHeight?: boolean | undefined;
+  limit?: number | undefined;
+  onReadMore?: (() => void) | undefined;
 }) {
   const [actionsOpen, setActionsOpen] = useState(false);
   const { connection } = context;
   usePrefetchReviewed(scope, context);
-  const list = useChanges(scope, connection);
+  const list = useHeldWhileHidden(
+    useChanges(scope, connection),
+    interaction.hidden === true,
+  );
   const allChanges = useReviewChangeItems(scope, context, list);
   const inScope = (path: string) =>
     only ? only.includes(path) : !specsOnly || isSpecPath(path);
   const changes = allChanges.filter((item) => inScope(item.path));
+  const shown = limit === undefined ? changes : changes.slice(0, limit);
   const singleHeader = heading !== undefined;
   if (!specsOnly && changes.length === 0 && actionsOpen) setActionsOpen(false);
   if (only && changes.length === 0)
@@ -357,7 +370,7 @@ export function PlainChangesDocument({
         context={context}
         interaction={interaction}
         {...(specsOnly || only
-          ? { paths: changes.map((item) => item.path) }
+          ? { paths: shown.map((item) => item.path) }
           : {})}
         column={!singleHeader}
         {...(singleHeader
@@ -398,6 +411,13 @@ export function PlainChangesDocument({
               ),
             })}
       />
+      {onReadMore && (
+        <ReadMoreFiles
+          more={changes.length - shown.length}
+          pending={false}
+          onReadMore={onReadMore}
+        />
+      )}
     </div>
   );
 }

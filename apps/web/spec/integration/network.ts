@@ -225,6 +225,12 @@ export function createFetchGate(filePath: string) {
       restores.push(holdLiveNotices(gate.held));
       return gate;
     },
+    holdNextBranchRead: () =>
+      holdNextFetch(
+        (url, init) =>
+          (init?.method ?? 'GET') === 'GET' &&
+          url.pathname.endsWith('/branch-changes'),
+      ),
     holdNextReviewRead: () =>
       holdNextFetch(
         (url, init) =>

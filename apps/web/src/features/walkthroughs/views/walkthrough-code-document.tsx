@@ -18,8 +18,10 @@ import {
   type DocumentProps,
   BranchState,
   DocumentToolbar,
+  type ComparedBranch,
 } from '@/features/workspace/index';
 import { StateNotice } from '@/shared/views/state-notice';
+import { DIFF_WINDOW_FILES } from '@/config/limits';
 import {
   useBranchRenames,
   useWalkthroughContent,
@@ -89,16 +91,21 @@ export function ReviewCode({
   entry,
   code,
   label,
+  branch,
 }: {
   document: DocumentProps;
   entry: string;
   code: ReviewCodeFiles;
   label: string;
+  branch: ComparedBranch | undefined;
 }) {
-  if (code.branch.length === 0 && code.worktree.length === 0) return null;
+  const [shown, setShown] = useState(DIFF_WINDOW_FILES);
+  const committed = branch ? code.branch : [];
+  if (committed.length === 0 && code.worktree.length === 0) return null;
   const interaction = (scope: 'branch' | 'uncommitted') => ({
     ...document.interaction,
     active: false,
+    quiet: true,
     toolbarTarget: null,
     fileTarget: undefined,
     entry: `${entry}:${scope}`,
@@ -109,11 +116,12 @@ export function ReviewCode({
       aria-label={`Code: ${label}`}
       className="-mx-5 flex flex-col gap-2 @3xl:-mx-8"
     >
-      {code.branch.length > 0 && (
+      {committed.length > 0 && (
         <section aria-label={`${label}: branch`} className="flex flex-col">
           <BranchDocument
             {...document}
-            only={code.branch}
+            compared={branch}
+            only={committed}
             fullHeight
             interaction={interaction('branch')}
             heading={{ title: 'Branch', titleLabel: `${label}: branch` }}
@@ -125,6 +133,8 @@ export function ReviewCode({
           <PlainChangesDocument
             {...document}
             only={code.worktree}
+            limit={shown}
+            onReadMore={() => setShown(shown + DIFF_WINDOW_FILES)}
             fullHeight
             interaction={interaction('uncommitted')}
             heading={{

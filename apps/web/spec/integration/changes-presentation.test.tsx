@@ -20,15 +20,20 @@ test('All changes and the Branch document keep the same reading width', async ({
       .toHaveAttribute('aria-selected', 'true');
     const location = app.location().split('?')[0];
     await app.navigate(`${location}?entry=all-changes`);
-    const content = page.getByRole('region', {
-      name: 'Code content',
-      exact: true,
-    });
+    const code = (panel: string) =>
+      page
+        .getByRole('tabpanel', { name: panel, exact: true })
+        .getByRole('region', { name: 'Code content', exact: true });
     await expect
-      .element(content.getByText('Uncommitted local content.', { exact: true }))
+      .element(
+        code('All changes').getByText('Uncommitted local content.', {
+          exact: true,
+        }),
+      )
       .toBeVisible();
-    const uncommitted = reviewLayout.codeContentEdges(content);
+    const uncommitted = reviewLayout.codeContentEdges(code('All changes'));
     await app.navigate(`${location}?entry=branch`);
+    const content = code('Branch');
     await expect
       .element(
         page.getByRole('heading', { name: 'feature since main', exact: true }),
@@ -51,16 +56,22 @@ test('All changes and the Branch document keep the same reading width', async ({
   }
 });
 
-test('loading a diff names the file and reserves code space below its header', async ({
+test('loading a diff in All changes names the file and reserves code space below its header', async ({
   repo,
   render,
   fetchGate,
   reviewLayout,
+  server,
 }) => {
+  const project = await server.project();
+  const worktree = project.worktrees.find((entry) => entry.main);
+  if (!worktree) throw new Error('The fixture has no main worktree.');
   const held = fetchGate.holdNextChangeDiff();
   held.arm();
   try {
-    const app = await render.route('/');
+    const app = await render.route(
+      `/${project.id}/${worktree.id}?entry=all-changes`,
+    );
     const page = app.page;
     await held.requested;
     const loading = page.getByRole('status', {

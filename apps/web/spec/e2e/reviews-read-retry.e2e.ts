@@ -74,6 +74,9 @@ test('reloading during the first changes read stays loading and opens Review onc
       exact: true,
     });
     await expect(loading).toBeVisible();
+    await expect(
+      page.getByText('Loading review…', { exact: true }),
+    ).toHaveCount(0);
     await expectNoFalseEmpty(page);
     const address = app.address().path;
     const reread = page.waitForRequest((request) =>

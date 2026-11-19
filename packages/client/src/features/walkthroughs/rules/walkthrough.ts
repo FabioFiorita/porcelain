@@ -297,15 +297,15 @@ function renamePairs(
   worktree: readonly CodeFile[],
 ): readonly (readonly [string, string])[] {
   return [
-    ...branch.flatMap((file) =>
-      file.oldPath === undefined ? [] : [[file.oldPath, file.path] as const],
+    ...branch.flatMap(({ oldPath, path }) =>
+      oldPath === undefined ? [] : [[oldPath, path] as const],
     ),
     ...worktree.flatMap((file) =>
-      (file.comparisons ?? []).flatMap((comparison) =>
-        'oldPath' in comparison
-          ? [[comparison.oldPath, file.path] as const]
-          : [],
-      ),
+      (file.comparisons ?? []).flatMap((comparison) => {
+        const oldPath =
+          'oldPath' in comparison ? comparison.oldPath : undefined;
+        return oldPath === undefined ? [] : [[oldPath, file.path] as const];
+      }),
     ),
   ];
 }

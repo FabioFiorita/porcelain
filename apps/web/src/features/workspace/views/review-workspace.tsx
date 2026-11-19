@@ -2,7 +2,7 @@ import type { ComponentType } from 'react';
 import type { DocumentProps, WalkthroughCodeProps } from './documents';
 import type { ReviewIndexProps } from './review-index';
 
-import { StateSkeleton } from '@/shared/views/state-notice';
+import { StateSpinner } from '@/shared/views/state-notice';
 import { useElement, type ElementTarget } from '@/shared/hooks/use-element';
 import { AsyncResult } from 'effect/reactivity';
 import { Cause, Option } from 'effect';
@@ -455,7 +455,7 @@ function DocumentArea(props: DocumentAreaProps) {
   )
     throw Cause.squash(props.overview.cause);
   if (props.needsDefault && (awaitingChanges || props.firstDocument.pending)) {
-    return <StateSkeleton label="Loading review" />;
+    return <StateSpinner label="Loading review" />;
   }
   return <DocumentPanes {...props} />;
 }
@@ -746,6 +746,7 @@ function PaneView({
                   onOpen={onOpen}
                   onBrowse={onBrowse}
                   active={showing && focused && !pending}
+                  hidden={!showing}
                   toolbarTarget={showing && !pending ? toolbarTarget : null}
                   fileTarget={
                     showing &&

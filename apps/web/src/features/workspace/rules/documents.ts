@@ -143,6 +143,8 @@ export type DocumentInteraction = {
   active: boolean;
   worktreeId: string;
   entry: string;
+  hidden?: boolean;
+  quiet?: boolean;
 };
 
 type Surface = 'changes' | 'files' | 'history';
