@@ -10,12 +10,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyTitle,
-} from '@/components/ui/empty';
+import { Empty, EmptyHeader, EmptyTitle } from '@/components/ui/empty';
 import { useHistory } from '../queries/history';
 import type { HistoryScope } from '@porcelain/client/history/rules';
 import {
@@ -161,9 +156,6 @@ export function NoCommits() {
     <Empty>
       <EmptyHeader>
         <EmptyTitle>No commits yet</EmptyTitle>
-        <EmptyDescription>
-          Commits will appear here once this worktree has history.
-        </EmptyDescription>
       </EmptyHeader>
     </Empty>
   );

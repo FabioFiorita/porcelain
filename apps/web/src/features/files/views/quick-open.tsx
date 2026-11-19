@@ -1,3 +1,4 @@
+import { PendingSpinner } from '@/shared/views/state-notice';
 import { AsyncResult } from 'effect/reactivity';
 import { Option } from 'effect';
 import { Button } from '@/components/ui/button';
@@ -91,7 +92,7 @@ function QuickOpen({ scope, connection, openFiles, onOpen, bindPopup }: Props) {
               </Button>
             </>
           ) : (
-            'Reading file visibility…'
+            <PendingSpinner label="Reading file visibility" />
           )}
         </div>
       )}
@@ -211,9 +212,7 @@ function QuickOpenSearch({
     <>
       {AsyncResult.isFailure(names.result) && (
         <div className="p-3 text-xs text-muted-foreground">
-          <span className="block">
-            Full file search could not be loaded. You can still browse folders.
-          </span>
+          <span className="block">Full file search could not be loaded.</span>
           <Button
             variant="outline"
             size="xs"
@@ -225,8 +224,8 @@ function QuickOpenSearch({
         </div>
       )}
       {AsyncResult.isInitial(names.result) && (
-        <div className="p-3 text-xs text-muted-foreground">
-          Reading file names…
+        <div className="p-3">
+          <PendingSpinner label="Reading file names" />
         </div>
       )}
       {!AsyncResult.isInitial(names.result) &&

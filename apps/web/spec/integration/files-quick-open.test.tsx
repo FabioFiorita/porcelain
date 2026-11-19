@@ -155,10 +155,17 @@ test('quick open reads names only when opened, waits for visibility and reuses i
     });
     await search.fill('quick');
     await expect
-      .element(page.getByText('Reading file visibility…', { exact: true }))
+      .element(
+        page.getByRole('status', {
+          name: 'Reading file visibility',
+          exact: true,
+        }),
+      )
       .toBeVisible();
     await expect
-      .element(page.getByText('Reading file names…', { exact: true }))
+      .element(
+        page.getByRole('status', { name: 'Reading file names', exact: true }),
+      )
       .not.toBeInTheDocument();
     await expect
       .element(page.getByRole('option', { name: target, exact: true }))
@@ -212,7 +219,12 @@ test('a preferences refresh keeps quick open results mounted without reading nam
     await expect.element(option).toBeVisible();
     await expect.poll(() => reads.paths).toHaveLength(1);
     await expect
-      .element(page.getByText('Reading file visibility…', { exact: true }))
+      .element(
+        page.getByRole('status', {
+          name: 'Reading file visibility',
+          exact: true,
+        }),
+      )
       .not.toBeInTheDocument();
     held.release();
     await held.finished;

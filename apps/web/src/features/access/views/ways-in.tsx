@@ -3,13 +3,14 @@ import { AsyncResult } from 'effect/reactivity';
 import type { ReactNode } from 'react';
 import { FieldLegend, FieldSet } from '@/components/ui/field';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Spinner } from '@/components/ui/spinner';
+import { Button } from '@/components/ui/button';
+import { PendingSpinner } from '@/shared/views/state-notice';
 import {
   connectionErrorMessage,
   waysInRefusal,
   type RemoteAccess,
 } from '@porcelain/client/access/rules';
-import { useRemoteAccess } from '../queries/share';
+import { useRemoteAccess, useRetryRemoteAccess } from '../queries/share';
 import { RemoteRoutes } from './remote-routes';
 import { type Connection } from '@/shared/workspace/connection';
 
@@ -21,6 +22,7 @@ export function WaysInGate({
   children: (remote: RemoteAccess) => ReactNode;
 }) {
   const remote = useRemoteAccess(connection);
+  const retry = useRetryRemoteAccess(connection);
   const answer = Option.getOrUndefined(AsyncResult.value(remote));
   if (answer === null)
     return (
@@ -33,10 +35,18 @@ export function WaysInGate({
       <Alert variant="destructive">
         <AlertDescription>
           {connectionErrorMessage(Cause.squash(remote.cause))}
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={remote.waiting}
+            onClick={retry}
+          >
+            Try again
+          </Button>
         </AlertDescription>
       </Alert>
     );
-  if (!answer) return <Spinner />;
+  if (!answer) return <PendingSpinner label="Reading ways in" />;
   return children(answer);
 }
 

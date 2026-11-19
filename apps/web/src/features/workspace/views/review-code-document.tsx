@@ -12,7 +12,6 @@ import { useToggleReviewed } from '../commands/reviewed';
 import { Badge } from '@/components/ui/badge';
 import { isImagePath } from '@porcelain/client/files/rules';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
 import { changeId, selectionKey } from '@porcelain/client/changes/rules';
 import {
   diffEntry,
@@ -223,13 +222,9 @@ export function ReviewCodeDocument({
                 } else controls.open(path);
               },
             })}
-            {(loading || failed) && (
-              <ContentState
-                failed={failed}
+            {failed && (
+              <ChangesFailure
                 column={column}
-                paths={
-                  entries.length === 0 ? items.map((item) => item.path) : []
-                }
                 retry={() => {
                   diffs.retry();
                   untracked.retry();
@@ -317,59 +312,25 @@ function focusedDiff(
   return next;
 }
 
-function ContentState({
-  failed,
+function ChangesFailure({
   column,
-  paths,
   retry,
 }: {
-  failed: boolean;
   column: boolean;
-  paths: readonly string[];
   retry: () => void;
 }) {
-  const [first] = paths;
-  if (!failed && first)
-    return (
-      <section
-        role="status"
-        aria-label="Loading changes…"
-        className={cn(
-          'mt-3 overflow-hidden rounded-lg border',
-          !column && 'mx-4',
-        )}
-      >
-        <span className="sr-only">Loading changes…</span>
-        <div className="flex items-center gap-2 border-b bg-muted/40 px-3.5 py-2.5">
-          <TruncatedText className="font-mono text-xs" text={first} />
-          {paths.length > 1 && (
-            <span className="shrink-0 text-xs text-muted-foreground">
-              +{paths.length - 1} more
-            </span>
-          )}
-        </div>
-        <div aria-hidden className="grid gap-2 px-4 py-3">
-          <Skeleton className="h-4 w-4/5" />
-          <Skeleton className="h-4 w-full" />
-          <Skeleton className="h-4 w-3/5" />
-        </div>
-      </section>
-    );
   return (
     <section
-      className="mx-4 mt-3 flex items-center gap-3 rounded-lg border bg-muted/40 px-4 py-3 text-xs text-muted-foreground"
-      aria-live="polite"
-    >
-      {failed ? (
-        <>
-          <span>The changes in this document could not be read.</span>
-          <Button size="xs" variant="outline" onClick={retry}>
-            Load the changes again
-          </Button>
-        </>
-      ) : (
-        <span>Loading changes…</span>
+      role="alert"
+      className={cn(
+        'mt-3 flex items-center gap-3 rounded-lg border bg-muted/40 px-4 py-3 text-xs text-muted-foreground',
+        !column && 'mx-4',
       )}
+    >
+      <span>The changes in this document could not be read.</span>
+      <Button size="xs" variant="outline" onClick={retry}>
+        Try again
+      </Button>
     </section>
   );
 }

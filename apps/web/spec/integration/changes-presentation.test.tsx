@@ -56,11 +56,10 @@ test('All changes and the Branch document keep the same reading width', async ({
   }
 });
 
-test('loading a diff in All changes names the file and reserves code space below its header', async ({
+test('a held diff in All changes shows no loading words while it is read', async ({
   repo,
   render,
   fetchGate,
-  reviewLayout,
   server,
 }) => {
   const project = await server.project();
@@ -72,25 +71,17 @@ test('loading a diff in All changes names the file and reserves code space below
     const app = await render.route(
       `/${project.id}/${worktree.id}?entry=all-changes`,
     );
-    const page = app.page;
     await held.requested;
-    const loading = page.getByRole('status', {
-      name: 'Loading changes…',
-      exact: true,
-    });
-    await expect.element(loading).toBeVisible();
-    const filename = loading.getByText(repo.readme.path, { exact: true });
-    await expect.element(filename).toBeVisible();
-    const reservedHeight = reviewLayout.visibleHeight(loading);
-    const filenameHeight = reviewLayout.visibleHeight(filename);
     await expect
-      .poll(() => reservedHeight() - filenameHeight() * 4)
-      .toBeGreaterThan(0);
+      .element(app.page.getByText(repo.readme.path, { exact: true }).first())
+      .toBeVisible();
+    await expect
+      .element(app.page.getByText(/Loading|Reading/u))
+      .not.toBeInTheDocument();
     held.release();
     await expect
-      .element(page.getByText('A change to review.', { exact: true }))
+      .element(app.page.getByText('A change to review.', { exact: true }))
       .toBeVisible();
-    await expect.element(loading).not.toBeInTheDocument();
   } finally {
     held.release();
   }

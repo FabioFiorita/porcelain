@@ -25,11 +25,11 @@ test('first run offers project registration without inactive search advice', asy
     .getByRole('button', { name: 'Remove from Porcelain', exact: true })
     .click();
   await expect
-    .element(app.page.getByText('No projects registered', { exact: true }))
+    .element(app.page.getByText('No projects yet', { exact: true }))
     .toBeVisible();
   await expect
     .element(
-      app.page.getByText('Try another search or clear the filters.', {
+      app.page.getByText('No matching worktrees', {
         exact: true,
       }),
     )
@@ -41,8 +41,7 @@ test('first run offers project registration without inactive search advice', asy
   await app.navigate('/');
   await expect
     .element(
-      app.page.getByRole('heading', {
-        name: 'Open your first project',
+      app.page.getByText('Open your first project', {
         exact: true,
       }),
     )

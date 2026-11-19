@@ -8,7 +8,6 @@ import type {
 import type { ReviewScope } from '@porcelain/client/changes/rules';
 import type { ConnectionContext } from '@/shared/workspace/connection';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { Skeleton } from '@/components/ui/skeleton';
 import { useWalkthroughAssetUrl } from '../queries/walkthrough';
 import { RichText } from './rich-text';
 import { StepButton } from './step-button';
@@ -26,11 +25,9 @@ function EvidenceImage({
   run,
   item,
   className,
-  placeholder,
 }: Omit<EvidenceProps, 'items'> & {
   item: WalkthroughEvidence;
   className: string;
-  placeholder: string;
 }) {
   const url = useWalkthroughAssetUrl({
     scope,
@@ -44,12 +41,7 @@ function EvidenceImage({
         This screenshot could not be loaded.
       </span>
     );
-  if (!AsyncResult.isSuccess(url))
-    return (
-      <span className="block overflow-hidden rounded-lg border">
-        <Skeleton className={placeholder} />
-      </span>
-    );
+  if (!AsyncResult.isSuccess(url)) return null;
   return (
     <img
       src={url.value}
@@ -86,7 +78,6 @@ export function WalkthroughProof({
               run={run}
               item={item}
               className="h-56 w-full rounded-lg border object-cover object-top transition-opacity group-hover:opacity-85"
-              placeholder="h-56 w-full"
             />
             <span className="line-clamp-3 text-caption leading-4 text-muted-foreground">
               <RichText text={item.shows} />
@@ -109,7 +100,6 @@ export function WalkthroughProof({
               run={run}
               item={shown}
               className="mx-auto max-h-[72vh] rounded-lg border"
-              placeholder="h-96 w-full"
             />
           )}
           {items.length > 1 && open !== null && (

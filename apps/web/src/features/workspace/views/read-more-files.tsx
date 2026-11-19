@@ -1,3 +1,4 @@
+import { Spinner } from '@/components/ui/spinner';
 import { Button } from '@/components/ui/button';
 import { DIFF_WINDOW_FILES } from '@/config/limits';
 
@@ -19,9 +20,8 @@ export function ReadMoreFiles({
         onClick={onReadMore}
         disabled={pending}
       >
-        {pending
-          ? 'Reading…'
-          : `Read ${Math.min(more, DIFF_WINDOW_FILES)} more of ${more}`}
+        {pending && <Spinner aria-hidden="true" />}
+        {`Read ${Math.min(more, DIFF_WINDOW_FILES)} more of ${more}`}
       </Button>
     </div>
   );

@@ -54,7 +54,6 @@ export function SettingsUpdateRow({
     target.kind === 'service'
       ? serviceUpdateProgress(target.state, false)
       : appUpdateProgress(appState);
-  if (row.checking) progress = 'Checking for a new version…';
   const outcome =
     target.kind === 'service' ? serviceUpdateOutcome(target.state) : undefined;
   const latest =

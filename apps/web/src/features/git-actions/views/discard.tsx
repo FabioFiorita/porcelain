@@ -1,3 +1,4 @@
+import { Spinner } from '@/components/ui/spinner';
 import { useWorkspaceWriteBlock } from '@/shared/workspace/connection';
 import { TruncatedText } from '@/shared/views/truncated-text';
 import { AsyncResult } from 'effect/reactivity';
@@ -142,7 +143,8 @@ export function DiscardButton({
           {!error?.moved &&
             (uncertain ? (
               <Button disabled={busy} onClick={discard.checkOutcome}>
-                {busy ? 'Checking…' : 'Check outcome'}
+                {busy && <Spinner aria-hidden="true" />}
+                Check outcome
               </Button>
             ) : (
               <Button

@@ -62,7 +62,7 @@ test('a file changed before its diff request reaches the server recovers to the 
     )
     .not.toBeInTheDocument();
   await expect
-    .element(opened.getByText('Loading changes…', { exact: true }))
+    .element(opened.getByText(/Loading|Reading/u))
     .not.toBeInTheDocument();
   await expect
     .poll(async () =>

@@ -18,6 +18,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
 import { FieldLegend, FieldSet } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { TruncatedText } from '@/shared/views/truncated-text';
@@ -215,6 +216,7 @@ export function RemoteComputers({
               disabled={batch.running || checking || appBusy}
               onClick={retry}
             >
+              {checking && <Spinner aria-hidden="true" />}
               Check for updates
             </Button>
             <Button

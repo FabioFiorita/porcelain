@@ -29,8 +29,10 @@ test('with changes to commit, the Git menu offers Commit at once and adds the ro
   const menu = page.getByRole('menu');
   await expect.poll(() => held.held()).toBe(true);
   await expect
-    .element(menu.getByRole('status'))
-    .toHaveTextContent('Reading Git status…');
+    .element(
+      menu.getByRole('status', { name: 'Reading Git status', exact: true }),
+    )
+    .toBeVisible();
   await expect
     .element(menu.getByRole('menuitem', { name: 'Commit…', exact: true }))
     .toBeVisible();

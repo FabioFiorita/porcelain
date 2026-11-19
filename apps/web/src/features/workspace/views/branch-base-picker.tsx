@@ -1,3 +1,4 @@
+import { PendingSpinner } from '@/shared/views/state-notice';
 import { TruncatedText } from '@/shared/views/truncated-text';
 import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
@@ -106,8 +107,8 @@ export function BranchBasePicker({
           />
           <CommandList aria-label="Base branches">
             {AsyncResult.isInitial(bases.result) && (
-              <p role="status" className="p-3 text-xs text-muted-foreground">
-                Reading branches…
+              <p className="p-3">
+                <PendingSpinner label="Reading branches" />
               </p>
             )}
             {AsyncResult.isFailure(bases.result) && (

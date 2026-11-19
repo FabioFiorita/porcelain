@@ -199,10 +199,7 @@ function SidebarSurface({
   if (!available)
     return (
       <div className="p-3">
-        <StateNotice
-          title="Worktree unavailable"
-          description="Restore the checkout and return to Porcelain to browse its files and Git state."
-        />
+        <StateNotice message="This worktree is unavailable." />
       </div>
     );
 

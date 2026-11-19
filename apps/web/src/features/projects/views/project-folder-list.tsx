@@ -1,3 +1,4 @@
+import { PendingSpinner } from '@/shared/views/state-notice';
 import { TruncatedText } from '@/shared/views/truncated-text';
 import { Cause, Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
@@ -36,8 +37,8 @@ function FolderEntries({
   const current = Option.getOrUndefined(AsyncResult.value(folder.value));
   if (AsyncResult.isInitial(folder.value))
     return (
-      <p role="status" className="px-2 py-1.5 text-xs text-muted-foreground">
-        Loading folders…
+      <p className="px-2 py-1.5">
+        <PendingSpinner label="Reading folders" />
       </p>
     );
   if (AsyncResult.isFailure(folder.value))

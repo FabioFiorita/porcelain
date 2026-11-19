@@ -47,17 +47,12 @@ import { cn } from '@/shared/lib/utils';
 import {
   StateFailure,
   StateNotice,
-  StateSkeleton,
+  StateSpinner,
 } from '@/shared/views/state-notice';
 import { TruncatedText } from '@/shared/views/truncated-text';
 import type { ConnectionContext } from '@/shared/workspace/connection';
 import { copyText } from '@/shared/workspace/copy';
-import {
-  ChecksStatus,
-  Dot,
-  PullStatePill,
-  UnavailablePill,
-} from './pull-request-parts';
+import { ChecksStatus, Dot, PullStatePill } from './pull-request-parts';
 
 type PullRequest = Extract<
   PullRequestRead,
@@ -101,17 +96,15 @@ export function PullRequestDocument({
       <StateFailure
         description="The pull request could not be read."
         onRetry={retry}
-        onBack={onBack}
       />
     );
-  if (!value) return <StateSkeleton label="Loading pull request" />;
+  if (!value) return <StateSpinner label="Reading the pull request" />;
   if (value.kind === 'unavailable')
     return (
       <UnavailablePullRequest
         reason={value.reason}
         retrying={result.waiting}
         onRetry={retry}
-        onBack={onBack}
       />
     );
   const pull = value.pullRequest;
@@ -644,61 +637,55 @@ function UnavailablePullRequest({
   reason,
   retrying,
   onRetry,
-  onBack,
 }: {
   reason: Extract<PullRequestRead, { kind: 'unavailable' }>['reason'];
   retrying: boolean;
   onRetry: () => void;
-  onBack: () => void;
 }) {
   const navigate = useNavigate();
   const { description, action } = githubUnavailable(reason);
-  return (
-    <StateNotice title="Pull request unavailable" description={description}>
-      <UnavailablePill />
-      {action.kind === 'settings' && (
-        <Button
-          variant="outline"
-          onClick={() =>
-            void navigate({
-              to: '/settings/$section',
-              params: { section: 'git' },
-            })
-          }
-        >
-          <SettingsIcon />
-          {action.label}
-        </Button>
-      )}
-      {action.kind === 'install' && (
-        <Button
-          variant="outline"
-          nativeButton={false}
-          render={<a href={action.url} target="_blank" rel="noreferrer" />}
-        >
-          <ArrowUpRightIcon />
-          {action.label}
-        </Button>
-      )}
-      {action.kind === 'copy' && (
-        <Button
-          variant="outline"
-          onClick={() => copyText(action.text, 'command')}
-        >
-          <CopyIcon />
-          {action.label}
-        </Button>
-      )}
-      {action.kind !== 'install' && (
-        <Button variant="outline" disabled={retrying} onClick={onRetry}>
-          Try again
-        </Button>
-      )}
-      <Button variant="ghost" onClick={onBack}>
-        Back to the worktree
-      </Button>
-    </StateNotice>
+  let button = (
+    <Button variant="outline" disabled={retrying} onClick={onRetry}>
+      Try again
+    </Button>
   );
+  if (action.kind === 'settings')
+    button = (
+      <Button
+        variant="outline"
+        onClick={() =>
+          void navigate({
+            to: '/settings/$section',
+            params: { section: 'git' },
+          })
+        }
+      >
+        <SettingsIcon />
+        {action.label}
+      </Button>
+    );
+  if (action.kind === 'install')
+    button = (
+      <Button
+        variant="outline"
+        nativeButton={false}
+        render={<a href={action.url} target="_blank" rel="noreferrer" />}
+      >
+        <ArrowUpRightIcon />
+        {action.label}
+      </Button>
+    );
+  if (action.kind === 'copy')
+    button = (
+      <Button
+        variant="outline"
+        onClick={() => copyText(action.text, 'command')}
+      >
+        <CopyIcon />
+        {action.label}
+      </Button>
+    );
+  return <StateNotice role="alert" message={description} action={button} />;
 }
 
 function timeAgo(time: string) {

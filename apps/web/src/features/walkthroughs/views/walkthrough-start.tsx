@@ -65,9 +65,6 @@ export function WalkthroughStart({
           including uncommitted work.
         </p>
         {writer && <p>Writer: {writer.label}</p>}
-        {!writer && !AsyncResult.isFailure(result) && (
-          <p role="status">Checking writers…</p>
-        )}
       </div>
       {failed && (
         <p role="alert">

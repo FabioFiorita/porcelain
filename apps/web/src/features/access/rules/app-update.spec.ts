@@ -3,7 +3,7 @@ import { appUpdateProgress, noUpdateMessage } from './app-update.ts';
 
 describe('appUpdateProgress', () => {
   it.each([
-    [{ status: 'checking' as const }, 'Checking for a new version…'],
+    [{ status: 'checking' as const }, undefined],
     [
       { status: 'downloading' as const, version: '2.0.0' },
       'Downloading 2.0.0…',

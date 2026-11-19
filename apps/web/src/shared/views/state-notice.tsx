@@ -1,118 +1,72 @@
 import type { ReactNode } from 'react';
-import { CloudOffIcon, InfoIcon } from 'lucide-react';
-import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from 'cn';
 import { Spinner } from '@/components/ui/spinner';
 import { Button } from '@/components/ui/button';
 
+export function PendingSpinner({
+  label,
+  className,
+}: {
+  label: string;
+  className?: string;
+}) {
+  return (
+    <span
+      className={cn(
+        'pending-appear inline-flex text-muted-foreground',
+        className,
+      )}
+    >
+      <Spinner aria-label={label} />
+    </span>
+  );
+}
+
+export function StateSpinner({ label }: { label: string }) {
+  return (
+    <div className="flex min-h-24 w-full flex-1 items-center justify-center p-6">
+      <PendingSpinner label={label} />
+    </div>
+  );
+}
+
 export function StateNotice({
-  title,
-  description,
-  icon,
-  children,
+  message,
+  action,
   role,
 }: {
-  title: string;
-  description?: ReactNode;
-  icon?: ReactNode;
-  children?: ReactNode;
+  message: ReactNode;
+  action?: ReactNode;
   role?: 'alert' | 'status';
 }) {
   return (
     <section
       data-slot="state-notice"
       role={role}
-      className="flex w-full min-w-0 max-w-xl flex-col gap-3 p-6 text-left"
+      className="flex w-full min-w-0 max-w-xl flex-wrap items-center gap-x-3 gap-y-2 p-6 text-ui text-muted-foreground"
     >
-      <div className="flex min-w-0 items-start gap-2">
-        <span
-          aria-hidden="true"
-          className="mt-0.5 shrink-0 text-muted-foreground [&>svg]:size-4"
-        >
-          {icon ?? <InfoIcon />}
-        </span>
-        <h2 className="min-w-0 text-base font-semibold wrap-anywhere">
-          {title}
-        </h2>
-      </div>
-      {description && (
-        <div className="text-ui leading-relaxed text-muted-foreground [overflow-wrap:anywhere]">
-          {description}
-        </div>
-      )}
-      {children && (
-        <div className="flex flex-wrap items-center gap-2">{children}</div>
-      )}
+      <p className="min-w-0 [overflow-wrap:anywhere]">{message}</p>
+      {action}
     </section>
-  );
-}
-
-export function StateSkeleton({
-  label,
-  caption = true,
-}: {
-  label: string;
-  caption?: boolean;
-}) {
-  return (
-    <div
-      role="status"
-      aria-label={label}
-      className="flex w-full min-w-0 flex-1 flex-col gap-3 bg-background p-6"
-    >
-      {caption && (
-        <p className="flex items-center gap-2 text-ui text-muted-foreground">
-          <Spinner aria-hidden="true" className="size-3.5" /> {label}…
-        </p>
-      )}
-      <Skeleton className="h-5 w-2/3" />
-      <Skeleton className="h-4 w-full" />
-      <Skeleton className="h-4 w-4/5" />
-      <Skeleton className="h-4 w-1/2" />
-      {!caption && <span className="sr-only">{label}…</span>}
-    </div>
-  );
-}
-
-export function StateSpinner({ label }: { label: string }) {
-  return (
-    <div
-      role="status"
-      aria-label={label}
-      className="flex min-h-24 w-full flex-1 items-start justify-center p-6"
-    >
-      <span className="text-muted-foreground animate-in fade-in-0 fill-mode-backwards delay-500 duration-200">
-        <Spinner aria-hidden="true" />
-      </span>
-    </div>
   );
 }
 
 export function StateFailure({
   description,
   onRetry,
-  onBack,
-  title = 'Could not display',
 }: {
   description: ReactNode;
   onRetry: () => void;
-  onBack?: () => void;
-  title?: string;
 }) {
   return (
     <StateNotice
       role="alert"
-      title={title}
-      description={description}
-      icon={<CloudOffIcon />}
-    >
-      <Button variant="outline" onClick={onRetry}>
-        Try again
-      </Button>
-      {onBack && (
-        <Button variant="ghost" onClick={onBack}>
-          Back to workspace
+      message={description}
+      action={
+        <Button variant="outline" size="sm" onClick={onRetry}>
+          Try again
         </Button>
-      )}
-    </StateNotice>
+      }
+    />
   );
 }

@@ -1,3 +1,5 @@
+import { PendingSpinner } from '@/shared/views/state-notice';
+import { Spinner } from '@/components/ui/spinner';
 import { useState } from 'react';
 import { Cause } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
@@ -66,16 +68,20 @@ function DeleteWorktreeContent({
           Review history stays available.
         </AlertDialogDescription>
       </AlertDialogHeader>
-      {settings ? (
+      {settings && (
         <DeleteOptions
           settings={settings}
           entry={entry}
           context={context}
           worktreeId={worktreeId}
         />
-      ) : (
+      )}
+      {!settings && view.kind === 'reading' && (
+        <PendingSpinner label="Reading deletion settings" />
+      )}
+      {!settings && view.kind !== 'reading' && block && (
         <p role="status" className="text-xs text-muted-foreground">
-          {block ?? 'Reading deletion settings…'}
+          {block}
         </p>
       )}
       {!settings && <AlertDialogCancel>Cancel</AlertDialogCancel>}
@@ -122,7 +128,6 @@ function DeleteOptions({
     plan && !plan.worktreePath && !plan.localBranch && !plan.remoteBranch;
   let actionLabel = 'Review deletion';
   if (plan) actionLabel = 'Delete';
-  if (pending) actionLabel = 'Checking';
   return (
     <>
       <div className="flex flex-col gap-3">
@@ -198,6 +203,7 @@ function DeleteOptions({
           }
           onClick={confirm}
         >
+          {pending && <Spinner aria-hidden="true" />}
           {actionLabel}
         </Button>
       </AlertDialogFooter>

@@ -6,7 +6,7 @@ import { AsyncResult } from 'effect/reactivity';
 import { connectionErrorMessage } from '@porcelain/client/access/rules';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useServiceUpdate } from '../queries/share';
-import { Spinner } from '@/components/ui/spinner';
+import { PendingSpinner } from '@/shared/views/state-notice';
 import { type Connection } from '@/shared/workspace/connection';
 import { useLocalConnection } from '../store';
 import { useSettingsUpdates } from '../queries/settings-updates';
@@ -43,7 +43,7 @@ function ServiceUpdate({
         </AlertDescription>
       </Alert>
     );
-  return <Spinner />;
+  return <PendingSpinner label="Reading the version" />;
 }
 
 export function ServiceUpdateSettings({

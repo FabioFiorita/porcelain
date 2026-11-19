@@ -5,7 +5,6 @@ import {
   GitPullRequestDraftIcon,
   GitPullRequestIcon,
   LoaderCircleIcon,
-  TriangleAlertIcon,
   XIcon,
   type LucideIcon,
 } from 'lucide-react';
@@ -36,15 +35,6 @@ export function PullStatePill({ pull }: { pull: PullState }) {
     <Badge variant={state}>
       <Icon aria-hidden="true" />
       {pullRequestStateLabel(pull)}
-    </Badge>
-  );
-}
-
-export function UnavailablePill() {
-  return (
-    <Badge variant="outline">
-      <TriangleAlertIcon aria-hidden="true" />
-      GitHub unavailable
     </Badge>
   );
 }

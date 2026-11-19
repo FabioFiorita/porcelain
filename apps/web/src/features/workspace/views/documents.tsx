@@ -180,10 +180,7 @@ function ScopedPullRequestDocument({
         };
   if (!source)
     return (
-      <StateNotice
-        title="Computer not paired"
-        description="Pair this pull request's computer in Settings to read it."
-      />
+      <StateNotice message="Pair this pull request's computer in Settings to read it." />
     );
   return (
     <PullRequestSourceDocument
@@ -361,7 +358,7 @@ export function PlainChangesDocument({
       </div>
     );
   if (!specsOnly && changes.length === 0)
-    return <NoChanges scope={scope} context={context} onBrowse={onBrowse} />;
+    return <NoChanges onBrowse={onBrowse} />;
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <ReviewCodeDocument
@@ -422,40 +419,21 @@ export function PlainChangesDocument({
   );
 }
 
-export function NoChanges({
-  scope,
-  context,
-  onBrowse,
-}: Pick<DocumentProps, 'scope' | 'context' | 'onBrowse'>) {
-  const list = useChanges(scope, context.connection);
+export function NoChanges({ onBrowse }: Pick<DocumentProps, 'onBrowse'>) {
   return (
     <div className="mx-auto w-full max-w-xl">
       <StateNotice
-        title="No changes to review"
-        description={
-          <>
-            <span className="font-mono text-foreground">
-              {list.branch?.name ?? 'This worktree'}
-            </span>{' '}
-            matches its last commit. Browse files or history from the right.
-          </>
+        message="No changes to review."
+        action={
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(event) => onBrowse('files', event.currentTarget)}
+          >
+            Files <Kbd>{formatForDisplay(SHORTCUTS.surfaceFiles)}</Kbd>
+          </Button>
         }
-      >
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={(event) => onBrowse('files', event.currentTarget)}
-        >
-          Files <Kbd>{formatForDisplay(SHORTCUTS.surfaceFiles)}</Kbd>
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={(event) => onBrowse('history', event.currentTarget)}
-        >
-          History <Kbd>{formatForDisplay(SHORTCUTS.surfaceHistory)}</Kbd>
-        </Button>
-      </StateNotice>
+      />
     </div>
   );
 }
@@ -474,12 +452,7 @@ function ChangeDocument({
     (entry) => entry.path === path,
   );
   if (!change)
-    return (
-      <StateNotice
-        title="Change no longer present"
-        description="Choose a change that is still present in the current review."
-      />
-    );
+    return <StateNotice message="This change is no longer present." />;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">

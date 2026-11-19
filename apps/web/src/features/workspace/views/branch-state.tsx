@@ -8,7 +8,7 @@ import type { ConnectionContext } from '@/shared/workspace/connection';
 import {
   StateFailure,
   StateNotice,
-  StateSkeleton,
+  StateSpinner,
 } from '@/shared/views/state-notice';
 
 type Branch = AsyncResult.AsyncResult.Success<
@@ -35,16 +35,13 @@ export function BranchState({
       />
     );
   if (!AsyncResult.isSuccess(changes.result))
-    return <StateSkeleton label="Comparing the branch" />;
+    return <StateSpinner label="Comparing the branch" />;
   if (changes.result.value.base === undefined)
     return (
-      <StateNotice
-        title="No default branch"
-        description="Choose the branch this one is compared against in the Branch list."
-      />
+      <StateNotice message="Choose the branch this one is compared against in the Branch list." />
     );
   return (
-    <Suspense fallback={<StateSkeleton label="Comparing the branch" />}>
+    <Suspense fallback={<StateSpinner label="Comparing the branch" />}>
       {children(changes.result.value)}
     </Suspense>
   );

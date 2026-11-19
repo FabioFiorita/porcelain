@@ -4,8 +4,6 @@ export type AppUpdateState = DesktopAppUpdateState;
 
 export function appUpdateProgress(state: AppUpdateState): string | undefined {
   switch (state.status) {
-    case 'checking':
-      return 'Checking for a new version…';
     case 'downloading':
       return `Downloading ${state.version}…`;
     case 'ready':

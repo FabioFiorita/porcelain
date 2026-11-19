@@ -1,3 +1,4 @@
+import { PendingSpinner } from '@/shared/views/state-notice';
 import { useWorkspaceWriteBlock } from '@/shared/workspace/connection';
 import { Cause } from 'effect';
 import type { ReactNode } from 'react';
@@ -110,7 +111,7 @@ function CommitActionForm({
       pending={
         <>
           <CommitInspectionHeader action={action} />
-          <p role="status">Reading commit details…</p>
+          <PendingSpinner label="Reading commit details" />
         </>
       }
     >
@@ -177,11 +178,7 @@ function StashActionForm({
     <GitStatusInspection
       scope={scope}
       context={context}
-      pending={
-        <p role="status" className="text-sm text-muted-foreground">
-          Reading branch…
-        </p>
-      }
+      pending={<PendingSpinner label="Reading the branch" />}
     >
       {(details) => (
         <ActionForm

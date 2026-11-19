@@ -1,3 +1,4 @@
+import { PendingSpinner } from '@/shared/views/state-notice';
 import { useWorkspaceWriteBlock } from '@/shared/workspace/connection';
 import { TruncatedText } from '@/shared/views/truncated-text';
 import { AsyncResult } from 'effect/reactivity';
@@ -289,7 +290,8 @@ export function GitButton({
                       disabled={running.checking}
                       onClick={menu.checkOutcome}
                     >
-                      {running.checking ? 'Checking…' : 'Check outcome'}
+                      {running.checking && <Spinner aria-hidden="true" />}
+                      Check outcome
                     </Button>
                   )}
                 </>
@@ -401,12 +403,10 @@ export function GitButton({
               </Fragment>
             ))}
             {reading && (
-              <p
-                role="status"
-                className="px-2 py-1 text-xs text-muted-foreground"
-              >
-                Reading Git status…
-              </p>
+              <PendingSpinner
+                label="Reading Git status"
+                className="mx-2 my-1"
+              />
             )}
             {!reading && (branch?.discarded?.length ?? 0) > 0 && (
               <>

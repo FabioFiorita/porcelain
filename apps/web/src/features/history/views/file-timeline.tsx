@@ -1,10 +1,6 @@
+import { Spinner } from '@/components/ui/spinner';
 import { TruncatedText } from '@/shared/views/truncated-text';
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyTitle,
-} from '@/components/ui/empty';
+import { Empty, EmptyHeader, EmptyTitle } from '@/components/ui/empty';
 import { useFileTimeline } from '../queries/file-timeline';
 import { timelineChange } from '@porcelain/client/history/rules';
 import type { HistoryScope } from '@porcelain/client/history/rules';
@@ -43,9 +39,6 @@ export function FileTimeline({
       <Empty>
         <EmptyHeader>
           <EmptyTitle>No commits touch this file</EmptyTitle>
-          <EmptyDescription>
-            Its timeline starts with the first commit that includes it.
-          </EmptyDescription>
         </EmptyHeader>
       </Empty>
     );
@@ -111,9 +104,8 @@ function TimelineStatus({
         disabled={timeline.result.waiting}
         onClick={timeline.readMore}
       >
-        {timeline.result.waiting
-          ? 'Loading older commits…'
-          : 'Load older commits'}
+        {timeline.result.waiting && <Spinner aria-hidden="true" />}
+        Load older commits
       </Button>
     );
   return (

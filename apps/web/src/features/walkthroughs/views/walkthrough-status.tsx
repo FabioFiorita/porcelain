@@ -80,13 +80,14 @@ export function WalkthroughStatus({
         ))}
       </ol>
       {requesting && <p>Sending the request and capturing the current work.</p>}
-      {freshness && (
-        <p className="text-foreground-2">
-          {progress.active
-            ? 'Showing the saved walkthrough while the update runs.'
-            : walkthroughFreshnessText(freshness)}
-        </p>
-      )}
+      {freshness &&
+        (progress.active || walkthroughFreshnessText(freshness)) && (
+          <p className="text-foreground-2">
+            {progress.active
+              ? 'Showing the saved walkthrough while the update runs.'
+              : walkthroughFreshnessText(freshness)}
+          </p>
+        )}
       {failure && (
         <p role="alert">
           {walkthroughFailureCopy(failure.failure, failure.writer).title}

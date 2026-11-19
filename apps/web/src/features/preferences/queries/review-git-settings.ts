@@ -1,4 +1,4 @@
-import { useAtomValue } from '@effect/atom-react';
+import { useAtomRefresh, useAtomValue } from '@effect/atom-react';
 import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { readInventory } from '@porcelain/client/projects';
@@ -22,9 +22,11 @@ export function useReviewGitSettingsTrust(connection: Connection) {
 }
 
 export function useGitHubAccountProjects(connection: Connection) {
-  const result = useAtomValue(readInventory(connection));
+  const inventory = readInventory(connection);
+  const result = useAtomValue(inventory);
   return {
     projects: Option.getOrUndefined(AsyncResult.value(result))?.projects,
     failed: AsyncResult.isFailure(result),
+    retry: useAtomRefresh(inventory),
   };
 }

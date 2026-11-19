@@ -59,7 +59,7 @@ for (const width of [1440, 414]) {
       ).toBeVisible();
       await expect(
         page.getByRole('button', { name: 'Back to the worktree', exact: true }),
-      ).toBeVisible();
+      ).not.toBeAttached();
       await expect(
         page.getByRole('button', { name: 'Try again', exact: true }),
       ).toBeEnabled();

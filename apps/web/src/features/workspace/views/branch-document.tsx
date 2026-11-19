@@ -165,8 +165,7 @@ function BranchMarkedCode({
   if (path !== null && path !== undefined && items.length === 0)
     return (
       <StateNotice
-        title="Not changed on this branch"
-        description={`${path} has no committed change since ${refLabel(branch.base.ref)}.`}
+        message={`${path} has no committed change since ${refLabel(branch.base.ref)}.`}
       />
     );
   return (
@@ -477,9 +476,10 @@ function BranchHeader({
                 text={item.path}
               />
               <span className="shrink-0 text-muted-foreground">
-                {item.status} ·{' '}
-                {diffUnavailableReason(item, patchOf(item), failed) ??
-                  'No code change'}
+                {item.status}
+                {patchOf(item) !== undefined || failed
+                  ? ` · ${diffUnavailableReason(item, patchOf(item), failed) ?? 'No code change'}`
+                  : ''}
               </span>
             </li>
           ))}
