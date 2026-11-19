@@ -167,6 +167,9 @@ test('reviewing archive deletions keeps Close returning to the worktree', async 
 }) => {
   await pairedPage.setViewportSize({ width: 1440, height: 900 });
   await expect(pairedPage).toHaveTitle(/^Review — /);
+  await expect
+    .poll(() => new URL(pairedPage.url()).searchParams.get('entry'))
+    .toBe('review');
   const reviewUrl = pairedPage.url();
   await pairedPage
     .getByRole('button', { name: 'Settings', exact: true })
