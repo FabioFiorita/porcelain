@@ -159,7 +159,13 @@ export function ReviewCodeDocument({
         return [`Content omitted: ${omissionReason(content.reason)}`];
       return diffEntry(change, content) ? [] : ['No single-file textual patch'];
     });
-    return reasons.length > 0 ? [{ item, reasons }] : [];
+    const current = item.comparisons.every((change) =>
+      change.scope === 'untracked'
+        ? textOf(change.path) === undefined ||
+          untracked.contents.has(change.path)
+        : patchOf(change) === undefined || livePatch(change) !== undefined,
+    );
+    return reasons.length > 0 ? [{ item, reasons, current }] : [];
   });
   const entries = items.flatMap((item): CodeEntry[] =>
     item.comparisons.flatMap((change): CodeEntry[] => {
@@ -383,6 +389,7 @@ function OmittedChanges({
   changes: ReadonlyArray<{
     item: ReviewChangeItem;
     reasons: readonly string[];
+    current: boolean;
   }>;
   renderedPaths: ReadonlySet<string>;
   scope: ReviewScope;
@@ -397,7 +404,7 @@ function OmittedChanges({
     >
       <p className="text-xs font-medium">Non-text content</p>
       <ul className="mt-2 flex flex-col gap-2 text-xs text-muted-foreground">
-        {changes.map(({ item, reasons }) => (
+        {changes.map(({ item, reasons, current }) => (
           <li
             key={item.path}
             aria-label={`${item.path}: ${omittedReasonText(reasons)}`}
@@ -422,7 +429,7 @@ function OmittedChanges({
             >
               {omittedReasonText(reasons)}
             </Badge>
-            {!paneFile && !renderedPaths.has(item.path) && (
+            {!paneFile && current && !renderedPaths.has(item.path) && (
               <ReviewedControl
                 scope={scope}
                 context={context}

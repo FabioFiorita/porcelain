@@ -574,3 +574,39 @@ test('Review offers no review or discard on a patch it is still replacing', asyn
     held.release();
   }
 });
+
+test('Review offers no review on a non-text file whose new patch is still being read', async ({
+  repo,
+  render,
+  fetchGate,
+}) => {
+  await repo.write('data.bin', 'text before\n');
+  await repo.commit('Add data');
+  await repo.write(repo.readme.path, '# Sample repository\n\nAnother edit.\n');
+  await repo.write('data.bin', 'binary\u0000content\n');
+  const held = fetchGate.holdNextPost('/changes/diffs');
+  const app = await render.route('/');
+  const local = reviewCode(app.page, 'uncommitted');
+  const omitted = local.getByRole('listitem', {
+    name: 'data.bin: Binary change',
+    exact: true,
+  });
+  const mark = omitted.getByRole('button', {
+    name: 'Mark data.bin as reviewed',
+    exact: true,
+  });
+  await expect.element(mark).toBeVisible();
+  held.arm();
+  try {
+    await repo.write('data.bin', 'text after\n');
+    await held.requested;
+    await expect.element(omitted).toBeVisible();
+    await expect.element(mark).not.toBeInTheDocument();
+    held.release();
+    await expect
+      .element(local.getByText('text after', { exact: true }))
+      .toBeVisible();
+  } finally {
+    held.release();
+  }
+});
