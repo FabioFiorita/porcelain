@@ -41,7 +41,7 @@ git -C "$REPO" diff --name-only main feature | wc -l   # prints 27
 ```
 
 1. Navigate to `/`
-   Expect: title "Files — repository".
+   Expect: title "Review — repository"; tab "Review" selected.
 2. Click button `Review`, then click tab `Changes`
    Expect: tabs "Uncommitted" and "Branch".
 3. Click tab `Branch`
