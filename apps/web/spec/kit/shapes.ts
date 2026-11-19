@@ -31,6 +31,8 @@ export function sampleRepository(step: Step, fixture: RepoFixture) {
             : Schema.encodeSync(readServiceUpdateResponseSchema)(state),
       }),
     write: (path: string, text: string) => step({ kind: 'write', path, text }),
+    writeBinary: (path: string, base64: string) =>
+      step({ kind: 'write-binary', path, base64 }),
     remove: (path: string) => step({ kind: 'remove', path }),
     rename: (from: string, to: string) => step({ kind: 'rename', from, to }),
     symlink: (target: string, path: string) =>

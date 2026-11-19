@@ -13,21 +13,27 @@ import {
   LIVE_READ_DEBOUNCE_MS,
 } from '../../config/limits.ts';
 
-export const supersedingReadKey = (key: unknown) =>
-  ['supersede-read', key] as const;
+type QueuedPriority = 'background' | 'initial';
+type ReadPriority = QueuedPriority | 'immediate';
 
 export class ReadInvalidation extends Context.Service<
   ReadInvalidation,
   {
-    readonly refreshNow: (
+    readonly refreshNow: (keys: readonly unknown[]) => Effect.Effect<void>;
+    readonly subscribe: (
       keys: readonly unknown[],
-      superseding: readonly unknown[],
-    ) => Effect.Effect<void>;
+      onNotice: (priority: ReadPriority) => void,
+    ) => () => void;
     readonly schedule: (
       keys: readonly unknown[],
+      priority?: QueuedPriority,
     ) => Effect.Effect<Deferred.Deferred<void>>;
   }
 >()('@porcelain/client/ReadInvalidation') {
+  static refreshNow(keys: readonly unknown[]) {
+    return this.use((invalidation) => invalidation.refreshNow(keys));
+  }
+
   static readonly layer = Layer.effect(
     ReadInvalidation,
     Effect.gen(function* () {
@@ -38,37 +44,47 @@ export class ReadInvalidation extends Context.Service<
       let pending:
         | {
             keys: MutableHashSet.MutableHashSet<unknown>;
+            priority: QueuedPriority;
             deadline: number;
             flushed: Deferred.Deferred<void>;
           }
         | undefined;
+      let priority: ReadPriority = 'background';
+      const notify = (keys: readonly unknown[], next: ReadPriority) => {
+        const previous = priority;
+        priority = next;
+        try {
+          reactivity.invalidateUnsafe(keys);
+        } finally {
+          priority = previous;
+        }
+      };
       return {
+        subscribe: (keys, onNotice) =>
+          reactivity.registerUnsafe(keys, () => onNotice(priority)),
         refreshNow: Effect.fn('ReadInvalidation.refreshNow')(
-          (keys: readonly unknown[], superseding: readonly unknown[]) =>
+          (keys: readonly unknown[]) =>
             Effect.sync(() => {
-              if (pending) {
+              if (pending)
                 for (const key of keys)
                   MutableHashSet.remove(pending.keys, key);
-                for (const key of superseding)
-                  MutableHashSet.remove(pending.keys, key);
-              }
-              reactivity.invalidateUnsafe([
-                ...keys,
-                ...superseding.map(supersedingReadKey),
-              ]);
+              notify(keys, 'immediate');
             }),
         ),
         schedule: Effect.fn('ReadInvalidation.schedule')(function* (
           keys: readonly unknown[],
+          priority: QueuedPriority = 'background',
         ) {
           if (keys.length === 0) return empty;
           const now = yield* Clock.currentTimeMillis;
           pending ??= {
             keys: MutableHashSet.empty<unknown>(),
+            priority,
             deadline: now + LIVE_READ_BATCH_MAX_MS,
             flushed: Deferred.makeUnsafe(),
           };
           const batch = pending;
+          if (priority === 'background') batch.priority = priority;
           for (const key of keys) MutableHashSet.add(batch.keys, key);
           yield* FiberMap.run(
             jobs,
@@ -83,7 +99,7 @@ export class ReadInvalidation extends Context.Service<
               Effect.andThen(
                 Effect.sync(() => {
                   pending = undefined;
-                  reactivity.invalidateUnsafe([...batch.keys]);
+                  notify([...batch.keys], batch.priority);
                 }).pipe(
                   Effect.onExit((exit) => Deferred.done(batch.flushed, exit)),
                 ),

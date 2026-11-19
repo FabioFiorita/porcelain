@@ -52,7 +52,12 @@ export function useTabLayout({
   focusBoundary: HTMLElement | null;
   focusBoundaryOpen: boolean;
 }) {
-  const { panes: stored, saved, save } = useTabLayoutStore(worktreeId);
+  const {
+    panes: stored,
+    saved,
+    save,
+    commitSubjects,
+  } = useTabLayoutStore(worktreeId);
   const [pending, setPending] = useState<[Target, Target]>([
     undefined,
     undefined,
@@ -156,6 +161,7 @@ export function useTabLayout({
 
   return {
     recentFiles,
+    commitSubjects,
     bindQuickOpen: focus.bindQuickOpen,
     focusDestination: focus.schedule,
     hasDestinationFocus() {

@@ -158,6 +158,10 @@ export class World {
       await repository.writeFile(step.path, step.text);
       return '';
     }
+    if (step.kind === 'write-binary') {
+      await repository.writeFile(step.path, Buffer.from(step.base64, 'base64'));
+      return '';
+    }
     if (step.kind === 'remove') {
       await repository.remove(step.path);
       return '';

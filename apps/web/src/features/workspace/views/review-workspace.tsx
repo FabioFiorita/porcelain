@@ -635,7 +635,7 @@ function PaneView({
     >
       <DocumentTabs
         ids={(key) => documentIds(paneId, key)}
-        commitContext={{ connection: context.connection, scope }}
+        commitSubjects={layout.commitSubjects}
         leading={
           index === 0 ? (
             <Tooltip>

@@ -3,7 +3,7 @@ import { Link } from '@tanstack/react-router';
 import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { SparklesIcon } from 'lucide-react';
-import { useWalkthroughWriters } from '../queries/walkthrough';
+import { useWalkthroughWriters } from '@/features/preferences/index';
 import { walkthroughWriterStatus } from '@porcelain/client/projects/rules';
 import { refLabel } from '@porcelain/client/history/rules';
 import { Button, buttonVariants } from '@/components/ui/button';

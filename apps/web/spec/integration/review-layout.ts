@@ -35,7 +35,17 @@ function historyScroller(locator: Locator) {
   );
 }
 
+function reviewScroller(locator: Locator) {
+  const element = locator.element().closest('[data-review-scroll]');
+  if (!element) throw new Error('Review has no scroll viewport');
+  return element;
+}
+
 export const reviewLayout = {
+  scrollReviewTo(locator: Locator, position: number) {
+    reviewScroller(locator).scrollTop = position;
+  },
+  reviewScrollTop: (locator: Locator) => reviewScroller(locator).scrollTop,
   reportPlatform(platform: string) {
     Object.defineProperty(navigator, 'platform', {
       value: platform,

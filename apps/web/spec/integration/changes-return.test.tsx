@@ -184,3 +184,46 @@ test('a retained line selection cannot target changed code after a refresh', asy
     .poll(async () => (await server.reviewedFiles()).marks)
     .toEqual([]);
 });
+
+test('returning to Review keeps the committed files and reading position during a slow refresh', async ({
+  repo,
+  render,
+  fetchGate,
+  reviewLayout,
+}) => {
+  await repo.branch('feature');
+  await repo.switch('feature');
+  await repo.write(
+    'long-branch.txt',
+    Array.from(
+      { length: 400 },
+      (_, index) => `committed line ${index + 1}\n`,
+    ).join(''),
+  );
+  await repo.commit('Add a long committed file');
+  const gate = fetchGate.holdNextBranchRead();
+  const app = await render.route('/');
+  const review = app.page.getByRole('tab', { name: 'Review', exact: true });
+  const branch = app.page.getByRole('region', {
+    name: 'Every changed file: branch',
+    exact: true,
+  });
+  await expect.element(branch).toBeVisible();
+  await expect
+    .element(branch.getByText('committed line 1', { exact: true }))
+    .toBeVisible();
+  reviewLayout.scrollReviewTo(branch, 1200);
+  await expect.poll(() => reviewLayout.reviewScrollTop(branch)).toBe(1200);
+  await app.navigate(`${app.location().split('?')[0]}?entry=file:README.md`);
+  const file = app.page.getByRole('tab', { name: 'README.md', exact: true });
+  await expect.element(file).toHaveAttribute('aria-selected', 'true');
+  try {
+    gate.arm();
+    await review.click();
+    await gate.requested;
+    await expect.element(branch).toBeVisible();
+    await expect.poll(() => reviewLayout.reviewScrollTop(branch)).toBe(1200);
+  } finally {
+    gate.release();
+  }
+});

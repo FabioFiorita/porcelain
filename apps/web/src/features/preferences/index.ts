@@ -10,3 +10,5 @@ export {
 } from './queries/review-git-settings';
 
 export { WalkthroughWriterForm } from './views/walkthrough-writer-form';
+
+export { useWalkthroughWriters } from './queries/walkthrough-writers';

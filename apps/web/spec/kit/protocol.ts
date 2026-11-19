@@ -29,6 +29,7 @@ export type RepoStep =
     }
   | { kind: 'environment-name-fixture'; name: string }
   | { kind: 'write'; path: string; text: string }
+  | { kind: 'write-binary'; path: string; base64: string }
   | { kind: 'remove'; path: string }
   | { kind: 'rename'; from: string; to: string }
   | { kind: 'symlink'; target: string; path: string }

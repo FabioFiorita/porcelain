@@ -1,9 +1,10 @@
 import { Effect } from 'effect';
-import { Atom, Reactivity } from 'effect/reactivity';
+import { Atom } from 'effect/reactivity';
 import type { ArchivePullRequestRequest } from '@porcelain/contracts/projects';
 import type { RuntimeConnection } from '../../../shared/api/connection.ts';
 import { requestApi } from '../../../shared/api/client.ts';
 import { clientRuntime } from '../../../shared/api/runtime.ts';
+import { ReadInvalidation } from '../../../shared/api/read-invalidation.ts';
 import { queryKeys } from '../../../shared/api/query-keys.ts';
 export const archivePullRequest = Atom.family(
   (input: {
@@ -21,7 +22,7 @@ export const archivePullRequest = Atom.family(
             payload,
           }),
         );
-        yield* Reactivity.invalidate([
+        yield* ReadInvalidation.refreshNow([
           queryKeys.inventory(input.connection.environmentId),
           queryKeys.projectPullRequests(
             input.connection.environmentId,

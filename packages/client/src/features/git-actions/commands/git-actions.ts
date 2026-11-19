@@ -1,5 +1,5 @@
 import { Effect, type Scope } from 'effect';
-import { Atom, AtomRegistry, Reactivity } from 'effect/reactivity';
+import { Atom, AtomRegistry } from 'effect/reactivity';
 import type { GenerateCommitDraftRequest } from '@porcelain/contracts/git-actions';
 import type {
   RuntimeConnection,
@@ -8,6 +8,7 @@ import type {
 import { porcelainClient } from '../../../shared/api/client.ts';
 import { clientRuntime } from '../../../shared/api/runtime.ts';
 import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
+import { ReadInvalidation } from '../../../shared/api/read-invalidation.ts';
 import { queryKeys } from '../../../shared/api/query-keys.ts';
 
 type Selection = {
@@ -47,7 +48,7 @@ export const dismissInterruptedGitAction = Atom.family(
           }),
         );
         yield* currentAnswerEffect(connection);
-        yield* Reactivity.invalidate([
+        yield* ReadInvalidation.refreshNow([
           queryKeys.reviewSurface(connection.environmentId, scope, ['changes']),
         ]);
       }),

@@ -1,10 +1,9 @@
-import { useAtomRefresh, useAtomValue } from '@effect/atom-react';
+import { useWalkthroughWriters } from '../queries/walkthrough-writers';
 import { useForm } from '@tanstack/react-form';
 import { AsyncResult } from 'effect/reactivity';
 import { Option } from 'effect';
 import type { WriterSettings } from '@porcelain/client/projects/rules';
 import {
-  readWalkthroughWriterSettings,
   saveDefaultWalkthroughWriter,
   saveWalkthroughSettings,
 } from '@porcelain/client/projects';
@@ -44,9 +43,7 @@ export function WalkthroughWriterForm({
   unavailable?: string | undefined;
   onSaved?: (() => void) | undefined;
 }) {
-  const atom = readWalkthroughWriterSettings(connection);
-  const result = useAtomValue(atom);
-  const refresh = useAtomRefresh(atom);
+  const { result, refresh } = useWalkthroughWriters(connection, true);
   const settings = Option.getOrUndefined(AsyncResult.value(result));
   if (AsyncResult.isFailure(result))
     return (

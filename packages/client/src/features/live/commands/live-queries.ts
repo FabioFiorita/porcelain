@@ -12,7 +12,7 @@ import {
   Scope,
   Exit,
 } from 'effect';
-import { AsyncResult, Atom, AtomRegistry, Reactivity } from 'effect/reactivity';
+import { AsyncResult, Atom, AtomRegistry } from 'effect/reactivity';
 import { Option } from 'effect';
 import { readInventory } from '../../projects/queries/inventory.ts';
 import { inventoryRuntime } from '../../projects/store/inventory.ts';
@@ -84,7 +84,6 @@ const connectLiveSession = Effect.fn('Live.connect')(function* (
   const reads = yield* ReadSubscriptions;
   const operations = yield* OperationStore;
   const refresh = yield* GitReceiptRefresh;
-  const reactivity = yield* Reactivity.Reactivity;
   const invalidation = yield* ReadInvalidation;
   const scope = yield* Effect.acquireRelease(
     Scope.fork(connection.scope, 'sequential'),
@@ -96,8 +95,10 @@ const connectLiveSession = Effect.fn('Live.connect')(function* (
   const run = yield* FiberMap.runtime(jobs)();
   const services =
     yield* Effect.context<Effect.Services<ReturnType<typeof readGitReceipt>>>();
+  let reconnecting = false;
   const applyNotice = Effect.fn('Live.applyNotice')(function* (
     notice: LiveNotice,
+    reconnected: boolean,
   ) {
     if (notice.type === 'git-action') {
       const receipt = notice.receipt;
@@ -110,9 +111,13 @@ const connectLiveSession = Effect.fn('Live.connect')(function* (
         return;
       return yield* refresh.refresh(receipt, priority);
     }
-    yield* invalidation.schedule(
-      liveReadKeys(connection.environmentId, notice),
-    );
+    const keys = liveReadKeys(connection.environmentId, notice);
+    if (reconnected) yield* invalidation.refreshNow(keys);
+    else
+      yield* invalidation.schedule(
+        keys,
+        notice.type === 'ready' ? 'initial' : 'background',
+      );
   });
   const recoverPending = () => {
     for (const operation of operations.state.value.operations.values()) {
@@ -136,11 +141,15 @@ const connectLiveSession = Effect.fn('Live.connect')(function* (
         if (connection.isClosed() || scope.state._tag === 'Closed') return;
         if (notice.type === 'inventory' && notice.change !== 'activity')
           connection.onStatusChange?.();
-        if (notice.type === 'ready') recoverPending();
+        const reconnected = notice.type === 'ready' && reconnecting;
+        if (notice.type === 'ready') {
+          reconnecting = false;
+          recoverPending();
+        }
         run(
           Symbol(),
           Effect.gen(function* () {
-            yield* applyNotice(notice);
+            yield* applyNotice(notice, reconnected);
             if (
               notice.type === 'git-action' &&
               !connection.isClosed() &&
@@ -159,8 +168,9 @@ const connectLiveSession = Effect.fn('Live.connect')(function* (
         );
       },
       onReconnect: () => {
-        if (!connection.isClosed() && scope.state._tag !== 'Closed')
-          connection.onStatusChange?.();
+        if (connection.isClosed() || scope.state._tag === 'Closed') return;
+        reconnecting = true;
+        connection.onStatusChange?.();
       },
       onUnauthorized: () => {
         if (connection.isClosed() || scope.state._tag === 'Closed') return;
@@ -169,7 +179,7 @@ const connectLiveSession = Effect.fn('Live.connect')(function* (
         else
           run(
             Symbol(),
-            reactivity.invalidate([
+            invalidation.refreshNow([
               queryKeys.inventory(connection.environmentId),
             ]),
           );

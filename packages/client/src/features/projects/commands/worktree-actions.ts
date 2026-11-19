@@ -2,12 +2,13 @@ import type { GitConnection } from '../../git-actions/ports/git-connection.ts';
 import { FileDrafts } from '../../files/store.ts';
 import { ConnectionError } from '../../../shared/api/connection-error.ts';
 import { Effect, Layer } from 'effect';
-import { Atom, AtomRegistry, Reactivity } from 'effect/reactivity';
+import { Atom, AtomRegistry } from 'effect/reactivity';
 import type { WorktreeSelection } from '../../../shared/api/connection.ts';
 import { clientRuntime } from '../../../shared/api/runtime.ts';
 import { requestApi } from '../../../shared/api/client.ts';
 import type { DeleteWorktreeRequest } from '@porcelain/contracts/projects';
 import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
+import { ReadInvalidation } from '../../../shared/api/read-invalidation.ts';
 import { queryKeys } from '../../../shared/api/query-keys.ts';
 import { readGitStatusSnapshot } from '../../changes/queries/changes.ts';
 import { readGitActionCommands } from '../../git-actions/commands/git-action-controller.ts';
@@ -60,7 +61,7 @@ export const deleteWorktree = Atom.family((selection: WorktreeSelection) =>
       );
       yield* currentAnswerEffect(selection.connection);
       if (result.deleted)
-        yield* Reactivity.invalidate([
+        yield* ReadInvalidation.refreshNow([
           queryKeys.inventory(selection.connection.environmentId),
           queryKeys.worktreeInventory(selection.connection.environmentId),
           queryKeys.projectPullRequests(selection.connection.environmentId),

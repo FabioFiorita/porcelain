@@ -13,12 +13,7 @@ import {
   type WorktreeOpening,
 } from '@porcelain/client/walkthroughs/rules';
 import type { ReviewScope } from '@porcelain/client/changes/rules';
-import type {
-  Connection,
-  ConnectionContext,
-} from '@/shared/workspace/connection';
-import { readWalkthroughWriterSettings } from '@porcelain/client/projects';
-import { useMountedRead } from '@/shared/query/mounted-read';
+import type { ConnectionContext } from '@/shared/workspace/connection';
 import { useBranchChanges } from '@/features/changes/index';
 
 function worktreeSelection(scope: ReviewScope, context: ConnectionContext) {
@@ -109,25 +104,5 @@ export function useWalkthroughAssetUrl(input: {
   return {
     url: useAtomValue(assetUrl(read)),
     retry: useAtomRefresh(readWalkthroughAsset(read)),
-  };
-}
-
-const inactiveWriters = Atom.make(
-  AsyncResult.initial<
-    Atom.Success<ReturnType<typeof readWalkthroughWriterSettings>>,
-    Atom.Failure<ReturnType<typeof readWalkthroughWriterSettings>>
-  >(),
-);
-
-export function useWalkthroughWriters(
-  connection: Connection,
-  enabled: boolean,
-) {
-  const atom = enabled
-    ? readWalkthroughWriterSettings(connection)
-    : inactiveWriters;
-  return {
-    result: useMountedRead(atom) ?? AsyncResult.initial(),
-    refresh: useAtomRefresh(atom),
   };
 }

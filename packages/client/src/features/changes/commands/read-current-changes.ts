@@ -1,10 +1,11 @@
 import { Effect } from 'effect';
-import { Atom, Reactivity } from 'effect/reactivity';
+import { Atom } from 'effect/reactivity';
 import type {
   RuntimeConnection,
   WorktreeScope,
 } from '../../../shared/api/connection.ts';
 import { clientRuntime } from '../../../shared/api/runtime.ts';
+import { ReadInvalidation } from '../../../shared/api/read-invalidation.ts';
 import { queryKeys } from '../../../shared/api/query-keys.ts';
 import {
   readChangesSnapshot,
@@ -14,7 +15,7 @@ import {
 type Selection = { connection: RuntimeConnection; scope: WorktreeScope };
 
 function invalidate(selection: Selection, surfaces: readonly string[]) {
-  return Reactivity.invalidate(
+  return ReadInvalidation.refreshNow(
     surfaces.map((surface) =>
       queryKeys.reviewSurface(
         selection.connection.environmentId,

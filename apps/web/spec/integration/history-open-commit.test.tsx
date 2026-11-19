@@ -111,7 +111,14 @@ test('opening a commit leads with its subject and summarizes its files before th
     )
     .toBeVisible();
   await expect
-    .element(workspace.getByText('A change to review.', { exact: true }))
+    .element(
+      workspace
+        .getByRole('tabpanel', {
+          name: `${commit.oid.slice(0, 7)} ${subject}`,
+          exact: true,
+        })
+        .getByText('A change to review.', { exact: true }),
+    )
     .toBeVisible();
 });
 

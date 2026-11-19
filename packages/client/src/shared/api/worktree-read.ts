@@ -1,16 +1,19 @@
 import { clientRuntime } from './runtime.ts';
 import { requestApi, type PorcelainApi } from './client.ts';
 import type { WorktreeSelection } from './connection.ts';
-import { type Cause, Effect, Option, Stream } from 'effect';
+import { type Cause, Clock, Duration, Effect, Option, Stream } from 'effect';
 import { Atom, AtomRegistry, AsyncResult } from 'effect/reactivity';
 import type { ConfirmedResource } from './confirmed-resource.ts';
 import type { RuntimeConnection, WorktreeScope } from './connection.ts';
 import { queryKeys } from './query-keys.ts';
-import { supersedingReadKey } from './read-invalidation.ts';
+import { ReadInvalidation } from './read-invalidation.ts';
 import { currentAnswerEffect } from './stale-answer.ts';
 import type { ConnectionError } from './connection-error.ts';
 import { ReadSubscriptions } from './read-subscriptions.ts';
-import { READ_RETAIN_IDLE_MS } from '../../config/limits.ts';
+import {
+  LIVE_READ_SUPERSEDE_AGE_MS,
+  READ_RETAIN_IDLE_MS,
+} from '../../config/limits.ts';
 
 export function worktreeRead<A, E, R>(
   connection: RuntimeConnection,
@@ -112,41 +115,44 @@ export function worktreePull<A, E, R>(
   return atom;
 }
 
+const supersedeAge = Duration.toNanosUnsafe(LIVE_READ_SUPERSEDE_AGE_MS);
+
 export function serialRead<A, E>(
   connection: RuntimeConnection,
   keys: readonly unknown[],
   read: Atom.Atom<AsyncResult.AsyncResult<A, E>>,
 ) {
-  const signal = readSignal(connection, keys);
-  const supersede = readSignal(connection, keys.map(supersedingReadKey));
   return Atom.readable(
     (get) => {
+      const clock = connection.runtime.runSync(Clock.Clock);
       let pending = false;
-      get.subscribe(supersede, () => {
+      let started = clock.monotonicTimeNanosUnsafe();
+      const refresh = () => {
         pending = false;
+        started = clock.monotonicTimeNanosUnsafe();
         get.refresh(read);
-      });
-      get.subscribe(signal, () => {
-        if (get.once(read).waiting) pending = true;
-        else get.refresh(read);
-      });
+      };
+      const invalidation = connection.runtime.runSync(ReadInvalidation);
+      get.addFinalizer(
+        invalidation.subscribe(keys, (priority) => {
+          if (
+            priority === 'immediate' ||
+            !get.once(read).waiting ||
+            (priority === 'background' &&
+              clock.monotonicTimeNanosUnsafe() - started >= supersedeAge)
+          )
+            refresh();
+          else pending = true;
+        }),
+      );
       get.subscribe(read, (value) => {
-        if (pending && !value.waiting) {
-          pending = false;
-          get.refresh(read);
-        } else get.setSelf(value);
+        if (pending && !value.waiting) refresh();
+        else get.setSelf(value);
       });
       return get.once(read);
     },
-    (refresh) => refresh(signal),
+    (refresh) => refresh(read),
   ).pipe(Atom.setIdleTTL(0));
-}
-
-function readSignal(connection: RuntimeConnection, keys: readonly unknown[]) {
-  return Atom.make(() => ({})).pipe(
-    connection.atoms.withReactivity(keys),
-    Atom.setIdleTTL(0),
-  );
 }
 
 function reactiveRead<A extends Atom.Atom<unknown>>(
@@ -156,10 +162,7 @@ function reactiveRead<A extends Atom.Atom<unknown>>(
   read: A,
 ): A {
   const keys = queryKeys.worktreeReads(connection, scope, surface);
-  return read.pipe(
-    connection.atoms.withReactivity([...keys, ...keys.map(supersedingReadKey)]),
-    Atom.setIdleTTL(0),
-  );
+  return read.pipe(connection.atoms.withReactivity(keys), Atom.setIdleTTL(0));
 }
 
 export function worktreeResource<A, E, R>(

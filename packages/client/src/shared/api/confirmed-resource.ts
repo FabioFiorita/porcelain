@@ -3,6 +3,7 @@ import { AsyncResult, Reactivity } from 'effect/reactivity';
 import type { WorktreeConnection } from './connection.ts';
 import type { ConnectionError } from './connection-error.ts';
 import { currentAnswerEffect } from './stale-answer.ts';
+import { ReadInvalidation } from './read-invalidation.ts';
 import { queryKeys } from './query-keys.ts';
 import { WriteQueues, type WriteNotSentError } from './write-queue.ts';
 
@@ -30,6 +31,7 @@ export function confirmedResource<A, E>(
   return Effect.gen(function* () {
     const queues = yield* WriteQueues;
     const reactivity = yield* Reactivity.Reactivity;
+    const invalidation = yield* ReadInvalidation;
     const state = yield* SubscriptionRef.make<{
       readonly epoch: number;
       readonly result: AsyncResult.AsyncResult<A, E | ConnectionError>;
@@ -91,7 +93,7 @@ export function confirmedResource<A, E>(
             ),
           }));
           return answer;
-        }).pipe(Effect.ensuring(reactivity.invalidate([key]))),
+        }).pipe(Effect.ensuring(invalidation.refreshNow([key]))),
       );
     }
     return {

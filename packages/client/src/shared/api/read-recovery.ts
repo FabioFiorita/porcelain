@@ -1,15 +1,13 @@
-import { Effect, Layer } from 'effect';
-import { Atom, Reactivity } from 'effect/reactivity';
+import { Atom } from 'effect/reactivity';
 import type { RuntimeConnection, WorktreeScope } from './connection.ts';
+import { ReadInvalidation } from './read-invalidation.ts';
+import { clientRuntime } from './runtime.ts';
 import { queryKeys } from './query-keys.ts';
 
 export const retryWorktreeReads = Atom.family((connection: RuntimeConnection) =>
-  connection.atoms(Layer.empty).fn((scope: WorktreeScope) =>
-    Effect.gen(function* () {
-      const reactivity = yield* Reactivity.Reactivity;
-      reactivity.invalidateUnsafe([
-        queryKeys.review(connection.environmentId, scope),
-      ]);
-    }),
+  clientRuntime(connection).fn((scope: WorktreeScope) =>
+    ReadInvalidation.refreshNow([
+      queryKeys.review(connection.environmentId, scope),
+    ]),
   ),
 );

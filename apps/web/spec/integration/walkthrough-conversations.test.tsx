@@ -438,8 +438,12 @@ test('hidden review stops fetching images and conversations until shown again', 
   fetchGate,
 }) => {
   await conversationFixture('no-pr');
+  await repo.writeBinary(
+    'badge.png',
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGPQmqkEAAHWAOYaE5nkAAAAAElFTkSuQmCC',
+  );
   await repo.write(
-    'badge.svg',
+    'logo.svg',
     '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"/>',
   );
   await repo.write('DRAFT', 'Extensionless source before the write');
@@ -450,10 +454,11 @@ test('hidden review stops fetching images and conversations until shown again', 
   const text = fetchGate.recordTextReads();
   const app = await render.route(route);
   const { page } = app;
-  const image = page.getByRole('img', { name: 'badge.svg', exact: true });
+  const image = page.getByRole('img', { name: 'badge.png', exact: true });
   await expect.element(image).toBeVisible();
   await expect.poll(() => text).toContain('DRAFT');
-  await expect.poll(() => text).not.toContain('badge.svg');
+  await expect.poll(() => text).toContain('logo.svg');
+  await expect.poll(() => text).not.toContain('badge.png');
   await render.whenLiveConnected();
   await app.navigate(route + '?entry=file:DRAFT');
   const file = page.getByRole('tabpanel', { name: 'DRAFT', exact: true });
@@ -474,7 +479,7 @@ test('hidden review stops fetching images and conversations until shown again', 
   await expect.element(image).toBeVisible();
   await expect
     .poll(() =>
-      requests.some(({ path }) => path.endsWith('/asset?path=badge.svg')),
+      requests.some(({ path }) => path.endsWith('/asset?path=badge.png')),
     )
     .toBe(true);
   await expect

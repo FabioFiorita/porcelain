@@ -35,6 +35,7 @@ import type { DiffContent, ReviewScope } from '@porcelain/client/changes/rules';
 import { CodeDocument } from './code-document';
 import { ReadMoreFiles } from './read-more-files';
 import { type ConnectionContext } from '@/shared/workspace/connection';
+import { useRememberCommitSubject } from '../store';
 import { counted } from '@porcelain/client/changes/rules';
 
 const pathKey = (file: CommitFile) => commitPaths(file).join('\0');
@@ -92,6 +93,7 @@ export function CommitDocument({
   );
   const more = commit.files.length - reached.length;
   const subject = commit.commit.subject || `Commit ${shortOid(oid)}`;
+  useRememberCommitSubject(scope.worktreeId, oid, commit.commit.subject);
   const counts = new Map(
     entries.map((entry) => [entry.path, entry.lineCounts]),
   );

@@ -506,15 +506,16 @@ function useReviewCode(
     useChanges(props.scope, props.context.connection),
     hidden,
   );
-  const result = useHeldWhileHidden(
-    useBranchChanges(
-      hidden ? undefined : props.scope,
-      props.context.connection,
-      props.base,
-    ).result,
-    hidden,
+  const result = useBranchChanges(
+    hidden ? undefined : props.scope,
+    props.context.connection,
+    props.base,
+  ).result;
+  const observed = Option.getOrUndefined(AsyncResult.value(result));
+  const branch = useHeldWhileHidden(
+    observed,
+    hidden || (observed === undefined && !AsyncResult.isFailure(result)),
   );
-  const branch = Option.getOrUndefined(AsyncResult.value(result));
   const sections = reviewCodeSections({
     content: content?.outcome === 'nothing' ? undefined : content,
     branch: branch?.files ?? [],

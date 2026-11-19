@@ -1,7 +1,4 @@
 import { Button } from '@/components/ui/button';
-import { useCommitSubject } from '@/features/history/index';
-import type { HistoryScope } from '@porcelain/client/history/rules';
-import type { Connection } from '@/shared/workspace/connection';
 import { TruncatedText } from '@/shared/views/truncated-text';
 import { ScrollArea as ScrollAreaPrimitive } from '@base-ui/react/scroll-area';
 import { formatForDisplay } from '@tanstack/react-hotkeys';
@@ -173,7 +170,7 @@ export function DocumentTabs({
   side,
   leading,
   trailing,
-  commitContext,
+  commitSubjects,
   ids,
   ...actions
 }: TabActions & {
@@ -184,7 +181,7 @@ export function DocumentTabs({
   side: 'left' | 'right' | null;
   leading?: ReactNode;
   trailing?: ReactNode;
-  commitContext?: { connection: Connection; scope: HistoryScope };
+  commitSubjects: Readonly<Record<string, string>>;
 }) {
   return (
     <div
@@ -254,7 +251,6 @@ export function DocumentTabs({
                     isPinned &&
                     !pinned.includes(tabs[index + 1] ?? '') &&
                     index < tabs.length - 1;
-                  const document = parseEntry(key);
                   const tabProps = {
                     tabKey: key,
                     ids: ids(key),
@@ -271,15 +267,10 @@ export function DocumentTabs({
                       key={key}
                       className="flex min-w-0 shrink-0 items-center"
                     >
-                      {commitContext && document?.kind === 'commit' ? (
-                        <CommitTab
-                          {...tabProps}
-                          commitContext={commitContext}
-                          oid={document.oid}
-                        />
-                      ) : (
-                        <DocumentTab {...tabProps} />
-                      )}
+                      <DocumentTab
+                        {...tabProps}
+                        commitSubject={commitSubjects[key]}
+                      />
                       {endOfPinned && (
                         <span
                           aria-hidden="true"
@@ -562,23 +553,4 @@ function DocumentTab({
       </ContextMenu>
     </span>
   );
-}
-
-function CommitTab(
-  props: Parameters<typeof DocumentTab>[0] & {
-    commitContext: { connection: Connection; scope: HistoryScope };
-    oid: string;
-  },
-) {
-  const { commitContext, oid, ...tab } = props;
-  const subject = useCommitSubject(
-    commitContext.connection,
-    commitContext.scope,
-    oid,
-    tab.active,
-  );
-  const [shownSubject, setShownSubject] = useState(subject);
-  if (subject !== undefined && subject !== shownSubject)
-    setShownSubject(subject);
-  return <DocumentTab {...tab} commitSubject={shownSubject} />;
 }

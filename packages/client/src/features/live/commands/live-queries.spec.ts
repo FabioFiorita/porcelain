@@ -5,7 +5,7 @@ import { operationStoreFixture } from '../../../../spec/kit/operation-store.ts';
 import { AtomRegistry, Reactivity } from 'effect/reactivity';
 import { readFilePreferences, readInventory } from '@porcelain/client/projects';
 import { readTextFile } from '@porcelain/client/files';
-import { Equal, Layer } from 'effect';
+import { Clock, Equal, Layer } from 'effect';
 import { SecureRandom } from 'effect/crypto';
 
 import { Effect } from 'effect';
@@ -42,6 +42,8 @@ async function setup(
   transport?: Transport,
   onSubscription?: (subscription: LiveSubscription) => void,
   onStatusChange?: () => void,
+  timeoutMs = 1000,
+  clockLayer: Layer.Layer<never> = Layer.empty,
 ) {
   const { store: operations } = operationStoreFixture();
   const lifetime = createWorktreeConnection(
@@ -57,10 +59,11 @@ async function setup(
               projects: [],
             }),
           )),
-      timeoutMs: 1000,
+      timeoutMs,
     },
     undefined,
-    Layer.merge(
+    Layer.mergeAll(
+      clockLayer,
       Layer.succeed(OperationStore, operations),
       Layer.succeed(
         SecureRandom.SecureRandom,
@@ -569,27 +572,35 @@ const changedScope = {
 
 async function liveText(
   load: (path: string, count: number) => Promise<string>,
+  timeoutMs?: number,
+  clockLayer?: Layer.Layer<never>,
 ) {
   const counts = new Map<string, number>();
-  const subject = await setup(async (url) => {
-    const path = new URL(url, 'http://fixture').searchParams.get('path');
-    if (path === null)
+  const subject = await setup(
+    async (url) => {
+      const path = new URL(url, 'http://fixture').searchParams.get('path');
+      if (path === null)
+        return Response.json({
+          environmentId,
+          environment: { name: 'Live', custom: false },
+          projects: [],
+        });
+      const count = (counts.get(path) ?? 0) + 1;
+      counts.set(path, count);
+      const text = await load(path, count);
       return Response.json({
-        environmentId,
-        environment: { name: 'Live', custom: false },
-        projects: [],
+        worktreeId: changedScope.worktreeId,
+        path,
+        encoding: 'utf-8',
+        byteLength: text.length,
+        text,
       });
-    const count = (counts.get(path) ?? 0) + 1;
-    counts.set(path, count);
-    const text = await load(path, count);
-    return Response.json({
-      worktreeId: changedScope.worktreeId,
-      path,
-      encoding: 'utf-8',
-      byteLength: text.length,
-      text,
-    });
-  });
+    },
+    undefined,
+    undefined,
+    timeoutMs,
+    clockLayer,
+  );
   const file = (path: string) => {
     const atom = readTextFile({
       connection: subject.connection,
@@ -657,23 +668,34 @@ it('reads each mounted file once for a burst of notices and reads an unmounted f
   }
 });
 
-it('finishes an in-flight read and follows it with one read of a newer burst', async () => {
+async function heldLiveText(text: string, clockLayer?: Layer.Layer<never>) {
   const started = Promise.withResolvers<void>();
   const held = Promise.withResolvers<string>();
-  const subject = await liveText((_, count) => {
-    if (count === 1) return Promise.resolve('Before');
-    if (count === 2) {
-      started.resolve();
-      return held.promise;
-    }
-    return Promise.resolve('After the newer burst');
-  });
+  const subject = await liveText(
+    (_, count) => {
+      if (count === 1) return Promise.resolve('Before');
+      if (count === 2) {
+        started.resolve();
+        return held.promise;
+      }
+      return Promise.resolve(text);
+    },
+    5000,
+    clockLayer,
+  );
+  return { subject, started: started.promise, held };
+}
+
+it('finishes an in-flight read and follows it with one read of a newer burst', async () => {
+  const { subject, started, held } = await heldLiveText(
+    'After the newer burst',
+  );
   const file = subject.file('first.ts');
   const stop = file.mount();
   try {
     await file.read();
     subject.notice();
-    await started.promise;
+    await started;
     const announced = Promise.withResolvers<void>();
     const unregister = subject.connection.runtime
       .runSync(Reactivity.Reactivity)
@@ -695,6 +717,77 @@ it('finishes an in-flight read and follows it with one read of a newer burst', a
     }
   } finally {
     held.resolve('After the first notice');
+    stop();
+    await subject.cleanup();
+  }
+});
+
+it.each([
+  {
+    trigger: 'reconnect',
+    name: 'reconnect replaces a pending read and refreshes ordinary environment listeners',
+  },
+  {
+    trigger: 'later notice',
+    name: 'a later watcher notice replaces a stalled read',
+  },
+  {
+    trigger: 'initial connection',
+    name: 'the initial connection lets a pending read finish before following up',
+  },
+] as const)('$name', async ({ trigger }) => {
+  const initial = Promise.withResolvers<void>();
+  const native = Effect.runSync(Clock.Clock);
+  let elapsed = 0n;
+  const clock = Layer.succeed(Clock.Clock, {
+    currentTimeMillisUnsafe: () => native.currentTimeMillisUnsafe(),
+    currentTimeMillis: native.currentTimeMillis,
+    currentTimeNanosUnsafe: () => native.currentTimeNanosUnsafe(),
+    currentTimeNanos: native.currentTimeNanos,
+    monotonicTimeNanosUnsafe: () => elapsed,
+    monotonicTimeNanos: Effect.sync(() => elapsed),
+    sleep: native.sleep.bind(native),
+  });
+  const { subject, started, held } = await heldLiveText('Current', clock);
+  let environmentRefreshes = 0;
+  const unregister = subject.connection.runtime
+    .runSync(Reactivity.Reactivity)
+    .registerUnsafe([queryKeys.environment(environmentId)], () => {
+      environmentRefreshes++;
+      initial.resolve();
+    });
+  const file = subject.file('first.ts');
+  const stop = file.mount();
+  try {
+    await file.read();
+    if (trigger === 'initial connection') subject.notice();
+    else subject.live()?.onNotice({ type: 'ready' });
+    await started;
+    switch (trigger) {
+      case 'initial connection':
+        elapsed = 2_000_000_000n;
+        subject.live()?.onNotice({ type: 'ready' });
+        await initial.promise;
+        expect(file.count()).toBe(2);
+        held.resolve('First snapshot');
+        break;
+      case 'later notice':
+        elapsed = 2_000_000_000n;
+        subject.notice();
+        break;
+      case 'reconnect':
+        subject.live()?.onReconnect();
+        subject.live()?.onNotice({ type: 'ready' });
+        break;
+    }
+    await expect.poll(file.count).toBe(3);
+    expect(await file.read()).toMatchObject({ text: 'Current' });
+    expect(environmentRefreshes).toBe(trigger === 'reconnect' ? 2 : 1);
+    held.resolve('Obsolete');
+    expect(await file.read()).toMatchObject({ text: 'Current' });
+  } finally {
+    held.resolve('Obsolete');
+    unregister();
     stop();
     await subject.cleanup();
   }

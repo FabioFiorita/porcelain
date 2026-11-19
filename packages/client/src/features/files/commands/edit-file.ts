@@ -133,7 +133,7 @@ class FileEdits extends Context.Service<
                 Effect.gen(function* () {
                   for (const [, draft] of moving) draft.release(owner);
                   if (!connection.isClosed())
-                    yield* invalidation.schedule(
+                    yield* invalidation.refreshNow(
                       liveReadKeys(connection.environmentId, {
                         type: 'worktree',
                         ...scope,

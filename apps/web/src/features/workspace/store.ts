@@ -18,6 +18,10 @@ const savedFlag = Schema.decodeUnknownOption(
 const savedFocus = Schema.decodeUnknownOption(
   Schema.Struct({ focused: Schema.Literals([0, 1]) }),
 );
+const commitSubjectsSchema = Schema.Record(Schema.String, Schema.String);
+const savedSubjects = Schema.decodeUnknownOption(
+  Schema.Struct({ commitSubjects: commitSubjectsSchema }),
+);
 const tabsSchema = Schema.Unknown.pipe(
   Schema.decodeTo(
     Schema.Struct({
@@ -29,12 +33,17 @@ const tabsSchema = Schema.Unknown.pipe(
           }),
         ),
       ),
+      commitSubjects: commitSubjectsSchema,
       saved: Schema.Boolean,
       focused: Schema.Literals([0, 1]),
     }),
     {
       decode: SchemaGetter.transform((value) => ({
         panes: parseTabLayout(value),
+        commitSubjects: savedSubjects(value).pipe(
+          Option.map((value) => value.commitSubjects),
+          Option.getOrElse(() => ({})),
+        ),
         saved: savedFlag(value).pipe(
           Option.map((saved) => saved.saved),
           Option.getOrElse(() => true),
@@ -65,7 +74,12 @@ const tabs = Atom.family((worktreeId: string) =>
     runtime: storageRuntime,
     key: `porcelain.tabs.${worktreeId}`,
     schema: tabsSchema,
-    defaultValue: () => ({ panes: null, saved: false, focused: 0 as const }),
+    defaultValue: () => ({
+      panes: null,
+      commitSubjects: {},
+      saved: false,
+      focused: 0 as const,
+    }),
   }),
 );
 export const tabActivationState = Atom.family((_worktreeId: string) =>
@@ -82,22 +96,66 @@ const folds = Atom.family((key: string) =>
 
 export function useTabLayoutStore(worktreeId: string) {
   const atom = tabs(worktreeId);
-  const { panes, saved, focused } = useAtomValue(atom);
+  const { panes, saved, focused, commitSubjects } = useAtomValue(atom);
   const set = useAtomSet(atom);
   const registry = useAtomValue(atomRegistry);
   return {
     panes,
     saved,
     focused,
+    commitSubjects,
     setFocused: (focused: 0 | 1) => {
       const current = registry.get(atom);
       if (current.focused !== focused)
         registry.set(atom, { ...current, focused });
     },
     save: (panes: readonly Pane[]) =>
-      set((current) => ({ ...current, panes, saved: true })),
+      set((current) => ({
+        ...current,
+        panes,
+        saved: true,
+        commitSubjects: Object.fromEntries(
+          panes.flatMap((pane) =>
+            pane.tabs.flatMap((key) => {
+              const subject = current.commitSubjects[key];
+              return subject === undefined ? [] : [[key, subject] as const];
+            }),
+          ),
+        ),
+      })),
   };
 }
+const rememberCommitSubject = Atom.family(
+  ({
+    worktreeId,
+    entry,
+    subject,
+  }: {
+    worktreeId: string;
+    entry: string;
+    subject: string;
+  }) =>
+    Atom.make((get) => {
+      const atom = tabs(worktreeId);
+      const current = get.once(atom);
+      if (current.commitSubjects[entry] === subject) return;
+      get.set(atom, {
+        ...current,
+        commitSubjects: { ...current.commitSubjects, [entry]: subject },
+      });
+    }),
+);
+
+export function useRememberCommitSubject(
+  worktreeId: string,
+  oid: string,
+  subject: string,
+) {
+  useAtomMount(
+    rememberCommitSubject({ worktreeId, entry: `commit:${oid}`, subject }),
+  );
+}
+
 export function useCodeFolds(worktreeId: string, entry: string) {
   const atom = folds(`porcelain.folds.${worktreeId}.${entry}`);
   const value = useAtomValue(atom);

@@ -10,6 +10,7 @@ import { createWorktreeConnection } from '@porcelain/client/transport';
 import { ConnectionError } from '@porcelain/client/transport';
 import {
   FileDrafts,
+  readTextFile,
   type FileDraftWriteFailure,
 } from '@porcelain/client/files';
 import {
@@ -524,3 +525,55 @@ function draftLocations(
     owner: draft.state.value.owner,
   };
 }
+
+it('a successful save replaces a pending pre-save read before returning', async () => {
+  const held = Promise.withResolvers<Response>();
+  const started = Promise.withResolvers<void>();
+  let reads = 0;
+  const path = '.env';
+  const answer = (text: string) =>
+    Response.json({
+      worktreeId: scope.worktreeId,
+      path,
+      encoding: 'utf-8',
+      byteLength: text.length,
+      text,
+    });
+  const subject = setup('own-file-save', (_, init) => {
+    if (init?.method === 'POST')
+      return Promise.resolve(
+        Response.json({ path, fingerprint: 'b'.repeat(64) }),
+      );
+    reads++;
+    if (reads === 1) {
+      started.resolve();
+      return held.promise;
+    }
+    return Promise.resolve(answer('VALUE=after'));
+  });
+  const atom = readTextFile({ connection: subject.connection, scope, path });
+  const stop = subject.registry.mount(atom);
+  try {
+    await started.promise;
+    expect(
+      await subject.execute({
+        kind: 'write',
+        path,
+        text: 'VALUE=after',
+        expectedFingerprint: 'a'.repeat(64),
+      }),
+    ).toMatchObject({ path });
+    expect(reads).toBe(2);
+    expect(
+      await Effect.runPromise(
+        AtomRegistry.getResult(subject.registry, atom, {
+          suspendOnWaiting: true,
+        }),
+      ),
+    ).toMatchObject({ text: 'VALUE=after' });
+  } finally {
+    held.resolve(answer('VALUE=before'));
+    stop();
+    await subject.close();
+  }
+});

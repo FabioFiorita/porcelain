@@ -66,17 +66,11 @@ export class GitReceiptRefresh extends Context.Service<
               );
               const fiber = yield* Effect.forkIn(
                 Effect.gen(function* () {
+                  const keys = [inventory, project, ...worktree];
                   if (receipt.priority === 'action') {
-                    yield* invalidation.refreshNow(
-                      [inventory],
-                      [project, ...worktree],
-                    );
+                    yield* invalidation.refreshNow(keys);
                   } else {
-                    const flushed = yield* invalidation.schedule([
-                      inventory,
-                      project,
-                      ...worktree,
-                    ]);
+                    const flushed = yield* invalidation.schedule(keys);
                     yield* Deferred.await(flushed);
                   }
                   const reads = [

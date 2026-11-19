@@ -1,16 +1,17 @@
 import { Effect } from 'effect';
-import { Atom, Reactivity } from 'effect/reactivity';
+import { Atom } from 'effect/reactivity';
 import type { AddWalkthroughMessageRequest } from '@porcelain/contracts/walkthroughs';
 import type { WorktreeSelection } from '../../../shared/api/connection.ts';
 import { requestApi } from '../../../shared/api/client.ts';
 import { clientRuntime } from '../../../shared/api/runtime.ts';
+import { ReadInvalidation } from '../../../shared/api/read-invalidation.ts';
 import { queryKeys } from '../../../shared/api/query-keys.ts';
 
 export const walkthroughConversationCommands = Atom.family(
   ({ connection, scope, runId }: WorktreeSelection & { runId: string }) => {
     const runtime = clientRuntime(connection);
     const worktree = { worktreeId: scope.worktreeId, runId };
-    const invalidate = Reactivity.invalidate([
+    const invalidate = ReadInvalidation.refreshNow([
       queryKeys.reviewSurface(connection.environmentId, scope, [
         'walkthrough-conversations',
       ]),
