@@ -37,7 +37,7 @@ Preconditions: [surface baseline](README.md).
 4. Click menuitem `Rename project`
    Expect: dialog "Rename project"; textbox "Name" focused with value "repository"; buttons "Cancel" and "Rename".
 5. Fill textbox `Name` with ' '
-   Expect: textbox "Name" [invalid] with an alert under it reading "Too small: expected string to have >=1 characters"; button "Rename" disabled.
+   Expect: textbox "Name" [invalid] with an alert under it reading "Enter a project name."; button "Rename" disabled.
 6. Fill textbox `Name` with 'Browser renamed project'
    Expect: the alert is gone; button "Rename" enabled.
 7. Click button `Rename`

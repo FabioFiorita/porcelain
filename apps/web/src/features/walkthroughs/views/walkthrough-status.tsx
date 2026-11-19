@@ -16,6 +16,48 @@ export function WalkthroughStatus({
   writeBlock,
 }: WalkthroughStatusInput & { writeBlock?: string | undefined }) {
   const progress = walkthroughProgress(run, requesting);
+  if (
+    run.state.status === 'ready' &&
+    !progress.active &&
+    !requesting &&
+    !failure
+  ) {
+    const behind = freshness === 'changed';
+    return (
+      <section
+        aria-label="Walkthrough status"
+        className="flex flex-wrap items-center justify-between gap-2 text-caption text-muted-foreground"
+      >
+        <p role="status">
+          {reused ? (
+            'Already up to date: the saved walkthrough was reused.'
+          ) : (
+            <>
+              Saved{' '}
+              <time dateTime={run.state.writtenAt}>
+                {new Date(run.state.writtenAt).toLocaleString(undefined, {
+                  dateStyle: 'medium',
+                  timeStyle: 'short',
+                })}
+              </time>
+              {behind && ' · Behind the current work'}
+            </>
+          )}
+        </p>
+        {onUpdate && (
+          <Button
+            size="sm"
+            variant={behind ? 'outline' : 'ghost'}
+            disabled={Boolean(writeBlock)}
+            aria-description={writeBlock}
+            onClick={onUpdate}
+          >
+            Update walkthrough
+          </Button>
+        )}
+      </section>
+    );
+  }
   return (
     <section
       aria-label="Walkthrough status"

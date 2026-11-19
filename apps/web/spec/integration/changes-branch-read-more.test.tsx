@@ -51,7 +51,7 @@ test('reading more of a long branch keeps its diffs during loading and after a n
 
   gate.arm();
   await workspace
-    .getByRole('button', { name: 'Read 2 more of 2', exact: true })
+    .getByRole('button', { name: 'Read 2 more of 27', exact: true })
     .click();
   await gate.requested;
   await expect
@@ -64,7 +64,7 @@ test('reading more of a long branch keeps its diffs during loading and after a n
   gate.release();
   await expect
     .element(
-      workspace.getByRole('button', { name: 'Read 2 more of 2', exact: true }),
+      workspace.getByRole('button', { name: 'Read 2 more of 27', exact: true }),
     )
     .not.toBeInTheDocument();
   await expect

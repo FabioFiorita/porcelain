@@ -4,10 +4,12 @@ import { DIFF_WINDOW_FILES } from '@/config/limits';
 
 export function ReadMoreFiles({
   more,
+  total,
   pending,
   onReadMore,
 }: {
   more: number;
+  total: number;
   pending: boolean;
   onReadMore: () => void;
 }) {
@@ -21,7 +23,7 @@ export function ReadMoreFiles({
         disabled={pending}
       >
         {pending && <Spinner aria-hidden="true" />}
-        {`Read ${Math.min(more, DIFF_WINDOW_FILES)} more of ${more}`}
+        {`Read ${Math.min(more, DIFF_WINDOW_FILES)} more of ${total}`}
       </Button>
     </div>
   );
