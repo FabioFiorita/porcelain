@@ -1,4 +1,6 @@
-import type { Page } from '@playwright/test';
+import { readFile } from 'node:fs/promises';
+import * as Schema from 'effect/Schema';
+import type { BrowserContext, Page } from '@playwright/test';
 
 declare const window: EventTarget;
 
@@ -15,7 +17,14 @@ export async function connectionHistoryAt(page: Page) {
 }
 
 export function savedHistory(page: Page) {
-  return page.evaluate((key) => localStorage.getItem(key) ?? '', historyKey);
+  return page.evaluate(
+    (key) =>
+      Object.keys(localStorage)
+        .filter((name) => name === key || name.startsWith(`${key}:`))
+        .map((name) => localStorage.getItem(name))
+        .join('\n'),
+    historyKey,
+  );
 }
 
 export function emitNetworkChange(
@@ -27,18 +36,10 @@ export function emitNetworkChange(
   }, events);
 }
 
-export async function holdHistoryWrite(page: Page) {
-  const release = await page.evaluateHandle(
-    (key) =>
-      new Promise<() => void>((held) => {
-        void navigator.locks.request(
-          key,
-          () => new Promise<void>((unlock) => held(unlock)),
-        );
-      }),
-    historyKey,
-  );
-  return () => release.evaluate((unlock) => unlock());
+export function withoutWebLocks(context: BrowserContext) {
+  return context.addInitScript(() => {
+    Object.defineProperty(navigator, 'locks', { value: undefined });
+  });
 }
 
 export async function failHistoryWrites(page: Page) {
@@ -53,7 +54,10 @@ export async function failHistoryWrites(page: Page) {
 
     let attempts = 0;
     Storage.prototype.setItem = function (key, value) {
-      if (this === localStorage && key === historyKey) {
+      if (
+        this === localStorage &&
+        (key === historyKey || key.startsWith(`${historyKey}:`))
+      ) {
         attempts += 1;
         throw new DOMException('History storage is full', 'QuotaExceededError');
       }
@@ -72,4 +76,33 @@ export async function failHistoryWrites(page: Page) {
         state.restore();
       }),
   };
+}
+
+export function historySnapshotCount(page: Page) {
+  return page.evaluate(
+    (key) =>
+      Object.keys(localStorage).filter((name) => name.startsWith(`${key}:`))
+        .length,
+    historyKey,
+  );
+}
+
+const decodeExport = Schema.decodeUnknownSync(
+  Schema.fromJsonString(
+    Schema.Array(
+      Schema.Struct({
+        diagnostic: Schema.Struct({ at: Schema.Int, event: Schema.String }),
+      }),
+    ),
+  ),
+);
+
+export async function exportedHistory(page: Page) {
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByText('Export history', { exact: true }).click(),
+  ]);
+  return decodeExport(await readFile(await download.path(), 'utf8')).map(
+    ({ diagnostic }) => diagnostic,
+  );
 }

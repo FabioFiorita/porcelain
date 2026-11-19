@@ -9,6 +9,7 @@ selectors:
   - 'Address'
   - 'Computer ID'
   - 'Connection history'
+  - 'Export history'
   - 'Ways in'
   - 'Saved connections'
   - 'Forget on this app'
@@ -43,7 +44,7 @@ Escape, the Computers breadcrumb and browser Back restore list scroll and the Op
 
 The former per-computer sidebar shortcut buttons were removed. Use Settings → Computers → Open <name>. An unavailable workspace's Computer settings action still opens that exact computer without changing the selected review.
 
-Under Overview → Details → Connection history, check recent attempts for this computer, including why a socket ended and whether it refreshed in place. With a remote review open, mute incoming live frames while leaving HTTP available, then restore them after the original socket closes. Also close a healthy replacement socket briefly and confirm the close code and another successful attempt. Check that an actual page reload appears as Document reload and retains the prior events.
+Under Overview → Details → Connection history, check recent attempts for this computer, including why a socket ended and whether it refreshed in place. With a remote review open, mute incoming live frames while leaving HTTP available, then restore them after the original socket closes. Also close a healthy replacement socket briefly and confirm the close code and another successful attempt. Check that an actual page reload appears as Document reload and retains the prior events. Export history downloads these events for this computer as JSON.
 
 Automated coverage: `access-remote-detail.desktop.e2e.ts`.
 

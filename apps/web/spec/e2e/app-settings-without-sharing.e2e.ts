@@ -2,10 +2,12 @@ import { expect, test } from './fixtures.ts';
 import { openThisComputer } from '../kit/settings.ts';
 import {
   connectionHistoryAt,
-  holdHistoryWrite,
+  withoutWebLocks,
   failHistoryWrites,
   emitNetworkChange,
   savedHistory,
+  historySnapshotCount,
+  exportedHistory,
 } from '../kit/connection-history.ts';
 
 test('browser Settings uses the same three sections and exposes host-gated Devices and computer details', async ({
@@ -78,34 +80,77 @@ test('browser Settings uses the same three sections and exposes host-gated Devic
   ).toBeVisible();
 });
 
-test('two tabs retain both connection events while another writer holds the history lock', async ({
+test('two tabs retain both connection events after one closes without Web Locks', async ({
   pairedPage,
 }) => {
-  const second = await pairedPage.context().newPage();
+  const context = pairedPage.context();
+  await withoutWebLocks(context);
   await connectionHistoryAt(pairedPage);
+  const second = await context.newPage();
   await connectionHistoryAt(second);
 
-  const unlock = await holdHistoryWrite(pairedPage);
+  await Promise.all([
+    emitNetworkChange(pairedPage, 'offline'),
+    emitNetworkChange(second, 'online'),
+  ]);
+  await expect(
+    pairedPage.getByText('Network offline', { exact: true }),
+  ).toBeVisible();
+  await expect(
+    second.getByText('Network online', { exact: true }),
+  ).toBeVisible();
+  await pairedPage.close();
+
+  const reopened = await context.newPage();
+  await connectionHistoryAt(reopened);
+  await expect(
+    reopened.getByText('Network offline', { exact: true }),
+  ).toBeVisible();
+  await expect(
+    reopened.getByText('Network online', { exact: true }),
+  ).toBeVisible();
+});
+
+test('recovering old buffered events leaves the newest 100 in connection history', async ({
+  pairedPage,
+}) => {
+  await connectionHistoryAt(pairedPage);
+  const second = await pairedPage.context().newPage();
+  await connectionHistoryAt(second);
+
+  const failure = await failHistoryWrites(pairedPage);
   try {
-    await Promise.all([
-      emitNetworkChange(pairedPage, 'offline'),
-      emitNetworkChange(second, 'online'),
-    ]);
-    await expect
-      .poll(() => savedHistory(pairedPage))
-      .not.toMatch(/Network offline|Network online/);
+    await emitNetworkChange(pairedPage, 'offline');
+    await expect.poll(() => failure.attempts()).toBeGreaterThan(0);
+    await expect(
+      pairedPage.getByText('Network offline', { exact: true }),
+    ).toBeVisible();
+    await emitNetworkChange(
+      second,
+      ...Array.from({ length: 100 }, () => 'online' as const),
+    );
+    await expect(
+      second.getByText('Network online', { exact: true }),
+    ).toHaveCount(100);
   } finally {
-    await unlock();
+    await failure.restore();
   }
 
-  for (const page of [pairedPage, second]) {
-    await expect(
-      page.getByText('Network offline', { exact: true }),
-    ).toBeVisible();
-    await expect(
-      page.getByText('Network online', { exact: true }),
-    ).toBeVisible();
-  }
+  await emitNetworkChange(pairedPage, 'offline');
+  await expect(
+    pairedPage.getByText('Network offline', { exact: true }),
+  ).toHaveCount(1);
+  await expect(
+    pairedPage.getByText('Network online', { exact: true }),
+  ).toHaveCount(99);
+  await expect.poll(() => historySnapshotCount(pairedPage)).toBe(2);
+  const exported = await exportedHistory(pairedPage);
+  await expect
+    .poll(() => exported.map(({ event }) => event))
+    .toEqual([
+      ...Array.from({ length: 99 }, () => 'Network online'),
+      'Network offline',
+    ]);
 });
 
 test('history keeps successive events across storage write failures and saves them when storage recovers', async ({

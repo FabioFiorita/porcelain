@@ -22,12 +22,11 @@ import { useAtomRef, useAtomValue } from '@effect/atom-react';
 import { devicePlatformName } from './rules/settings';
 import { statusActivity } from './adapters/status-activity';
 import {
-  connectionHistoryKey,
-  connectionHistoryLimit,
-  connectionHistoryLocks,
+  connectionHistoryEntry,
   currentDocumentEntry,
-  documentStartedAt,
-  readConnectionHistory,
+  isConnectionHistoryKey,
+  newestConnectionHistory,
+  readOtherConnectionHistory,
   writeConnectionHistory,
   type HistoryEntry,
 } from './adapters/connection-history';
@@ -72,65 +71,46 @@ import {
 } from '@/shared/workspace/connection';
 
 type HistoryState = {
-  readonly saved: readonly HistoryEntry[];
-  readonly pending: readonly HistoryEntry[];
+  readonly revision: number;
+  readonly own: readonly HistoryEntry[];
+  readonly others: readonly HistoryEntry[];
 };
 
 const history = AtomRef.make<HistoryState>({
-  saved: readConnectionHistory() ?? [],
-  pending: [],
+  revision: 0,
+  own: [],
+  others: readOtherConnectionHistory() ?? [],
 });
 
-const recentHistory = ({ saved, pending }: HistoryState) =>
-  [...saved, ...pending].slice(-connectionHistoryLimit);
-
-export const connectionHistory = history.map(recentHistory);
-
-function syncConnectionHistory(persist = false) {
-  const saved = readConnectionHistory();
-  const state = { ...history.value, saved: saved ?? history.value.saved };
-  if (persist && saved && state.pending.length > 0) {
-    const next = recentHistory(state);
-    if (writeConnectionHistory(next)) {
-      history.set({ saved: next, pending: [] });
-      return;
-    }
-  }
-  history.set(state);
-}
+export const connectionHistory = history.map(({ own, others }) =>
+  newestConnectionHistory([...others, ...own]),
+);
 
 function appendConnectionHistory(entry: HistoryEntry) {
-  history.update(({ saved, pending }) => ({
-    saved,
-    pending: [...pending, entry].slice(-connectionHistoryLimit),
-  }));
-  if (connectionHistoryLocks) {
-    void connectionHistoryLocks
-      .request(connectionHistoryKey, () => syncConnectionHistory(true))
-      .catch(() => syncConnectionHistory());
-  } else syncConnectionHistory(true);
+  const previous = history.value;
+  const own = newestConnectionHistory([...previous.own, entry]);
+  const revision = previous.revision + 1;
+  const written = writeConnectionHistory(revision, own);
+  const others = readOtherConnectionHistory(written) ?? previous.others;
+  history.set({ revision, own, others });
 }
 
 function recordConnectionDiagnostic(environmentId: string) {
   return (diagnostic: LiveDiagnostic) =>
-    appendConnectionHistory({
-      document: documentStartedAt,
-      environmentId,
-      diagnostic,
-    });
+    appendConnectionHistory(connectionHistoryEntry(diagnostic, environmentId));
 }
 
 if (typeof window !== 'undefined') {
   appendConnectionHistory(currentDocumentEntry());
   const recordNetwork = (event: 'Network online' | 'Network offline') =>
-    appendConnectionHistory({
-      document: documentStartedAt,
-      diagnostic: { at: Date.now(), event },
-    });
+    appendConnectionHistory(connectionHistoryEntry({ at: Date.now(), event }));
   window.addEventListener('online', () => recordNetwork('Network online'));
   window.addEventListener('offline', () => recordNetwork('Network offline'));
-  window.addEventListener('storage', (event) => {
-    if (event.key === connectionHistoryKey) syncConnectionHistory();
+  window.addEventListener('storage', ({ key }) => {
+    if (key === null || isConnectionHistoryKey(key)) {
+      const others = readOtherConnectionHistory();
+      if (others) history.update((state) => ({ ...state, others }));
+    }
   });
 }
 
