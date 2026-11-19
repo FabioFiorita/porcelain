@@ -100,8 +100,21 @@ export function ReviewCode({
   branch: ComparedBranch | undefined;
 }) {
   const [shown, setShown] = useState(DIFF_WINDOW_FILES);
+  const [near, setNear] = useState(false);
   const committed = branch ? code.branch : [];
   if (committed.length === 0 && code.worktree.length === 0) return null;
+  if (!near)
+    return (
+      <div
+        role="group"
+        aria-label={`Code: ${label}`}
+        ref={whenNear(() => setNear(true))}
+        className="-mx-5 flex flex-col gap-2 @3xl:-mx-8"
+      >
+        <FileNames title="Branch" paths={committed} />
+        <FileNames title="Uncommitted" paths={code.worktree.slice(0, shown)} />
+      </div>
+    );
   const interaction = (scope: 'branch' | 'uncommitted') => ({
     ...document.interaction,
     active: false,
@@ -145,6 +158,48 @@ export function ReviewCode({
         </section>
       )}
     </div>
+  );
+}
+
+function whenNear(onNear: () => void) {
+  return (element: HTMLElement | null) => {
+    if (!element) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) onNear();
+      },
+      {
+        root: element.closest<HTMLElement>('[data-review-scroll]'),
+        rootMargin: '1200px 0px',
+      },
+    );
+    observer.observe(element);
+    return () => observer.disconnect();
+  };
+}
+
+function FileNames({
+  title,
+  paths,
+}: {
+  title: string;
+  paths: readonly string[];
+}) {
+  if (paths.length === 0) return null;
+  return (
+    <section className="flex flex-col">
+      <h3 className="border-b px-4 py-2.5 text-ui font-semibold">{title}</h3>
+      <ul>
+        {paths.slice(0, DIFF_WINDOW_FILES).map((path) => (
+          <li
+            key={path}
+            className="min-h-40 px-4 py-3 font-mono text-caption text-muted-foreground"
+          >
+            {path}
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

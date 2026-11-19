@@ -287,6 +287,10 @@ test('a later commit lists its file outside the steps, and a refused Update says
       }),
     )
     .toBeVisible();
+  await page
+    .getByRole('group', { name: 'Code: Not covered by the steps', exact: true })
+    .getByText('later.md', { exact: true })
+    .click();
   await expect
     .element(
       page
@@ -832,4 +836,48 @@ test('a step citing a staged rename shows the committed file and its local edit 
       }),
     )
     .not.toBeInTheDocument();
+});
+
+test('a long walkthrough loads a step code only when the step comes near view', async ({
+  repo,
+  codingTool,
+  render,
+}) => {
+  await repo.branch('many-base');
+  await repo.branch('many-feature');
+  await repo.switch('many-feature');
+  for (let file = 1; file <= 12; file += 1) {
+    const name = String(file).padStart(2, '0');
+    await repo.write(
+      `step-${name}.md`,
+      Array.from(
+        { length: 60 },
+        (_, line) => `Step ${name} line ${line + 1}`,
+      ).join('\n'),
+    );
+  }
+  await repo.commit('Add many step files');
+  await codingTool.install();
+  const app = await render.route('/?base=refs%2Fheads%2Fmany-base');
+  const page = app.page;
+  await page
+    .getByRole('button', { name: 'Write walkthrough', exact: true })
+    .click();
+  const first = page
+    .getByRole('group', { name: /^Code: Step \d+$/ })
+    .filter({ hasText: 'step-01.md' });
+  await expect
+    .element(first.getByText('Step 01 line 1', { exact: true }))
+    .toBeVisible();
+  const far = page
+    .getByRole('group', { name: /^Code: Step \d+$/ })
+    .filter({ hasText: 'step-12.md' });
+  await expect.element(far).toBeInTheDocument();
+  await expect
+    .element(far.getByRole('region', { name: /^Step \d+: branch$/ }))
+    .not.toBeInTheDocument();
+  await far.getByText('step-12.md', { exact: true }).click();
+  await expect
+    .element(far.getByText('Step 12 line 1', { exact: true }))
+    .toBeVisible();
 });

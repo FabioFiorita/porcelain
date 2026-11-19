@@ -543,7 +543,7 @@ export function ReviewDocument(props: DocumentProps) {
   );
   if (phase === undefined)
     return AsyncResult.isFailure(result) ? (
-      <div className="@container h-full overflow-auto">
+      <div data-review-scroll="" className="@container h-full overflow-auto">
         <Column>
           <StateFailure
             description="The walkthrough could not be read."
@@ -620,5 +620,9 @@ export function ReviewDocument(props: DocumentProps) {
       }
     }
   };
-  return <div className="@container h-full overflow-auto">{body()}</div>;
+  return (
+    <div data-review-scroll="" className="@container h-full overflow-auto">
+      {body()}
+    </div>
+  );
 }
