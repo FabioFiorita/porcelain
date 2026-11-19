@@ -37,7 +37,7 @@ Click Computers, then Open This computer: <name>. Expect `/settings/computers/th
 
 Open `/settings/computers/a-saved-computer` directly. It keeps the Computers section and explains the missing saved computer; it does not redirect to another section. Legacy Devices and Integrations links redirect to This computer; unknown section slugs show the app's recoverable not-found view.
 
-Open Connection history in This computer to see attempts, disconnects and document loads from this app. In Electron, emitted suspend and resume events also appear here when live updates are active.
+Open Connection history in This computer to see attempts, disconnects and document loads from this app. Open this detail in two tabs, trigger one network event in each and confirm both tabs show both events. Simulate a storage quota error, trigger successive events and confirm they stay visible, then restore writes and confirm the next event saves the buffered history. In Electron, emitted suspend and resume events also appear here when live updates are active.
 
 Automated coverage: `app-settings-without-sharing.e2e.ts`.
 

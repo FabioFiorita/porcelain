@@ -1,5 +1,12 @@
 import { expect, test } from './fixtures.ts';
 import { openThisComputer } from '../kit/settings.ts';
+import {
+  connectionHistoryAt,
+  holdHistoryWrite,
+  failHistoryWrites,
+  emitNetworkChange,
+  savedHistory,
+} from '../kit/connection-history.ts';
 
 test('browser Settings uses the same three sections and exposes host-gated Devices and computer details', async ({
   pairedPage,
@@ -69,4 +76,64 @@ test('browser Settings uses the same three sections and exposes host-gated Devic
       { exact: true },
     ),
   ).toBeVisible();
+});
+
+test('two tabs retain both connection events while another writer holds the history lock', async ({
+  pairedPage,
+}) => {
+  const second = await pairedPage.context().newPage();
+  await connectionHistoryAt(pairedPage);
+  await connectionHistoryAt(second);
+
+  const unlock = await holdHistoryWrite(pairedPage);
+  try {
+    await Promise.all([
+      emitNetworkChange(pairedPage, 'offline'),
+      emitNetworkChange(second, 'online'),
+    ]);
+    await expect
+      .poll(() => savedHistory(pairedPage))
+      .not.toMatch(/Network offline|Network online/);
+  } finally {
+    await unlock();
+  }
+
+  for (const page of [pairedPage, second]) {
+    await expect(
+      page.getByText('Network offline', { exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByText('Network online', { exact: true }),
+    ).toBeVisible();
+  }
+});
+
+test('history keeps successive events across storage write failures and saves them when storage recovers', async ({
+  pairedPage: page,
+}) => {
+  const openHistory = await connectionHistoryAt(page);
+  await expect.poll(() => savedHistory(page)).toContain('Document navigation');
+
+  const failure = await failHistoryWrites(page);
+  try {
+    await emitNetworkChange(page, 'offline', 'online');
+    await expect.poll(() => failure.attempts()).toBeGreaterThan(0);
+    await expect(
+      page.getByText('Network online', { exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByText('Network offline', { exact: true }),
+    ).toBeVisible();
+  } finally {
+    await failure.restore();
+  }
+
+  await emitNetworkChange(page, 'offline');
+  await expect.poll(() => savedHistory(page)).toContain('Network online');
+  await page.reload();
+  await openHistory();
+  await expect(page.getByText('Network offline', { exact: true })).toHaveCount(
+    2,
+  );
+  await expect(page.getByText('Network online', { exact: true })).toBeVisible();
 });

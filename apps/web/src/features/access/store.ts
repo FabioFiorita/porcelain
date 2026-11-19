@@ -24,6 +24,7 @@ import { statusActivity } from './adapters/status-activity';
 import {
   connectionHistoryKey,
   connectionHistoryLimit,
+  connectionHistoryLocks,
   currentDocumentEntry,
   documentStartedAt,
   readConnectionHistory,
@@ -70,18 +71,44 @@ import {
   requireConnection,
 } from '@/shared/workspace/connection';
 
-const history = AtomRef.make<readonly HistoryEntry[]>(
-  readConnectionHistory() ?? [],
-);
-export const connectionHistory: AtomRef.ReadonlyRef<readonly HistoryEntry[]> =
-  history;
+type HistoryState = {
+  readonly saved: readonly HistoryEntry[];
+  readonly pending: readonly HistoryEntry[];
+};
+
+const history = AtomRef.make<HistoryState>({
+  saved: readConnectionHistory() ?? [],
+  pending: [],
+});
+
+const recentHistory = ({ saved, pending }: HistoryState) =>
+  [...saved, ...pending].slice(-connectionHistoryLimit);
+
+export const connectionHistory = history.map(recentHistory);
+
+function syncConnectionHistory(persist = false) {
+  const saved = readConnectionHistory();
+  const state = { ...history.value, saved: saved ?? history.value.saved };
+  if (persist && saved && state.pending.length > 0) {
+    const next = recentHistory(state);
+    if (writeConnectionHistory(next)) {
+      history.set({ saved: next, pending: [] });
+      return;
+    }
+  }
+  history.set(state);
+}
 
 function appendConnectionHistory(entry: HistoryEntry) {
-  const next = [...(readConnectionHistory() ?? history.value), entry].slice(
-    -connectionHistoryLimit,
-  );
-  history.set(next);
-  writeConnectionHistory(next);
+  history.update(({ saved, pending }) => ({
+    saved,
+    pending: [...pending, entry].slice(-connectionHistoryLimit),
+  }));
+  if (connectionHistoryLocks) {
+    void connectionHistoryLocks
+      .request(connectionHistoryKey, () => syncConnectionHistory(true))
+      .catch(() => syncConnectionHistory());
+  } else syncConnectionHistory(true);
 }
 
 function recordConnectionDiagnostic(environmentId: string) {
@@ -103,8 +130,7 @@ if (typeof window !== 'undefined') {
   window.addEventListener('online', () => recordNetwork('Network online'));
   window.addEventListener('offline', () => recordNetwork('Network offline'));
   window.addEventListener('storage', (event) => {
-    if (event.key === connectionHistoryKey)
-      history.set(readConnectionHistory() ?? []);
+    if (event.key === connectionHistoryKey) syncConnectionHistory();
   });
 }
 

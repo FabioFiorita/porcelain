@@ -3,6 +3,11 @@ import { Option, Schema } from 'effect';
 
 export const connectionHistoryKey = 'porcelain.connection-history';
 export const connectionHistoryLimit = 100;
+export const connectionHistoryLocks = globalThis.navigator?.locks;
+
+function historyStorage() {
+  return connectionHistoryLocks ? localStorage : sessionStorage;
+}
 
 const documentEvent = Schema.Struct({
   at: Schema.Int,
@@ -26,22 +31,23 @@ export type HistoryEntry = typeof historyEntry.Type;
 
 export function readConnectionHistory() {
   try {
-    const saved = localStorage.getItem(connectionHistoryKey);
-    if (saved !== null)
-      return Option.getOrUndefined(decodeHistory(saved))?.slice(
-        -connectionHistoryLimit,
-      );
+    const saved = historyStorage().getItem(connectionHistoryKey);
+    return saved === null
+      ? []
+      : (Option.getOrUndefined(decodeHistory(saved))?.slice(
+          -connectionHistoryLimit,
+        ) ?? []);
   } catch {
     return undefined;
   }
-  return undefined;
 }
 
 export function writeConnectionHistory(entries: readonly HistoryEntry[]) {
   try {
-    localStorage.setItem(connectionHistoryKey, JSON.stringify(entries));
+    historyStorage().setItem(connectionHistoryKey, JSON.stringify(entries));
+    return true;
   } catch {
-    return;
+    return false;
   }
 }
 
