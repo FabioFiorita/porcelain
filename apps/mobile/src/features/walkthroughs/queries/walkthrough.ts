@@ -77,10 +77,13 @@ export function useWalkthroughAsset(input: {
   runId: string;
   assetId: string;
 }) {
-  const query = assetData({
+  const asset = {
     ...walkthroughSelection(input.workspace),
     runId: input.runId,
     assetId: input.assetId,
-  });
-  return { result: useAtomValue(query), refresh: useAtomRefresh(query) };
+  };
+  return {
+    result: useAtomValue(assetData(asset)),
+    refresh: useAtomRefresh(readWalkthroughAsset(asset)),
+  };
 }

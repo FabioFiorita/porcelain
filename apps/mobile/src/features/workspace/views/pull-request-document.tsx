@@ -1,4 +1,8 @@
 import { useState } from 'react';
+import {
+  requestedRead,
+  type RequestedRead,
+} from '../../../shared/rules/requested-read';
 import { useAtomRefresh, useAtomValue } from '@effect/atom-react';
 import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
@@ -46,9 +50,14 @@ function ConnectedPullRequest({
   });
   const result = useAtomValue(query);
   const refresh = useAtomRefresh(query);
-  const [requested, setRequested] = useState(false);
+  const [request, setRequest] = useState<RequestedRead>('idle');
+  const next = requestedRead(request, {
+    waiting: result.waiting,
+    failed: AsyncResult.isFailure(result),
+  });
+  if (next !== request) setRequest(next);
   const reread = () => {
-    setRequested(true);
+    setRequest('requested');
     refresh();
   };
   const link = usePreviewLink();
@@ -98,7 +107,7 @@ function ConnectedPullRequest({
             onPress={() => link.open(available.url)}
           />
         </Box>
-        {requested && !result.waiting && AsyncResult.isFailure(result) ? (
+        {next === 'failed' ? (
           <Text accessibilityRole="alert" variant="caption" tone="destructive">
             The pull request could not be read.
           </Text>
