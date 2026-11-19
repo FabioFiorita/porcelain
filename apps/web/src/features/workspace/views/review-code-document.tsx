@@ -144,14 +144,10 @@ export function ReviewCodeDocument({
   const loading = !quiet && (diffs.pending || untracked.pending);
   const failed =
     (diffs.failed || untracked.failed) &&
-    items.some((item) =>
-      item.comparisons.some((change) =>
-        change.scope === 'untracked'
-          ? textOf(change.path) === undefined
-          : diffSelection(change) !== undefined &&
-            patchOf(change) === undefined,
-      ),
-    );
+    !diffs.pending &&
+    !untracked.pending &&
+    kept.size === 0 &&
+    keptText.size === 0;
   const notes = new Map(files.map((file) => [file.path, file.note]));
   const unrenderable = items.flatMap((item) => {
     const reasons = item.comparisons.flatMap((change) => {

@@ -4,11 +4,21 @@ export const atomRegistry = Atom.make((get) => get.registry);
 
 export const navigatorFocusPending = Atom.make(false).pipe(Atom.keepAlive);
 
+export type PendingRegion = {
+  id: string;
+  label: string;
+  element: HTMLElement;
+  box: { left: number; top: number; width: number; height: number };
+};
+
 export const pendingRegions = Atom.make<{
-  labels: readonly string[];
-  episode: number;
+  regions: readonly PendingRegion[];
+  last: PendingRegion | undefined;
+  startedAt: number;
   idleSince: number;
-}>({ labels: [], episode: 0, idleSince: 0 }).pipe(Atom.keepAlive);
+}>({ regions: [], last: undefined, startedAt: 0, idleSince: 0 }).pipe(
+  Atom.keepAlive,
+);
 
 export const mediaQuery = Atom.family((query: string) =>
   Atom.make((get) => {

@@ -95,7 +95,17 @@
 }
 
 .pending-appear {
-  animation: pending-appear 200ms ease-out 400ms backwards;
+  animation: pending-appear 200ms ease-out backwards;
+}
+
+@keyframes pending-leave {
+  to {
+    visibility: hidden;
+  }
+}
+
+.pending-linger {
+  animation: pending-leave 1ms linear 500ms forwards;
 }
 
 .pairing-page {

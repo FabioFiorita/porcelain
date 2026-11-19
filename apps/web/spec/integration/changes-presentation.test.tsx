@@ -122,3 +122,39 @@ test('a failed automatic patch refresh keeps the last patch without an alert', a
     )
     .not.toBeInTheDocument();
 });
+
+test('a file that appears during a refused refresh raises no alert', async ({
+  repo,
+  render,
+  fetchGate,
+  server,
+}) => {
+  await repo.write(repo.readme.path, repo.readme.committed);
+  await repo.write('notes.txt', 'First notes\n');
+  await repo.commit('Add notes');
+  await repo.write(repo.readme.path, repo.readme.changed);
+  const project = await server.project();
+  const worktree = project.worktrees.find((entry) => entry.main);
+  if (!worktree) throw new Error('The fixture has no main worktree.');
+  const refusals = fetchGate.failChangeDiffs();
+  const app = await render.route(
+    `/${project.id}/${worktree.id}?entry=all-changes`,
+  );
+  await expect
+    .element(app.page.getByText('A change to review.', { exact: true }))
+    .toBeVisible();
+  refusals.start();
+  await repo.write('notes.txt', 'First notes\nLater notes\n');
+  await expect
+    .element(app.page.getByText('notes.txt', { exact: true }).first())
+    .toBeVisible();
+  await expect
+    .poll(() => refusals.refused(), { timeout: 10_000 })
+    .toBeGreaterThan(0);
+  await expect
+    .element(app.page.getByRole('button', { name: 'Try again', exact: true }))
+    .not.toBeInTheDocument();
+  await expect
+    .element(app.page.getByText('A change to review.', { exact: true }))
+    .toBeVisible();
+});
