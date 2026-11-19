@@ -12,6 +12,7 @@ import {
   reconcileNavigatorStatusNotices,
   navigatorFilterSections,
   navigatorWorktreeOrder,
+  navigatorDisplayTitle,
   type NavigatorEntry,
 } from '../rules/worktree-navigator.ts';
 import { worktreeLabel, type Project } from '../rules/inventory.ts';
@@ -48,7 +49,7 @@ function inventoryEntries(input: ProjectInput): NavigatorEntry[] {
   const { project, connection, environmentName } = input;
   return project.worktrees
     .map((worktree): NavigatorEntry => {
-      const title = worktree.walkthroughTitle || worktree.pullRequestTitle;
+      const displayTitle = navigatorDisplayTitle(worktree);
       return {
         key: `${connection.environmentId}/${project.id}/${worktree.id}`,
         kind: 'worktree',
@@ -62,11 +63,14 @@ function inventoryEntries(input: ProjectInput): NavigatorEntry[] {
           worktree.branch ??
           worktree.path.split('/').filter(Boolean).at(-1) ??
           worktree.path,
-        displayTitle: title !== worktree.branch ? title : undefined,
+        displayTitle,
         branch: worktreeLabel(worktree.branch),
         main: worktree.main,
         ...(worktree.headCommittedAt
           ? { headCommittedAt: worktree.headCommittedAt }
+          : {}),
+        ...(worktree.uncommittedChangedAt
+          ? { uncommittedChangedAt: worktree.uncommittedChangedAt }
           : {}),
         detached: !worktree.branch,
         available: project.available && worktree.available,
@@ -90,12 +94,9 @@ const readProjectEntries = Atom.family(
         (project) => project.id === input.projectId,
       );
       if (!inventory || !savedProject) return { entries: [], messages: [] };
-      const project: Project = AsyncResult.isFailure(inventoryResult)
-        ? { ...savedProject, available: false }
-        : savedProject;
       const entries = inventoryEntries({
         ...input,
-        project,
+        project: savedProject,
         environmentName: inventory.environment.name,
       });
       const result = get(readProjectPullRequests(input));
@@ -111,21 +112,29 @@ const readProjectEntries = Atom.family(
           )?.pullRequest;
           entry.pullRequest =
             known?.state === 'available'
-              ? { state: 'available', number: known.number }
+              ? {
+                  state: 'available',
+                  number: known.number,
+                  merged: known.merged,
+                }
               : { state: 'unavailable' };
         } else if (answer?.kind === 'available') {
           const pull = answer.pullRequests.find(
             (pull) => pull.headBranch === entry.branch,
           );
           entry.pullRequest = pull
-            ? { state: 'available', number: pull.number }
+            ? {
+                state: 'available',
+                number: pull.number,
+                merged: pull.state === 'merged',
+              }
             : { state: 'none' };
         }
       }
       return {
         entries,
         messages: AsyncResult.isFailure(result)
-          ? [`Pull requests for ${project.name} could not be read.`]
+          ? [`Pull requests for ${savedProject.name} could not be read.`]
           : [],
       };
     }).pipe(Atom.setIdleTTL(0)),
@@ -155,20 +164,19 @@ const readNavigatorProject = Atom.family(
               detail: Option.getOrUndefined(Cause.findErrorOption(status.cause))
                 ?.message,
             });
-          entry.changes = AsyncResult.isFailure(status)
-            ? { state: 'unavailable' }
-            : answer
-              ? {
-                  state: 'available',
-                  count: new Set(
-                    answer.changes.map((change) =>
-                      change.scope === 'untracked' ||
-                      change.scope === 'unmerged'
-                        ? change.path
-                        : (change.newPath ?? change.oldPath),
-                    ),
-                  ).size,
-                }
+          entry.changes = answer
+            ? {
+                state: 'available',
+                count: new Set(
+                  answer.changes.map((change) =>
+                    change.scope === 'untracked' || change.scope === 'unmerged'
+                      ? change.path
+                      : (change.newPath ?? change.oldPath),
+                  ),
+                ).size,
+              }
+            : AsyncResult.isFailure(status)
+              ? { state: 'unavailable' }
               : { state: 'loading' };
         }
         return entry;
@@ -196,6 +204,10 @@ function connectionInventories(
   return {
     reads,
     loading: reads.some(({ result }) => AsyncResult.isInitial(result)),
+    neverRead: reads.some(
+      ({ result, inventory }) =>
+        AsyncResult.isFailure(result) && inventory === undefined,
+    ),
     messages: reads.flatMap(({ result, inventory }) =>
       AsyncResult.isFailure(result)
         ? [
@@ -224,10 +236,7 @@ function navigator(connections: readonly RuntimeConnection[]) {
     for (const { connection, result, inventory } of inventories.reads) {
       if (AsyncResult.isSuccess(result))
         readEnvironments.push(connection.environmentId);
-      for (const savedProject of inventory?.projects ?? []) {
-        const project: Project = AsyncResult.isFailure(result)
-          ? { ...savedProject, available: false }
-          : savedProject;
+      for (const project of inventory?.projects ?? []) {
         const key = `${connection.environmentId}/${project.id}`;
         all.push({
           key,
@@ -334,7 +343,13 @@ function navigator(connections: readonly RuntimeConnection[]) {
         failures,
       })),
       recoveredKeys: observedEntries
-        .filter((entry) => entry.changes.state === 'available')
+        .filter(
+          (entry) =>
+            entry.changes.state === 'available' &&
+            !statusIssues.some((issue) =>
+              issue.failures.some((failure) => failure.entry.key === entry.key),
+            ),
+        )
         .map((entry) => entry.key),
       inventoryKeys: all.flatMap((source) =>
         source.project.worktrees.map(
@@ -351,6 +366,7 @@ function navigator(connections: readonly RuntimeConnection[]) {
       statusIssues: get(worktreeStatusNotices),
       filters,
       loading: inventories.loading || detailsLoading,
+      neverRead: inventories.neverRead,
       messages: [...new Set(messages)],
     };
   });

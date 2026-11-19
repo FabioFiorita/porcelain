@@ -50,9 +50,6 @@ for (const [width, colorScheme] of [
       has: page.getByRole('button', { name: /^clean-topic,/ }),
     });
     await expect(clean).toHaveText('clean-topic');
-    await expect(
-      clean.getByRole('button', { name: /Working tree clean/ }),
-    ).toBeVisible();
     for (const folder of ['detached-531', 'detached-532']) {
       const target = project.worktrees.find((row) =>
         row.path.endsWith(`/${folder}`),
@@ -81,14 +78,13 @@ for (const [width, colorScheme] of [
           .getByRole('button', { name: 'Toggle Sidebar', exact: true })
           .click();
       await expect(row).toHaveAttribute('aria-current', 'page');
-      const selectedCard = cards.filter({
-        has: page.getByRole('button', {
-          name: new RegExp(`${folder}.*Detached HEAD`),
-        }),
-      });
       await expect(
-        selectedCard.getByText('Detached', { exact: true }),
-      ).toBeVisible();
+        cards.filter({
+          has: page.getByRole('button', {
+            name: new RegExp(`${folder}.*Detached HEAD`),
+          }),
+        }),
+      ).toHaveText(folder);
     }
     const search = sidebar.getByRole('searchbox', {
       name: 'Search worktrees',

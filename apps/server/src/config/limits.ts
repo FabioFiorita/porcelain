@@ -183,6 +183,8 @@ export type Limits = {
   inventory: {
     listingLaunches: number;
     listingTimeout: Duration.Duration;
+    activityReads: number;
+    activityBudget: Duration.Duration;
     staleAfterMs: number;
   };
   lanes: { readCapacity: number; operationTimeout: Duration.Duration };
@@ -418,6 +420,8 @@ export const LIMITS: Limits = {
   inventory: {
     listingLaunches: 4,
     listingTimeout: Duration.seconds(5),
+    activityReads: 2,
+    activityBudget: Duration.seconds(20),
     staleAfterMs: 60 * SECOND_MS,
   },
   lanes: { readCapacity: 4, operationTimeout: Duration.seconds(30) },

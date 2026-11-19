@@ -5,7 +5,7 @@ import {
 } from '@porcelain/contracts/access';
 import { expect } from 'vitest';
 import { apiError, invalidRequest, unauthenticated } from '../kit/answers.ts';
-import { watching } from '../kit/reads.ts';
+import { inventoryNotice, watching } from '../kit/reads.ts';
 import { pairDevice, read } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
 import type { HttpRequest, Session } from '../kit/session.ts';
@@ -84,9 +84,9 @@ test('a computer starts unconfigured, refuses a single change, and the first imp
     settings: imported,
   });
   expect(await read(session, current)).toStrictEqual(response.body);
-  expect(
-    await connection.next((entry) => entry.type === 'inventory'),
-  ).toStrictEqual({ type: 'inventory' });
+  expect(await connection.next(inventoryNotice)).toStrictEqual({
+    type: 'inventory',
+  });
 });
 
 test('a later import keeps the settings the computer already has', async ({

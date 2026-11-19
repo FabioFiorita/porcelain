@@ -17,6 +17,7 @@ it('retains search, combined filters and independent project expansion across na
       environments: ['computer'],
     },
     expanded: { 'computer/project': true, 'other/project': false },
+    showingAll: {},
   };
   try {
     const unmount = registry.mount(worktreeNavigatorState);
@@ -42,6 +43,7 @@ it('starts an independent client session with all projects and environments sele
       query: 'old search',
       filter: { projects: [], environments: [] },
       expanded: { old: false },
+      showingAll: {},
     });
     expect(next.get(worktreeNavigatorState)).toEqual({
       query: '',
@@ -50,6 +52,7 @@ it('starts an independent client session with all projects and environments sele
         environments: undefined,
       },
       expanded: {},
+      showingAll: {},
     });
   } finally {
     first.dispose();

@@ -12,3 +12,4 @@ export { SetFilePreferenceOptions } from './set-file-preference-options.ts';
 export { ListedWorktreeAccessReader } from './listed-worktree-access-reader.ts';
 
 export { BranchArchiver } from './branch-archiver.ts';
+export { WorktreeActivityReader } from './worktree-activity-reader.ts';

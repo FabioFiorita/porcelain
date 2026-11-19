@@ -1,4 +1,5 @@
 export { listWorktrees } from './commands/list-worktrees.ts';
+export { readUncommittedChangedAt } from './commands/read-uncommitted-changed-at.ts';
 export { readOriginUrl } from './commands/read-origin-url.ts';
 export { readGitVersion } from './commands/read-git-version.ts';
 export { identity } from '../shared/commands/identity.ts';

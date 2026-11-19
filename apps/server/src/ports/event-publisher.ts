@@ -17,7 +17,7 @@ export type FilesChangedNotice = {
 };
 
 export interface EventPublisher {
-  inventoryChanged(): Effect.Effect<void>;
+  inventoryChanged(change?: 'activity'): Effect.Effect<void>;
   projectChanged(input: ProjectChangedNotice): Effect.Effect<void>;
   worktreeChanged(input: WorktreeChangedNotice): Effect.Effect<void>;
   filesChanged(input: FilesChangedNotice): Effect.Effect<void>;

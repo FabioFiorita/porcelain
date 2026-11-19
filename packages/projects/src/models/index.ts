@@ -36,3 +36,7 @@ export {
 } from './project-unavailable-reason.ts';
 
 export * from './archive-branch.ts';
+export type {
+  WorktreeActivity,
+  WorktreeActivityTarget,
+} from './worktree-activity.ts';

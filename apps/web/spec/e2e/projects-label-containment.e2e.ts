@@ -1,9 +1,9 @@
 import { expect, test } from './fixtures.ts';
 import { archiveFixture } from '../kit/archive-fixture.ts';
-import { navigatorBranchIsContained } from '../kit/navigator.ts';
+import { navigatorLabelIsContained } from '../kit/navigator.ts';
 
 for (const width of [1440, 414]) {
-  test(`titled worktree branches stay inside hovered and selected cards at ${width}px`, async ({
+  test(`a titled worktree reads as one line inside its card and discloses its branch at ${width}px`, async ({
     pairedPage: page,
     server,
     app,
@@ -23,14 +23,14 @@ for (const width of [1440, 414]) {
     });
     if (width === 414) await toggle.click();
     const row = page.getByRole('button', {
-      name: new RegExp(`^${branch},`),
+      name: new RegExp(`^Completed archive fixture, ${branch}, `),
     });
     const card = page.getByRole('listitem').filter({ has: row });
-    const label = card.getByText(branch, { exact: true });
+    const label = card.getByText('Completed archive fixture', { exact: true });
+    await expect(card).toHaveText('Completed archive fixture#423 merged');
     await expect(
-      card.getByText('Completed archive fixture', { exact: true }),
+      card.getByRole('button', { name: /^Open PR #423 · / }),
     ).toBeVisible();
-    await expect(label).toBeVisible();
     for (const selected of [false, true]) {
       if (selected) {
         await row.click();
@@ -39,8 +39,17 @@ for (const width of [1440, 414]) {
       } else await expect(row).not.toHaveAttribute('aria-current');
       await card.hover();
       await expect
-        .poll(() => label.evaluate(navigatorBranchIsContained))
+        .poll(() => label.evaluate(navigatorLabelIsContained))
         .toBe(true);
     }
+    await row.focus();
+    await page.keyboard.press('Shift+Tab');
+    await page.keyboard.press('Tab');
+    await expect(row).toBeFocused();
+    await expect(
+      page.getByRole('tooltip', {
+        name: new RegExp(`^Completed archive fixture · ${branch} · /`),
+      }),
+    ).toBeVisible();
   });
 }

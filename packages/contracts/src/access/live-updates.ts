@@ -30,7 +30,10 @@ export const liveNoticeSchema = Schema.Union([
   Schema.Struct({ type: Schema.Literal('ready') }),
   Schema.Struct({ type: Schema.Literal('subscribed') }),
   Schema.Struct({ type: Schema.Literal('heartbeat') }),
-  Schema.Struct({ type: Schema.Literal('inventory') }),
+  Schema.Struct({
+    type: Schema.Literal('inventory'),
+    change: Schema.optionalKey(Schema.Literal('activity')),
+  }),
   Schema.Struct({
     type: Schema.Literal('walkthrough'),
     change: Schema.Literals(['run', 'conversations']),

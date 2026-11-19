@@ -12,13 +12,12 @@ export function pullRequestAction(
   });
 }
 
-export function navigatorBranchIsContained(element: {
+export function navigatorLabelIsContained(element: {
   closest(selector: string): {
     getBoundingClientRect(): { left: number; right: number };
   } | null;
   getBoundingClientRect(): { left: number; right: number };
   clientWidth: number;
-  scrollWidth: number;
 }) {
   const card = element.closest('[data-navigator-card]');
   if (!card) return false;
@@ -27,7 +26,6 @@ export function navigatorBranchIsContained(element: {
   return (
     inner.left >= outer.left &&
     inner.right <= outer.right &&
-    element.clientWidth > 0 &&
-    element.scrollWidth > element.clientWidth
+    element.clientWidth > 0
   );
 }
