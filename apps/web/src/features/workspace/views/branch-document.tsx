@@ -37,6 +37,7 @@ import {
 import { CodeDocument } from './code-document';
 import { DocumentToolbar } from './document-toolbar';
 import { ReadMoreFiles } from './read-more-files';
+import { ReservedCode } from './reserved-code';
 import { MarkAllReviewed, ReviewedControl } from './reviewed-control';
 import { StateNotice } from '@/shared/views/state-notice';
 import { branchFilesShown } from '../store';
@@ -308,6 +309,8 @@ function BranchDiffs({
   const uncommitted = overview?.changes.length ?? 0;
   const [first] = items;
   const singleHeader = heading !== undefined;
+  if (interaction.quiet === true && entries.length === 0 && diffs.pending)
+    return <ReservedCode count={reached.length} />;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">

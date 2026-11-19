@@ -537,3 +537,40 @@ test('a failed branch comparison never reads as no changes in Review', async ({
     .element(app.page.getByRole('button', { name: 'Try again', exact: true }))
     .toBeVisible();
 });
+
+test('Review offers no review or discard on a patch it is still replacing', async ({
+  repo,
+  render,
+  fetchGate,
+}) => {
+  const held = fetchGate.holdNextPost('/changes/diffs');
+  const app = await render.route('/');
+  const local = reviewCode(app.page, 'uncommitted');
+  const mark = local.getByRole('button', {
+    name: `Mark ${repo.readme.path} as reviewed`,
+    exact: true,
+  });
+  await expect
+    .element(local.getByText('A change to review.', { exact: true }))
+    .toBeVisible();
+  await expect.element(mark).toBeVisible();
+  held.arm();
+  try {
+    await repo.write(
+      repo.readme.path,
+      '# Sample repository\n\nA newer edit.\n',
+    );
+    await held.requested;
+    await expect
+      .element(local.getByText('A change to review.', { exact: true }))
+      .toBeVisible();
+    await expect.element(mark).not.toBeInTheDocument();
+    held.release();
+    await expect
+      .element(local.getByText('A newer edit.', { exact: true }))
+      .toBeVisible();
+    await expect.element(mark).toBeVisible();
+  } finally {
+    held.release();
+  }
+});

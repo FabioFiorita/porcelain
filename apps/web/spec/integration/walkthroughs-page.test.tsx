@@ -881,3 +881,40 @@ test('a long walkthrough loads a step code only when the step comes near view', 
     .element(far.getByText('Step 30 line 1', { exact: true }))
     .toBeVisible();
 });
+
+test('a deferred step loads its code once it becomes visible without a scroll', async ({
+  repo,
+  codingTool,
+  render,
+}) => {
+  await browserPage.viewport(1280, 896);
+  try {
+    await repo.branch('wide-base');
+    await repo.branch('wide-feature');
+    await repo.switch('wide-feature');
+    for (let file = 1; file <= 26; file += 1) {
+      const name = String(file).padStart(2, '0');
+      await repo.write(`wide-${name}.md`, `Wide ${name} line\n`);
+    }
+    await repo.commit('Add many small step files');
+    await codingTool.install();
+    const app = await render.route('/?base=refs%2Fheads%2Fwide-base');
+    const page = app.page;
+    await page
+      .getByRole('button', { name: 'Write walkthrough', exact: true })
+      .click();
+    const far = page
+      .getByRole('group', { name: /^Code: Step \d+$/ })
+      .filter({ hasText: 'wide-26.md' });
+    await expect.element(far).toBeInTheDocument();
+    await expect
+      .element(far.getByRole('region', { name: /^Step \d+: branch$/ }))
+      .not.toBeInTheDocument();
+    await browserPage.viewport(1280, 30000);
+    await expect
+      .element(far.getByText('Wide 26 line', { exact: true }))
+      .toBeVisible();
+  } finally {
+    await browserPage.viewport(414, 896);
+  }
+});

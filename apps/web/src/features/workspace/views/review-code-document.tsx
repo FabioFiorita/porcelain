@@ -35,6 +35,7 @@ import {
   type ReviewScope,
 } from '@porcelain/client/changes/rules';
 import { CodeDocument, type CodeHeaderControls } from './code-document';
+import { ReservedCode } from './reserved-code';
 import { fileReviewControl, ReviewedControl } from './reviewed-control';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
@@ -128,11 +129,17 @@ export function ReviewCodeDocument({
   const [kept, setKept] = useState(diffs.diffs);
   if (quiet && !diffs.pending && !diffs.failed && kept !== diffs.diffs)
     setKept(diffs.diffs);
+  const livePatch = (change: Change): DiffContent | undefined => {
+    const selection = diffSelection(change);
+    return selection ? diffs.diffs.get(selectionKey(selection)) : undefined;
+  };
   const patchOf = (change: Change): DiffContent | undefined => {
     const selection = diffSelection(change);
     if (!selection) return undefined;
-    const key = selectionKey(selection);
-    return diffs.diffs.get(key) ?? (quiet ? kept.get(key) : undefined);
+    return (
+      livePatch(change) ??
+      (quiet ? kept.get(selectionKey(selection)) : undefined)
+    );
   };
   const loading = !quiet && (diffs.pending || untracked.pending);
   const failed = diffs.failed || untracked.failed;
@@ -160,6 +167,7 @@ export function ReviewCodeDocument({
       if (change.scope === 'untracked') {
         const text = textOf(change.path);
         if (text === undefined) return [];
+        const current = untracked.contents.has(change.path);
         return [
           {
             ...fileEntry(
@@ -168,7 +176,7 @@ export function ReviewCodeDocument({
               text,
               notes.get(item.path) ?? 'untracked',
             ),
-            review,
+            ...(current ? { review } : {}),
           },
         ];
       }
@@ -176,13 +184,13 @@ export function ReviewCodeDocument({
       const content = focusedDiff(patchOf(change), focus?.[item.path]);
       const entry = content ? diffEntry(change, content) : null;
       const note = notes.get(item.path);
+      const current = livePatch(change) !== undefined;
       return entry
         ? [
             {
               ...entry,
               ...(note ? { note } : {}),
-              review,
-              discardScope: change.scope,
+              ...(current ? { review, discardScope: change.scope } : {}),
             },
           ]
         : [];
@@ -241,6 +249,8 @@ export function ReviewCodeDocument({
         )
       : undefined;
 
+  if (quiet && entries.length === 0 && (diffs.pending || untracked.pending))
+    return <ReservedCode count={items.length} />;
   return (
     <CodeDocument
       fullHeight={fullHeight}

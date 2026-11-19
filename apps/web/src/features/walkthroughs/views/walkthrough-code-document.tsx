@@ -164,23 +164,20 @@ export function ReviewCode({
   );
 }
 
-const NEAR_PIXELS = 1200;
-
 function whenNear(onNear: () => void) {
   return (element: HTMLElement | null) => {
-    const scroller = element?.closest<HTMLElement>('[data-review-scroll]');
-    if (!element || !scroller) return;
-    const check = () => {
-      const view = scroller.getBoundingClientRect();
-      const box = element.getBoundingClientRect();
-      if (
-        box.top < view.bottom + NEAR_PIXELS &&
-        box.bottom > view.top - NEAR_PIXELS
-      )
-        onNear();
-    };
-    scroller.addEventListener('scroll', check, { passive: true });
-    return () => scroller.removeEventListener('scroll', check);
+    if (!element) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) onNear();
+      },
+      {
+        root: element.closest<HTMLElement>('[data-review-scroll]'),
+        rootMargin: '600px 0px',
+      },
+    );
+    observer.observe(element);
+    return () => observer.disconnect();
   };
 }
 
