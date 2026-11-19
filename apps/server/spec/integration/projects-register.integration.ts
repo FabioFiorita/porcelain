@@ -100,7 +100,7 @@ test('registering a missing folder or a folder that is not a repository cannot b
   expect(await inventory(session)).toStrictEqual(before);
 });
 
-test('reconnecting a replaced repository retains the project, isolates fresh review marks and preserves the original marks', async ({
+test('reconnecting to a partial listing keeps the project and isolates the previous repository’s review marks', async ({
   session,
 }) => {
   const before = await inventory(session);
@@ -144,6 +144,19 @@ test('reconnecting a replaced repository retains the project, isolates fresh rev
         })
       ).status,
     ).toBe(422);
+    await session.git('config', 'user.name', 'Fixture');
+    await session.git('config', 'user.email', 'fixture@example.invalid');
+    await session.git('commit', '--allow-empty', '-m', 'Replacement');
+    const linked = `${session.projectHome}/unidentified`;
+    await session.git('worktree', 'add', '-b', 'unidentified', linked);
+    const admin = `${session.repository}/.git/worktrees/unidentified`;
+    const externalAdmin = `${session.projectHome}/unidentified-git`;
+    await session.rename(admin, externalAdmin);
+    await session.symlink(externalAdmin, admin);
+    expect(await session.git('worktree', 'list', '--porcelain')).toContain(
+      `worktree ${linked}`,
+    );
+
     const connected = await session.send({
       method: 'POST',
       path: '/api/projects',
@@ -161,14 +174,16 @@ test('reconnecting a replaced repository retains the project, isolates fresh rev
       path: `/api/worktrees/${text(replacement.id)}/reviewed`,
     });
     expect(newMarks.body).toMatchObject({ marks: [] });
-    expect(
-      (
-        await session.send({
-          method: 'GET',
-          path: worktreePath(session, '/reviewed'),
-        })
-      ).status,
-    ).not.toBe(200);
+    const oldMarks = await session.send({
+      method: 'GET',
+      path: worktreePath(session, '/reviewed'),
+    });
+    expect({
+      oldMarksStatus: oldMarks.status,
+      worktreeIds: list(record(connected.body).worktrees).map(
+        (worktree) => record(worktree).id,
+      ),
+    }).toEqual({ oldMarksStatus: 404, worktreeIds: [replacement.id] });
     expect(list((await inventory(session)).projects)).toHaveLength(
       list(before.projects).length,
     );

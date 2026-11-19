@@ -28,9 +28,9 @@ export class ListProjectWorktreesService extends Context.Service<
           input: ListProjectWorktreesInput,
         ): Effect.fn.Return<ListProjectWorktreesResult, never> {
           const listing = yield* worktreeListingCapability.list(input.project);
-          const previous = worktreeCatalogCapability.lastSeen({
-            projectId: listing.projectId,
-          });
+          const previous = worktreeCatalogCapability
+            .lastSeen({ projectId: listing.projectId })
+            .filter((worktree) => !repositoryMoved(input.project, worktree));
           const moved =
             listing.kind !== 'unavailable' &&
             repositoryMoved(input.project, listing);
@@ -57,7 +57,11 @@ export class ListProjectWorktreesService extends Context.Service<
           }
           const observation = worktreeCatalogCapability
             .listObservations()
-            .find((entry) => entry.id === listing.projectId);
+            .find(
+              (entry) =>
+                entry.id === listing.projectId &&
+                !repositoryMoved(input.project, entry),
+            );
           if (
             listing.kind === 'inconclusive' &&
             !moved &&

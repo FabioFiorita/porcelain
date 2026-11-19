@@ -204,6 +204,60 @@ test('a Git listing timeout keeps the project and its checkouts available until 
   expect(await projects()).toEqual([{ ...project, worktrees: [main] }]);
 });
 
+test('a retained worktree id cannot write to the repository that replaced its checkout', async ({
+  session,
+}) => {
+  const checkout = join(session.projectHome, 'retained');
+  const saved = join(session.projectHome, 'retained-saved');
+  const pending = join(
+    session.repository,
+    '.git',
+    'worktrees',
+    'pending-write',
+  );
+  const refresh = { method: 'POST', path: '/api/inventory/refresh' } as const;
+  const listed = async () =>
+    list(record(list((await read(session, refresh)).projects)[0]).worktrees)
+      .map(record)
+      .find((worktree) => worktree.path === checkout);
+
+  await session.git('worktree', 'add', '-b', 'retained', checkout);
+  const original = await listed();
+  const id = original?.id;
+  if (typeof id !== 'string')
+    throw new Error('The linked checkout was not listed');
+
+  await mkdir(pending);
+  try {
+    execFileSync('mkfifo', [join(pending, 'gitdir')]);
+    await session.rename(checkout, saved);
+    try {
+      await session.git('init', '-b', 'replacement', checkout);
+      const before = await session.entries(checkout);
+      expect(await listed()).toMatchObject({ id, available: true });
+      const response = await session.send({
+        method: 'POST',
+        path: `/api/worktrees/${id}/files`,
+        body: { kind: 'create', path: 'new.md', entryKind: 'file' },
+      });
+      expect({
+        status: response.status,
+        entries: await session.entries(checkout),
+      }).toEqual({
+        status: 409,
+        entries: before,
+      });
+    } finally {
+      await rm(checkout, { recursive: true, force: true });
+      await session.rename(saved, checkout);
+    }
+  } finally {
+    await rm(pending, { recursive: true, force: true });
+    await session.git('worktree', 'remove', checkout);
+    await read(session, refresh);
+  }
+});
+
 test('a project whose folder has gone away stays registered as unavailable and is available again once the folder is back', async ({
   session,
 }) => {

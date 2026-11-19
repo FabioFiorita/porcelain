@@ -38,10 +38,7 @@ import {
   verifyPath,
 } from './inspect-path.ts';
 import { openGuardedFile, syscall } from './guarded-filesystem-syscalls.ts';
-import {
-  listedWorktreeEffect,
-  type ListedWorktrees,
-} from '../projects/checkout-session.ts';
+import type { ListedWorktrees } from '../projects/checkout-session.ts';
 
 type Source = {
   info: BigIntStats;
@@ -122,11 +119,10 @@ export const filesystemFileWriterLayer = (
     const locate = Effect.fn('FilesystemFileWriter.locate')(function* (
       location: FileLocation,
     ) {
-      const checkout = yield* listedWorktreeEffect(
-        worktrees,
-        location.worktreeId,
-      ).pipe(Effect.orDie);
-      return { root: checkout.path, path: location.path };
+      const check = yield* worktrees.known({ worktreeId: location.worktreeId });
+      if (check.kind !== 'found' || !check.worktree.available)
+        return yield* pathRefused('changed');
+      return { root: check.worktree.path, path: location.path };
     });
     const attempt = (
       worktreeId: string,
