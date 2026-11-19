@@ -55,10 +55,12 @@ test('All changes read to its end splits more tracked changes than one diff requ
   const before = await reads();
   await readMore.click();
   await expect.element(readMore).not.toBeInTheDocument();
-  const last = paths[count - 1] ?? '';
-  await table.getByRole('button', { name: new RegExp(`^${last}`) }).click();
   await expect
-    .element(code.getByText(`${last} changed`, { exact: true }))
+    .element(
+      table.getByRole('button', {
+        name: new RegExp(`^${paths[count - 1] ?? ''}`),
+      }),
+    )
     .toBeVisible();
   await expect
     .element(

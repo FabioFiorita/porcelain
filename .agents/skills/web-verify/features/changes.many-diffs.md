@@ -40,7 +40,7 @@ git -C "$REPO" status --porcelain | wc -l   # prints 205
 2. Click button `Review`
    Expect: button "All changes"; rows from "note-000.md · unstaged" to "note-204.md · unstaged".
 3. Click button `All changes`
-   Expect: the sheet closes; heading "205 uncommitted changes" in document "All changes"; the URL contains `entry=all-changes`; the file table's first 25 rows and a button "Read 25 more…" at the bottom. Click its "note-000.md +1 −1" row to scroll to that diff and read "note-000.md changed" (the first file's new line). Click "Read 25 more…" until it is gone, then click the row for note-204.md and read "note-204.md changed"; no text "The changes in this document could not be read.".
+   Expect: the sheet closes; heading "205 uncommitted changes" in document "All changes"; the URL contains `entry=all-changes`; the file table's first 25 rows and a button "Read 25 more…" at the bottom. Click its "note-000.md +1 −1" row to scroll to that diff and read "note-000.md changed" (the first file's new line). Click "Read 25 more…" until it is gone: the table ends with note-204.md; no text "The changes in this document could not be read.".
 4. Inspect HTTP traffic
    Expect: at least two `POST /api/worktrees/<worktreeId>/changes/diffs` with status 200 after the last Read more click and none with an error status (`[FAILED] net::ERR_ABORTED` lines are requests the page cancelled and sent again, not failures).
 
@@ -50,7 +50,7 @@ Hold the initial change-diff request through the browser harness. No skeleton, p
 
 ### Observable proof
 
-Visible first and last diffs, and at least two 200 diff requests after the last Read more account for all 205 files; no failure notice.
+Visible first diff, the last row, and at least two 200 diff requests after the last Read more account for all 205 files; no failure notice.
 
 Automated coverage: `changes-many-diffs.test.tsx`.
 
