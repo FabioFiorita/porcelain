@@ -846,7 +846,7 @@ test('a long walkthrough loads a step code only when the step comes near view', 
   await repo.branch('many-base');
   await repo.branch('many-feature');
   await repo.switch('many-feature');
-  for (let file = 1; file <= 12; file += 1) {
+  for (let file = 1; file <= 30; file += 1) {
     const name = String(file).padStart(2, '0');
     await repo.write(
       `step-${name}.md`,
@@ -871,13 +871,13 @@ test('a long walkthrough loads a step code only when the step comes near view', 
     .toBeVisible();
   const far = page
     .getByRole('group', { name: /^Code: Step \d+$/ })
-    .filter({ hasText: 'step-12.md' });
+    .filter({ hasText: 'step-30.md' });
   await expect.element(far).toBeInTheDocument();
   await expect
     .element(far.getByRole('region', { name: /^Step \d+: branch$/ }))
     .not.toBeInTheDocument();
-  await far.getByText('step-12.md', { exact: true }).click();
+  await far.getByText('step-30.md', { exact: true }).click();
   await expect
-    .element(far.getByText('Step 12 line 1', { exact: true }))
+    .element(far.getByText('Step 30 line 1', { exact: true }))
     .toBeVisible();
 });

@@ -11,6 +11,7 @@ import {
   readyUpdate,
   initialWriteFailure,
   reviewCodeSections,
+  eagerSections,
   walkthroughCalls,
   walkthroughMeta,
   walkthroughEvidenceNotice,
@@ -45,6 +46,7 @@ import { WalkthroughStatus } from './walkthrough-status';
 import { WalkthroughProof } from './walkthrough-evidence';
 import { WalkthroughStart } from './walkthrough-start';
 import { ReviewCode } from './walkthrough-code-document';
+import { DIFF_WINDOW_FILES } from '@/config/limits';
 
 const scrollToId = (id: string) =>
   document
@@ -236,6 +238,7 @@ function Step({
   props,
   code,
   branch,
+  eager,
   conversation,
 }: {
   stop: WalkthroughStop;
@@ -244,6 +247,7 @@ function Step({
   props: DocumentProps;
   code: ReviewCodeFiles | undefined;
   branch: ComparedBranch | undefined;
+  eager: boolean;
   conversation: Conversation | undefined;
 }) {
   return (
@@ -283,6 +287,7 @@ function Step({
           entry={`review:step-${step}`}
           code={code}
           branch={branch}
+          eager={eager}
           label={`Step ${step}`}
         />
       )}
@@ -356,6 +361,7 @@ function Written({
           entry="review:all"
           code={code.sections.outside}
           branch={code.branch}
+          eager
           label="Every changed file"
         />
         <EarlierComments owner={owner} titles={[]} />
@@ -384,6 +390,7 @@ function Written({
             props={props}
             code={code.sections.steps[index]}
             branch={code.branch}
+            eager={code.eager.steps[index] ?? true}
             conversation={conversation}
           />
         ))}
@@ -409,6 +416,7 @@ function Written({
             entry="review:not-covered"
             code={code.sections.outside}
             branch={code.branch}
+            eager={code.eager.outside}
             label="Not covered by the steps"
           />
         </section>
@@ -477,6 +485,7 @@ function Failed({
 
 type Code = {
   sections: ReturnType<typeof reviewCodeSections>;
+  eager: ReturnType<typeof eagerSections>;
   branch: ComparedBranch | undefined;
   settled: boolean;
 };
@@ -498,12 +507,14 @@ function useReviewCode(
     hidden,
   );
   const branch = Option.getOrUndefined(AsyncResult.value(result));
+  const sections = reviewCodeSections({
+    content: content?.outcome === 'nothing' ? undefined : content,
+    branch: branch?.files ?? [],
+    worktree: changes.changes,
+  });
   return {
-    sections: reviewCodeSections({
-      content: content?.outcome === 'nothing' ? undefined : content,
-      branch: branch?.files ?? [],
-      worktree: changes.changes,
-    }),
+    sections,
+    eager: eagerSections(sections, branch !== undefined, DIFF_WINDOW_FILES),
     branch,
     settled: branch !== undefined,
   };
@@ -538,6 +549,7 @@ export function ReviewDocument(props: DocumentProps) {
       entry="review:all"
       code={code.sections.outside}
       branch={code.branch}
+      eager
       label="Every changed file"
     />
   );

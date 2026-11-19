@@ -92,15 +92,18 @@ export function ReviewCode({
   code,
   label,
   branch,
+  eager,
 }: {
   document: DocumentProps;
   entry: string;
   code: ReviewCodeFiles;
   label: string;
   branch: ComparedBranch | undefined;
+  eager: boolean;
 }) {
   const [shown, setShown] = useState(DIFF_WINDOW_FILES);
-  const [near, setNear] = useState(false);
+  const [near, setNear] = useState(eager);
+  if (eager && !near) setNear(true);
   const committed = branch ? code.branch : [];
   if (committed.length === 0 && code.worktree.length === 0) return null;
   if (!near)
@@ -161,20 +164,23 @@ export function ReviewCode({
   );
 }
 
+const NEAR_PIXELS = 1200;
+
 function whenNear(onNear: () => void) {
   return (element: HTMLElement | null) => {
-    if (!element) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) onNear();
-      },
-      {
-        root: element.closest<HTMLElement>('[data-review-scroll]'),
-        rootMargin: '1200px 0px',
-      },
-    );
-    observer.observe(element);
-    return () => observer.disconnect();
+    const scroller = element?.closest<HTMLElement>('[data-review-scroll]');
+    if (!element || !scroller) return;
+    const check = () => {
+      const view = scroller.getBoundingClientRect();
+      const box = element.getBoundingClientRect();
+      if (
+        box.top < view.bottom + NEAR_PIXELS &&
+        box.bottom > view.top - NEAR_PIXELS
+      )
+        onNear();
+    };
+    scroller.addEventListener('scroll', check, { passive: true });
+    return () => scroller.removeEventListener('scroll', check);
   };
 }
 

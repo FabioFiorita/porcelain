@@ -2,6 +2,7 @@ export {
   groupFilesByStep,
   walkthroughCodeScopes,
   reviewCodeSections,
+  eagerSections,
   plainText,
   richParts,
   stopPaths,

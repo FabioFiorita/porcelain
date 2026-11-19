@@ -292,6 +292,20 @@ export function walkthroughCodeScopes({
 
 export type ReviewCode = { branch: string[]; worktree: string[] };
 
+export function eagerSections(
+  sections: { steps: readonly ReviewCode[]; outside: ReviewCode },
+  withBranch: boolean,
+  budget: number,
+) {
+  let before = 0;
+  const take = (code: ReviewCode) => {
+    const eager = before < budget;
+    before += (withBranch ? code.branch.length : 0) + code.worktree.length;
+    return eager;
+  };
+  return { steps: sections.steps.map(take), outside: take(sections.outside) };
+}
+
 function renamePairs(
   branch: readonly CodeFile[],
   worktree: readonly CodeFile[],

@@ -4,6 +4,7 @@ import {
   firstDocument,
   walkthroughCodeScopes,
   reviewCodeSections,
+  eagerSections,
   groupFilesByStep,
   plainText,
   richParts,
@@ -715,6 +716,36 @@ describe('review code sections', () => {
         worktree: ['both.ts', 'dirty-elsewhere.ts'],
       },
     });
+  });
+});
+
+describe('eager review sections', () => {
+  const code = (branch: number, worktree: number) => ({
+    branch: Array.from({ length: branch }, (_, index) => `b${index}`),
+    worktree: Array.from({ length: worktree }, (_, index) => `w${index}`),
+  });
+
+  it('loads sections in page order until the budget of files is spent', () => {
+    expect(
+      eagerSections(
+        {
+          steps: [code(1, 1), code(1, 1), code(25, 25), code(25, 25)],
+          outside: code(3, 0),
+        },
+        true,
+        25,
+      ),
+    ).toEqual({ steps: [true, true, true, false], outside: false });
+  });
+
+  it('counts only local files until the branch comparison is known', () => {
+    expect(
+      eagerSections(
+        { steps: [code(30, 1), code(30, 1)], outside: code(0, 0) },
+        false,
+        2,
+      ),
+    ).toEqual({ steps: [true, true], outside: false });
   });
 });
 
