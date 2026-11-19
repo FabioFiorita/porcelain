@@ -37,6 +37,7 @@ export type RepoStep =
   | { kind: 'branch'; name: string }
   | { kind: 'tag'; name: string }
   | { kind: 'switch'; name: string }
+  | { kind: 'orphan'; name: string }
   | { kind: 'merge'; name: string }
   | { kind: 'worktree'; name: string }
   | { kind: 'detach-worktree'; name: string }

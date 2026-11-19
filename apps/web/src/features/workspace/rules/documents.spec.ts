@@ -1,5 +1,10 @@
 import { expect, it } from 'vitest';
-import { entryKey, parseEntry, workspaceTitle } from './documents.ts';
+import {
+  canonicalEntry,
+  entryKey,
+  parseEntry,
+  workspaceTitle,
+} from './documents.ts';
 
 it.each([
   ['files', 'Files'],
@@ -26,7 +31,7 @@ it('names a walkthrough worktree after its first document until another tab is c
   ).toBe('Add notes — sample');
   expect(
     workspaceTitle({
-      entry: 'walkthrough',
+      entry: 'review',
       surface: undefined,
       ...walkthrough,
     }),
@@ -39,9 +44,17 @@ it('names a walkthrough worktree after its first document until another tab is c
     }),
   ).toBe('Step 2 — sample');
   expect(
-    workspaceTitle({ entry: 'handoff', surface: undefined, project: 'sample' }),
-  ).toBe('Changes — sample');
+    workspaceTitle({ entry: 'review', surface: undefined, project: 'sample' }),
+  ).toBe('Review — sample');
 });
+
+it.each(['handoff', 'walkthrough', 'walkthrough-changes', 'review'])(
+  'lands an old %s link on the Review tab',
+  (entry) => {
+    expect(parseEntry(entry)).toEqual({ kind: 'review' });
+    expect(canonicalEntry(entry)).toBe('review');
+  },
+);
 
 it('restores a step tab only from a positive step number', () => {
   expect(parseEntry('walkthrough-step:3')).toEqual({

@@ -59,7 +59,7 @@ Check: `git -C "$REPO" worktree list` prints two lines, `$REPO … [main]` and `
 6. Click button `repository`
    Expect: text "Every worktree appears in the sidebar."; button "Open repository" enabled.
 7. Click button `Open repository`
-   Expect: dialog "Open project" is gone; URL `/<new projectId>/<main worktreeId>` (not `/`); title "Changes — repository"; in the sheet, project button "repository" with two worktree rows: one labelled Main worktree with aria-current=page, one labelled linked.
+   Expect: dialog "Open project" is gone; URL `/<new projectId>/<main worktreeId>` (not `/`); title "Review — repository"; in the sheet, project button "repository" with two worktree rows: one labelled Main worktree with aria-current=page, one labelled linked.
 8. Inspect HTTP traffic
    Expect: `DELETE /api/projects/<old projectId>` 200 and `POST /api/projects` 200.
 9. Go back in browser history

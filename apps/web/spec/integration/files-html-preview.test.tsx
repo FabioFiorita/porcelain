@@ -84,7 +84,7 @@ test('switching the HTML page to its source shows the markup instead of the prev
   await source.click();
   await expect.element(source).toHaveAttribute('aria-selected', 'true');
   await expect
-    .element(page.getByText(/<h1>Preview heading<\/h1>/))
+    .element(page.getByRole('tabpanel').getByText(/<h1>Preview heading<\/h1>/))
     .toBeVisible();
   await expect
     .element(page.getByText(/^Some assets could not be loaded/))

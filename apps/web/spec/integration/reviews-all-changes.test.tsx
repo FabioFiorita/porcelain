@@ -2,7 +2,7 @@ import { page, userEvent } from 'vitest/browser';
 import { expect, test } from './fixtures.tsx';
 
 for (const surface of ['Files', 'History'] as const) {
-  test(`a clean worktree keeps Changes open and reaches ${surface} from its notice`, async ({
+  test(`a clean worktree keeps Review open and reaches ${surface} from its notice`, async ({
     repo,
     render,
   }) => {
@@ -10,7 +10,7 @@ for (const surface of ['Files', 'History'] as const) {
     const workspace = await render.workspace();
     const changes = workspace
       .getByRole('tablist', { name: 'Open documents', exact: true })
-      .getByRole('tab', { name: 'Changes', exact: true });
+      .getByRole('tab', { name: 'Review', exact: true });
     await expect
       .element(
         workspace.getByRole('heading', {
@@ -24,7 +24,7 @@ for (const surface of ['Files', 'History'] as const) {
     await expect.element(changes).toBeVisible();
     await expect
       .element(
-        workspace.getByRole('button', { name: 'Close Changes', exact: true }),
+        workspace.getByRole('button', { name: 'Close Review', exact: true }),
       )
       .not.toBeInTheDocument();
     await expect
@@ -65,10 +65,11 @@ for (const surface of ['Files', 'History'] as const) {
   });
 }
 
-test('Changes lists its files above the diff, marks them reviewed and switches to the branch from the bar at desktop width', async ({
+test('All changes lists its files above the diff and marks them reviewed at desktop width', async ({
   workspace,
   repo,
   server,
+  reviewLayout,
 }) => {
   await page.viewport(1440, 900);
   try {
@@ -80,15 +81,7 @@ test('Changes lists its files above the diff, marks them reviewed and switches t
         }),
       )
       .toBeVisible();
-    const tab = workspace.getByRole('tab', { name: 'Changes', exact: true });
-    await tab.hover();
-    await expect
-      .element(
-        page
-          .getByRole('tooltip')
-          .getByText('Changes · 1 uncommitted file', { exact: true }),
-      )
-      .toBeVisible();
+    await reviewLayout.openAllChanges();
     const table = workspace.getByRole('region', {
       name: '1 uncommitted change',
       exact: true,
@@ -137,36 +130,25 @@ test('Changes lists its files above the diff, marks them reviewed and switches t
       )
       .not.toHaveAttribute('aria-current');
     await expect
-      .element(workspace.getByText('Second note', { exact: true }))
+      .element(
+        workspace
+          .getByRole('region', { name: 'Code content', exact: true })
+          .getByText('Second note', { exact: true }),
+      )
       .toBeVisible();
-
-    const compare = workspace
-      .getByRole('toolbar', { name: 'Document controls', exact: true })
-      .getByRole('tablist', { name: 'Compare', exact: true });
-    await expect
-      .element(compare.getByRole('tab', { name: 'Uncommitted', exact: true }))
-      .toHaveAttribute('aria-selected', 'true');
-    await compare.getByRole('tab', { name: 'Branch', exact: true }).click();
-    await expect.element(both).not.toBeInTheDocument();
-    await expect
-      .element(compare.getByRole('tab', { name: 'Branch', exact: true }))
-      .toHaveAttribute('aria-selected', 'true');
-    await compare
-      .getByRole('tab', { name: 'Uncommitted', exact: true })
-      .click();
-    await expect.element(both).toBeVisible();
   } finally {
     await page.viewport(414, 896);
   }
 });
 
-test('Changes keeps file shortcuts without redundant header arrows', async ({
+test('All changes keeps file shortcuts without redundant header arrows', async ({
   repo,
   render,
   reviewLayout,
 }) => {
   await repo.write('zz-notes.md', 'First note\nSecond note\n');
   const workspace = await render.workspace();
+  await reviewLayout.openAllChanges();
   const table = workspace.getByRole('region', {
     name: '2 uncommitted changes',
     exact: true,
@@ -193,11 +175,15 @@ test('Changes keeps file shortcuts without redundant header arrows', async ({
   await expect.poll(currentRows).toEqual(['zz-notes.md+2−0']);
 });
 
-test('Changes reopens a collapsed file from its table', async ({
+test('All changes reopens a collapsed file from its table', async ({
   workspace,
   repo,
+  reviewLayout,
 }) => {
-  const code = workspace.getByText('A change to review.', { exact: true });
+  await reviewLayout.openAllChanges();
+  const code = workspace
+    .getByRole('region', { name: 'Code content', exact: true })
+    .getByText('A change to review.', { exact: true });
   await expect.element(code).toBeVisible();
   await workspace
     .getByRole('button', { name: `Collapse ${repo.readme.path}`, exact: true })
@@ -210,7 +196,7 @@ test('Changes reopens a collapsed file from its table', async ({
   await expect.element(code).toBeVisible();
 });
 
-test('Changes keeps the selected file when an earlier diff finishes loading', async ({
+test('All changes keeps the selected file when an earlier diff finishes loading', async ({
   repo,
   render,
   fetchGate,
@@ -222,6 +208,7 @@ test('Changes keeps the selected file when an earlier diff finishes loading', as
   try {
     const workspace = await render.workspace();
     await held.requested;
+    await reviewLayout.openAllChanges();
     const table = workspace.getByRole('region', {
       name: '2 uncommitted changes',
       exact: true,
@@ -233,9 +220,392 @@ test('Changes keeps the selected file when an earlier diff finishes loading', as
     await expect.poll(currentRows).toEqual(['zz-notes.md+1−0']);
     held.release();
     await expect
-      .element(workspace.getByText('A change to review.', { exact: true }))
+      .element(
+        workspace
+          .getByRole('region', { name: 'Code content', exact: true })
+          .getByText('A change to review.', { exact: true }),
+      )
       .toBeInTheDocument();
     await expect.poll(currentRows).toEqual(['zz-notes.md+1−0']);
+  } finally {
+    held.release();
+  }
+});
+
+const reviewCode = (screen: typeof page, scope: 'branch' | 'uncommitted') =>
+  screen.getByRole('region', {
+    name: `Every changed file: ${scope}`,
+    exact: true,
+  });
+
+test('Review shows local changes while the branch comparison is still being read', async ({
+  render,
+  fetchGate,
+}) => {
+  const held = fetchGate.holdNextBranchRead();
+  held.arm();
+  try {
+    const app = await render.route('/');
+    await held.requested;
+    await expect
+      .element(
+        reviewCode(app.page, 'uncommitted').getByText('A change to review.', {
+          exact: true,
+        }),
+      )
+      .toBeVisible();
+  } finally {
+    held.release();
+  }
+});
+
+test('Review reads a held patch without loading words or placeholders', async ({
+  repo,
+  render,
+  fetchGate,
+}) => {
+  const held = fetchGate.holdNextChangeDiff(repo.readme.path);
+  held.arm();
+  try {
+    const app = await render.route('/');
+    await held.requested;
+    await expect
+      .element(
+        app.page.getByRole('heading', {
+          name: 'No walkthrough yet.',
+          exact: true,
+        }),
+      )
+      .toBeVisible();
+    await expect
+      .element(
+        app.page.getByRole('status', { name: 'Loading changes…', exact: true }),
+      )
+      .not.toBeInTheDocument();
+    await expect
+      .element(app.page.getByText('Loading changes…', { exact: true }))
+      .not.toBeInTheDocument();
+    held.release();
+    await expect
+      .element(
+        reviewCode(app.page, 'uncommitted').getByText('A change to review.', {
+          exact: true,
+        }),
+      )
+      .toBeVisible();
+  } finally {
+    held.release();
+  }
+});
+
+test('a first commit shows its local file in Review without a comparison error', async ({
+  repo,
+  render,
+}) => {
+  await repo.commit('Settle the sample change');
+  await repo.orphan('first');
+  await repo.write('first.md', 'The very first file\n');
+  const app = await render.route('/');
+  await expect
+    .element(
+      reviewCode(app.page, 'uncommitted').getByText('The very first file', {
+        exact: true,
+      }),
+    )
+    .toBeVisible();
+  await expect
+    .element(
+      app.page.getByText('The branch could not be compared. Try again.', {
+        exact: true,
+      }),
+    )
+    .not.toBeInTheDocument();
+  await expect
+    .element(app.page.getByRole('button', { name: 'Try again', exact: true }))
+    .not.toBeInTheDocument();
+});
+
+test('Review reads more local files only when asked', async ({
+  repo,
+  render,
+}) => {
+  for (let index = 0; index < 30; index += 1)
+    await repo.write(
+      `note-${String(index).padStart(2, '0')}.md`,
+      `Note number ${index}\n`,
+    );
+  const app = await render.route('/');
+  const local = reviewCode(app.page, 'uncommitted');
+  await expect
+    .element(local.getByText('Note number 23', { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(local.getByText('Note number 29', { exact: true }))
+    .not.toBeInTheDocument();
+  await local
+    .getByRole('button', { name: 'Read 6 more of 6', exact: true })
+    .click();
+  await expect
+    .element(local.getByText('Note number 29', { exact: true }))
+    .toBeVisible();
+});
+
+test('a hidden Review reads no patches until it is shown again', async ({
+  repo,
+  render,
+  server,
+}) => {
+  await repo.write('guide.txt', 'A committed guide\n');
+  await repo.commit('Add a guide');
+  await repo.write(repo.readme.path, '# Sample repository\n\nBefore\n');
+  const project = await server.project();
+  const worktree = project.worktrees.find((entry) => entry.main);
+  if (!worktree) throw new Error('The fixture has no main worktree.');
+  const app = await render.route(`/${project.id}/${worktree.id}`);
+  const local = reviewCode(app.page, 'uncommitted');
+  await expect
+    .element(local.getByText('Before', { exact: true }))
+    .toBeVisible();
+  await app.navigate(`/${project.id}/${worktree.id}?entry=file:guide.txt`);
+  await expect
+    .element(app.page.getByRole('heading', { name: 'guide.txt', exact: true }))
+    .toBeVisible();
+  const lists = (await server.changeListHits()).length;
+  const patches = (await server.changeDiffHits()).length;
+  await repo.write(repo.readme.path, '# Sample repository\n\nAfter\n');
+  await expect
+    .poll(async () => (await server.changeListHits()).length)
+    .toBeGreaterThan(lists);
+  await expect(
+    expect
+      .poll(async () => (await server.changeDiffHits()).length, {
+        timeout: 2000,
+      })
+      .toBeGreaterThan(patches),
+  ).rejects.toThrow();
+  await app.page.getByRole('tab', { name: 'Review', exact: true }).click();
+  await expect.element(local.getByText('After', { exact: true })).toBeVisible();
+  await expect
+    .poll(async () => (await server.changeDiffHits()).length)
+    .toBeGreaterThan(patches);
+});
+
+test('a hidden Review reads no untracked text until it is shown again', async ({
+  repo,
+  render,
+  server,
+  fetchGate,
+}) => {
+  await repo.write('guide.txt', 'A committed guide\n');
+  await repo.commit('Add a guide');
+  await repo.write('draft.md', 'First draft\n');
+  const reads = fetchGate.recordTextReads();
+  const drafts = () => reads.filter((path) => path === 'draft.md').length;
+  const project = await server.project();
+  const worktree = project.worktrees.find((entry) => entry.main);
+  if (!worktree) throw new Error('The fixture has no main worktree.');
+  const app = await render.route(`/${project.id}/${worktree.id}`);
+  const local = reviewCode(app.page, 'uncommitted');
+  await expect
+    .element(local.getByText('First draft', { exact: true }))
+    .toBeVisible();
+  await expect.poll(drafts).toBeGreaterThan(0);
+  await app.navigate(`/${project.id}/${worktree.id}?entry=file:guide.txt`);
+  await expect
+    .element(app.page.getByRole('heading', { name: 'guide.txt', exact: true }))
+    .toBeVisible();
+  const lists = (await server.changeListHits()).length;
+  const before = drafts();
+  await repo.write('draft.md', 'Second draft\n');
+  await expect
+    .poll(async () => (await server.changeListHits()).length)
+    .toBeGreaterThan(lists);
+  await expect(
+    expect.poll(drafts, { timeout: 2000 }).toBeGreaterThan(before),
+  ).rejects.toThrow();
+  await app.page.getByRole('tab', { name: 'Review', exact: true }).click();
+  await expect
+    .element(local.getByText('Second draft', { exact: true }))
+    .toBeVisible();
+});
+
+test('Review never calls an untracked file unreadable while its text is being read', async ({
+  repo,
+  render,
+  fetchGate,
+}) => {
+  await repo.write('draft.md', 'A readable draft\n');
+  const held = fetchGate.holdNextTextRead('draft.md');
+  held.arm();
+  try {
+    const app = await render.route('/');
+    await held.requested;
+    await expect
+      .element(
+        app.page.getByRole('heading', {
+          name: 'No walkthrough yet.',
+          exact: true,
+        }),
+      )
+      .toBeVisible();
+    await expect
+      .element(app.page.getByText('Not readable', { exact: true }))
+      .not.toBeInTheDocument();
+    await expect
+      .element(app.page.getByText('Non-text content', { exact: true }))
+      .not.toBeInTheDocument();
+    held.release();
+    await expect
+      .element(
+        reviewCode(app.page, 'uncommitted').getByText('A readable draft', {
+          exact: true,
+        }),
+      )
+      .toBeVisible();
+  } finally {
+    held.release();
+  }
+});
+
+test('a cold split shows no loading skeleton while its side document is read', async ({
+  repo,
+  render,
+  server,
+  fetchGate,
+}) => {
+  await repo.write('notes.txt', 'Side notes\n');
+  await repo.commit('Add side notes');
+  const project = await server.project();
+  const worktree = project.worktrees.find((entry) => entry.main);
+  if (!worktree) throw new Error('The fixture has no main worktree.');
+  const held = fetchGate.holdNextTextRead('notes.txt');
+  held.arm();
+  try {
+    const app = await render.route(
+      `/${project.id}/${worktree.id}?entry=review&side=file:notes.txt`,
+    );
+    await held.requested;
+    await expect
+      .element(
+        app.page.getByRole('region', { name: 'Right pane', exact: true }),
+      )
+      .toBeVisible();
+    await expect
+      .element(app.page.getByText('Loading review…', { exact: true }))
+      .not.toBeInTheDocument();
+    held.release();
+    await expect
+      .element(app.page.getByText('Side notes', { exact: true }))
+      .toBeVisible();
+  } finally {
+    held.release();
+  }
+});
+
+test('a failed branch comparison never reads as no changes in Review', async ({
+  repo,
+  render,
+  fetchGate,
+}) => {
+  await repo.branch('feature');
+  await repo.switch('feature');
+  await repo.write('notes.md', 'Committed notes\n');
+  await repo.commit('Add notes on the branch');
+  fetchGate.failBranchReads();
+  const app = await render.route('/');
+  await expect
+    .element(
+      app.page.getByRole('heading', {
+        name: 'No walkthrough yet.',
+        exact: true,
+      }),
+    )
+    .toBeVisible();
+  await expect
+    .element(
+      app.page.getByRole('heading', {
+        name: 'No changes to review',
+        exact: true,
+      }),
+    )
+    .not.toBeInTheDocument();
+  await expect
+    .element(app.page.getByRole('button', { name: 'Try again', exact: true }))
+    .not.toBeInTheDocument();
+  await app.navigate(`${app.location().split('?')[0]}?entry=branch`);
+  await expect
+    .element(app.page.getByRole('button', { name: 'Try again', exact: true }))
+    .toBeVisible();
+});
+
+test('Review offers no review or discard on a patch it is still replacing', async ({
+  repo,
+  render,
+  fetchGate,
+}) => {
+  const held = fetchGate.holdNextPost('/changes/diffs');
+  const app = await render.route('/');
+  const local = reviewCode(app.page, 'uncommitted');
+  const mark = local.getByRole('button', {
+    name: `Mark ${repo.readme.path} as reviewed`,
+    exact: true,
+  });
+  await expect
+    .element(local.getByText('A change to review.', { exact: true }))
+    .toBeVisible();
+  await expect.element(mark).toBeVisible();
+  held.arm();
+  try {
+    await repo.write(
+      repo.readme.path,
+      '# Sample repository\n\nA newer edit.\n',
+    );
+    await held.requested;
+    await expect
+      .element(local.getByText('A change to review.', { exact: true }))
+      .toBeVisible();
+    await expect.element(mark).not.toBeInTheDocument();
+    held.release();
+    await expect
+      .element(local.getByText('A newer edit.', { exact: true }))
+      .toBeVisible();
+    await expect.element(mark).toBeVisible();
+  } finally {
+    held.release();
+  }
+});
+
+test('Review offers no review on a non-text file whose new patch is still being read', async ({
+  repo,
+  render,
+  fetchGate,
+}) => {
+  await repo.write('data.bin', 'text before\n');
+  await repo.commit('Add data');
+  await repo.write(repo.readme.path, '# Sample repository\n\nAnother edit.\n');
+  await repo.write('data.bin', 'binary\u0000content\n');
+  const held = fetchGate.holdNextPost('/changes/diffs');
+  const app = await render.route('/');
+  const local = reviewCode(app.page, 'uncommitted');
+  const omitted = local.getByRole('listitem', {
+    name: 'data.bin: Binary change',
+    exact: true,
+  });
+  const mark = omitted.getByRole('button', {
+    name: 'Mark data.bin as reviewed',
+    exact: true,
+  });
+  await expect.element(mark).toBeVisible();
+  held.arm();
+  try {
+    await repo.write('data.bin', 'text after\n');
+    await held.requested;
+    await expect.element(omitted).toBeVisible();
+    await expect.element(mark).not.toBeInTheDocument();
+    held.release();
+    await expect
+      .element(local.getByText('text after', { exact: true }))
+      .toBeVisible();
   } finally {
     held.release();
   }

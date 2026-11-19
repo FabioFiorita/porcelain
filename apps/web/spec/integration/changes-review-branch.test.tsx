@@ -59,7 +59,11 @@ test.for([1280, 414])(
         .element(page.getByText('notes.md · on the branch', { exact: true }))
         .toBeVisible();
       await expect
-        .element(page.getByText('second line', { exact: true }))
+        .element(
+          page
+            .getByRole('region', { name: 'Code content', exact: true })
+            .getByText('second line', { exact: true }),
+        )
         .toBeVisible();
 
       await expect.poll(() => search().get('scope')).toBe('branch');

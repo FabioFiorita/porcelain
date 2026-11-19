@@ -37,7 +37,7 @@ None before a full page load: every disk write below happens while the page is o
 ### 1. An open file rewritten on disk shows the new text
 
 1. Navigate to `/`
-   Expect: title "Changes — repository".
+   Expect: title "Review — repository".
 2. Click button `Review`
    Expect: tabs "Files" [selected], "Changes", "History".
 3. Click tab `Files`
@@ -91,7 +91,7 @@ Automated coverage: `changes-live-update.test.tsx`, `files-disk-refresh.test.tsx
 ## Gotchas
 
 - Wait for changed content/tree after each write. A changed README click opens its diff; context menu Open file opens text.
-- Match the exact Changes tab, distinct from Changes. Restore rewritten README; live-note.md is removed in the recipe.
+- Match the exact sidebar tab "Changes" inside the Review sidebar; the document tab is "Review". Restore rewritten README; live-note.md is removed in the recipe.
 
 ## Diff reading place
 

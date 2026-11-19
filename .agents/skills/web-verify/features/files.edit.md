@@ -36,7 +36,7 @@ Preconditions: [surface baseline](README.md).
  the sample repository's `README.md` is already modified, so the tree menu offers "Open file".
 
 1. Navigate to `/`
-   Expect: title "Changes — repository".
+   Expect: title "Review — repository".
 2. Click button `Review`
    Expect: dialog "Worktree review" with tabs "Files", "Changes", "History".
 3. Click tab `Files`
@@ -57,7 +57,7 @@ Preconditions: [surface baseline](README.md).
 10. Click button `Edit` then replace the contents of textbox named `README.md` with 'Browser close marker'
     Expect: status "Unsaved changes".
 11. Click button `Close README.md`
-    Expect: tab "README.md" is gone; tab "Changes" is selected. Disk: `cat "$REPO/README.md"` prints `Browser close marker`.
+    Expect: tab "README.md" is gone; tab "Review" is selected. Disk: `cat "$REPO/README.md"` prints `Browser close marker`.
 12. Inspect HTTP traffic
     Expect: four `POST /api/worktrees/<id>/files` answered 200, one per save (steps 7, 8, 9, 11), and `GET /api/worktrees/<id>/text?path=README.md` answered 200 when the file opened.
 

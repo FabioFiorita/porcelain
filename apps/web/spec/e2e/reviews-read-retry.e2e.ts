@@ -1,9 +1,11 @@
 import { expect, test, type Page } from './fixtures.ts';
 
-async function waitChanges(page: Page) {
+async function waitReview(page: Page) {
   await expect(
-    page.getByRole('heading', { name: '1 uncommitted change', exact: true }),
-  ).toBeVisible();
+    page
+      .getByRole('tablist', { name: 'Open documents', exact: true })
+      .getByRole('tab', { name: 'Review', exact: true }),
+  ).toHaveAttribute('aria-selected', 'true');
   await expect(
     page.getByRole('code').filter({ hasText: 'A change to review.' }),
   ).toBeVisible();
@@ -21,7 +23,7 @@ test('retrying a refused changes read restores the workspace at the same address
   failures,
 }) => {
   failures.console(/RequestError: Request failed \(503\)/);
-  await waitChanges(pairedPage);
+  await waitReview(pairedPage);
   const address = app.address().path;
   const endOutage = await app.failChangesRead();
   await app.reload();
@@ -33,7 +35,7 @@ test('retrying a refused changes read restores the workspace at the same address
   await expect.poll(() => app.address().path).toBe(address);
   await endOutage();
   await retry.click();
-  await waitChanges(pairedPage);
+  await waitReview(pairedPage);
   await expect(retry).not.toBeAttached();
   await expect.poll(() => app.address().path).toBe(address);
 });
@@ -52,12 +54,12 @@ test('a refused first changes read offers Retry and recovers at the same workspa
   const address = app.address().path;
   await endOutage();
   await retry.click();
-  await waitChanges(page);
+  await waitReview(page);
   await expect(retry).not.toBeAttached();
   await expect.poll(() => app.address().path).toBe(address);
 });
 
-test('reloading during the first changes read stays loading and opens Changes once it settles', async ({
+test('reloading during the first changes read stays loading and opens Review once it settles', async ({
   page,
   live,
   app,
@@ -72,6 +74,9 @@ test('reloading during the first changes read stays loading and opens Changes on
       exact: true,
     });
     await expect(loading).toBeVisible();
+    await expect(
+      page.getByText('Loading review…', { exact: true }),
+    ).toHaveCount(0);
     await expectNoFalseEmpty(page);
     const address = app.address().path;
     const reread = page.waitForRequest((request) =>
@@ -82,7 +87,7 @@ test('reloading during the first changes read stays loading and opens Changes on
     await expect(loading).toBeVisible();
     await expectNoFalseEmpty(page);
     held.release();
-    await waitChanges(page);
+    await waitReview(page);
     await expect(loading).not.toBeAttached();
     await expect.poll(() => app.address().path).toBe(address);
   } finally {
@@ -130,25 +135,25 @@ for (const target of ['entry', 'side']) {
   });
 }
 
-test('restoring an empty saved layout brings back the permanent Changes tab', async ({
+test('restoring an empty saved layout brings back the permanent Review tab', async ({
   pairedPage,
   app,
 }) => {
-  await waitChanges(pairedPage);
+  await waitReview(pairedPage);
   await app.restoreEmptyTabLayout();
   await app.open(app.address().path);
   await expect(
     pairedPage
       .getByRole('tablist', { name: 'Open documents', exact: true })
-      .getByRole('tab', { name: 'Changes', exact: true }),
+      .getByRole('tab', { name: 'Review', exact: true }),
   ).toBeVisible();
   await expect(
-    pairedPage.getByRole('button', { name: 'Close Changes', exact: true }),
+    pairedPage.getByRole('button', { name: 'Close Review', exact: true }),
   ).not.toBeAttached();
-  await waitChanges(pairedPage);
+  await waitReview(pairedPage);
 });
 
-test('an empty worktree opens Changes without another navigation', async ({
+test('an empty worktree opens Review without another navigation', async ({
   page,
   app,
   repo,
@@ -158,7 +163,7 @@ test('an empty worktree opens Changes without another navigation', async ({
   await expect(
     page
       .getByRole('tablist', { name: 'Open documents', exact: true })
-      .getByRole('tab', { name: 'Changes', exact: true }),
+      .getByRole('tab', { name: 'Review', exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole('heading', { name: 'No changes to review', exact: true }),

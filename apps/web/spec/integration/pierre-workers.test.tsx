@@ -48,7 +48,7 @@ test('long files highlight in workers, reuse unchanged revisions and refresh cha
   }));
   await workspace
     .getByRole('tablist', { name: 'Open documents', exact: true })
-    .getByRole('tab', { name: 'Changes', exact: true })
+    .getByRole('tab', { name: 'Review', exact: true })
     .click();
   await workspace.getByRole('tab', { name: path, exact: true }).click();
   await expect

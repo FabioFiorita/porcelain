@@ -6,6 +6,7 @@ import {
   plainText,
   stopPaths,
   walkthroughCodeScopes,
+  type ReviewCode as ReviewCodeFiles,
 } from '@porcelain/client/walkthroughs/rules';
 import { Button } from '@/components/ui/button';
 import {
@@ -17,8 +18,10 @@ import {
   type DocumentProps,
   BranchState,
   DocumentToolbar,
+  type ComparedBranch,
 } from '@/features/workspace/index';
 import { StateNotice } from '@/shared/views/state-notice';
+import { DIFF_WINDOW_FILES } from '@/config/limits';
 import {
   useBranchRenames,
   useWalkthroughContent,
@@ -32,28 +35,21 @@ export function WalkthroughCodeDocument({
 }: WalkthroughCodeProps) {
   const ready = useWalkthroughContent(props.scope, props.context);
   const renames = useBranchRenames(props.scope, props.context, props.base);
-  const step = document.kind === 'walkthrough-step' ? document.step : undefined;
-  const stop = step === undefined ? undefined : ready?.content.stops[step - 1];
-  if (!ready || (document.kind === 'walkthrough-step' && !stop))
+  const step = document.step;
+  const stop = ready?.content.stops[step - 1];
+  if (!ready || !stop)
     return (
       <StateNotice
         title="This step isn't available"
-        description="The walkthrough changed since this tab was opened. Open the Walkthrough tab for the current steps."
+        description="The walkthrough changed since this tab was opened. Open the Review tab for the current steps."
       >
         <Button
           variant="outline"
-          onClick={() => props.onOpen({ kind: 'walkthrough' })}
+          onClick={() => props.onOpen({ kind: 'review' })}
         >
-          Open walkthrough
+          Open review
         </Button>
       </StateNotice>
-    );
-  if (step === undefined || stop === undefined)
-    return (
-      <WalkthroughChangeDocument
-        {...props}
-        heading={{ title: 'All changes', titleLabel: 'All changes' }}
-      />
     );
   const total = ready.content.stops.length;
   const label = `Step ${step} of ${total}`;
@@ -90,8 +86,128 @@ export function WalkthroughCodeDocument({
   return <WalkthroughChangeDocument {...props} only={only} heading={heading} />;
 }
 
+export function ReviewCode({
+  document,
+  entry,
+  code,
+  label,
+  branch,
+  eager,
+}: {
+  document: DocumentProps;
+  entry: string;
+  code: ReviewCodeFiles;
+  label: string;
+  branch: ComparedBranch | undefined;
+  eager: boolean;
+}) {
+  const [shown, setShown] = useState(DIFF_WINDOW_FILES);
+  const [near, setNear] = useState(eager);
+  if (eager && !near) setNear(true);
+  const committed = branch ? code.branch : [];
+  if (committed.length === 0 && code.worktree.length === 0) return null;
+  if (!near)
+    return (
+      <div
+        role="group"
+        aria-label={`Code: ${label}`}
+        ref={whenNear(() => setNear(true))}
+        className="-mx-5 flex flex-col gap-2 @3xl:-mx-8"
+      >
+        <FileNames title="Branch" paths={committed} />
+        <FileNames title="Uncommitted" paths={code.worktree.slice(0, shown)} />
+      </div>
+    );
+  const interaction = (scope: 'branch' | 'uncommitted') => ({
+    ...document.interaction,
+    active: false,
+    quiet: true,
+    toolbarTarget: null,
+    fileTarget: undefined,
+    entry: `${entry}:${scope}`,
+  });
+  return (
+    <div
+      role="group"
+      aria-label={`Code: ${label}`}
+      className="-mx-5 flex flex-col gap-2 @3xl:-mx-8"
+    >
+      {committed.length > 0 && (
+        <section aria-label={`${label}: branch`} className="flex flex-col">
+          <BranchDocument
+            {...document}
+            compared={branch}
+            only={committed}
+            fullHeight
+            interaction={interaction('branch')}
+            heading={{ title: 'Branch', titleLabel: `${label}: branch` }}
+          />
+        </section>
+      )}
+      {code.worktree.length > 0 && (
+        <section aria-label={`${label}: uncommitted`} className="flex flex-col">
+          <PlainChangesDocument
+            {...document}
+            only={code.worktree}
+            limit={shown}
+            onReadMore={() => setShown(shown + DIFF_WINDOW_FILES)}
+            fullHeight
+            interaction={interaction('uncommitted')}
+            heading={{
+              title: 'Uncommitted',
+              titleLabel: `${label}: uncommitted`,
+            }}
+          />
+        </section>
+      )}
+    </div>
+  );
+}
+
+function whenNear(onNear: () => void) {
+  return (element: HTMLElement | null) => {
+    if (!element) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) onNear();
+      },
+      {
+        root: element.closest<HTMLElement>('[data-review-scroll]'),
+        rootMargin: '600px 0px',
+      },
+    );
+    observer.observe(element);
+    return () => observer.disconnect();
+  };
+}
+
+function FileNames({
+  title,
+  paths,
+}: {
+  title: string;
+  paths: readonly string[];
+}) {
+  if (paths.length === 0) return null;
+  return (
+    <section className="flex flex-col">
+      <h3 className="border-b px-4 py-2.5 text-ui font-semibold">{title}</h3>
+      <ul>
+        {paths.slice(0, DIFF_WINDOW_FILES).map((path) => (
+          <li
+            key={path}
+            className="min-h-40 px-4 py-3 font-mono text-caption text-muted-foreground"
+          >
+            {path}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 function WalkthroughChangeDocument(
-  props: DocumentProps & { only?: readonly string[]; heading: DocumentHeading },
+  props: DocumentProps & { only: readonly string[]; heading: DocumentHeading },
 ) {
   const changes = useChanges(props.scope, props.context.connection);
   const [focused, setFocused] = useState<'branch' | 'uncommitted'>('branch');
@@ -115,18 +231,16 @@ function WalkthroughChangeDocument(
         });
         return (
           <div className="flex min-h-0 flex-1 flex-col">
-            {props.only && (
-              <StepReviewed
-                scope={props.scope}
-                context={props.context}
-                interaction={props.interaction}
-                branchFiles={branch.files}
-                changes={changes}
-                committed={committed}
-                dirty={dirty}
-                range={branchReviewRange(branch)}
-              />
-            )}
+            <StepReviewed
+              scope={props.scope}
+              context={props.context}
+              interaction={props.interaction}
+              branchFiles={branch.files}
+              changes={changes}
+              committed={committed}
+              dirty={dirty}
+              range={branchReviewRange(branch)}
+            />
             {both && (
               <DocumentToolbar
                 inline

@@ -41,7 +41,7 @@ printf 'Notes to rename\n' > "$REPO/draft-notes.md"
 ### 1. Rename moves the file on disk
 
 1. Navigate to `/`
-   Expect: title "Changes — repository".
+   Expect: title "Review — repository".
 2. Click button `Review`
    Expect: dialog "Worktree review".
 3. Click tab `Files`

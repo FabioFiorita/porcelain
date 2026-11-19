@@ -89,7 +89,7 @@ Create more than 100 commits touching one file, including a rename. Load older c
 ## Gotchas
 
 - Do the git setup before a full reload of `/`. The timeline is not refetched on focus, so commits made after it loads show only after a full reload of `/`.
-- After the setup README.md no longer exists, and the working tree is clean, so the Changes tab is empty. Clicking guide.md opens it as a file document, which is the one with the "Timeline" button. A changed file opens as a diff instead.
+- After the setup README.md no longer exists, and the working tree is clean, so the Review tab shows "No changes to review". Clicking guide.md opens it as a file document, which is the one with the "Timeline" button. A changed file opens as a diff instead.
 - A commit row's name starts with its subject and continues with the short id, author and age, so address it with `/^<subject>/`.
 Each opened document closes it.
 - The timeline is a distinct document: its tab is named `Timeline of guide.md`, while the file tab is `guide.md`. Repeating "Timeline" or "Show timeline" focuses the existing timeline tab, including in the other pane, and adds no tab.

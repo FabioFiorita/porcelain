@@ -39,7 +39,7 @@ printf 'Notes that clash\n' > "$REPO/clash.md"
 For the move, press on the source row, moves onto the target row and releases there, as a mouse would.
 
 1. Navigate to `/`
-   Expect: title "Changes — repository".
+   Expect: title "Review — repository".
 2. Click button `Review`
    Expect: dialog "Worktree review".
 3. Click tab `Files`

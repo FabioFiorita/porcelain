@@ -26,7 +26,7 @@ The document tabs (which are open, which are pinned) and each diff's collapsed s
 
 - Open file contents as tabs: Review → sidebar tab "Files" → click a file, or right-click its treeitem → menuitem "Open file". Explicit Changes/review entrances own diffs.
 - Pin a tab: right-click the tab → menuitem "Pin"; the tab's close button becomes "Unpin <name>" and pinned tabs move to the front. Right-click → "Unpin" or the "Unpin <name>" button undoes it.
-- Collapse a diff: the chevron button "Collapse <path>" in a diff header (shown when a document holds more than one file); it becomes "Expand <path>". "Collapse all" / "Expand all" folds every file; in Changes, open File review actions at the progress count to reach it.
+- Collapse a diff: the chevron button "Collapse <path>" in a diff header (shown when a document holds more than one file); it becomes "Expand <path>". "Collapse all" / "Expand all" folds every file; in All changes, open File review actions at the progress count to reach it.
 - Reach a tab that is outside the visible strip: use "Open document list" beside the tabs, then choose its full path. The selected item is marked; pin/close/split remain on the tab. See [workspace shell](reviews.workspace-shell.md).
 - Reload: any full page load of the workspace.
 
@@ -49,20 +49,20 @@ printf '# Notes\n' > "$REPO/notes.md"
 4. Right-click tab `/README.md/`, then click menuitem `Pin`
    Expect: button "Unpin README.md" (the README.md tab now reads "README.md Unpin README.md" and sits first); no "Close README.md".
 5. Click button `Review`, then click tab `Changes`, then click button `All changes`
-   Expect: the sheet closes; tab "Changes" selected; heading "2 uncommitted changes", buttons "Collapse README.md" and "Collapse notes.md". URL carries `entry=handoff`.
+   Expect: the sheet closes; tab "All changes" selected after "Review"; heading "2 uncommitted changes", buttons "Collapse README.md" and "Collapse notes.md". URL carries `entry=all-changes`.
 6. Click button `Collapse README.md`
    Expect: button "Expand README.md" (aria-expanded false).
 7. Navigate to `<path and query of the URL step 6 printed>` (the reload)
-   Expect: button "Expand README.md", button "Unpin README.md", tab "notes.md", tab "Changes" selected.
+   Expect: button "Expand README.md", button "Unpin README.md", tab "notes.md", tab "All changes" selected.
 
 ### Observable proof
 
-Reload exact path/query: pin, third tab and collapsed README diff remain. Open a file to the side, reload while the right pane is focused and press Alt+W: only the right pane closes and the permanent Changes document remains.
+Reload exact path/query: pin, third tab and collapsed README diff remain. Open a file to the side, reload while the right pane is focused and press Alt+W: only the right pane closes and the permanent Review document remains.
 
 Automated coverage: `reviews-reload-layout.e2e.ts`.
 
 ## Gotchas
 
-- Reload exact path/query: without entry=handoff, bare `/` may activate notes.md. Inactive Close buttons remain accessible while transparent.
+- Reload exact path/query: without entry=all-changes, bare `/` may activate notes.md. Inactive Close buttons remain accessible while transparent.
 - Focus is saved per worktree or immutable review revision in the existing layout record. Reloading a split restores logical pane ownership without forcing DOM focus into an editor or composer. Old saved records default to the left pane.
 - Tabs/pins/folds persist locally. Reset via Unpin, close file tabs, Expand README.md and remove notes.md.

@@ -80,7 +80,7 @@ for (const width of [1440, 414]) {
       exact: true,
     });
     await expect(review).toBeVisible();
-    await expect(pairedPage).toHaveTitle(/^Changes — /);
+    await expect(pairedPage).toHaveTitle(/^Review — /);
     const workspace = new URL(pairedPage.url()).pathname;
     const toggle = pairedPage.getByRole('button', {
       name: 'Toggle Sidebar',
@@ -111,7 +111,7 @@ for (const width of [1440, 414]) {
     await settings.getByRole('button', { name: 'Close', exact: true }).click();
     await expect(settings).not.toBeAttached();
     await expect.poll(() => new URL(pairedPage.url()).pathname).toBe(workspace);
-    await expect(pairedPage).toHaveTitle(/^Changes — /);
+    await expect(pairedPage).toHaveTitle(/^Review — /);
     await expect(review).toBeVisible();
     if (width < 768) await expect(toggle).toBeFocused();
   });

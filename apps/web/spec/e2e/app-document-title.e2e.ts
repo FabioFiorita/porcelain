@@ -4,7 +4,7 @@ import { expect, test } from './fixtures.ts';
 test('leaving the workspace and settings restores the application title', async ({
   pairedPage,
 }) => {
-  await expect(pairedPage).toHaveTitle(/^Changes — /);
+  await expect(pairedPage).toHaveTitle(/^Review — /);
   await pairedPage
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
@@ -13,7 +13,7 @@ test('leaving the workspace and settings restores the application title', async 
     .click();
   await expect(pairedPage).toHaveTitle('Settings — Porcelain');
   await closeSettings(pairedPage);
-  await expect(pairedPage).toHaveTitle(/^Changes — /);
+  await expect(pairedPage).toHaveTitle(/^Review — /);
   await pairedPage
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();

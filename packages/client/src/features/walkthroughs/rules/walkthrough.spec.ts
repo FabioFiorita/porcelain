@@ -3,6 +3,8 @@ import type { ReadChangesResponse } from '@porcelain/contracts/changes';
 import {
   firstDocument,
   walkthroughCodeScopes,
+  reviewCodeSections,
+  eagerSections,
   groupFilesByStep,
   plainText,
   richParts,
@@ -170,7 +172,7 @@ describe('stopPaths with the branch renames', () => {
 });
 
 describe('walkthroughTabTitle', () => {
-  it('names the window after a written walkthrough, else Walkthrough', () => {
+  it('names the window after a written walkthrough, else Review', () => {
     expect(
       walkthroughTabTitle(
         read(
@@ -184,9 +186,9 @@ describe('walkthroughTabTitle', () => {
         ),
       ),
     ).toBe('Add notes to the sample');
-    expect(walkthroughTabTitle(read(undefined))).toBe('Walkthrough');
+    expect(walkthroughTabTitle(read(undefined))).toBe('Review');
     expect(walkthroughTabTitle(read(run({ status: 'running' })))).toBe(
-      'Walkthrough',
+      'Review',
     );
   });
 });
@@ -500,16 +502,14 @@ describe('worktreeOpening', () => {
       name: 'walkthrough',
       pending: false,
       guided: true,
-      companion: false,
     });
   });
 
-  it('opens Changes with a companion Walkthrough regardless of branch commits', () => {
+  it('opens an unguided review without a walkthrough, regardless of branch commits', () => {
     expect(settled(undefined)).toEqual({
       name: 'changes',
       pending: false,
       guided: false,
-      companion: true,
     });
   });
 
@@ -530,7 +530,6 @@ describe('worktreeOpening', () => {
       name: 'changes',
       pending: false,
       guided: false,
-      companion: false,
     });
   });
 });
@@ -635,6 +634,119 @@ it('describes captured uncommitted work in shared web and mobile metadata', () =
       includesUncommitted: true,
     }),
   ).toBe('written for bbbbbbb and uncommitted work');
+});
+
+describe('review code sections', () => {
+  const steps = content({
+    stops: [
+      stop({ files: [{ path: 'both.ts', note: 'Both.' }] }),
+      stop({ excerpts: [excerpt('old-name.ts')] }),
+    ],
+  });
+  const branch = [
+    { path: 'both.ts' },
+    { path: 'new-name.ts', oldPath: 'old-name.ts' },
+    { path: 'committed-elsewhere.ts' },
+  ];
+  const worktree = [{ path: 'both.ts' }, { path: 'dirty-elsewhere.ts' }];
+
+  it('gives a step the committed and the uncommitted change of a file changed in both', () => {
+    expect(
+      reviewCodeSections({ content: steps, branch, worktree }).steps[0],
+    ).toEqual({ branch: ['both.ts'], worktree: ['both.ts'] });
+  });
+
+  it('follows a rename into the step that cites the old path', () => {
+    expect(
+      reviewCodeSections({ content: steps, branch, worktree }).steps[1],
+    ).toEqual({ branch: ['new-name.ts'], worktree: [] });
+  });
+
+  it('leaves only files no step cites outside the steps', () => {
+    expect(
+      reviewCodeSections({ content: steps, branch, worktree }).outside,
+    ).toEqual({
+      branch: ['committed-elsewhere.ts'],
+      worktree: ['dirty-elsewhere.ts'],
+    });
+  });
+
+  it('keeps a committed file and its staged rename in the step that cites the new name', () => {
+    const renamed = content({
+      stops: [stop({ files: [{ path: 'new-name.ts', note: 'Renamed.' }] })],
+    });
+    const working = [
+      {
+        path: 'new-name.ts',
+        fingerprint: undefined,
+        comparisons: [
+          {
+            scope: 'staged',
+            kind: 'renamed',
+            oldPath: 'old-name.ts',
+            newPath: 'new-name.ts',
+            oldMode: '100644',
+            newMode: '100644',
+            oldOid: 'a'.repeat(40),
+            newOid: 'b'.repeat(40),
+            supported: true,
+          },
+        ],
+      },
+    ] satisfies ReadChangesResponse['changes'];
+    expect(
+      reviewCodeSections({
+        content: renamed,
+        branch: [{ path: 'old-name.ts' }],
+        worktree: working,
+      }),
+    ).toEqual({
+      steps: [{ branch: ['old-name.ts'], worktree: ['new-name.ts'] }],
+      outside: { branch: [], worktree: [] },
+    });
+  });
+
+  it('puts every changed file outside the steps without a walkthrough', () => {
+    expect(
+      reviewCodeSections({ content: undefined, branch, worktree }),
+    ).toEqual({
+      steps: [],
+      outside: {
+        branch: ['both.ts', 'new-name.ts', 'committed-elsewhere.ts'],
+        worktree: ['both.ts', 'dirty-elsewhere.ts'],
+      },
+    });
+  });
+});
+
+describe('eager review sections', () => {
+  const code = (branch: number, worktree: number) => ({
+    branch: Array.from({ length: branch }, (_, index) => `b${index}`),
+    worktree: Array.from({ length: worktree }, (_, index) => `w${index}`),
+  });
+
+  it('loads sections in page order until the budget of files is spent', () => {
+    expect(
+      eagerSections(
+        {
+          steps: [code(1, 1), code(1, 1), code(25, 25), code(25, 25)],
+          outside: code(3, 0),
+        },
+        true,
+        25,
+      ),
+    ).toEqual({ steps: [true, true, true, false], outside: false });
+  });
+
+  it('counts only local files until the branch comparison is known', () => {
+    expect(
+      eagerSections(
+        { steps: [code(30, 1), code(30, 1)], outside: code(0, 0) },
+        false,
+        2,
+      ),
+    ).toEqual({ steps: [true, true], outside: false });
+  });
 });
 
 describe('walkthrough code scopes', () => {

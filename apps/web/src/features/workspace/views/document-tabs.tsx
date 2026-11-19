@@ -27,7 +27,7 @@ import {
   XIcon,
 } from 'lucide-react';
 import type { KeyboardEvent, ReactNode } from 'react';
-import { useId, useState } from 'react';
+import { useState } from 'react';
 import { flushSync } from 'react-dom';
 import {
   ContextMenu,
@@ -50,10 +50,10 @@ import { shortOid } from '@porcelain/client/history/rules';
 import { cn } from '@/shared/lib/utils';
 import { parseEntry } from '../rules/documents';
 import {
-  changesTabCount,
   permanentTab,
   openToSideText,
-  type TabCount,
+  REVIEW_TAB,
+  type DocumentIds,
 } from '../rules/tab-strip';
 import { basename } from '@porcelain/client/changes/rules';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
@@ -75,22 +75,14 @@ function revealTab(tab: HTMLElement | null) {
   viewport.scrollBy({ left });
 }
 
-function describeTab(key: string, count: TabCount | undefined) {
+function describeTab(key: string) {
   const ref = parseEntry(key);
   switch (ref?.kind) {
-    case 'handoff': {
-      const title = 'Changes';
-      return {
-        Icon: FileDiffIcon,
-        title,
-        hint: count ? `${title} · ${count.description}` : title,
-      };
-    }
-    case 'walkthrough':
+    case 'review':
       return {
         Icon: ListChecksIcon,
-        title: 'Walkthrough',
-        hint: 'Walkthrough',
+        title: 'Review',
+        hint: "The branch's review",
       };
     case 'walkthrough-step':
       return {
@@ -99,7 +91,6 @@ function describeTab(key: string, count: TabCount | undefined) {
         hint: `Changes in step ${ref.step}`,
       };
     case 'all-changes':
-    case 'walkthrough-changes':
       return {
         Icon: FileDiffIcon,
         title: 'All changes',
@@ -179,7 +170,6 @@ type TabActions = {
 };
 
 export function DocumentTabs({
-  changeCount,
   tabs,
   pinned,
   active,
@@ -187,9 +177,10 @@ export function DocumentTabs({
   leading,
   trailing,
   commitContext,
+  ids,
   ...actions
 }: TabActions & {
-  changeCount: number;
+  ids: (key: string) => DocumentIds;
   tabs: readonly string[];
   pinned: readonly string[];
   active: string | null;
@@ -218,12 +209,12 @@ export function DocumentTabs({
         }
         className="flex h-full min-w-0 flex-1 items-center gap-1 overflow-hidden"
       >
-        {tabs.includes('handoff') && (
+        {tabs.includes(REVIEW_TAB) && (
           <span className="flex shrink-0">
             <DocumentTab
-              count={changesTabCount(changeCount)}
-              tabKey="handoff"
-              active={active === 'handoff'}
+              tabKey={REVIEW_TAB}
+              ids={ids(REVIEW_TAB)}
+              active={active === REVIEW_TAB}
               pinned={false}
               hasUnpinned={tabs.some(
                 (key) => !permanentTab(key) && !pinned.includes(key),
@@ -259,7 +250,7 @@ export function DocumentTabs({
           >
             <div className="flex h-full w-max min-w-full items-center gap-1 px-1.5">
               {tabs
-                .filter((key) => key !== 'handoff')
+                .filter((key) => !permanentTab(key))
                 .map((key, index) => {
                   const isPinned = pinned.includes(key);
                   const endOfPinned =
@@ -269,7 +260,7 @@ export function DocumentTabs({
                   const document = parseEntry(key);
                   const tabProps = {
                     tabKey: key,
-                    count: undefined,
+                    ids: ids(key),
                     active: key === active,
                     pinned: isPinned,
                     hasUnpinned: tabs.some(
@@ -347,10 +338,7 @@ export function DocumentTabs({
                   title,
                   hint,
                   accessibleName = title,
-                } = describeTab(
-                  key,
-                  key === 'handoff' ? changesTabCount(changeCount) : undefined,
-                );
+                } = describeTab(key);
                 return (
                   <DropdownMenuRadioItem
                     key={key}
@@ -384,8 +372,8 @@ export function DocumentTabs({
 
 function DocumentTab({
   tabKey,
-  count,
   commitSubject,
+  ids,
   active,
   pinned,
   hasUnpinned,
@@ -399,20 +387,14 @@ function DocumentTab({
   onClosePane,
 }: TabActions & {
   tabKey: string;
-  count: TabCount | undefined;
+  ids: DocumentIds;
   commitSubject?: string | undefined;
   active: boolean;
   pinned: boolean;
   hasUnpinned: boolean;
   side: 'left' | 'right' | null;
 }) {
-  const {
-    Icon,
-    title,
-    hint,
-    accessibleName = title,
-  } = describeTab(tabKey, count);
-  const countId = useId();
+  const { Icon, title, hint, accessibleName = title } = describeTab(tabKey);
   const tabTitle = commitSubject ? `${title} ${commitSubject}` : title;
   const tabHint = commitSubject ? `${hint} · ${commitSubject}` : hint;
   const [openingSide, setOpeningSide] = useState(false);
@@ -446,10 +428,11 @@ function DocumentTab({
                     if (active) revealTab(tab);
                   }}
                   role="tab"
+                  id={ids.tab}
+                  aria-controls={active ? ids.panel : undefined}
                   tabIndex={0}
                   aria-selected={active}
                   aria-label={commitSubject ? tabTitle : accessibleName}
-                  aria-describedby={count ? countId : undefined}
                   data-entry={tabKey}
                   className={cn(
                     'group flex h-7 min-w-0 max-w-[min(100cqw,calc(var(--spacing)*45))] cursor-default items-center gap-1.5 rounded-md px-2 text-xs font-medium transition-colors',
@@ -481,14 +464,6 @@ function DocumentTab({
                 strokeWidth={permanentTab(tabKey) ? 1.75 : undefined}
               />
               {label}
-              {count && (
-                <span
-                  aria-hidden="true"
-                  className="shrink-0 text-2xs leading-4 whitespace-nowrap text-muted-foreground tabular-nums"
-                >
-                  {count.value}
-                </span>
-              )}
               {!permanentTab(tabKey) && pinned && (
                 <Tooltip disableHoverablePopup>
                   <TooltipTrigger
@@ -549,7 +524,7 @@ function DocumentTab({
             {pinned ? 'Unpin' : 'Pin'}
           </ContextMenuItem>
           <ContextMenuItem
-            disabled={onOpenToSide === undefined}
+            disabled={onOpenToSide === undefined || permanentTab(tabKey)}
             onClick={() => {
               flushSync(() => setOpeningSide(true));
               onOpenToSide?.(tabKey);
@@ -588,11 +563,6 @@ function DocumentTab({
           </ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>
-      {count && (
-        <span id={countId} hidden>
-          {count.description}
-        </span>
-      )}
     </span>
   );
 }

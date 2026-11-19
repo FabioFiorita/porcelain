@@ -82,7 +82,7 @@ test('opening a repository with a linked worktree from the empty workspace after
   await expect.poll(() => app.address().path).toBe(shown);
   await expect
     .poll(() => new URLSearchParams(app.address().query).get('entry'))
-    .toBe('handoff');
+    .toBe('review');
 
   await expect(opened.getByRole('button', { name: /Current/ })).toBeVisible();
   await opened.keyboard.press('Escape');

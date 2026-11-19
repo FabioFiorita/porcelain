@@ -49,7 +49,11 @@ test('opening the root commit shows its added file and patch against the empty t
     .element(workspace.getByText('1 file changed', { exact: true }))
     .toBeVisible();
   await expect
-    .element(workspace.getByText(repo.readme.committed.trim(), { exact: true }))
+    .element(
+      workspace
+        .getByRole('tabpanel')
+        .getByText(repo.readme.committed.trim(), { exact: true }),
+    )
     .toBeVisible();
   await workspace.screenshot({
     path: '../../test-results/integration/screenshots/root-commit.png',

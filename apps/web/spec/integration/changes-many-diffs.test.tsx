@@ -17,21 +17,22 @@ test('All changes shows the diffs of more tracked changes than one diff request 
   await expect
     .poll(async () => (await server.changes()).changes.length)
     .toBe(count);
-  const opened = await render.workspace();
-  await opened.getByRole('button', { name: 'Review', exact: true }).click();
-  await opened
-    .getByRole('complementary', { name: 'Review sidebar', exact: true })
-    .getByRole('tab', { name: 'Changes', exact: true })
-    .click();
-  await opened
-    .getByRole('button', { name: 'All changes', exact: true })
-    .click();
+  const project = await server.project();
+  const worktree = project.worktrees.find((entry) => entry.main);
+  if (!worktree) throw new Error('The fixture has no main worktree.');
+  const opened = (
+    await render.route(`/${project.id}/${worktree.id}?entry=all-changes`)
+  ).page;
   await opened
     .getByRole('region', { name: '205 uncommitted changes', exact: true })
     .getByRole('button', { name: `${paths[0]} +1 −1`, exact: true })
     .click();
   await expect
-    .element(opened.getByText(`${paths[0]} changed`, { exact: true }))
+    .element(
+      opened
+        .getByRole('region', { name: 'Code content', exact: true })
+        .getByText(`${paths[0]} changed`, { exact: true }),
+    )
     .toBeVisible();
   await expect
     .element(

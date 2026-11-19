@@ -37,6 +37,7 @@ import {
 import { CodeDocument } from './code-document';
 import { DocumentToolbar } from './document-toolbar';
 import { ReadMoreFiles } from './read-more-files';
+import { ReservedCode } from './reserved-code';
 import { MarkAllReviewed, ReviewedControl } from './reviewed-control';
 import { StateNotice } from '@/shared/views/state-notice';
 import { branchFilesShown } from '../store';
@@ -56,13 +57,28 @@ export type DocumentHeading = {
   after?: ReactNode;
 };
 
-export function BranchDocument(
-  props: Props & {
-    only?: readonly string[] | undefined;
-    heading?: DocumentHeading | undefined;
-    fullHeight?: boolean | undefined;
-  },
-) {
+export type ComparedBranch = AsyncResult.AsyncResult.Success<
+  ReturnType<typeof useBranchChanges>['result']
+>;
+
+export function BranchDocument({
+  compared,
+  ...props
+}: Props & {
+  only?: readonly string[] | undefined;
+  heading?: DocumentHeading | undefined;
+  fullHeight?: boolean | undefined;
+  compared?: ComparedBranch | undefined;
+}) {
+  if (compared)
+    return (
+      <BranchMarkedCode
+        {...props}
+        branch={compared}
+        path={undefined}
+        fullHeight={props.fullHeight ?? false}
+      />
+    );
   return <BranchCode {...props} path={undefined} />;
 }
 
@@ -282,11 +298,19 @@ function BranchDiffs({
     ];
   });
   const rendered = new Set(entries.map((entry) => entry.path));
-  const omitted = reached.filter((item) => !rendered.has(item.path));
+  const omitted = reached.filter(
+    (item) =>
+      !rendered.has(item.path) &&
+      (interaction.quiet !== true ||
+        diffs.failed ||
+        patchOf(item) !== undefined),
+  );
   const more = items.length - reached.length;
   const uncommitted = overview?.changes.length ?? 0;
   const [first] = items;
-  const singleHeader = interaction.singleHeader || heading !== undefined;
+  const singleHeader = heading !== undefined;
+  if (interaction.quiet === true && entries.length === 0 && diffs.pending)
+    return <ReservedCode count={reached.length} />;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">

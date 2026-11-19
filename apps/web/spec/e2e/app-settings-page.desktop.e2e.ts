@@ -131,7 +131,7 @@ test('Settings opens as a dialog over the worktrees, and a click outside closes 
   pairedPage,
 }) => {
   await pairedPage.setViewportSize({ width: 1440, height: 960 });
-  await expect(pairedPage).toHaveTitle(/^Changes — /);
+  await expect(pairedPage).toHaveTitle(/^Review — /);
   const worktrees = pairedPage.getByRole('navigation', {
     name: 'Projects and worktrees',
     exact: true,
@@ -158,7 +158,7 @@ test('Settings opens as a dialog over the worktrees, and a click outside closes 
     .toBeGreaterThan(0);
   await pairedPage.mouse.click(8, 8);
   await expect(settings).not.toBeAttached();
-  await expect(pairedPage).toHaveTitle(/^Changes — /);
+  await expect(pairedPage).toHaveTitle(/^Review — /);
   await expect(open).toBeFocused();
 });
 
@@ -166,7 +166,10 @@ test('reviewing archive deletions keeps Close returning to the worktree', async 
   pairedPage,
 }) => {
   await pairedPage.setViewportSize({ width: 1440, height: 900 });
-  await expect(pairedPage).toHaveTitle(/^Changes — /);
+  await expect(pairedPage).toHaveTitle(/^Review — /);
+  await expect
+    .poll(() => new URL(pairedPage.url()).searchParams.get('entry'))
+    .toBe('review');
   const reviewUrl = pairedPage.url();
   await pairedPage
     .getByRole('button', { name: 'Settings', exact: true })

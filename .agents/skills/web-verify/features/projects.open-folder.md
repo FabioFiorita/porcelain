@@ -64,7 +64,7 @@ git -C "$REPO/../browsed" -c user.name=Verify -c user.email=verify@example.inval
 5. Click button `browsed`
    Expect: text "Every worktree appears in the sidebar."; button "Open browsed" enabled.
 6. Click button `Open browsed`
-   Expect: dialog "Open project" is gone; URL `/<new projectId>/<worktreeId>`; title "Changes — browsed"; open Worktrees in the still-open sidebar sheet: "browsed" is marked "Current" and "repository" is also listed. Press Escape.
+   Expect: dialog "Open project" is gone; URL `/<new projectId>/<worktreeId>`; title "Review — browsed"; open Worktrees in the still-open sidebar sheet: "browsed" is marked "Current" and "repository" is also listed. Press Escape.
 7. Inspect HTTP traffic
    Expect: `GET /api/projects/folders` (no query), `GET /api/projects/folders?path=…plain`, and one `POST /api/projects` with status 200; no POST while "plain" was shown.
 8. Navigate to `/`, then click button `Toggle Sidebar` and inspect the project headers

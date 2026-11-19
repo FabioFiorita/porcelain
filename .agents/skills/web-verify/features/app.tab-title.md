@@ -31,11 +31,11 @@ Preconditions: [surface baseline](README.md).
 
 The exact strings, with `P` = project name ("repository" in the disposable instance):
 
-- the handoff tab: `Changes — P`, or the walkthrough's title when the worktree opens on its Walkthrough (`Find notes by title — P` with `start --walkthrough-sample`); a walkthrough step: `Step N — P`; All changes: `All changes — P`; Specs: `Specs — P`
+- the Review tab: `Review — P`, or the walkthrough's title once the worktree has a Walkthrough (`Find notes by title — P` with `start --walkthrough-sample`); a walkthrough step: `Step N — P`; All changes: `All changes — P`; Specs: `Specs — P`
 - a changed file or a file opened from Files: `<file name> — P` (the last path segment, e.g. `README.md — P`)
 - a commit: `<first 7 characters of the oid> — P`
 - branch changes: `Branch changes — P`; commit graph: `Commit graph — P`; file timeline: `Timeline of <file name> — P`
-- no document open: the surface, `Changes — P`, `Files — P` or `History — P`
+- no document open: the surface, `Review — P`, `Files — P` or `History — P`
 - a worktree on a remote computer, or on this computer once it has a custom name: the above followed by ` · <computer name>`
 - Settings: `Settings — Porcelain`, whatever the project or computer name
 - no worktree selected (empty workspace), the pairing page and the initial HTML: `Porcelain`
@@ -45,9 +45,9 @@ The exact strings, with `P` = project name ("repository" in the disposable insta
 None before step 1. Step 5 commits on disk; do it only after step 4, because "Open file" exists only for a file with uncommitted changes.
 
 1. Navigate to `/`
-   Expect: title "Changes — repository".
+   Expect: title "Review — repository".
 2. Click button `Review`
-   Expect: the review sheet with tab "Files" selected and treeitem "README.md"; the sidebar tabs appear in order "Files", "Changes", "History", with Files selected. The open Changes document keeps title "Changes — repository". Use `Alt+2` to select Changes, reload and reopen Review to confirm that explicit selection is restored, then use `Alt+1` to return to Files.
+   Expect: the review sheet with tab "Files" selected and treeitem "README.md"; the sidebar tabs appear in order "Files", "Changes", "History", with Files selected. The open Review document keeps title "Review — repository". Use `Alt+2` to select Changes, reload and reopen Review to confirm that explicit selection is restored, then use `Alt+1` to return to Files.
 3. Right-click treeitem `README.md`
    Expect: menu with menuitems "Open diff" and "Open file".
 4. Click menuitem `Open file`
@@ -73,5 +73,5 @@ Automated coverage: `app-tab-title.e2e.ts`.
 
 - Order matters: after the commit README.md has no changes, so its tree menu offers "Open" instead of "Open file".
 - The separator is an em dash with spaces (`—`), and the computer-name suffix uses `·`.
-- Switching the sidebar surface does not change the title while a file or commit document is selected (step 6 keeps "README.md — repository"); with the Changes document selected the title stays `Changes — P`. With no document open the title follows the surface, defaulting to `Files — P`.
+- Switching the sidebar surface does not change the title while a file or commit document is selected (step 6 keeps "README.md — repository"); with the Review document selected the title stays `Review — P`. With no document open the title follows the surface, defaulting to `Files — P`.
 - In an instance where another feature committed, renamed the project or gave this computer a custom name, the strings change accordingly (` · <name>` suffix on workspace titles).

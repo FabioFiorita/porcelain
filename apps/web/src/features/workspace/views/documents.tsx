@@ -40,6 +40,8 @@ import { ChangeTable } from './change-table';
 
 import { FileDocument } from './file-document';
 import { ReviewCodeDocument } from './review-code-document';
+import { ReadMoreFiles } from './read-more-files';
+import { useHeldWhileHidden } from '@/shared/hooks/use-held-while-hidden';
 import { MarkAllReviewed } from './reviewed-control';
 import { formatForDisplay } from '@tanstack/react-hotkeys';
 import { Kbd } from '@/components/ui/kbd';
@@ -52,10 +54,7 @@ import { type ConnectionContext } from '@/shared/workspace/connection';
 import { counted } from '@porcelain/client/changes/rules';
 
 export type WalkthroughCodeProps = DocumentProps & {
-  document: Extract<
-    DocumentRef,
-    { kind: 'walkthrough-step' | 'walkthrough-changes' }
-  >;
+  document: Extract<DocumentRef, { kind: 'walkthrough-step' }>;
 };
 
 export type DocumentProps = {
@@ -79,15 +78,14 @@ export function DocumentView({
   onBrowse,
   sideLabel,
   active = false,
+  hidden = false,
   base,
   toolbarTarget,
-  walkthrough: Walkthrough,
+  review: Review,
   walkthroughCode: WalkthroughCode,
-  singleHeader = false,
   fileTarget,
 }: {
   walkthroughCode?: ComponentType<WalkthroughCodeProps> | undefined;
-  singleHeader?: boolean | undefined;
   scope: ReviewScope;
   context: ConnectionContext;
   toolbarTarget?: HTMLElement | null | undefined;
@@ -95,14 +93,15 @@ export function DocumentView({
   sideLabel: string;
   onBrowse: DocumentProps['onBrowse'];
   active?: boolean;
+  hidden?: boolean;
   fileTarget?: DocumentFileTarget | undefined;
   base?: string | undefined;
 } & (
   | {
-      document: Exclude<DocumentRef, { kind: 'handoff' | 'walkthrough' }>;
-      walkthrough?: never;
+      document: Exclude<DocumentRef, { kind: 'review' }>;
+      review?: never;
     }
-  | { document: DocumentRef; walkthrough: ComponentType<DocumentProps> }
+  | { document: DocumentRef; review: ComponentType<DocumentProps> }
 )) {
   const props = {
     base,
@@ -117,14 +116,12 @@ export function DocumentView({
       worktreeId: scope.worktreeId,
       entry: entryKey(document),
       fileTarget,
-      singleHeader,
+      hidden,
     },
   };
   switch (document.kind) {
-    case 'handoff':
-      return <PlainChangesDocument {...props} />;
-    case 'walkthrough':
-      return Walkthrough ? <Walkthrough {...props} /> : null;
+    case 'review':
+      return Review ? <Review {...props} /> : null;
     case 'all-changes':
       return <PlainChangesDocument {...props} />;
     case 'specs':
@@ -140,7 +137,6 @@ export function DocumentView({
     case 'branch-file':
       return <BranchFileDocument {...props} path={document.path} />;
     case 'walkthrough-step':
-    case 'walkthrough-changes':
       return WalkthroughCode ? (
         <WalkthroughCode {...props} document={document} />
       ) : null;
@@ -217,7 +213,7 @@ function PullRequestSourceDocument({
     document.number,
   );
   const openSource = (
-    entry: { kind: 'handoff' } | { kind: 'file'; path: string },
+    entry: { kind: 'review' } | { kind: 'file'; path: string },
   ) => {
     if (!checkout) {
       void navigate({ to: '/' });
@@ -244,7 +240,7 @@ function PullRequestSourceDocument({
       number={document.number}
       context={context}
       toolbarTarget={toolbarTarget}
-      onBack={() => openSource({ kind: 'handoff' })}
+      onBack={() => openSource({ kind: 'review' })}
       onFile={
         checkout ? (path) => openSource({ kind: 'file', path }) : undefined
       }
@@ -323,21 +319,29 @@ export function PlainChangesDocument({
   only,
   heading,
   fullHeight,
+  limit,
+  onReadMore,
 }: DocumentProps & {
   specsOnly?: boolean;
   only?: readonly string[] | undefined;
   heading?: DocumentHeading | undefined;
   fullHeight?: boolean | undefined;
+  limit?: number | undefined;
+  onReadMore?: (() => void) | undefined;
 }) {
   const [actionsOpen, setActionsOpen] = useState(false);
   const { connection } = context;
   usePrefetchReviewed(scope, context);
-  const list = useChanges(scope, connection);
+  const list = useHeldWhileHidden(
+    useChanges(scope, connection),
+    interaction.hidden === true,
+  );
   const allChanges = useReviewChangeItems(scope, context, list);
   const inScope = (path: string) =>
     only ? only.includes(path) : !specsOnly || isSpecPath(path);
   const changes = allChanges.filter((item) => inScope(item.path));
-  const singleHeader = interaction.singleHeader || heading !== undefined;
+  const shown = limit === undefined ? changes : changes.slice(0, limit);
+  const singleHeader = heading !== undefined;
   if (!specsOnly && changes.length === 0 && actionsOpen) setActionsOpen(false);
   if (only && changes.length === 0)
     return (
@@ -357,36 +361,7 @@ export function PlainChangesDocument({
       </div>
     );
   if (!specsOnly && changes.length === 0)
-    return (
-      <div className="mx-auto w-full max-w-xl">
-        <StateNotice
-          title="No changes to review"
-          description={
-            <>
-              <span className="font-mono text-foreground">
-                {list.branch?.name ?? 'This worktree'}
-              </span>{' '}
-              matches its last commit. Browse files or history from the right.
-            </>
-          }
-        >
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={(event) => onBrowse('files', event.currentTarget)}
-          >
-            Files <Kbd>{formatForDisplay(SHORTCUTS.surfaceFiles)}</Kbd>
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={(event) => onBrowse('history', event.currentTarget)}
-          >
-            History <Kbd>{formatForDisplay(SHORTCUTS.surfaceHistory)}</Kbd>
-          </Button>
-        </StateNotice>
-      </div>
-    );
+    return <NoChanges scope={scope} context={context} onBrowse={onBrowse} />;
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <ReviewCodeDocument
@@ -395,7 +370,7 @@ export function PlainChangesDocument({
         context={context}
         interaction={interaction}
         {...(specsOnly || only
-          ? { paths: changes.map((item) => item.path) }
+          ? { paths: shown.map((item) => item.path) }
           : {})}
         column={!singleHeader}
         {...(singleHeader
@@ -436,6 +411,51 @@ export function PlainChangesDocument({
               ),
             })}
       />
+      {onReadMore && (
+        <ReadMoreFiles
+          more={changes.length - shown.length}
+          pending={false}
+          onReadMore={onReadMore}
+        />
+      )}
+    </div>
+  );
+}
+
+export function NoChanges({
+  scope,
+  context,
+  onBrowse,
+}: Pick<DocumentProps, 'scope' | 'context' | 'onBrowse'>) {
+  const list = useChanges(scope, context.connection);
+  return (
+    <div className="mx-auto w-full max-w-xl">
+      <StateNotice
+        title="No changes to review"
+        description={
+          <>
+            <span className="font-mono text-foreground">
+              {list.branch?.name ?? 'This worktree'}
+            </span>{' '}
+            matches its last commit. Browse files or history from the right.
+          </>
+        }
+      >
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={(event) => onBrowse('files', event.currentTarget)}
+        >
+          Files <Kbd>{formatForDisplay(SHORTCUTS.surfaceFiles)}</Kbd>
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={(event) => onBrowse('history', event.currentTarget)}
+        >
+          History <Kbd>{formatForDisplay(SHORTCUTS.surfaceHistory)}</Kbd>
+        </Button>
+      </StateNotice>
     </div>
   );
 }
@@ -479,34 +499,21 @@ function ChangeDocument({
                   icon={HistoryIcon}
                   onClick={() => onOpen({ kind: 'timeline', path })}
                 />
-                {interaction.singleHeader && (
-                  <>
-                    <BarAction
-                      label="Open file"
-                      iconOnly
-                      icon={FileIcon}
-                      onClick={() => onOpen({ kind: 'file', path })}
-                    />
-                    {trigger}
-                  </>
-                )}
               </>
             }
             headerLeading={
-              interaction.singleHeader ? undefined : (
-                <>
-                  <Button
-                    variant="ghost"
-                    size="xs"
-                    aria-label="Open file"
-                    onClick={() => onOpen({ kind: 'file', path })}
-                  >
-                    <FileIcon />
-                    <span className="max-narrow:sr-only">Open file</span>
-                  </Button>
-                  {trigger}
-                </>
-              )
+              <>
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  aria-label="Open file"
+                  onClick={() => onOpen({ kind: 'file', path })}
+                >
+                  <FileIcon />
+                  <span className="max-narrow:sr-only">Open file</span>
+                </Button>
+                {trigger}
+              </>
             }
             scope={scope}
             context={context}

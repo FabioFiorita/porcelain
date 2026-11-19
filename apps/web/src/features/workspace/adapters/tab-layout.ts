@@ -1,7 +1,7 @@
 import { useId, useState } from 'react';
 import { useAtomMount, useAtomValue } from '@effect/atom-react';
 import { Atom } from 'effect/reactivity';
-import { parseEntry } from '../rules/documents';
+import { canonicalEntry, parseEntry } from '../rules/documents';
 import {
   closeInPane,
   closeOthersInPane,
@@ -14,6 +14,8 @@ import {
   recentTabEntries,
   primaryPane,
   permanentTab,
+  REVIEW_TAB,
+  sideEntry,
   type Pane,
   togglePinInPane,
 } from '../rules/tab-strip';
@@ -38,8 +40,6 @@ export function useTabLayout({
   ready,
   focusBoundary,
   focusBoundaryOpen,
-  firstDocument,
-  companion,
 }: {
   worktreeId: string;
   entry: string | undefined;
@@ -51,8 +51,6 @@ export function useTabLayout({
   setFocused: (pane: PaneIndex) => void;
   focusBoundary: HTMLElement | null;
   focusBoundaryOpen: boolean;
-  firstDocument: 'handoff' | 'walkthrough';
-  companion: boolean;
 }) {
   const { panes: stored, saved, save } = useTabLayoutStore(worktreeId);
   const [pending, setPending] = useState<[Target, Target]>([
@@ -65,35 +63,32 @@ export function useTabLayout({
   ]);
   const focus = useAtomValue(tabFocus(useId()));
   const cancelDestinationFocus = focus.cancel;
+  const base: readonly Pane[] = [
+    primaryPane(stored?.[0] ?? emptyPane()),
+    ...(stored?.slice(1) ?? []),
+  ];
+  const keptSide = sideEntry(side, base[1]);
   const urlActive: [string | undefined, string | undefined] = [
-    entry !== null &&
-    entry !== undefined &&
-    (parseEntry(entry) ?? null) !== null
-      ? entry
-      : undefined,
-    side !== null && side !== undefined && (parseEntry(side) ?? null) !== null
-      ? side
-      : undefined,
+    canonicalEntry(entry),
+    keptSide,
   ];
 
-  useAtomMount(tabRoute({ ready, entry, side, onSearch, fallback, saved }));
+  useAtomMount(
+    tabRoute({ ready, entry, side, keptSide, onSearch, fallback, saved }),
+  );
 
   const current = (index: PaneIndex): string | undefined => {
     const target = pending[index];
     return target === undefined ? urlActive[index] : (target ?? undefined);
   };
 
-  const base: readonly Pane[] = [
-    primaryPane(stored?.[0] ?? emptyPane(), firstDocument, companion),
-    ...(stored?.slice(1) ?? []),
-  ];
   const lastPrimary = orderedTabs(stored?.[0] ?? emptyPane()).at(-1);
   const restoredPrimary =
-    lastPrimary && !permanentTab(lastPrimary) ? lastPrimary : firstDocument;
+    lastPrimary && !permanentTab(lastPrimary) ? lastPrimary : REVIEW_TAB;
   const actives: [string | null, string | null] = [
     current(0) ??
       (stored === null || stored === undefined
-        ? (fallback ?? firstDocument)
+        ? (fallback ?? REVIEW_TAB)
         : restoredPrimary),
     current(1) ??
       (current(0) !== undefined || base[1] === null || base[1] === undefined
@@ -246,6 +241,7 @@ export function useTabLayout({
       );
     },
     openToSide(index: PaneIndex, key: string) {
+      if (permanentTab(key)) return;
       const target: PaneIndex = index === 0 ? 1 : 0;
       const next = [...panes];
       next[target] = openInPane(
@@ -370,6 +366,7 @@ const tabRoute = Atom.family(
     ready,
     entry,
     side,
+    keptSide,
     onSearch,
     fallback,
     saved,
@@ -377,16 +374,17 @@ const tabRoute = Atom.family(
     ready: boolean;
     entry: string | undefined;
     side: string | undefined;
+    keptSide: string | undefined;
     onSearch: SetWorkspaceSearch;
     fallback: string | null;
     saved: boolean;
   }) =>
     Atom.make(() => {
       if (!ready) return;
-      if (entry !== undefined && parseEntry(entry) === null)
-        onSearch({ entry: undefined }, { replace: true });
-      if (side !== undefined && parseEntry(side) === null)
-        onSearch({ side: undefined }, { replace: true });
+      if (entry !== undefined && canonicalEntry(entry) !== entry)
+        onSearch({ entry: canonicalEntry(entry) }, { replace: true });
+      if (side !== undefined && keptSide !== side)
+        onSearch({ side: keptSide }, { replace: true });
       if (
         !saved &&
         entry === undefined &&

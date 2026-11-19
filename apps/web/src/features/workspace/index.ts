@@ -10,12 +10,17 @@ export { firstDocumentTitle, firstDocumentTitleOwner } from './store';
 export { ReviewBoundary } from './views/review-boundary';
 
 export {
+  NoChanges,
   PlainChangesDocument,
   type DocumentProps,
   type WalkthroughCodeProps,
 } from './views/documents';
 
-export { BranchDocument, type DocumentHeading } from './views/branch-document';
+export {
+  BranchDocument,
+  type ComparedBranch,
+  type DocumentHeading,
+} from './views/branch-document';
 
 export {
   ReviewIndex,

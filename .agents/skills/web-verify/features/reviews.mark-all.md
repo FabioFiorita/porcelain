@@ -20,11 +20,11 @@ api:
 
 # reviews.mark-all
 
-The Changes document's File review actions popover button marks every changed file reviewed in one request; a file that changes on disk afterwards becomes eligible again ("Mark all 1 file reviewed"), and once everything is reviewed the same button reads "Unmark all" and clears every mark.
+The All changes document's File review actions popover button marks every changed file reviewed in one request; a file that changes on disk afterwards becomes eligible again ("Mark all 1 file reviewed"), and once everything is reviewed the same button reads "Unmark all" and clears every mark.
 
 ## How to get to it (user POV)
 
-- The Changes (handoff) document, shown when no review is published: progress count button "File review actions: r of n files reviewed", opening a popover with "Mark all reviewed", accessible name "Mark all <n> files reviewed"; it becomes "Unmark all" when every reviewable file is reviewed.
+- The All changes document (Review → Changes panel → "All changes", or `entry=all-changes`): progress count button "File review actions: r of n files reviewed", opening a popover with "Mark all reviewed", accessible name "Mark all <n> files reviewed"; it becomes "Unmark all" when every reviewable file is reviewed.
 
 ## Driving it with browser
 
@@ -36,7 +36,7 @@ Preconditions: [surface baseline](README.md).
 printf 'Notes to review\n' > "$REPO/NOTES.md"
 ```
 
-1. Navigate to `/`
+1. Navigate to `/?entry=all-changes`
    Expect: heading "2 uncommitted changes" and progress "0 of 2 files reviewed". Open File review actions to see button "Mark all 2 files reviewed" (text "Mark all reviewed"), buttons "Mark README.md as reviewed" and "Mark NOTES.md as reviewed".
 2. Click button `Mark all 2 files reviewed`
    Expect: button "Unmark all" enabled; status "Marked 2 files."; buttons "Unmark README.md as unreviewed" and "Unmark NOTES.md as unreviewed"; both diffs fold (buttons "Expand README.md", "Expand NOTES.md"). `$C server reviewed-files` lists NOTES.md and README.md with their fingerprints.

@@ -11,7 +11,7 @@ async function branchWithTwoFiles(repo: Repo) {
   await repo.commit('Add notes and a glossary');
 }
 
-test('a developer writes a walkthrough, watches it run, reads the step and opens its code', async ({
+test('a developer writes a walkthrough, watches it run and reads each step with its code', async ({
   repo,
   codingTool,
   render,
@@ -25,17 +25,39 @@ test('a developer writes a walkthrough, watches it run, reads the step and opens
   const page = app.page;
 
   await expect
-    .element(page.getByRole('tab', { name: 'Walkthrough', exact: true }))
-    .toBeVisible();
-  await expect.poll(() => app.title()).toMatch(/^Changes — /);
-  await expect
-    .element(page.getByRole('tab', { name: 'Changes', exact: true }))
+    .element(page.getByRole('tab', { name: 'Review', exact: true }))
     .toHaveAttribute('aria-selected', 'true');
-  await page.getByRole('tab', { name: 'Walkthrough', exact: true }).click();
-  await expect.poll(() => app.title()).toMatch(/^Walkthrough — /);
+  await expect
+    .element(page.getByRole('tab', { name: 'Walkthrough', exact: true }))
+    .not.toBeInTheDocument();
+  await expect.poll(() => app.title()).toMatch(/^Review — /);
   await expect
     .element(
       page.getByRole('heading', { name: 'No walkthrough yet.', exact: true }),
+    )
+    .toBeVisible();
+  const everyFile = page.getByRole('group', {
+    name: 'Code: Every changed file',
+    exact: true,
+  });
+  await expect
+    .element(
+      everyFile
+        .getByRole('region', {
+          name: 'Every changed file: branch',
+          exact: true,
+        })
+        .getByText('first line', { exact: true }),
+    )
+    .toBeVisible();
+  await expect
+    .element(
+      everyFile
+        .getByRole('region', {
+          name: 'Every changed file: branch',
+          exact: true,
+        })
+        .getByText('A change to review.', { exact: true }),
     )
     .toBeVisible();
   await page
@@ -43,6 +65,9 @@ test('a developer writes a walkthrough, watches it run, reads the step and opens
     .click();
   await expect
     .element(page.getByText('Writing the walkthrough', { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(everyFile.getByText('first line', { exact: true }))
     .toBeVisible();
 
   await repo.remove(SCENARIO);
@@ -79,6 +104,45 @@ test('a developer writes a walkthrough, watches it run, reads the step and opens
   await expect
     .element(page.getByText('notes', { exact: true }).first())
     .toBeVisible();
+  await expect.poll(() => app.title()).toMatch(/^Teach the sample/);
+  const notesStep = page
+    .getByRole('listitem')
+    .filter({ hasText: 'Step about notes.md' });
+  await expect
+    .element(
+      notesStep
+        .getByRole('region', { name: /^Step \d: branch$/ })
+        .getByText('first line', { exact: true }),
+    )
+    .toBeVisible();
+  await expect
+    .element(notesStep.getByText('A term', { exact: true }))
+    .not.toBeInTheDocument();
+  await expect
+    .element(
+      notesStep.getByRole('textbox', {
+        name: 'Ask about this step',
+        exact: true,
+      }),
+    )
+    .toBeVisible();
+  await expect
+    .element(
+      page
+        .getByRole('listitem')
+        .filter({ hasText: 'Step about README.md' })
+        .getByRole('region', { name: /^Step \d: branch$/ })
+        .getByText('A change to review.', { exact: true }),
+    )
+    .toBeVisible();
+  await expect
+    .element(
+      page.getByRole('heading', {
+        name: 'Not covered by the steps',
+        exact: true,
+      }),
+    )
+    .not.toBeInTheDocument();
 
   const sidebar = page.getByRole('complementary', {
     name: 'Review sidebar',
@@ -94,29 +158,7 @@ test('a developer writes a walkthrough, watches it run, reads the step and opens
     .element(sidebar.getByRole('img', { name: 'Your call', exact: true }))
     .toBeVisible();
 
-  await page
-    .getByRole('button', {
-      name: 'Open code for step 2 in split view',
-      exact: true,
-    })
-    .click();
-  const left = page.getByRole('region', { name: 'Left pane', exact: true });
-  const right = page.getByRole('region', { name: 'Right pane', exact: true });
-  await expect
-    .element(left.getByRole('heading', { name: /^Teach the sample/ }))
-    .toBeVisible();
-  await expect
-    .element(right.getByRole('heading', { name: /^Step 2 of 3: / }))
-    .toBeVisible();
-  await right
-    .getByRole('tab', { name: 'Step 2', exact: true })
-    .click({ button: 'right' });
-  await page.getByRole('menuitem', { name: 'Close pane', exact: true }).click();
-  await expect.element(right).not.toBeInTheDocument();
-
-  await page
-    .getByRole('button', { name: 'See the code for step 1', exact: true })
-    .click();
+  await sidebar.getByRole('button', { name: 'Step 1', exact: true }).click();
   await expect
     .element(page.getByRole('region', { name: 'Right pane', exact: true }))
     .not.toBeInTheDocument();
@@ -135,11 +177,19 @@ test('a developer writes a walkthrough, watches it run, reads the step and opens
     )
     .toBeVisible();
   await expect
-    .element(page.getByText('first line', { exact: true }))
+    .element(
+      page
+        .getByRole('tabpanel', { name: 'Step 1', exact: true })
+        .getByText('first line', { exact: true }),
+    )
     .not.toBeInTheDocument();
   await page.getByRole('button', { name: 'Next step', exact: true }).click();
   await expect
     .element(page.getByRole('heading', { name: /^Step 2 of 3: / }))
+    .toBeVisible();
+  await page.getByRole('tab', { name: 'Review', exact: true }).click();
+  await expect
+    .element(page.getByRole('heading', { name: /^Teach the sample/ }))
     .toBeVisible();
 
   await expect
@@ -157,7 +207,7 @@ test('local edits group by step, and files the walkthrough never read stand apar
   await codingTool.install();
   const app = await render.route('/');
   const page = app.page;
-  await page.getByRole('tab', { name: 'Walkthrough', exact: true }).click();
+  await page.getByRole('tab', { name: 'Review', exact: true }).click();
   await page
     .getByRole('button', { name: 'Write walkthrough', exact: true })
     .click();
@@ -200,7 +250,7 @@ test('a later commit lists its file outside the steps, and a refused Update says
   await codingTool.install();
   const app = await render.route('/');
   const page = app.page;
-  await page.getByRole('tab', { name: 'Walkthrough', exact: true }).click();
+  await page.getByRole('tab', { name: 'Review', exact: true }).click();
   await page
     .getByRole('button', { name: 'Write walkthrough', exact: true })
     .click();
@@ -227,6 +277,28 @@ test('a later commit lists its file outside the steps, and a refused Update says
   await expect
     .element(
       sidebar.getByRole('button', { name: 'later.md · added', exact: true }),
+    )
+    .toBeVisible();
+  await expect
+    .element(
+      page.getByRole('heading', {
+        name: 'Not covered by the steps',
+        exact: true,
+      }),
+    )
+    .toBeVisible();
+  await page
+    .getByRole('group', { name: 'Code: Not covered by the steps', exact: true })
+    .getByText('later.md', { exact: true })
+    .click();
+  await expect
+    .element(
+      page
+        .getByRole('region', {
+          name: 'Not covered by the steps: branch',
+          exact: true,
+        })
+        .getByText('later', { exact: true }),
     )
     .toBeVisible();
 
@@ -262,7 +334,7 @@ test('a commit marks the walkthrough out of date and Update writes it again', as
   await codingTool.install();
   const app = await render.route('/');
   const page = app.page;
-  await page.getByRole('tab', { name: 'Walkthrough', exact: true }).click();
+  await page.getByRole('tab', { name: 'Review', exact: true }).click();
   await page
     .getByRole('button', { name: 'Write walkthrough', exact: true })
     .click();
@@ -301,12 +373,13 @@ test('a commit marks the walkthrough out of date and Update writes it again', as
     .element(page.getByText('By step', { exact: true }))
     .toBeVisible();
   await page
-    .getByRole('button', { name: 'See the code for step 1', exact: true })
+    .getByRole('complementary', { name: 'Review sidebar', exact: true })
+    .getByRole('button', { name: 'Step 1', exact: true })
     .click();
   await expect
     .element(page.getByRole('tab', { name: 'Step 1', exact: true }))
     .toBeVisible();
-  await page.getByRole('tab', { name: 'Walkthrough', exact: true }).click();
+  await page.getByRole('tab', { name: 'Review', exact: true }).click();
   await repo.write(SCENARIO, 'signed-out');
   await expect
     .element(page.getByRole('button', { name: 'Try again', exact: true }))
@@ -352,7 +425,7 @@ test('a signed-out writer names the sign-in command and Try again runs it again'
   await repo.write(SCENARIO, 'signed-out');
   const app = await render.route('/');
   const page = app.page;
-  await page.getByRole('tab', { name: 'Walkthrough', exact: true }).click();
+  await page.getByRole('tab', { name: 'Review', exact: true }).click();
   await page
     .getByRole('button', { name: 'Write walkthrough', exact: true })
     .click();
@@ -376,7 +449,7 @@ test('a signed-out writer names the sign-in command and Try again runs it again'
     .toBeVisible();
 });
 
-test('a walkthrough with nothing to say shows the short page and the way to the change', async ({
+test('a walkthrough with nothing to say shows the short page above every changed file', async ({
   repo,
   codingTool,
   render,
@@ -386,7 +459,7 @@ test('a walkthrough with nothing to say shows the short page and the way to the 
   await repo.write(SCENARIO, 'nothing');
   const app = await render.route('/');
   const page = app.page;
-  await page.getByRole('tab', { name: 'Walkthrough', exact: true }).click();
+  await page.getByRole('tab', { name: 'Review', exact: true }).click();
   await page
     .getByRole('button', { name: 'Write walkthrough', exact: true })
     .click();
@@ -397,15 +470,16 @@ test('a walkthrough with nothing to say shows the short page and the way to the 
       }),
     )
     .toBeVisible();
-  await page
-    .getByRole('button', { name: 'See the change', exact: true })
-    .click();
   await expect
-    .element(page.getByRole('heading', { name: 'All changes', exact: true }))
+    .element(
+      page
+        .getByRole('group', { name: 'Code: Every changed file', exact: true })
+        .getByText('first line', { exact: true }),
+    )
     .toBeVisible();
 });
 
-test('uncommitted-only work opens Changes, offers a Walkthrough tab and stays fresh when its explained content is committed', async ({
+test('uncommitted-only work opens the review with its diffs and stays fresh when its explained content is committed', async ({
   repo,
   codingTool,
   render,
@@ -420,14 +494,18 @@ test('uncommitted-only work opens Changes, offers a Walkthrough tab and stays fr
   const app = await render.route('/?base=refs%2Fheads%2Fworking-base');
   const page = app.page;
   await expect
-    .element(page.getByRole('tab', { name: 'Changes', exact: true }))
+    .element(page.getByRole('tab', { name: 'Review', exact: true }))
     .toHaveAttribute('aria-selected', 'true');
   await expect
     .element(
-      page.getByRole('heading', { name: '2 uncommitted changes', exact: true }),
+      page
+        .getByRole('region', {
+          name: 'Every changed file: uncommitted',
+          exact: true,
+        })
+        .getByText('first line', { exact: true }),
     )
     .toBeVisible();
-  await page.getByRole('tab', { name: 'Walkthrough', exact: true }).click();
   await expect
     .element(
       page.getByRole('heading', { name: 'No walkthrough yet.', exact: true }),
@@ -510,7 +588,7 @@ test('uncommitted-only work opens Changes, offers a Walkthrough tab and stays fr
 });
 
 for (const state of ['uncommitted', 'mixed', 'committed'] as const) {
-  test(`a ${state} walkthrough opens the code in every scope the step owns`, async ({
+  test(`a ${state} walkthrough shows the step's code in every scope it owns`, async ({
     repo,
     codingTool,
     render,
@@ -528,61 +606,26 @@ for (const state of ['uncommitted', 'mixed', 'committed'] as const) {
     await codingTool.install();
     const app = await render.route('/?base=refs%2Fheads%2Fcode-base');
     const page = app.page;
-    await page.getByRole('tab', { name: 'Walkthrough', exact: true }).click();
+    await page.getByRole('tab', { name: 'Review', exact: true }).click();
     await page
       .getByRole('button', { name: 'Write walkthrough', exact: true })
       .click();
     await expect
       .element(page.getByRole('heading', { name: /One call is yours/ }))
       .toBeVisible();
-    await page
-      .getByRole('button', { name: 'See the code for step 1', exact: true })
-      .click();
     const branch = page.getByRole('region', {
-      name: 'Branch code',
+      name: 'Step 1: branch',
       exact: true,
     });
     const working = page.getByRole('region', {
-      name: 'Uncommitted code',
+      name: 'Step 1: uncommitted',
       exact: true,
     });
-    if (state !== 'uncommitted') {
-      await expect.element(branch).toBeVisible();
-      await expect
-        .element(branch.getByText('A change to review.', { exact: true }))
-        .toBeVisible();
-    } else await expect.element(branch).not.toBeInTheDocument();
-    if (state !== 'committed') {
-      await expect.element(working).toBeVisible();
-      await expect
-        .element(
-          working.getByText(
-            state === 'mixed'
-              ? 'Working line in the same step.'
-              : 'A change to review.',
-            { exact: true },
-          ),
-        )
-        .toBeVisible();
-    } else await expect.element(working).not.toBeInTheDocument();
-    await expect
-      .element(
-        page
-          .getByRole('toolbar', { name: 'Document controls', exact: true })
-          .getByRole('button', { name: 'Comment', exact: true }),
-      )
-      .not.toBeInTheDocument();
-    await page.getByRole('tab', { name: 'Walkthrough', exact: true }).click();
-    await page
-      .getByRole('button', { name: 'See every changed file', exact: true })
-      .click();
-    await expect
-      .element(page.getByRole('heading', { name: 'All changes', exact: true }))
-      .toBeVisible();
     if (state !== 'uncommitted')
       await expect
         .element(branch.getByText('A change to review.', { exact: true }))
         .toBeVisible();
+    else await expect.element(branch).not.toBeInTheDocument();
     if (state !== 'committed')
       await expect
         .element(
@@ -594,6 +637,15 @@ for (const state of ['uncommitted', 'mixed', 'committed'] as const) {
           ),
         )
         .toBeVisible();
+    else await expect.element(working).not.toBeInTheDocument();
+    await expect
+      .element(
+        page.getByRole('heading', {
+          name: 'Not covered by the steps',
+          exact: true,
+        }),
+      )
+      .not.toBeInTheDocument();
   });
 }
 
@@ -620,12 +672,13 @@ for (const state of ['uncommitted', 'mixed', 'committed'] as const) {
     await repo.write(SCENARIO, 'grouped');
     const app = await render.route('/?base=refs%2Fheads%2Freview-base');
     const page = app.page;
-    await page.getByRole('tab', { name: 'Walkthrough', exact: true }).click();
+    await page.getByRole('tab', { name: 'Review', exact: true }).click();
     await page
       .getByRole('button', { name: 'Write walkthrough', exact: true })
       .click();
     await page
-      .getByRole('button', { name: 'See the code for step 1', exact: true })
+      .getByRole('complementary', { name: 'Review sidebar', exact: true })
+      .getByRole('button', { name: 'Step 1', exact: true })
       .click();
     const reviewed = page
       .getByRole('toolbar', { name: 'Document controls', exact: true })
@@ -713,3 +766,155 @@ for (const state of ['uncommitted', 'mixed', 'committed'] as const) {
       .toEqual(state === 'committed' ? [] : ['zebra.md']);
   });
 }
+
+test('a walkthrough that cannot be read still shows every changed file', async ({
+  fetchGate,
+  render,
+}) => {
+  fetchGate.failWalkthroughReads();
+  const workspace = await render.workspace();
+  await expect
+    .element(
+      workspace.getByText('The walkthrough could not be read.', {
+        exact: true,
+      }),
+    )
+    .toBeVisible();
+  await expect
+    .element(
+      workspace
+        .getByRole('region', {
+          name: 'Every changed file: uncommitted',
+          exact: true,
+        })
+        .getByText('A change to review.', { exact: true }),
+    )
+    .toBeVisible();
+});
+
+test('a step citing a staged rename shows the committed file and its local edit together', async ({
+  repo,
+  codingTool,
+  render,
+}) => {
+  await browserPage.viewport(1280, 896);
+  await repo.branch('rename-base');
+  await repo.branch('rename-feature');
+  await repo.switch('rename-feature');
+  await repo.write('old-name.md', 'Committed line\n');
+  await repo.commit('Add the old name');
+  await repo.rename('old-name.md', 'new-name.md');
+  await repo.write('new-name.md', 'Committed line\nLocal line\n');
+  await codingTool.install();
+  const app = await render.route('/?base=refs%2Fheads%2Frename-base');
+  const page = app.page;
+  await page
+    .getByRole('button', { name: 'Write walkthrough', exact: true })
+    .click();
+  const step = page
+    .getByRole('listitem')
+    .filter({ hasText: 'Step about new-name.md' });
+  await expect
+    .element(
+      step
+        .getByRole('region', { name: /^Step \d: branch$/ })
+        .getByText('Committed line', { exact: true }),
+    )
+    .toBeVisible();
+  await expect
+    .element(
+      step
+        .getByRole('region', { name: /^Step \d: uncommitted$/ })
+        .getByText('Local line', { exact: true }),
+    )
+    .toBeVisible();
+  await expect
+    .element(
+      page.getByRole('region', {
+        name: 'Not covered by the steps: branch',
+        exact: true,
+      }),
+    )
+    .not.toBeInTheDocument();
+});
+
+test('a long walkthrough loads a step code only when the step comes near view', async ({
+  repo,
+  codingTool,
+  render,
+}) => {
+  await repo.branch('many-base');
+  await repo.branch('many-feature');
+  await repo.switch('many-feature');
+  for (let file = 1; file <= 30; file += 1) {
+    const name = String(file).padStart(2, '0');
+    await repo.write(
+      `step-${name}.md`,
+      Array.from(
+        { length: 60 },
+        (_, line) => `Step ${name} line ${line + 1}`,
+      ).join('\n'),
+    );
+  }
+  await repo.commit('Add many step files');
+  await codingTool.install();
+  const app = await render.route('/?base=refs%2Fheads%2Fmany-base');
+  const page = app.page;
+  await page
+    .getByRole('button', { name: 'Write walkthrough', exact: true })
+    .click();
+  const first = page
+    .getByRole('group', { name: /^Code: Step \d+$/ })
+    .filter({ hasText: 'step-01.md' });
+  await expect
+    .element(first.getByText('Step 01 line 1', { exact: true }))
+    .toBeVisible();
+  const far = page
+    .getByRole('group', { name: /^Code: Step \d+$/ })
+    .filter({ hasText: 'step-30.md' });
+  await expect.element(far).toBeInTheDocument();
+  await expect
+    .element(far.getByRole('region', { name: /^Step \d+: branch$/ }))
+    .not.toBeInTheDocument();
+  await far.getByText('step-30.md', { exact: true }).click();
+  await expect
+    .element(far.getByText('Step 30 line 1', { exact: true }))
+    .toBeVisible();
+});
+
+test('a deferred step loads its code once it becomes visible without a scroll', async ({
+  repo,
+  codingTool,
+  render,
+}) => {
+  await browserPage.viewport(1280, 896);
+  try {
+    await repo.branch('wide-base');
+    await repo.branch('wide-feature');
+    await repo.switch('wide-feature');
+    for (let file = 1; file <= 26; file += 1) {
+      const name = String(file).padStart(2, '0');
+      await repo.write(`wide-${name}.md`, `Wide ${name} line\n`);
+    }
+    await repo.commit('Add many small step files');
+    await codingTool.install();
+    const app = await render.route('/?base=refs%2Fheads%2Fwide-base');
+    const page = app.page;
+    await page
+      .getByRole('button', { name: 'Write walkthrough', exact: true })
+      .click();
+    const far = page
+      .getByRole('group', { name: /^Code: Step \d+$/ })
+      .filter({ hasText: 'wide-26.md' });
+    await expect.element(far).toBeInTheDocument();
+    await expect
+      .element(far.getByRole('region', { name: /^Step \d+: branch$/ }))
+      .not.toBeInTheDocument();
+    await browserPage.viewport(1280, 30000);
+    await expect
+      .element(far.getByText('Wide 26 line', { exact: true }))
+      .toBeVisible();
+  } finally {
+    await browserPage.viewport(414, 896);
+  }
+});

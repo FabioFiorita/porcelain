@@ -86,7 +86,7 @@ for (const width of [900, 1100]) {
       name: 'Open documents',
       exact: true,
     });
-    await tabs.getByRole('tab', { name: 'Changes', exact: true }).click();
+    await tabs.getByRole('tab', { name: 'Review', exact: true }).click();
     const list = page.getByRole('button', {
       name: 'Open document list',
       exact: true,
@@ -99,7 +99,7 @@ for (const width of [900, 1100]) {
       ).toBeVisible();
     }
     await expect(
-      page.getByRole('menuitemradio', { name: 'Changes', exact: true }),
+      page.getByRole('menuitemradio', { name: 'Review', exact: true }),
     ).toHaveAttribute('aria-checked', 'true');
     await page
       .getByRole('menuitemradio', { name: paths[0], exact: true })
@@ -145,42 +145,3 @@ for (const width of [900, 1100]) {
     ).toHaveAttribute('aria-selected', 'true');
   });
 }
-
-test('compact comparison icons disclose the current mode on hover and keyboard focus', async ({
-  pairedPage: page,
-}) => {
-  await page.setViewportSize({ width: 900, height: 900 });
-  const comparison = page.getByRole('tablist', {
-    name: 'Compare',
-    exact: true,
-  });
-  await expect(comparison).toHaveAttribute(
-    'aria-description',
-    'Current comparison: Uncommitted',
-  );
-  const uncommitted = comparison.getByRole('tab', {
-    name: 'Uncommitted',
-    exact: true,
-  });
-  await expect(uncommitted).toHaveAttribute('aria-selected', 'true');
-  await uncommitted.hover();
-  await expect(
-    page.getByText('Uncommitted (current comparison)', { exact: true }),
-  ).toBeVisible();
-  await page.mouse.move(1, 500);
-  const branch = comparison.getByRole('tab', { name: 'Branch', exact: true });
-  await uncommitted.focus();
-  await uncommitted.press('ArrowRight');
-  await expect(branch).toBeFocused();
-  await expect(page.getByText('Branch', { exact: true }).last()).toBeVisible();
-  await branch.press('Enter');
-  await expect(branch).toHaveAttribute('aria-selected', 'true');
-  await expect(comparison).toHaveAttribute(
-    'aria-description',
-    'Current comparison: Branch',
-  );
-  await branch.hover();
-  await expect(
-    page.getByText('Branch (current comparison)', { exact: true }),
-  ).toBeVisible();
-});

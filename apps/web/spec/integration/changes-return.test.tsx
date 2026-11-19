@@ -1,6 +1,6 @@
 import { expect, test } from './fixtures.tsx';
 
-test.for(['handoff', 'change:long.txt'])(
+test.for(['all-changes', 'change:long.txt'])(
   'a diff keeps its reading position across tab return and live refresh in %s',
   async (entry, { repo, render, reviewLayout, fetchGate, server }) => {
     const path = 'long.txt';
@@ -15,7 +15,7 @@ test.for(['handoff', 'change:long.txt'])(
     const gate = fetchGate.holdNextPost('/changes/diffs');
     const app = await render.route('/');
     await expect
-      .element(app.page.getByRole('tab', { name: 'Changes', exact: true }))
+      .element(app.page.getByRole('tab', { name: 'Review', exact: true }))
       .toBeVisible();
     await app.navigate(
       `${app.location().split('?')[0]}?entry=${encodeURIComponent(entry)}`,
@@ -23,7 +23,7 @@ test.for(['handoff', 'change:long.txt'])(
     await expect
       .element(
         app.page.getByRole('tab', {
-          name: entry === 'handoff' ? 'Changes' : path,
+          name: entry === 'all-changes' ? 'All changes' : path,
           exact: true,
         }),
       )
@@ -37,16 +37,16 @@ test.for(['handoff', 'change:long.txt'])(
       .toBeVisible();
     reviewLayout.scrollCodeTo(code, 1200);
     await expect.poll(() => reviewLayout.codeScrollTop(code)).toBe(1200);
-    if (entry !== 'handoff') {
-      await app.page.getByRole('tab', { name: 'Changes', exact: true }).click();
+    if (entry !== 'all-changes') {
+      await app.page.getByRole('tab', { name: 'Review', exact: true }).click();
       await app.page.getByRole('tab', { name: path, exact: true }).click();
       await expect.poll(() => reviewLayout.codeScrollTop(code)).toBe(1200);
     }
     gate.arm();
     try {
       await repo.write(
-        entry === 'handoff' ? repo.readme.path : path,
-        entry === 'handoff'
+        entry === 'all-changes' ? repo.readme.path : path,
+        entry === 'all-changes'
           ? '# Another writer changed this file\n'
           : `${lines.replaceAll('before', 'after')}\nAnother writer appended this line\n`,
       );
@@ -78,7 +78,7 @@ test('the branch base is selectable from its document with the side panel closed
   await expect.poll(async () => (await server.branchChanges()).commits).toBe(2);
   const app = await render.route('/');
   await expect
-    .element(app.page.getByRole('tab', { name: 'Changes', exact: true }))
+    .element(app.page.getByRole('tab', { name: 'Review', exact: true }))
     .toHaveAttribute('aria-selected', 'true');
   await app.navigate(`${app.location().split('?')[0]}?entry=branch`);
   const controls = app.page.getByRole('toolbar', {
@@ -143,7 +143,7 @@ test('a retained line selection cannot target changed code after a refresh', asy
   await repo.write(path, source.replaceAll('before', 'after'));
   const app = await render.route('/');
   await expect
-    .element(app.page.getByRole('tab', { name: 'Changes', exact: true }))
+    .element(app.page.getByRole('tab', { name: 'Review', exact: true }))
     .toBeVisible();
   await app.navigate(`${app.location().split('?')[0]}?entry=change:${path}`);
   const code = app.page.getByRole('region', {
@@ -157,7 +157,7 @@ test('a retained line selection cannot target changed code after a refresh', asy
   await expect
     .poll(() => reviewLayout.highlightedCode(code))
     .toContain('after line 3');
-  await app.page.getByRole('tab', { name: 'Changes', exact: true }).click();
+  await app.page.getByRole('tab', { name: 'Review', exact: true }).click();
   await app.page.getByRole('tab', { name: path, exact: true }).click();
   await expect
     .poll(() => reviewLayout.highlightedCode(code))

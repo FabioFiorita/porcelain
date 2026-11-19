@@ -142,8 +142,11 @@ export function ProjectNavigator({
   useAtomMount(refreshInventories(connections));
   const retry = useAtomSet(refreshWorktreeNavigator(connections));
   const location = useLocation();
-  const [menu, setMenu] = useState({ href: location.href, open: false });
-  const menuOpen = menu.href === location.href && menu.open;
+  const [menu, setMenu] = useState({
+    pathname: location.pathname,
+    open: false,
+  });
+  const menuOpen = menu.pathname === location.pathname && menu.open;
   const setQuery = (query: string) =>
     setState((current) => ({ ...current, query }));
   const filtered =
@@ -243,7 +246,9 @@ export function ProjectNavigator({
           </InputGroup>
           <DropdownMenu
             open={menuOpen}
-            onOpenChange={(open) => setMenu({ href: location.href, open })}
+            onOpenChange={(open) =>
+              setMenu({ pathname: location.pathname, open })
+            }
           >
             <Tooltip disableHoverablePopup>
               <TooltipTrigger

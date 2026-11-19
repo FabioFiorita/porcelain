@@ -62,7 +62,7 @@ test('open tabs, a pinned tab and a collapsed diff come back after a reload', as
   ).toBeVisible();
 });
 
-test('a reloaded split keeps shortcuts on the saved side pane and closing it preserves Changes', async ({
+test('a reloaded split keeps shortcuts on the saved side pane and closing it preserves Review', async ({
   app,
   repo,
 }) => {
@@ -83,6 +83,6 @@ test('a reloaded split keeps shortcuts on the saved side pane and closing it pre
   await opened.keyboard.press('Alt+w');
   await expect(right).not.toBeAttached();
   await expect(
-    opened.getByRole('tab', { name: 'Changes', exact: true }),
+    opened.getByRole('tab', { name: 'Review', exact: true }),
   ).toBeVisible();
 });

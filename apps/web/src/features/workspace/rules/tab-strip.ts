@@ -1,5 +1,4 @@
-import { counted } from '@porcelain/client/changes/rules';
-import { parseEntry, withDocument } from './documents';
+import { canonicalEntry, withDocument } from './documents';
 
 export type Pane = {
   readonly tabs: readonly string[];
@@ -8,18 +7,35 @@ export type Pane = {
 
 export const emptyPane = (): Pane => ({ tabs: [], pinned: [] });
 
+export const REVIEW_TAB = 'review';
+
 export function permanentTab(key: string) {
-  return key === 'handoff' || key === 'walkthrough';
+  return key === REVIEW_TAB;
 }
 
-export function primaryPane(
-  pane: Pane,
-  first: 'handoff' | 'walkthrough' = 'handoff',
-  companion = false,
-): Pane {
-  const leading = companion ? [first, 'walkthrough'] : [first];
+export type DocumentIds = { tab: string; panel: string };
+
+export function documentIds(pane: string, key: string): DocumentIds {
+  const id = `${pane}-${encodeURIComponent(key)}`;
+  return { tab: `${id}-tab`, panel: `${id}-panel` };
+}
+
+export function sideEntry(entry: string | undefined, side?: Pane) {
+  const key = canonicalEntry(entry);
+  if (key === undefined || !permanentTab(key)) return key;
+  return side ? orderedTabs(sidePane(side)).at(-1) : undefined;
+}
+
+function sidePane(pane: Pane): Pane {
   return {
-    tabs: [...leading, ...pane.tabs.filter((key) => !leading.includes(key))],
+    tabs: pane.tabs.filter((key) => !permanentTab(key)),
+    pinned: pane.pinned.filter((key) => !permanentTab(key)),
+  };
+}
+
+export function primaryPane(pane: Pane): Pane {
+  return {
+    tabs: [REVIEW_TAB, ...pane.tabs.filter((key) => !permanentTab(key))],
     pinned: pane.pinned.filter((key) => !permanentTab(key)),
   };
 }
@@ -36,7 +52,7 @@ export function documentPane(
 
 export function orderedTabs(pane: Pane): string[] {
   return [
-    ...['handoff', 'walkthrough'].filter((key) => pane.tabs.includes(key)),
+    ...pane.tabs.filter(permanentTab),
     ...pane.pinned.filter(
       (key) => !permanentTab(key) && pane.tabs.includes(key),
     ),
@@ -118,10 +134,15 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function knownEntries(entries: unknown): string[] {
   return Array.isArray(entries)
-    ? entries.filter(
-        (entry): entry is string =>
-          typeof entry === 'string' && (parseEntry(entry) ?? null) !== null,
-      )
+    ? [
+        ...new Set(
+          entries.flatMap((entry: unknown) => {
+            const known =
+              typeof entry === 'string' ? canonicalEntry(entry) : undefined;
+            return known === undefined ? [] : [known];
+          }),
+        ),
+      ]
     : [];
 }
 
@@ -137,6 +158,7 @@ export function parseTabLayout(value: unknown): Pane[] | null {
         ),
       };
     })
+    .map((pane, index) => (index === 0 ? pane : sidePane(pane)))
     .filter((pane, index) => index === 0 || pane.tabs.length > 0);
   return panes.length > 0 ? panes : null;
 }
@@ -145,16 +167,6 @@ export function openToSideText(side: 'left' | 'right' | null) {
   if (side === null) return 'Open to the side';
   if (side === 'left') return 'Open in the right pane';
   return 'Open in the left pane';
-}
-
-export type TabCount = { value: string; description: string };
-
-export function changesTabCount(count: number): TabCount | undefined {
-  if (count === 0) return undefined;
-  return {
-    value: String(count),
-    description: counted(count, 'uncommitted file'),
-  };
 }
 
 export function recentTabEntries(

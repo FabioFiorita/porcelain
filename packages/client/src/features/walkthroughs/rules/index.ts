@@ -1,6 +1,8 @@
 export {
   groupFilesByStep,
   walkthroughCodeScopes,
+  reviewCodeSections,
+  eagerSections,
   plainText,
   richParts,
   stopPaths,
@@ -9,6 +11,7 @@ export {
   walkthroughTabTitle,
   walkthroughPhase,
   walkthroughVerdict,
+  type ReviewCode,
   type StepFiles,
   type WalkthroughContent,
   type WalkthroughEvidence,

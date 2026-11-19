@@ -4,6 +4,7 @@ test('marking all changed files reviewed marks each one, a file changed on disk 
   workspace,
   repo,
   server,
+  reviewLayout,
 }) => {
   const readme = repo.readme.path;
   const notes = 'NOTES.md';
@@ -27,6 +28,7 @@ test('marking all changed files reviewed marks each one, a file changed on disk 
     (await server.reviewedFiles()).marks.map((mark) => mark.path);
 
   await repo.write(notes, 'Notes to review\n');
+  await reviewLayout.openAllChanges();
   await workspace
     .getByRole('button', { name: /^File review actions:/ })
     .click();
@@ -57,4 +59,42 @@ test('marking all changed files reviewed marks each one, a file changed on disk 
   await unmarkAll.click();
   await expect.element(markTwo).toBeEnabled();
   await expect.poll(marked).toEqual([]);
+});
+
+test('All changes on a worktree with a ready walkthrough keeps its file table and marks every file', async ({
+  repo,
+  codingTool,
+  render,
+  server,
+  reviewLayout,
+}) => {
+  await repo.write('NOTES.md', 'Notes to review\n');
+  await codingTool.install();
+  const workspace = await render.workspace();
+  await workspace
+    .getByRole('button', { name: 'Write walkthrough', exact: true })
+    .click();
+  await expect
+    .element(workspace.getByRole('heading', { name: /One call is yours\.$/ }))
+    .toBeVisible();
+  await reviewLayout.openAllChanges();
+  await expect
+    .element(
+      workspace.getByRole('region', {
+        name: '2 uncommitted changes',
+        exact: true,
+      }),
+    )
+    .toBeVisible();
+  await workspace
+    .getByRole('button', { name: /^File review actions:/ })
+    .click();
+  await workspace
+    .getByRole('button', { name: 'Mark all 2 files reviewed', exact: true })
+    .click();
+  await expect
+    .poll(async () =>
+      (await server.reviewedFiles()).marks.map((mark) => mark.path).toSorted(),
+    )
+    .toEqual(['NOTES.md', 'README.md']);
 });

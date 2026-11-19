@@ -35,7 +35,7 @@ for (const entryPoint of ['Files tree', 'Quick Open', 'Pinned']) {
       name: 'Right pane',
       exact: true,
     });
-    await left.getByRole('tab', { name: 'Changes', exact: true }).click();
+    await left.getByRole('tab', { name: 'Review', exact: true }).click();
     await review();
     await expect.element(row).toBeVisible();
     if (entryPoint === 'Files tree') await row.click();
@@ -94,7 +94,7 @@ for (const entryPoint of ['Files tree', 'Quick Open', 'Pinned']) {
       )
       .not.toBeInTheDocument();
     await expect
-      .element(left.getByRole('tab', { name: 'Changes', exact: true }))
+      .element(left.getByRole('tab', { name: 'Review', exact: true }))
       .toHaveAttribute('aria-selected', 'true');
     await review();
     await row.click();
@@ -195,7 +195,7 @@ test('the persistent Files tree reopens its selected file after focus moves to t
       .getByRole('tab', { name: 'guide.txt', exact: true })
       .getByRole('button', { name: 'Close guide.txt', exact: true })
       .click();
-    await left.getByRole('tab', { name: 'Changes', exact: true }).click();
+    await left.getByRole('tab', { name: 'Review', exact: true }).click();
     await row.click();
     await expect.element(file).toHaveFocus();
     await expect

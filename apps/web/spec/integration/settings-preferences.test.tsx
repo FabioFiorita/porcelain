@@ -135,5 +135,5 @@ test('global Settings titles name Porcelain across sections and restore the work
     )
     .toBeVisible();
   await app.navigate('/');
-  await expect.poll(() => app.title()).toMatch(/^Changes — /);
+  await expect.poll(() => app.title()).toMatch(/^Review — /);
 });

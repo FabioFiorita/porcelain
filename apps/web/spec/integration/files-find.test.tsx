@@ -21,10 +21,12 @@ test('finding in a long file brings a match far below the fold into view in the 
     .getByRole('menuitem', { name: 'Open file', exact: true })
     .click();
   await expect
-    .element(workspace.getByText('filler 0', { exact: true }))
+    .element(
+      workspace.getByRole('tabpanel').getByText('filler 0', { exact: true }),
+    )
     .toBeVisible();
   await expect
-    .element(workspace.getByText(needle, { exact: true }))
+    .element(workspace.getByRole('tabpanel').getByText(needle, { exact: true }))
     .not.toBeInTheDocument();
   await expect
     .element(
@@ -46,14 +48,18 @@ test('finding in a long file brings a match far below the fold into view in the 
     .element(workspace.getByText('1 of 2', { exact: true }))
     .toBeVisible();
   await expect
-    .element(workspace.getByText('an early NEEDLE', { exact: true }))
+    .element(
+      workspace
+        .getByRole('tabpanel')
+        .getByText('an early NEEDLE', { exact: true }),
+    )
     .toBeVisible();
   await userEvent.keyboard('{Enter}');
   await expect
     .element(workspace.getByText('2 of 2', { exact: true }))
     .toBeVisible();
   await expect
-    .element(workspace.getByText(needle, { exact: true }))
+    .element(workspace.getByRole('tabpanel').getByText(needle, { exact: true }))
     .toBeVisible();
   await workspace
     .getByRole('button', { name: 'Previous match', exact: true })
@@ -77,6 +83,8 @@ test('finding in a long file brings a match far below the fold into view in the 
   await search.fill(needle);
   await userEvent.keyboard('{Enter}');
   await expect
-    .element(workspace.getByText(needle, { exact: true }).last())
+    .element(
+      workspace.getByRole('tabpanel').getByText(needle, { exact: true }).last(),
+    )
     .toBeVisible();
 });

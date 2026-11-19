@@ -1,7 +1,7 @@
 import { page as browserPage } from 'vitest/browser';
 import { expect, test } from './fixtures.tsx';
 
-test('Branch and Uncommitted keep the same reading width when switching the Changes comparison', async ({
+test('All changes and the Branch document keep the same reading width', async ({
   repo,
   render,
   reviewLayout,
@@ -16,24 +16,31 @@ test('Branch and Uncommitted keep the same reading width when switching the Chan
     const app = await render.route('/');
     const page = app.page;
     await expect
-      .element(page.getByText('Uncommitted local content.', { exact: true }))
+      .element(page.getByRole('tab', { name: 'Review', exact: true }))
+      .toHaveAttribute('aria-selected', 'true');
+    const location = app.location().split('?')[0];
+    await app.navigate(`${location}?entry=all-changes`);
+    const code = (panel: string) =>
+      page
+        .getByRole('tabpanel', { name: panel, exact: true })
+        .getByRole('region', { name: 'Code content', exact: true });
+    await expect
+      .element(
+        code('All changes').getByText('Uncommitted local content.', {
+          exact: true,
+        }),
+      )
       .toBeVisible();
-    const content = page.getByRole('region', {
-      name: 'Code content',
-      exact: true,
-    });
-    const uncommitted = reviewLayout.codeContentEdges(content);
-    await page
-      .getByRole('toolbar', { name: 'Document controls', exact: true })
-      .getByRole('tab', { name: 'Branch', exact: true })
-      .click();
+    const uncommitted = reviewLayout.codeContentEdges(code('All changes'));
+    await app.navigate(`${location}?entry=branch`);
+    const content = code('Branch');
     await expect
       .element(
         page.getByRole('heading', { name: 'feature since main', exact: true }),
       )
       .toBeVisible();
     await expect
-      .element(page.getByText('Committed branch content.', { exact: true }))
+      .element(content.getByText('Committed branch content.', { exact: true }))
       .toBeVisible();
     await expect
       .poll(() => {
@@ -44,28 +51,27 @@ test('Branch and Uncommitted keep the same reading width when switching the Chan
         );
       })
       .toBeLessThanOrEqual(1);
-    await page
-      .getByRole('toolbar', { name: 'Document controls', exact: true })
-      .getByRole('tab', { name: 'Uncommitted', exact: true })
-      .click();
-    await expect
-      .element(page.getByText('Uncommitted local content.', { exact: true }))
-      .toBeVisible();
   } finally {
     await browserPage.viewport(414, 896);
   }
 });
 
-test('loading a diff names the file and reserves code space below its header', async ({
+test('loading a diff in All changes names the file and reserves code space below its header', async ({
   repo,
   render,
   fetchGate,
   reviewLayout,
+  server,
 }) => {
+  const project = await server.project();
+  const worktree = project.worktrees.find((entry) => entry.main);
+  if (!worktree) throw new Error('The fixture has no main worktree.');
   const held = fetchGate.holdNextChangeDiff();
   held.arm();
   try {
-    const app = await render.route('/');
+    const app = await render.route(
+      `/${project.id}/${worktree.id}?entry=all-changes`,
+    );
     const page = app.page;
     await held.requested;
     const loading = page.getByRole('status', {

@@ -42,7 +42,7 @@ git -C "$REPO" add --all && git -C "$REPO" commit -m "Add notes"
 ```
 
 1. Navigate to `/`
-   Expect: title "Files — repository".
+   Expect: title "Review — repository"; tab "Review" selected.
 2. Click button `Review`, then click tab `Changes`
    Expect: tabs "Uncommitted" and "Branch".
 3. Click tab `Branch`

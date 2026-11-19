@@ -37,7 +37,7 @@ printf '# Guide\n\nPinned reading\n' > "$REPO/guide.md"
 ```
 
 1. Navigate to `/`
-   Expect: title "Changes — repository".
+   Expect: title "Review — repository".
 2. Click button `Review`
    Expect: dialog "Worktree review".
 3. Click tab `Files`

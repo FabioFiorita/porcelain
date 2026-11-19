@@ -96,7 +96,11 @@ for (const width of [1440, 414]) {
       await expect(
         page.getByLabel(`${path} HTML preview`, { exact: true }),
       ).toHaveCount(0);
-      await expect(page.getByText(/const destination =/)).toBeVisible();
+      await expect(
+        page
+          .getByRole('tabpanel', { name: path, exact: true })
+          .getByText(/const destination =/),
+      ).toBeVisible();
     }
   });
 
@@ -181,7 +185,11 @@ for (const width of [1440, 414]) {
       await expect(
         page.getByLabel('interactive.html HTML preview', { exact: true }),
       ).toHaveCount(0);
-      await expect(page.getByText(/AUDIT_ONLY_PREVIEW_EXECUTED/)).toBeVisible();
+      await expect(
+        page
+          .getByRole('tabpanel', { name: 'interactive.html', exact: true })
+          .getByText(/AUDIT_ONLY_PREVIEW_EXECUTED/),
+      ).toBeVisible();
       await expect.poll(() => previewRequests.executions.length).toBe(1);
       await page.getByRole('tab', { name: 'Preview', exact: true }).click();
       await expect(

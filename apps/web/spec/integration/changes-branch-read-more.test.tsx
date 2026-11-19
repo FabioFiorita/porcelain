@@ -42,7 +42,11 @@ test('reading more of a long branch keeps its diffs during loading and after a n
     .toHaveAccessibleDescription('Added · Not reviewed');
   await workspace.getByRole('button', { name: /^All branch changes/u }).click();
   await expect
-    .element(workspace.getByText('A change to review.', { exact: true }))
+    .element(
+      workspace
+        .getByRole('region', { name: 'Code content', exact: true })
+        .getByText('A change to review.', { exact: true }),
+    )
     .toBeVisible();
 
   gate.arm();
@@ -51,7 +55,11 @@ test('reading more of a long branch keeps its diffs during loading and after a n
     .click();
   await gate.requested;
   await expect
-    .element(workspace.getByText('A change to review.', { exact: true }))
+    .element(
+      workspace
+        .getByRole('region', { name: 'Code content', exact: true })
+        .getByText('A change to review.', { exact: true }),
+    )
     .toBeVisible();
   gate.release();
   await expect
@@ -65,7 +73,11 @@ test('reading more of a long branch keeps its diffs during loading and after a n
     )
     .not.toBeInTheDocument();
   await expect
-    .element(workspace.getByText('A change to review.', { exact: true }))
+    .element(
+      workspace
+        .getByRole('region', { name: 'Code content', exact: true })
+        .getByText('A change to review.', { exact: true }),
+    )
     .toBeVisible();
   const code = workspace.getByRole('region', {
     name: 'Code content',
@@ -73,10 +85,17 @@ test('reading more of a long branch keeps its diffs during loading and after a n
   });
   reviewLayout.scrollCodeTo(code, 1_000_000);
   await expect
-    .element(workspace.getByText('note 25', { exact: true }))
+    .element(
+      workspace
+        .getByRole('tabpanel', { name: 'Branch', exact: true })
+        .getByText('note 25', { exact: true }),
+    )
     .toBeVisible();
-  await workspace.getByText('note 25', { exact: true }).click();
-  await workspace.getByRole('tab', { name: 'Changes', exact: true }).click();
+  await workspace
+    .getByRole('tabpanel', { name: 'Branch', exact: true })
+    .getByText('note 25', { exact: true })
+    .click();
+  await workspace.getByRole('tab', { name: 'Review', exact: true }).click();
   await workspace
     .getByRole('button', { name: 'Open document list', exact: true })
     .click();
@@ -84,7 +103,11 @@ test('reading more of a long branch keeps its diffs during loading and after a n
     .getByRole('menuitemradio', { name: 'Branch', exact: true })
     .click();
   await expect
-    .element(workspace.getByText('note 25', { exact: true }))
+    .element(
+      workspace
+        .getByRole('tabpanel', { name: 'Branch', exact: true })
+        .getByText('note 25', { exact: true }),
+    )
     .toBeVisible();
   await expect
     .element(
@@ -96,7 +119,9 @@ test('reading more of a long branch keeps its diffs during loading and after a n
     .toBeInTheDocument();
   const contentPosition = reviewLayout.codeOffset(
     code,
-    workspace.getByText('note 25', { exact: true }),
+    workspace
+      .getByRole('tabpanel', { name: 'Branch', exact: true })
+      .getByText('note 25', { exact: true }),
   );
   const height = reviewLayout.codeScrollHeight(code);
   refresh.arm();
@@ -134,12 +159,18 @@ test('reading more of a long branch keeps its diffs during loading and after a n
     .poll(() =>
       reviewLayout.codeOffset(
         code,
-        workspace.getByText('note 25', { exact: true }),
+        workspace
+          .getByRole('tabpanel', { name: 'Branch', exact: true })
+          .getByText('note 25', { exact: true }),
       ),
     )
     .toBe(contentPosition);
   reviewLayout.scrollCodeTo(code, 1_000_000);
   await expect
-    .element(workspace.getByText('Added after reading more', { exact: true }))
+    .element(
+      workspace
+        .getByRole('tabpanel', { name: 'Branch', exact: true })
+        .getByText('Added after reading more', { exact: true }),
+    )
     .toBeVisible();
 });

@@ -20,6 +20,7 @@ import {
   useChanges,
 } from '@/features/changes/index';
 import { ImagePreview, useTextContents } from '@/features/files/index';
+import { useHeldWhileHidden } from '@/shared/hooks/use-held-while-hidden';
 import { type CodeEntry, fileEntry } from '../adapters/code-entries';
 
 import { omittedReasonText } from '../rules/omitted-reasons';
@@ -34,6 +35,7 @@ import {
   type ReviewScope,
 } from '@porcelain/client/changes/rules';
 import { CodeDocument, type CodeHeaderControls } from './code-document';
+import { ReservedCode } from './reserved-code';
 import { fileReviewControl, ReviewedControl } from './reviewed-control';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
@@ -75,7 +77,11 @@ export function ReviewCodeDocument({
     target.scrollIntoView({ block: 'start' });
   };
   usePrefetchReviewed(scope, context);
-  const changes = useChanges(scope, connection);
+  const quiet = interaction.quiet === true;
+  const changes = useHeldWhileHidden(
+    useChanges(scope, connection),
+    interaction.hidden === true,
+  );
   const items = orderReviewChanges(
     useReviewChangeItems(scope, context, changes, paths),
     files,
@@ -102,24 +108,49 @@ export function ReviewCodeDocument({
   const untracked = useTextContents(
     connection,
     scope,
-    items.flatMap((item) =>
-      item.comparisons.flatMap((change) =>
-        change.scope === 'untracked' ? [change.path] : [],
-      ),
-    ),
+    interaction.hidden === true
+      ? []
+      : items.flatMap((item) =>
+          item.comparisons.flatMap((change) =>
+            change.scope === 'untracked' ? [change.path] : [],
+          ),
+        ),
   );
-  const patchOf = (change: Change): DiffContent | undefined => {
+  const [keptText, setKeptText] = useState(untracked.contents);
+  if (
+    quiet &&
+    interaction.hidden !== true &&
+    !untracked.pending &&
+    !sameTexts(keptText, untracked.contents)
+  )
+    setKeptText(untracked.contents);
+  const textOf = (path: string) =>
+    untracked.contents.get(path) ?? (quiet ? keptText.get(path) : undefined);
+  const [kept, setKept] = useState(diffs.diffs);
+  if (quiet && !diffs.pending && !diffs.failed && kept !== diffs.diffs)
+    setKept(diffs.diffs);
+  const livePatch = (change: Change): DiffContent | undefined => {
     const selection = diffSelection(change);
     return selection ? diffs.diffs.get(selectionKey(selection)) : undefined;
   };
-  const loading = diffs.pending || untracked.pending;
+  const patchOf = (change: Change): DiffContent | undefined => {
+    const selection = diffSelection(change);
+    if (!selection) return undefined;
+    return (
+      livePatch(change) ??
+      (quiet ? kept.get(selectionKey(selection)) : undefined)
+    );
+  };
+  const loading = !quiet && (diffs.pending || untracked.pending);
   const failed = diffs.failed || untracked.failed;
   const notes = new Map(files.map((file) => [file.path, file.note]));
   const unrenderable = items.flatMap((item) => {
     const reasons = item.comparisons.flatMap((change) => {
       if (change.scope === 'unmerged') return ['Conflict'];
       if (change.scope === 'untracked')
-        return untracked.contents.has(change.path) ? [] : ['Not readable'];
+        return textOf(change.path) !== undefined || untracked.pending
+          ? []
+          : ['Not readable'];
       if (!change.supported) return ['Unsupported comparison'];
       const content = patchOf(change);
       if (!content) return [];
@@ -128,14 +159,21 @@ export function ReviewCodeDocument({
         return [`Content omitted: ${omissionReason(content.reason)}`];
       return diffEntry(change, content) ? [] : ['No single-file textual patch'];
     });
-    return reasons.length > 0 ? [{ item, reasons }] : [];
+    const current = item.comparisons.every((change) =>
+      change.scope === 'untracked'
+        ? textOf(change.path) === undefined ||
+          untracked.contents.has(change.path)
+        : patchOf(change) === undefined || livePatch(change) !== undefined,
+    );
+    return reasons.length > 0 ? [{ item, reasons, current }] : [];
   });
   const entries = items.flatMap((item): CodeEntry[] =>
     item.comparisons.flatMap((change): CodeEntry[] => {
       const review = fileReviewControl(scope, context, item);
       if (change.scope === 'untracked') {
-        const text = untracked.contents.get(change.path);
+        const text = textOf(change.path);
         if (text === undefined) return [];
+        const current = untracked.contents.has(change.path);
         return [
           {
             ...fileEntry(
@@ -144,7 +182,7 @@ export function ReviewCodeDocument({
               text,
               notes.get(item.path) ?? 'untracked',
             ),
-            review,
+            ...(current ? { review } : {}),
           },
         ];
       }
@@ -152,13 +190,13 @@ export function ReviewCodeDocument({
       const content = focusedDiff(patchOf(change), focus?.[item.path]);
       const entry = content ? diffEntry(change, content) : null;
       const note = notes.get(item.path);
+      const current = livePatch(change) !== undefined;
       return entry
         ? [
             {
               ...entry,
               ...(note ? { note } : {}),
-              review,
-              discardScope: change.scope,
+              ...(current ? { review, discardScope: change.scope } : {}),
             },
           ]
         : [];
@@ -217,6 +255,8 @@ export function ReviewCodeDocument({
         )
       : undefined;
 
+  if (quiet && entries.length === 0 && (diffs.pending || untracked.pending))
+    return <ReservedCode count={items.length} />;
   return (
     <CodeDocument
       fullHeight={fullHeight}
@@ -243,6 +283,16 @@ export function ReviewCodeDocument({
       {...(headerLeading ? { headerLeading } : {})}
       {...(toolbar ? { toolbar } : {})}
     />
+  );
+}
+
+function sameTexts(
+  kept: ReadonlyMap<string, string>,
+  next: ReadonlyMap<string, string>,
+) {
+  return (
+    kept.size === next.size &&
+    [...next].every(([path, text]) => kept.get(path) === text)
   );
 }
 
@@ -339,6 +389,7 @@ function OmittedChanges({
   changes: ReadonlyArray<{
     item: ReviewChangeItem;
     reasons: readonly string[];
+    current: boolean;
   }>;
   renderedPaths: ReadonlySet<string>;
   scope: ReviewScope;
@@ -353,7 +404,7 @@ function OmittedChanges({
     >
       <p className="text-xs font-medium">Non-text content</p>
       <ul className="mt-2 flex flex-col gap-2 text-xs text-muted-foreground">
-        {changes.map(({ item, reasons }) => (
+        {changes.map(({ item, reasons, current }) => (
           <li
             key={item.path}
             aria-label={`${item.path}: ${omittedReasonText(reasons)}`}
@@ -378,7 +429,7 @@ function OmittedChanges({
             >
               {omittedReasonText(reasons)}
             </Badge>
-            {!paneFile && !renderedPaths.has(item.path) && (
+            {!paneFile && current && !renderedPaths.has(item.path) && (
               <ReviewedControl
                 scope={scope}
                 context={context}

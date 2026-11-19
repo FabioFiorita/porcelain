@@ -40,7 +40,11 @@ test('a Markdown file opened from the file tree reads as formatted text and swit
   await source.click();
   await expect.element(source).toHaveAttribute('aria-selected', 'true');
   await expect
-    .element(opened.getByText('# Sample repository', { exact: true }))
+    .element(
+      opened
+        .getByRole('tabpanel')
+        .getByText('# Sample repository', { exact: true }),
+    )
     .toBeVisible();
   await expect
     .element(

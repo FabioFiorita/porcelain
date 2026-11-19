@@ -230,7 +230,7 @@ export function walkthroughTabTitle(read: WalkthroughRead) {
   const phase = walkthroughPhase(read);
   return phase.kind === 'ready'
     ? plainText(phase.content.title).replace(/\.$/, '')
-    : 'Walkthrough';
+    : 'Review';
 }
 
 export function plainText(text: string) {
@@ -288,4 +288,87 @@ export function walkthroughCodeScopes({
     ),
   ]);
   return { branch: paths(branch), worktree: paths(working) };
+}
+
+export type ReviewCode = { branch: string[]; worktree: string[] };
+
+export function eagerSections(
+  sections: { steps: readonly ReviewCode[]; outside: ReviewCode },
+  withBranch: boolean,
+  budget: number,
+) {
+  let before = 0;
+  const take = (code: ReviewCode) => {
+    const eager = before < budget;
+    before += (withBranch ? code.branch.length : 0) + code.worktree.length;
+    return eager;
+  };
+  return { steps: sections.steps.map(take), outside: take(sections.outside) };
+}
+
+function renamePairs(
+  branch: readonly CodeFile[],
+  worktree: readonly CodeFile[],
+): readonly (readonly [string, string])[] {
+  return [
+    ...branch.flatMap(({ oldPath, path }) =>
+      oldPath === undefined ? [] : [[oldPath, path] as const],
+    ),
+    ...worktree.flatMap((file) =>
+      (file.comparisons ?? []).flatMap((comparison) => {
+        const oldPath =
+          'oldPath' in comparison ? comparison.oldPath : undefined;
+        return oldPath === undefined ? [] : [[oldPath, file.path] as const];
+      }),
+    ),
+  ];
+}
+
+function alongRenames(
+  cited: readonly string[],
+  renames: readonly (readonly [string, string])[],
+): readonly string[] {
+  const paths = new Set(cited);
+  let grown = true;
+  while (grown) {
+    grown = false;
+    for (const [from, to] of renames)
+      if (paths.has(from) !== paths.has(to)) {
+        paths.add(from);
+        paths.add(to);
+        grown = true;
+      }
+  }
+  return [...paths];
+}
+
+export function reviewCodeSections({
+  content,
+  branch,
+  worktree,
+}: {
+  content: WalkthroughContent | undefined;
+  branch: readonly CodeFile[];
+  worktree: readonly CodeFile[];
+}): { steps: ReviewCode[]; outside: ReviewCode } {
+  const renames = renamePairs(branch, worktree);
+  const steps = (content?.stops ?? []).map((stop) =>
+    walkthroughCodeScopes({
+      branch,
+      worktree,
+      only: alongRenames(stopPaths(stop), renames),
+    }),
+  );
+  const every = walkthroughCodeScopes({ branch, worktree });
+  const covered = (pick: (code: ReviewCode) => readonly string[]) =>
+    new Set(steps.flatMap(pick));
+  const coveredBranch = covered((code) => code.branch);
+  const coveredWorktree = covered((code) => code.worktree);
+  return {
+    steps,
+    outside: {
+      branch: every.branch.filter((path) => !coveredBranch.has(path)),
+      worktree: every.worktree.filter((path) => !coveredWorktree.has(path)),
+    },
+  };
 }

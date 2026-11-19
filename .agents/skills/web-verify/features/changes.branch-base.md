@@ -20,7 +20,7 @@ In the branch review, choosing another base branch compares the checked-out bran
 
 ## How to get to it (user POV)
 
-- In the permanent Changes document, choose Branch in the Document controls toolbar. Its adjacent `Compare against <actual base>` button opens the base picker without opening the side panel. A narrow pane shows the base name without the Against prefix.
+- In the Branch document (`entry=branch`, or "All branch changes" in the Changes panel), the `Compare against <actual base>` button in the Document controls toolbar opens the base picker without opening the side panel. A narrow pane shows the base name without the Against prefix.
 - A single branch-file document keeps its base picker in the Branch comparison group below its tabs, so document tabs and Reviewed/Comment controls remain reachable at phone width.
 - The Changes side panel also provides the same picker under Branch → Changed files. Scope locators to the toolbar, Branch comparison group or Review sidebar when both entrances are visible.
 - The picker has textbox Find a base branch, local/remote options, loading, failed read with Try again, and No branch matches. The actual default base is named (for example main); selecting it removes `base=` from the address.
@@ -43,7 +43,7 @@ git -C "$REPO" log --oneline main..feature | wc -l   # prints 2
 ```
 
 1. Navigate to `/`
-   Expect: title "Files — repository" (the working tree is clean, so no Changes document is opened by default).
+   Expect: tab "Review" selected; the working tree is clean, so the URL has no `entry`.
 2. Click button `Review`, then click tab `Changes`
    Expect: the sheet shows tabs "Files", "Changes", "History" and, under them, tabs "Uncommitted" [selected] and "Branch".
 3. Click tab `Branch`
@@ -68,6 +68,6 @@ Automated coverage: `changes-branch-base.e2e.ts`, `changes-branch-base.test.tsx`
 
 ### Document entry and return
 
-With the Changes side panel closed, choose Branch, Compare against main, then checkpoint. Expect the actual head since checkpoint, its file count and the chosen base in the URL. Open a single changed file and use Branch comparison → Compare against checkpoint → main default. Expect the default comparison and no base query. Repeat at 1440 and 414, including a long base name; tabs and all comparison/Reviewed controls remain reachable.
+With the Changes side panel closed, open `entry=branch`, choose Compare against main, then checkpoint. Expect the actual head since checkpoint, its file count and the chosen base in the URL. Open a single changed file and use Branch comparison → Compare against checkpoint → main default. Expect the default comparison and no base query. Repeat at 1440 and 414, including a long base name; tabs and all comparison/Reviewed controls remain reachable.
 
 Automated coverage: changes-return.test.tsx.
