@@ -151,18 +151,10 @@ export function navigatorRowTrailing(
     };
   return undefined;
 }
-export function navigatorChangesLabel(changes: NavigatorChanges) {
-  if (changes.state === 'loading') return 'Reading changes…';
-  if (changes.state === 'unavailable') return 'Changes unavailable';
-  return changes.count === 0
-    ? 'Working tree clean'
-    : `${changes.count} ${changes.count === 1 ? 'file' : 'files'} changed`;
-}
 export function navigatorCardChangesLabel(changes: NavigatorChanges) {
   if (changes.state === 'unavailable') return '—';
-  if (changes.state === 'available')
-    return changes.count === 0 ? '' : `${changes.count} uncommitted`;
-  return navigatorChangesLabel(changes);
+  if (changes.state === 'loading' || changes.count === 0) return '';
+  return `${changes.count} uncommitted`;
 }
 export function navigatorChecksLabel(
   checks: Extract<NavigatorPullRequest, { state: 'available' }>['checks'],
@@ -280,53 +272,4 @@ export function navigatorFilterSections(
       })),
     };
   });
-}
-
-export type NavigatorStatusNotice = {
-  environmentId: string;
-  environmentName: string;
-  dismissed: boolean;
-  failures: readonly { entry: NavigatorEntry; detail: string | undefined }[];
-};
-
-export function reconcileNavigatorStatusNotices(
-  previous: readonly NavigatorStatusNotice[],
-  observation: {
-    issues: readonly Omit<NavigatorStatusNotice, 'dismissed'>[];
-    recoveredKeys: readonly string[];
-    inventoryKeys: readonly string[];
-    environments: readonly string[];
-  },
-): readonly NavigatorStatusNotice[] {
-  const notices = new Map(
-    previous.map((notice) => [
-      notice.environmentId,
-      {
-        ...notice,
-        failures: notice.failures.filter(
-          ({ entry }) =>
-            !observation.recoveredKeys.includes(entry.key) &&
-            (!observation.environments.includes(entry.environmentId) ||
-              observation.inventoryKeys.includes(entry.key)),
-        ),
-      },
-    ]),
-  );
-  for (const issue of observation.issues) {
-    const existing = notices.get(issue.environmentId);
-    const failures = new Map(
-      (existing?.failures ?? []).map((failure) => [failure.entry.key, failure]),
-    );
-    for (const failure of issue.failures)
-      failures.set(failure.entry.key, failure);
-    notices.set(issue.environmentId, {
-      ...issue,
-      dismissed: existing?.dismissed ?? false,
-      failures: [...failures.values()],
-    });
-  }
-  const next = [...notices.values()].filter(
-    (notice) => notice.failures.length > 0,
-  );
-  return JSON.stringify(next) === JSON.stringify(previous) ? previous : next;
 }

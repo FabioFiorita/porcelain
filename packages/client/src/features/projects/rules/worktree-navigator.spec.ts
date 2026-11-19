@@ -3,7 +3,6 @@ import {
   emptyNavigatorFilter,
   navigatorEntryMatches,
   navigatorEntryLabel,
-  navigatorChangesLabel,
   navigatorDisplayTitle,
   navigatorRowTitle,
   navigatorRowTrailing,
@@ -14,7 +13,6 @@ import {
   type NavigatorPullRequest,
   navigatorFilterSections,
   navigatorEntrySelected,
-  reconcileNavigatorStatusNotices,
   navigatorWorktreeOrder,
   type NavigatorEntry,
 } from './worktree-navigator.ts';
@@ -37,7 +35,7 @@ const entry: NavigatorEntry = {
   changes: { state: 'loading' },
 };
 it.each<{ changes: NavigatorChanges; label: string }>([
-  { changes: { state: 'loading' }, label: 'Reading changes…' },
+  { changes: { state: 'loading' }, label: '' },
   { changes: { state: 'unavailable' }, label: '—' },
   { changes: { state: 'available', count: 0 }, label: '' },
   { changes: { state: 'available', count: 1 }, label: '1 uncommitted' },
@@ -84,16 +82,6 @@ it('keeps selected checkout identity scoped to its computer', () => {
       worktreeId: 'topic',
     }),
   ).toBe(false);
-});
-
-it('keeps pending and failed details distinct from no review and a clean checkout in visible and accessible labels', () => {
-  expect(navigatorChangesLabel({ state: 'loading' })).toBe('Reading changes…');
-  expect(navigatorChangesLabel({ state: 'unavailable' })).toBe(
-    'Changes unavailable',
-  );
-  expect(navigatorChangesLabel({ state: 'available', count: 0 })).toBe(
-    'Working tree clean',
-  );
 });
 
 it('names a row by its Walkthrough, else its pull request, else its branch or folder', () => {
@@ -339,47 +327,4 @@ it('keeps the main worktree first, then the most recently touched by commit or u
     'catalog-only',
     'unborn',
   ]);
-});
-
-it('retains dismissed failures across hidden scopes and removes only confirmed recovery or stale checkout identity', () => {
-  const notice = {
-    environmentId: entry.environmentId,
-    environmentName: entry.environmentName,
-    failures: [{ entry, detail: 'Inspection failed' }],
-    dismissed: true,
-  };
-  const hidden = {
-    issues: [],
-    recoveredKeys: [],
-    inventoryKeys: [entry.key],
-    environments: [entry.environmentId],
-  };
-  expect(reconcileNavigatorStatusNotices([notice], hidden)).toEqual([notice]);
-  expect(
-    reconcileNavigatorStatusNotices([notice], {
-      ...hidden,
-      recoveredKeys: [entry.key],
-    }),
-  ).toEqual([]);
-  expect(
-    reconcileNavigatorStatusNotices([notice], { ...hidden, inventoryKeys: [] }),
-  ).toEqual([]);
-  expect(
-    reconcileNavigatorStatusNotices([notice], {
-      ...hidden,
-      environments: [],
-      inventoryKeys: [],
-    }),
-  ).toEqual([notice]);
-  const failure = { entry, detail: 'Access denied' };
-  expect(
-    reconcileNavigatorStatusNotices([notice], {
-      ...hidden,
-      issues: [{ ...notice, failures: [failure] }],
-    }),
-  ).toEqual([{ ...notice, failures: [failure] }]);
-  expect(
-    reconcileNavigatorStatusNotices([], { ...hidden, issues: [notice] })[0]
-      ?.dismissed,
-  ).toBe(false);
 });

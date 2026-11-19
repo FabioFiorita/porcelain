@@ -18,9 +18,7 @@ export function worktreeRow(entry: NavigatorEntry) {
     (entry.detached ? entry.name : entry.branch || entry.name);
   const branch = entry.displayTitle === undefined ? '' : entry.branch;
   const changes =
-    entry.kind === 'worktree' && entry.changes.state !== 'loading'
-      ? navigatorCardChangesLabel(entry.changes)
-      : '';
+    entry.kind === 'worktree' ? navigatorCardChangesLabel(entry.changes) : '';
   return {
     title,
     branch,

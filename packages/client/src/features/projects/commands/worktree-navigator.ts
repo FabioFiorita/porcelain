@@ -8,31 +8,8 @@ import {
 } from '../queries/pull-requests.ts';
 import { refreshInventory } from './projects.ts';
 import { readInventory } from '../queries/inventory.ts';
-import {
-  worktreeStatusNotices,
-  worktreeNavigatorState,
-} from '../store/worktree-navigator.ts';
-import {
-  navigatorProjectVisible,
-  type NavigatorStatusNotice,
-} from '../rules/worktree-navigator.ts';
-
-function changeFailures(
-  get: Atom.FnContext,
-  environmentId: string,
-  change: (
-    failures: NavigatorStatusNotice['failures'],
-  ) => NavigatorStatusNotice['failures'],
-) {
-  get.set(
-    worktreeStatusNotices,
-    get(worktreeStatusNotices).flatMap((notice) => {
-      if (notice.environmentId !== environmentId) return [notice];
-      const failures = change(notice.failures);
-      return failures.length > 0 ? [{ ...notice, failures }] : [];
-    }),
-  );
-}
+import { worktreeNavigatorState } from '../store/worktree-navigator.ts';
+import { navigatorProjectVisible } from '../rules/worktree-navigator.ts';
 
 export const refreshWorktreeNavigator = Atom.family(
   (connections: readonly RuntimeConnection[]) =>
@@ -45,60 +22,51 @@ export const refreshWorktreeNavigator = Atom.family(
           const connection = connections.find(
             (connection) => connection.environmentId === target.environmentId,
           );
-          const issue = get(worktreeStatusNotices).find(
-            (issue) => issue.environmentId === target.environmentId,
+          if (!connection) return;
+          const statusOf = (projectId: string, worktreeId: string) =>
+            readGitStatus({ connection, scope: { projectId, worktreeId } });
+          const failed = (
+            Option.getOrUndefined(
+              AsyncResult.value(get(readInventory(connection))),
+            )?.projects ?? []
+          ).flatMap((project) =>
+            project.worktrees
+              .filter((worktree) => {
+                const status = statusOf(project.id, worktree.id);
+                return (
+                  get.registry.getNodes().has(status) &&
+                  AsyncResult.isFailure(get.registry.get(status))
+                );
+              })
+              .map((worktree) => ({
+                projectId: project.id,
+                worktreeId: worktree.id,
+              })),
           );
-          if (!connection || !issue) return;
+          if (failed.length === 0) return;
           yield* get.setResult(refreshInventory(connection), undefined);
           const inventory = yield* get.result(readInventory(connection), {
             suspendOnWaiting: true,
           });
-          const remaining = issue.failures.filter(({ entry }) =>
+          const remaining = failed.filter(({ projectId, worktreeId }) =>
             inventory.projects.some(
               (project) =>
-                project.id === entry.projectId &&
+                project.id === projectId &&
                 project.available &&
                 project.worktrees.some(
                   (worktree) =>
-                    worktree.id === entry.worktreeId && worktree.available,
+                    worktree.id === worktreeId && worktree.available,
                 ),
             ),
           );
-          const retainedKeys = remaining.map(({ entry }) => entry.key);
-          changeFailures(get, target.environmentId, (failures) =>
-            failures.filter(({ entry }) => retainedKeys.includes(entry.key)),
-          );
           yield* Effect.forEach(
             remaining,
-            (failure) => {
-              const entry = failure.entry;
-              if (!entry.worktreeId) return Effect.void;
-              const status = readGitStatus({
-                connection,
-                scope: {
-                  projectId: entry.projectId,
-                  worktreeId: entry.worktreeId,
-                },
-              });
+            ({ projectId, worktreeId }) => {
+              const status = statusOf(projectId, worktreeId);
               get.refresh(status);
-              return get.result(status, { suspendOnWaiting: true }).pipe(
-                Effect.match({
-                  onSuccess: () =>
-                    changeFailures(get, target.environmentId, (failures) =>
-                      failures.filter(
-                        (failure) => failure.entry.key !== entry.key,
-                      ),
-                    ),
-                  onFailure: (error) =>
-                    changeFailures(get, target.environmentId, (failures) =>
-                      failures.map((failure) =>
-                        failure.entry.key === entry.key
-                          ? { ...failure, detail: error.message }
-                          : failure,
-                      ),
-                    ),
-                }),
-              );
+              return get
+                .result(status, { suspendOnWaiting: true })
+                .pipe(Effect.ignore);
             },
             { concurrency: 'unbounded' },
           );

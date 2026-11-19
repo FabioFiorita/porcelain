@@ -1,4 +1,4 @@
-import { Cause, Option } from 'effect';
+import { Option } from 'effect';
 import { AsyncResult, Atom } from 'effect/reactivity';
 import type { RuntimeConnection } from '../../../shared/api/connection.ts';
 import { readGitStatus } from '../../changes/queries/changes.ts';
@@ -9,27 +9,18 @@ import {
 import {
   navigatorEntryMatches,
   navigatorProjectVisible,
-  reconcileNavigatorStatusNotices,
   navigatorFilterSections,
   navigatorWorktreeOrder,
   navigatorDisplayTitle,
   type NavigatorEntry,
 } from '../rules/worktree-navigator.ts';
 import { worktreeLabel, type Project } from '../rules/inventory.ts';
-import {
-  worktreeNavigatorState,
-  worktreeStatusNotices,
-} from '../store/worktree-navigator.ts';
+import { worktreeNavigatorState } from '../store/worktree-navigator.ts';
 import { readInventory } from './inventory.ts';
 import {
   environmentIcon,
   type EnvironmentIcon,
 } from '../../access/rules/environment-icon.ts';
-
-type StatusFailure = {
-  entry: NavigatorEntry;
-  detail: string | undefined;
-};
 
 type NavigatorProject = {
   key: string;
@@ -93,7 +84,7 @@ const readProjectEntries = Atom.family(
       const savedProject = inventory?.projects.find(
         (project) => project.id === input.projectId,
       );
-      if (!inventory || !savedProject) return { entries: [], messages: [] };
+      if (!inventory || !savedProject) return [];
       const entries = inventoryEntries({
         ...input,
         project: savedProject,
@@ -102,11 +93,11 @@ const readProjectEntries = Atom.family(
       const result = get(readProjectPullRequests(input));
       const answer = Option.getOrUndefined(AsyncResult.value(result));
       const previous = Option.getOrUndefined(
-        get.self<{ entries: readonly NavigatorEntry[]; messages: string[] }>(),
+        get.self<readonly NavigatorEntry[]>(),
       );
       for (const entry of entries) {
         if (AsyncResult.isFailure(result) || answer?.kind === 'unavailable') {
-          const known = previous?.entries.find(
+          const known = previous?.find(
             (candidate) =>
               candidate.key === entry.key && candidate.branch === entry.branch,
           )?.pullRequest;
@@ -131,21 +122,14 @@ const readProjectEntries = Atom.family(
             : { state: 'none' };
         }
       }
-      return {
-        entries,
-        messages: AsyncResult.isFailure(result)
-          ? [`Pull requests for ${savedProject.name} could not be read.`]
-          : [],
-      };
+      return entries;
     }).pipe(Atom.setIdleTTL(0)),
 );
 
 const readNavigatorProject = Atom.family(
   (input: { connection: RuntimeConnection; projectId: string }) =>
     Atom.readable((get) => {
-      const reviewed = get(readProjectEntries(input));
-      const statusFailures: StatusFailure[] = [];
-      const entries = reviewed.entries.map((source) => {
+      const entries = get(readProjectEntries(input)).map((source) => {
         const entry: NavigatorEntry = { ...source };
         if (entry.available && entry.worktreeId) {
           const status = get(
@@ -158,12 +142,6 @@ const readNavigatorProject = Atom.family(
             }),
           );
           const answer = Option.getOrUndefined(AsyncResult.value(status));
-          if (AsyncResult.isFailure(status))
-            statusFailures.push({
-              entry,
-              detail: Option.getOrUndefined(Cause.findErrorOption(status.cause))
-                ?.message,
-            });
           entry.changes = answer
             ? {
                 state: 'available',
@@ -181,12 +159,7 @@ const readNavigatorProject = Atom.family(
         }
         return entry;
       });
-      return {
-        entries,
-        messages: reviewed.messages,
-        statusFailures,
-        loading: false,
-      };
+      return entries;
     }).pipe(Atom.setIdleTTL(0)),
 );
 function connectionInventories(
@@ -208,13 +181,6 @@ function connectionInventories(
       ({ result, inventory }) =>
         AsyncResult.isFailure(result) && inventory === undefined,
     ),
-    messages: reads.flatMap(({ result, inventory }) =>
-      AsyncResult.isFailure(result)
-        ? [
-            `${inventory?.environment.name ?? 'Computer'}: projects could not be read.`,
-          ]
-        : [],
-    ),
   };
 }
 
@@ -223,19 +189,8 @@ function navigator(connections: readonly RuntimeConnection[]) {
     const state = get(worktreeNavigatorState);
     const query = state.query;
     const all: NavigatorProject[] = [];
-    const observedEntries: NavigatorEntry[] = [];
-    const readEnvironments: string[] = [];
-    const statusIssues: {
-      connection: RuntimeConnection;
-      environmentName: string;
-      failures: StatusFailure[];
-    }[] = [];
     const inventories = connectionInventories(get, connections);
-    const messages = [...inventories.messages];
-    let detailsLoading = false;
-    for (const { connection, result, inventory } of inventories.reads) {
-      if (AsyncResult.isSuccess(result))
-        readEnvironments.push(connection.environmentId);
+    for (const { connection, inventory } of inventories.reads) {
       for (const project of inventory?.projects ?? []) {
         const key = `${connection.environmentId}/${project.id}`;
         all.push({
@@ -283,24 +238,7 @@ function navigator(connections: readonly RuntimeConnection[]) {
         connection: source.connection,
         projectId: source.project.id,
       };
-      const answer = get(readNavigatorProject(input));
-      detailsLoading ||= answer.loading;
-      observedEntries.push(...answer.entries);
-      messages.push(...answer.messages);
-      if (answer.statusFailures.length > 0) {
-        const issue = statusIssues.find(
-          (issue) =>
-            issue.connection.environmentId === source.connection.environmentId,
-        );
-        if (issue) issue.failures.push(...answer.statusFailures);
-        else
-          statusIssues.push({
-            connection: source.connection,
-            environmentName: source.environmentName,
-            failures: [...answer.statusFailures],
-          });
-      }
-      const entries = answer.entries
+      const entries = get(readNavigatorProject(input))
         .filter((entry) => navigatorEntryMatches(entry, query))
         .map((entry): NavigatorEntry => ({
           ...entry,
@@ -335,39 +273,12 @@ function navigator(connections: readonly RuntimeConnection[]) {
       if (entries.length === 0 && query.trim()) continue;
       projects.push({ ...source, entries });
     }
-    const previousNotices = get.once(worktreeStatusNotices);
-    const notices = reconcileNavigatorStatusNotices(previousNotices, {
-      issues: statusIssues.map(({ connection, environmentName, failures }) => ({
-        environmentId: connection.environmentId,
-        environmentName,
-        failures,
-      })),
-      recoveredKeys: observedEntries
-        .filter(
-          (entry) =>
-            entry.changes.state === 'available' &&
-            !statusIssues.some((issue) =>
-              issue.failures.some((failure) => failure.entry.key === entry.key),
-            ),
-        )
-        .map((entry) => entry.key),
-      inventoryKeys: all.flatMap((source) =>
-        source.project.worktrees.map(
-          (worktree) =>
-            `${source.connection.environmentId}/${source.project.id}/${worktree.id}`,
-        ),
-      ),
-      environments: readEnvironments,
-    });
-    if (notices !== previousNotices) get.set(worktreeStatusNotices, notices);
     return {
       projects,
       allProjects: all,
-      statusIssues: get(worktreeStatusNotices),
       filters,
-      loading: inventories.loading || detailsLoading,
+      loading: inventories.loading,
       neverRead: inventories.neverRead,
-      messages: [...new Set(messages)],
     };
   });
 }

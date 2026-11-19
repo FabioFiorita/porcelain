@@ -1,6 +1,6 @@
 import type { Transport } from '../../../shared/api/transport.ts';
 import { expect, it } from 'vitest';
-import { type AtomRegistry } from 'effect/reactivity';
+import { AsyncResult, type AtomRegistry } from 'effect/reactivity';
 import {
   clientFixtures,
   idleClientAtoms,
@@ -8,10 +8,8 @@ import {
 } from '../../../../spec/kit/client-fixture.ts';
 import { refreshWorktreeNavigator } from '../commands/worktree-navigator.ts';
 import { emptyNavigatorFilter } from '../rules/worktree-navigator.ts';
-import {
-  worktreeNavigatorState,
-  worktreeStatusNotices,
-} from '../store/worktree-navigator.ts';
+import { worktreeNavigatorState } from '../store/worktree-navigator.ts';
+import { readGitStatus } from '../../changes/queries/changes.ts';
 import { readWorktreeNavigator } from './worktree-navigator.ts';
 import { readProjectPullRequests } from './pull-requests.ts';
 
@@ -384,7 +382,7 @@ it('refuses checks for another pull request without reading a diff summary', asy
   }
 });
 
-it('groups status failures by computer and retries only that computer after inventory reconciliation', async () => {
+it('retries only the failed status reads of that computer after inventory reconciliation', async () => {
   let fail = true;
   let removed = false;
   const reads: { identity: string; path: string }[] = [];
@@ -425,25 +423,17 @@ it('groups status failures by computer and retries only that computer after inve
   const stop = registry.mount(list);
   const refresh = refreshWorktreeNavigator(connections);
   try {
-    await expect
-      .poll(() =>
-        registry.get(list).statusIssues.map((issue) => ({
-          name: issue.environmentName,
-          failures: issue.failures.map(({ entry, detail }) => ({
-            name: entry.name,
-            detail,
-          })),
-        })),
-      )
-      .toEqual([
-        {
-          name: 'Desk',
-          failures: [
-            { name: 'main', detail: 'Inspection failed' },
-            { name: 'topic', detail: 'Inspection failed' },
-          ],
-        },
-      ]);
+    const desk = () =>
+      registry
+        .get(list)
+        .projects.find(
+          (project) => project.connection.environmentId === environmentId,
+        )
+        ?.entries.map((entry) => [entry.name, entry.changes.state]);
+    await expect.poll(desk).toEqual([
+      ['main', 'unavailable'],
+      ['topic', 'unavailable'],
+    ]);
     await expect
       .poll(() =>
         registry
@@ -464,21 +454,12 @@ it('groups status failures by computer and retries only that computer after inve
           count: 0,
         },
       ]);
-    expect(registry.get(list).messages).toEqual([]);
     reads.length = 0;
     removed = true;
     fail = false;
     registry.set(refresh, { environmentId });
     await readClientAtom(registry, refresh);
-    await expect.poll(() => registry.get(list).statusIssues).toEqual([]);
-    expect(
-      registry
-        .get(list)
-        .projects.find(
-          (project) => project.connection.environmentId === environmentId,
-        )
-        ?.entries.map((entry) => entry.name),
-    ).toEqual(['main']);
+    await expect.poll(desk).toEqual([['main', 'available']]);
     expect(reads).toEqual([
       { identity: environmentId, path: '/api/inventory/refresh' },
       { identity: environmentId, path: `/api/worktrees/${mainId}/git/status` },
@@ -488,7 +469,7 @@ it('groups status failures by computer and retries only that computer after inve
   }
 });
 
-it('keeps scoped retry pending until status reads settle and retains only failures that remain', async () => {
+it('keeps scoped retry pending until status reads settle and leaves a read that still fails unavailable', async () => {
   let recovering = false;
   const requested = Promise.withResolvers<void>();
   const release = Promise.withResolvers<void>();
@@ -510,9 +491,14 @@ it('keeps scoped retry pending until status reads settle and retains only failur
   });
   const refresh = refreshWorktreeNavigator([navigator.connection]);
   try {
-    await expect
-      .poll(() => navigator.view().statusIssues[0]?.failures.length)
-      .toBe(2);
+    const changes = () =>
+      navigator
+        .view()
+        .projects[0]?.entries.map((entry) => [entry.name, entry.changes.state]);
+    await expect.poll(changes).toEqual([
+      ['main', 'unavailable'],
+      ['topic', 'unavailable'],
+    ]);
     recovering = true;
     navigator.registry.set(refresh, { environmentId });
     const completion = readClientAtom(navigator.registry, refresh);
@@ -521,69 +507,13 @@ it('keeps scoped retry pending until status reads settle and retains only failur
     release.resolve();
     await completion;
     expect(navigator.registry.get(refresh).waiting).toBe(false);
-    expect(
-      navigator.view().statusIssues[0]?.failures.map(({ entry, detail }) => ({
-        name: entry.name,
-        detail,
-      })),
-    ).toEqual([{ name: 'topic', detail: 'Access denied' }]);
-    expect(navigator.view().projects[0]?.entries[0]?.changes.state).toBe(
-      'available',
-    );
+    expect(changes()).toEqual([
+      ['main', 'available'],
+      ['topic', 'unavailable'],
+    ]);
   } finally {
     release.resolve();
     navigator.stop();
-  }
-});
-
-it('keeps failed scopes and dismissal across collapse and remount, then retries them without hidden background reads', async () => {
-  let fail = true;
-  const paths: string[] = [];
-  const navigator = observeNavigator((path) => {
-    paths.push(path);
-    if (fail && path.endsWith('/git/status'))
-      return Promise.resolve(new Response('Unavailable', { status: 503 }));
-    return navigatorResponse(path);
-  });
-  const list = readWorktreeNavigator([navigator.connection]);
-  let stop = navigator.stop;
-  try {
-    await expect
-      .poll(() => navigator.view().statusIssues[0]?.failures.length)
-      .toBe(2);
-    navigator.registry.update(worktreeStatusNotices, (notices) =>
-      notices.map((notice) => ({ ...notice, dismissed: true })),
-    );
-    navigator.registry.set(worktreeNavigatorState, {
-      query: '',
-      filter: emptyNavigatorFilter,
-      expanded: { [projectKey]: false },
-      showingAll: {},
-    });
-    await idleClientAtoms(navigator.registry);
-    paths.length = 0;
-    stop();
-    await idleClientAtoms(navigator.registry);
-    stop = navigator.registry.mount(list);
-    await expect.poll(() => navigator.view().projects[0]?.expanded).toBe(false);
-    expect(navigator.registry.get(worktreeStatusNotices)[0]?.dismissed).toBe(
-      true,
-    );
-    expect(paths.filter((path) => path.endsWith('/git/status'))).toEqual([]);
-    fail = false;
-    const refresh = refreshWorktreeNavigator([navigator.connection]);
-    navigator.registry.set(refresh, { environmentId });
-    await readClientAtom(navigator.registry, refresh);
-    expect(navigator.registry.get(worktreeStatusNotices)).toEqual([]);
-    expect(navigator.view().statusIssues).toEqual([]);
-    expect(paths.filter((path) => path.endsWith('/git/status')).sort()).toEqual(
-      [
-        `/api/worktrees/${mainId}/git/status`,
-        `/api/worktrees/${topicId}/git/status`,
-      ].sort(),
-    );
-  } finally {
-    stop();
   }
 });
 
@@ -780,8 +710,17 @@ it('keeps the last uncommitted file count when a later status read fails', async
     fail = true;
     await navigator.refresh();
     await expect
-      .poll(() => navigator.view().statusIssues[0]?.failures.length)
-      .toBe(1);
+      .poll(() =>
+        AsyncResult.isFailure(
+          navigator.registry.get(
+            readGitStatus({
+              connection: navigator.connection,
+              scope: { projectId, worktreeId: topicId },
+            }),
+          ),
+        ),
+      )
+      .toBe(true);
     expect(topicEntry(navigator)?.changes).toEqual({
       state: 'available',
       count: 2,
