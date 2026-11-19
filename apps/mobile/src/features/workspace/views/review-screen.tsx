@@ -190,9 +190,9 @@ function ChangedFiles({
   onFile: (path: string) => void;
   onAll: () => void;
 }) {
-  const snapshot = AsyncResult.isSuccess(snapshotRead.result)
-    ? snapshotRead.result.value
-    : undefined;
+  const snapshot = Option.getOrUndefined(
+    AsyncResult.value(snapshotRead.result),
+  );
   const marks = useReviewMarks(workspace, snapshot);
   if (!snapshot)
     return (
@@ -201,9 +201,10 @@ function ChangedFiles({
         refresh={snapshotRead.refresh}
       />
     );
-  if (!AsyncResult.isSuccess(marks.result))
+  const reviewed = Option.getOrUndefined(AsyncResult.value(marks.result));
+  if (!reviewed)
     return <ReviewReadState result={marks.result} refresh={marks.refresh} />;
-  const files = reviewFiles(snapshot, marks.result.value);
+  const files = reviewFiles(snapshot, reviewed);
   const changes = snapshotChangeMarks(snapshotRead.result);
   const branch = snapshot.kind === 'branch' ? snapshot.answer : undefined;
   return (

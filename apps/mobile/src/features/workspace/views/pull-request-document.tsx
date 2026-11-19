@@ -1,4 +1,5 @@
 import { useAtomRefresh, useAtomValue } from '@effect/atom-react';
+import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { readProjectPullRequest } from '@porcelain/client/projects';
 import {
@@ -48,11 +49,8 @@ function ConnectedPullRequest({
   const unavailable = AsyncResult.isFailure(result)
     ? { kind: 'failed' as const }
     : { kind: 'loading' as const };
-  const pull: PullRequestRead | typeof unavailable = AsyncResult.isSuccess(
-    result,
-  )
-    ? result.value
-    : unavailable;
+  const pull: PullRequestRead | typeof unavailable =
+    Option.getOrUndefined(AsyncResult.value(result)) ?? unavailable;
   if (pull.kind === 'loading') return <Spinner />;
   if (pull.kind !== 'available')
     return (

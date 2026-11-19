@@ -109,7 +109,7 @@ function FilePatchContent({
   const failed = AsyncResult.isFailure(patch.result);
   const submodule = isSubmoduleChange(file);
   const unavailable = diffUnavailableReason(file, content, failed);
-  if (failed && !submodule)
+  if (failed && !content && !submodule)
     return (
       <ErrorState
         message="Couldn't load diff"

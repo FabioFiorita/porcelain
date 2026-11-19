@@ -426,11 +426,12 @@ function SwitchWorktreeBranchContent({
       {(AsyncResult.isInitial(result) ||
         AsyncResult.isInitial(inventory.result)) && <Spinner />}
       {(AsyncResult.isFailure(result) ||
-        AsyncResult.isFailure(inventory.result)) && (
-        <Text tone="destructive" accessibilityRole="alert">
-          Branches could not be read.
-        </Text>
-      )}
+        AsyncResult.isFailure(inventory.result)) &&
+        !(answer && project) && (
+          <Text tone="destructive" accessibilityRole="alert">
+            Branches could not be read.
+          </Text>
+        )}
       {answer && choices.length === 0 && (
         <Text tone="muted">No matching branch</Text>
       )}

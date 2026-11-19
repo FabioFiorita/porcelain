@@ -13,7 +13,7 @@ export function CommitReadState({
     value: NonNullable<ReturnType<typeof useCommit>['value']>,
   ) => ReactNode;
 }) {
-  if (AsyncResult.isFailure(commit.result) || !commit.value)
+  if (!commit.value)
     return (
       <CommitState
         failed={AsyncResult.isFailure(commit.result)}

@@ -201,7 +201,7 @@ function FileContentView(props: FileProps) {
 function FileImage({ path, selected }: { path: string; selected: Workspace }) {
   const asset = useFileAsset(selected.connection, selected.scope, path);
   const data = Option.getOrUndefined(AsyncResult.value(asset.result));
-  if (AsyncResult.isFailure(asset.result))
+  if (AsyncResult.isFailure(asset.result) && !data)
     return (
       <ErrorState
         message={fileErrorMessage(Cause.squash(asset.result.cause))}

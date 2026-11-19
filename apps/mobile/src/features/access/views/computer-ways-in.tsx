@@ -69,14 +69,14 @@ function ConnectedWaysIn({
         {waysInRefusal(connection.address, OWN_ADDRESS_ALIASES)}
       </Text>
     );
+  if (answer) return <WaysInEditor connection={connection} remote={answer} />;
   if (AsyncResult.isFailure(result))
     return (
       <Text accessibilityRole="alert" variant="secondary" tone="destructive">
         {connectionErrorMessage(Cause.squash(result.cause))}
       </Text>
     );
-  if (!answer) return <Spinner />;
-  return <WaysInEditor connection={connection} remote={answer} />;
+  return <Spinner />;
 }
 
 function WaysInEditor({

@@ -1,6 +1,7 @@
 import { useAtomRefresh, useAtomSet, useAtomValue } from '@effect/atom-react';
 import { useState, type ReactNode } from 'react';
 import { useRouter } from 'expo-router';
+import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { readTextFile } from '@porcelain/client/files';
 import type { DiffContent } from '@porcelain/client/changes/rules';
@@ -274,6 +275,18 @@ function ChunkPart({ workspace, comparison, keys, ...props }: ChangePartProps) {
   );
 }
 
+function partState<A>(
+  result: AsyncResult.AsyncResult<A, unknown>,
+  retry: () => void,
+  ready: (value: A) => DiffPageState,
+): DiffPageState {
+  const value = Option.getOrUndefined(AsyncResult.value(result));
+  if (value !== undefined) return ready(value);
+  return AsyncResult.isFailure(result)
+    ? { kind: 'failed', retry }
+    : { kind: 'loading' };
+}
+
 function chunkState(
   result: AsyncResult.AsyncResult<
     ReadonlyMap<string, DiffContent | undefined>,
@@ -282,12 +295,12 @@ function chunkState(
   key: string,
   retry: () => void,
 ): DiffPageState {
-  if (AsyncResult.isFailure(result)) return { kind: 'failed', retry };
-  if (!AsyncResult.isSuccess(result)) return { kind: 'loading' };
-  const content = result.value.get(key);
-  return content
-    ? diffBody(content)
-    : { kind: 'notice', title: 'Diff unavailable' };
+  return partState(result, retry, (value) => {
+    const content = value.get(key);
+    return content
+      ? diffBody(content)
+      : { kind: 'notice', title: 'Diff unavailable' };
+  });
 }
 
 function UntrackedPart({ workspace, ...props }: ChangePartProps) {
@@ -308,9 +321,9 @@ function untrackedState(
   >,
   retry: () => void,
 ): DiffPageState {
-  if (AsyncResult.isFailure(result)) return { kind: 'failed', retry };
-  if (!AsyncResult.isSuccess(result)) return { kind: 'loading' };
-  if ('kind' in result.value)
-    return { kind: 'notice', title: result.value.reason };
-  return sourceBody(result.value.text);
+  return partState(result, retry, (value) =>
+    'kind' in value
+      ? { kind: 'notice', title: value.reason }
+      : sourceBody(value.text),
+  );
 }

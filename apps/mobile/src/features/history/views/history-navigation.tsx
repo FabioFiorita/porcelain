@@ -1,6 +1,7 @@
 import { useAtom } from '@effect/atom-react';
 import { historyPlace } from '@porcelain/client/history';
 import { Box } from '../../../components/ui/box';
+import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { ErrorState } from '../../../components/ui/error-state';
 import { Spinner } from '../../../components/ui/spinner';
@@ -56,8 +57,9 @@ function HistoryNavigationContent({
     selected: selectedCommit,
     onOpen: open,
   });
-  const branch = AsyncResult.isSuccess(status.result)
-    ? historyStatus(status.result.value, value?.snapshot ?? null)
+  const statusValue = Option.getOrUndefined(AsyncResult.value(status.result));
+  const branch = statusValue
+    ? historyStatus(statusValue, value?.snapshot ?? null)
     : undefined;
   return (
     <Box collapsable={false} className="flex-1" surface="background">
@@ -180,7 +182,7 @@ export function HistoryFooter({
       );
     return <Spinner />;
   }
-  if (failed)
+  if (failed && value.nextAfter)
     return (
       <ErrorState
         message="Couldn't load older commits"

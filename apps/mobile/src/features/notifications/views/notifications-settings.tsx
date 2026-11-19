@@ -43,11 +43,11 @@ function registrationDescription(
   waiting: boolean,
 ) {
   if (waiting) return 'Registers once this phone has a notification token';
+  const registered = Option.getOrUndefined(AsyncResult.value(result));
+  if (registered) return registered.length > 0 ? 'Notifies this phone' : 'Off';
   if (AsyncResult.isFailure(result) && !result.waiting)
     return connectionErrorMessage(Cause.squash(result.cause));
-  const registered = Option.getOrUndefined(AsyncResult.value(result));
-  if (!registered) return 'Not registered yet';
-  return registered.length > 0 ? 'Notifies this phone' : 'Off';
+  return 'Not registered yet';
 }
 
 function ComputerRegistration({

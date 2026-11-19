@@ -374,13 +374,25 @@ function FilesNavigationView({ selected, mode, search }: FilesNavigationProps) {
           }}
         />
       ) : null}
-      {searching && AsyncResult.isFailure(paths.result) ? (
+      {searching && !pathData && AsyncResult.isFailure(paths.result) ? (
         <ErrorState
           message={fileErrorMessage(Cause.squash(paths.result.cause))}
           retry={{ label: 'Search again', onPress: paths.refresh }}
         />
       ) : null}
       {loading.initialRoot || (searching && !pathData) ? <Spinner /> : null}
+      {!preferenceData && AsyncResult.isFailure(preferences.read.result) ? (
+        <ErrorState
+          message={fileErrorMessage(
+            Cause.squash(preferences.read.result.cause),
+          )}
+          retry={{
+            label: 'Read file preferences again',
+            onPress: preferences.read.refresh,
+            pending: preferences.read.result.waiting,
+          }}
+        />
+      ) : null}
       {AsyncResult.isFailure(preferences.write.result) ? (
         <ErrorState
           message={fileErrorMessage(

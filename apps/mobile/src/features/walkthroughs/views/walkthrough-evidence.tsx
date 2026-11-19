@@ -1,5 +1,6 @@
 import { ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import type {
   WalkthroughEvidence,
@@ -19,17 +20,21 @@ export function EvidenceImage({
   runId,
   item,
   label,
+  tile = false,
 }: {
   workspace: Workspace;
   runId: string;
   item: WalkthroughEvidence;
   label: string;
+  tile?: boolean;
 }) {
   const data = useWalkthroughAsset({
     workspace,
     runId,
     assetId: item.assetId,
   });
+  const image = Option.getOrUndefined(AsyncResult.value(data));
+  if (image) return <ImageView data={image} label={label} />;
   if (AsyncResult.isFailure(data))
     return (
       <Box className="flex-1 items-center justify-center" padding={2}>
@@ -38,13 +43,9 @@ export function EvidenceImage({
         </Text>
       </Box>
     );
-  if (!AsyncResult.isSuccess(data))
-    return (
-      <Box className="flex-1 justify-center">
-        <Spinner />
-      </Box>
-    );
-  return <ImageView data={data.value} label={label} />;
+  return (
+    <Box className="flex-1 justify-center">{tile ? null : <Spinner />}</Box>
+  );
 }
 
 export function WalkthroughProof({
@@ -76,6 +77,7 @@ export function WalkthroughProof({
               runId={run.id}
               item={item}
               label={`Screenshot ${index + 1}`}
+              tile
             />
           }
           caption={
