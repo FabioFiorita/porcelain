@@ -1,13 +1,14 @@
 import { LIVE_CONNECT_TIMEOUT_MS } from '../../../config/limits.ts';
 import type { StatusActivity } from '../../access/ports/status-activity.ts';
 import type { createRouteTransport } from '../../access/store/route-transport.ts';
-import { Cause, Effect, Exit } from 'effect';
+import { Cause, Clock, Effect, Exit } from 'effect';
 import type { Socket } from 'effect/socket';
 import { liveUpdatesUrl } from '../../access/api.ts';
 import { BootstrapClient } from '../../../shared/api/bootstrap-client.ts';
 import { mapRequestErrors } from '../../../shared/api/effect-client.ts';
 import type { Transport } from '../../../shared/api/transport.ts';
 import { createLiveUpdates } from './live-updates.ts';
+import type { LiveDiagnostic } from '../rules/diagnostics.ts';
 import { RequestError } from '../../../shared/api/request-error.ts';
 
 export function remoteLiveUpdates(
@@ -16,9 +17,18 @@ export function remoteLiveUpdates(
   socket: (url: string) => Effect.Effect<Socket.Socket>,
   routing?: ReturnType<typeof createRouteTransport>,
   activity?: StatusActivity,
+  diagnostic?: (event: LiveDiagnostic) => void,
 ) {
+  let previousAddress: string | undefined;
   const open = Effect.gen(function* () {
     const route = routing ? yield* routing.select() : undefined;
+    if (route) {
+      if (previousAddress !== undefined && previousAddress !== route.address) {
+        const at = yield* Clock.currentTimeMillis;
+        diagnostic?.({ event: 'Connection route changed', at });
+      }
+      previousAddress = route.address;
+    }
     if (route && routing)
       yield* Effect.addFinalizer((exit) =>
         Effect.sync(() => {
@@ -46,6 +56,7 @@ export function remoteLiveUpdates(
   });
   return createLiveUpdates(open, undefined, {
     ...(activity ? { activity } : {}),
+    ...(diagnostic ? { diagnostic } : {}),
     ...(routing
       ? {
           recoverUnauthorized: () =>

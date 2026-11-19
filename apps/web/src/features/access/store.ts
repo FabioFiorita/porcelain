@@ -21,6 +21,15 @@ import { Atom, AtomRef } from 'effect/reactivity';
 import { useAtomRef, useAtomValue } from '@effect/atom-react';
 import { devicePlatformName } from './rules/settings';
 import { statusActivity } from './adapters/status-activity';
+import {
+  connectionHistoryKey,
+  connectionHistoryLimit,
+  currentDocumentEntry,
+  documentStartedAt,
+  readConnectionHistory,
+  writeConnectionHistory,
+  type HistoryEntry,
+} from './adapters/connection-history';
 import { environmentStorage } from './adapters/environment-storage';
 
 export const pairingPlatform: AccessPlatformValue = {
@@ -45,6 +54,7 @@ import {
   openLiveConnection,
   openRemoteConnection,
   type LiveUpdatePort,
+  type LiveDiagnostic,
 } from '@porcelain/client/live';
 import {
   sameOriginLiveUpdates,
@@ -59,6 +69,44 @@ import {
   type ConnectionContext,
   requireConnection,
 } from '@/shared/workspace/connection';
+
+const history = AtomRef.make<readonly HistoryEntry[]>(
+  readConnectionHistory() ?? [],
+);
+export const connectionHistory: AtomRef.ReadonlyRef<readonly HistoryEntry[]> =
+  history;
+
+function appendConnectionHistory(entry: HistoryEntry) {
+  const next = [...(readConnectionHistory() ?? history.value), entry].slice(
+    -connectionHistoryLimit,
+  );
+  history.set(next);
+  writeConnectionHistory(next);
+}
+
+function recordConnectionDiagnostic(environmentId: string) {
+  return (diagnostic: LiveDiagnostic) =>
+    appendConnectionHistory({
+      document: documentStartedAt,
+      environmentId,
+      diagnostic,
+    });
+}
+
+if (typeof window !== 'undefined') {
+  appendConnectionHistory(currentDocumentEntry());
+  const recordNetwork = (event: 'Network online' | 'Network offline') =>
+    appendConnectionHistory({
+      document: documentStartedAt,
+      diagnostic: { at: Date.now(), event },
+    });
+  window.addEventListener('online', () => recordNetwork('Network online'));
+  window.addEventListener('offline', () => recordNetwork('Network offline'));
+  window.addEventListener('storage', (event) => {
+    if (event.key === connectionHistoryKey)
+      history.set(readConnectionHistory() ?? []);
+  });
+}
 
 type Server = {
   address: string;
@@ -94,7 +142,10 @@ function localConnection({ inventory, principal }: BrowserSession): Connection {
   const connection = createConnection(inventory.environmentId, {
     address: window.location.href,
     transport: browserTransport(fetch),
-    liveUpdates: sameOriginLiveUpdates(statusActivity),
+    liveUpdates: sameOriginLiveUpdates(
+      statusActivity,
+      recordConnectionDiagnostic(inventory.environmentId),
+    ),
     operationsKey: `porcelain-git-requests:${JSON.stringify([inventory.environmentId, principal.kind, writer])}`,
   });
   connection.atoms.addGlobalLayer(
@@ -112,6 +163,7 @@ function remoteConnection(remote: Remote): Connection {
         ? { activity: pairingPlatform.statusActivity }
         : {}),
       socket: webSocket,
+      diagnostic: recordConnectionDiagnostic(remote.environmentId),
       onStatusChange: () => revalidateRemoteStatus(pairingPlatform, remote),
       timeoutMs: REQUEST_TIMEOUT_MS,
     },

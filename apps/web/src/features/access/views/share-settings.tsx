@@ -18,6 +18,7 @@ import {
 } from '@porcelain/client/access/rules';
 import type { Environment, PairedAccess } from '@porcelain/client/access/rules';
 import { useConnectedContext } from '../store';
+import { ConnectionHistory } from './connection-history';
 import { DisconnectBrowser } from './disconnect-browser';
 
 import { useDesktopCapabilities } from '../queries/app-update';
@@ -183,6 +184,7 @@ export function ComputerSettings({
           <Item variant="outline">
             <ItemContent>
               <ComputerUpdate prominent />
+              <ConnectionHistory environmentId={connection.environmentId} />
             </ItemContent>
           </Item>
         </ItemGroup>

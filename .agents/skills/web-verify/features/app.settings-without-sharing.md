@@ -8,6 +8,7 @@ selectors:
   - 'Computers'
   - 'Pair a device'
   - 'Open This computer:'
+  - 'Connection history'
   - 'Disconnect this browser'
 tests:
   - apps/web/spec/e2e/app-settings-without-sharing.e2e.ts
@@ -35,6 +36,8 @@ Start a web verification instance and pair the browser. Open the sidebar, check 
 Click Computers, then Open This computer: <name>. Expect `/settings/computers/this-computer`, its current version and update state, Ways in, and Disconnect this browser. A local authorized browser shows Pair a device and Devices (list "Paired devices and links"). A remote browser whose `GET /api/access` is denied sees the one-line reason: Sharing is managed from a browser on the computer that runs Porcelain, and no administration controls are mounted. Its Ways in shows the editor only when the owner let its device edit ways in; when `GET /api/remote-access` is denied it says: This device cannot see or change ways in, or, when the browser reaches the computer through its own address, that ways in cannot be seen or changed over this connection.
 
 Open `/settings/computers/a-saved-computer` directly. It keeps the Computers section and explains the missing saved computer; it does not redirect to another section. Legacy Devices and Integrations links redirect to This computer; unknown section slugs show the app's recoverable not-found view.
+
+Open Connection history in This computer to see attempts, disconnects and document loads from this app. In Electron, emitted suspend and resume events also appear here when live updates are active.
 
 Automated coverage: `app-settings-without-sharing.e2e.ts`.
 
