@@ -1,7 +1,7 @@
 import { page, userEvent } from 'vitest/browser';
 import { expect, test } from './fixtures.tsx';
 
-for (const surface of ['Files', 'History'] as const) {
+for (const surface of ['Files'] as const) {
   test(`a clean worktree keeps Review open and reaches ${surface} from its notice`, async ({
     repo,
     render,
@@ -12,12 +12,7 @@ for (const surface of ['Files', 'History'] as const) {
       .getByRole('tablist', { name: 'Open documents', exact: true })
       .getByRole('tab', { name: 'Review', exact: true });
     await expect
-      .element(
-        workspace.getByRole('heading', {
-          name: 'No changes to review',
-          exact: true,
-        }),
-      )
+      .element(workspace.getByText('No changes to review.', { exact: true }))
       .toBeVisible();
     await changes.click();
     await userEvent.keyboard('{Alt>}w{/Alt}');
@@ -27,14 +22,6 @@ for (const surface of ['Files', 'History'] as const) {
         workspace.getByRole('button', { name: 'Close Review', exact: true }),
       )
       .not.toBeInTheDocument();
-    await expect
-      .element(
-        workspace.getByText(
-          'main matches its last commit. Browse files or history from the right.',
-          { exact: true },
-        ),
-      )
-      .toBeVisible();
     await workspace
       .getByRole('button', { name: new RegExp(`^${surface}`) })
       .click();
@@ -55,12 +42,7 @@ for (const surface of ['Files', 'History'] as const) {
       )
       .toHaveFocus();
     await expect
-      .element(
-        workspace.getByRole('heading', {
-          name: 'No changes to review',
-          exact: true,
-        }),
-      )
+      .element(workspace.getByText('No changes to review.', { exact: true }))
       .toBeVisible();
   });
 }
@@ -278,12 +260,7 @@ test('Review reads a held patch without loading words or placeholders', async ({
       )
       .toBeVisible();
     await expect
-      .element(
-        app.page.getByRole('status', { name: 'Loading changes…', exact: true }),
-      )
-      .not.toBeInTheDocument();
-    await expect
-      .element(app.page.getByText('Loading changes…', { exact: true }))
+      .element(app.page.getByText(/Loading|Reading/u))
       .not.toBeInTheDocument();
     held.release();
     await expect
@@ -491,7 +468,7 @@ test('a cold split shows no loading skeleton while its side document is read', a
       )
       .toBeVisible();
     await expect
-      .element(app.page.getByText('Loading review…', { exact: true }))
+      .element(app.page.getByText(/Loading|Reading/u))
       .not.toBeInTheDocument();
     held.release();
     await expect
@@ -522,12 +499,7 @@ test('a failed branch comparison never reads as no changes in Review', async ({
     )
     .toBeVisible();
   await expect
-    .element(
-      app.page.getByRole('heading', {
-        name: 'No changes to review',
-        exact: true,
-      }),
-    )
+    .element(app.page.getByText('No changes to review.', { exact: true }))
     .not.toBeInTheDocument();
   await expect
     .element(app.page.getByRole('button', { name: 'Try again', exact: true }))

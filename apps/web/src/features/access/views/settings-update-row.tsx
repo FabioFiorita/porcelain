@@ -54,7 +54,6 @@ export function SettingsUpdateRow({
     target.kind === 'service'
       ? serviceUpdateProgress(target.state, false)
       : appUpdateProgress(appState);
-  if (row.checking) progress = 'Checking for a new version…';
   const outcome =
     target.kind === 'service' ? serviceUpdateOutcome(target.state) : undefined;
   const latest =
@@ -97,7 +96,7 @@ export function SettingsUpdateRow({
       row.note ?? (latest ? 'Up to date' : 'Latest version unavailable');
     if (target.kind === 'service' && !target.state.managed)
       label = 'Managed on that computer';
-    action = !row.error && (
+    action = !row.error && !row.checking && (
       <span className="text-xs leading-4 text-muted-foreground">{label}</span>
     );
   }

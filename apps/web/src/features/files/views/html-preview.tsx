@@ -1,3 +1,4 @@
+import { StateSpinner } from '@/shared/views/state-notice';
 import { Cause, Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import type { FilesScope } from '@porcelain/client/files/rules';
@@ -26,11 +27,7 @@ export function HtmlPreview({
     browserHtmlPreview,
   );
   if (AsyncResult.isInitial(preview))
-    return (
-      <p role="status" className="p-4">
-        Loading preview…
-      </p>
-    );
+    return <StateSpinner label="Preparing the preview" />;
   if (AsyncResult.isFailure(preview))
     return (
       <p role="alert" className="p-4">

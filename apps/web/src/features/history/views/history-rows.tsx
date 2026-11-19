@@ -7,7 +7,7 @@ import { historyBoundary } from '@porcelain/client/history/rules';
 import { historyGraphWidth, layoutGraph } from '../rules/graph';
 import { AsyncResult } from 'effect/reactivity';
 import { Button } from '@/components/ui/button';
-import { Spinner } from '@/components/ui/spinner';
+import { PendingSpinner } from '@/shared/views/state-notice';
 import { HistorySentinel } from '../adapters/history-sentinel';
 import type { useHistory } from '../queries/history';
 import { CommitRow, type CommitRowLayout } from './commit-row';
@@ -121,9 +121,8 @@ function HistoryEnd({ history }: { history: History }) {
 function HistoryStatus({ history }: { history: History }) {
   if (history.result.waiting)
     return (
-      <p className="flex items-center gap-2 px-2 py-3 text-2xs text-muted-foreground">
-        <Spinner className="size-3.5" />
-        Loading older commits…
+      <p className="px-2 py-3">
+        <PendingSpinner label="Reading older commits" />
       </p>
     );
   if (AsyncResult.isFailure(history.result))

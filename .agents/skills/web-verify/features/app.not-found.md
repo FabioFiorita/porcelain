@@ -3,7 +3,6 @@ route: /$
 selectors:
   - 'Page not found'
   - 'Worktree not found'
-  - 'This URL has an invalid or unavailable worktree ID.'
   - 'Open available worktree'
   - 'Back to workspace'
   - 'Toggle Sidebar'
@@ -30,7 +29,7 @@ Preconditions: [surface baseline](README.md).
 
 Start one web instance and pair. At desktop width (1024 × 640), navigate to `/nonexistent-route`, `/<projectId>/<worktreeId>/remotes` and `/settings/unknown/extra`. Each URL stays visible, shows Page not found, keeps navigation Projects and worktrees, and has a Back to workspace link. Follow it and observe Review content. At phone width (414 × 896), Toggle Sidebar reveals the same navigator.
 
-Navigate to `/<projectId>/invalid-worktree`, `/<projectId>/remotes` and `/?worktree=invalid-worktree`. Observe Worktree not found and the explanation that the URL has an invalid or unavailable worktree ID. Open available worktree links directly to an available workspace; it is absent when none exists. Back to workspace remains available. The app never claims another worktree is the invalid ID.
+Navigate to `/<projectId>/invalid-worktree`, `/<projectId>/remotes` and `/?worktree=invalid-worktree`. Observe the one line Worktree not found with one action: Open available worktree links directly to an available workspace; when none exists the action is Back to workspace. The app never claims another worktree is the invalid ID.
 
 Navigate to `/settings/unknown` and the removed slugs `/settings/appearance`, `/settings/computer`, `/settings/connection`, `/settings/updates`, `/settings/ways-in` and `/settings/remotes`. Observe Page not found without a silent redirect. Press Alt+Shift+S: Settings opens as a dialog over the not-found view at `/settings/general`, and Close returns to it. Computers is a valid section in both shells. Devices and Integrations redirect to Computers → This computer. An extra segment on General remains not found.
 

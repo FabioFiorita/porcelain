@@ -32,6 +32,6 @@ export function diffUnavailableReason(
 ) {
   if (isSubmoduleChange(modes)) return 'Submodule change';
   if (content === undefined)
-    return failed ? 'The patch could not be read' : 'Reading the patch';
+    return failed ? 'The patch could not be read' : undefined;
   return patchUnavailable(content);
 }

@@ -35,7 +35,7 @@ Preconditions: [surface baseline](README.md).
 
 1. At 1280 × 800 open the worktree in a fresh profile. Expect navigation "Side panel" with Files pressed and complementary "Review sidebar" showing Files: the panel starts open. The bar has no visible button "Review". Click "Files": the panel closes. Click it again: the panel returns with heading "Files".
 2. Click "Changes" and "History": the heading follows. Click the pressed button again: the panel closes, no view button is pressed and button "Show side panel" has `aria-expanded="false"`. Click it: the panel returns on the last view.
-   A cold panel names its own loading state: "Loading files", "Loading changes" or "Loading history". Returning to recently read History keeps confirmed rows visible during revalidation.
+   A cold panel shows nothing until its first read arrives (the review beside it owns the page's one spinner). Returning to recently read History keeps confirmed rows visible during revalidation.
 3. Press `Alt+Shift+R`: the panel closes and focus lands on "Show side panel". Press `Alt+3`, `Alt+2`, `Alt+1`: each opens its view.
 4. In History, check region "Branch" (branch name, `n ahead · n behind`, `against <upstream>`), write a file in `REPO`, then click "Uncommitted changes 1 file": tab "All changes" opens. Click "Open graph": tab "Commit graph" opens.
 5. Measure the page (region "Review content") with the panel shown and hidden; it widens by the panel plus its 8px gap.
@@ -49,6 +49,6 @@ Preconditions: [surface baseline](README.md).
 
 ## Linked pull request recovery
 
-Open a linked PR from its sidebar action or Review panel, then make GitHub return a missing-PR error or null response. The PR document explains that GitHub could not find it, retains Back to the worktree and Try again, and does not report a network failure or alter the worktree. Restore GitHub and retry: the same PR opens without changing the workspace. Repeat at 1440 and 414. GitHub checks remain in the PR document.
+Open a linked PR from its sidebar action or Review panel, then make GitHub return a missing-PR error or null response. The PR document says in one line that GitHub could not find it, with one Try again button, and does not report a network failure or alter the worktree. Restore GitHub and retry: the same PR opens without changing the workspace. Repeat at 1440 and 414. GitHub checks remain in the PR document.
 
 Discovery lists use only the authoritative GitHub check rollup; individual check details are fetched on PR opening. At up to50open+50recent PRs, listing must not request nested check contexts.

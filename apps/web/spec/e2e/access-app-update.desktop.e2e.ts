@@ -33,9 +33,6 @@ test('the release app checks on demand, shows each result and installs the offer
   });
   await expect(check).toBeEnabled();
   await check.click();
-  await expect(
-    settings.getByText('Checking for a new version…', { exact: true }),
-  ).toBeVisible();
   await expect(check).toBeDisabled();
   await page.evaluate(() => window.updateFixture.finish({ status: 'idle' }));
   await expect(
@@ -58,9 +55,7 @@ test('the release app checks on demand, shows each result and installs the offer
   await expect(check).toBeEnabled();
 
   await check.click();
-  await expect(
-    settings.getByText('Checking for a new version…', { exact: true }),
-  ).toBeVisible();
+  await expect(check).toBeDisabled();
   await expect(
     settings.getByText('Could not check for an app update.', { exact: true }),
   ).not.toBeAttached();
@@ -107,11 +102,8 @@ test('the release app checks on demand, shows each result and installs the offer
   ).toBeVisible();
   await expect(install).not.toBeAttached();
   await check.click();
-  await expect(
-    settings.getByText('Checking for a new version…', { exact: true }),
-  ).toBeVisible();
-  await expect(install).not.toBeAttached();
   await expect(check).toBeDisabled();
+  await expect(install).not.toBeAttached();
   await page.evaluate(() =>
     window.updateFixture.publish({ status: 'available', version: '0.67.0' }),
   );

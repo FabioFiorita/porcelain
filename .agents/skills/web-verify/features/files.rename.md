@@ -1,12 +1,12 @@
 ---
 route: /
 selectors:
-  - "Review"
-  - "Worktree review"
-  - "Files"
-  - "Rename"
-  - "Invalid name"
-  - "Change no longer present"
+  - 'Review'
+  - 'Worktree review'
+  - 'Files'
+  - 'Rename'
+  - 'Invalid name'
+  - 'This change is no longer present.'
 tests:
   - apps/web/spec/integration/files-rename.test.tsx
   - apps/web/spec/e2e/files-search.desktop.e2e.ts
@@ -53,7 +53,7 @@ printf 'Notes to rename\n' > "$REPO/draft-notes.md"
 6. Fill textbox `/^Rename /` with 'final-notes.md'
    Expect: the textbox holds `final-notes.md`.
 7. Press `Enter`
-   Expect: treeitem "final-notes.md" shows, treeitem "draft-notes.md" is gone, the sheet "Worktree review" stays open, and no text "Change no longer present" appears.
+   Expect: treeitem "final-notes.md" shows, treeitem "draft-notes.md" is gone, the sheet "Worktree review" stays open, and no text "This change is no longer present." appears.
    Disk: `ls "$REPO"` lists `final-notes.md` and not `draft-notes.md`; `cat "$REPO/final-notes.md"` prints `Notes to rename`.
 
 ### 2. Rename onto an existing name is refused
@@ -83,6 +83,7 @@ Automated coverage: `files-rename.test.tsx`.
 ## Gotchas
 
 A rename opens nothing, so the sheet stays open. Do not click "Review" again while it is open.
+
 - The clash is refused by the tree before any request: only the toast "Invalid name" shows, never the server's alert. A name holding `/` is refused the same way (`Name cannot include "/".`), so rename never moves an entry to another folder.
 - `F2` needs a focused tree row without opening it. Clicking a file row opens the file and closes the sheet, so drive rename through the menu.
 - The textbox name follows the row (`Rename <name>`), so address it with `/^Rename /`.

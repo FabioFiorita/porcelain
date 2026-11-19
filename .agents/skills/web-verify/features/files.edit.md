@@ -1,14 +1,14 @@
 ---
 route: /$projectId/$worktreeId
 selectors:
-  - "Review"
-  - "Files"
-  - "Open file"
-  - "Edit"
-  - "Done"
-  - "Saved"
-  - "Saves as you pause"
-  - "Saving edits the changes you are reviewing."
+  - 'Review'
+  - 'Files'
+  - 'Open file'
+  - 'Edit'
+  - 'Done'
+  - 'Saved'
+  - 'Saves as you pause'
+  - 'Saving edits the changes you are reviewing.'
 tests:
   - apps/web/spec/integration/files-edit.test.tsx
   - apps/web/spec/integration/pierre-editor-input.test.tsx
@@ -33,7 +33,7 @@ Preconditions: [surface baseline](README.md).
 
 ### Setup
 
- the sample repository's `README.md` is already modified, so the tree menu offers "Open file".
+the sample repository's `README.md` is already modified, so the tree menu offers "Open file".
 
 1. Navigate to `/`
    Expect: title "Review — repository".
@@ -46,7 +46,7 @@ Preconditions: [surface baseline](README.md).
 5. Click menuitem `Open file`
    Expect: the sheet closes; tab "README.md" is selected; heading "Sample repository" (Markdown opens in Reader); button "Edit".
 6. Click button `Edit`
-   Expect: textbox "README.md" (the editor; it may first show status "Loading editor…"), status "Saves as you pause", paragraph "Saving edits the changes you are reviewing.", button "Done".
+   Expect: textbox "README.md" (the editor; a slow first open may show one small spinner labelled "Opening the editor"), status "Saves as you pause", paragraph "Saving edits the changes you are reviewing.", button "Done".
 7. Fill textbox `README.md` with 'Browser autosave marker', then wait for 'Saved'
    Expect: status "Unsaved changes", then about 3 seconds later status "Saved".
    Disk: `cat "$REPO/README.md"` prints `Browser autosave marker` (replacing the field contents replaces the editor's whole text).

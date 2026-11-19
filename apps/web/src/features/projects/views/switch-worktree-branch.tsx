@@ -1,3 +1,4 @@
+import { Spinner } from '@/components/ui/spinner';
 import { useState } from 'react';
 import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';
 import { Cause, Option } from 'effect';
@@ -83,7 +84,6 @@ function SwitchWorktreeBranchContent({
   );
   let actionLabel = 'Switch branch';
   if (unresolved) actionLabel = 'Check outcome';
-  if (pending) actionLabel = 'Checking switch';
   return (
     <DialogContent showCloseButton={!pending}>
       <DialogHeader>
@@ -164,6 +164,7 @@ function SwitchWorktreeBranchContent({
             void submit(chosen, () => switchWorktreeBranchDialog.close())
           }
         >
+          {pending && <Spinner aria-hidden="true" />}
           {actionLabel}
         </Button>
       </DialogFooter>

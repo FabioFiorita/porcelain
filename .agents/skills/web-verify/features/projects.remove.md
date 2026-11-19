@@ -5,7 +5,7 @@ selectors:
   - 'repository'
   - 'Remove from Porcelain'
   - 'Cancel'
-  - 'No projects registered'
+  - 'No projects yet'
   - 'Open your first project'
   - 'Worktree not found'
 tests:
@@ -50,11 +50,11 @@ Cancelling keeps it. An address of one of its worktrees, open at the time or ope
 5. Open `Project actions: repository · <computer>`, then click menuitem `Remove from Porcelain`
    Expect: alertdialog "Remove repository from Porcelain?".
 6. Click button `Remove from Porcelain`
-   Expect: the alertdialog is gone; text "No projects registered" in the sheet; URL `/?worktree=<worktreeId>`; text "Worktree not found"; title "Porcelain".
+   Expect: the alertdialog is gone; text "No projects yet" in the sheet; URL `/?worktree=<worktreeId>`; text "Worktree not found"; title "Porcelain".
 7. Inspect HTTP traffic
    Expect: `DELETE /api/projects/<projectId>` with status 200.
 8. Navigate to `/`
-   Expect: after the reload URL stays `/` and the workspace shows "Open your first project"; Click button `Toggle Sidebar` shows "No projects registered" (the server forgot it).
+   Expect: after the reload URL stays `/` and the workspace shows "Open your first project"; Click button `Toggle Sidebar` shows "No projects yet" (the server forgot it).
 9. Disk: `git -C "$REPO" status --short` still prints ` M README.md`; the repository is untouched.
 
 ### Unavailable project actions
@@ -67,7 +67,7 @@ Cancelling keeps it. An address of one of its worktrees, open at the time or ope
 
 ### Observable proof
 
-Cancel sends no DELETE. Confirm yields Worktree not found and No projects registered after reload; DELETE/200, repository remains on disk.
+Cancel sends no DELETE. Confirm yields Worktree not found and No projects yet after reload; DELETE/200, repository remains on disk.
 
 Automated coverage: `projects-open-remote.desktop.e2e.ts`, `projects-remove.e2e.ts`, `projects-remove.test.tsx`.
 

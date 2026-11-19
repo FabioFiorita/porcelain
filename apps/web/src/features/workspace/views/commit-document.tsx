@@ -375,7 +375,10 @@ function OmittedCommitChanges({
           const content = patchOf(change);
           const submodule = isSubmoduleChange(change);
           const reason =
-            diffUnavailableReason(change, content, failed) ?? 'No code change';
+            content === undefined && !failed
+              ? undefined
+              : (diffUnavailableReason(change, content, failed) ??
+                'No code change');
           return (
             <li
               key={`${change.oldPath}->${change.newPath}:${change.status}`}
@@ -384,7 +387,8 @@ function OmittedCommitChanges({
               <div className="flex min-w-0 items-center gap-2">
                 <TruncatedText className="font-mono font-medium" text={path} />
                 <span className="shrink-0 text-muted-foreground">
-                  {change.status} · {reason}
+                  {change.status}
+                  {reason && ` · ${reason}`}
                 </span>
               </div>
               {submodule && content?.kind === 'text' && (

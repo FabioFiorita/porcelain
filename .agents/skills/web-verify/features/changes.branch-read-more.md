@@ -7,7 +7,6 @@ selectors:
   - 'Open document list'
   - 'Read '
   - ' more of '
-  - 'Reading…'
   - 'Some patches could not be read.'
 tests:
   - apps/web/spec/integration/changes-branch-read-more.test.tsx
@@ -23,7 +22,7 @@ The Branch document ("All branch changes") reads diffs for the first 25 files ; 
 
 ## How to get to it (user POV)
 
-- Workspace → button "Review" → tab "Changes" → tab "Branch" → button "All branch changes" (its name ends with the file count) → at the bottom of the document, button "Read <n> more of <m>" (while further files remain, shows "Reading…", disabled, during a read).
+- Workspace → button "Review" → tab "Changes" → tab "Branch" → button "All branch changes" (its name ends with the file count) → at the bottom of the document, button "Read <n> more of <m>" (while further files remain; during a read it keeps its name, shows a spinner and is disabled).
 
 ## Driving it with browser
 

@@ -6,7 +6,6 @@ selectors:
   - 'Open file'
   - 'Reader'
   - 'Source'
-  - 'Not shown'
   - 'This file is too large to display as text.'
 tests:
   - apps/web/spec/integration/files-markdown-preview.test.tsx
@@ -51,13 +50,13 @@ The sample `README.md` ("# Sample repository\n\nA change to review.\n", modified
 1. Click button `Review`, then right-click treeitem named `large.md`
    Expect: menuitem "Open file".
 2. Click menuitem `Open file`
-   Expect: tab "large.md" selected; heading "large.md"; the text "Not shown" with "This file is too large to display as text." under it; no tabs "Reader"/"Source" and no button "Edit".
+   Expect: tab "large.md" selected; heading "large.md"; the one line "This file is too large to display as text."; no tabs "Reader"/"Source" and no button "Edit".
 3. Inspect HTTP traffic
    Expect: `GET /api/worktrees/<id>/text?path=large.md` answered 422.
 
 ### Observable proof
 
-Reader/source show the same unchanged disk content; oversize Not shown corresponds to 422.
+Reader/source show the same unchanged disk content; the oversize notice corresponds to 422.
 
 Automated coverage: `files-markdown-preview.test.tsx`.
 

@@ -51,7 +51,9 @@ test('dragging a file onto a folder in the tree moves it into that folder on dis
     .element(opened.getByRole('treeitem', { name: moved, exact: true }))
     .not.toBeInTheDocument();
   await expect
-    .element(opened.getByText('Change no longer present', { exact: true }))
+    .element(
+      opened.getByText('This change is no longer present.', { exact: true }),
+    )
     .not.toBeInTheDocument();
 });
 

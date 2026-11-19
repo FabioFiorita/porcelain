@@ -29,7 +29,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Skeleton } from '@/components/ui/skeleton';
 import {
   Tooltip,
   TooltipContent,
@@ -37,7 +36,7 @@ import {
 } from '@/components/ui/tooltip';
 
 export function GitHubAccounts({ connection }: { connection: Connection }) {
-  const { projects, failed } = useGitHubAccountProjects(connection);
+  const { projects, failed, retry } = useGitHubAccountProjects(connection);
   return (
     <FieldSet>
       <FieldLegend variant="label">
@@ -58,20 +57,18 @@ export function GitHubAccounts({ connection }: { connection: Connection }) {
         ))}
         {projects !== undefined && projects.length > 0 && (
           <p className="hidden py-3 text-ui text-muted-foreground only:block">
-            No project has a GitHub remote. Add a GitHub origin to a project to
-            choose its account.
+            No project has a GitHub remote.
           </p>
         )}
-        {projects === undefined && !failed && (
-          <Skeleton
-            role="status"
-            aria-label="Reading projects"
-            className="h-13 w-full"
-          />
-        )}
         {projects === undefined && failed && (
-          <p className="py-3 text-ui text-muted-foreground">
+          <p
+            role="alert"
+            className="flex items-center gap-2 py-3 text-ui text-muted-foreground"
+          >
             Could not read this computer’s projects.
+            <Button size="xs" variant="outline" onClick={retry}>
+              Try again
+            </Button>
           </p>
         )}
         {projects?.length === 0 && (
@@ -126,13 +123,6 @@ function ProjectAccount({
           />
         )}
       </ItemContent>
-      {!account && !AsyncResult.isFailure(result) && (
-        <Skeleton
-          role="status"
-          aria-label={`Reading GitHub account for ${project.name}`}
-          className="h-8 w-42"
-        />
-      )}
       {account && account.accounts.length > 0 && (
         <ItemActions>
           {choice && (

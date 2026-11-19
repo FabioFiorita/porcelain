@@ -108,7 +108,11 @@ test.for([
       .click();
     await dialog.getByRole('button', { name: 'Discard', exact: true }).click();
     await expect
-      .element(app.page.getByText('Change no longer present', { exact: true }))
+      .element(
+        app.page.getByText('This change is no longer present.', {
+          exact: true,
+        }),
+      )
       .toBeVisible();
     await app.page
       .getByRole('button', { name: 'Restore', exact: true })

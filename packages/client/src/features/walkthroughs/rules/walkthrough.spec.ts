@@ -957,13 +957,11 @@ describe('walkthrough update status', () => {
     });
   });
 
-  it('distinguishes verified freshness from inability to check', () => {
+  it('describes verified freshness and stays silent when it could not check', () => {
     expect(walkthroughFreshnessText('current')).toBe(
       'Up to date with the current work.',
     );
-    expect(walkthroughFreshnessText('unknown')).toBe(
-      'Couldn’t check whether the work changed. Your saved walkthrough is still available.',
-    );
+    expect(walkthroughFreshnessText('unknown')).toBeUndefined();
     expect(walkthroughFreshnessText('changed')).toBe(
       'The work changed after this walkthrough’s snapshot. Update to include the latest changes.',
     );

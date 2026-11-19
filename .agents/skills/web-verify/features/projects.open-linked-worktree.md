@@ -1,16 +1,16 @@
 ---
 route: /
 selectors:
-  - "Toggle Sidebar"
-  - "repository"
-  - "Remove from Porcelain"
-  - "No projects registered"
-  - "Open your first project"
-  - "Worktree not found"
-  - "Open project"
-  - "Folder path"
-  - "Every worktree appears in the sidebar."
-  - "Main worktree"
+  - 'Toggle Sidebar'
+  - 'repository'
+  - 'Remove from Porcelain'
+  - 'No projects yet'
+  - 'Open your first project'
+  - 'Worktree not found'
+  - 'Open project'
+  - 'Folder path'
+  - 'Every worktree appears in the sidebar.'
+  - 'Main worktree'
 tests:
   - apps/web/spec/e2e/projects-open-linked-worktree.e2e.ts
 api:
@@ -48,7 +48,7 @@ Check: `git -C "$REPO" worktree list` prints two lines, `$REPO … [main]` and `
 2. Right-click button `repository`, then click menuitem `Remove from Porcelain`
    Expect: alertdialog "Remove repository from Porcelain?" with buttons "Cancel" and "Remove from Porcelain".
 3. Click button `Remove from Porcelain`
-   Expect: the alertdialog is gone; text "No projects registered" in the sheet; URL `/?worktree=<old worktreeId>`; text "Worktree not found"; title "Porcelain".
+   Expect: the alertdialog is gone; text "No projects yet" in the sheet; URL `/?worktree=<old worktreeId>`; text "Worktree not found"; title "Porcelain".
 4. Navigate to `/`
    Expect: after the full reload, URL stays `/`; text "Open your first project"; button "Toggle Sidebar".
 

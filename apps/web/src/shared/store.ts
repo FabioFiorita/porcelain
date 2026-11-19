@@ -4,6 +4,22 @@ export const atomRegistry = Atom.make((get) => get.registry);
 
 export const navigatorFocusPending = Atom.make(false).pipe(Atom.keepAlive);
 
+export type PendingRegion = {
+  id: string;
+  label: string;
+  element: HTMLElement;
+  box: { left: number; top: number; width: number; height: number };
+};
+
+export const pendingRegions = Atom.make<{
+  regions: readonly PendingRegion[];
+  last: PendingRegion | undefined;
+  startedAt: number;
+  idleSince: number;
+}>({ regions: [], last: undefined, startedAt: 0, idleSince: 0 }).pipe(
+  Atom.keepAlive,
+);
+
 export const mediaQuery = Atom.family((query: string) =>
   Atom.make((get) => {
     const media = window.matchMedia(query);

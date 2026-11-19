@@ -1,3 +1,4 @@
+import { StateSpinner } from '@/shared/views/state-notice';
 import { Cause, Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { assetUrl } from '@/features/files/rules/html-assets';
@@ -30,7 +31,8 @@ function ImageAsset({
   query: ReturnType<typeof useAsset>;
   path: string;
 }) {
-  if (AsyncResult.isInitial(query)) return <p role="status">Loading image…</p>;
+  if (AsyncResult.isInitial(query))
+    return <StateSpinner label="Reading the image" />;
   if (AsyncResult.isFailure(query))
     return <p role="status">{fileErrorMessage(Cause.squash(query.cause))}</p>;
   return (

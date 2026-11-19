@@ -33,7 +33,7 @@ const STATUS_MARKS: Partial<Record<GitStatus, string>> = {
 
 const PIN_STATES: Record<PinnedFileEntry['state'], string> = {
   resolved: 'Not followed',
-  loading: 'Loading…',
+  loading: '',
   missing: 'Missing',
   unavailable: 'Listing unavailable · Open as file',
 };
@@ -156,11 +156,12 @@ export function PinnedFiles({
                 >
                   {path.slice(separator)}
                 </TruncatedText>
-                {(!canOpen || pinned.state === 'unavailable') && (
-                  <span className="text-2xs text-muted-foreground">
-                    {PIN_STATES[pinned.state]}
-                  </span>
-                )}
+                {(!canOpen || pinned.state === 'unavailable') &&
+                  PIN_STATES[pinned.state] && (
+                    <span className="text-2xs text-muted-foreground">
+                      {PIN_STATES[pinned.state]}
+                    </span>
+                  )}
                 {pinned.state === 'unavailable' && (
                   <Button variant="outline" size="xs" onClick={onRetry}>
                     Try again

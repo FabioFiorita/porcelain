@@ -202,7 +202,7 @@ export const reviewLayout = {
             [node, ...node.querySelectorAll('[role="status"]')].some(
               (status) =>
                 status.getAttribute('role') === 'status' &&
-                status.textContent === 'Loading review…',
+                status.getAttribute('aria-label') === 'Loading review',
             ),
         ),
       );

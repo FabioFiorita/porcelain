@@ -87,7 +87,7 @@ export function walkthroughFreshnessText(
     case 'current':
       return 'Up to date with the current work.';
     case 'unknown':
-      return 'Couldn’t check whether the work changed. Your saved walkthrough is still available.';
+      return undefined;
     case 'changed':
       return 'The work changed after this walkthrough’s snapshot. Update to include the latest changes.';
   }

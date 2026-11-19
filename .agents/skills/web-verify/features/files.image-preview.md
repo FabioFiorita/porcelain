@@ -1,13 +1,12 @@
 ---
 route: /$projectId/$worktreeId
 selectors:
-  - "Review"
-  - "Files"
-  - "Open file"
-  - "Not shown"
-  - "This file is binary or uses an unsupported text encoding."
-  - "Timeline"
-  - "Copy path"
+  - 'Review'
+  - 'Files'
+  - 'Open file'
+  - 'This file is binary or uses an unsupported text encoding.'
+  - 'Timeline'
+  - 'Copy path'
 tests:
   - apps/web/spec/integration/files-image-preview.test.tsx
 api:
@@ -52,17 +51,17 @@ printf 'binary\000content\n' > "$REPO/data.bin"
 1. Click button `Review`, then right-click treeitem named `data.bin`
    Expect: menuitems "Open diff" and "Open file".
 2. Click menuitem `Open file`
-   Expect: tab "data.bin" selected; heading "data.bin"; the text "Not shown" with "This file is binary or uses an unsupported text encoding." under it; no button "Edit".
+   Expect: tab "data.bin" selected; heading "data.bin"; the one line "This file is binary or uses an unsupported text encoding."; no button "Edit".
 3. Inspect HTTP traffic
    Expect: `GET /api/worktrees/<id>/text?path=data.bin` answered 422.
 
 ### Observable proof
 
-Capture SVG/PNG images and 200 asset reads; binary Not shown corresponds to 422 text response.
+Capture SVG/PNG images and 200 asset reads; the binary notice corresponds to 422 text response.
 
 Automated coverage: `files-image-preview.test.tsx`.
 
 ## Gotchas
 
-- While the asset loads the panel shows status "Loading image…"; an unreadable asset shows its error message as a status in place of the picture.
+- While the asset loads the panel shows nothing for 400 ms, then one small spinner labelled "Reading the image"; an unreadable asset shows its error message as a status in place of the picture.
 - `printf` needs the octal `\000` to write the NUL byte that makes `data.bin` binary.

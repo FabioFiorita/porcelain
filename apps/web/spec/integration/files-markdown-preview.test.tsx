@@ -66,9 +66,6 @@ test('a Markdown file too large to read as text is not shown and says why', asyn
     .click({ button: 'right' });
   await page.getByRole('menuitem', { name: 'Open file', exact: true }).click();
   await expect
-    .element(page.getByText('Not shown', { exact: true }))
-    .toBeVisible();
-  await expect
     .element(
       page.getByText('This file is too large to display as text.', {
         exact: true,

@@ -56,11 +56,10 @@ test('All changes and the Branch document keep the same reading width', async ({
   }
 });
 
-test('loading a diff in All changes names the file and reserves code space below its header', async ({
+test('a held diff in All changes shows no loading words while it is read', async ({
   repo,
   render,
   fetchGate,
-  reviewLayout,
   server,
 }) => {
   const project = await server.project();
@@ -72,26 +71,113 @@ test('loading a diff in All changes names the file and reserves code space below
     const app = await render.route(
       `/${project.id}/${worktree.id}?entry=all-changes`,
     );
-    const page = app.page;
     await held.requested;
-    const loading = page.getByRole('status', {
-      name: 'Loading changes…',
-      exact: true,
-    });
-    await expect.element(loading).toBeVisible();
-    const filename = loading.getByText(repo.readme.path, { exact: true });
-    await expect.element(filename).toBeVisible();
-    const reservedHeight = reviewLayout.visibleHeight(loading);
-    const filenameHeight = reviewLayout.visibleHeight(filename);
     await expect
-      .poll(() => reservedHeight() - filenameHeight() * 4)
-      .toBeGreaterThan(0);
+      .element(app.page.getByText(repo.readme.path, { exact: true }).first())
+      .toBeVisible();
+    await expect
+      .element(app.page.getByText(/Loading|Reading/u))
+      .not.toBeInTheDocument();
     held.release();
     await expect
-      .element(page.getByText('A change to review.', { exact: true }))
+      .element(app.page.getByText('A change to review.', { exact: true }))
       .toBeVisible();
-    await expect.element(loading).not.toBeInTheDocument();
   } finally {
     held.release();
   }
+});
+
+test('a failed automatic patch refresh keeps the last patch without an alert', async ({
+  repo,
+  render,
+  fetchGate,
+  server,
+}) => {
+  const project = await server.project();
+  const worktree = project.worktrees.find((entry) => entry.main);
+  if (!worktree) throw new Error('The fixture has no main worktree.');
+  const refusals = fetchGate.failChangeDiffs();
+  const app = await render.route(
+    `/${project.id}/${worktree.id}?entry=all-changes`,
+  );
+  await expect
+    .element(app.page.getByText('A change to review.', { exact: true }))
+    .toBeVisible();
+  refusals.start();
+  await repo.write(
+    repo.readme.path,
+    '# Sample repository\n\nA rewrite.\n\nWith a second line.\n',
+  );
+  await expect
+    .poll(() => refusals.refused(), { timeout: 10_000 })
+    .toBeGreaterThan(0);
+  await expect
+    .element(app.page.getByText('A change to review.', { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(
+      app.page.getByText('The changes in this document could not be read.', {
+        exact: true,
+      }),
+    )
+    .not.toBeInTheDocument();
+});
+
+test('a file that appears during a refused refresh raises no alert', async ({
+  repo,
+  render,
+  fetchGate,
+  server,
+}) => {
+  await repo.write(repo.readme.path, repo.readme.committed);
+  await repo.write('notes.txt', 'First notes\n');
+  await repo.commit('Add notes');
+  await repo.write(repo.readme.path, repo.readme.changed);
+  const project = await server.project();
+  const worktree = project.worktrees.find((entry) => entry.main);
+  if (!worktree) throw new Error('The fixture has no main worktree.');
+  const refusals = fetchGate.failChangeDiffs();
+  const app = await render.route(
+    `/${project.id}/${worktree.id}?entry=all-changes`,
+  );
+  await expect
+    .element(app.page.getByText('A change to review.', { exact: true }))
+    .toBeVisible();
+  refusals.start();
+  await repo.write('notes.txt', 'First notes\nLater notes\n');
+  await expect
+    .element(app.page.getByText('notes.txt', { exact: true }).first())
+    .toBeVisible();
+  await expect
+    .poll(() => refusals.refused(), { timeout: 10_000 })
+    .toBeGreaterThan(0);
+  await expect
+    .element(app.page.getByRole('button', { name: 'Try again', exact: true }))
+    .not.toBeInTheDocument();
+  await expect
+    .element(app.page.getByText('A change to review.', { exact: true }))
+    .toBeVisible();
+});
+
+test('a refused first diff read keeps Try again while an untracked file shows', async ({
+  repo,
+  render,
+  fetchGate,
+  server,
+}) => {
+  await repo.write('loose.txt', 'A loose note\n');
+  const project = await server.project();
+  const worktree = project.worktrees.find((entry) => entry.main);
+  if (!worktree) throw new Error('The fixture has no main worktree.');
+  const refusals = fetchGate.failChangeDiffs();
+  refusals.start();
+  const app = await render.route(
+    `/${project.id}/${worktree.id}?entry=all-changes`,
+  );
+  await expect
+    .element(app.page.getByText('A loose note', { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(app.page.getByRole('button', { name: 'Try again', exact: true }))
+    .toBeVisible();
 });

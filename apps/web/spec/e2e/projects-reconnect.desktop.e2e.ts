@@ -17,7 +17,7 @@ test('confirming a replacement opens its new worktree and keeps the original pro
     await fixture.unavailable('replacement');
     await app.reload();
     await expect(
-      page.getByText('Worktree unavailable', { exact: true }),
+      page.getByText('This worktree is unavailable.', { exact: true }),
     ).toBeVisible();
     const navigator = page.getByRole('navigation', {
       name: 'Projects and worktrees',

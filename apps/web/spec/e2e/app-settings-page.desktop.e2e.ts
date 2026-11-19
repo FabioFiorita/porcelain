@@ -108,7 +108,7 @@ test('Settings still opens once the last project is removed', async ({
     .getByRole('button', { name: 'Remove from Porcelain', exact: true })
     .click();
   await expect(
-    pairedPage.getByText('No projects registered', { exact: true }),
+    pairedPage.getByText('No projects yet', { exact: true }),
   ).toBeVisible();
 
   await pairedPage

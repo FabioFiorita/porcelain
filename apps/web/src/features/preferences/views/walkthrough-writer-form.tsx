@@ -29,6 +29,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
+import { PendingSpinner } from '@/shared/views/state-notice';
 import { NoWalkthroughWriters } from '@/shared/views/no-walkthrough-writers';
 import { submitForm } from '@/shared/lib/submit-form';
 
@@ -49,12 +50,17 @@ export function WalkthroughWriterForm({
   const settings = Option.getOrUndefined(AsyncResult.value(result));
   if (AsyncResult.isFailure(result))
     return (
-      <p role="alert">
-        Could not read walkthrough models. Check this computer’s connection and
-        reopen settings.
+      <p
+        role="alert"
+        className="flex items-center gap-2 text-ui text-muted-foreground"
+      >
+        Could not read walkthrough models.
+        <Button size="xs" variant="outline" onClick={refresh}>
+          Try again
+        </Button>
       </p>
     );
-  if (!settings) return <Spinner />;
+  if (!settings) return <PendingSpinner label="Reading walkthrough models" />;
   if (settings.models.length === 0 && !project)
     return <NoWalkthroughWriters checking={result.waiting} onCheck={refresh} />;
   return (

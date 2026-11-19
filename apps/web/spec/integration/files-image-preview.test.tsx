@@ -24,9 +24,6 @@ test('a binary file opened from the file tree is not shown as text and says why'
     .click({ button: 'right' });
   await page.getByRole('menuitem', { name: 'Open file', exact: true }).click();
   await expect
-    .element(page.getByText('Not shown', { exact: true }))
-    .toBeVisible();
-  await expect
     .element(
       page.getByText(
         'This file is binary or uses an unsupported text encoding.',

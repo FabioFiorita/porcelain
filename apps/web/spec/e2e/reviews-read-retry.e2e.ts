@@ -13,7 +13,7 @@ async function waitReview(page: Page) {
 
 async function expectNoFalseEmpty(page: Page) {
   await expect(
-    page.getByText('No changes to review', { exact: true }),
+    page.getByText('No changes to review.', { exact: true }),
   ).not.toBeAttached();
 }
 
@@ -166,7 +166,7 @@ test('an empty worktree opens Review without another navigation', async ({
       .getByRole('tab', { name: 'Review', exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByRole('heading', { name: 'No changes to review', exact: true }),
+    page.getByText('No changes to review.', { exact: true }),
   ).toBeVisible();
   await expect
     .poll(() => new URLSearchParams(app.address().query).get('entry'))

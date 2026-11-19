@@ -40,9 +40,7 @@ test('touch opens the sidebar without holding a tooltip', async ({
     ).toBeFocused();
     await page.keyboard.press('Escape');
     await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-    await page
-      .getByRole('heading', { name: 'Page not found', exact: true })
-      .tap();
+    await page.getByText('Page not found', { exact: true }).tap();
     await expect(tooltip).not.toBeVisible();
   } finally {
     await context.close();
@@ -58,7 +56,7 @@ for (const width of [1280, 414]) {
     await page.emulateMedia({ colorScheme: 'light' });
     await app.follow('/shortcut-hints');
     await expect(
-      page.getByRole('heading', { name: 'Page not found', exact: true }),
+      page.getByText('Page not found', { exact: true }),
     ).toBeVisible();
     const toggle = page.getByRole('button', {
       name: 'Toggle Sidebar',
@@ -172,9 +170,7 @@ for (const width of [1280, 414]) {
       await expect(toggle).toBeFocused();
       await expect(tooltip).toBeVisible();
       await page.mouse.move(width - 20, 800);
-      await page
-        .getByRole('heading', { name: 'Page not found', exact: true })
-        .click();
+      await page.getByText('Page not found', { exact: true }).click();
       await expect(tooltip).not.toBeVisible();
     }
   });

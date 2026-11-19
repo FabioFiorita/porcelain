@@ -33,7 +33,7 @@ test('opening a repository with a linked worktree from the empty workspace after
     .getByRole('button', { name: 'Remove from Porcelain', exact: true })
     .click();
   await expect(
-    opened.getByText('No projects registered', { exact: true }),
+    opened.getByText('No projects yet', { exact: true }),
   ).toBeVisible();
   await expect.poll(() => app.address().path).toBe('/');
   await app.reload();

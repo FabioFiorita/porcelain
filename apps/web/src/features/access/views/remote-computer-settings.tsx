@@ -7,6 +7,7 @@ import {
   remoteStatusText,
 } from '@porcelain/client/access/rules';
 import { TruncatedText } from '@/shared/views/truncated-text';
+import { PendingSpinner } from '@/shared/views/state-notice';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -47,6 +48,8 @@ export function RemoteComputerSettings({
 }) {
   const { remotes, status, error } = useSavedEnvironments();
   const remote = remotes.find((item) => item.environmentId === environmentId);
+  if (!remote && status !== 'ready' && !error)
+    return <PendingSpinner label="Reading saved computers" />;
   if (!remote)
     return (
       <Alert
@@ -56,7 +59,7 @@ export function RemoteComputerSettings({
       >
         <AlertDescription>
           {status !== 'ready'
-            ? (error ?? 'Reading saved remote computers…')
+            ? error
             : 'This computer is no longer saved on this app. Return to Computers to add it again.'}
         </AlertDescription>
       </Alert>

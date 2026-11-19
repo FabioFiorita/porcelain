@@ -7,11 +7,10 @@ import { Item, ItemContent, ItemGroup } from '@/components/ui/item';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Spinner } from '@/components/ui/spinner';
 import { SettingsHeading } from '@/shared/views/settings-heading';
 import { TruncatedText } from '@/shared/views/truncated-text';
 import { desktopShell } from '@/shared/shell';
-import { usePairedAccess } from '../queries/share';
+import { usePairedAccess, useRetryPairedAccess } from '../queries/share';
 import {
   chosenEnvironmentIcon,
   connectionErrorMessage,
@@ -40,6 +39,7 @@ function SharingGate({
   children: (access: PairedAccess, failure?: string) => ReactNode;
 }) {
   const access = usePairedAccess(connection);
+  const retry = useRetryPairedAccess(connection);
   const answer = Option.getOrUndefined(AsyncResult.value(access));
   if (answer === null)
     return (
@@ -54,11 +54,19 @@ function SharingGate({
   if (!answer)
     return failure ? (
       <Alert variant="destructive">
-        <AlertDescription>{failure}</AlertDescription>
+        <AlertDescription>
+          {failure}
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={access.waiting}
+            onClick={retry}
+          >
+            Try again
+          </Button>
+        </AlertDescription>
       </Alert>
-    ) : (
-      <Spinner />
-    );
+    ) : null;
   return children(answer, failure);
 }
 
@@ -69,7 +77,7 @@ export function ComputerUpdate({ prominent = false }: { prominent?: boolean }) {
   )?.isDesktopShell;
   if (desktop === true) return <AppUpdateSettings prominent={prominent} />;
   if (desktop === false) return <ServiceUpdateSettings prominent={prominent} />;
-  return <Spinner />;
+  return null;
 }
 
 export function ComputerSettings({

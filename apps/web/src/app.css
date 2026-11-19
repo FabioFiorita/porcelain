@@ -87,6 +87,27 @@
   color-scheme: dark;
 }
 
+@keyframes pending-appear {
+  from {
+    visibility: hidden;
+    opacity: 0;
+  }
+}
+
+.pending-appear {
+  animation: pending-appear 200ms ease-out backwards;
+}
+
+@keyframes pending-leave {
+  to {
+    visibility: hidden;
+  }
+}
+
+.pending-linger {
+  animation: pending-leave 1ms linear 500ms forwards;
+}
+
 .pairing-page {
   position: relative;
   isolation: isolate;

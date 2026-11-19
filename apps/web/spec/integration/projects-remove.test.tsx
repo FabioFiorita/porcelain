@@ -77,7 +77,7 @@ test.for([1280, 414])(
 
       await expect.element(confirm).not.toBeInTheDocument();
       await expect
-        .element(page.getByText('No projects registered', { exact: true }))
+        .element(page.getByText('No projects yet', { exact: true }))
         .toBeVisible();
       await expect
         .poll(async () =>

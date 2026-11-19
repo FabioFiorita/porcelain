@@ -134,12 +134,6 @@ export function routingPromises() {
         pairedPage.getByText('Worktree not found', { exact: true }),
       ).toBeVisible();
       await expect(
-        pairedPage.getByText(
-          'This URL has an invalid or unavailable worktree ID.',
-          { exact: true },
-        ),
-      ).toBeVisible();
-      await expect(
         pairedPage.getByRole('region', { name: 'Review content', exact: true }),
       ).not.toBeAttached();
       const recovery = pairedPage.getByRole('link', {

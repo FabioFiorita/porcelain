@@ -28,7 +28,9 @@ test('renaming a file in the tree moves it on disk and shows the new name', asyn
     .element(opened.getByRole('treeitem', { name: before, exact: true }))
     .not.toBeInTheDocument();
   await expect
-    .element(opened.getByText('Change no longer present', { exact: true }))
+    .element(
+      opened.getByText('This change is no longer present.', { exact: true }),
+    )
     .not.toBeInTheDocument();
   await expect
     .poll(async () =>

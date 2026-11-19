@@ -323,6 +323,7 @@ function CommitGeneration({
   const { models, model } = form;
   const choices = Option.getOrUndefined(AsyncResult.value(models));
   const chosen = choices?.find((entry) => entry.id === model);
+  const reading = !choices && !AsyncResult.isFailure(models);
   const reason = writeBlock ?? generationReason(form);
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -330,7 +331,7 @@ function CommitGeneration({
         type="button"
         variant="outline"
         size="sm"
-        disabled={Boolean(reason) || form.working || form.uncertain}
+        disabled={reading || Boolean(reason) || form.working || form.uncertain}
         aria-description={writeBlock}
         onClick={() => form.generate()}
       >
@@ -357,7 +358,9 @@ function CommitGeneration({
         >
           <SelectValue
             placeholder={
-              choices?.length ? 'Choose a model' : 'No coding CLI available'
+              reading || choices?.length
+                ? 'Choose a model'
+                : 'No coding CLI available'
             }
           />
         </SelectTrigger>
@@ -377,8 +380,9 @@ function CommitGeneration({
         </SelectContent>
       </Select>
       <p className="w-full text-xs text-muted-foreground" role="status">
-        {reason ??
-          `Sends the selected changes to ${chosen?.label} through ${model?.split(':')[0] === 'claude' ? 'Claude Code' : 'Codex'}.`}
+        {!reading &&
+          (reason ??
+            `Sends the selected changes to ${chosen?.label} through ${model?.split(':')[0] === 'claude' ? 'Claude Code' : 'Codex'}.`)}
       </p>
       {AsyncResult.isFailure(form.generator.result) && !form.working && (
         <Button
@@ -400,7 +404,7 @@ function generationReason({ models, model, paths }: CommitFormState) {
   if (AsyncResult.isFailure(models))
     return 'Could not load coding CLI models. You can still commit manually.';
   const choices = Option.getOrUndefined(AsyncResult.value(models));
-  if (!choices) return 'Loading coding CLI models…';
+  if (!choices) return null;
   if (!model && choices.some((entry) => !entry.id.endsWith(':default')))
     return 'Choose a model to generate a message.';
   if (!model)

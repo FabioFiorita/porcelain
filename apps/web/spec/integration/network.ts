@@ -166,6 +166,33 @@ export function createFetchGate(filePath: string) {
         window.fetch = original;
       });
     },
+    failChangeDiffs() {
+      const original = window.fetch;
+      let refused = 0;
+      let refusing = false;
+      window.fetch = (input, init) => {
+        if (
+          refusing &&
+          init?.method === 'POST' &&
+          requestUrl(input).pathname.endsWith('/changes/diffs')
+        ) {
+          refused += 1;
+          return Promise.resolve(
+            Response.json({ message: 'Diffs unavailable' }, { status: 503 }),
+          );
+        }
+        return original(input, init);
+      };
+      restores.push(() => {
+        window.fetch = original;
+      });
+      return {
+        start: () => {
+          refusing = true;
+        },
+        refused: () => refused,
+      };
+    },
     failWalkthroughReads() {
       const original = window.fetch;
       window.fetch = (input, init) =>

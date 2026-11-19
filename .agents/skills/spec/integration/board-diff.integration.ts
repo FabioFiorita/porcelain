@@ -118,6 +118,24 @@ it.each([
   }
 });
 
+it.each([
+  ['Page not found', '<p>Page not found</p><a href="/">Back to workspace</a>'],
+  [
+    'Could not display the workspace',
+    '<p>Could not display the workspace.</p><button>Try again</button>',
+  ],
+])('rejects an HTTP-200 one-line %s notice', async (title, content) => {
+  const page = await browser.newPage();
+  try {
+    await page.setContent(
+      `<section data-slot="state-notice" role="alert">${content}</section>`,
+    );
+    expect(await unavailablePage(page)).toBe(title);
+  } finally {
+    await page.close();
+  }
+});
+
 it('ignores unavailable words in ordinary headings, prose, computer names and hidden notices', async () => {
   const page = await browser.newPage();
   try {

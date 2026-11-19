@@ -40,16 +40,17 @@ export function WalkthroughCodeDocument({
   if (!ready || !stop)
     return (
       <StateNotice
-        title="This step isn't available"
-        description="The walkthrough changed since this tab was opened. Open the Review tab for the current steps."
-      >
-        <Button
-          variant="outline"
-          onClick={() => props.onOpen({ kind: 'review' })}
-        >
-          Open review
-        </Button>
-      </StateNotice>
+        message="The walkthrough changed since this tab was opened."
+        action={
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => props.onOpen({ kind: 'review' })}
+          >
+            Open review
+          </Button>
+        }
+      />
     );
   const total = ready.content.stops.length;
   const label = `Step ${step} of ${total}`;
@@ -298,10 +299,7 @@ function WalkthroughChangeDocument(
                 </section>
               )}
               {committed.length === 0 && dirty.length === 0 && (
-                <StateNotice
-                  title="No changed files"
-                  description="These files no longer have changes in the branch or working tree."
-                />
+                <StateNotice message="These files no longer have changes." />
               )}
             </div>
           </div>

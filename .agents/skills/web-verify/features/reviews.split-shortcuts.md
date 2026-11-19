@@ -56,7 +56,7 @@ Opening the split registers the tab shortcuts once; development builds reject du
 - Keep a published walkthrough visible while opening and closing a side file: its DOM and reading place remain mounted.
 - Focus the right pane, open Settings, return and reload the exact URL. The saved right pane owns the next tab shortcut; closing its final file preserves the primary document.
 - Repeat tab shortcuts inside the file editor: typing and editing retain ownership and the shortcut must not close or switch a document.
-- With a destination text read held, switching an existing tab keeps the previous document visibly readable and its controls inactive until the requested document is ready. A first open still has an honest loading state. Reduced motion removes the side-pane entrance animation.
+- With a destination text read held, switching an existing tab keeps the previous document visibly readable and its controls inactive until the requested document is ready. A slow first open shows one small spinner after 400 ms and no loading words. Reduced motion removes the side-pane entrance animation.
 
 Automated coverage: `reviews-split-shortcuts.test.tsx`.
 

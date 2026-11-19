@@ -140,7 +140,7 @@ test('reading more of a long branch keeps its diffs during loading and after a n
   await expect
     .element(
       workspace.getByRole('button', {
-        name: /^(?:Read \d+ more of \d+|Reading…)$/u,
+        name: /^Read \d+ more of \d+$/u,
       }),
     )
     .not.toBeInTheDocument();

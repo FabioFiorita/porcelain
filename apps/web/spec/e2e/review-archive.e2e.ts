@@ -109,7 +109,7 @@ test('the PR document keeps Archive, ignores dependencies, and explains worktree
     `Could not delete worktree ${fixture.tree}. Deleted: nothing.`,
   );
   await expect(dialog).not.toContainText('BranchArchiveRefusedError:');
-  await expect(dialog).not.toContainText('Checking the worktree and branches');
+  await expect(dialog).toContainText('Archiving could not be completed.');
   await expect.poll(() => fixture.exists()).toBe(true);
   await expect
     .poll(() => fixture.remoteBranch())

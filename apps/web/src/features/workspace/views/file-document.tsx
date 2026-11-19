@@ -100,7 +100,7 @@ function NotShownFile({
       <PreviewFileControls {...props} />
       <FileToolbar path={props.path} />
       <div className="grid min-h-48 flex-1 place-items-center p-6">
-        <StateNotice title="Not shown" description={message} />
+        <StateNotice message={message} />
       </div>
     </div>
   );

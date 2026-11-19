@@ -1,5 +1,6 @@
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
 
 export function NoWalkthroughWriters({
   checking,
@@ -24,7 +25,8 @@ export function NoWalkthroughWriters({
           disabled={checking}
           onClick={onCheck}
         >
-          {checking ? 'Checking writers…' : 'Check writers again'}
+          {checking && <Spinner aria-hidden="true" />}
+          Check writers again
         </Button>
       </AlertDescription>
     </Alert>

@@ -1,11 +1,9 @@
-import { TruncatedText } from '@/shared/views/truncated-text';
 import { useElement, type ElementTarget } from '@/shared/hooks/use-element';
 import type { RemoteConnection } from '@porcelain/client/access';
 import {
   type NavigatorEntry,
   firstAvailableWorktree,
   selectedWorktreeInProject,
-  worktreeLabel,
 } from '@porcelain/client/projects/rules';
 import {
   detectPlatform,
@@ -18,7 +16,6 @@ import { Link, useNavigate, useRouter } from '@tanstack/react-router';
 import { type ComponentProps, type ReactNode, useState } from 'react';
 import type { Sheet } from '@/components/ui/sheet';
 import { StateNotice } from '@/shared/views/state-notice';
-import { GitBranchIcon, CompassIcon, FolderXIcon } from 'lucide-react';
 import { Sidebar, SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Kbd } from '@/components/ui/kbd';
@@ -72,21 +69,9 @@ type Review = {
 };
 
 const workspaceMessages = {
-  'not-found': {
-    title: 'Page not found',
-    description: 'This URL does not open a page in Porcelain.',
-    icon: CompassIcon,
-  },
-  'missing-worktree': {
-    title: 'Worktree not found',
-    description: 'This URL has an invalid or unavailable worktree ID.',
-    icon: FolderXIcon,
-  },
-  empty: {
-    title: 'Select a worktree',
-    description: 'Choose one on the left to open its review.',
-    icon: GitBranchIcon,
-  },
+  'not-found': 'Page not found',
+  'missing-worktree': 'Worktree not found',
+  empty: 'Select a worktree on the left',
 };
 
 export function ConnectedWorkspace({
@@ -150,15 +135,8 @@ export function ConnectedWorkspace({
   );
   const firstRun = !notice && localInventory.projects.length === 0;
   const message = firstRun
-    ? {
-        title: 'Open your first project',
-        description:
-          'Open a Git repository to see its worktrees and review changes.',
-        icon: GitBranchIcon,
-      }
+    ? 'Open your first project'
     : workspaceMessages[notice ?? 'empty'];
-  const NoticeIcon = message.icon;
-  const recoveryLabel = worktreeLabel(recovery?.worktree.branch || undefined);
   const remotes = useRemoteConnections();
   const context = { ...useConnectedContext(remote?.connection), remoteStatus };
   const shownOn = remote?.remote.environmentId ?? null;
@@ -311,63 +289,19 @@ export function ConnectedWorkspace({
               />
             ) : (
               <StateNotice
-                title={message.title}
-                description={message.description}
-                icon={<NoticeIcon />}
-              >
-                {firstRun && (
-                  <Button
-                    variant="outline"
-                    onClick={() => {
+                message={message}
+                action={
+                  <EmptyWorkspaceAction
+                    firstRun={firstRun}
+                    notice={notice}
+                    recovery={recovery}
+                    onOpenProject={() => {
                       setOpenMobile(false);
                       openHere();
                     }}
-                  >
-                    Open project
-                  </Button>
-                )}
-                {!notice && recovery && (
-                  <div className="flex w-full min-w-0 flex-col gap-2">
-                    <p className="text-sm text-muted-foreground">
-                      First that needs you
-                    </p>
-                    <Link
-                      className="flex min-w-0 flex-col rounded-lg border p-3 text-ui hover:bg-accent"
-                      to="/$projectId/$worktreeId"
-                      params={{
-                        projectId: recovery.projectId,
-                        worktreeId: recovery.worktree.id,
-                      }}
-                    >
-                      <TruncatedText
-                        text={recoveryLabel}
-                        className="font-medium"
-                      />
-                    </Link>
-                  </div>
-                )}
-                {notice === 'missing-worktree' && recovery && (
-                  <Link
-                    className={cn(buttonVariants())}
-                    to="/$projectId/$worktreeId"
-                    params={{
-                      projectId: recovery.projectId,
-                      worktreeId: recovery.worktree.id,
-                    }}
-                  >
-                    Open available worktree
-                  </Link>
-                )}
-                {notice && (
-                  <Link
-                    className={cn(buttonVariants({ variant: 'outline' }))}
-                    to="/"
-                    search={{}}
-                  >
-                    Back to workspace
-                  </Link>
-                )}
-              </StateNotice>
+                  />
+                }
+              />
             )}
           </EmptyWorkspace>
         )}
@@ -415,4 +349,47 @@ function EmptyWorkspace({
       {children}
     </div>
   );
+}
+
+function EmptyWorkspaceAction({
+  firstRun,
+  notice,
+  recovery,
+  onOpenProject,
+}: {
+  firstRun: boolean;
+  notice: keyof typeof workspaceMessages | undefined;
+  recovery: ReturnType<typeof selectedWorktreeInProject>;
+  onOpenProject: () => void;
+}) {
+  if (firstRun)
+    return (
+      <Button variant="outline" size="sm" onClick={onOpenProject}>
+        Open project
+      </Button>
+    );
+  if (notice === 'missing-worktree' && recovery)
+    return (
+      <Link
+        className={cn(buttonVariants({ size: 'sm' }))}
+        to="/$projectId/$worktreeId"
+        params={{
+          projectId: recovery.projectId,
+          worktreeId: recovery.worktree.id,
+        }}
+      >
+        Open available worktree
+      </Link>
+    );
+  if (notice)
+    return (
+      <Link
+        className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
+        to="/"
+        search={{}}
+      >
+        Back to workspace
+      </Link>
+    );
+  return null;
 }

@@ -96,11 +96,13 @@ export function useWalkthroughAssetUrl(input: {
   runId: string;
   assetId: string;
 }) {
-  return useAtomValue(
-    assetUrl({
-      ...worktreeSelection(input.scope, input.context),
-      runId: input.runId,
-      assetId: input.assetId,
-    }),
-  );
+  const read = {
+    ...worktreeSelection(input.scope, input.context),
+    runId: input.runId,
+    assetId: input.assetId,
+  };
+  return {
+    url: useAtomValue(assetUrl(read)),
+    retry: useAtomRefresh(readWalkthroughAsset(read)),
+  };
 }

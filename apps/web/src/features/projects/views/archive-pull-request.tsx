@@ -1,5 +1,7 @@
+import { PendingSpinner } from '@/shared/views/state-notice';
+import { Spinner } from '@/components/ui/spinner';
 import { ContextMenuItem } from '@/components/ui/context-menu';
-import { useState } from 'react';
+import { type ReactNode, useState } from 'react';
 import { AlertDialog as AlertDialogPrimitive } from '@base-ui/react/alert-dialog';
 import { archivePullRequestDialog } from '../overlays';
 import { AsyncResult } from 'effect/reactivity';
@@ -52,7 +54,9 @@ export function ArchivePullRequest({
   const writeBlock = useWorkspaceWriteBlock(context);
   const view = useReviewGitSettings(connection);
   const settings = confirmedReviewGitSettings(view);
-  const block = writeBlock ?? reviewGitSettingsBlock(view);
+  const block =
+    writeBlock ??
+    (view.kind === 'reading' ? undefined : reviewGitSettingsBlock(view));
   const { submit } = useArchivePullRequest(connection, projectId, number);
   const open = () => {
     if (!settings || writeBlock) return;
@@ -141,7 +145,9 @@ function ArchivePullRequestContent({
   const [discardChanges, setDiscardChanges] = useState(false);
   const answer = AsyncResult.isSuccess(result) ? result.value : undefined;
   const plan = answer?.plan;
-  let description = 'Checking the worktree and branches…';
+  let description: ReactNode = (
+    <PendingSpinner label="Checking the worktree and branches" />
+  );
   if (AsyncResult.isFailure(result))
     description = 'Archiving could not be completed.';
   if (plan) description = archiveDescription(plan);
@@ -187,7 +193,8 @@ function ArchivePullRequestContent({
               });
           }}
         >
-          {result.waiting ? 'Checking…' : 'Archive pull request'}
+          {result.waiting && <Spinner aria-hidden="true" />}
+          Archive pull request
         </Button>
       </AlertDialogFooter>
     </AlertDialogContent>

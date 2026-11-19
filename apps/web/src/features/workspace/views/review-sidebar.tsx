@@ -199,10 +199,7 @@ function SidebarSurface({
   if (!available)
     return (
       <div className="p-3">
-        <StateNotice
-          title="Worktree unavailable"
-          description="Restore the checkout and return to Porcelain to browse its files and Git state."
-        />
+        <StateNotice message="This worktree is unavailable." />
       </div>
     );
 
@@ -210,7 +207,7 @@ function SidebarSurface({
     <ReviewBoundary
       connection={context.connection}
       scope={scope}
-      loadingLabel={`Loading ${surface}`}
+      quiet
       key={`${scope.worktreeId}:${surface}`}
     >
       {surface === 'changes' && (

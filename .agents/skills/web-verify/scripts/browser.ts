@@ -50,17 +50,44 @@ export async function settledText(page: Page): Promise<string | undefined> {
   return undefined;
 }
 
+const unavailableTitles = [
+  'Page not found',
+  'Computer unavailable',
+  'Worktree not found',
+  'Revision not found',
+  'Could not display the workspace',
+  'Review not found',
+  'Could not display',
+];
+
 export async function unavailablePage(page: Page): Promise<string | undefined> {
-  for (const title of ['Page not found', 'Computer unavailable'])
-    if (
-      await page
-        .locator('[data-slot="state-notice"]')
-        .getByRole('heading', { name: title, exact: true })
-        .or(page.locator(`[data-unavailable-page="${title}"]`))
-        .first()
-        .isVisible()
-    )
-      return title;
+  if (
+    await page
+      .locator('[data-unavailable-page="Computer unavailable"]')
+      .first()
+      .isVisible()
+  )
+    return 'Computer unavailable';
+  const notices = await Promise.all(
+    (await page.locator('[data-slot="state-notice"]:visible').all()).map(
+      async (notice) => ({
+        line:
+          (
+            await notice
+              .locator('h1, h2, h3, [role="heading"], p')
+              .first()
+              .textContent()
+          )
+            ?.trim()
+            .replace(/\.$/u, '') ?? '',
+        alert: (await notice.getAttribute('role')) === 'alert',
+      }),
+    ),
+  );
+  const titled = notices.find(({ line }) => unavailableTitles.includes(line));
+  if (titled) return titled.line;
+  const failure = notices.find(({ alert }) => alert);
+  if (failure) return failure.line || 'Could not display';
   const headings = await page
     .locator(
       'h1:visible, h2:visible, [role="heading"]:visible, [data-slot="breadcrumb-page"]:visible',
@@ -69,12 +96,11 @@ export async function unavailablePage(page: Page): Promise<string | undefined> {
   return headings
     .map((text) => text.trim())
     .find((text) =>
-      [
-        'Worktree not found',
-        'Revision not found',
-        'Could not display the workspace',
-        'Review not found',
-        'Could not display',
-      ].includes(text),
+      unavailableTitles
+        .filter(
+          (title) =>
+            title !== 'Page not found' && title !== 'Computer unavailable',
+        )
+        .includes(text),
     );
 }

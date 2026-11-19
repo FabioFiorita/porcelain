@@ -107,10 +107,7 @@ test('reopening Files keeps its confirmed tree visible while folder reads refres
     await held.requested;
     await expect.element(file).toBeVisible();
     await expect
-      .element(app.getByText('Loading review', { exact: true }))
-      .not.toBeInTheDocument();
-    await expect
-      .element(app.getByText('Loading files', { exact: true }))
+      .element(app.getByRole('status', { name: 'Loading review', exact: true }))
       .not.toBeInTheDocument();
     await rail
       .getByRole('button', { name: 'Hide side panel', exact: true })
@@ -120,7 +117,7 @@ test('reopening Files keeps its confirmed tree visible while folder reads refres
     await files.click();
     await expect.element(file).toBeVisible();
     await expect
-      .element(app.getByText('Loading review', { exact: true }))
+      .element(app.getByRole('status', { name: 'Loading review', exact: true }))
       .not.toBeInTheDocument();
     held.release();
     await expect

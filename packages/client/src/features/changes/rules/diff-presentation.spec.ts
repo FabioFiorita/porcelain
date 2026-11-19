@@ -32,11 +32,11 @@ it('names a submodule on either side before its patch is read or even when it re
   ]).toEqual(['Submodule change', 'Submodule change', 'Submodule change']);
 });
 
-it('tells a patch still being read from one that failed', () => {
+it('names nothing while a patch is still being read and says when it failed', () => {
   expect([
     diffUnavailableReason(file, undefined, false),
     diffUnavailableReason(file, undefined, true),
-  ]).toEqual(['Reading the patch', 'The patch could not be read']);
+  ]).toEqual([undefined, 'The patch could not be read']);
 });
 
 it('falls back to the patch label once the patch has arrived and leaves text previewable', () => {

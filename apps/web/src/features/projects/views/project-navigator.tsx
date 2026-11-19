@@ -76,7 +76,6 @@ import {
   Empty,
   EmptyHeader,
   EmptyTitle,
-  EmptyDescription,
   EmptyContent,
 } from '@/components/ui/empty';
 import { Item, ItemContent, ItemMedia } from '@/components/ui/item';
@@ -152,13 +151,7 @@ export function ProjectNavigator({
   const filtered =
     filter.projects !== undefined || filter.environments !== undefined;
   const emptyTitle =
-    query.trim() || filtered
-      ? 'No matching worktrees'
-      : 'No projects registered';
-  const emptyDescription =
-    query.trim() || filtered
-      ? 'Try another search or clear the filters.'
-      : 'Open a Git repository to get started.';
+    query.trim() || filtered ? 'No matching worktrees' : 'No projects yet';
   const { setOpenMobile, isMobile } = useSidebar();
   const checkoutSelection = selected
     ? {
@@ -579,7 +572,6 @@ export function ProjectNavigator({
             <Empty>
               <EmptyHeader>
                 <EmptyTitle>{emptyTitle}</EmptyTitle>
-                <EmptyDescription>{emptyDescription}</EmptyDescription>
               </EmptyHeader>
             </Empty>
           )}
