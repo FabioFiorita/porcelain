@@ -1,13 +1,13 @@
 ---
 route: /
 selectors:
-  - "Review"
-  - "Worktree review"
-  - "Files"
-  - "Pin file"
-  - "Unpin file"
-  - "Unpin"
-  - "Pinned files"
+  - 'Review'
+  - 'Worktree review'
+  - 'Files'
+  - 'Pin file'
+  - 'Unpin file'
+  - 'Unpin'
+  - 'Pinned files'
 tests:
   - apps/web/spec/integration/files-pin.test.tsx
 api:
@@ -76,6 +76,7 @@ Automated coverage: `files-pin.test.tsx`.
 ## Gotchas
 
 Pin, unpin and the menus open nothing, so the sheet stays open. Opening a file (steps 10 and 12) closes it.
+
 - Address the pinned row with the exact name "guide.md". A pattern such as `/guide\.md/` also matches button "Unpin guide.md" and fails as ambiguous. The tree row has role treeitem, so it does not collide with role button.
 - Pins belong to the project and stay on the server for the life of the instance. Unpin before driving again, or the region is there from the start.
 
@@ -84,4 +85,4 @@ Pin, unpin and the menus open nothing, so the sheet stays open. Opening a file (
 1. Pin an unopened folder with two child files. Its Pinned folder row has a chevron and `aria-expanded=false`, and no directory read for that folder occurs. Click it once: a bounded Pierre subtree appears, loads that folder, and opens a child as a file document.
 2. Return to Files: the pin stays expanded. Close its row: its subtree unmounts. Unpin removes the row and updates server preferences.
 3. Hide a pinned file or ancestor folder: its Pinned row disappears. Files → Show restores it.
-4. Pins resolve against actual parent directory listings. Loading, Missing and Unavailable entries cannot open a guessed file; Unavailable has Try again, and every row retains its Unpin button. Symlinks and submodules are not followed.
+4. Pins resolve against actual parent directory listings. Pins still being read (shown without a label), Missing and Unavailable entries cannot open a guessed file; Unavailable has Try again, and every row retains its Unpin button. Symlinks and submodules are not followed.
