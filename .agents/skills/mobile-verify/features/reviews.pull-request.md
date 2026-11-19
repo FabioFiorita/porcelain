@@ -3,6 +3,7 @@ screen: /pull-request
 selectors:
   - 'PR #'
   - 'Read pull request again'
+  - 'The pull request could not be read.'
   - 'Open on GitHub'
   - 'spinner'
   - 'Archive'

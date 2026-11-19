@@ -20,7 +20,6 @@ import {
 } from '@porcelain/client/projects';
 import {
   navigatorEntrySelected,
-  navigatorChecksLabel,
   type NavigatorEntry,
   type NavigatorFilterSection,
 } from '@porcelain/client/projects/rules';
@@ -40,7 +39,7 @@ import { Spinner } from '../../../components/ui/spinner';
 import { Text } from '../../../components/ui/text';
 import { useWorkspacePickerModel } from './workspace-picker-model';
 import { useOpenComputers } from './open-computers';
-import { worktreeRow } from '../rules/worktree-row';
+import { worktreeChecksLabel, worktreeRow } from '../rules/worktree-row';
 import { useWorktreeNavigator } from '../store';
 import { useOpenPullRequest } from './open-pull-request';
 import { PickerNotices } from './picker-notices';
@@ -74,7 +73,7 @@ export function WorktreeNavigator({
   const { picker, checkout, initializing, reading } = useWorkspacePickerModel();
   const remotes = useAtomRef(remoteConnectionState);
   const connections = remotes.map((entry) => entry.connection);
-  const { loading, neverRead, projects, filters } = useAtomValue(
+  const { loading, projects, filters } = useAtomValue(
     readWorktreeNavigator(connections),
   );
   const retry = useAtomSet(refreshWorktreeNavigator(connections));
@@ -287,7 +286,14 @@ export function WorktreeNavigator({
                                   size="sm"
                                   className="self-end"
                                   disabled={picker.disabled}
-                                  accessibilityLabel={`Open pull request #${number}, ${entry.projectName}, ${entry.environmentName}, ${navigatorChecksLabel(checks)}`}
+                                  accessibilityLabel={[
+                                    `Open pull request #${number}`,
+                                    entry.projectName,
+                                    entry.environmentName,
+                                    worktreeChecksLabel(checks),
+                                  ]
+                                    .filter(Boolean)
+                                    .join(', ')}
                                   onPress={() =>
                                     openPullRequest({
                                       environmentId: entry.environmentId,
@@ -312,7 +318,7 @@ export function WorktreeNavigator({
                             disabled={picker.disabled || !entry.available}
                             accessibilityLabel={[
                               row.accessibilityLabel,
-                              number ? navigatorChecksLabel(checks) : undefined,
+                              number ? worktreeChecksLabel(checks) : undefined,
                               selected ? 'current' : undefined,
                             ]
                               .filter(Boolean)
@@ -353,7 +359,6 @@ export function WorktreeNavigator({
         })}
         {!initializing &&
         !loading &&
-        !neverRead &&
         picker.messages.length === 0 &&
         projects.length === 0 ? (
           <Empty title="No matching worktrees" />
@@ -364,17 +369,7 @@ export function WorktreeNavigator({
           onRead={picker.onRead}
           reading={reading}
         />
-        {neverRead ? (
-          <ErrorState
-            message="Projects could not be read."
-            retry={{
-              label: 'Read projects again',
-              onPress: () => retry(undefined),
-              pending: reading || loading,
-            }}
-          />
-        ) : null}
-        {picker.canReadInventory && !neverRead ? (
+        {picker.canReadInventory ? (
           <Button
             label="Read projects again"
             variant="tonal"

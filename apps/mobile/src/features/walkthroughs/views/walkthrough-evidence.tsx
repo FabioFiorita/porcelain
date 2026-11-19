@@ -7,11 +7,11 @@ import type {
   WalkthroughRun,
 } from '@porcelain/client/walkthroughs/rules';
 import { Box } from '../../../components/ui/box';
+import { ErrorState } from '../../../components/ui/error-state';
 import { ImageTile } from '../../../components/ui/image-tile';
 import { ImageView } from '../../../components/ui/image-view';
 import { Spinner } from '../../../components/ui/spinner';
 import { RichText } from '../../../components/ui/rich-text';
-import { Text } from '../../../components/ui/text';
 import type { Workspace } from '../../projects/index';
 import { useWalkthroughAsset } from '../queries/walkthrough';
 
@@ -28,24 +28,28 @@ export function EvidenceImage({
   label: string;
   tile?: boolean;
 }) {
-  const data = useWalkthroughAsset({
+  const asset = useWalkthroughAsset({
     workspace,
     runId,
     assetId: item.assetId,
   });
-  const image = Option.getOrUndefined(AsyncResult.value(data));
-  if (image) return <ImageView data={image} label={label} />;
-  if (AsyncResult.isFailure(data))
+  const image = Option.getOrUndefined(AsyncResult.value(asset.result));
+  if (image) return <ImageView data={image} label={label} quiet={tile} />;
+  if (tile) return <Box className="flex-1" />;
+  if (AsyncResult.isFailure(asset.result))
     return (
-      <Box className="flex-1 items-center justify-center" padding={2}>
-        <Text variant="caption" tone="muted" className="text-center">
-          This screenshot could not be loaded.
-        </Text>
+      <Box className="flex-1 justify-center" padding={4}>
+        <ErrorState
+          message="This screenshot could not be loaded."
+          retry={{
+            label: 'Read screenshot again',
+            onPress: asset.refresh,
+            pending: asset.result.waiting,
+          }}
+        />
       </Box>
     );
-  return (
-    <Box className="flex-1 justify-center">{tile ? null : <Spinner />}</Box>
-  );
+  return <Spinner />;
 }
 
 export function WalkthroughProof({

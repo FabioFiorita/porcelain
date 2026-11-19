@@ -60,7 +60,9 @@ function ConnectedComputerUpdate({
         {!inBatch && target ? <ServiceUpdateNote target={target} /> : null}
         {entry && !inBatch ? <UpdateOutcome entry={entry} /> : null}
       </Box>
-      {!inBatch && target ? <ServiceUpdateAction target={target} /> : null}
+      {!inBatch && target && row.confirmed ? (
+        <ServiceUpdateAction target={target} />
+      ) : null}
     </>
   );
 }

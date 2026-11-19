@@ -55,19 +55,20 @@ export function useInventories(
         const result = results.find(
           (entry) => entry.connection.environmentId === environmentId,
         )?.result;
+        const inventory =
+          result === undefined
+            ? undefined
+            : Option.getOrUndefined(AsyncResult.value(result));
         return {
           environmentId,
           name,
           status:
             result === undefined || AsyncResult.isInitial(result)
               ? 'reading'
-              : AsyncResult.isFailure(result)
+              : AsyncResult.isFailure(result) && !inventory
                 ? 'failed'
                 : 'ready',
-          inventory:
-            result === undefined
-              ? undefined
-              : Option.getOrUndefined(AsyncResult.value(result)),
+          inventory,
         };
       },
     ),

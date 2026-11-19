@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useAtomRefresh, useAtomValue } from '@effect/atom-react';
 import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
@@ -45,6 +46,11 @@ function ConnectedPullRequest({
   });
   const result = useAtomValue(query);
   const refresh = useAtomRefresh(query);
+  const [requested, setRequested] = useState(false);
+  const reread = () => {
+    setRequested(true);
+    refresh();
+  };
   const link = usePreviewLink();
   const unavailable = AsyncResult.isFailure(result)
     ? { kind: 'failed' as const }
@@ -84,7 +90,7 @@ function ConnectedPullRequest({
             label="Read pull request again"
             variant="plain"
             pending={result.waiting}
-            onPress={refresh}
+            onPress={reread}
           />
           <Button
             label="Open on GitHub"
@@ -92,6 +98,11 @@ function ConnectedPullRequest({
             onPress={() => link.open(available.url)}
           />
         </Box>
+        {requested && !result.waiting && AsyncResult.isFailure(result) ? (
+          <Text accessibilityRole="alert" variant="caption" tone="destructive">
+            The pull request could not be read.
+          </Text>
+        ) : null}
         {available.state !== 'open' ? (
           <PullRequestArchive
             projectId={target.projectId}

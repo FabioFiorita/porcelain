@@ -60,7 +60,7 @@ function FileTimelineContent({
           })) ?? []
         }
         loading={timeline.result.waiting || (!value && !failed)}
-        unavailable={failed}
+        unavailable={failed && !value}
         hasMore={Boolean(value?.nextAfter) && !failed}
         onLoadMore={timeline.readMore}
         onSelect={(oid) => {

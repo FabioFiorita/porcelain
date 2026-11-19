@@ -1,10 +1,10 @@
 ---
 screen: /history/commit/[oid]/diff
 selectors:
-  - 'Diff unavailable'
+  - 'The server returned no patch for this file.'
   - "Couldn't load diff"
   - 'The patch could not be parsed'
-  - 'No code change'
+  - 'No changed lines'
   - 'More actions'
 api:
   - GET /api/worktrees/:worktreeId/commits/:oid/files

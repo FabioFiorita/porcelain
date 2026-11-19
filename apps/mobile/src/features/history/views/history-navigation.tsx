@@ -99,7 +99,7 @@ function HistoryNavigationContent({
           open(oid);
         }}
         footer={<HistoryFooter history={history} />}
-        unavailable={failed}
+        unavailable={failed && !value}
       />
     </Box>
   );

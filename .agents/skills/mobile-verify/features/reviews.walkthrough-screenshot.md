@@ -6,6 +6,7 @@ selectors:
   - 'Next screenshot'
   - 'The walkthrough changed since this screenshot opened.'
   - 'This screenshot could not be loaded.'
+  - 'Read screenshot again'
 tests:
   - packages/client/src/features/walkthroughs/rules/walkthrough.spec.ts
 api:

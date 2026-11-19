@@ -87,11 +87,12 @@ export function ChangesPage(props: ChangesPageProps) {
 
 function ComparisonChanges(props: ChangesPageProps) {
   const snapshot = useReviewSnapshot(props.workspace, props.comparison);
-  if (!AsyncResult.isSuccess(snapshot.result))
+  const value = Option.getOrUndefined(AsyncResult.value(snapshot.result));
+  if (!value)
     return (
       <ReviewReadState result={snapshot.result} refresh={snapshot.refresh} />
     );
-  const files = changeEntries(snapshot.result.value)
+  const files = changeEntries(value)
     .filter(
       (file) =>
         props.reading === undefined || props.reading.only.includes(file.path),
@@ -105,7 +106,7 @@ function ComparisonChanges(props: ChangesPageProps) {
     <ChangesReader
       {...props}
       files={files}
-      summary={changesSummary(snapshot.result.value, files.length)}
+      summary={changesSummary(value, files.length)}
     />
   );
 }
@@ -113,15 +114,17 @@ function ComparisonChanges(props: ChangesPageProps) {
 function WalkthroughChanges(props: ChangesPageProps) {
   const branch = useReviewSnapshot(props.workspace, props.comparison);
   const working = useReviewSnapshot(props.workspace, WORKTREE);
-  if (!AsyncResult.isSuccess(branch.result))
+  const branchValue = Option.getOrUndefined(AsyncResult.value(branch.result));
+  const workingValue = Option.getOrUndefined(AsyncResult.value(working.result));
+  if (!branchValue)
     return <ReviewReadState result={branch.result} refresh={branch.refresh} />;
-  if (!AsyncResult.isSuccess(working.result))
+  if (!workingValue)
     return (
       <ReviewReadState result={working.result} refresh={working.refresh} />
     );
   const files = walkthroughChangeEntries(
-    branch.result.value,
-    working.result.value,
+    branchValue,
+    workingValue,
     props.reading?.only,
   );
   const hasBranch = files.some((file) => file.comparison.kind === 'branch');

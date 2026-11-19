@@ -23,15 +23,25 @@ export function GitMenu({
             id: 'git-actions',
             label: 'Git actions',
             icon: 'branch',
-            choices: (['fetch', 'pull'] as const).map((action) => {
-              const reason = menu.blocker(action);
-              const label = action === 'fetch' ? 'Fetch' : 'Pull';
-              return {
-                label: reason ? `${label} — ${reason}` : label,
-                disabled: Boolean(reason) || menu.pending(action),
-                onPress: () => menu.run(action),
-              };
-            }),
+            choices: [
+              ...(['fetch', 'pull'] as const).map((action) => {
+                const reason = menu.blocker(action);
+                const label = action === 'fetch' ? 'Fetch' : 'Pull';
+                return {
+                  label: reason ? `${label} — ${reason}` : label,
+                  disabled: Boolean(reason) || menu.pending(action),
+                  onPress: () => menu.run(action),
+                };
+              }),
+              ...(menu.statusFailed
+                ? [
+                    {
+                      label: 'Read Git status again',
+                      onPress: menu.refreshStatus,
+                    },
+                  ]
+                : []),
+            ],
           },
         ]}
       />

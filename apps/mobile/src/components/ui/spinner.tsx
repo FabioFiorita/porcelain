@@ -8,12 +8,16 @@ const appear = {
   animationFillMode: 'backwards',
 } as const;
 
-export function Spinner() {
+export function Spinner({ inline = false }: { inline?: boolean }) {
   return (
     <Animated.View
       testID="spinner"
       accessibilityState={{ busy: true }}
-      className="grow items-center justify-center py-4"
+      className={
+        inline
+          ? 'items-center justify-center'
+          : 'grow items-center justify-center py-4'
+      }
       style={appear}
     >
       <ActivityIndicator

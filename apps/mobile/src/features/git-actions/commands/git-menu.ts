@@ -1,6 +1,7 @@
 import {
   useAtom,
   useAtomRef,
+  useAtomRefresh,
   useAtomSet,
   useAtomValue,
 } from '@effect/atom-react';
@@ -35,6 +36,7 @@ const NOT_READY = 'Git actions are not ready yet. Try again.';
 export function useGitMenu(selection: Pick<Workspace, 'connection' | 'scope'>) {
   const { connection, scope } = selection;
   const status = useAtomValue(readGitStatus(selection));
+  const refreshStatus = useAtomRefresh(readGitStatus(selection));
   const read = useAtomSet(readCurrentGitStatus(selection), { mode: 'promise' });
   const settings = useAtomValue(readReviewGitSettingsView(connection));
   const strategy = reviewGitPullStrategy(settings);
@@ -141,6 +143,8 @@ export function useGitMenu(selection: Pick<Workspace, 'connection' | 'scope'>) {
   return {
     blocker,
     pending,
+    statusFailed: AsyncResult.isFailure(status),
+    refreshStatus,
     run,
     running,
     checking: running?.action === 'pull' ? pulling.waiting : fetching.waiting,

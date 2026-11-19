@@ -7,6 +7,7 @@ import { usePreferences } from '../../preferences/index';
 import { useIsFocused } from 'expo-router';
 import { View } from 'react-native';
 import { useAtom, useAtomValue, useAtomRefresh } from '@effect/atom-react';
+import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import {
   readChangeDiffWindow,
@@ -86,12 +87,13 @@ function FocusedReviewFileContent({
   comparison,
 }: ReviewFileContentProps) {
   const { result, refresh } = useReviewSnapshot(workspace, comparison);
+  const snapshot = Option.getOrUndefined(AsyncResult.value(result));
   return (
     <Box className="flex-1" surface="background">
-      {AsyncResult.isSuccess(result) ? (
+      {snapshot ? (
         <ReviewedFile
           workspace={workspace}
-          snapshot={result.value}
+          snapshot={snapshot}
           path={path}
           comparison={comparison}
         />
@@ -114,9 +116,10 @@ function ReviewedFile({
   comparison: ReviewComparison;
 }) {
   const marks = useReviewMarks(workspace, snapshot);
-  if (!AsyncResult.isSuccess(marks.result))
+  const reviewed = Option.getOrUndefined(AsyncResult.value(marks.result));
+  if (!reviewed)
     return <ReviewReadState result={marks.result} refresh={marks.refresh} />;
-  const file = reviewFiles(snapshot, marks.result.value).find(
+  const file = reviewFiles(snapshot, reviewed).find(
     (item) => item.path === path,
   );
   if (!file) return <Empty title="This file is no longer changed." />;
@@ -252,14 +255,13 @@ function WorktreeDiff(
   });
   const window = useAtomValue(query);
   const refresh = useAtomRefresh(query);
-  if (!AsyncResult.isSuccess(window.result))
+  const diffs = Option.getOrUndefined(AsyncResult.value(window.result));
+  if (!diffs)
     return <ReviewReadState result={window.result} refresh={refresh} />;
   return (
     <DiffContentView
       {...props}
-      content={
-        selection ? window.result.value.get(selectionKey(selection)) : undefined
-      }
+      content={selection ? diffs.get(selectionKey(selection)) : undefined}
       missing="This comparison did not return a diff. Return to Review and choose the current change."
     />
   );
@@ -298,12 +300,12 @@ function BranchDiff({
   });
   const result = useAtomValue(query);
   const refresh = useAtomRefresh(query);
-  if (!AsyncResult.isSuccess(result))
-    return <ReviewReadState result={result} refresh={refresh} />;
+  const diffs = Option.getOrUndefined(AsyncResult.value(result));
+  if (!diffs) return <ReviewReadState result={result} refresh={refresh} />;
   return (
     <DiffContentView
       {...props}
-      content={result.value.diffs[0]?.content}
+      content={diffs.diffs[0]?.content}
       missing="This comparison did not return a diff."
     />
   );
@@ -318,10 +320,10 @@ function UntrackedFile(props: FileProps) {
   });
   const result = useAtomValue(query);
   const refresh = useAtomRefresh(query);
-  if (!AsyncResult.isSuccess(result))
-    return <ReviewReadState result={result} refresh={refresh} />;
-  if ('kind' in result.value) return <Empty title={result.value.reason} />;
-  return <SelectableContent {...props} source={result.value.text} />;
+  const text = Option.getOrUndefined(AsyncResult.value(result));
+  if (!text) return <ReviewReadState result={result} refresh={refresh} />;
+  if ('kind' in text) return <Empty title={text.reason} />;
+  return <SelectableContent {...props} source={text.text} />;
 }
 
 function DiffContentView({
