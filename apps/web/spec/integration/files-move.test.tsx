@@ -127,9 +127,10 @@ test('dragging two open files into a folder moves both tabs with them', async ({
     await expect
       .element(secondTab)
       .toHaveAttribute('data-entry', `file:${folder}/second.md`);
-    await expect
-      .element(page.getByRole('tab', { name: 'first.md', exact: true }))
-      .not.toBeInTheDocument();
+    for (const stale of ['first.md', 'second.md'])
+      await expect
+        .element(page.getByRole('tab', { name: stale, exact: true }))
+        .not.toBeInTheDocument();
     await expect.element(secondTab).toHaveAttribute('aria-selected', 'true');
   } finally {
     await browserPage.viewport(414, 896);
