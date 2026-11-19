@@ -166,6 +166,9 @@ export function RemoteComputers({
   const restore = useReadSavedEnvironments();
   useSettingsUpdatesEntry();
   const { targets, count, batch, run, retry, checking } = useSettingsUpdates();
+  const [asked, setAsked] = useState<'no' | 'asked' | 'checking'>('no');
+  if (asked === 'asked' && checking) setAsked('checking');
+  if (asked === 'checking' && !checking) setAsked('no');
   const appBusy = appUpdateProgress(useAppUpdateState()) !== undefined;
   return (
     <>
@@ -214,9 +217,12 @@ export function RemoteComputers({
               size="sm"
               variant="outline"
               disabled={batch.running || checking || appBusy}
-              onClick={retry}
+              onClick={() => {
+                setAsked('asked');
+                retry();
+              }}
             >
-              {checking && <Spinner aria-hidden="true" />}
+              {asked !== 'no' && checking && <Spinner aria-hidden="true" />}
               Check for updates
             </Button>
             <Button
