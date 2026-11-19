@@ -163,8 +163,13 @@ export function ConnectedWorkspace({
       })
     : 'Porcelain';
   useDocumentTitle(background ? undefined : title);
-  const openWorktree = (target: WorktreeTarget) =>
-    navigate({ ...worktreeLocation(target), replace: review === undefined });
+  const openWorktree = (target: WorktreeTarget) => {
+    setOpenMobile(false);
+    return navigate({
+      ...worktreeLocation(target),
+      replace: review === undefined,
+    });
+  };
   const openHere = useOpenProjectOnThisComputer(local.connection, openWorktree);
   const leaveForSettings = () => setOpenMobile(false);
   const openSettings = (section = defaultSettingsSection) => {
@@ -247,10 +252,7 @@ export function ConnectedWorkspace({
         <Sidebar variant="floating" {...mobileNavigatorEvents}>
           <ProjectNavigator
             {...navigator}
-            onSelect={(target) => {
-              void openWorktree(target);
-              setOpenMobile(false);
-            }}
+            onSelect={(target) => void openWorktree(target)}
           />
         </Sidebar>
       )}
