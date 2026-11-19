@@ -582,3 +582,43 @@ test('Review offers no review on a non-text file whose new patch is still being 
     held.release();
   }
 });
+
+test('All changes lists and reads its first files, and the next ones only when asked', async ({
+  repo,
+  workspace,
+  reviewLayout,
+}) => {
+  for (let index = 0; index < 60; index += 1)
+    await repo.write(
+      `note-${String(index).padStart(2, '0')}.md`,
+      `Note number ${index}\n`,
+    );
+  await reviewLayout.openAllChanges();
+  const table = workspace.getByRole('region', {
+    name: '61 uncommitted changes',
+    exact: true,
+  });
+  await expect
+    .element(table.getByText('0 of 61 files reviewed', { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(table.getByRole('button', { name: /^note-23\.md/ }))
+    .toBeVisible();
+  await expect
+    .element(table.getByRole('button', { name: /^note-30\.md/ }))
+    .not.toBeInTheDocument();
+  await workspace
+    .getByRole('button', { name: /^Read 25 more of \d+$/ })
+    .click();
+  await table.getByRole('button', { name: /^note-30\.md/ }).click();
+  await expect
+    .element(
+      workspace
+        .getByRole('region', { name: 'Code content', exact: true })
+        .getByText('Note number 30', { exact: true }),
+    )
+    .toBeVisible();
+  await expect
+    .element(workspace.getByRole('button', { name: /^Read 11 more of \d+$/ }))
+    .toBeVisible();
+});

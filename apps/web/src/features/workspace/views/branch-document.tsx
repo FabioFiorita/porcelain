@@ -40,7 +40,7 @@ import { ReadMoreFiles } from './read-more-files';
 import { ReservedCode } from './reserved-code';
 import { MarkAllReviewed, ReviewedControl } from './reviewed-control';
 import { StateNotice } from '@/shared/views/state-notice';
-import { branchFilesShown } from '../store';
+import { diffFilesShown } from '../store';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
 type Props = {
@@ -225,7 +225,7 @@ function BranchDiffs({
   );
   const comparisonKey = JSON.stringify([branch.base, branch.head.branch]);
   const [shown, setShown] = useAtom(
-    branchFilesShown(
+    diffFilesShown(
       JSON.stringify([
         connection.environmentId,
         scope.projectId,

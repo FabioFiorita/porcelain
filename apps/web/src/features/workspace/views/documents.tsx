@@ -41,6 +41,9 @@ import { ChangeTable } from './change-table';
 import { FileDocument } from './file-document';
 import { ReviewCodeDocument } from './review-code-document';
 import { ReadMoreFiles } from './read-more-files';
+import { DIFF_WINDOW_FILES } from '@/config/limits';
+import { useAtom } from '@effect/atom-react';
+import { diffFilesShown } from '../store';
 import { useHeldWhileHidden } from '@/shared/hooks/use-held-while-hidden';
 import { MarkAllReviewed } from './reviewed-control';
 import { formatForDisplay } from '@tanstack/react-hotkeys';
@@ -123,7 +126,7 @@ export function DocumentView({
     case 'review':
       return Review ? <Review {...props} /> : null;
     case 'all-changes':
-      return <PlainChangesDocument {...props} />;
+      return <WindowedChangesDocument {...props} />;
     case 'specs':
       return <PlainChangesDocument {...props} specsOnly />;
     case 'change':
@@ -307,6 +310,27 @@ function changesLabel(specsOnly: boolean, count: number) {
   );
 }
 
+function WindowedChangesDocument(props: DocumentProps) {
+  const { connection } = props.context;
+  const [shown, setShown] = useAtom(
+    diffFilesShown(
+      JSON.stringify([
+        connection.environmentId,
+        props.scope.projectId,
+        props.scope.worktreeId,
+        'all-changes',
+      ]),
+    ),
+  );
+  return (
+    <PlainChangesDocument
+      {...props}
+      limit={shown}
+      onReadMore={() => setShown(shown + DIFF_WINDOW_FILES)}
+    />
+  );
+}
+
 export function PlainChangesDocument({
   scope,
   context,
@@ -366,7 +390,7 @@ export function PlainChangesDocument({
         scope={scope}
         context={context}
         interaction={interaction}
-        {...(specsOnly || only
+        {...(specsOnly || only || limit !== undefined
           ? { paths: shown.map((item) => item.path) }
           : {})}
         column={!singleHeader}
@@ -393,6 +417,7 @@ export function PlainChangesDocument({
                     context={context}
                     label={changesLabel(specsOnly, changes.length)}
                     items={changes}
+                    rows={shown.length}
                     controls={controls}
                     actionsOpen={actionsOpen}
                     onActionsOpenChange={setActionsOpen}

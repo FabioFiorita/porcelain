@@ -110,7 +110,7 @@ export function useCodeFolds(worktreeId: string, entry: string) {
 }
 
 type CodeScroll = Pick<CodeViewHandle<undefined, undefined>, 'scrollTo'>;
-export const branchFilesShown = Atom.family((_comparison: string) =>
+export const diffFilesShown = Atom.family((_document: string) =>
   Atom.make(DIFF_WINDOW_FILES).pipe(Atom.keepAlive),
 );
 const codeViewScroll = Atom.family((_owner: string) =>

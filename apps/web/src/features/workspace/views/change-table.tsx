@@ -21,6 +21,7 @@ export function ChangeTable({
   context,
   label,
   items,
+  rows,
   controls,
   actions,
   actionsOpen,
@@ -30,6 +31,7 @@ export function ChangeTable({
   context: ConnectionContext;
   label: string;
   items: readonly ReviewChangeItem[];
+  rows?: number;
   controls: CodeHeaderControls;
   actions?: ReactNode;
   actionsOpen: boolean;
@@ -67,7 +69,7 @@ export function ChangeTable({
         </Popover>
       </div>
       <ol>
-        {items.map((item) => {
+        {items.slice(0, rows ?? items.length).map((item) => {
           const slash = item.path.lastIndexOf('/') + 1;
           const counts = controls.counts.get(item.path);
           return (
