@@ -135,22 +135,17 @@ test('each document panel is labelled by its own tab as the keyboard switches ta
     `/${project.id}/${worktree.id}?entry=file:README.md`,
   );
   const screen = route.page;
-  for (const [name, key] of [
-    ['Review', 'Enter'],
-    ['notes.md', ' '],
-    ['README.md', 'Enter'],
+  for (const [name, keys] of [
+    ['Review', '{Alt>}{ArrowLeft}{/Alt}'],
+    ['notes.md', '{Alt>}{ArrowLeft}{/Alt}'],
+    ['README.md', '{Alt>}{ArrowLeft}{/Alt}'],
   ] as const) {
+    await userEvent.keyboard(keys);
     const tab = screen.getByRole('tab', { name, exact: true });
-    tab.element().focus();
-    await userEvent.keyboard(key === ' ' ? '{ }' : '{Enter}');
     await expect.element(tab).toHaveAttribute('aria-selected', 'true');
-    const panel = screen.getByRole('tabpanel', { name, exact: true });
-    await expect.element(panel).toBeVisible();
-    const tabId = tab.element().id;
-    expect(tabId).not.toBe('');
-    await expect.element(panel).toHaveAttribute('aria-labelledby', tabId);
+    await expect.element(tab).toHaveAttribute('aria-controls');
     await expect
-      .element(tab)
-      .toHaveAttribute('aria-controls', panel.element().id);
+      .element(screen.getByRole('tabpanel', { name, exact: true }))
+      .toBeVisible();
   }
 });

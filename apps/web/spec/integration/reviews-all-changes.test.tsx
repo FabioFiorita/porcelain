@@ -376,9 +376,16 @@ test('a hidden Review reads no patches until it is shown again', async ({
   await expect
     .poll(async () => (await server.changeListHits()).length)
     .toBeGreaterThan(lists);
-  await new Promise((resolve) => setTimeout(resolve, 1500));
-  expect((await server.changeDiffHits()).length).toBe(patches);
+  await expect(
+    expect
+      .poll(async () => (await server.changeDiffHits()).length, {
+        timeout: 2000,
+      })
+      .toBeGreaterThan(patches),
+  ).rejects.toThrow();
   await app.page.getByRole('tab', { name: 'Review', exact: true }).click();
   await expect.element(local.getByText('After', { exact: true })).toBeVisible();
-  expect((await server.changeDiffHits()).length).toBeGreaterThan(patches);
+  await expect
+    .poll(async () => (await server.changeDiffHits()).length)
+    .toBeGreaterThan(patches);
 });
