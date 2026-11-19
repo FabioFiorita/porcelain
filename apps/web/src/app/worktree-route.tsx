@@ -21,6 +21,7 @@ export function WorktreeRoute({
   settled,
   remoteStatus,
   showRemoteNotice,
+  background,
 }: {
   projectId: string;
   worktreeId: string;
@@ -29,6 +30,7 @@ export function WorktreeRoute({
   settled: boolean;
   remoteStatus?: ComponentProps<typeof ConnectedWorkspace>['remoteStatus'];
   showRemoteNotice?: boolean;
+  background: boolean;
 }) {
   const { connection } = useConnectedContext(remote?.connection);
   const inventory = useInventory(connection);
@@ -45,6 +47,7 @@ export function WorktreeRoute({
       {...(remote ? { remote } : {})}
       remoteStatus={remoteStatus}
       showRemoteNotice={showRemoteNotice}
+      background={background}
     />
   );
 }

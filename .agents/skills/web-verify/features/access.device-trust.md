@@ -49,7 +49,7 @@ Required instance mode: `--desktop`.
 None on disk. The default server has two paired devices: "Development setup" (the server kit's own) and "Verification browser" (this browser). Neither can update Porcelain yet.
 
 1. Navigate to `/settings/computers/this-computer#ways-in`
-   Expect: title "Settings"; breadcrumb "This computer" and legend "Ways in"; switch "Local network" not checked.
+   Expect: title "Settings — Porcelain"; breadcrumb "This computer" and legend "Ways in"; switch "Local network" not checked.
 2. Click switch named `Local network`
    Expect: switch "Local network" checked and the text `http://192.168.1.20:<port>` (the server's fake LAN address). A badge "Starting" may show first; inspect the accessibility tree again after a second.
 3. Stay on This computer and scroll to Pair a device

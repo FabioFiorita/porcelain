@@ -144,6 +144,10 @@
   font-size: 0.875rem;
 }
 
+[data-slot='toast-viewport'] {
+  z-index: 60;
+}
+
 [data-slot='file-tree'] {
   --trees-indent-guide-bg-override: transparent;
   color-scheme: inherit;

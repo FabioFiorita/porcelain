@@ -41,9 +41,11 @@ export function useOpenProjectOnThisComputer(
 export function DesktopActions({
   connection,
   empty,
+  settingsOpen,
 }: {
   connection: Connection;
   empty: boolean;
+  settingsOpen: boolean;
 }) {
   const navigate = useNavigate();
   const remotes = useRemoteConnections();
@@ -52,7 +54,7 @@ export function DesktopActions({
   const openHere = useOpenProjectOnThisComputer(connection, openWorktree);
   useAtomMount(
     desktopActions((action) => {
-      if (typeof action === 'object') return;
+      if (typeof action === 'object' || settingsOpen) return;
       if (action === 'open-settings')
         void navigate({
           to: '/settings/$section',

@@ -9,7 +9,7 @@ test.for([1280, 414])(
       const app = await render.route('/settings/computers/this-computer');
       const page = app.page;
 
-      const settings = page.getByRole('main', {
+      const settings = page.getByRole('dialog', {
         name: 'Settings',
         exact: true,
       });

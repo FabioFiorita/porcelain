@@ -96,7 +96,7 @@ test.for([414, 1080, 1440])(
       await expect
         .poll(() =>
           reviewLayout.fitsViewport(
-            app.page.getByRole('main', { name: 'Settings', exact: true }),
+            app.page.getByRole('dialog', { name: 'Settings', exact: true }),
           ),
         )
         .toEqual({ insideViewport: true, contentFits: true });
@@ -114,13 +114,13 @@ test.for([414, 1080, 1440])(
           .element(app.page.getByRole('tooltip'))
           .toHaveTextContent(remoteName);
       }
-      if (width === 414)
-        await app.page
-          .getByRole('button', { name: 'Toggle Sidebar', exact: true })
-          .click();
-      await app.page
-        .getByRole('button', { name: 'Close Settings', exact: true })
-        .click();
+      if (width === 414) {
+        await userEvent.keyboard('{Escape}');
+        await expect
+          .element(app.page.getByRole('tooltip'))
+          .not.toBeInTheDocument();
+      }
+      await userEvent.keyboard('{Escape}');
       await expect.element(open).toHaveFocus();
     } finally {
       await page.viewport(414, 896);
@@ -150,7 +150,7 @@ test('the rename field closes on Save, Cancel and Escape and gives focus back to
   await expect.element(field).not.toBeInTheDocument();
   await expect.element(rename).toHaveFocus();
   await expect
-    .element(app.page.getByRole('main', { name: 'Settings', exact: true }))
+    .element(app.page.getByRole('dialog', { name: 'Settings', exact: true }))
     .toBeVisible();
 
   await expect

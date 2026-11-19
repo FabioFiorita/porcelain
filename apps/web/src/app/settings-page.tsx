@@ -5,9 +5,9 @@ import {
   ServerIcon,
   type LucideIcon,
 } from 'lucide-react';
-import { formatForDisplay, useHotkey } from '@tanstack/react-hotkeys';
 import { useCanGoBack, useNavigate, useRouter } from '@tanstack/react-router';
 import { useState, type ReactNode } from 'react';
+import { useAtomSet } from '@effect/atom-react';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -17,14 +17,9 @@ import {
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
-import { Kbd } from '@/components/ui/kbd';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { useSidebar } from '@/components/ui/sidebar';
 import {
   ComputerSettings,
   RemoteComputers,
@@ -38,21 +33,52 @@ import {
   ReviewsGitSettings,
 } from '@/features/preferences/index';
 import { useInventory } from '@/features/projects/index';
+import { useDocumentTitle } from '@/shared/hooks/use-document-title';
 import { cn } from '@/shared/lib/utils';
-import { SHORTCUTS } from '@/shared/workspace/shortcuts';
+import { navigatorFocusPending } from '@/shared/store';
+import {
+  goThen,
+  recordSettingsSession,
+  settingsEntry,
+  type SettingsSession,
+} from './settings-history';
 
 type SettingsSection = { id: string; label: string; icon: LucideIcon };
 
-export const settingsSections: readonly [
-  SettingsSection,
-  ...SettingsSection[],
-] = [
+const settingsSections: readonly [SettingsSection, ...SettingsSection[]] = [
   { id: 'general', label: 'General', icon: SlidersHorizontalIcon },
   { id: 'git', label: 'Changes & Git', icon: GitBranchIcon },
   { id: 'computers', label: 'Computers', icon: ServerIcon },
 ];
 
 export const defaultSettingsSection = settingsSections[0].id;
+
+export function settingsTarget(
+  section: string,
+  environmentId: string | undefined,
+) {
+  if (!settingsSections.some((item) => item.id === section)) return undefined;
+  if (environmentId !== undefined && section !== 'computers') return undefined;
+  return { section, environmentId };
+}
+
+function togglesNavigator(event: {
+  key: string;
+  ctrlKey: boolean;
+  metaKey: boolean;
+}) {
+  return event.key.toLowerCase() === 'b' && (event.ctrlKey || event.metaKey);
+}
+
+function settingsPlace(pathname: string) {
+  const [, root, section, environmentId, extra] = pathname.split('/');
+  if (root !== 'settings' || section === undefined || extra !== undefined)
+    return undefined;
+  return settingsTarget(
+    section,
+    environmentId === '' ? undefined : environmentId,
+  );
+}
 
 type ContentLayout = 'reading' | 'list' | 'wide';
 
@@ -83,36 +109,136 @@ function SectionFrame({
   );
 }
 
-export function SettingsPage({
+function typing(target: EventTarget | null) {
+  return (
+    target instanceof HTMLElement &&
+    (target.isContentEditable ||
+      target.closest('input, textarea, select') !== null)
+  );
+}
+
+function overlayPress(target: EventTarget | null) {
+  return (
+    target instanceof Element &&
+    target.closest('[data-slot=dialog-overlay]') !== null
+  );
+}
+
+export function SettingsDialog({
   section,
   environmentId,
 }: {
   section: string;
-  environmentId?: string | undefined;
+  environmentId: string | undefined;
 }) {
   const navigate = useNavigate();
-  const { setOpenMobile } = useSidebar();
   const router = useRouter();
   const canGoBack = useCanGoBack();
-  const [entry] = useState(() => ({
-    historyIndex: router.history.location.state.__TSR_index,
-    hasPredecessor: canGoBack,
-  }));
+  const { isMobile } = useSidebar();
+  const [origin] = useState<SettingsSession>(() => {
+    const entry = settingsEntry(router.history);
+    const navigator =
+      isMobile && document.querySelector('[data-mobile="true"]') !== null;
+    return (
+      entry.session ?? {
+        start: entry.index,
+        workspace: canGoBack,
+        ...(navigator ? { navigator } : {}),
+      }
+    );
+  });
+  const session = () => {
+    const entry = settingsEntry(router.history);
+    return { index: entry.index, ...(entry.session ?? origin) };
+  };
+  useDocumentTitle('Settings — Porcelain');
+  const [opener] = useState(() =>
+    document.activeElement instanceof HTMLElement &&
+    document.activeElement !== document.body
+      ? document.activeElement
+      : null,
+  );
+  const setNavigatorFocusPending = useAtomSet(navigatorFocusPending);
+  const attachSession = (element: HTMLElement | null) => {
+    if (!element) return;
+    setNavigatorFocusPending(false);
+    let previous: { index: number; list: boolean } | undefined;
+    const record = (forward: boolean) => {
+      const entry = settingsEntry(router.history);
+      const place = settingsPlace(entry.pathname);
+      if (!place) return;
+      if (entry.session?.retired && forward) {
+        router.history.back();
+        return;
+      }
+      if (entry.session) {
+        previous = {
+          index: entry.index,
+          list:
+            place.section === 'computers' && place.environmentId === undefined,
+        };
+        return;
+      }
+      const fromList =
+        place.environmentId !== undefined &&
+        previous?.list === true &&
+        previous.index === entry.index - 1;
+      recordSettingsSession(router.history, {
+        start: origin.start,
+        workspace: origin.workspace,
+        ...(origin.navigator ? { navigator: true } : {}),
+        ...(fromList && previous ? { list: previous.index } : {}),
+      });
+    };
+    record(false);
+    const stop = router.history.subscribe(({ action }) =>
+      record(
+        action.type === 'FORWARD' || (action.type === 'GO' && action.index > 0),
+      ),
+    );
+    return () => {
+      stop();
+      queueMicrotask(() => {
+        if (element.isConnected) return;
+        if (origin.navigator && isMobile) {
+          setNavigatorFocusPending(true);
+          return;
+        }
+        const focused = document.activeElement;
+        if (focused === null || focused === document.body)
+          opener?.focus({ preventScroll: true });
+      });
+    };
+  };
   const remote = useRemoteConnection(environmentId ?? '')?.remote;
   const { element: list, attach: setList } = useElement<HTMLDivElement>();
-  const { element: page, attach: setPage } = useElement<HTMLElement>();
   const [listReturn, setListReturn] = useState<{
     scroll: number;
     focus: HTMLElement | null;
   } | null>(null);
   const returnToList = () => {
-    if (listReturn) router.history.back();
+    const { index, list } = session();
+    if (list !== undefined) router.history.go(list - index);
     else
       void navigate({
         to: '/settings/$section',
         params: { section: 'computers' },
         replace: true,
       });
+  };
+  const showSection = (id: string) => {
+    const { index, list } = session();
+    const replace = () =>
+      void navigate({
+        to: '/settings/$section',
+        params: { section: id },
+        replace: true,
+      });
+    if (environmentId !== undefined && list !== undefined) {
+      const { index: _detail, ...detail } = session();
+      recordSettingsSession(router.history, { ...detail, retired: true });
+      goThen(router.history, list - index, replace);
+    } else replace();
   };
   const openRemote = (id: string) => {
     setListReturn({
@@ -127,18 +253,21 @@ export function SettingsPage({
       params: { section: 'computers', environmentId: id },
     });
   };
-  const attachPage = (element: HTMLElement | null) => {
-    setPage(element);
-    if (environmentId !== undefined) element?.focus({ preventScroll: true });
-  };
   const attachList = (element: HTMLDivElement | null) => {
     setList(element);
     if (environmentId === undefined && element) {
       if (listReturn) element.scrollTop = listReturn.scroll;
       const target = listReturn?.focus;
-      if (target?.isConnected) target.focus({ preventScroll: true });
-      else element.focus({ preventScroll: true });
+      const focus = target?.isConnected ? target : element;
+      focus.focus({ preventScroll: true });
+      requestAnimationFrame(() => {
+        if (document.activeElement?.getAttribute('role') === 'dialog')
+          focus.focus({ preventScroll: true });
+      });
     }
+  };
+  const attachPopup = (element: HTMLDivElement | null) => {
+    if (environmentId !== undefined) element?.focus({ preventScroll: true });
   };
   const { connection } = useConnectedContext();
   const { environment } = useInventory(connection);
@@ -148,164 +277,165 @@ export function SettingsPage({
   if (environmentId === 'this-computer') detailName = 'This computer';
   else if (remote) detailName = <RemoteComputerName remote={remote} />;
   const leave = () => {
-    setOpenMobile(false);
-    if (environmentId !== undefined) returnToList();
-    else if (entry.hasPredecessor)
-      router.history.go(
-        -Math.max(
-          1,
-          router.history.location.state.__TSR_index - entry.historyIndex + 1,
-        ),
+    const { index, start, workspace } = session();
+    if (workspace) router.history.go(start - 1 - index);
+    else
+      goThen(
+        router.history,
+        start - index,
+        () => void navigate({ to: '/', replace: true }),
       );
-    else void navigate({ to: '/' });
   };
-  useHotkey(SHORTCUTS.closeSettings, leave, {
-    target: page,
-    ignoreInputs: true,
-  });
   return (
-    <main
-      ref={attachPage}
-      tabIndex={-1}
-      aria-label="Settings"
-      className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-paper bg-card shadow-paper outline-none"
+    <Dialog
+      open
+      onOpenChange={(next, details) => {
+        if (next) return;
+        if (details.reason === 'escape-key') {
+          if (typing(details.event.target)) return;
+          if (environmentId !== undefined) {
+            returnToList();
+            return;
+          }
+        }
+        if (
+          details.reason === 'outside-press' &&
+          !overlayPress(details.event.target)
+        )
+          return;
+        leave();
+      }}
     >
-      <form
-        id="close-settings"
-        hidden
-        onSubmit={(event) => {
-          event.preventDefault();
-          leave();
+      <DialogContent
+        ref={attachPopup}
+        finalFocus={false}
+        onKeyDown={(event) => {
+          if (togglesNavigator(event)) event.stopPropagation();
         }}
-      />
-      <header className="settings-bar flex min-h-12 shrink-0 items-center gap-2 border-b px-2">
-        <Tooltip>
-          <TooltipTrigger
-            render={<SidebarTrigger aria-label="Toggle Sidebar" />}
-          />
-          <TooltipContent>
-            Toggle sidebar{' '}
-            <Kbd>{formatForDisplay(SHORTCUTS.toggleNavigator)}</Kbd>
-          </TooltipContent>
-        </Tooltip>
-        <Breadcrumb className="min-w-0 flex-1">
-          <BreadcrumbList className="min-w-0 flex-nowrap">
-            <BreadcrumbItem>Settings</BreadcrumbItem>
-            <BreadcrumbSeparator>/</BreadcrumbSeparator>
-            <BreadcrumbItem>
-              <h2>
-                {environmentId === undefined ? (
-                  <BreadcrumbPage>{current.label}</BreadcrumbPage>
-                ) : (
-                  <BreadcrumbLink
-                    render={<button type="button" onClick={returnToList} />}
-                  >
-                    Computers
-                  </BreadcrumbLink>
-                )}
-              </h2>
-            </BreadcrumbItem>
-            {environmentId !== undefined && (
-              <>
+        aria-label="Settings"
+        className="flex h-[min(48rem,calc(100svh-2rem))] w-[min(64rem,calc(100vw-2rem))] max-w-none flex-col overflow-hidden sm:max-w-none"
+      >
+        <div className="-m-4 flex min-h-0 flex-1 flex-col bg-card text-base text-card-foreground">
+          <header
+            ref={attachSession}
+            className="settings-bar flex min-h-12 shrink-0 items-center gap-2 border-b pr-12 pl-4"
+          >
+            <Breadcrumb className="min-w-0 flex-1">
+              <BreadcrumbList className="min-w-0 flex-nowrap">
+                <BreadcrumbItem>Settings</BreadcrumbItem>
                 <BreadcrumbSeparator>/</BreadcrumbSeparator>
-                <BreadcrumbItem className="min-w-0">
-                  <BreadcrumbPage className="min-w-0">
-                    {detailName}
-                  </BreadcrumbPage>
+                <BreadcrumbItem>
+                  <h2>
+                    {environmentId === undefined ? (
+                      <BreadcrumbPage>{current.label}</BreadcrumbPage>
+                    ) : (
+                      <BreadcrumbLink
+                        render={<button type="button" onClick={returnToList} />}
+                      >
+                        Computers
+                      </BreadcrumbLink>
+                    )}
+                  </h2>
                 </BreadcrumbItem>
-              </>
-            )}
-          </BreadcrumbList>
-        </Breadcrumb>
-      </header>
-      <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-        <nav
-          aria-label="Settings sections"
-          className="flex shrink-0 flex-col md:w-52"
-        >
-          <div className="settings-nav flex gap-0.5 overflow-x-auto px-3 py-3 md:flex-col md:py-5">
-            {settingsSections.map((item) => {
-              const Icon = item.icon;
-              const selected = current.id === item.id;
-              return (
-                <Button
-                  key={item.id}
-                  variant={selected ? 'secondary' : 'ghost'}
-                  size="sm"
-                  className="shrink-0 justify-start md:w-full"
-                  aria-current={selected ? 'page' : undefined}
-                  onClick={() => {
-                    if (
-                      environmentId !== undefined &&
-                      item.id === 'computers'
-                    ) {
-                      returnToList();
-                      return;
-                    }
-                    void navigate({
-                      to: '/settings/$section',
-                      params: { section: item.id },
-                      replace: true,
-                    });
-                  }}
-                >
-                  <Icon />
-                  {item.label}
-                </Button>
-              );
-            })}
-          </div>
-          <p className="mt-auto hidden px-5 pb-4 text-xs tabular-nums text-muted-foreground md:block">
-            Porcelain {import.meta.env.PORCELAIN_VERSION}
-          </p>
-        </nav>
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          {current.id === 'computers' ? (
-            <>
-              <div
-                ref={attachList}
-                className={
-                  environmentId === undefined
-                    ? 'min-h-0 flex-1 overflow-y-auto outline-none'
-                    : 'hidden'
-                }
-                role="region"
-                aria-label="Computers list"
-                tabIndex={-1}
-              >
-                <div className={contentClass('list')}>
-                  <RemoteComputers
-                    showUpdates={environmentId === undefined}
-                    environment={environment}
-                    onOpen={openRemote}
-                  />
-                </div>
+                {environmentId !== undefined && (
+                  <>
+                    <BreadcrumbSeparator>/</BreadcrumbSeparator>
+                    <BreadcrumbItem className="min-w-0">
+                      <BreadcrumbPage className="min-w-0">
+                        {detailName}
+                      </BreadcrumbPage>
+                    </BreadcrumbItem>
+                  </>
+                )}
+              </BreadcrumbList>
+            </Breadcrumb>
+          </header>
+          <div className="flex min-h-0 flex-1 flex-col md:flex-row">
+            <nav
+              aria-label="Settings sections"
+              className="flex shrink-0 flex-col md:w-52"
+            >
+              <div className="settings-nav flex gap-0.5 overflow-x-auto px-3 py-3 md:flex-col md:py-5">
+                {settingsSections.map((item) => {
+                  const Icon = item.icon;
+                  const selected = current.id === item.id;
+                  return (
+                    <Button
+                      key={item.id}
+                      variant={selected ? 'secondary' : 'ghost'}
+                      size="sm"
+                      className="shrink-0 justify-start md:w-full"
+                      aria-current={selected ? 'page' : undefined}
+                      onClick={() => {
+                        if (
+                          environmentId !== undefined &&
+                          item.id === 'computers'
+                        ) {
+                          returnToList();
+                          return;
+                        }
+                        showSection(item.id);
+                      }}
+                    >
+                      <Icon />
+                      {item.label}
+                    </Button>
+                  );
+                })}
               </div>
-              {environmentId !== undefined && (
-                <SectionFrame layout="wide">
-                  {environmentId === 'this-computer' ? (
-                    <ComputerSettings environment={environment} />
+              <p className="mt-auto hidden px-5 pb-4 text-xs tabular-nums text-muted-foreground md:block">
+                Porcelain {import.meta.env.PORCELAIN_VERSION}
+              </p>
+            </nav>
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+              {current.id === 'computers' ? (
+                <>
+                  <div
+                    ref={attachList}
+                    className={
+                      environmentId === undefined
+                        ? 'min-h-0 flex-1 overflow-y-auto outline-none'
+                        : 'hidden'
+                    }
+                    role="region"
+                    aria-label="Computers list"
+                    tabIndex={-1}
+                  >
+                    <div className={contentClass('list')}>
+                      <RemoteComputers
+                        showUpdates={environmentId === undefined}
+                        environment={environment}
+                        onOpen={openRemote}
+                      />
+                    </div>
+                  </div>
+                  {environmentId !== undefined && (
+                    <SectionFrame layout="wide">
+                      {environmentId === 'this-computer' ? (
+                        <ComputerSettings environment={environment} />
+                      ) : (
+                        <RemoteComputerSettings
+                          key={environmentId}
+                          environmentId={environmentId}
+                          onForgotten={returnToList}
+                        />
+                      )}
+                    </SectionFrame>
+                  )}
+                </>
+              ) : (
+                <SectionFrame layout="reading">
+                  {current.id === 'git' ? (
+                    <ReviewsGitSettings />
                   ) : (
-                    <RemoteComputerSettings
-                      key={environmentId}
-                      environmentId={environmentId}
-                      onForgotten={returnToList}
-                    />
+                    <GeneralSettings />
                   )}
                 </SectionFrame>
               )}
-            </>
-          ) : (
-            <SectionFrame layout="reading">
-              {current.id === 'git' ? (
-                <ReviewsGitSettings />
-              ) : (
-                <GeneralSettings />
-              )}
-            </SectionFrame>
-          )}
+            </div>
+          </div>
         </div>
-      </div>
-    </main>
+      </DialogContent>
+    </Dialog>
   );
 }

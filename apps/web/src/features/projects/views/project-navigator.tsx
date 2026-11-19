@@ -22,7 +22,6 @@ import {
   ListFilterIcon,
   SearchIcon,
   SettingsIcon,
-  XIcon,
 } from 'lucide-react';
 import {
   readWorktreeNavigator,
@@ -113,7 +112,6 @@ type Props = {
   onOpenPullRequest: (entry: NavigatorEntry) => void;
   onOpenProject: (remote: RemoteConnection | null) => void;
   onOpenSettings: () => void;
-  settingsOpen: boolean;
   onOpenShortcuts: () => void;
 };
 
@@ -124,7 +122,6 @@ export function ProjectNavigator({
   onOpenPullRequest,
   onOpenProject,
   onOpenSettings,
-  settingsOpen,
   showRemoteNotice,
   onOpenShortcuts,
 }: Props) {
@@ -594,38 +591,16 @@ export function ProjectNavigator({
                   ref={(element) => settingsButton.attach(element)}
                   variant="ghost"
                   className="min-w-0 shrink"
-                  aria-label={settingsOpen ? 'Close Settings' : 'Settings'}
-                  type={settingsOpen ? 'submit' : 'button'}
-                  form={settingsOpen ? 'close-settings' : undefined}
-                  onClick={settingsOpen ? undefined : onOpenSettings}
-                  onKeyDown={(event) => {
-                    if (settingsOpen && event.key === 'Escape') {
-                      event.preventDefault();
-                      event.currentTarget.form?.requestSubmit();
-                    }
-                  }}
+                  aria-label="Settings"
+                  onClick={onOpenSettings}
                 />
               }
             >
-              {settingsOpen ? (
-                <XIcon />
-              ) : (
-                <SettingsIcon className="text-muted-foreground" />
-              )}
-              <TruncatedText text={settingsOpen ? 'Close' : 'Settings'} />
-              {settingsOpen && (
-                <Kbd>{formatForDisplay(SHORTCUTS.closeSettings)}</Kbd>
-              )}
+              <SettingsIcon className="text-muted-foreground" />
+              <TruncatedText text="Settings" />
             </TooltipTrigger>
             <TooltipContent role="tooltip">
-              {settingsOpen ? 'Close Settings' : 'Settings'}{' '}
-              <Kbd>
-                {formatForDisplay(
-                  settingsOpen
-                    ? SHORTCUTS.closeSettings
-                    : SHORTCUTS.openSettings,
-                )}
-              </Kbd>
+              Settings <Kbd>{formatForDisplay(SHORTCUTS.openSettings)}</Kbd>
             </TooltipContent>
           </Tooltip>
           <div className="ml-auto flex shrink-0 items-center gap-1">

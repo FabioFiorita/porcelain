@@ -95,7 +95,7 @@ test('Settings → Computers → This computer creates a one-time pairing link f
   await pairedPage
     .getByRole('button', { name: 'Settings', exact: true })
     .click();
-  const settings = pairedPage.getByRole('main', {
+  const settings = pairedPage.getByRole('dialog', {
     name: 'Settings',
     exact: true,
   });
@@ -179,7 +179,7 @@ for (const trusted of [false, true]) {
       .getByRole('button', { name: 'Settings', exact: true })
       .click();
     await openThisComputer(pairedPage);
-    const settings = pairedPage.getByRole('main', {
+    const settings = pairedPage.getByRole('dialog', {
       name: 'Settings',
       exact: true,
     });

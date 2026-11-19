@@ -221,7 +221,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "selector": "main h1"
         },
         "app": {
-          "selector": "main[aria-label=\"Settings\"] .settings-content h1"
+          "selector": "[role=\"dialog\"][aria-label=\"Settings\"] .settings-content h1"
         },
         "properties": [
           "fontSize",
@@ -237,7 +237,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "selector": "nav[aria-label=\"Breadcrumb\"]"
         },
         "app": {
-          "selector": "main[aria-label=\"Settings\"] nav[aria-label=\"breadcrumb\"] [data-slot=\"breadcrumb-list\"]"
+          "selector": "[role=\"dialog\"][aria-label=\"Settings\"] nav[aria-label=\"breadcrumb\"] [data-slot=\"breadcrumb-list\"]"
         },
         "properties": [
           "fontSize",
@@ -254,7 +254,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "selector": "nav[aria-label=\"Settings sections\"] [aria-current=\"page\"]"
         },
         "app": {
-          "selector": "main[aria-label=\"Settings\"] nav[aria-label=\"Settings sections\"] [aria-current=\"page\"]"
+          "selector": "[role=\"dialog\"][aria-label=\"Settings\"] nav[aria-label=\"Settings sections\"] [aria-current=\"page\"]"
         }
       },
       {
@@ -264,7 +264,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "index": 0
         },
         "app": {
-          "selector": "main[aria-label=\"Settings\"] [data-slot=\"field-legend\"]",
+          "selector": "[role=\"dialog\"][aria-label=\"Settings\"] [data-slot=\"field-legend\"]",
           "index": 0
         },
         "properties": [
@@ -282,7 +282,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "index": 0
         },
         "app": {
-          "selector": "main[aria-label=\"Settings\"] [aria-label=\"Theme\"] [role=\"tab\"]",
+          "selector": "[role=\"dialog\"][aria-label=\"Settings\"] [aria-label=\"Theme\"] [role=\"tab\"]",
           "index": 0
         }
       },
@@ -292,7 +292,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "selector": "article div:has(> [aria-label=\"Theme\"]) > div:first-child > div:first-child"
         },
         "app": {
-          "selector": "main[aria-label=\"Settings\"] [data-slot=\"item-title\"]",
+          "selector": "[role=\"dialog\"][aria-label=\"Settings\"] [data-slot=\"item-title\"]",
           "index": 0
         },
         "properties": [
@@ -314,7 +314,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "selector": "main h1"
         },
         "app": {
-          "selector": "main[aria-label=\"Settings\"] .settings-content h1"
+          "selector": "[role=\"dialog\"][aria-label=\"Settings\"] .settings-content h1"
         },
         "properties": [
           "fontSize",
@@ -330,7 +330,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "selector": "nav[aria-label=\"Breadcrumb\"]"
         },
         "app": {
-          "selector": "main[aria-label=\"Settings\"] nav[aria-label=\"breadcrumb\"] [data-slot=\"breadcrumb-list\"]"
+          "selector": "[role=\"dialog\"][aria-label=\"Settings\"] nav[aria-label=\"breadcrumb\"] [data-slot=\"breadcrumb-list\"]"
         },
         "properties": [
           "fontSize",
@@ -347,7 +347,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "selector": "nav[aria-label=\"Settings sections\"] [aria-current=\"page\"]"
         },
         "app": {
-          "selector": "main[aria-label=\"Settings\"] nav[aria-label=\"Settings sections\"] [aria-current=\"page\"]"
+          "selector": "[role=\"dialog\"][aria-label=\"Settings\"] nav[aria-label=\"Settings sections\"] [aria-current=\"page\"]"
         }
       },
       {
@@ -357,7 +357,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "index": 0
         },
         "app": {
-          "selector": "main[aria-label=\"Settings\"] [data-slot=\"field-legend\"]",
+          "selector": "[role=\"dialog\"][aria-label=\"Settings\"] [data-slot=\"field-legend\"]",
           "index": 0
         },
         "properties": [
@@ -374,7 +374,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "selector": "section[aria-labelledby=\"r-gh\"] h2"
         },
         "app": {
-          "selector": "main[aria-label=\"Settings\"] [data-slot=\"field-legend\"]",
+          "selector": "[role=\"dialog\"][aria-label=\"Settings\"] [data-slot=\"field-legend\"]",
           "index": 2
         },
         "properties": [
@@ -392,7 +392,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "index": 0
         },
         "app": {
-          "selector": "main[aria-label=\"Settings\"] [data-slot=\"item-actions\"] [data-slot=\"badge\"]",
+          "selector": "[role=\"dialog\"][aria-label=\"Settings\"] [data-slot=\"item-actions\"] [data-slot=\"badge\"]",
           "index": 0
         }
       },
@@ -403,7 +403,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "index": 0
         },
         "app": {
-          "selector": "main[aria-label=\"Settings\"] [data-slot=\"select-trigger\"]",
+          "selector": "[role=\"dialog\"][aria-label=\"Settings\"] [data-slot=\"select-trigger\"]",
           "index": 0
         }
       }
@@ -418,7 +418,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "selector": "main h1"
         },
         "app": {
-          "selector": "main[aria-label=\"Settings\"] .settings-content h1"
+          "selector": "[role=\"dialog\"][aria-label=\"Settings\"] .settings-content h1"
         },
         "properties": [
           "fontSize",
@@ -434,7 +434,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "selector": "nav[aria-label=\"Breadcrumb\"]"
         },
         "app": {
-          "selector": "main[aria-label=\"Settings\"] nav[aria-label=\"breadcrumb\"] [data-slot=\"breadcrumb-list\"]"
+          "selector": "[role=\"dialog\"][aria-label=\"Settings\"] nav[aria-label=\"breadcrumb\"] [data-slot=\"breadcrumb-list\"]"
         },
         "properties": [
           "fontSize",
@@ -451,7 +451,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "selector": "nav[aria-label=\"Settings sections\"] [aria-current=\"page\"]"
         },
         "app": {
-          "selector": "main[aria-label=\"Settings\"] nav[aria-label=\"Settings sections\"] [aria-current=\"page\"]"
+          "selector": "[role=\"dialog\"][aria-label=\"Settings\"] nav[aria-label=\"Settings sections\"] [aria-current=\"page\"]"
         }
       },
       {
@@ -461,7 +461,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "index": 0
         },
         "app": {
-          "selector": "main[aria-label=\"Settings\"] [data-slot=\"field-legend\"]",
+          "selector": "[role=\"dialog\"][aria-label=\"Settings\"] [data-slot=\"field-legend\"]",
           "index": 0
         },
         "properties": [
@@ -484,7 +484,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "selector": "main h1"
         },
         "app": {
-          "selector": "main[aria-label=\"Settings\"] .settings-content h1"
+          "selector": "[role=\"dialog\"][aria-label=\"Settings\"] .settings-content h1"
         },
         "properties": [
           "fontSize",
@@ -500,7 +500,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "selector": "nav[aria-label=\"Breadcrumb\"]"
         },
         "app": {
-          "selector": "main[aria-label=\"Settings\"] nav[aria-label=\"breadcrumb\"] [data-slot=\"breadcrumb-list\"]"
+          "selector": "[role=\"dialog\"][aria-label=\"Settings\"] nav[aria-label=\"breadcrumb\"] [data-slot=\"breadcrumb-list\"]"
         },
         "properties": [
           "fontSize",
@@ -517,7 +517,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "selector": "nav[aria-label=\"Settings sections\"] [aria-current=\"page\"]"
         },
         "app": {
-          "selector": "main[aria-label=\"Settings\"] nav[aria-label=\"Settings sections\"] [aria-current=\"page\"]"
+          "selector": "[role=\"dialog\"][aria-label=\"Settings\"] nav[aria-label=\"Settings sections\"] [aria-current=\"page\"]"
         }
       },
       {
@@ -542,7 +542,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "selector": "[aria-label=\"Paired devices\"] > li:first-child"
         },
         "app": {
-          "selector": "main[aria-label=\"Settings\"] [aria-label=\"Paired devices and links\"] > [data-slot=\"item\"]",
+          "selector": "[role=\"dialog\"][aria-label=\"Settings\"] [aria-label=\"Paired devices and links\"] > [data-slot=\"item\"]",
           "index": 0
         },
         "properties": ["padding", "radius", "icon"]
