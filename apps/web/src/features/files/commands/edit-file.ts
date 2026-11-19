@@ -33,13 +33,18 @@ export function useEditFile(connection: RuntimeConnection, scope: FilesScope) {
         if (entryKind === 'file') onCreated(path);
       });
     },
-    move: (path: string, destination: string) => {
+    move: (
+      path: string,
+      destination: string,
+      onMoved: (path: string, destination: string) => void,
+    ) => {
       return submit({
         kind: 'move',
         path: withoutTrailingSlash(path),
         destination: withoutTrailingSlash(destination),
       }).then((completed) => {
         if (Exit.isFailure(completed)) throw Cause.squash(completed.cause);
+        onMoved(path, destination);
       });
     },
     duplicate: (

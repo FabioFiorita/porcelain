@@ -5,15 +5,19 @@ import { canonicalEntry, parseEntry } from '../rules/documents';
 import {
   closeInPane,
   closeOthersInPane,
+  closeRemovedInPane,
   closeUnpinnedInPane,
   documentPane,
   emptyPane,
+  movedEntry,
+  moveInPane,
   neighbourAfterClose,
   openInPane,
   orderedTabs,
   recentTabEntries,
   primaryPane,
   permanentTab,
+  removedEntry,
   REVIEW_TAB,
   sideEntry,
   type Pane,
@@ -141,6 +145,21 @@ export function useTabLayout({
   const replacePane = (index: PaneIndex, pane: Pane) =>
     panes.map((currentPane, i) => (i === index ? pane : currentPane));
 
+  const settleAll = (next: Pane[], after: (string | null)[]) => {
+    if (split && (next[1]?.tabs.length ?? 0) === 0) {
+      save([next[0] ?? emptyPane()]);
+      setFocused(0);
+      go({ entry: after[0] ?? null, side: null });
+      return;
+    }
+    save(next);
+    const updates: { entry?: string | null; side?: string | null } = {};
+    if ((after[0] ?? null) !== actives[0]) updates.entry = after[0] ?? null;
+    if (split && (after[1] ?? null) !== actives[1])
+      updates.side = after[1] ?? null;
+    if (Object.keys(updates).length > 0) go(updates);
+  };
+
   const settle = (index: PaneIndex, next: Pane, activeAfter: string | null) => {
     cancelDestinationFocus();
     if (split && next.tabs.length === 0) {
@@ -233,6 +252,27 @@ export function useTabLayout({
         active !== null && active !== undefined && next.tabs.includes(active)
           ? active
           : (orderedTabs(next)[0] ?? null),
+      );
+    },
+    moveFiles(from: string, to: string) {
+      settleAll(
+        panes.map((pane) => moveInPane(pane, from, to)),
+        actives.map((key) => (key === null ? null : movedEntry(key, from, to))),
+      );
+    },
+    closeRemovedFiles(path: string) {
+      const next = panes.map((pane) => closeRemovedInPane(pane, path));
+      settleAll(
+        next,
+        actives.map((key, index) =>
+          key !== null && removedEntry(key, path)
+            ? neighbourAfterClose(
+                panes[index] ?? emptyPane(),
+                key,
+                next[index] ?? emptyPane(),
+              )
+            : key,
+        ),
       );
     },
     togglePin(index: PaneIndex, key: string) {

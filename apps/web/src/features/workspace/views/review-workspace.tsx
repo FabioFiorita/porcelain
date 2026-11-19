@@ -245,10 +245,10 @@ export function ReviewWorkspace({
     onBase: (next) => onSearch({ base: next }),
   };
   const activeEntry = layout.panes[focusedPane]?.active ?? undefined;
-  const sidebar = (layout: 'docked' | 'sheet') => (
+  const sidebar = (placement: 'docked' | 'sheet') => (
     <ReviewSidebar
       changesNavigation={changesNavigation}
-      layout={layout}
+      layout={placement}
       scope={scope}
       context={context}
       worktreePath={worktree.path}
@@ -257,6 +257,8 @@ export function ReviewWorkspace({
       available={worktree.available}
       onSurface={setSurface}
       onOpen={open}
+      onFilesMoved={(from, to) => layout.moveFiles(from, to)}
+      onFilesRemoved={(path) => layout.closeRemovedFiles(path)}
       sideLabel={sideLabel}
       changes={{
         ...changes,

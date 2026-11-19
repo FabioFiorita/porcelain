@@ -15,7 +15,7 @@ api:
 
 # files.trash
 
-Moving a file to the trash from the tree, after a confirmation, moves it to the system trash and removes it from the tree. Trashing a file another writer already removed is refused, and the dialog says "Path not found".
+Moving a file to the trash from the tree, after a confirmation, moves it to the system trash and removes it from the tree. A tab open on the file, or on a file inside a trashed folder, closes, and its neighbour is shown. Trashing a file another writer already removed is refused, and the dialog says "Path not found".
 
 ## How to get to it (user POV)
 
@@ -67,6 +67,15 @@ On Linux the sandboxed server keeps its XDG data home in the instance folder, so
     Disk: `test -e "$REPO/README.md" && echo kept` prints `kept`.
 12. Inspect HTTP traffic
     Expect: `POST /api/worktrees/<worktreeId>/files` with a 2xx status (step 6), then one with an error status (step 10).
+
+### 3. An open file's tab closes
+
+Setup: `printf 'Notes to throw away\n' > "$REPO/old-notes.md"` before a full page load.
+
+13. Click button `Review`, tab `Files`, then treeitem `old-notes.md`
+    Expect: the sheet closes and tab "old-notes.md" is selected.
+14. Click button `Review`, tab `Files`, right-click treeitem `old-notes.md`, menuitem `Move to trash`, then the dialog's button `Move to trash`, then press `Escape`
+    Expect: no tab "old-notes.md" remains and tab "Review" is selected.
 
 ### Observable proof
 

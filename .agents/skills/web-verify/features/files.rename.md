@@ -17,7 +17,7 @@ api:
 
 # files.rename
 
-Renaming a tree entry moves it on disk and shows the new name without opening it. Renaming onto a name already in that folder is refused before any request is sent, and both files keep their content.
+Renaming a tree entry moves it on disk and shows the new name without opening it. A tab already open on the file, or on a file inside a renamed folder, follows it to the new name. Renaming onto a name already in that folder is refused before any request is sent, and both files keep their content.
 
 ## How to get to it (user POV)
 
@@ -73,6 +73,15 @@ Continue in the open sheet; `final-notes.md` exists from part 1.
     Disk: `cat "$REPO/README.md"` prints `# Sample repository`, a blank line, `A change to review.`; `cat "$REPO/final-notes.md"` prints `Notes to rename`.
 13. Inspect HTTP traffic
     Expect: one `POST /api/worktrees/<worktreeId>/files` with a 2xx status (the step 7 rename), and none after step 12.
+
+### 3. An open file's tab follows the rename
+
+Setup as above, before a full page load.
+
+14. Click button `Review`, tab `Files`, then treeitem `draft-notes.md`
+    Expect: the sheet closes and tab "draft-notes.md" is selected.
+15. Click button `Review`, tab `Files`, right-click treeitem `draft-notes.md`, menuitem `Rename`, fill `/^Rename /` with 'final-notes.md', press `Enter`, then press `Escape`
+    Expect: tab "final-notes.md" (`data-entry="file:final-notes.md"`) is selected and shows the file's text, no tab "draft-notes.md" remains, the title begins "final-notes.md — ", and no text "could not be loaded" appears.
 
 ### Observable proof
 

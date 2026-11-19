@@ -44,6 +44,8 @@ type SidebarProps = {
   activeEntry: string | undefined;
   available: boolean;
   onOpen: OpenDocument;
+  onFilesMoved: (from: string, to: string) => void;
+  onFilesRemoved: (path: string) => void;
   sideLabel: string;
   changes: ChangesScope;
 };
@@ -192,6 +194,8 @@ function SidebarSurface({
   activeEntry,
   available,
   onOpen,
+  onFilesMoved,
+  onFilesRemoved,
   sideLabel,
   changes,
   actionsTarget,
@@ -232,6 +236,8 @@ function SidebarSurface({
             activeEntry?.startsWith('file:') ? activeEntry.slice(5) : ''
           }
           onOpen={onOpen}
+          onMoved={onFilesMoved}
+          onTrashed={onFilesRemoved}
           sideLabel={sideLabel}
           actionsTarget={actionsTarget}
         />

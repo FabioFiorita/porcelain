@@ -70,6 +70,8 @@ import {
   changeStatus,
   fileTreeAncestors,
   mergeFileTreeEntries,
+  movedPath,
+  pathInside,
   pinnedFileEntries,
   pinnedParentDirectories,
   type PinnedDirectoryState,
@@ -99,32 +101,15 @@ type Props = {
     document: { kind: 'file' | 'change' | 'timeline'; path: string },
     options?: { toSide?: boolean },
   ) => void;
+  onMoved: (from: string, to: string) => void;
+  onTrashed: (path: string) => void;
   actionsTarget: HTMLElement | null;
 };
 
-export function FileNavigation({
-  scope,
-  context,
-  worktreePath,
-  selected,
-  onOpen,
-  sideLabel,
-  actionsTarget,
-}: Props) {
-  const { connection } = context;
-  const scopeKey = `${connection.environmentId}:${scope.projectId}:${scope.worktreeId}`;
-  return (
-    <ScopedFileNavigation
-      key={scopeKey}
-      scope={scope}
-      context={context}
-      worktreePath={worktreePath}
-      selected={selected}
-      onOpen={onOpen}
-      sideLabel={sideLabel}
-      actionsTarget={actionsTarget}
-    />
-  );
+export function FileNavigation(props: Props) {
+  const { connection } = props.context;
+  const scopeKey = `${connection.environmentId}:${props.scope.projectId}:${props.scope.worktreeId}`;
+  return <ScopedFileNavigation key={scopeKey} {...props} />;
 }
 
 function ScopedFileNavigation({
@@ -133,6 +118,8 @@ function ScopedFileNavigation({
   worktreePath,
   selected,
   onOpen,
+  onMoved,
+  onTrashed,
   sideLabel,
   actionsTarget,
 }: Props) {
@@ -358,7 +345,16 @@ function ScopedFileNavigation({
             onOpen({ kind: 'file', path: created }),
           ),
     onMove: (from, to) =>
-      writeBlock ? Promise.reject(new Error(writeBlock)) : edit.move(from, to),
+      writeBlock
+        ? Promise.reject(new Error(writeBlock))
+        : edit.move(from, to, (moved, destination) => {
+            setRequested((current) => [
+              ...new Set(
+                current.map((path) => movedPath(path, moved, destination)),
+              ),
+            ]);
+            onMoved(moved, destination);
+          }),
     gitStatus,
     selected,
     bindRename,
@@ -588,7 +584,14 @@ function ScopedFileNavigation({
               disabled={edit.result.waiting || Boolean(writeBlock)}
               aria-description={writeBlock}
               onClick={() => {
-                if (deleting) edit.trash(deleting, () => setDeleting(null));
+                if (deleting)
+                  edit.trash(deleting, () => {
+                    setDeleting(null);
+                    setRequested((current) =>
+                      current.filter((path) => !pathInside(path, deleting)),
+                    );
+                    onTrashed(deleting);
+                  });
               }}
             >
               Move to trash

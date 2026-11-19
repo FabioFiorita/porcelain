@@ -14,6 +14,8 @@ export {
   fileTreeAncestors,
   fileTreeExpansion,
   mergeFileTreeEntries,
+  movedPath,
+  pathInside,
   visibleFileTreeRows,
   type FileTreeEntry,
 } from './file-tree.ts';
