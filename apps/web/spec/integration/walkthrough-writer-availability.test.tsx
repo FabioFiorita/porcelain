@@ -1,6 +1,6 @@
 import { expect, test } from './fixtures.tsx';
 
-test('an unwritten walkthrough explains its comparison and blocks writing until a writer is available', async ({
+test('an unwritten walkthrough offers one action: checking writers until one is available, then writing', async ({
   repo,
   render,
   codingTool,
@@ -13,33 +13,24 @@ test('an unwritten walkthrough explains its comparison and blocks writing until 
   await page.getByRole('tab', { name: 'Review', exact: true }).click();
   await expect
     .element(
-      page.getByText('Whole change since main, including uncommitted work.', {
-        exact: true,
-      }),
+      page.getByText(
+        'Sign in to Claude Code or Codex on the connected computer.',
+        { exact: true },
+      ),
     )
-    .toBeVisible();
-  await expect
-    .element(
-      page.getByText('Writer: Claude / claude-opus-5-5 · high', {
-        exact: true,
-      }),
-    )
-    .toBeVisible();
-  await expect
-    .element(page.getByText('No writers available', { exact: true }))
     .toBeVisible();
   const write = page.getByRole('button', {
     name: 'Write walkthrough',
     exact: true,
   });
-  await expect.element(write).toBeDisabled();
+  await expect.element(write).not.toBeInTheDocument();
   await codingTool.install();
   await page
     .getByRole('button', { name: 'Check writers again', exact: true })
     .click();
   await expect
     .element(
-      page.getByText('Writer: Claude / Opus 5.5 · high', { exact: true }),
+      page.getByText('Since main · Claude / Opus 5.5 · high', { exact: true }),
     )
     .toBeVisible();
   await expect.element(write).toBeEnabled();
@@ -147,14 +138,16 @@ test('an unavailable project override opens its own settings and clearing it ena
   await page.getByRole('tab', { name: 'Review', exact: true }).click();
   await expect
     .element(
-      page.getByText('Writer: Codex / removed-model · high', { exact: true }),
+      page.getByText('Codex / removed-model · high is unavailable.', {
+        exact: true,
+      }),
     )
     .toBeVisible();
   const write = page.getByRole('button', {
     name: 'Write walkthrough',
     exact: true,
   });
-  await expect.element(write).toBeDisabled();
+  await expect.element(write).not.toBeInTheDocument();
   await page
     .getByRole('button', { name: 'Project walkthrough settings', exact: true })
     .click();
@@ -178,9 +171,7 @@ test('an unavailable project override opens its own settings and clearing it ena
     .toEqual({ mode: 'manual' });
   await expect.element(dialog).not.toBeInTheDocument();
   await expect
-    .element(
-      page.getByText('Writer: Claude / Opus 5.5 · high', { exact: true }),
-    )
+    .element(page.getByText(/^Since .+ · Claude \/ Opus 5\.5 · high$/u))
     .toBeVisible();
   await expect.element(write).toBeEnabled();
 });

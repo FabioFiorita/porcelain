@@ -10,7 +10,6 @@ import {
   ArrowUpRightIcon,
   CircleCheckIcon,
   CircleXIcon,
-  CopyIcon,
   FileCodeIcon,
   GitPullRequestIcon,
   LoaderCircleIcon,
@@ -51,7 +50,6 @@ import {
 } from '@/shared/views/state-notice';
 import { TruncatedText } from '@/shared/views/truncated-text';
 import type { ConnectionContext } from '@/shared/workspace/connection';
-import { copyText } from '@/shared/workspace/copy';
 import { ChecksStatus, Dot, PullStatePill } from './pull-request-parts';
 
 type PullRequest = Extract<
@@ -672,16 +670,6 @@ function UnavailablePullRequest({
         render={<a href={action.url} target="_blank" rel="noreferrer" />}
       >
         <ArrowUpRightIcon />
-        {action.label}
-      </Button>
-    );
-  if (action.kind === 'copy')
-    button = (
-      <Button
-        variant="outline"
-        onClick={() => copyText(action.text, 'command')}
-      >
-        <CopyIcon />
         {action.label}
       </Button>
     );

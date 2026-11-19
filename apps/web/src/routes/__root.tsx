@@ -2,6 +2,7 @@ import type { AtomRegistry } from 'effect/reactivity';
 import { createRootRouteWithContext, Outlet } from '@tanstack/react-router';
 import { ArchivePullRequestDialog } from '@/features/projects/index';
 import { ThemeProvider } from '@/features/preferences/index';
+import { PendingIndicator } from '@/shared/views/state-notice';
 
 export const Route = createRootRouteWithContext<{
   registry: AtomRegistry.AtomRegistry;
@@ -13,6 +14,7 @@ function RootLayout() {
   return (
     <ThemeProvider>
       <Outlet />
+      <PendingIndicator />
       <ArchivePullRequestDialog />
     </ThemeProvider>
   );

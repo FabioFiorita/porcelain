@@ -86,3 +86,39 @@ test('a held diff in All changes shows no loading words while it is read', async
     held.release();
   }
 });
+
+test('a failed automatic patch refresh keeps the last patch without an alert', async ({
+  repo,
+  render,
+  fetchGate,
+  server,
+}) => {
+  const project = await server.project();
+  const worktree = project.worktrees.find((entry) => entry.main);
+  if (!worktree) throw new Error('The fixture has no main worktree.');
+  const refusals = fetchGate.failChangeDiffs();
+  const app = await render.route(
+    `/${project.id}/${worktree.id}?entry=all-changes`,
+  );
+  await expect
+    .element(app.page.getByText('A change to review.', { exact: true }))
+    .toBeVisible();
+  refusals.start();
+  await repo.write(
+    repo.readme.path,
+    '# Sample repository\n\nA rewrite.\n\nWith a second line.\n',
+  );
+  await expect
+    .poll(() => refusals.refused(), { timeout: 10_000 })
+    .toBeGreaterThan(0);
+  await expect
+    .element(app.page.getByText('A change to review.', { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(
+      app.page.getByText('The changes in this document could not be read.', {
+        exact: true,
+      }),
+    )
+    .not.toBeInTheDocument();
+});

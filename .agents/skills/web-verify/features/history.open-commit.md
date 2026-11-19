@@ -1,11 +1,11 @@
 ---
 route: /
 selectors:
-  - "Review"
-  - "History"
-  - "Changes without code preview"
-  - "Binary change"
-  - "Copy hash"
+  - 'Review'
+  - 'History'
+  - 'Changes without code preview'
+  - 'Binary change'
+  - 'Copy hash'
 tests:
   - apps/web/spec/integration/history-open-commit.test.tsx
 api:
@@ -61,7 +61,7 @@ The last line shows `logo.bin | Bin 0 -> 12 bytes`.
 2. Click tab `History`
    Expect: a row starting "Add a binary logo" at the top.
 3. Click button `/^Add a binary logo/`
-   Expect: heading "Add a binary logo"; list "Changes without code preview" with an item reading "logo.bin" and "added · Binary change" (it reads "added · Reading the patch" for a moment first); no code view for logo.bin.
+   Expect: heading "Add a binary logo"; list "Changes without code preview" with an item reading "logo.bin" and "added · Binary change" (while its patch is read it shows only "added"); no code view for logo.bin.
 
 ### Observable proof
 

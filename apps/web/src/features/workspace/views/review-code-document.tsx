@@ -117,16 +117,17 @@ export function ReviewCodeDocument({
   );
   const [keptText, setKeptText] = useState(untracked.contents);
   if (
-    quiet &&
     interaction.hidden !== true &&
     !untracked.pending &&
+    !untracked.failed &&
     !sameTexts(keptText, untracked.contents)
   )
     setKeptText(untracked.contents);
   const textOf = (path: string) =>
-    untracked.contents.get(path) ?? (quiet ? keptText.get(path) : undefined);
+    untracked.contents.get(path) ??
+    (quiet || untracked.failed ? keptText.get(path) : undefined);
   const [kept, setKept] = useState(diffs.diffs);
-  if (quiet && !diffs.pending && !diffs.failed && kept !== diffs.diffs)
+  if (!diffs.pending && !diffs.failed && kept !== diffs.diffs)
     setKept(diffs.diffs);
   const livePatch = (change: Change): DiffContent | undefined => {
     const selection = diffSelection(change);
@@ -137,11 +138,20 @@ export function ReviewCodeDocument({
     if (!selection) return undefined;
     return (
       livePatch(change) ??
-      (quiet ? kept.get(selectionKey(selection)) : undefined)
+      (quiet || diffs.failed ? kept.get(selectionKey(selection)) : undefined)
     );
   };
   const loading = !quiet && (diffs.pending || untracked.pending);
-  const failed = diffs.failed || untracked.failed;
+  const failed =
+    (diffs.failed || untracked.failed) &&
+    items.some((item) =>
+      item.comparisons.some((change) =>
+        change.scope === 'untracked'
+          ? textOf(change.path) === undefined
+          : diffSelection(change) !== undefined &&
+            patchOf(change) === undefined,
+      ),
+    );
   const notes = new Map(files.map((file) => [file.path, file.note]));
   const unrenderable = items.flatMap((item) => {
     const reasons = item.comparisons.flatMap((change) => {

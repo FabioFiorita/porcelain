@@ -8,6 +8,8 @@ import type {
 import type { ReviewScope } from '@porcelain/client/changes/rules';
 import type { ConnectionContext } from '@/shared/workspace/connection';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { PendingSpinner, StateNotice } from '@/shared/views/state-notice';
 import { useWalkthroughAssetUrl } from '../queries/walkthrough';
 import { RichText } from './rich-text';
 import { StepButton } from './step-button';
@@ -25,31 +27,45 @@ function EvidenceImage({
   run,
   item,
   className,
+  opened = false,
 }: Omit<EvidenceProps, 'items'> & {
   item: WalkthroughEvidence;
   className: string;
+  opened?: boolean;
 }) {
-  const url = useWalkthroughAssetUrl({
+  const { url, retry } = useWalkthroughAssetUrl({
     scope,
     context,
     runId: run.id,
     assetId: item.assetId,
   });
-  if (AsyncResult.isFailure(url))
+  if (AsyncResult.isSuccess(url))
     return (
-      <span className="flex h-56 w-full items-center justify-center rounded-lg border p-3 text-center text-caption text-muted-foreground">
-        This screenshot could not be loaded.
-      </span>
+      <img
+        src={url.value}
+        alt=""
+        loading="lazy"
+        decoding="async"
+        className={className}
+      />
     );
-  if (!AsyncResult.isSuccess(url)) return null;
+  if (!opened) return null;
+  if (AsyncResult.isFailure(url) && !url.waiting)
+    return (
+      <StateNotice
+        role="alert"
+        message="This screenshot could not be loaded."
+        action={
+          <Button variant="outline" size="sm" onClick={retry}>
+            Try again
+          </Button>
+        }
+      />
+    );
   return (
-    <img
-      src={url.value}
-      alt=""
-      loading="lazy"
-      decoding="async"
-      className={className}
-    />
+    <div className="grid min-h-48 place-items-center">
+      <PendingSpinner label="Reading the screenshot" />
+    </div>
   );
 }
 
@@ -100,6 +116,7 @@ export function WalkthroughProof({
               run={run}
               item={shown}
               className="mx-auto max-h-[72vh] rounded-lg border"
+              opened
             />
           )}
           {items.length > 1 && open !== null && (

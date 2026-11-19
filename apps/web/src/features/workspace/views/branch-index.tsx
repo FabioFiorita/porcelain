@@ -94,7 +94,7 @@ function BranchFiles({
   sideLabel: string;
 }) {
   return (
-    <BranchState scope={scope} context={context} base={base}>
+    <BranchState scope={scope} context={context} base={base} quiet>
       {(branch) => (
         <BranchFileList
           scope={scope}

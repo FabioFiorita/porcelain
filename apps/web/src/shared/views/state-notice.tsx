@@ -1,5 +1,8 @@
 import type { ReactNode } from 'react';
+import { useAtomSet, useAtomValue } from '@effect/atom-react';
 import { cn } from 'cn';
+import { pendingRegions } from '@/shared/store';
+import { PENDING_GRACE_MS } from '@/config/limits';
 import { Spinner } from '@/components/ui/spinner';
 import { Button } from '@/components/ui/button';
 
@@ -23,9 +26,49 @@ export function PendingSpinner({
 }
 
 export function StateSpinner({ label }: { label: string }) {
+  const setRegions = useAtomSet(pendingRegions);
   return (
-    <div className="flex min-h-24 w-full flex-1 items-center justify-center p-6">
-      <PendingSpinner label={label} />
+    <div
+      className="min-h-24 w-full flex-1"
+      ref={() => {
+        setRegions((state) => ({
+          labels: [...state.labels, label],
+          idleSince: state.idleSince,
+          episode:
+            state.labels.length === 0 &&
+            Date.now() - state.idleSince > PENDING_GRACE_MS
+              ? state.episode + 1
+              : state.episode,
+        }));
+        return () =>
+          setRegions((state) => {
+            const labels = state.labels.includes(label)
+              ? state.labels.toSpliced(state.labels.indexOf(label), 1)
+              : state.labels;
+            return {
+              labels,
+              episode: state.episode,
+              idleSince: labels.length === 0 ? Date.now() : state.idleSince,
+            };
+          });
+      }}
+    />
+  );
+}
+
+export function PendingIndicator() {
+  const { labels, episode } = useAtomValue(pendingRegions);
+  const label = labels.at(-1);
+  if (episode === 0) return null;
+  return (
+    <div
+      key={episode}
+      className={cn(
+        'pointer-events-none fixed inset-0 grid place-items-center',
+        label === undefined && 'invisible',
+      )}
+    >
+      <PendingSpinner label={label ?? 'Opening'} />
     </div>
   );
 }

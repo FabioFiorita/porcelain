@@ -7,13 +7,13 @@ import { SparklesIcon } from 'lucide-react';
 import { readWalkthroughWriterSettings } from '@porcelain/client/projects';
 import { walkthroughWriterStatus } from '@porcelain/client/projects/rules';
 import { refLabel } from '@porcelain/client/history/rules';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
 import {
   useInventory,
   walkthroughSettingsDialog,
 } from '@/features/projects/index';
 import { useLocalConnection } from '@/features/access/index';
-import { NoWalkthroughWriters } from '@/shared/views/no-walkthrough-writers';
 import { useBranchBases } from '@/features/changes/index';
 import type { DocumentProps } from '@/features/workspace/index';
 
@@ -50,77 +50,77 @@ export function WalkthroughStart({
   const base = document.base ?? availableBases?.defaultRef;
   const failed = AsyncResult.isFailure(result);
   const noWriters = settings?.models.length === 0;
-  return (
-    <header className="flex flex-col items-start gap-3">
-      <h1 className="text-subpage-title font-semibold tracking-tight @3xl:text-page-title">
-        No walkthrough yet.
-      </h1>
-      <p className="text-prose text-foreground-2">
-        A fresh agent reads this change and explains it. It never edits the
-        code.
-      </p>
-      <div className="grid gap-1 text-ui text-muted-foreground">
-        <p>
-          Whole change since {base ? refLabel(base) : 'the default branch'},
-          including uncommitted work.
-        </p>
-        {writer && <p>Writer: {writer.label}</p>}
-      </div>
-      {failed && (
-        <p role="alert">
-          Could not check writers on the connected computer.{' '}
-          <Button variant="link" size="sm" onClick={refresh}>
-            Check writers again
-          </Button>
-        </p>
-      )}
-      {!failed && noWriters && (
-        <NoWalkthroughWriters checking={result.waiting} onCheck={refresh} />
-      )}
-      {!failed && !noWriters && writer && !writer.available && (
-        <p role="status" className="text-ui text-muted-foreground">
-          This writer is unavailable. Choose an available writer in{' '}
-          {project?.walkthroughSettings?.writer ? (
-            <Button
-              variant="link"
-              size="sm"
-              onClick={() =>
-                walkthroughSettingsDialog.openWithPayload({
-                  project,
-                  remote:
-                    connection.environmentId === local?.environmentId
-                      ? null
-                      : connection.environmentId,
-                })
-              }
-            >
-              Project walkthrough settings
-            </Button>
-          ) : (
-            <Link
-              to="/settings/$section"
-              params={{ section: 'git' }}
-              className="underline underline-offset-4"
-            >
-              Settings → Changes &amp; Git
-            </Link>
-          )}
-          .
-        </p>
-      )}
+  const checkAgain = (
+    <Button
+      variant="outline"
+      size="sm"
+      disabled={result.waiting}
+      onClick={refresh}
+    >
+      {result.waiting && <Spinner aria-hidden="true" />}
+      Check writers again
+    </Button>
+  );
+  let note: string | undefined = writer
+    ? `Since ${base ? refLabel(base) : 'the default branch'} · ${writer.label}`
+    : undefined;
+  let action = (
+    <Button
+      size="sm"
+      disabled={Boolean(writeBlock) || waiting || !writer?.available}
+      aria-description={writeBlock}
+      onClick={onWrite}
+    >
+      <SparklesIcon data-icon="inline-start" />
+      Write walkthrough
+    </Button>
+  );
+  if (failed) {
+    note = 'Could not check writers on the connected computer.';
+    action = checkAgain;
+  } else if (noWriters) {
+    note = 'Sign in to Claude Code or Codex on the connected computer.';
+    action = checkAgain;
+  } else if (writer && !writer.available) {
+    note = `${writer.label} is unavailable.`;
+    action = project?.walkthroughSettings?.writer ? (
       <Button
-        disabled={
-          Boolean(writeBlock) ||
-          waiting ||
-          !writer?.available ||
-          AsyncResult.isFailure(result)
+        variant="outline"
+        size="sm"
+        onClick={() =>
+          walkthroughSettingsDialog.openWithPayload({
+            project,
+            remote:
+              connection.environmentId === local?.environmentId
+                ? null
+                : connection.environmentId,
+          })
         }
-        aria-description={writeBlock}
-        onClick={onWrite}
       >
-        <SparklesIcon data-icon="inline-start" />
-        Write walkthrough
+        Project walkthrough settings
       </Button>
+    ) : (
+      <Link
+        to="/settings/$section"
+        params={{ section: 'git' }}
+        className={buttonVariants({ variant: 'outline', size: 'sm' })}
+      >
+        Settings → Changes &amp; Git
+      </Link>
+    );
+  }
+  return (
+    <header className="flex flex-wrap items-center gap-x-3 gap-y-2">
+      <h1 className="text-section font-semibold">No walkthrough yet.</h1>
+      {note && (
+        <p
+          role={failed ? 'alert' : undefined}
+          className="min-w-0 text-ui text-muted-foreground"
+        >
+          {note}
+        </p>
+      )}
+      {action}
     </header>
   );
 }

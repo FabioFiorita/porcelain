@@ -4,6 +4,7 @@ import {
 } from '@porcelain/contracts/shared';
 export const WEB_PLATFORM_NAME_MAX_LENGTH = 120;
 export const PAIRING_PENDING_MS = 0;
+export const PENDING_GRACE_MS = 1000;
 export const HISTORY_ROW_HEIGHT = 44;
 export const HISTORY_GRAPH_ROW_HEIGHT = 30;
 export const HISTORY_LANE_WIDTH = 16;
