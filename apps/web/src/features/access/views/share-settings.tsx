@@ -7,7 +7,6 @@ import { Item, ItemContent, ItemGroup } from '@/components/ui/item';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { PendingSpinner } from '@/shared/views/state-notice';
 import { SettingsHeading } from '@/shared/views/settings-heading';
 import { TruncatedText } from '@/shared/views/truncated-text';
 import { desktopShell } from '@/shared/shell';
@@ -67,9 +66,7 @@ function SharingGate({
           </Button>
         </AlertDescription>
       </Alert>
-    ) : (
-      <PendingSpinner label="Reading sharing" />
-    );
+    ) : null;
   return children(answer, failure);
 }
 
@@ -80,7 +77,7 @@ export function ComputerUpdate({ prominent = false }: { prominent?: boolean }) {
   )?.isDesktopShell;
   if (desktop === true) return <AppUpdateSettings prominent={prominent} />;
   if (desktop === false) return <ServiceUpdateSettings prominent={prominent} />;
-  return <PendingSpinner label="Reading the version" />;
+  return null;
 }
 
 export function ComputerSettings({

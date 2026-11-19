@@ -207,7 +207,7 @@ function SidebarSurface({
     <ReviewBoundary
       connection={context.connection}
       scope={scope}
-      loadingLabel={`Loading ${surface}`}
+      quiet
       key={`${scope.worktreeId}:${surface}`}
     >
       {surface === 'changes' && (

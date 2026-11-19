@@ -28,18 +28,18 @@ export function ReviewBoundary({
   children,
   connection,
   scope,
-  loadingLabel = 'Loading review',
+  quiet = false,
   documentKey,
 }: {
   children: ReactNode;
   connection: Connection;
   scope: ReviewScope;
-  loadingLabel?: string;
+  quiet?: boolean;
   documentKey?: string | undefined;
 }) {
   const reset = useRetryReview(connection, scope);
   return (
-    <Suspense fallback={<StateSpinner label={loadingLabel} />}>
+    <Suspense fallback={quiet ? null : <StateSpinner label="Loading review" />}>
       <ReviewErrorBoundary key={documentKey} reset={reset}>
         {children}
       </ReviewErrorBoundary>

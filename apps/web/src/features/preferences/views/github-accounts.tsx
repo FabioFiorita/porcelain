@@ -14,7 +14,6 @@ import { TruncatedText } from '@/shared/views/truncated-text';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { PendingSpinner } from '@/shared/views/state-notice';
 import { FieldDescription, FieldLegend, FieldSet } from '@/components/ui/field';
 import {
   Item,
@@ -60,9 +59,6 @@ export function GitHubAccounts({ connection }: { connection: Connection }) {
           <p className="hidden py-3 text-ui text-muted-foreground only:block">
             No project has a GitHub remote.
           </p>
-        )}
-        {projects === undefined && !failed && (
-          <PendingSpinner label="Reading projects" />
         )}
         {projects === undefined && failed && (
           <p

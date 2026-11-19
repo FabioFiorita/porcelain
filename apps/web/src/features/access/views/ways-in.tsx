@@ -4,7 +4,6 @@ import type { ReactNode } from 'react';
 import { FieldLegend, FieldSet } from '@/components/ui/field';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { PendingSpinner } from '@/shared/views/state-notice';
 import {
   connectionErrorMessage,
   waysInRefusal,
@@ -46,7 +45,7 @@ export function WaysInGate({
         </AlertDescription>
       </Alert>
     );
-  if (!answer) return <PendingSpinner label="Reading ways in" />;
+  if (!answer) return null;
   return children(answer);
 }
 
