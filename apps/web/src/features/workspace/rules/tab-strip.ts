@@ -20,9 +20,10 @@ export function documentIds(pane: string, key: string): DocumentIds {
   return { tab: `${id}-tab`, panel: `${id}-panel` };
 }
 
-export function sideEntry(entry: string | undefined) {
+export function sideEntry(entry: string | undefined, side?: Pane) {
   const key = canonicalEntry(entry);
-  return key === undefined || permanentTab(key) ? undefined : key;
+  if (key === undefined || !permanentTab(key)) return key;
+  return side ? orderedTabs(sidePane(side)).at(-1) : undefined;
 }
 
 function sidePane(pane: Pane): Pane {

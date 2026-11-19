@@ -505,7 +505,7 @@ function useReviewCode(
       worktree: changes.changes,
     }),
     branch,
-    settled: branch !== undefined || AsyncResult.isFailure(result),
+    settled: branch !== undefined,
   };
 }
 

@@ -1,5 +1,5 @@
 import { Component, type ReactNode, Suspense } from 'react';
-import { StateFailure, StateSkeleton } from '@/shared/views/state-notice';
+import { StateFailure, StateSpinner } from '@/shared/views/state-notice';
 import { reviewErrorMessage } from '@porcelain/client/changes/rules';
 import { useRetryReview } from '../commands/read-retry';
 import type { Connection } from '@/shared/workspace/connection';
@@ -39,7 +39,7 @@ export function ReviewBoundary({
 }) {
   const reset = useRetryReview(connection, scope);
   return (
-    <Suspense fallback={<StateSkeleton label={loadingLabel} />}>
+    <Suspense fallback={<StateSpinner label={loadingLabel} />}>
       <ReviewErrorBoundary key={documentKey} reset={reset}>
         {children}
       </ReviewErrorBoundary>

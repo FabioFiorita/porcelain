@@ -114,6 +114,15 @@ describe('parseTabLayout', () => {
     expect(sideEntry(side)).toBe(expected);
   });
 
+  it('keeps the right pane on its own document when an old link names Review there', () => {
+    expect(
+      sideEntry('walkthrough', {
+        tabs: ['file:notes.ts', 'file:results.ts'],
+        pinned: [],
+      }),
+    ).toBe('file:results.ts');
+  });
+
   it('drops unknown tabs and pins of tabs that are not open', () => {
     expect(
       parseTabLayout({

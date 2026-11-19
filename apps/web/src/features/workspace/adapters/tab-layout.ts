@@ -63,22 +63,25 @@ export function useTabLayout({
   ]);
   const focus = useAtomValue(tabFocus(useId()));
   const cancelDestinationFocus = focus.cancel;
+  const base: readonly Pane[] = [
+    primaryPane(stored?.[0] ?? emptyPane()),
+    ...(stored?.slice(1) ?? []),
+  ];
+  const keptSide = sideEntry(side, base[1]);
   const urlActive: [string | undefined, string | undefined] = [
     canonicalEntry(entry),
-    sideEntry(side),
+    keptSide,
   ];
 
-  useAtomMount(tabRoute({ ready, entry, side, onSearch, fallback, saved }));
+  useAtomMount(
+    tabRoute({ ready, entry, side, keptSide, onSearch, fallback, saved }),
+  );
 
   const current = (index: PaneIndex): string | undefined => {
     const target = pending[index];
     return target === undefined ? urlActive[index] : (target ?? undefined);
   };
 
-  const base: readonly Pane[] = [
-    primaryPane(stored?.[0] ?? emptyPane()),
-    ...(stored?.slice(1) ?? []),
-  ];
   const lastPrimary = orderedTabs(stored?.[0] ?? emptyPane()).at(-1);
   const restoredPrimary =
     lastPrimary && !permanentTab(lastPrimary) ? lastPrimary : REVIEW_TAB;
@@ -363,6 +366,7 @@ const tabRoute = Atom.family(
     ready,
     entry,
     side,
+    keptSide,
     onSearch,
     fallback,
     saved,
@@ -370,6 +374,7 @@ const tabRoute = Atom.family(
     ready: boolean;
     entry: string | undefined;
     side: string | undefined;
+    keptSide: string | undefined;
     onSearch: SetWorkspaceSearch;
     fallback: string | null;
     saved: boolean;
@@ -378,8 +383,8 @@ const tabRoute = Atom.family(
       if (!ready) return;
       if (entry !== undefined && canonicalEntry(entry) !== entry)
         onSearch({ entry: canonicalEntry(entry) }, { replace: true });
-      if (side !== undefined && sideEntry(side) !== side)
-        onSearch({ side: sideEntry(side) }, { replace: true });
+      if (side !== undefined && keptSide !== side)
+        onSearch({ side: keptSide }, { replace: true });
       if (
         !saved &&
         entry === undefined &&

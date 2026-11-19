@@ -106,12 +106,24 @@ export function ReviewCodeDocument({
   const untracked = useTextContents(
     connection,
     scope,
-    items.flatMap((item) =>
-      item.comparisons.flatMap((change) =>
-        change.scope === 'untracked' ? [change.path] : [],
-      ),
-    ),
+    interaction.hidden === true
+      ? []
+      : items.flatMap((item) =>
+          item.comparisons.flatMap((change) =>
+            change.scope === 'untracked' ? [change.path] : [],
+          ),
+        ),
   );
+  const [keptText, setKeptText] = useState(untracked.contents);
+  if (
+    quiet &&
+    interaction.hidden !== true &&
+    !untracked.pending &&
+    !sameTexts(keptText, untracked.contents)
+  )
+    setKeptText(untracked.contents);
+  const textOf = (path: string) =>
+    untracked.contents.get(path) ?? (quiet ? keptText.get(path) : undefined);
   const [kept, setKept] = useState(diffs.diffs);
   if (quiet && !diffs.pending && !diffs.failed && kept !== diffs.diffs)
     setKept(diffs.diffs);
@@ -128,7 +140,9 @@ export function ReviewCodeDocument({
     const reasons = item.comparisons.flatMap((change) => {
       if (change.scope === 'unmerged') return ['Conflict'];
       if (change.scope === 'untracked')
-        return untracked.contents.has(change.path) ? [] : ['Not readable'];
+        return textOf(change.path) !== undefined || untracked.pending
+          ? []
+          : ['Not readable'];
       if (!change.supported) return ['Unsupported comparison'];
       const content = patchOf(change);
       if (!content) return [];
@@ -143,7 +157,7 @@ export function ReviewCodeDocument({
     item.comparisons.flatMap((change): CodeEntry[] => {
       const review = fileReviewControl(scope, context, item);
       if (change.scope === 'untracked') {
-        const text = untracked.contents.get(change.path);
+        const text = textOf(change.path);
         if (text === undefined) return [];
         return [
           {
@@ -252,6 +266,16 @@ export function ReviewCodeDocument({
       {...(headerLeading ? { headerLeading } : {})}
       {...(toolbar ? { toolbar } : {})}
     />
+  );
+}
+
+function sameTexts(
+  kept: ReadonlyMap<string, string>,
+  next: ReadonlyMap<string, string>,
+) {
+  return (
+    kept.size === next.size &&
+    [...next].every(([path, text]) => kept.get(path) === text)
   );
 }
 

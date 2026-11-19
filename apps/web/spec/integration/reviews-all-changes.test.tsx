@@ -389,3 +389,151 @@ test('a hidden Review reads no patches until it is shown again', async ({
     .poll(async () => (await server.changeDiffHits()).length)
     .toBeGreaterThan(patches);
 });
+
+test('a hidden Review reads no untracked text until it is shown again', async ({
+  repo,
+  render,
+  server,
+  fetchGate,
+}) => {
+  await repo.write('guide.txt', 'A committed guide\n');
+  await repo.commit('Add a guide');
+  await repo.write('draft.md', 'First draft\n');
+  const reads = fetchGate.recordTextReads();
+  const drafts = () => reads.filter((path) => path === 'draft.md').length;
+  const project = await server.project();
+  const worktree = project.worktrees.find((entry) => entry.main);
+  if (!worktree) throw new Error('The fixture has no main worktree.');
+  const app = await render.route(`/${project.id}/${worktree.id}`);
+  const local = reviewCode(app.page, 'uncommitted');
+  await expect
+    .element(local.getByText('First draft', { exact: true }))
+    .toBeVisible();
+  await expect.poll(drafts).toBeGreaterThan(0);
+  await app.navigate(`/${project.id}/${worktree.id}?entry=file:guide.txt`);
+  await expect
+    .element(app.page.getByRole('heading', { name: 'guide.txt', exact: true }))
+    .toBeVisible();
+  const lists = (await server.changeListHits()).length;
+  const before = drafts();
+  await repo.write('draft.md', 'Second draft\n');
+  await expect
+    .poll(async () => (await server.changeListHits()).length)
+    .toBeGreaterThan(lists);
+  await expect(
+    expect.poll(drafts, { timeout: 2000 }).toBeGreaterThan(before),
+  ).rejects.toThrow();
+  await app.page.getByRole('tab', { name: 'Review', exact: true }).click();
+  await expect
+    .element(local.getByText('Second draft', { exact: true }))
+    .toBeVisible();
+});
+
+test('Review never calls an untracked file unreadable while its text is being read', async ({
+  repo,
+  render,
+  fetchGate,
+}) => {
+  await repo.write('draft.md', 'A readable draft\n');
+  const held = fetchGate.holdNextTextRead('draft.md');
+  held.arm();
+  try {
+    const app = await render.route('/');
+    await held.requested;
+    await expect
+      .element(
+        app.page.getByRole('heading', {
+          name: 'No walkthrough yet.',
+          exact: true,
+        }),
+      )
+      .toBeVisible();
+    await expect
+      .element(app.page.getByText('Not readable', { exact: true }))
+      .not.toBeInTheDocument();
+    await expect
+      .element(app.page.getByText('Non-text content', { exact: true }))
+      .not.toBeInTheDocument();
+    held.release();
+    await expect
+      .element(
+        reviewCode(app.page, 'uncommitted').getByText('A readable draft', {
+          exact: true,
+        }),
+      )
+      .toBeVisible();
+  } finally {
+    held.release();
+  }
+});
+
+test('a cold split shows no loading skeleton while its side document is read', async ({
+  repo,
+  render,
+  server,
+  fetchGate,
+}) => {
+  await repo.write('notes.txt', 'Side notes\n');
+  await repo.commit('Add side notes');
+  const project = await server.project();
+  const worktree = project.worktrees.find((entry) => entry.main);
+  if (!worktree) throw new Error('The fixture has no main worktree.');
+  const held = fetchGate.holdNextTextRead('notes.txt');
+  held.arm();
+  try {
+    const app = await render.route(
+      `/${project.id}/${worktree.id}?entry=review&side=file:notes.txt`,
+    );
+    await held.requested;
+    await expect
+      .element(
+        app.page.getByRole('region', { name: 'Right pane', exact: true }),
+      )
+      .toBeVisible();
+    await expect
+      .element(app.page.getByText('Loading review…', { exact: true }))
+      .not.toBeInTheDocument();
+    held.release();
+    await expect
+      .element(app.page.getByText('Side notes', { exact: true }))
+      .toBeVisible();
+  } finally {
+    held.release();
+  }
+});
+
+test('a failed branch comparison never reads as no changes in Review', async ({
+  repo,
+  render,
+  fetchGate,
+}) => {
+  await repo.branch('feature');
+  await repo.switch('feature');
+  await repo.write('notes.md', 'Committed notes\n');
+  await repo.commit('Add notes on the branch');
+  fetchGate.failBranchReads();
+  const app = await render.route('/');
+  await expect
+    .element(
+      app.page.getByRole('heading', {
+        name: 'No walkthrough yet.',
+        exact: true,
+      }),
+    )
+    .toBeVisible();
+  await expect
+    .element(
+      app.page.getByRole('heading', {
+        name: 'No changes to review',
+        exact: true,
+      }),
+    )
+    .not.toBeInTheDocument();
+  await expect
+    .element(app.page.getByRole('button', { name: 'Try again', exact: true }))
+    .not.toBeInTheDocument();
+  await app.navigate(`${app.location().split('?')[0]}?entry=branch`);
+  await expect
+    .element(app.page.getByRole('button', { name: 'Try again', exact: true }))
+    .toBeVisible();
+});

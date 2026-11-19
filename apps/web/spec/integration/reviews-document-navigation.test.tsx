@@ -80,7 +80,7 @@ test('the old All changes link lands on Review over a saved file tab', async ({
     .toBe('review');
 });
 
-test('an old Walkthrough entry for the right pane never opens a second Review', async ({
+test('an old Walkthrough entry for the right pane keeps that pane on its own document', async ({
   repo,
   render,
   server,
@@ -113,8 +113,13 @@ test('an old Walkthrough entry for the right pane never opens a second Review', 
     .poll(() =>
       new URL(route.location(), 'http://test').searchParams.get('side'),
     )
-    .toBeNull();
-  await expect.element(right).not.toBeInTheDocument();
+    .toBe('file:notes.txt');
+  await expect
+    .element(right.getByRole('tab', { name: 'notes.txt', exact: true }))
+    .toHaveAttribute('aria-selected', 'true');
+  await expect
+    .element(right.getByRole('tab', { name: 'Review', exact: true }))
+    .not.toBeInTheDocument();
   await expect
     .element(route.page.getByRole('tab', { name: 'Review', exact: true }))
     .toHaveAttribute('aria-selected', 'true');

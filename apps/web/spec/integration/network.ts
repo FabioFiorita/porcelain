@@ -153,6 +153,19 @@ export function createFetchGate(filePath: string) {
         failing = true;
       };
     },
+    failBranchReads() {
+      const original = window.fetch;
+      window.fetch = (input, init) =>
+        (init?.method ?? 'GET') === 'GET' &&
+        requestUrl(input).pathname.endsWith('/branch-changes')
+          ? Promise.resolve(
+              Response.json({ message: 'Comparison failed' }, { status: 500 }),
+            )
+          : original(input, init);
+      restores.push(() => {
+        window.fetch = original;
+      });
+    },
     failWalkthroughReads() {
       const original = window.fetch;
       window.fetch = (input, init) =>
@@ -193,6 +206,20 @@ export function createFetchGate(filePath: string) {
           (init?.method ?? 'GET') === 'GET' &&
           url.pathname.endsWith('/file-preferences'),
       ),
+    recordTextReads() {
+      const original = window.fetch;
+      const paths: string[] = [];
+      window.fetch = (input, init) => {
+        const url = requestUrl(input);
+        if (url.pathname.endsWith('/text') && (init?.method ?? 'GET') === 'GET')
+          paths.push(url.searchParams.get('path') ?? '');
+        return original(input, init);
+      };
+      restores.push(() => {
+        window.fetch = original;
+      });
+      return paths;
+    },
     recordDirectoryReads() {
       const original = window.fetch;
       const paths: string[] = [];
