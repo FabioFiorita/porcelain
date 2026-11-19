@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import {
+  idleRead,
+  requestRead,
   requestedRead,
   type RequestedRead,
 } from '../../../shared/rules/requested-read';
@@ -17,12 +19,13 @@ import { UpdateAllButton } from './update-all-button';
 
 export function ComputerUpdatesSummary() {
   const { running } = useUpdatesIndicator();
-  const { checking, failed, refresh } = useServiceUpdates();
-  const [request, setRequest] = useState<RequestedRead>('idle');
-  const next = requestedRead(request, { waiting: checking, failed });
+  const { rows, checking, failed, refresh } = useServiceUpdates();
+  const current = rows.map((row) => row.result);
+  const [request, setRequest] = useState<RequestedRead>(idleRead);
+  const next = requestedRead(request, { waiting: checking, failed, current });
   if (next !== request) setRequest(next);
   const check = () => {
-    setRequest('requested');
+    setRequest(requestRead(current));
     refresh();
   };
   return (
@@ -31,14 +34,14 @@ export function ComputerUpdatesSummary() {
         <Item
           title="Check for updates"
           leading={<Icon name="refresh" tone="muted" />}
-          trailing={next === 'reading' ? <Spinner inline /> : undefined}
+          trailing={next.kind === 'reading' ? <Spinner inline /> : undefined}
           disabled={running || checking}
           onPress={check}
         />
         <Separator />
         <UpdateAllButton />
       </Card>
-      {next === 'failed' ? (
+      {next.kind === 'failed' ? (
         <ErrorState
           message="Couldn't check for updates."
           retry={{ label: 'Check again', onPress: check }}

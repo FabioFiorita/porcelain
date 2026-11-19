@@ -1,25 +1,42 @@
 import { expect, it } from 'vitest';
-import { requestedRead } from './requested-read';
+import { idleRead, requestRead, requestedRead } from './requested-read';
 
-const settled = { waiting: false, failed: false };
-const failing = { waiting: false, failed: true };
-const waiting = { waiting: true, failed: false };
+const before = { status: 'before' };
+const after = { status: 'after' };
+const settled = { waiting: false, failed: false, current: [after] };
+const failing = { waiting: false, failed: true, current: [after] };
+const waiting = { waiting: true, failed: false, current: [after] };
 
 it('reports a failure only for the read the person started', () => {
-  expect(requestedRead('requested', waiting)).toBe('reading');
-  expect(requestedRead('reading', failing)).toBe('failed');
-  expect(requestedRead('idle', failing)).toBe('idle');
-  expect(requestedRead('idle', waiting)).toBe('idle');
+  const reading = requestedRead(requestRead([before]), waiting);
+  expect(reading).toEqual({ kind: 'reading' });
+  expect(requestedRead(reading, failing)).toEqual({ kind: 'failed' });
+  expect(requestedRead(idleRead, failing)).toBe(idleRead);
+  expect(requestedRead(idleRead, waiting)).toBe(idleRead);
 });
 
 it('forgets the request once it settles, so a later background failure stays quiet', () => {
-  const afterSuccess = requestedRead('reading', settled);
-  expect(afterSuccess).toBe('idle');
-  expect(requestedRead(afterSuccess, waiting)).toBe('idle');
-  expect(requestedRead(afterSuccess, failing)).toBe('idle');
+  const afterSuccess = requestedRead({ kind: 'reading' }, settled);
+  expect(afterSuccess).toBe(idleRead);
+  expect(requestedRead(afterSuccess, waiting)).toBe(idleRead);
+  expect(requestedRead(afterSuccess, failing)).toBe(idleRead);
 });
 
-it('waits for the requested read to start before judging it', () => {
-  expect(requestedRead('requested', failing)).toBe('requested');
-  expect(requestedRead('failed', settled)).toBe('idle');
+it('judges a request that settled before its pending state was seen', () => {
+  expect(requestedRead(requestRead([before]), failing)).toEqual({
+    kind: 'failed',
+  });
+  expect(requestedRead(requestRead([before]), settled)).toBe(idleRead);
+});
+
+it('keeps waiting while the read has not changed yet', () => {
+  const requested = requestRead([before]);
+  expect(
+    requestedRead(requested, {
+      waiting: false,
+      failed: true,
+      current: [before],
+    }),
+  ).toBe(requested);
+  expect(requestedRead({ kind: 'failed' }, settled)).toBe(idleRead);
 });

@@ -300,8 +300,9 @@ function chunkState(
 ): DiffPageState {
   return partState(result, retry, (value) => {
     const content = value.get(key);
-    return content
-      ? diffBody(content)
+    if (content) return diffBody(content);
+    return AsyncResult.isFailure(result)
+      ? { kind: 'failed', retry }
       : { kind: 'notice', title: 'Diff unavailable' };
   });
 }
