@@ -4,6 +4,8 @@ import {
   type HtmlPreviewPlatform,
 } from '@porcelain/client/files';
 import { useAtomValue } from '@effect/atom-react';
+import { AsyncResult } from 'effect/reactivity';
+import { useMountedRead } from '@/shared/query/mounted-read';
 import type { Layer } from 'effect';
 import type { FilesScope } from '@porcelain/client/files/rules';
 import { type Connection } from '@/shared/workspace/connection';
@@ -13,7 +15,10 @@ export function useAsset(
   scope: FilesScope,
   path: string,
 ) {
-  return useAtomValue(readAsset({ scope, connection, path }));
+  return (
+    useMountedRead(readAsset({ scope, connection, path })) ??
+    AsyncResult.initial()
+  );
 }
 export function useHtmlPreview(
   connection: Connection,

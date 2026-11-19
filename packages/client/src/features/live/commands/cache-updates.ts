@@ -72,3 +72,33 @@ export function receiptReadKeys(
       )
     : [];
 }
+
+export function liveReadKeys(environmentId: string, notice: LiveNotice) {
+  switch (notice.type) {
+    case 'ready':
+      return [queryKeys.environment(environmentId)];
+    case 'inventory':
+      return notice.change === 'activity'
+        ? [queryKeys.worktreeInventory(environmentId)]
+        : [
+            queryKeys.inventory(environmentId),
+            queryKeys.reviewGitSettings(environmentId),
+          ];
+    case 'worktree':
+      return [
+        ...(notice.change === 'reviewed'
+          ? []
+          : [queryKeys.worktreeInventory(environmentId)]),
+        ...(notice.change === 'git'
+          ? [queryKeys.projectPullRequests(environmentId, notice.projectId)]
+          : []),
+        ...noticeReadKeys(environmentId, notice),
+      ];
+    case 'project':
+      return notice.change === 'preferences'
+        ? [queryKeys.filePreferences(environmentId, notice.projectId)]
+        : [];
+    default:
+      return noticeReadKeys(environmentId, notice);
+  }
+}

@@ -1,6 +1,7 @@
 import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
-import { useAtomRefresh, useAtomValue } from '@effect/atom-react';
+import { useAtomRefresh } from '@effect/atom-react';
+import { useMountedRead } from '@/shared/query/mounted-read';
 import { readChangeDiffWindow } from '@porcelain/client/changes';
 import type {
   ChangesScope,
@@ -24,7 +25,9 @@ export function useChangeDiffs(
     expectedFiles,
     selections,
   });
-  const { result, recovery } = useAtomValue(window);
+  const observation = useMountedRead(window);
+  const result = observation?.result ?? AsyncResult.initial();
+  const recovery = observation?.recovery ?? AsyncResult.initial();
   const recovering = Option.exists(
     AsyncResult.value(recovery),
     (state) => state.pending,

@@ -10,7 +10,7 @@ import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import { toast } from '@/components/ui/toast';
 import { useToggleReviewed } from '../commands/reviewed';
 import { Badge } from '@/components/ui/badge';
-import { isImagePath } from '@porcelain/client/files/rules';
+import { isImagePath, isKnownBinaryPath } from '@porcelain/client/files/rules';
 import { Button } from '@/components/ui/button';
 import { changeId, selectionKey } from '@porcelain/client/changes/rules';
 import {
@@ -85,19 +85,20 @@ export function ReviewCodeDocument({
     useReviewChangeItems(scope, context, changes, paths),
     files,
   );
+  const hidden = interaction.hidden === true;
   const statusToken = items[0]?.statusToken ?? '';
   const diffs = useChangeDiffs(
     scope,
     connection,
     statusToken,
-    items.flatMap((item) =>
+    (hidden ? [] : items).flatMap((item) =>
       item.comparisons.some(
         (change) => change.scope === 'staged' || change.scope === 'unstaged',
       )
         ? [{ path: item.path, fingerprint: item.fingerprint }]
         : [],
     ),
-    items.flatMap((item) =>
+    (hidden ? [] : items).flatMap((item) =>
       item.comparisons.flatMap((change) => {
         const selection = diffSelection(change);
         return selection ? [selection] : [];
@@ -111,7 +112,9 @@ export function ReviewCodeDocument({
       ? []
       : items.flatMap((item) =>
           item.comparisons.flatMap((change) =>
-            change.scope === 'untracked' ? [change.path] : [],
+            change.scope === 'untracked' && !isKnownBinaryPath(change.path)
+              ? [change.path]
+              : [],
           ),
         ),
   );
@@ -127,7 +130,7 @@ export function ReviewCodeDocument({
     untracked.contents.get(path) ??
     (quiet || untracked.failed ? keptText.get(path) : undefined);
   const [kept, setKept] = useState(diffs.diffs);
-  if (!diffs.pending && !diffs.failed && kept !== diffs.diffs)
+  if (!hidden && !diffs.pending && !diffs.failed && kept !== diffs.diffs)
     setKept(diffs.diffs);
   const livePatch = (change: Change): DiffContent | undefined => {
     const selection = diffSelection(change);
@@ -151,10 +154,12 @@ export function ReviewCodeDocument({
   const unrenderable = items.flatMap((item) => {
     const reasons = item.comparisons.flatMap((change) => {
       if (change.scope === 'unmerged') return ['Conflict'];
-      if (change.scope === 'untracked')
+      if (change.scope === 'untracked') {
+        if (isKnownBinaryPath(change.path)) return ['Binary change'];
         return textOf(change.path) !== undefined || untracked.pending
           ? []
           : ['Not readable'];
+      }
       if (!change.supported) return ['Unsupported comparison'];
       const content = patchOf(change);
       if (!content) return [];
@@ -249,6 +254,7 @@ export function ReviewCodeDocument({
                 scope={scope}
                 context={context}
                 paneFile={Boolean(omittedFile)}
+                hidden={hidden}
               />
             )}
           </>
@@ -348,8 +354,10 @@ function OmittedChanges({
   scope,
   context,
   paneFile,
+  hidden,
 }: {
   paneFile: boolean;
+  hidden: boolean;
   column: boolean;
   onTarget: (path: string, target: HTMLLIElement | null) => void;
   changes: ReadonlyArray<{
@@ -382,11 +390,13 @@ function OmittedChanges({
             {isImagePath(item.path) && (
               <>
                 <span>Current worktree image</span>
-                <ImagePreview
-                  scope={scope}
-                  path={item.path}
-                  connection={context.connection}
-                />
+                {!hidden && (
+                  <ImagePreview
+                    scope={scope}
+                    path={item.path}
+                    connection={context.connection}
+                  />
+                )}
               </>
             )}
             <Badge

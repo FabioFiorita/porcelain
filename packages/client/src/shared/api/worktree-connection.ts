@@ -10,6 +10,7 @@ import {
 } from 'effect';
 import { WriteQueues } from './write-queue.ts';
 import { ReadSubscriptions } from './read-subscriptions.ts';
+import { ReadInvalidation } from './read-invalidation.ts';
 import type { RuntimeConnection, WorktreeConnection } from './connection.ts';
 
 export function createWorktreeConnection<R = never>(
@@ -24,7 +25,7 @@ export function createWorktreeConnection<R = never>(
   const runtime = ManagedRuntime.make(
     Layer.mergeAll(
       Layer.fresh(WriteQueues.layer),
-      Reactivity.layer,
+      Layer.provideMerge(Layer.fresh(ReadInvalidation.layer), Reactivity.layer),
       Layer.fresh(ReadSubscriptions.layer),
       services,
     ),

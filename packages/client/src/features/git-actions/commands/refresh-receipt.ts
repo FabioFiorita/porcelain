@@ -3,13 +3,14 @@ import {
   Cache,
   Context,
   Data,
+  Deferred,
   Duration,
   Effect,
   Fiber,
   HashMap,
   Layer,
 } from 'effect';
-import { Reactivity } from 'effect/reactivity';
+import { ReadInvalidation } from '../../../shared/api/read-invalidation.ts';
 import type { RunGitActionResponse } from '@porcelain/contracts/git-actions';
 import type { RuntimeConnection } from '../../../shared/api/connection.ts';
 import { clientRuntime } from '../../../shared/api/runtime.ts';
@@ -35,7 +36,7 @@ export class GitReceiptRefresh extends Context.Service<
       GitReceiptRefresh,
       Effect.gen(function* () {
         const scope = yield* Effect.scope;
-        const reactivity = yield* Reactivity.Reactivity;
+        const invalidation = yield* ReadInvalidation;
         const subscriptions = yield* ReadSubscriptions;
         const cache: Cache.Cache<
           Refresh,
@@ -50,18 +51,9 @@ export class GitReceiptRefresh extends Context.Service<
                   String(key[4]),
                 ),
               );
-              const active = [...HashMap.values(yield* subscriptions.snapshot)];
-              const worktreeReads = active.filter(
-                (read) =>
-                  read.projectId === receipt.projectId &&
-                  read.worktreeId === receipt.worktreeId,
-              );
-              const reads = worktreeReads.filter((read) =>
-                surfaces.has(read.surface),
-              );
               const fiber = yield* Effect.forkIn(
                 Effect.gen(function* () {
-                  reactivity.invalidateUnsafe([
+                  const flushed = yield* invalidation.schedule([
                     queryKeys.worktreeInventory(connection.environmentId),
                     queryKeys.projectPullRequests(
                       connection.environmentId,
@@ -69,6 +61,18 @@ export class GitReceiptRefresh extends Context.Service<
                     ),
                     ...receiptReadKeys(connection.environmentId, receipt),
                   ]);
+                  yield* Deferred.await(flushed);
+                  const active = [
+                    ...HashMap.values(yield* subscriptions.snapshot),
+                  ];
+                  const worktreeReads = active.filter(
+                    (read) =>
+                      read.projectId === receipt.projectId &&
+                      read.worktreeId === receipt.worktreeId,
+                  );
+                  const reads = worktreeReads.filter((read) =>
+                    surfaces.has(read.surface),
+                  );
                   yield* Effect.forEach(reads, (read) => read.settled, {
                     concurrency: 'unbounded',
                     discard: true,

@@ -22,7 +22,7 @@ export {
   quickOpenMatches,
   quickOpenPath,
 } from './quick-open.ts';
-export { isImagePath } from './image-path.ts';
+export { isImagePath, isKnownBinaryPath } from './image-path.ts';
 export {
   branchChangeMarks,
   branchChangeStatus,

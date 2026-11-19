@@ -1,8 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { readCommit } from '@porcelain/client/history';
-import { useAtomValue } from '@effect/atom-react';
-import { AsyncResult } from 'effect/reactivity';
-import { Option } from 'effect';
+import { useCommitSubject } from '@/features/history/index';
 import type { HistoryScope } from '@porcelain/client/history/rules';
 import type { Connection } from '@/shared/workspace/connection';
 import { TruncatedText } from '@/shared/views/truncated-text';
@@ -574,7 +571,14 @@ function CommitTab(
   },
 ) {
   const { commitContext, oid, ...tab } = props;
-  const result = useAtomValue(readCommit({ ...commitContext, oid, parent: 1 }));
-  const commit = Option.getOrUndefined(AsyncResult.value(result));
-  return <DocumentTab {...tab} commitSubject={commit?.commit.subject} />;
+  const subject = useCommitSubject(
+    commitContext.connection,
+    commitContext.scope,
+    oid,
+    tab.active,
+  );
+  const [shownSubject, setShownSubject] = useState(subject);
+  if (subject !== undefined && subject !== shownSubject)
+    setShownSubject(subject);
+  return <DocumentTab {...tab} commitSubject={shownSubject} />;
 }

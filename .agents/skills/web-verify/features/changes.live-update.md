@@ -10,6 +10,7 @@ tests:
   - apps/web/spec/integration/changes-live-update.test.tsx
   - apps/web/spec/integration/files-disk-refresh.test.tsx
   - apps/web/spec/integration/changes-return.test.tsx
+  - apps/web/spec/integration/walkthrough-conversations.test.tsx
 api:
   - GET /api/live
   - GET /api/worktrees/:worktreeId/changes
@@ -102,3 +103,9 @@ While reading All changes, rewrite an already-changed unrelated file externally;
 The viewport position, selection and focused file are stored by environment/worktree/document/comparison. The adapter restores the viewport through Pierre's supported content-coordinate scroll API, including its sticky-header metric when converting the offset. Restore the saved position once per mounted viewer and document/comparison owner; a prop refresh leaves live layout anchoring to Pierre. Find and file-row jumps still apply their intentional destinations after that restore. Compare visible text relative to the code viewport when a header changes height. A restored file remains the target for Reviewed and next/previous shortcuts. A selection whose original content changed is cleared from the code and reports that the lines must be selected again; it cannot silently target a new fingerprint.
 
 Automated coverage: changes-return.test.tsx, files-return.test.tsx.
+
+## Notice bursts and hidden review
+
+Send several changes while a file and Changes are visible. Confirm the final text and the changed-file list arrive. Each active read gets one refresh for the batch. A newer notice during a held response gets one follow-up after that response.
+
+With a saved Review showing an untracked image, open a text file in the same pane and write to it on disk. The file updates while the hidden Review makes no image or conversation request. Return to Review to see those reads resume. An image opens through the asset read.

@@ -1,5 +1,5 @@
 export { ordinal } from './rules/graph';
-export { useCommit } from './queries/commit';
+export { useCommit, useCommitSubject } from './queries/commit';
 
 export { BranchTracking } from './views/branch-tracking';
 export { CommitGraph } from './views/commit-graph';

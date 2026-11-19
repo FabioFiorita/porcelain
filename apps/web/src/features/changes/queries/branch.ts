@@ -3,8 +3,9 @@ import {
   readBranchBases,
   readBranchDiffs,
 } from '@porcelain/client/changes';
-import { useAtomValue, useAtomRefresh } from '@effect/atom-react';
+import { useAtomRefresh } from '@effect/atom-react';
 import { Atom, AsyncResult } from 'effect/reactivity';
+import { useMountedRead } from '@/shared/query/mounted-read';
 import { usePathDiffs } from './batched-reads';
 import {
   consecutiveBatches,
@@ -14,13 +15,13 @@ import {
 import { DIFF_WINDOW_FILES } from '@/config/limits';
 import type { Connection } from '@/shared/workspace/connection';
 
-const inactiveBases = Atom.make(
-  AsyncResult.initial<Atom.Success<ReturnType<typeof readBranchBases>>>(),
-);
+const initialBases =
+  AsyncResult.initial<Atom.Success<ReturnType<typeof readBranchBases>>>();
+const inactiveBases = Atom.make(initialBases);
 
-const inactiveChanges = Atom.make(
-  AsyncResult.initial<Atom.Success<ReturnType<typeof readBranchChanges>>>(),
-);
+const initialChanges =
+  AsyncResult.initial<Atom.Success<ReturnType<typeof readBranchChanges>>>();
+const inactiveChanges = Atom.make(initialChanges);
 
 export function useBranchChanges(
   scope: ChangesScope | undefined,
@@ -34,7 +35,10 @@ export function useBranchChanges(
         ...(base === undefined ? {} : { base }),
       })
     : inactiveChanges;
-  return { result: useAtomValue(state), refresh: useAtomRefresh(state) };
+  return {
+    result: useMountedRead(state) ?? initialChanges,
+    refresh: useAtomRefresh(state),
+  };
 }
 export function useBranchBases(
   scope: ChangesScope,
@@ -44,7 +48,10 @@ export function useBranchBases(
   const state = enabled
     ? readBranchBases({ connection, scope })
     : inactiveBases;
-  return { result: useAtomValue(state), refresh: useAtomRefresh(state) };
+  return {
+    result: useMountedRead(state) ?? initialBases,
+    refresh: useAtomRefresh(state),
+  };
 }
 export function useBranchDiffs(
   scope: ChangesScope,

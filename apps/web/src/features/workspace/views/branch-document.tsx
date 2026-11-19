@@ -238,7 +238,7 @@ function BranchDiffs({
   const diffs = useBranchDiffs(
     scope,
     connection,
-    branch.diffRange,
+    interaction.hidden ? null : branch.diffRange,
     reached.map(commitPaths),
   );
   const patchVersion = JSON.stringify([
@@ -250,7 +250,12 @@ function BranchDiffs({
     comparison: string;
     patches: typeof diffs.patches;
   }>({ version: '', comparison: comparisonKey, patches: new Map() });
-  if (!diffs.pending && !diffs.failed && previous.version !== patchVersion)
+  if (
+    !interaction.hidden &&
+    !diffs.pending &&
+    !diffs.failed &&
+    previous.version !== patchVersion
+  )
     setPrevious({
       version: patchVersion,
       comparison: comparisonKey,

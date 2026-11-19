@@ -5,7 +5,7 @@ import type {
   EditFileResponse,
 } from '@porcelain/contracts/files';
 import { Context, Effect, Layer } from 'effect';
-import { Atom, AtomRegistry, Reactivity } from 'effect/reactivity';
+import { Atom, AtomRegistry } from 'effect/reactivity';
 import type {
   RuntimeConnection,
   WorktreeScope,
@@ -13,7 +13,8 @@ import type {
 import { ConnectionError } from '../../../shared/api/connection-error.ts';
 import { porcelainClient } from '../../../shared/api/client.ts';
 import { clientRuntime } from '../../../shared/api/runtime.ts';
-import { noticeReadKeys } from '../../live/commands/cache-updates.ts';
+import { liveReadKeys } from '../../live/commands/cache-updates.ts';
+import { ReadInvalidation } from '../../../shared/api/read-invalidation.ts';
 import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
 import { FileDrafts, fileDraftsRuntime } from '../store.ts';
 import type { FileDraftWriteFailure } from '../ports/file-draft-writer.ts';
@@ -32,7 +33,7 @@ class FileEdits extends Context.Service<
       Effect.gen(function* () {
         const client = yield* porcelainClient(connection);
         const drafts = yield* FileDrafts;
-        const reactivity = yield* Reactivity.Reactivity;
+        const invalidation = yield* ReadInvalidation;
         const execute = Effect.fn('Files.edit')(function* (
           input: EditFileRequest,
         ) {
@@ -132,8 +133,8 @@ class FileEdits extends Context.Service<
                 Effect.gen(function* () {
                   for (const [, draft] of moving) draft.release(owner);
                   if (!connection.isClosed())
-                    yield* reactivity.invalidate(
-                      noticeReadKeys(connection.environmentId, {
+                    yield* invalidation.schedule(
+                      liveReadKeys(connection.environmentId, {
                         type: 'worktree',
                         ...scope,
                         change: 'files',

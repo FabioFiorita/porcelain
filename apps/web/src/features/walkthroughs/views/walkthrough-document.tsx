@@ -321,7 +321,11 @@ function Written({
     | { failure: WalkthroughFailure; writer: WalkthroughRun['writer'] }
     | undefined;
 }) {
-  const owner = { ...props, runId: run.id };
+  const owner = {
+    ...props,
+    runId: run.id,
+    hidden: props.interaction.hidden === true,
+  };
   const writeBlock = useWorkspaceWriteBlock(props.context);
   const conversation: Conversation = ({ kind, step }) => {
     const title = content.stops[step - 1]!.title;
@@ -503,7 +507,11 @@ function useReviewCode(
     hidden,
   );
   const result = useHeldWhileHidden(
-    useBranchChanges(props.scope, props.context.connection, props.base).result,
+    useBranchChanges(
+      hidden ? undefined : props.scope,
+      props.context.connection,
+      props.base,
+    ).result,
     hidden,
   );
   const branch = Option.getOrUndefined(AsyncResult.value(result));
@@ -535,6 +543,7 @@ export function ReviewDocument(props: DocumentProps) {
     observedPhase && observedPhase.kind !== 'unwritten'
       ? observedPhase.run
       : undefined,
+    props.interaction.hidden === true,
   );
   const phase = read
     ? walkthroughPhase(acknowledgedWalkthrough(read, write.accepted))

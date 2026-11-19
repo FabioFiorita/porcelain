@@ -233,6 +233,28 @@ export function createFetchGate(filePath: string) {
           (init?.method ?? 'GET') === 'GET' &&
           url.pathname.endsWith('/file-preferences'),
       ),
+    recordReviewReads() {
+      const original = window.fetch;
+      const requests: Array<{ path: string; body?: string }> = [];
+      window.fetch = (input, init) => {
+        const url = requestUrl(input);
+        if (/\/(conversations|diffs|asset)$/.test(url.pathname)) {
+          const path = url.pathname + url.search;
+          const body =
+            typeof init?.body === 'string'
+              ? init.body
+              : init?.body instanceof Uint8Array
+                ? new TextDecoder().decode(init.body)
+                : undefined;
+          requests.push(body === undefined ? { path } : { path, body });
+        }
+        return original(input, init);
+      };
+      restores.push(() => {
+        window.fetch = original;
+      });
+      return requests;
+    },
     recordTextReads() {
       const original = window.fetch;
       const paths: string[] = [];

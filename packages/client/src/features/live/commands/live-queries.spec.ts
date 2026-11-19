@@ -279,9 +279,8 @@ it('a file notice invalidates only the connected environment', async () => {
   });
   try {
     subject.live()?.onNotice({ type: 'worktree', ...scope, change: 'files' });
-    await Promise.resolve();
+    await expect.poll(() => currentRefreshes).toBe(1);
     expect(inventoryRefreshes).toBe(0);
-    expect(currentRefreshes).toBe(1);
     expect(otherRefreshes).toBe(0);
   } finally {
     unregister();
@@ -309,10 +308,13 @@ it('an uncommitted-work notice rereads the inventory without rereading pull requ
   );
   try {
     subject.live()?.onNotice({ type: 'inventory', change: 'activity' });
-    await Promise.resolve();
-    expect(reads).toEqual({ inventory: 1, pullRequests: 0 });
+    await expect
+      .poll(() => ({ ...reads }))
+      .toEqual({ inventory: 1, pullRequests: 0 });
     subject.live()?.onNotice({ type: 'inventory' });
-    await Promise.resolve();
+    await expect
+      .poll(() => ({ ...reads }))
+      .toEqual({ inventory: 1, pullRequests: 1 });
     expect(reads).toEqual({ inventory: 1, pullRequests: 1 });
   } finally {
     stopInventory();
@@ -416,7 +418,9 @@ it('a project preference notice refreshes its preferences while leaving inventor
     subject
       .live()
       ?.onNotice({ type: 'project', projectId, change: 'preferences' });
-    expect((await read()).preferences[0]?.hidden).toBe(true);
+    await expect
+      .poll(async () => (await read()).preferences[0]?.hidden)
+      .toBe(true);
     expect(preferences).toBe(2);
     expect(inventories).toBe(1);
   } finally {
@@ -485,12 +489,12 @@ it('native file reads catch up when ready, refresh from notices and release thei
     expect(await read()).toMatchObject({ text: 'First' });
     contents = 'After connection';
     subject.live()?.onNotice({ type: 'ready' });
-    expect(await read()).toMatchObject({ text: 'After connection' });
+    await expect.poll(read).toMatchObject({ text: 'After connection' });
     contents = 'After';
     subject
       .live()
       ?.onNotice({ type: 'worktree', projectId, worktreeId, change: 'files' });
-    expect(await read()).toMatchObject({ text: 'After' });
+    await expect.poll(read).toMatchObject({ text: 'After' });
     expect(reads).toBe(3);
     contents = 'Later';
     subject.live()?.onNotice({ type: 'heartbeat' });
@@ -549,11 +553,149 @@ it.each([
         worktreeId: '00000000000000000000000000000001',
         change,
       });
-      await Promise.resolve();
-      expect(refreshes).toBe(expected);
+      if (expected > 0) await expect.poll(() => refreshes).toBe(expected);
+      else expect(refreshes).toBe(expected);
     } finally {
       stop();
       await subject.cleanup();
     }
   },
 );
+
+const changedScope = {
+  projectId,
+  worktreeId: '0123456789abcdef0123456789abcdef',
+};
+
+async function liveText(
+  load: (path: string, count: number) => Promise<string>,
+) {
+  const counts = new Map<string, number>();
+  const subject = await setup(async (url) => {
+    const path = new URL(url, 'http://fixture').searchParams.get('path');
+    if (path === null)
+      return Response.json({
+        environmentId,
+        environment: { name: 'Live', custom: false },
+        projects: [],
+      });
+    const count = (counts.get(path) ?? 0) + 1;
+    counts.set(path, count);
+    const text = await load(path, count);
+    return Response.json({
+      worktreeId: changedScope.worktreeId,
+      path,
+      encoding: 'utf-8',
+      byteLength: text.length,
+      text,
+    });
+  });
+  const file = (path: string) => {
+    const atom = readTextFile({
+      connection: subject.connection,
+      scope: changedScope,
+      path,
+    });
+    return {
+      mount: () => subject.registry.mount(atom),
+      read: () =>
+        Effect.runPromise(
+          AtomRegistry.getResult(subject.registry, atom, {
+            suspendOnWaiting: true,
+          }),
+        ),
+      count: () => counts.get(path) ?? 0,
+    };
+  };
+  return {
+    ...subject,
+    file,
+    notice: () =>
+      subject.live()?.onNotice({
+        type: 'worktree',
+        ...changedScope,
+        change: 'files',
+      }),
+  };
+}
+
+it('reads each mounted file once for a burst of notices and reads an unmounted file when shown again', async () => {
+  let text = 'Before';
+  const subject = await liveText(() => Promise.resolve(text));
+  const first = subject.file('first.ts');
+  const second = subject.file('second.ts');
+  const hidden = subject.file('hidden.ts');
+  const stopFirst = first.mount();
+  const stopSecond = second.mount();
+  const stopHidden = hidden.mount();
+  try {
+    await Promise.all([first.read(), second.read(), hidden.read()]);
+    stopHidden();
+    await expect
+      .poll(() =>
+        subject.sent
+          .at(-1)
+          ?.worktrees.some((entry) => entry.paths.includes('hidden.ts')),
+      )
+      .toBe(false);
+    text = 'After the burst';
+    for (let notice = 0; notice < 8; notice++) subject.notice();
+    await expect.poll(first.read).toMatchObject({ text: 'After the burst' });
+    await expect.poll(second.read).toMatchObject({ text: 'After the burst' });
+    expect([first.count(), second.count(), hidden.count()]).toEqual([2, 2, 1]);
+    const show = hidden.mount();
+    try {
+      expect(await hidden.read()).toMatchObject({ text: 'After the burst' });
+      expect(hidden.count()).toBe(2);
+    } finally {
+      show();
+    }
+  } finally {
+    stopFirst();
+    stopSecond();
+    await subject.cleanup();
+  }
+});
+
+it('finishes an in-flight read and follows it with one read of a newer burst', async () => {
+  const started = Promise.withResolvers<void>();
+  const held = Promise.withResolvers<string>();
+  const subject = await liveText((_, count) => {
+    if (count === 1) return Promise.resolve('Before');
+    if (count === 2) {
+      started.resolve();
+      return held.promise;
+    }
+    return Promise.resolve('After the newer burst');
+  });
+  const file = subject.file('first.ts');
+  const stop = file.mount();
+  try {
+    await file.read();
+    subject.notice();
+    await started.promise;
+    const announced = Promise.withResolvers<void>();
+    const unregister = subject.connection.runtime
+      .runSync(Reactivity.Reactivity)
+      .registerUnsafe(
+        [queryKeys.reviewSurface(environmentId, changedScope, ['text'])],
+        announced.resolve,
+      );
+    try {
+      for (let notice = 0; notice < 8; notice++) subject.notice();
+      await announced.promise;
+      expect(file.count()).toBe(2);
+      held.resolve('After the first notice');
+      await expect
+        .poll(file.read)
+        .toMatchObject({ text: 'After the newer burst' });
+      expect(file.count()).toBe(3);
+    } finally {
+      unregister();
+    }
+  } finally {
+    held.resolve('After the first notice');
+    stop();
+    await subject.cleanup();
+  }
+});

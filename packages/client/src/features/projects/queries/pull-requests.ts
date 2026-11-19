@@ -5,7 +5,7 @@ import { requestApi, type PorcelainApi } from '../../../shared/api/client.ts';
 import { clientRuntime } from '../../../shared/api/runtime.ts';
 import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
 import { queryKeys } from '../../../shared/api/query-keys.ts';
-import { retainRead } from '../../../shared/api/worktree-read.ts';
+import { retainRead, serialRead } from '../../../shared/api/worktree-read.ts';
 
 type ProjectInput = { connection: RuntimeConnection; projectId: string };
 type PullInput = ProjectInput & { number: number };
@@ -14,25 +14,24 @@ function query<A, E>(
   request: (api: PorcelainApi) => Effect.Effect<A, E>,
   accepts: (answer: A) => boolean = () => true,
 ) {
-  return clientRuntime(input.connection)
-    .atom(
+  return serialRead(
+    input.connection,
+    [
+      queryKeys.environment(input.connection.environmentId),
+      queryKeys.inventory(input.connection.environmentId),
+      queryKeys.projectPullRequests(
+        input.connection.environmentId,
+        input.projectId,
+      ),
+    ],
+    clientRuntime(input.connection).atom(
       Effect.gen(function* () {
         const answer = yield* requestApi(input.connection, request);
         yield* currentAnswerEffect(input.connection, accepts(answer));
         return answer;
       }),
-    )
-    .pipe(
-      input.connection.atoms.withReactivity([
-        queryKeys.environment(input.connection.environmentId),
-        queryKeys.inventory(input.connection.environmentId),
-        queryKeys.projectPullRequests(
-          input.connection.environmentId,
-          input.projectId,
-        ),
-      ]),
-      Atom.setIdleTTL(0),
-    );
+    ),
+  );
 }
 export const readProjectPullRequest = Atom.family((input: PullInput) =>
   query(

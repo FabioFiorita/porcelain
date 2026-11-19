@@ -377,3 +377,100 @@ test('switching branches shows the displayed walkthrough conversations and never
     )
     .toBeVisible();
 });
+
+test('opening a saved review fetches each conversation and diff key once', async ({
+  live,
+  render,
+  repo,
+  fetchGate,
+}) => {
+  await repo.branch('conversation-review');
+  await repo.switch('conversation-review');
+  await conversationFixture('no-pr');
+  await browserPage.viewport(1440, 900);
+  live.drop();
+  const requests = fetchGate.recordReviewReads();
+  const { page } = await render.route('/');
+  await expect
+    .element(
+      page.getByRole('heading', { name: /Keep retries beside their owner/ }),
+    )
+    .toBeVisible();
+  await expect
+    .element(page.getByText('A conversation fixture.', { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(page.getByText('A change to review.', { exact: true }))
+    .toBeVisible();
+  await expect
+    .poll(() => requests.filter(({ path }) => path.endsWith('/conversations')))
+    .toHaveLength(1);
+  const patches = () => requests.filter(({ path }) => path.endsWith('/diffs'));
+  await expect
+    .poll(() =>
+      patches().some(({ path }) => path.endsWith('/branch-changes/diffs')),
+    )
+    .toBe(true);
+  await expect
+    .poll(() => patches().some(({ path }) => path.endsWith('/changes/diffs')))
+    .toBe(true);
+  await expect
+    .poll(() => {
+      const keys = patches().map(({ path, body }) =>
+        JSON.stringify([path, body]),
+      );
+      return keys.length - new Set(keys).size;
+    })
+    .toBe(0);
+});
+
+test('hidden review stops fetching images and conversations until shown again', async ({
+  render,
+  repo,
+  server,
+  fetchGate,
+}) => {
+  await conversationFixture('no-pr');
+  await repo.write(
+    'badge.svg',
+    '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"/>',
+  );
+  await repo.write('DRAFT', 'Extensionless source before the write');
+  const project = await server.project();
+  const worktree = project.worktrees[0]!;
+  const route = `/${project.id}/${worktree.id}`;
+  const requests = fetchGate.recordReviewReads();
+  const text = fetchGate.recordTextReads();
+  const app = await render.route(route);
+  const { page } = app;
+  const image = page.getByRole('img', { name: 'badge.svg', exact: true });
+  await expect.element(image).toBeVisible();
+  await expect.poll(() => text).toContain('DRAFT');
+  await expect.poll(() => text).not.toContain('badge.svg');
+  await render.whenLiveConnected();
+  await app.navigate(route + '?entry=file:DRAFT');
+  const file = page.getByRole('tabpanel', { name: 'DRAFT', exact: true });
+  await expect
+    .element(
+      file.getByText('Extensionless source before the write', { exact: true }),
+    )
+    .toBeVisible();
+  requests.length = 0;
+  await repo.write('DRAFT', 'Extensionless source after the write');
+  await expect
+    .element(
+      file.getByText('Extensionless source after the write', { exact: true }),
+    )
+    .toBeVisible();
+  await expect.poll(() => requests).toEqual([]);
+  await page.getByRole('tab', { name: 'Review', exact: true }).click();
+  await expect.element(image).toBeVisible();
+  await expect
+    .poll(() =>
+      requests.some(({ path }) => path.endsWith('/asset?path=badge.svg')),
+    )
+    .toBe(true);
+  await expect
+    .poll(() => requests.some(({ path }) => path.endsWith('/conversations')))
+    .toBe(true);
+});

@@ -20,10 +20,9 @@ export function worktreeRead<A, E, R>(
   paths: readonly string[] = [],
 ) {
   const atom: Atom.Atom<AsyncResult.AsyncResult<A, E | ConnectionError>> =
-    reactiveRead(
+    serialRead(
       connection,
-      scope,
-      surface,
+      queryKeys.worktreeReads(connection, scope, surface),
       runtime.atom((get) =>
         Effect.gen(function* () {
           const subscriptions = yield* ReadSubscriptions;
@@ -110,6 +109,34 @@ export function worktreePull<A, E, R>(
     ),
   );
   return atom;
+}
+
+export function serialRead<A, E>(
+  connection: RuntimeConnection,
+  keys: readonly unknown[],
+  read: Atom.Atom<AsyncResult.AsyncResult<A, E>>,
+) {
+  const signal = Atom.make(() => ({})).pipe(
+    connection.atoms.withReactivity(keys),
+    Atom.setIdleTTL(0),
+  );
+  return Atom.readable(
+    (get) => {
+      let pending = false;
+      get.subscribe(signal, () => {
+        if (get.once(read).waiting) pending = true;
+        else get.refresh(read);
+      });
+      get.subscribe(read, (value) => {
+        if (pending && !value.waiting) {
+          pending = false;
+          get.refresh(read);
+        } else get.setSelf(value);
+      });
+      return get.once(read);
+    },
+    (refresh) => refresh(signal),
+  ).pipe(Atom.setIdleTTL(0));
 }
 
 function reactiveRead<A extends Atom.Atom<unknown>>(

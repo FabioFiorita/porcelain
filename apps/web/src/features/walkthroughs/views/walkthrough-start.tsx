@@ -1,10 +1,9 @@
 import { useWorkspaceWriteBlock } from '@/shared/workspace/connection';
-import { useAtomRefresh, useAtomValue } from '@effect/atom-react';
 import { Link } from '@tanstack/react-router';
 import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { SparklesIcon } from 'lucide-react';
-import { readWalkthroughWriterSettings } from '@porcelain/client/projects';
+import { useWalkthroughWriters } from '../queries/walkthrough';
 import { walkthroughWriterStatus } from '@porcelain/client/projects/rules';
 import { refLabel } from '@porcelain/client/history/rules';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -29,9 +28,8 @@ export function WalkthroughStart({
   const { connection } = document.context;
   const writeBlock = useWorkspaceWriteBlock(document.context);
   const local = useLocalConnection();
-  const atom = readWalkthroughWriterSettings(connection);
-  const result = useAtomValue(atom);
-  const refresh = useAtomRefresh(atom);
+  const visible = document.interaction.hidden !== true;
+  const { result, refresh } = useWalkthroughWriters(connection, visible);
   const settings = Option.getOrUndefined(AsyncResult.value(result));
   const project = useInventory(connection).projects.find(
     (entry) => entry.id === document.scope.projectId,
@@ -42,7 +40,7 @@ export function WalkthroughStart({
   const branches = useBranchBases(
     document.scope,
     connection,
-    document.base === undefined,
+    visible && document.base === undefined,
   );
   const availableBases = Option.getOrUndefined(
     AsyncResult.value(branches.result),
@@ -52,6 +50,7 @@ export function WalkthroughStart({
   const noWriters = settings?.models.length === 0;
   const checkAgain = (
     <Button
+      key="check-writers"
       variant="outline"
       size="sm"
       disabled={result.waiting}
@@ -66,6 +65,7 @@ export function WalkthroughStart({
     : undefined;
   let action = (
     <Button
+      key="write-walkthrough"
       size="sm"
       disabled={Boolean(writeBlock) || waiting || !writer?.available}
       aria-description={writeBlock}

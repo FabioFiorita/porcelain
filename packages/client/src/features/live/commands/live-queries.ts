@@ -23,7 +23,8 @@ import {
 } from '@porcelain/contracts/shared';
 import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
 import { queryKeys } from '../../../shared/api/query-keys.ts';
-import { noticeReadKeys } from './cache-updates.ts';
+import { liveReadKeys } from './cache-updates.ts';
+import { ReadInvalidation } from '../../../shared/api/read-invalidation.ts';
 import {
   ReadSubscriptions,
   type ActiveRead,
@@ -81,6 +82,7 @@ const connectLiveSession = Effect.fn('Live.connect')(function* (
   const operations = yield* OperationStore;
   const refresh = yield* GitReceiptRefresh;
   const reactivity = yield* Reactivity.Reactivity;
+  const invalidation = yield* ReadInvalidation;
   const scope = yield* Effect.acquireRelease(
     Scope.fork(connection.scope, 'sequential'),
     (scope) => Scope.close(scope, Exit.void),
@@ -96,38 +98,8 @@ const connectLiveSession = Effect.fn('Live.connect')(function* (
   ) {
     if (notice.type === 'git-action')
       return yield* refresh.refresh(notice.receipt);
-    if (notice.type === 'ready')
-      return yield* reactivity.invalidate([
-        queryKeys.environment(connection.environmentId),
-      ]);
-    if (notice.type === 'inventory')
-      yield* reactivity.invalidate(
-        notice.change === 'activity'
-          ? [queryKeys.worktreeInventory(connection.environmentId)]
-          : [
-              queryKeys.inventory(connection.environmentId),
-              queryKeys.reviewGitSettings(connection.environmentId),
-            ],
-      );
-    if (notice.type === 'worktree') {
-      yield* reactivity.invalidate([
-        queryKeys.worktreeInventory(connection.environmentId),
-        ...(notice.change === 'git'
-          ? [
-              queryKeys.projectPullRequests(
-                connection.environmentId,
-                notice.projectId,
-              ),
-            ]
-          : []),
-      ]);
-    }
-    if (notice.type === 'project' && notice.change === 'preferences')
-      yield* reactivity.invalidate([
-        queryKeys.filePreferences(connection.environmentId, notice.projectId),
-      ]);
-    yield* reactivity.invalidate(
-      noticeReadKeys(connection.environmentId, notice),
+    yield* invalidation.schedule(
+      liveReadKeys(connection.environmentId, notice),
     );
   });
   const recoverPending = () => {

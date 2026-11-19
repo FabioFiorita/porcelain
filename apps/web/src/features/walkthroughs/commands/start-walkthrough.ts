@@ -1,6 +1,6 @@
-import { useAtom, useAtomValue } from '@effect/atom-react';
+import { useAtom } from '@effect/atom-react';
 import { Option } from 'effect';
-import { AsyncResult } from 'effect/reactivity';
+import { Atom, AsyncResult } from 'effect/reactivity';
 import { readProjectPullRequests } from '@porcelain/client/projects';
 import {
   startWalkthrough,
@@ -10,12 +10,21 @@ import type { WalkthroughRun } from '@porcelain/client/walkthroughs/rules';
 import type { ReviewScope } from '@porcelain/client/changes/rules';
 import type { ConnectionContext } from '@/shared/workspace/connection';
 import { useReviewOverview } from '@/features/changes/index';
+import { useMountedRead } from '@/shared/query/mounted-read';
+
+const inactivePulls = Atom.make(
+  AsyncResult.initial<
+    Atom.Success<ReturnType<typeof readProjectPullRequests>>,
+    Atom.Failure<ReturnType<typeof readProjectPullRequests>>
+  >(),
+);
 
 export function useStartWalkthrough(
   scope: ReviewScope,
   context: ConnectionContext,
   base: string | undefined,
   displayedRun: WalkthroughRun | undefined,
+  hidden: boolean,
 ) {
   const [result, start] = useAtom(
     startWalkthrough({
@@ -27,12 +36,15 @@ export function useStartWalkthrough(
   const overview = Option.getOrUndefined(
     AsyncResult.value(useReviewOverview(scope, context.connection)),
   );
-  const pulls = useAtomValue(
-    readProjectPullRequests({
-      connection: context.connection,
-      projectId: scope.projectId,
-    }),
-  );
+  const pulls =
+    useMountedRead(
+      hidden
+        ? inactivePulls
+        : readProjectPullRequests({
+            connection: context.connection,
+            projectId: scope.projectId,
+          }),
+    ) ?? AsyncResult.initial();
   return walkthroughStartBinding([result, start], {
     pulls,
     branch: overview?.branch?.name ?? displayedRun?.branch,

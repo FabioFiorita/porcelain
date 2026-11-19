@@ -1,8 +1,9 @@
-import { useAtomSet, useAtomValue } from '@effect/atom-react';
+import { useAtomSet } from '@effect/atom-react';
 import { Atom, AsyncResult } from 'effect/reactivity';
 import { Option } from 'effect';
 import { readTextFile } from '@porcelain/client/files';
 import type { FilesScope } from '@porcelain/client/files/rules';
+import { useMountedRead } from '@/shared/query/mounted-read';
 import { type Connection } from '@/shared/workspace/connection';
 
 type TextSelection = {
@@ -29,20 +30,20 @@ export function useTextContents(
   paths: readonly string[],
 ) {
   const selection = { connection, scope, paths };
-  const results = useAtomValue(textReads(selection));
+  const results = useMountedRead(textReads(selection));
   const retry = useAtomSet(retryText(selection));
   return {
     contents: new Map(
       paths.flatMap((path, index) => {
-        const result = results[index];
+        const result = results?.[index];
         const data = result
           ? Option.getOrUndefined(AsyncResult.value(result))
           : undefined;
         return data && 'text' in data ? [[path, data.text] as const] : [];
       }),
     ),
-    pending: results.some(AsyncResult.isInitial),
-    failed: results.some(AsyncResult.isFailure),
+    pending: results?.some(AsyncResult.isInitial) ?? paths.length > 0,
+    failed: results?.some(AsyncResult.isFailure) ?? false,
     retry,
   };
 }
