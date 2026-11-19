@@ -670,6 +670,41 @@ describe('review code sections', () => {
     });
   });
 
+  it('keeps a committed file and its staged rename in the step that cites the new name', () => {
+    const renamed = content({
+      stops: [stop({ files: [{ path: 'new-name.ts', note: 'Renamed.' }] })],
+    });
+    const working = [
+      {
+        path: 'new-name.ts',
+        fingerprint: undefined,
+        comparisons: [
+          {
+            scope: 'staged',
+            kind: 'renamed',
+            oldPath: 'old-name.ts',
+            newPath: 'new-name.ts',
+            oldMode: '100644',
+            newMode: '100644',
+            oldOid: 'a'.repeat(40),
+            newOid: 'b'.repeat(40),
+            supported: true,
+          },
+        ],
+      },
+    ] satisfies ReadChangesResponse['changes'];
+    expect(
+      reviewCodeSections({
+        content: renamed,
+        branch: [{ path: 'old-name.ts' }],
+        worktree: working,
+      }),
+    ).toEqual({
+      steps: [{ branch: ['old-name.ts'], worktree: ['new-name.ts'] }],
+      outside: { branch: [], worktree: [] },
+    });
+  });
+
   it('puts every changed file outside the steps without a walkthrough', () => {
     expect(
       reviewCodeSections({ content: undefined, branch, worktree }),

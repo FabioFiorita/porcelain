@@ -787,3 +787,49 @@ test('a walkthrough that cannot be read still shows every changed file', async (
     )
     .toBeVisible();
 });
+
+test('a step citing a staged rename shows the committed file and its local edit together', async ({
+  repo,
+  codingTool,
+  render,
+}) => {
+  await browserPage.viewport(1280, 896);
+  await repo.branch('rename-base');
+  await repo.branch('rename-feature');
+  await repo.switch('rename-feature');
+  await repo.write('old-name.md', 'Committed line\n');
+  await repo.commit('Add the old name');
+  await repo.rename('old-name.md', 'new-name.md');
+  await repo.write('new-name.md', 'Committed line\nLocal line\n');
+  await codingTool.install();
+  const app = await render.route('/?base=refs%2Fheads%2Frename-base');
+  const page = app.page;
+  await page
+    .getByRole('button', { name: 'Write walkthrough', exact: true })
+    .click();
+  const step = page
+    .getByRole('listitem')
+    .filter({ hasText: 'Step about new-name.md' });
+  await expect
+    .element(
+      step
+        .getByRole('region', { name: /^Step \d: branch$/ })
+        .getByText('Committed line', { exact: true }),
+    )
+    .toBeVisible();
+  await expect
+    .element(
+      step
+        .getByRole('region', { name: /^Step \d: uncommitted$/ })
+        .getByText('Local line', { exact: true }),
+    )
+    .toBeVisible();
+  await expect
+    .element(
+      page.getByRole('region', {
+        name: 'Not covered by the steps: branch',
+        exact: true,
+      }),
+    )
+    .not.toBeInTheDocument();
+});
