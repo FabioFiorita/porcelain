@@ -1,3 +1,5 @@
+import { Option } from 'effect';
+import { AsyncResult } from 'effect/reactivity';
 import type { DiffContent } from '@porcelain/client/changes/rules';
 import type { RenderLine } from '../../../shared/rules/render-model';
 import { diffPresentation } from './diff-presentation';
@@ -19,6 +21,56 @@ export type DiffPageBody =
   | { kind: 'notice'; title: string };
 
 export type DiffPageRow = { kind: 'heading' | 'body'; file: number };
+
+export type DiffPageState =
+  | { kind: 'loading' }
+  | { kind: 'failed'; retry: () => void }
+  | DiffPageBody;
+
+export function keepLoadedChunk<A, E>(
+  current: AsyncResult.AsyncResult<A, E>,
+  previous: AsyncResult.AsyncResult<A, E> | undefined,
+): AsyncResult.AsyncResult<A, E> {
+  const kept = previous && AsyncResult.value(previous);
+  if (!previous || !kept || Option.isNone(kept)) return current;
+  if (AsyncResult.isFailure(current))
+    return AsyncResult.failureWithPrevious(current.cause, {
+      previous: Option.some(previous),
+      waiting: current.waiting,
+    });
+  if (AsyncResult.isInitial(current))
+    return AsyncResult.success(kept.value, { waiting: true });
+  return current;
+}
+
+export function partState<A>(
+  result: AsyncResult.AsyncResult<A, unknown>,
+  retry: () => void,
+  ready: (value: A) => DiffPageState,
+): DiffPageState {
+  const value = Option.getOrUndefined(AsyncResult.value(result));
+  if (value !== undefined) return ready(value);
+  return AsyncResult.isFailure(result)
+    ? { kind: 'failed', retry }
+    : { kind: 'loading' };
+}
+
+export function chunkState(
+  result: AsyncResult.AsyncResult<
+    ReadonlyMap<string, DiffContent | undefined>,
+    unknown
+  >,
+  key: string,
+  retry: () => void,
+): DiffPageState {
+  return partState(result, retry, (value) => {
+    const content = value.get(key);
+    if (content) return diffBody(content);
+    return AsyncResult.isFailure(result)
+      ? { kind: 'failed', retry }
+      : { kind: 'notice', title: 'Diff unavailable' };
+  });
+}
 
 function diffCounts(lines: readonly RenderLine[]): DiffCounts {
   let added = 0;

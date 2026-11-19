@@ -4,7 +4,6 @@ import { useRouter } from 'expo-router';
 import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { readTextFile } from '@porcelain/client/files';
-import type { DiffContent } from '@porcelain/client/changes/rules';
 import type { ReviewComparison } from '../../../shared/rules/review-comparison';
 import { Box } from '../../../components/ui/box';
 import { Spinner } from '../../../components/ui/spinner';
@@ -20,15 +19,16 @@ import {
   walkthroughChangeEntries,
   type ComparedEntry,
 } from '../rules/changes-page';
-import { diffBody, diffChunk, sourceBody } from '../rules/diff-page';
+import {
+  chunkState,
+  diffChunk,
+  partState,
+  sourceBody,
+  type DiffPageState,
+} from '../rules/diff-page';
 import { reviewFileDocumentKey, reviewParams } from '../rules/navigation';
 import { chooseReviewFileScope } from '../store';
-import {
-  DiffPage,
-  DiffPagePart,
-  type DiffPagePartProps,
-  type DiffPageState,
-} from './diff-page';
+import { DiffPage, DiffPagePart, type DiffPagePartProps } from './diff-page';
 import { ReviewReadState } from './read-state';
 
 export function ChangesPageScreen({
@@ -276,35 +276,6 @@ function ChunkPart({ workspace, comparison, keys, ...props }: ChangePartProps) {
       state={chunkState(result, props.file.diffKey, refresh)}
     />
   );
-}
-
-function partState<A>(
-  result: AsyncResult.AsyncResult<A, unknown>,
-  retry: () => void,
-  ready: (value: A) => DiffPageState,
-): DiffPageState {
-  const value = Option.getOrUndefined(AsyncResult.value(result));
-  if (value !== undefined) return ready(value);
-  return AsyncResult.isFailure(result)
-    ? { kind: 'failed', retry }
-    : { kind: 'loading' };
-}
-
-function chunkState(
-  result: AsyncResult.AsyncResult<
-    ReadonlyMap<string, DiffContent | undefined>,
-    unknown
-  >,
-  key: string,
-  retry: () => void,
-): DiffPageState {
-  return partState(result, retry, (value) => {
-    const content = value.get(key);
-    if (content) return diffBody(content);
-    return AsyncResult.isFailure(result)
-      ? { kind: 'failed', retry }
-      : { kind: 'notice', title: 'Diff unavailable' };
-  });
 }
 
 function UntrackedPart({ workspace, ...props }: ChangePartProps) {

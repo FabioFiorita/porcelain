@@ -20,18 +20,13 @@ import {
   openingFile,
   stuckHeading,
   headingRow,
-  type DiffPageBody,
   type DiffPageFile,
   type DiffPageRow,
+  type DiffPageState,
 } from '../rules/diff-page';
 import { diffPageCurrent, diffPageOpening, diffPageStuck } from '../store';
 
-export type { DiffPageFile } from '../rules/diff-page';
-
-export type DiffPageState =
-  | { kind: 'loading' }
-  | { kind: 'failed'; retry: () => void }
-  | DiffPageBody;
+export type { DiffPageFile, DiffPageState } from '../rules/diff-page';
 
 export type DiffPagePartProps<F extends DiffPageFile> = {
   file: F;

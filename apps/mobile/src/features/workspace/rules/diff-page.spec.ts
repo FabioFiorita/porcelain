@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
+import { Option } from 'effect';
+import { AsyncResult } from 'effect/reactivity';
 import {
+  chunkState,
   diffBody,
+  keepLoadedChunk,
   diffChunk,
   diffCountsLabel,
   diffPageRows,
@@ -127,4 +131,59 @@ it('tells apart two sections of one file by the first detail they differ in, and
     'file.ts · Branch',
     'file.ts · Uncommitted · staged',
   ]);
+});
+
+describe('a diff part on a page whose read failed', () => {
+  const retry = () => undefined;
+  const loaded = AsyncResult.success(
+    new Map([['a.ts', { kind: 'text' as const, patch }]]),
+  );
+
+  it('keeps a diff it already read', () => {
+    const failed = AsyncResult.fail('offline', {
+      previousSuccess: Option.some(loaded),
+    });
+    expect(chunkState(failed, 'a.ts', retry).kind).toBe('lines');
+  });
+
+  it('offers a retry when the kept result lacks this file', () => {
+    const failed = AsyncResult.fail('offline', {
+      previousSuccess: Option.some(AsyncResult.success(new Map())),
+    });
+    expect(chunkState(failed, 'a.ts', retry)).toEqual({
+      kind: 'failed',
+      retry,
+    });
+  });
+
+  it('calls a settled read without the file unavailable', () => {
+    expect(chunkState(AsyncResult.success(new Map()), 'a.ts', retry)).toEqual({
+      kind: 'notice',
+      title: 'Diff unavailable',
+    });
+  });
+});
+
+describe('a page of diffs whose snapshot refresh fails', () => {
+  const loaded = AsyncResult.success(
+    new Map([['a.ts', { kind: 'text' as const, patch }]]),
+  );
+  const failedSnapshot = AsyncResult.fail('offline', {
+    previousSuccess: Option.some(AsyncResult.success(new Map())),
+  });
+
+  it('keeps the diffs it had already read', () => {
+    const kept = keepLoadedChunk(failedSnapshot, loaded);
+    expect(AsyncResult.isFailure(kept)).toBe(true);
+    expect(chunkState(kept, 'a.ts', () => undefined).kind).toBe('lines');
+  });
+
+  it('keeps showing read diffs while a new read starts', () => {
+    const kept = keepLoadedChunk(AsyncResult.initial(true), loaded);
+    expect(Option.getOrUndefined(AsyncResult.value(kept))).toBe(loaded.value);
+  });
+
+  it('passes a first read through unchanged', () => {
+    expect(keepLoadedChunk(failedSnapshot, undefined)).toBe(failedSnapshot);
+  });
 });
