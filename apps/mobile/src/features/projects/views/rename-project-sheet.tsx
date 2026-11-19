@@ -37,10 +37,7 @@ export function RenameProjectSheet({
           onClose={onClose}
         />
       ) : (
-        <Empty
-          title="Project unavailable"
-          description="Return to Worktrees and choose the project again."
-        />
+        <Empty title="Project unavailable" />
       )}
     </Sheet>
   );

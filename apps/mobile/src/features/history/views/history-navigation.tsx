@@ -3,7 +3,7 @@ import { historyPlace } from '@porcelain/client/history';
 import { Box } from '../../../components/ui/box';
 import { AsyncResult } from 'effect/reactivity';
 import { ErrorState } from '../../../components/ui/error-state';
-import { Loading } from '../../../components/ui/loading';
+import { Spinner } from '../../../components/ui/spinner';
 import { Text } from '../../../components/ui/text';
 import { HistoryList } from '../../../components/ui/history-list';
 import {
@@ -147,7 +147,7 @@ function BranchStatus({
         }}
       />
     );
-  return <Loading label="Loading branch status…" />;
+  return null;
 }
 
 export function HistoryFooter({
@@ -178,7 +178,7 @@ export function HistoryFooter({
           retry={{ label: 'Retry', onPress: history.retry }}
         />
       );
-    return <Loading label="Loading commits…" />;
+    return <Spinner />;
   }
   if (failed)
     return (
@@ -187,7 +187,7 @@ export function HistoryFooter({
         retry={{ label: 'Retry', onPress: history.readMore }}
       />
     );
-  if (history.result.waiting) return <Loading label="Loading older commits…" />;
+  if (history.result.waiting) return <Spinner />;
   if (value.nextAfter)
     return (
       <Box padding={4}>

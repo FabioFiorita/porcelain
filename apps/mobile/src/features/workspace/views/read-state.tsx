@@ -1,7 +1,7 @@
 import { Cause } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { ErrorState } from '../../../components/ui/error-state';
-import { Loading } from '../../../components/ui/loading';
+import { Spinner } from '../../../components/ui/spinner';
 import { reviewErrorMessage } from '@porcelain/client/changes/rules';
 
 export function ReviewReadState<A, E>({
@@ -17,6 +17,6 @@ export function ReviewReadState<A, E>({
       retry={{ label: 'Read again', onPress: refresh }}
     />
   ) : (
-    <Loading label="Loading review…" />
+    <Spinner />
   );
 }

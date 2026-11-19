@@ -4,7 +4,7 @@ selectors:
   - 'Show source'
   - 'Timeline'
   - 'More actions'
-  - 'Workspace changed'
+  - 'Another worktree is selected now.'
 tests:
   - apps/mobile/src/features/documents/adapters/code-highlighter.spec.ts
   - packages/client/src/features/files/queries/text.spec.ts

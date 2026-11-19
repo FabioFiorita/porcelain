@@ -1,5 +1,5 @@
 import { Alert, ScrollView } from 'react-native';
-import { Cause } from 'effect';
+import { Cause, Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { useAtomRef, useAtomSet, useAtomValue } from '@effect/atom-react';
 import { connectionErrorMessage } from '@porcelain/client/access/rules';
@@ -43,11 +43,11 @@ function registrationDescription(
   waiting: boolean,
 ) {
   if (waiting) return 'Registers once this phone has a notification token';
-  if (result.waiting) return 'Registering…';
-  if (AsyncResult.isFailure(result))
+  if (AsyncResult.isFailure(result) && !result.waiting)
     return connectionErrorMessage(Cause.squash(result.cause));
-  if (!AsyncResult.isSuccess(result)) return 'Not registered yet';
-  return result.value.length > 0 ? 'Notifies this phone' : 'Off';
+  const registered = Option.getOrUndefined(AsyncResult.value(result));
+  if (!registered) return 'Not registered yet';
+  return registered.length > 0 ? 'Notifies this phone' : 'Off';
 }
 
 function ComputerRegistration({

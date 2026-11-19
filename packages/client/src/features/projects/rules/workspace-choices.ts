@@ -40,7 +40,6 @@ function nameOf(environment: EnvironmentInventory) {
 }
 
 function statusOf(environment: EnvironmentInventory) {
-  if (environment.status === 'reading') return 'Reading projects…';
   if (environment.status === 'failed') return 'Could not read projects';
   if (environment.inventory?.projects.length === 0)
     return 'No projects registered';

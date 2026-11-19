@@ -3,7 +3,7 @@ screen: /archive-pull-request
 selectors:
   - 'Archive'
   - 'Archive pull request'
-  - 'Checking the worktree and branches…'
+  - 'spinner'
   - 'I understand the risk of losing changes and commits'
   - 'Pull request unavailable'
 tests:

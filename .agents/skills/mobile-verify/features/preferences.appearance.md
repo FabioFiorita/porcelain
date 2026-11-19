@@ -13,7 +13,7 @@ selectors:
   - 'Documents open as'
   - 'documents-rendered'
   - 'documents-source'
-  - 'Reading saved preferences…'
+  - 'spinner'
   - 'Read saved preferences again'
   - 'These preferences are saved on this device.'
 tests:

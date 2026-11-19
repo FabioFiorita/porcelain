@@ -10,14 +10,13 @@ import {
   useEnvironments,
   useEnvironmentStorageStatus,
 } from '../../access';
-import { ActivityIndicator, ScrollView } from 'react-native';
+import { ScrollView } from 'react-native';
 import { useScrollReveal } from '../../../components/ui/scroll-reveal';
 import { Stack, useRouter } from 'expo-router';
 import { useAtomRef, useAtomValue, useAtomSet } from '@effect/atom-react';
 import {
   readWorktreeNavigator,
   refreshWorktreeNavigator,
-  worktreeStatusNotices,
 } from '@porcelain/client/projects';
 import {
   navigatorEntrySelected,
@@ -31,14 +30,13 @@ import type { SearchBarCommands } from 'react-native-screens';
 import { IconButton } from '../../../components/ui/icon-button';
 import { ButtonSurface } from '../../../components/ui/button-surface';
 import { Box } from '../../../components/ui/box';
-import { Card } from '../../../components/ui/card';
 import { Button } from '../../../components/ui/button';
 import { Empty } from '../../../components/ui/empty';
 import { ErrorState } from '../../../components/ui/error-state';
 import { Icon, type IconName } from '../../../components/ui/icon';
 import { Item } from '../../../components/ui/item';
 import { NavigatorScopePicker } from './navigator-filter';
-import { Loading } from '../../../components/ui/loading';
+import { Spinner } from '../../../components/ui/spinner';
 import { Text } from '../../../components/ui/text';
 import { useWorkspacePickerModel } from './workspace-picker-model';
 import { useOpenComputers } from './open-computers';
@@ -76,14 +74,10 @@ export function WorktreeNavigator({
   const { picker, checkout, initializing, reading } = useWorkspacePickerModel();
   const remotes = useAtomRef(remoteConnectionState);
   const connections = remotes.map((entry) => entry.connection);
-  const { loading, messages, projects, filters } = useAtomValue(
+  const { loading, neverRead, projects, filters } = useAtomValue(
     readWorktreeNavigator(connections),
   );
   const retry = useAtomSet(refreshWorktreeNavigator(connections));
-  const retryResult = useAtomValue(refreshWorktreeNavigator(connections));
-  const notices = useAtomValue(worktreeStatusNotices);
-  const setNotices = useAtomSet(worktreeStatusNotices);
-  const [details, setDetails] = useState(false);
   const clipboard = useCopyPath();
   const router = useRouter();
   const { setQuery, filter, setFilter, setExpanded } = useWorktreeNavigator();
@@ -140,9 +134,8 @@ export function WorktreeNavigator({
     return (
       <Box className="flex-1" testID="worktree-navigator">
         <Box paddingX={4} paddingY={3} gap={2}>
-          <Text variant="headline">No computers paired</Text>
-          <Text variant="caption" tone="muted">
-            Pair a computer to see its worktrees here.
+          <Text variant="secondary" tone="muted">
+            No computers paired
           </Text>
           <Box className="items-start">
             <Button
@@ -195,9 +188,7 @@ export function WorktreeNavigator({
             ))}
           </ScrollView>
         </Box>
-        {initializing || loading ? (
-          <Loading label="Reading worktrees…" />
-        ) : null}
+        {initializing || loading ? <Spinner /> : null}
         {projects.map((project) => {
           const connection = remotes.find(
             (remote) =>
@@ -267,10 +258,6 @@ export function WorktreeNavigator({
                       const failed =
                         checks?.state === 'available' &&
                         checks.result === 'failed';
-                      const pending =
-                        entry.pullRequest.state === 'loading' ||
-                        (entry.kind === 'worktree' &&
-                          entry.changes.state === 'loading');
                       return (
                         <Box
                           key={entry.key}
@@ -289,19 +276,8 @@ export function WorktreeNavigator({
                               <Icon name={worktreeIcon(entry)} tone="muted" />
                             }
                             trailing={
-                              failed || pending ? (
-                                <Box className="flex-row items-center" gap={2}>
-                                  {failed ? (
-                                    <Icon name="warning" tone="destructive" />
-                                  ) : null}
-                                  {pending ? (
-                                    <ActivityIndicator
-                                      accessible={false}
-                                      size="small"
-                                      colorClassName="accent-muted-foreground"
-                                    />
-                                  ) : null}
-                                </Box>
+                              failed ? (
+                                <Icon name="warning" tone="destructive" />
                               ) : undefined
                             }
                             action={
@@ -377,20 +353,28 @@ export function WorktreeNavigator({
         })}
         {!initializing &&
         !loading &&
-        messages.length === 0 &&
+        !neverRead &&
+        picker.messages.length === 0 &&
         projects.length === 0 ? (
-          <Empty
-            title="No matching worktrees"
-            description="Try another search or clear the filters."
-          />
+          <Empty title="No matching worktrees" />
         ) : null}
         <PickerNotices
-          messages={[...new Set([...picker.messages, ...messages])]}
+          messages={picker.messages}
           error={picker.error}
           onRead={picker.onRead}
           reading={reading}
         />
-        {picker.canReadInventory || messages.length > 0 ? (
+        {neverRead ? (
+          <ErrorState
+            message="Projects could not be read."
+            retry={{
+              label: 'Read projects again',
+              onPress: () => retry(undefined),
+              pending: reading || loading,
+            }}
+          />
+        ) : null}
+        {picker.canReadInventory && !neverRead ? (
           <Button
             label="Read projects again"
             variant="tonal"
@@ -399,80 +383,6 @@ export function WorktreeNavigator({
           />
         ) : null}
       </ScrollView>
-      {notices
-        .filter(
-          (issue) =>
-            !issue.dismissed &&
-            connections.some(
-              (connection) => connection.environmentId === issue.environmentId,
-            ),
-        )
-        .slice(0, 1)
-        .map((issue) => (
-          <Box
-            key={issue.environmentId}
-            className="absolute inset-x-4 bottom-4"
-          >
-            <Card padding={4} gap={2}>
-              <Box className="flex-row items-center" gap={2}>
-                <Box className="flex-1">
-                  <Text
-                    variant="caption"
-                    weight="medium"
-                    accessibilityLiveRegion="polite"
-                  >
-                    Couldn’t check changes on {issue.environmentName}
-                  </Text>
-                  <Text variant="caption" tone="muted">
-                    {issue.failures.length}{' '}
-                    {issue.failures.length === 1 ? 'worktree' : 'worktrees'}
-                  </Text>
-                </Box>
-                <IconButton
-                  icon="close"
-                  size="sm"
-                  accessibilityLabel="Dismiss changes notice"
-                  onPress={() =>
-                    setNotices((current) =>
-                      current.map((notice) =>
-                        notice.environmentId === issue.environmentId
-                          ? { ...notice, dismissed: true }
-                          : notice,
-                      ),
-                    )
-                  }
-                />
-              </Box>
-              <Box className="flex-row" gap={2}>
-                <Button
-                  label="Retry"
-                  variant="tonal"
-                  pending={retryResult.waiting}
-                  onPress={() => retry({ environmentId: issue.environmentId })}
-                />
-                <Button
-                  label={details ? 'Hide details' : 'Details'}
-                  variant="plain"
-                  onPress={() => setDetails((current) => !current)}
-                />
-              </Box>
-              {details && (
-                <ScrollView className="max-h-48">
-                  {issue.failures.map(({ entry, detail }) => (
-                    <Box key={entry.key} gap={1}>
-                      <Text variant="caption">{entry.name}</Text>
-                      {detail && (
-                        <Text variant="caption" tone="muted">
-                          {detail}
-                        </Text>
-                      )}
-                    </Box>
-                  ))}
-                </ScrollView>
-              )}
-            </Card>
-          </Box>
-        ))}
       {AsyncResult.isFailure(clipboard.result) && (
         <ErrorState
           message={connectionErrorMessage(Cause.squash(clipboard.result.cause))}

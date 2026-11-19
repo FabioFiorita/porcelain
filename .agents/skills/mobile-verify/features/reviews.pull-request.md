@@ -4,7 +4,7 @@ selectors:
   - 'PR #'
   - 'Read pull request again'
   - 'Open on GitHub'
-  - 'Reading pull request…'
+  - 'spinner'
   - 'Archive'
 tests:
   - apps/mobile/src/shared/rules/markdown.spec.ts

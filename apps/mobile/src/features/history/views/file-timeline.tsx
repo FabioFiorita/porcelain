@@ -73,12 +73,7 @@ function FileTimelineContent({
             onOpen(oid, entry.path);
           }
         }}
-        empty={
-          <Empty
-            title="No commits touch this file"
-            description="Its timeline starts with the first commit that includes it."
-          />
-        }
+        empty={<Empty title="No commits touch this file" />}
         footer={
           <HistoryFooter
             history={timeline}
@@ -100,14 +95,8 @@ export function FileTimelineScreen() {
     <>
       <Stack.Screen options={{ title: 'Timeline' }} />
       <WorkspaceGate
-        title="Timeline"
         expectedWorkspace={workspace}
-        changed={
-          <Empty
-            title="Workspace changed"
-            description="Return to Files and choose a timeline in the selected worktree."
-          />
-        }
+        changed={<Empty title="Another worktree is selected now." />}
       >
         {(current) => (
           <FileTimelineContent

@@ -15,7 +15,7 @@ import { Box } from '../../../components/ui/box';
 import { Text } from '../../../components/ui/text';
 import { Button } from '../../../components/ui/button';
 import { ErrorState } from '../../../components/ui/error-state';
-import { Loading } from '../../../components/ui/loading';
+import { Spinner } from '../../../components/ui/spinner';
 import { MarkdownView } from '../../documents/index';
 import { usePreviewLink } from '../../../shared/adapters/preview-link';
 import { pullRequestMarkdown } from '../rules/pull-request-document';
@@ -53,7 +53,7 @@ function ConnectedPullRequest({
   )
     ? result.value
     : unavailable;
-  if (pull.kind === 'loading') return <Loading label="Reading pull request…" />;
+  if (pull.kind === 'loading') return <Spinner />;
   if (pull.kind !== 'available')
     return (
       <ErrorState

@@ -4,7 +4,7 @@ selectors:
   - 'All changes'
   - 'review-all-changes'
   - 'Files'
-  - 'Loading diff…'
+  - 'spinner'
   - "Couldn't load diff"
   - 'Large diff'
   - 'Open the file to see this change.'

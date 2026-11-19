@@ -114,7 +114,6 @@ export function WorktreeDetail({
       : undefined;
   return (
     <WorkspaceGate
-      title="Worktree"
       frame="pane"
       expectedWorkspace={
         remote && target ? workspaceKey(remote, target) : undefined
@@ -123,7 +122,6 @@ export function WorktreeDetail({
         <Box className="flex-1" padding={4} gap={3}>
           <Empty
             title="Another worktree is selected"
-            description={`Select ${details.title ?? 'this worktree'} again to read it here.`}
             action={
               target
                 ? {
@@ -151,10 +149,7 @@ export function WorktreeDetail({
       {(workspace) =>
         target && !remote ? (
           <Box className="flex-1" padding={4}>
-            <Empty
-              title="Computer no longer paired"
-              description={`Pair ${details.computer ?? 'this computer'} again in Settings to read ${details.title ?? 'this worktree'}.`}
-            />
+            <Empty title="Computer no longer paired" />
           </Box>
         ) : (
           <Guide key={workspace.key} workspace={workspace}>

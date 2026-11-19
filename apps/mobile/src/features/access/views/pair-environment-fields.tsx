@@ -120,7 +120,7 @@ export function PairEnvironmentFields({
       ) : null}
       <Button
         testID="pair-environment"
-        label={pair.result.waiting ? 'Pairing…' : 'Pair'}
+        label="Pair"
         pending={pair.result.waiting}
         disabled={unavailable || value.trim() === ''}
         onPress={() => pair.submit(value)}

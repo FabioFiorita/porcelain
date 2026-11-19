@@ -7,15 +7,13 @@ export function diffPresentation(content: DiffContent) {
     return {
       kind: 'notice' as const,
       title: 'Binary change',
-      description: 'This comparison cannot be displayed as text.',
     };
   if (content.kind === 'metadata-only')
     return { kind: 'metadata' as const, source: content.patch };
   if (content.kind === 'omitted')
     return {
       kind: 'notice' as const,
-      title: 'Diff unavailable',
-      description: omissionReason(content.reason),
+      title: omissionReason(content.reason),
     };
   const parsed = diffLines(content.patch);
   if (parsed.kind === 'text') return parsed;
@@ -23,11 +21,9 @@ export function diffPresentation(content: DiffContent) {
     ? {
         kind: 'notice' as const,
         title: 'No text changes',
-        description: 'This comparison contains no changed text lines.',
       }
     : {
         kind: 'notice' as const,
-        title: 'Diff unavailable',
-        description: 'The server returned a patch that could not be displayed.',
+        title: 'This diff could not be displayed.',
       };
 }

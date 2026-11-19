@@ -1,5 +1,5 @@
 import { ErrorState } from '../../../components/ui/error-state';
-import { Loading } from '../../../components/ui/loading';
+import { Spinner } from '../../../components/ui/spinner';
 import type { ReactNode } from 'react';
 import { AsyncResult } from 'effect/reactivity';
 import type { useCommit } from '../queries/history';
@@ -36,6 +36,6 @@ function CommitState({
       retry={{ label: 'Retry', onPress: retry }}
     />
   ) : (
-    <Loading label="Loading commit…" />
+    <Spinner />
   );
 }

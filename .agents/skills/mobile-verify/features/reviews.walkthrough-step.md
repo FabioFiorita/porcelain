@@ -5,9 +5,9 @@ selectors:
   - 'Previous step'
   - 'Next step'
   - 'Files'
-  - "This step isn't available"
+  - 'The walkthrough changed since this step opened.'
   - 'Open walkthrough'
-  - 'Step unavailable'
+  - 'Another worktree is selected now.'
 tests:
   - packages/client/src/features/walkthroughs/rules/walkthrough.spec.ts
   - apps/mobile/src/features/workspace/rules/diff-page.spec.ts
@@ -32,7 +32,7 @@ Preconditions: [reviews.walkthrough-page](reviews.walkthrough-page.md) with a re
 1. Open step 1's code. Expect title "Step 1 of N", the step title and explanation, then only that step's files with sticky headings. Previous step is disabled; Next step moves to step 2 in place and its page starts at its first file; on the last step Next step is disabled.
 2. Phone: the Files top-bar menu lists the step's files, one line each (the file name, the folder only when two names collide, and, for a file listed more than once, the first details that tell its sections apart, such as `Branch` or `Uncommitted · staged`), and jumps to one. Tablet: the file list sits beside the diffs whenever the reader has at least 700 units of content width, so an iPad Pro 11" keeps it in portrait too; narrower content falls back to the phone layout.
 3. Tap a file heading: the file screen opens on the Branch comparison; Back returns.
-4. Write a new walkthrough with fewer steps while a later step is open: "This step isn't available" with Open walkthrough, which returns to the page.
+4. Write a new walkthrough with fewer steps while a later step is open: "The walkthrough changed since this step opened." with Open walkthrough, which returns to the page.
 
 ## Gotchas
 

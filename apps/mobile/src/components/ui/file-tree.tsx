@@ -2,7 +2,7 @@ import { type ReactNode } from 'react';
 import { useListReadingOffset } from './list-reading-offset';
 import { useListReveal } from './list-reveal';
 import { useResolveClassNames } from 'uniwind';
-import { ActivityIndicator, FlatList, View } from 'react-native';
+import { FlatList, View } from 'react-native';
 import { Item, type ItemProps } from './item';
 import { ItemMenu } from './item-menu';
 import type { ItemMenuProps } from './item-menu-props';
@@ -66,7 +66,6 @@ export function FileTree({
   expanded,
   selected,
   highlighted,
-  loading,
   onToggle,
   onSelect,
   contextMenu,
@@ -87,7 +86,6 @@ export function FileTree({
   expanded: ReadonlySet<string>;
   selected?: string | undefined;
   highlighted?: string | undefined;
-  loading?: ReadonlySet<string>;
   onToggle: (id: string) => void;
   onSelect: (id: string) => void;
   header?: ReactNode;
@@ -132,13 +130,7 @@ export function FileTree({
       ItemSeparatorComponent={() => <View className="h-1" />}
       ListEmptyComponent={
         loaded ? (
-          <Empty
-            title="No files"
-            description={
-              flat ? 'No files match this view.' : 'This directory is empty.'
-            }
-            icon="folder"
-          />
+          <Empty title={flat ? 'No files match this view.' : 'No files'} />
         ) : undefined
       }
       renderItem={({ item }) =>
@@ -153,7 +145,6 @@ export function FileTree({
             availability={item.availability}
             expanded={expanded}
             selected={selected}
-            loading={loading}
             onToggle={onToggle}
             onSelect={onSelect}
             contextMenu={contextMenu}
@@ -173,7 +164,6 @@ function FileTreeItem({
   highlighted,
   expanded,
   selected,
-  loading,
   onToggle,
   onSelect,
   contextMenu,
@@ -188,7 +178,6 @@ function FileTreeItem({
   highlighted: boolean;
   expanded: ReadonlySet<string>;
   selected?: string | undefined;
-  loading?: ReadonlySet<string> | undefined;
   onToggle: (path: string) => void;
   onSelect: (path: string) => void;
   contextMenu?: ((node: FileTreeEntry) => ItemMenuProps['actions']) | undefined;
@@ -200,7 +189,6 @@ function FileTreeItem({
 }) {
   const indent = useResolveClassNames('pl-4');
   const path = node.path.replace(/\/$/, '');
-  const busy = node.kind === 'directory' && Boolean(loading?.has(path));
   const annotation =
     node.kind === 'directory' ? undefined : annotations?.get(path);
   const status =
@@ -211,18 +199,13 @@ function FileTreeItem({
   const parent = showParent ? fileTreeAncestors(path).at(-1) : undefined;
   const item: ItemProps = {
     title: entryName(node.path),
-    ...(availability
-      ? {
-          detail:
-            availability === 'loading'
-              ? 'Reading pinned entry…'
-              : availability === 'missing'
-                ? 'Pinned entry is missing'
-                : 'Pinned entry is unavailable. Open as file.',
-        }
-      : parent
-        ? { detail: parent }
-        : {}),
+    ...(availability === 'missing'
+      ? { detail: 'Pinned entry is missing' }
+      : availability === 'unavailable'
+        ? { detail: 'Pinned entry is unavailable. Open as file.' }
+        : parent
+          ? { detail: parent }
+          : {}),
     titleNumberOfLines: 1,
     selected: path === selected,
     highlighted,
@@ -232,8 +215,7 @@ function FileTreeItem({
         : availability
           ? `Pinned entry ${path}`
           : `${node.kind === 'directory' ? (expanded.has(path) ? 'Collapse' : 'Expand') : 'Open'} ${pinned ? `pinned ${node.kind === 'directory' ? 'folder' : 'file'} ` : ''}${path}`,
-      busy ? 'loading' : undefined,
-      availability,
+      availability === 'loading' ? undefined : availability,
       mark?.label,
       containsChanges ? 'contains changes' : undefined,
       annotation,
@@ -246,7 +228,9 @@ function FileTreeItem({
         style={{ paddingLeft: depth * Number(indent.paddingLeft) }}
       >
         {node.kind === 'directory' ? (
-          <FolderIndicator expanded={expanded.has(path)} loading={busy} />
+          <View className="size-3.5 items-center justify-center">
+            <Icon name={expanded.has(path) ? 'down' : 'chevron'} size="small" />
+          </View>
         ) : null}
         <FileIcon
           path={node.path}
@@ -309,28 +293,5 @@ function FileTreeItem({
         <Item {...item} />
       )}
     </>
-  );
-}
-
-function FolderIndicator({
-  expanded,
-  loading,
-}: {
-  expanded: boolean;
-  loading: boolean;
-}) {
-  return (
-    <View className="size-3.5 items-center justify-center">
-      {loading ? (
-        <ActivityIndicator
-          accessible={false}
-          size="small"
-          style={{ transform: [{ scale: 0.7 }] }}
-          colorClassName="accent-foreground"
-        />
-      ) : (
-        <Icon name={expanded ? 'down' : 'chevron'} size="small" />
-      )}
-    </View>
   );
 }

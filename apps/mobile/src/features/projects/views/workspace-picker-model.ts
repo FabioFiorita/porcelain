@@ -36,11 +36,7 @@ export function useWorkspacePickerModel() {
       access.status !== 'ready' ||
       selection.status !== 'ready' ||
       commands.pending > 0,
-    messages: initializing
-      ? ['Reading workspace…']
-      : commands.pending > 0
-        ? ['Changing workspace…', ...messages]
-        : messages,
+    messages: initializing ? [] : messages,
     canReadInventory: canReadAgain,
     error:
       (workspace.state.kind === 'failed'

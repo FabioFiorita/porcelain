@@ -16,7 +16,7 @@ import {
 import { Box } from '../../../components/ui/box';
 import { Button } from '../../../components/ui/button';
 import { FloatingBar } from '../../../components/ui/floating-bar';
-import { Loading } from '../../../components/ui/loading';
+import { Spinner } from '../../../components/ui/spinner';
 import { Message } from '../../../components/ui/message';
 import type { KeyboardScroller } from '../../../components/ui/keyboard-reveal';
 import { MessageComposer } from '../../../components/ui/message-composer';
@@ -179,7 +179,7 @@ function AgentReply({
     <Message author="Walkthrough agent">
       {state.status === 'answering' ? (
         <Box className="items-start">
-          <Loading label="Working…" />
+          <Spinner />
         </Box>
       ) : null}
       {state.status === 'answered' ? (

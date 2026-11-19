@@ -6,7 +6,7 @@ import { readTextFile } from '@porcelain/client/files';
 import type { DiffContent } from '@porcelain/client/changes/rules';
 import type { ReviewComparison } from '../../../shared/rules/review-comparison';
 import { Box } from '../../../components/ui/box';
-import { Loading } from '../../../components/ui/loading';
+import { Spinner } from '../../../components/ui/spinner';
 import { Empty } from '../../../components/ui/empty';
 import { Screen } from '../../../components/ui/screen';
 import { Text } from '../../../components/ui/text';
@@ -42,14 +42,8 @@ export function ChangesPageScreen({
   return (
     <Screen layout="fixed">
       <WorkspaceGate
-        title="Review"
         expectedWorkspace={workspaceKey ?? ''}
-        changed={
-          <Empty
-            title="Review unavailable"
-            description="Return to Changes and select the worktree again."
-          />
-        }
+        changed={<Empty title="Review unavailable" />}
       >
         {(workspace) => (
           <ChangesPage
@@ -70,7 +64,7 @@ type ChangesReading = {
   only: readonly string[];
   header: ReactNode;
   actions: readonly TopBarAction[];
-  empty: { title: string; description: string };
+  empty: { title: string };
 };
 
 type ChangesPageProps = {
@@ -190,18 +184,7 @@ function ChangesReader({
           )
         }
         empty={
-          reading ? (
-            <Empty {...reading.empty} />
-          ) : (
-            <Empty
-              title="No changes"
-              description={
-                comparison.kind === 'branch'
-                  ? 'This branch has no changed files against this base.'
-                  : 'This worktree has no uncommitted changes.'
-              }
-            />
-          )
+          reading ? <Empty {...reading.empty} /> : <Empty title="No changes" />
         }
         onOpenFile={(file) => {
           if (file.scope)
@@ -259,7 +242,7 @@ function FirstDiffs({
     AsyncResult.isSuccess(result) ||
     AsyncResult.isFailure(result);
   if (settled && !opened) setOpened(true);
-  if (!settled && !opened) return <Loading label="Loading changes…" />;
+  if (!settled && !opened) return <Spinner />;
   return children;
 }
 

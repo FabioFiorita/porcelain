@@ -30,6 +30,8 @@ import { Cause, Effect, Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import type { Workspace } from '../../projects';
 
+const NOT_READY = 'Git actions are not ready yet. Try again.';
+
 export function useGitMenu(selection: Pick<Workspace, 'connection' | 'scope'>) {
   const { connection, scope } = selection;
   const status = useAtomValue(readGitStatus(selection));
@@ -91,13 +93,13 @@ export function useGitMenu(selection: Pick<Workspace, 'connection' | 'scope'>) {
     onResult: (notice) => remember(attempt, notice),
   });
   const value = Option.getOrUndefined(AsyncResult.value(status));
+  const pending = (action: 'fetch' | 'pull') =>
+    !value || !AsyncResult.isSuccess(runners[action]);
   const blocker = (action: 'fetch' | 'pull') => {
     if (running) return 'A Git action is in progress.';
     if (AsyncResult.isFailure(status))
       return 'Read Git status again before continuing.';
-    if (!value) return 'Reading Git status…';
-    if (!AsyncResult.isSuccess(runners[action]))
-      return 'Preparing Git actions…';
+    if (!value || !AsyncResult.isSuccess(runners[action])) return undefined;
     return networkActionBlocker(
       action,
       value,
@@ -112,10 +114,10 @@ export function useGitMenu(selection: Pick<Workspace, 'connection' | 'scope'>) {
         .selected?.operation,
     };
     const reason = blocker(action);
-    if (reason || !AsyncResult.isSuccess(commands)) {
+    if (reason || pending(action) || !AsyncResult.isSuccess(commands)) {
       remember(attempt, {
         title: `${gitActionLabel(action)} did not run`,
-        description: reason ?? 'Preparing Git actions…',
+        description: reason ?? NOT_READY,
         type: 'error',
       });
       return;
@@ -138,6 +140,7 @@ export function useGitMenu(selection: Pick<Workspace, 'connection' | 'scope'>) {
   };
   return {
     blocker,
+    pending,
     run,
     running,
     checking: running?.action === 'pull' ? pulling.waiting : fetching.waiting,
@@ -167,7 +170,7 @@ export function useGitMenu(selection: Pick<Workspace, 'connection' | 'scope'>) {
           title: `${gitActionLabel(running.action)} outcome not confirmed`,
           description: AsyncResult.isFailure(commands)
             ? gitErrorMessage(Cause.squash(commands.cause))
-            : 'Preparing Git actions…',
+            : NOT_READY,
           type: 'error',
         });
       }

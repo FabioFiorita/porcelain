@@ -118,9 +118,7 @@ describe('choosing a workspace across paired environments', () => {
         saved,
       ).messages,
     ).toEqual(["Porcelain can't reach this repository right now."]);
-    expect(workspaceChoices([laptop('reading')], saved).messages).toEqual([
-      'Laptop · Reading projects…',
-    ]);
+    expect(workspaceChoices([laptop('reading')], saved).messages).toEqual([]);
     expect(
       workspaceChoices([], { ...saved, environmentId: 'forgotten' }).messages,
     ).toEqual(['This environment is no longer paired.']);

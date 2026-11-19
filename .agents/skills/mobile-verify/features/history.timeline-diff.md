@@ -1,7 +1,7 @@
 ---
 screen: /timeline-diff
 selectors:
-  - 'Workspace changed'
+  - 'Another worktree is selected now.'
   - "Couldn't load diff"
 tests: []
 api:

@@ -29,7 +29,7 @@ import {
   type FileTreeRow,
 } from '../../../components/ui/file-tree';
 import { Input } from '../../../components/ui/input';
-import { Loading } from '../../../components/ui/loading';
+import { Spinner } from '../../../components/ui/spinner';
 import { ErrorState } from '../../../components/ui/error-state';
 import { Text } from '../../../components/ui/text';
 import { Empty } from '../../../components/ui/empty';
@@ -63,14 +63,8 @@ export function FilesScreen({
 }) {
   return (
     <WorkspaceGate
-      title="Files"
       expectedWorkspace={workspace}
-      changed={
-        <Empty
-          title="Workspace changed"
-          description="Another worktree is selected now. Open Files again from the worktree you want."
-        />
-      }
+      changed={<Empty title="Another worktree is selected now." />}
     >
       {(selected) => (
         <FilesNavigation
@@ -180,7 +174,9 @@ function FilesNavigationView({ selected, mode, search }: FilesNavigationProps) {
   const confirmed = directories.results.flatMap((result) =>
     AsyncResult.isSuccess(result) && !result.waiting ? [result.value] : [],
   );
-  const failure = directories.results.find(AsyncResult.isFailure);
+  const failure = directories.results
+    .filter(AsyncResult.isFailure)
+    .find((result) => Option.isNone(AsyncResult.value(result)));
   const loading = directoryLoading(
     Array.zip(requestPaths, directories.results).map(([path, result]) => ({
       path,
@@ -368,19 +364,6 @@ function FilesNavigationView({ selected, mode, search }: FilesNavigationProps) {
         ) : null}
         {search === 'top-bar' ? collapseAll : null}
       </Box>
-      {review.unavailable ? (
-        <ErrorState
-          message="File review status is unavailable."
-          retry={{
-            label: 'Read file review status again',
-            onPress: review.refresh,
-            pending: review.pending,
-          }}
-        />
-      ) : null}
-      {!review.unavailable && review.pending ? (
-        <Loading label="Reading file review status…" />
-      ) : null}
       {failure ? (
         <ErrorState
           message={fileErrorMessage(Cause.squash(failure.cause))}
@@ -391,32 +374,13 @@ function FilesNavigationView({ selected, mode, search }: FilesNavigationProps) {
           }}
         />
       ) : null}
-      {loading.initialRoot ? <Loading label="Reading files…" /> : null}
       {searching && AsyncResult.isFailure(paths.result) ? (
         <ErrorState
           message={fileErrorMessage(Cause.squash(paths.result.cause))}
           retry={{ label: 'Search again', onPress: paths.refresh }}
         />
       ) : null}
-      {searching && !pathData ? <Loading label="Searching files…" /> : null}
-      {!preferenceData && !AsyncResult.isFailure(preferences.read.result) ? (
-        <Loading label="Reading file preferences…" />
-      ) : null}
-      {AsyncResult.isFailure(preferences.read.result) ? (
-        <ErrorState
-          message={fileErrorMessage(
-            Cause.squash(preferences.read.result.cause),
-          )}
-          retry={{
-            label: 'Read file preferences again',
-            onPress: preferences.read.refresh,
-            pending: preferences.read.result.waiting,
-          }}
-        />
-      ) : null}
-      {preferences.write.result.waiting ? (
-        <Loading label="Saving file preference…" />
-      ) : null}
+      {loading.initialRoot || (searching && !pathData) ? <Spinner /> : null}
       {AsyncResult.isFailure(preferences.write.result) ? (
         <ErrorState
           message={fileErrorMessage(
@@ -471,13 +435,7 @@ function FilesNavigationView({ selected, mode, search }: FilesNavigationProps) {
           ? [
               {
                 key: 'empty',
-                header: (
-                  <Empty
-                    title="No files"
-                    description="This directory is empty."
-                    icon="folder"
-                  />
-                ),
+                header: <Empty title="No files" />,
               },
             ]
           : []),
@@ -568,7 +526,6 @@ function FilesNavigationView({ selected, mode, search }: FilesNavigationProps) {
         changes={review.changes}
         expanded={expanded}
         {...(selectedPath ? { selected: selectedPath } : {})}
-        loading={loading.folders}
         highlighted={cursor.highlighted}
         onToggle={(id) => {
           cursor.claim();
@@ -595,10 +552,7 @@ function FilesNavigationView({ selected, mode, search }: FilesNavigationProps) {
             actions={[create]}
           />
         ) : (
-          <Empty
-            title="Select a file"
-            description="Choose a file on the left to read it here."
-          />
+          <Empty title="Select a file" />
         )
       }
     />

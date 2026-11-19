@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { requireNativeView } from 'expo';
 import { View, type NativeSyntheticEvent } from 'react-native';
-import { Loading } from './loading';
+import { Spinner } from './spinner';
 import { ErrorState } from './error-state';
 
 const NativeImage = requireNativeView<{
@@ -34,7 +34,7 @@ function ImageContent({ data, label }: { data: string; label: string }) {
           className="absolute inset-0 items-center justify-center"
           pointerEvents="none"
         >
-          <Loading label="Loading image…" />
+          <Spinner />
         </View>
       ) : null}
     </View>

@@ -1,8 +1,7 @@
 ---
 screen: /history
 selectors:
-  - 'Reading workspace…'
-  - 'Workspace unavailable'
+  - 'spinner'
   - 'Read again'
   - 'History'
   - 'Select a worktree'
@@ -36,7 +35,7 @@ History offers Fetch and Pull in its native top-bar Git actions menu; see [git-a
 
 Preconditions: [surface baseline](README.md).
 
-1. Choose a worktree and open History. Branch/detached HEAD commits belong to that selection; no selection shows Select a worktree (Choose a worktree in Worktrees to continue to History.), unborn branch shows No commits yet., read failure offers Retry.
+1. Choose a worktree and open History. Branch/detached HEAD commits belong to that selection; no selection shows the one line Select a worktree, unborn branch shows No commits yet, read failure offers Retry.
 2. Open a commit; Back/swipe returns to the list. Open a commit diff and return through the commit to the list; the chosen merge parent stays. Open and close Settings: the stack stays.
 3. Switch worktrees and verify the new history. Independently commit in the fixture: live history updates. Scroll beyond one page; older rows and restart/shallow-clone/wide-frontier boundaries appear.
 4. Disconnect/recover the disposable server: show error, then Retry restores history on the same screen.

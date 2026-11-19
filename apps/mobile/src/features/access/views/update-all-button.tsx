@@ -15,7 +15,7 @@ export function UpdateAllButton() {
   const [, run] = useAtom(runSettingsUpdates);
   const count = settingsUpdateCount(targets);
   const progress = settingsUpdateBatchProgress(batch);
-  const progressLabel = progress.label ? `${progress.label}…` : 'Updating…';
+  const progressLabel = progress.label ?? 'Updating';
   return (
     <Item
       title={batch.running ? progressLabel : `Update all (${count})`}

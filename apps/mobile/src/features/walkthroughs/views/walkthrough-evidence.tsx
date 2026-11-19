@@ -8,7 +8,7 @@ import type {
 import { Box } from '../../../components/ui/box';
 import { ImageTile } from '../../../components/ui/image-tile';
 import { ImageView } from '../../../components/ui/image-view';
-import { Loading } from '../../../components/ui/loading';
+import { Spinner } from '../../../components/ui/spinner';
 import { RichText } from '../../../components/ui/rich-text';
 import { Text } from '../../../components/ui/text';
 import type { Workspace } from '../../projects/index';
@@ -41,7 +41,7 @@ export function EvidenceImage({
   if (!AsyncResult.isSuccess(data))
     return (
       <Box className="flex-1 justify-center">
-        <Loading label="Loading…" />
+        <Spinner />
       </Box>
     );
   return <ImageView data={data.value} label={label} />;

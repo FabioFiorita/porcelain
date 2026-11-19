@@ -19,7 +19,7 @@ selectors:
   - 'Ask about this'
   - 'Ask about this step'
   - 'Walkthrough agent'
-  - 'Working…'
+  - 'spinner'
   - 'Read all'
   - 'Save for later'
   - 'Saved for later'
@@ -80,12 +80,12 @@ git -C "$REPO" add --all && git -C "$REPO" commit -m "Add notes"
 ### 2. Out of date, failure and the short page
 
 5. Commit another change in `$REPO`. Expect "The work changed after this walkthrough’s snapshot. Update to include the latest changes." with Update walkthrough. With `hold`, press it: the page and its conversations stay with "Writing the walkthrough"; remove the file and the new page arrives.
-6. `printf signed-out > …`, Update walkthrough: the page and its conversations stay, with "Sign in to Claude again with claude auth login, then try again." and Try again. With no ready page (a fresh worktree), Write walkthrough shows that sentence as the heading with Try again. With `hold` while an answer is pending, the answer reads "Working…"; switching to `signed-out` fails it with Try again.
+6. `printf signed-out > …`, Update walkthrough: the page and its conversations stay, with "Sign in to Claude again with claude auth login, then try again." and Try again. With no ready page (a fresh worktree), Write walkthrough shows that sentence as the heading with Try again. With `hold` while an answer is pending, the answer shows a `spinner`; switching to `signed-out` fails it with Try again.
 7. `printf nothing > …`, write again. Expect a heading ending "Nothing needs you." and "See the change", which opens All changes.
 
 ### 3. Conversations
 
-8. Focus "Decide, or ask about this": the whole field, border included, sits above the keyboard. Type and Send: the keyboard closes and, without touching anything, expect a right-aligned bubble, "Walkthrough agent" with "Working…", then the answer. A short answer shows no Read all. Under a step, Ask about this reveals "Ask about this step". Switch to another destination and back: an unsent draft is still there.
+8. Focus "Decide, or ask about this": the whole field, border included, sits above the keyboard. Type and Send: the keyboard closes and, without touching anything, expect a right-aligned bubble, "Walkthrough agent" with a `spinner`, then the answer. A short answer shows no Read all. Under a step, Ask about this reveals "Ask about this step". Switch to another destination and back: an unsent draft is still there.
 9. With the composer focused, "Save for later" → "Saved for later" with Undo and the keyboard closed (Post and Copy close it too); the bar at the bottom reads "1 comment saved" with Copy together. Without a pull request, Copy as prompt and Copy together show the one line "Copied brief" and never the brief; read the clipboard independently.
 10. Pull request, screenshots and long answers: `$C walkthrough sample` writes a ready walkthrough for pull request #423 with two screenshots on step 2, then reopen the worktree. `$C walkthrough answer long` before asking: the answer is clamped to three lines with Read all. "Post on #423" turns into the link "Posted on #423"; `$C walkthrough posts` reads what the fake GitHub received. Save two, "Post together on #423" posts them once. `$C walkthrough moved` then Post: "Nothing was posted. Copy the brief instead." with Copy.
 

@@ -3,10 +3,10 @@ import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { directoryLoading } from './directory-loading';
 
-test('the first root read uses the header while opening folders loads only their rows', () => {
+test('only the first root read is pending; opening folders never is', () => {
   expect(
     directoryLoading([{ path: '', result: AsyncResult.initial() }]),
-  ).toEqual({ rootLoaded: false, initialRoot: true, folders: new Set() });
+  ).toEqual({ rootLoaded: false, initialRoot: true });
   expect(
     directoryLoading([
       { path: '', result: AsyncResult.success('root') },
@@ -14,43 +14,35 @@ test('the first root read uses the header while opening folders loads only their
       { path: 'docs', result: AsyncResult.success('docs') },
       { path: 'src/nested', result: AsyncResult.initial() },
     ]),
-  ).toEqual({
-    rootLoaded: true,
-    initialRoot: false,
-    folders: new Set(['src', 'src/nested']),
-  });
+  ).toEqual({ rootLoaded: true, initialRoot: false });
 });
 
-test('refreshing loaded directories keeps every row indicator and the header still', () => {
+test('refreshing loaded directories is not pending', () => {
   expect(
     directoryLoading([
       { path: 'docs', result: AsyncResult.success('docs', { waiting: true }) },
       { path: '', result: AsyncResult.success('root', { waiting: true }) },
       { path: 'src', result: AsyncResult.success('src') },
     ]),
-  ).toEqual({ rootLoaded: true, initialRoot: false, folders: new Set() });
+  ).toEqual({ rootLoaded: true, initialRoot: false });
 });
 
-test('settled failures stop loading; retry without a value loads the root header or folder row', () => {
+test('settled failures stop pending; retrying a root without a value is pending', () => {
   expect(
     directoryLoading([
       { path: '', result: AsyncResult.fail('root') },
       { path: 'src', result: AsyncResult.fail('src') },
     ]),
-  ).toEqual({ rootLoaded: false, initialRoot: false, folders: new Set() });
+  ).toEqual({ rootLoaded: false, initialRoot: false });
   expect(
     directoryLoading([
       { path: '', result: AsyncResult.fail('root', { waiting: true }) },
       { path: 'src', result: AsyncResult.fail('src', { waiting: true }) },
     ]),
-  ).toEqual({
-    rootLoaded: false,
-    initialRoot: true,
-    folders: new Set(['src']),
-  });
+  ).toEqual({ rootLoaded: false, initialRoot: true });
 });
 
-test('retry with a previous value keeps both root and folder indicators still', () => {
+test('retrying with a previous value is not pending', () => {
   expect(
     directoryLoading([
       {
@@ -68,7 +60,7 @@ test('retry with a previous value keeps both root and folder indicators still', 
         }),
       },
     ]),
-  ).toEqual({ rootLoaded: true, initialRoot: false, folders: new Set() });
+  ).toEqual({ rootLoaded: true, initialRoot: false });
 });
 
 test('the root is loaded only when its own read has a value, including an empty root or retained value', () => {

@@ -3,7 +3,7 @@ import { ScrollView } from 'react-native';
 import { Box } from '../../../components/ui/box';
 import { Card, CardRows } from '../../../components/ui/card';
 import { ErrorState } from '../../../components/ui/error-state';
-import { Loading } from '../../../components/ui/loading';
+import { Spinner } from '../../../components/ui/spinner';
 import { Text } from '../../../components/ui/text';
 import { headerIcon } from '../../../shared/icons/header-icon';
 import { useReadEnvironments } from '../commands/pairing';
@@ -44,9 +44,7 @@ function EnvironmentSettingsSection({
           Manage your paired computers.
         </Text>
         <ComputerUpdatesSummary />
-        {storage.status === 'loading' ? (
-          <Loading label="Reading saved computers…" />
-        ) : null}
+        {storage.status === 'loading' ? <Spinner /> : null}
         {storage.error ? (
           <ErrorState
             message={storage.error}
@@ -56,15 +54,9 @@ function EnvironmentSettingsSection({
         {storage.status === 'ready' &&
         remotes.length === 0 &&
         missing.length === 0 ? (
-          <Card gap={2} padding={4}>
-            <Text variant="secondary" weight="medium">
-              No computers paired.
-            </Text>
-            <Text variant="caption" tone="muted">
-              Select Add computer to connect to a computer running Porcelain
-              with its pairing link.
-            </Text>
-          </Card>
+          <Text variant="secondary" tone="muted">
+            No computers paired.
+          </Text>
         ) : null}
         {missing
           .filter(

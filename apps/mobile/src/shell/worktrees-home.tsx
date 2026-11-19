@@ -136,10 +136,7 @@ export function WorktreesHome() {
               onDestination={close}
             />
           ) : (
-            <Empty
-              title="Select a worktree"
-              description="Choose a worktree on the left to see its changes, files and history."
-            />
+            <Empty title="Select a worktree" />
           )
         }
       />

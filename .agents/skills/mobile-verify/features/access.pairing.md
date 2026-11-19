@@ -9,7 +9,6 @@ selectors:
   - 'Close'
   - 'Use development server'
   - 'development-pairing-link'
-  - 'Creating pairing link…'
   - 'Online'
   - 'Scan QR code'
 tests:
@@ -41,7 +40,7 @@ Preconditions: [surface baseline](README.md).
 3. Pair a second disposable computer; cold-launch and confirm both return. Another address for the same computer retains both connections: follow [connections](access.connections.md).
 4. Reopen and press Close; reopen and swipe the sheet down: either way Computers returns and saved computers stay unchanged. Expand the half-height sheet and scroll; every control remains reachable.
 5. In Metro development choose `development-pairing-link` (Use development server). Expect a full link but no device until Pair. Request another: its code differs. Pair and read the Development mobile device independently.
-6. While Creating pairing link…, field/helper/Pair are disabled and Close works. Inject helper failure, restore its owner connection and retry. Close during creation, reopen: blank field, no error/pending state. Exercise unreadable saved storage/save error: Pair stays disabled or Try again offers recovery.
+6. While the pairing link is created (the button shows its spinner), field/helper/Pair are disabled and Close works. Inject helper failure, restore its owner connection and retry. Close during creation, reopen: blank field, no error/pending state. Exercise unreadable saved storage/save error: Pair stays disabled or Try again offers recovery.
 
 Automated coverage: `development-pairing.spec.ts`.
 

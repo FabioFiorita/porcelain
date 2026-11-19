@@ -1,7 +1,4 @@
-import {
-  omissionReason,
-  type DiffContent,
-} from '@porcelain/client/changes/rules';
+import type { DiffContent } from '@porcelain/client/changes/rules';
 import type { RenderLine } from '../../../shared/rules/render-model';
 import { diffPresentation } from './diff-presentation';
 
@@ -47,8 +44,6 @@ export function diffBody(
   content: DiffContent,
   limit = INLINE_DIFF_LINES,
 ): DiffPageBody {
-  if (content.kind === 'omitted')
-    return { kind: 'notice', title: omissionReason(content.reason) };
   const presentation = diffPresentation(content);
   if (presentation.kind === 'notice')
     return { kind: 'notice', title: presentation.title };

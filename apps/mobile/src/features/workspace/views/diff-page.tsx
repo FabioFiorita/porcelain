@@ -9,7 +9,6 @@ import { ErrorState } from '../../../components/ui/error-state';
 import { Icon } from '../../../components/ui/icon';
 import { Item } from '../../../components/ui/item';
 import { ListDetail } from '../../../components/ui/list-detail';
-import { Loading } from '../../../components/ui/loading';
 import { documentHeading } from '../../../shared/rules/document-heading';
 import { sourceLanguage } from '../../../shared/rules/highlight-code';
 import { usePreferences } from '../../preferences/index';
@@ -347,7 +346,7 @@ function DiffPageContent({
   const { preferences } = usePreferences();
   switch (state.kind) {
     case 'loading':
-      return <Loading label="Loading diff…" />;
+      return null;
     case 'failed':
       return (
         <Box padding={4}>

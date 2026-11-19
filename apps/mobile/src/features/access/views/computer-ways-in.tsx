@@ -33,7 +33,7 @@ import { Button } from '../../../components/ui/button';
 import { Card } from '../../../components/ui/card';
 import { GroupHeader } from '../../../components/ui/group-header';
 import { Input } from '../../../components/ui/input';
-import { Loading } from '../../../components/ui/loading';
+import { Spinner } from '../../../components/ui/spinner';
 import { Switch } from '../../../components/ui/switch';
 import { Text } from '../../../components/ui/text';
 
@@ -75,7 +75,7 @@ function ConnectedWaysIn({
         {connectionErrorMessage(Cause.squash(result.cause))}
       </Text>
     );
-  if (!answer) return <Loading label="Reading ways in…" />;
+  if (!answer) return <Spinner />;
   return <WaysInEditor connection={connection} remote={answer} />;
 }
 

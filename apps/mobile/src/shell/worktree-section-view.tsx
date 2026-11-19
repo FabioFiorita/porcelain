@@ -1,4 +1,4 @@
-import { Loading } from '../components/ui/loading';
+import { Spinner } from '../components/ui/spinner';
 import type { ListDetailMode } from '../shared/rules/list-detail';
 import type { WorktreeSection } from '../features/projects';
 import { TopBar } from './top-bar';
@@ -28,7 +28,7 @@ function SectionBody({
 }) {
   switch (section) {
     case undefined:
-      return <Loading label="Reading worktree…" />;
+      return <Spinner />;
     case 'walkthrough':
       return <WalkthroughSection />;
     case 'changes':

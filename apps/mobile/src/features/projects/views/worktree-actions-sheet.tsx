@@ -27,6 +27,7 @@ import { remoteConnectionState } from '../../../shared/application/store';
 import { Box } from '../../../components/ui/box';
 import { Empty } from '../../../components/ui/empty';
 import { Sheet } from '../../../components/ui/sheet';
+import { Spinner } from '../../../components/ui/spinner';
 import { Text } from '../../../components/ui/text';
 import { Button } from '../../../components/ui/button';
 import { Switch } from '../../../components/ui/switch';
@@ -105,10 +106,7 @@ export function WorktreeActionsSheet({
           onAction={onAction}
         />
       ) : (
-        <Empty
-          title="Worktree unavailable"
-          description="Return to Worktrees and choose the worktree again."
-        />
+        <Empty title="Worktree unavailable" />
       )}
     </Sheet>
   );
@@ -208,21 +206,23 @@ function DeleteWorktreeContent({
   const view = useReviewGitSettings(request.connection);
   const settings = confirmedReviewGitSettings(view);
   const block = reviewGitSettingsBlock(view);
+  let options = <Spinner />;
+  if (block) options = <Text tone="muted">{block}</Text>;
+  if (settings)
+    options = (
+      <DeleteWorktreeOptions
+        request={request}
+        settings={settings}
+        onClose={onClose}
+      />
+    );
   return (
     <>
       <Text>
         Choose what to delete this time. Your saved settings won’t change.
         Review history stays available.
       </Text>
-      {settings ? (
-        <DeleteWorktreeOptions
-          request={request}
-          settings={settings}
-          onClose={onClose}
-        />
-      ) : (
-        <Text tone="muted">{block ?? 'Reading deletion settings…'}</Text>
-      )}
+      {options}
     </>
   );
 }
@@ -408,7 +408,6 @@ function SwitchWorktreeBranchContent({
   );
   let submitLabel = 'Switch branch';
   if (command.unresolved) submitLabel = 'Check outcome';
-  if (command.pending) submitLabel = 'Checking switch';
   return (
     <>
       <Text>
@@ -425,9 +424,7 @@ function SwitchWorktreeBranchContent({
         disabled={command.pending}
       />
       {(AsyncResult.isInitial(result) ||
-        AsyncResult.isInitial(inventory.result)) && (
-        <Text tone="muted">Reading branches…</Text>
-      )}
+        AsyncResult.isInitial(inventory.result)) && <Spinner />}
       {(AsyncResult.isFailure(result) ||
         AsyncResult.isFailure(inventory.result)) && (
         <Text tone="destructive" accessibilityRole="alert">
