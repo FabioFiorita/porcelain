@@ -29,7 +29,7 @@ export function WalkthroughStatus({
         className="flex flex-wrap items-center justify-between gap-2 text-caption text-muted-foreground"
       >
         <p role="status">
-          {reused ? (
+          {reused && !behind ? (
             'Already up to date: the saved walkthrough was reused.'
           ) : (
             <>

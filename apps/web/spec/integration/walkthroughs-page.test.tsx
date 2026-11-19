@@ -629,6 +629,17 @@ test('uncommitted-only work opens the review with its diffs and stays fresh when
   await expect
     .element(page.getByText('Update log', { exact: true }))
     .not.toBeInTheDocument();
+  await page
+    .getByRole('button', { name: 'Update walkthrough', exact: true })
+    .click();
+  await expect
+    .element(
+      status.getByText(
+        'Already up to date: the saved walkthrough was reused.',
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
   await repo.write('notes.md', 'first line\nsecond line\nnew edit\n');
   await expect
     .element(
