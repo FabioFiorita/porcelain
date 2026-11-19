@@ -1,5 +1,5 @@
 import { AtomRegistry, AsyncResult, Reactivity } from 'effect/reactivity';
-import { Layer, Context, Effect, Fiber, Option } from 'effect';
+import { Layer, Context, Deferred, Effect, Fiber, Option } from 'effect';
 import { expect, it } from 'vitest';
 import type { RunGitActionResponse } from '@porcelain/contracts/git-actions';
 import {
@@ -8,6 +8,7 @@ import {
   type Transport,
 } from '@porcelain/client/transport';
 import { readChanges } from '@porcelain/client/changes';
+import { ReadInvalidation } from '../../../shared/api/read-invalidation.ts';
 import { GitReceiptRefresh, receiptRuntime } from './refresh-receipt.ts';
 
 const receipt: RunGitActionResponse = {
@@ -58,6 +59,7 @@ async function setup(transport: Transport) {
     query,
     refresh: Context.get(services, GitReceiptRefresh).refresh,
     reactivity: Context.get(services, Reactivity.Reactivity),
+    schedule: Context.get(services, ReadInvalidation).schedule,
     close: async () => {
       stopQuery();
       stopRuntime();
@@ -66,6 +68,56 @@ async function setup(transport: Transport) {
     },
   };
 }
+
+it('starts a post-action read ahead of a queued watcher batch and abandons the older read', async () => {
+  const staleStarted = Promise.withResolvers<AbortSignal | null | undefined>();
+  const staleAnswer = Promise.withResolvers<Response>();
+  const freshStarted = Promise.withResolvers<void>();
+  let reads = 0;
+  const subject = await setup((_, init) => {
+    reads++;
+    if (reads === 1) return Promise.resolve(Response.json(before));
+    if (reads === 2) {
+      staleStarted.resolve(init?.signal);
+      return staleAnswer.promise;
+    }
+    freshStarted.resolve();
+    return Promise.resolve(Response.json(after));
+  });
+  const changeKey = queryKeys.reviewSurface(before.environmentId, receipt, [
+    'changes',
+  ]);
+  const other = queryKeys.reviewGitSettings(before.environmentId);
+  let unrelatedReads = 0;
+  const stop = subject.reactivity.registerUnsafe([other], () => {
+    unrelatedReads++;
+  });
+  try {
+    await Effect.runPromise(subject.reactivity.invalidate([changeKey]));
+    const stale = await staleStarted.promise;
+    const batch = await Effect.runPromise(subject.schedule([changeKey, other]));
+    const command = Effect.runPromiseExit(subject.refresh(receipt));
+    const events = await Promise.race([
+      freshStarted.promise.then(() => 'fresh read'),
+      Effect.runPromise(Deferred.await(batch)).then(() => 'watcher batch'),
+    ]);
+    expect(events).toBe('fresh read');
+    expect(stale?.aborted).toBe(true);
+    expect(unrelatedReads).toBe(0);
+    await command;
+    await Effect.runPromise(Deferred.await(batch));
+    expect(unrelatedReads).toBe(1);
+    expect(reads).toBe(3);
+    expect(
+      Option.getOrThrow(AsyncResult.value(subject.registry.get(subject.query)))
+        .statusToken,
+    ).toBe('b'.repeat(64));
+  } finally {
+    staleAnswer.resolve(Response.json(before));
+    stop();
+    await subject.close();
+  }
+});
 
 it('coalesces a live receipt with its command, keeps refreshing when one waiter closes, and permits a later fresh read', async () => {
   const { subject, started, answer, readCount } = await heldRefresh();

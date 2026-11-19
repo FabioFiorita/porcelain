@@ -389,13 +389,20 @@ test('opening a saved review fetches each conversation and diff key once', async
   await conversationFixture('no-pr');
   await browserPage.viewport(1440, 900);
   live.drop();
+  const reviewed = fetchGate.holdNextReviewedFiles();
+  reviewed.arm();
   const requests = fetchGate.recordReviewReads();
   const { page } = await render.route('/');
-  await expect
-    .element(
-      page.getByRole('heading', { name: /Keep retries beside their owner/ }),
-    )
-    .toBeVisible();
+  try {
+    await reviewed.requested;
+    await expect
+      .element(
+        page.getByRole('heading', { name: /Keep retries beside their owner/ }),
+      )
+      .toBeVisible();
+  } finally {
+    reviewed.release();
+  }
   await expect
     .element(page.getByText('A conversation fixture.', { exact: true }))
     .toBeVisible();

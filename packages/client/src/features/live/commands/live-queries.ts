@@ -29,7 +29,10 @@ import {
   ReadSubscriptions,
   type ActiveRead,
 } from '../../../shared/api/read-subscriptions.ts';
-import { isTerminal } from '../../git-actions/store/operations.ts';
+import {
+  isTerminal,
+  operationKey,
+} from '../../git-actions/store/operations.ts';
 import { readGitReceipt } from '../../git-actions/queries/read-receipt.ts';
 import {
   GitReceiptRefresh,
@@ -96,8 +99,17 @@ const connectLiveSession = Effect.fn('Live.connect')(function* (
   const applyNotice = Effect.fn('Live.applyNotice')(function* (
     notice: LiveNotice,
   ) {
-    if (notice.type === 'git-action')
-      return yield* refresh.refresh(notice.receipt);
+    if (notice.type === 'git-action') {
+      const receipt = notice.receipt;
+      const operation = operations.state.value.operations.get(
+        operationKey(receipt, receipt.action),
+      );
+      const priority =
+        operation?.requestId === receipt.requestId ? 'action' : 'background';
+      if (priority === 'action' && operation?.receipt?.state === receipt.state)
+        return;
+      return yield* refresh.refresh(receipt, priority);
+    }
     yield* invalidation.schedule(
       liveReadKeys(connection.environmentId, notice),
     );

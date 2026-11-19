@@ -23,12 +23,19 @@ type RefreshFields = Pick<
   'projectId' | 'worktreeId' | 'requestId' | 'action' | 'state'
 >;
 
-class Refresh extends Data.Class<RefreshFields> {}
+type ReceiptPriority = 'action' | 'background';
+
+class Refresh extends Data.Class<
+  RefreshFields & { priority: ReceiptPriority }
+> {}
 
 export class GitReceiptRefresh extends Context.Service<
   GitReceiptRefresh,
   {
-    readonly refresh: (receipt: RunGitActionResponse) => Effect.Effect<void>;
+    readonly refresh: (
+      receipt: RunGitActionResponse,
+      priority?: ReceiptPriority,
+    ) => Effect.Effect<void>;
   }
 >()('@porcelain/client/GitReceiptRefresh') {
   static layer(connection: RuntimeConnection) {
@@ -46,32 +53,40 @@ export class GitReceiptRefresh extends Context.Service<
           timeToLive: Duration.infinity,
           lookup: (receipt: Refresh) =>
             Effect.gen(function* () {
-              const surfaces = new Set(
-                receiptReadKeys(connection.environmentId, receipt).map((key) =>
-                  String(key[4]),
-                ),
+              const worktree = receiptReadKeys(
+                connection.environmentId,
+                receipt,
+              );
+              const project = queryKeys.projectPullRequests(
+                connection.environmentId,
+                receipt.projectId,
+              );
+              const inventory = queryKeys.worktreeInventory(
+                connection.environmentId,
               );
               const fiber = yield* Effect.forkIn(
                 Effect.gen(function* () {
-                  const flushed = yield* invalidation.schedule([
-                    queryKeys.worktreeInventory(connection.environmentId),
-                    queryKeys.projectPullRequests(
-                      connection.environmentId,
-                      receipt.projectId,
-                    ),
-                    ...receiptReadKeys(connection.environmentId, receipt),
-                  ]);
-                  yield* Deferred.await(flushed);
-                  const active = [
+                  if (receipt.priority === 'action') {
+                    yield* invalidation.refreshNow(
+                      [inventory],
+                      [project, ...worktree],
+                    );
+                  } else {
+                    const flushed = yield* invalidation.schedule([
+                      inventory,
+                      project,
+                      ...worktree,
+                    ]);
+                    yield* Deferred.await(flushed);
+                  }
+                  const reads = [
                     ...HashMap.values(yield* subscriptions.snapshot),
-                  ];
-                  const worktreeReads = active.filter(
+                  ].filter(
                     (read) =>
                       read.projectId === receipt.projectId &&
-                      read.worktreeId === receipt.worktreeId,
-                  );
-                  const reads = worktreeReads.filter((read) =>
-                    surfaces.has(read.surface),
+                      read.worktreeId === receipt.worktreeId &&
+                      (read.surface === 'changes' ||
+                        read.surface === 'git-status'),
                   );
                   yield* Effect.forEach(reads, (read) => read.settled, {
                     concurrency: 'unbounded',
@@ -92,6 +107,7 @@ export class GitReceiptRefresh extends Context.Service<
         return {
           refresh: Effect.fn('GitReceiptRefresh.refresh')(function* (
             receipt: RunGitActionResponse,
+            priority: ReceiptPriority = 'action',
           ) {
             if (
               receipt.state === 'running' ||
@@ -105,6 +121,7 @@ export class GitReceiptRefresh extends Context.Service<
               requestId: receipt.requestId,
               action: receipt.action,
               state: receipt.state,
+              priority,
             });
             const fiber = yield* Cache.get(cache, key);
             if (fiber.pollUnsafe()) yield* Cache.invalidate(cache, key);

@@ -65,6 +65,8 @@ Setup, after section 1 (or after `git -C "$REPO" commit -am "Followed commit"` o
 
 ### Observable proof
 
+A receipt for an action started here initiates its refresh immediately. Any unfinished read of the same data is replaced with a fresh read. Other scheduled watcher reads keep their batch window.
+
 While live traffic is down, completed Git still shows disabled Committing…/Working…. Restore after a refused reconnect, then confirm succeeded receipt or pop refusal with README untouched.
 
 Automated coverage: `git-actions-follow-receipt.test.tsx`.

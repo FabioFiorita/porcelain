@@ -35,6 +35,8 @@ api:
 
 Every worktree opens on its review: the document tab "Review", pinned at the left of the first pane. A worktree can have one Walkthrough for its whole change since the base branch, committed or uncommitted: a fresh agent reads the change and writes one page with the calls that need the developer, how the system grew and one step per decision. With a Walkthrough, the review shows each step's prose with that step's own diffs inline (Branch, then Uncommitted, so a file changed in a commit and again locally shows both parts), then "Not covered by the steps" only when changed files are in no step. Without one (none yet, being written or failed), it shows the way to write one above every changed file's diff. Its files are also organized by step in the Changes panel, and the page marks itself out of date when its content or base changes.
 
+The saved walkthrough’s heading and prose appear while its diffs and reviewed marks are still loading.
+
 ## How to get to it (user POV)
 
 - Every worktree opens on tab "Review"; there is no separate Changes or Walkthrough tab. Old links with `entry=handoff`, `entry=walkthrough` or `entry=walkthrough-changes` land on Review and the URL becomes `entry=review`; an old one in the right pane (`side=walkthrough`) is dropped, so Review only ever sits in the left pane. The window title is the Walkthrough's title once one is ready, otherwise "Review — <project>" (also while a run is writing or failed).

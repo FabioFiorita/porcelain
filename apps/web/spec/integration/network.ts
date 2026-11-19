@@ -307,6 +307,13 @@ export function createFetchGate(filePath: string) {
           (init?.method ?? 'GET') === 'GET' &&
           url.pathname.endsWith('/branch-changes'),
       ),
+    holdNextReviewedFiles: () =>
+      holdNextFetch(
+        (url, init) =>
+          (init?.method ?? 'GET') === 'GET' &&
+          url.pathname.endsWith('/reviewed') &&
+          url.search === '',
+      ),
     holdNextReviewRead: () =>
       holdNextFetch(
         (url, init) =>

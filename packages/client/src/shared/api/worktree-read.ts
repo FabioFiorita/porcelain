@@ -6,6 +6,7 @@ import { Atom, AtomRegistry, AsyncResult } from 'effect/reactivity';
 import type { ConfirmedResource } from './confirmed-resource.ts';
 import type { RuntimeConnection, WorktreeScope } from './connection.ts';
 import { queryKeys } from './query-keys.ts';
+import { supersedingReadKey } from './read-invalidation.ts';
 import { currentAnswerEffect } from './stale-answer.ts';
 import type { ConnectionError } from './connection-error.ts';
 import { ReadSubscriptions } from './read-subscriptions.ts';
@@ -116,13 +117,15 @@ export function serialRead<A, E>(
   keys: readonly unknown[],
   read: Atom.Atom<AsyncResult.AsyncResult<A, E>>,
 ) {
-  const signal = Atom.make(() => ({})).pipe(
-    connection.atoms.withReactivity(keys),
-    Atom.setIdleTTL(0),
-  );
+  const signal = readSignal(connection, keys);
+  const supersede = readSignal(connection, keys.map(supersedingReadKey));
   return Atom.readable(
     (get) => {
       let pending = false;
+      get.subscribe(supersede, () => {
+        pending = false;
+        get.refresh(read);
+      });
       get.subscribe(signal, () => {
         if (get.once(read).waiting) pending = true;
         else get.refresh(read);
@@ -139,16 +142,22 @@ export function serialRead<A, E>(
   ).pipe(Atom.setIdleTTL(0));
 }
 
+function readSignal(connection: RuntimeConnection, keys: readonly unknown[]) {
+  return Atom.make(() => ({})).pipe(
+    connection.atoms.withReactivity(keys),
+    Atom.setIdleTTL(0),
+  );
+}
+
 function reactiveRead<A extends Atom.Atom<unknown>>(
   connection: RuntimeConnection,
   scope: WorktreeScope,
   surface: readonly unknown[],
   read: A,
 ): A {
+  const keys = queryKeys.worktreeReads(connection, scope, surface);
   return read.pipe(
-    connection.atoms.withReactivity(
-      queryKeys.worktreeReads(connection, scope, surface),
-    ),
+    connection.atoms.withReactivity([...keys, ...keys.map(supersedingReadKey)]),
     Atom.setIdleTTL(0),
   );
 }

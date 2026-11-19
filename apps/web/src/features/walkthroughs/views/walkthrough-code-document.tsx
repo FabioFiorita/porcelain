@@ -1,5 +1,5 @@
 import { branchReviewRange } from '@porcelain/client/changes/rules';
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { useChanges } from '@/features/changes/index';
 import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
 import {
@@ -135,30 +135,41 @@ export function ReviewCode({
     >
       {committed.length > 0 && (
         <section aria-label={`${label}: branch`} className="flex flex-col">
-          <BranchDocument
-            {...document}
-            compared={branch}
-            only={committed}
-            fullHeight
-            interaction={interaction('branch')}
-            heading={{ title: 'Branch', titleLabel: `${label}: branch` }}
-          />
+          <Suspense fallback={<FileNames title="Branch" paths={committed} />}>
+            <BranchDocument
+              {...document}
+              compared={branch}
+              only={committed}
+              fullHeight
+              interaction={interaction('branch')}
+              heading={{ title: 'Branch', titleLabel: `${label}: branch` }}
+            />
+          </Suspense>
         </section>
       )}
       {code.worktree.length > 0 && (
         <section aria-label={`${label}: uncommitted`} className="flex flex-col">
-          <PlainChangesDocument
-            {...document}
-            only={code.worktree}
-            limit={shown}
-            onReadMore={() => setShown(shown + DIFF_WINDOW_FILES)}
-            fullHeight
-            interaction={interaction('uncommitted')}
-            heading={{
-              title: 'Uncommitted',
-              titleLabel: `${label}: uncommitted`,
-            }}
-          />
+          <Suspense
+            fallback={
+              <FileNames
+                title="Uncommitted"
+                paths={code.worktree.slice(0, shown)}
+              />
+            }
+          >
+            <PlainChangesDocument
+              {...document}
+              only={code.worktree}
+              limit={shown}
+              onReadMore={() => setShown(shown + DIFF_WINDOW_FILES)}
+              fullHeight
+              interaction={interaction('uncommitted')}
+              heading={{
+                title: 'Uncommitted',
+                titleLabel: `${label}: uncommitted`,
+              }}
+            />
+          </Suspense>
         </section>
       )}
     </div>
