@@ -96,6 +96,10 @@ export function useTabLayoutStore(worktreeId: string) {
     },
     save: (panes: readonly Pane[]) =>
       set((current) => ({ ...current, panes, saved: true })),
+    latest: () => ({
+      panes: registry.get(atom).panes,
+      active: registry.get(tabActivationState(worktreeId))[0],
+    }),
   };
 }
 export function useCodeFolds(worktreeId: string, entry: string) {

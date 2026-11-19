@@ -56,7 +56,7 @@ export function useTabLayout({
   focusBoundary: HTMLElement | null;
   focusBoundaryOpen: boolean;
 }) {
-  const { panes: stored, saved, save } = useTabLayoutStore(worktreeId);
+  const { panes: stored, saved, save, latest } = useTabLayoutStore(worktreeId);
   const [pending, setPending] = useState<[Target, Target]>([
     undefined,
     undefined,
@@ -145,8 +145,25 @@ export function useTabLayout({
   const replacePane = (index: PaneIndex, pane: Pane) =>
     panes.map((currentPane, i) => (i === index ? pane : currentPane));
 
-  const settleAll = (next: Pane[], after: (string | null)[]) => {
-    if (split && (next[1]?.tabs.length ?? 0) === 0) {
+  const settleAll = (
+    change: (
+      current: readonly Pane[],
+      active: readonly (string | null)[],
+    ) => { next: Pane[]; after: (string | null)[] },
+  ) => {
+    const now = latest();
+    const current = now.panes
+      ? [primaryPane(now.panes[0] ?? emptyPane()), ...now.panes.slice(1)]
+      : panes;
+    const active = actives.map((key, index) =>
+      index === focused &&
+      now.active !== undefined &&
+      current[index]?.tabs.includes(now.active)
+        ? now.active
+        : key,
+    );
+    const { next, after } = change(current, active);
+    if (next.length > 1 && (next[1]?.tabs.length ?? 0) === 0) {
       save([next[0] ?? emptyPane()]);
       setFocused(0);
       go({ entry: after[0] ?? null, side: null });
@@ -154,8 +171,9 @@ export function useTabLayout({
     }
     save(next);
     const updates: { entry?: string | null; side?: string | null } = {};
-    if ((after[0] ?? null) !== actives[0]) updates.entry = after[0] ?? null;
-    if (split && (after[1] ?? null) !== actives[1])
+    if ((after[0] ?? null) !== (active[0] ?? null))
+      updates.entry = after[0] ?? null;
+    if (next.length > 1 && (after[1] ?? null) !== (active[1] ?? null))
       updates.side = after[1] ?? null;
     if (Object.keys(updates).length > 0) go(updates);
   };
@@ -255,25 +273,29 @@ export function useTabLayout({
       );
     },
     moveFiles(from: string, to: string) {
-      settleAll(
-        panes.map((pane) => moveInPane(pane, from, to)),
-        actives.map((key) => (key === null ? null : movedEntry(key, from, to))),
-      );
+      settleAll((current, active) => ({
+        next: current.map((pane) => moveInPane(pane, from, to)),
+        after: active.map((key) =>
+          key === null ? null : movedEntry(key, from, to),
+        ),
+      }));
     },
     closeRemovedFiles(path: string) {
-      const next = panes.map((pane) => closeRemovedInPane(pane, path));
-      settleAll(
-        next,
-        actives.map((key, index) =>
-          key !== null && removedEntry(key, path)
-            ? neighbourAfterClose(
-                panes[index] ?? emptyPane(),
-                key,
-                next[index] ?? emptyPane(),
-              )
-            : key,
-        ),
-      );
+      settleAll((current, active) => {
+        const next = current.map((pane) => closeRemovedInPane(pane, path));
+        return {
+          next,
+          after: active.map((key, index) =>
+            key !== null && removedEntry(key, path)
+              ? neighbourAfterClose(
+                  current[index] ?? emptyPane(),
+                  key,
+                  next[index] ?? emptyPane(),
+                )
+              : key,
+          ),
+        };
+      });
     },
     togglePin(index: PaneIndex, key: string) {
       save(
