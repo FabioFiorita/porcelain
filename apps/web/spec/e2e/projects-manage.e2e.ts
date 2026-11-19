@@ -100,3 +100,35 @@ for (const [width, colorScheme] of [
     ).toHaveAttribute('aria-checked', 'true');
   });
 }
+
+test('the worktree filter stays open while the workspace settles its address', async ({
+  page,
+  live,
+  app,
+  server,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 896 });
+  const project = await server.project();
+  const computer = (await server.inventory()).environment.name;
+  const held = await live.holdChangesRead();
+  held.arm();
+  try {
+    await app.open(await app.link('this'));
+    await held.requested;
+    await page
+      .getByRole('button', { name: 'Filter worktrees', exact: true })
+      .click();
+    const option = page.getByRole('menuitemcheckbox', {
+      name: `${project.name} · ${computer}`,
+      exact: true,
+    });
+    await expect(option).toBeVisible();
+    held.release();
+    await expect
+      .poll(() => new URLSearchParams(app.address().query).get('entry'))
+      .toBe('review');
+    await expect(option).toBeVisible();
+  } finally {
+    held.release();
+  }
+});
