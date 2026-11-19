@@ -23,7 +23,7 @@ Find in file counts the matches of a case-insensitive query and scrolls a match 
 
 ## How to get to it (user POV)
 
-- With a file open as source (code files, or Markdown/HTML switched to "Source"), not editing: `Mod+F` (find shortcut) opens the find bar, a search region with textbox "Find in file", a status "N of M", and buttons "Previous match", "Next match", "Close find". `Enter` goes to the next match, `Shift+Enter` the previous one, `Escape` closes.
+- With a file open as source (code files, or Markdown/HTML switched to "Source"), not editing: `Mod+F` (find shortcut) opens the find bar, a search region with textbox "Find in file", a status "N of M", and buttons "Previous match", "Next match", "Close find". `Enter` goes to the next match, `Shift+Enter` the previous one, `Escape` closes and returns focus to the code view, so the arrow keys scroll the file.
 - In the editor (after Edit): `Mod+F` opens the editor's search panel, textbox "Search"; `Enter` goes to the next match.
 
 ## Driving it with browser
@@ -51,7 +51,7 @@ awk 'BEGIN{for(i=0;i<4000;i++){if(i==20)print "an early NEEDLE"; if(i==3900)prin
 6. Click button `Previous match`
    Expect: status "1 of 2"; "an early NEEDLE" in view again.
 7. Press `Escape`
-   Expect: textbox "Find in file" is gone.
+   Expect: textbox "Find in file" is gone and focus is back in the code view: `End` shows the file's last line.
 8. Click button `Edit`
    Expect: textbox "long.txt" (the editor).
 9. Click textbox `long.txt`, then press `ControlOrMeta+f`

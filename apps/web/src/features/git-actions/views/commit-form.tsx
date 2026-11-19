@@ -37,6 +37,7 @@ import type { CommitFormProps } from '@porcelain/client/git-actions/rules';
 import { useDraftCancellation } from '../adapters/form-lifetime';
 import { commitFiles } from '@porcelain/client/changes/rules';
 import { usePreferences } from '@/features/preferences/index';
+import { useState } from 'react';
 
 export function CommitForm(
   props: CommitFormProps & { context: Parameters<typeof useCommitForm>[1] },
@@ -53,6 +54,7 @@ export function CommitForm(
     },
   );
   useDraftCancellation(form.controllers);
+  const [messageFocused, setMessageFocused] = useState(form.mode === 'groups');
   const writeBlock = useWorkspaceWriteBlock(props.context);
   const {
     mode,
@@ -146,7 +148,17 @@ export function CommitForm(
         {mode === 'groups' ? (
           <CommitGroups form={form} />
         ) : (
-          <CommitFiles form={form} />
+          <CommitFiles
+            form={form}
+            onMessage={
+              messageFocused
+                ? undefined
+                : (message) => {
+                    message.focus();
+                    setMessageFocused(true);
+                  }
+            }
+          />
         )}
       </fieldset>
       {commitAction === 'commit' && (
@@ -218,7 +230,13 @@ export function CommitForm(
 
 type CommitFormState = ReturnType<typeof useCommitForm>;
 
-function CommitFiles({ form }: { form: CommitFormState }) {
+function CommitFiles({
+  form,
+  onMessage,
+}: {
+  form: CommitFormState;
+  onMessage: ((message: HTMLTextAreaElement) => void) | undefined;
+}) {
   const {
     commitAction,
     editingFiles,
@@ -301,6 +319,9 @@ function CommitFiles({ form }: { form: CommitFormState }) {
           </p>
         )}
         <Textarea
+          ref={(message) => {
+            if (message) onMessage?.(message);
+          }}
           id="commit-message"
           value={currentMessage}
           onChange={(event) => form.setCurrentMessage(event.target.value)}
