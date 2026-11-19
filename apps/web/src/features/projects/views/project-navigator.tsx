@@ -573,13 +573,6 @@ export function ProjectNavigator({
               <EmptyHeader>
                 <EmptyTitle>{emptyTitle}</EmptyTitle>
               </EmptyHeader>
-              {!searching && !filtered && (
-                <EmptyContent>
-                  <Button variant="outline" onClick={() => onOpenProject(null)}>
-                    Open project
-                  </Button>
-                </EmptyContent>
-              )}
             </Empty>
           )}
         </SidebarContent>
