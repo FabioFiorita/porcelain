@@ -1,10 +1,10 @@
 ---
 route: /
 selectors:
-  - "Review"
-  - "Worktree review"
-  - "Files"
-  - "Change no longer present"
+  - 'Review'
+  - 'Worktree review'
+  - 'Files'
+  - 'This change is no longer present.'
 tests:
   - apps/web/spec/integration/files-move.test.tsx
 api:
@@ -45,7 +45,7 @@ For the move, press on the source row, moves onto the target row and releases th
 3. Click tab `Files`
    Expect: the tree in region "All files" with treeitems "archive" (a collapsed folder), "clash.md", "move-me.md" and "README.md".
 4. Drag treeitem named `move-me.md` onto treeitem named `archive`
-   Expect: treeitem "move-me.md" is gone from the root, dialog "Worktree review" stays open, and no text "Change no longer present" appears.
+   Expect: treeitem "move-me.md" is gone from the root, dialog "Worktree review" stays open, and no text "This change is no longer present." appears.
    Disk: `ls "$REPO/archive"` prints `clash.md` and `move-me.md`; `test -e "$REPO/move-me.md" || echo moved` prints `moved`.
 5. Drag treeitem named `clash.md` onto treeitem named `archive`
    Expect: alert "An entry already exists at that path" under the tree, and treeitem "clash.md" still at the root.

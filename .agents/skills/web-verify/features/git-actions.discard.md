@@ -1,16 +1,16 @@
 ---
 route: /
 selectors:
-  - "Review"
-  - "Discard changes to"
-  - "Discard"
-  - "Cancel"
-  - "Discarded"
-  - "Restore"
-  - "Restored"
-  - "Change no longer present"
-  - "Look again"
-  - "Look at the diff again before discarding"
+  - 'Review'
+  - 'Discard changes to'
+  - 'Discard'
+  - 'Cancel'
+  - 'Discarded'
+  - 'Restore'
+  - 'Restored'
+  - 'This change is no longer present.'
+  - 'Look again'
+  - 'Look at the diff again before discarding'
 tests:
   - apps/web/spec/integration/git-actions-discard.test.tsx
   - apps/web/spec/integration/git-actions-discarded-menu.test.tsx
@@ -36,7 +36,7 @@ Preconditions: [surface baseline](README.md).
 
 ### Setup
 
- a fresh instance has README.md modified ("# Sample repository\n\nA change to review.\n" over the committed "# Sample repository\n").
+a fresh instance has README.md modified ("# Sample repository\n\nA change to review.\n" over the committed "# Sample repository\n").
 
 ### Case 1: discard returns the file to the last commit, and Restore brings the change back
 
@@ -47,7 +47,7 @@ Preconditions: [surface baseline](README.md).
 3. Click button `Discard changes to README.md`
    Expect: alertdialog "Discard README.md?" reading "The file goes back to the last commit. You can restore the changes."; buttons "Cancel" and "Discard".
 4. Click button `Discard`
-   Expect: the alertdialog is gone; in region "Notifications", dialog "Discarded README.md" with button "Restore"; the document reads "Change no longer present"; the Git button in group "Git controls" now reads "Apply stash" (the discarded change is kept as a stash until Restore). Disk: `cat "$REPO/README.md"` prints `# Sample repository`.
+   Expect: the alertdialog is gone; in region "Notifications", dialog "Discarded README.md" with button "Restore"; the document reads "This change is no longer present."; the Git button in group "Git controls" now reads "Apply stash" (the discarded change is kept as a stash until Restore). Disk: `cat "$REPO/README.md"` prints `# Sample repository`.
 5. Click button `Restore` (within 10 s of step 4)
    Expect: in region "Notifications", dialog "Restored README.md"; the Git button reads "Commit" again. Disk: `cat "$REPO/README.md"` prints `# Sample repository`, a blank line, `A change to review.`
 

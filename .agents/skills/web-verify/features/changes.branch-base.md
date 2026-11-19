@@ -64,7 +64,7 @@ Automated coverage: `changes-branch-base.e2e.ts`, `changes-branch-base.test.tsx`
 ## Gotchas
 
 - `git add --all` also commits the initial README change, included in the main comparison. The main option includes its default tag: use `/^main/`.
-- Options first show Reading branches…. Setup leaves feature/checkpoint; reset before other maps.
+- A slow branch read shows one small spinner labelled "Reading branches" after 400 ms. Setup leaves feature/checkpoint; reset before other maps.
 
 ### Document entry and return
 

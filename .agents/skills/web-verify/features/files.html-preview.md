@@ -79,6 +79,6 @@ Automated navigation and interaction coverage: `files-html-preview.e2e.ts`.
 
 ## Gotchas
 
-- While assets are read the panel shows status "Loading preview…".
+- While assets are read the panel shows nothing for 400 ms, then one small spinner labelled "Preparing the preview".
 - A trusted outer frame embeds the document in a second `srcdoc` frame. Both are sandboxed (`allow-scripts` only, no same origin). The outer document's `frame-src 'none'` blocks the inner frame's network navigation, and its inherited resource CSP allows only `data:` and `blob:` images. Preview scripts cannot access or weaken the outer policy. External URLs and references outside the page's folder are reported as missing, not fetched.
 - The display default is a per-browser preference: if an earlier feature in this instance set Documents open as to Source in Settings, the page opens on "Source"; click "Preview".

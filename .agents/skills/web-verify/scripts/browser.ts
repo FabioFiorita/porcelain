@@ -51,30 +51,26 @@ export async function settledText(page: Page): Promise<string | undefined> {
 }
 
 export async function unavailablePage(page: Page): Promise<string | undefined> {
-  for (const title of ['Page not found', 'Computer unavailable'])
+  for (const title of ['Page not found', 'Worktree not found'])
     if (
       await page
         .locator('[data-slot="state-notice"]')
-        .getByRole('heading', { name: title, exact: true })
-        .or(page.locator(`[data-unavailable-page="${title}"]`))
+        .getByText(title, { exact: true })
         .first()
         .isVisible()
     )
       return title;
-  const headings = await page
-    .locator(
-      'h1:visible, h2:visible, [role="heading"]:visible, [data-slot="breadcrumb-page"]:visible',
-    )
-    .allTextContents();
-  return headings
-    .map((text) => text.trim())
-    .find((text) =>
-      [
-        'Worktree not found',
-        'Revision not found',
-        'Could not display the workspace',
-        'Review not found',
-        'Could not display',
-      ].includes(text),
-    );
+  if (
+    await page
+      .locator('[data-unavailable-page="Computer unavailable"]')
+      .first()
+      .isVisible()
+  )
+    return 'Computer unavailable';
+  const failure = page.locator(
+    '[data-slot="state-notice"][role="alert"]:visible',
+  );
+  if (await failure.first().isVisible())
+    return (await failure.first().textContent())?.trim() || 'Could not display';
+  return undefined;
 }

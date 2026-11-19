@@ -1,10 +1,10 @@
 ---
 route: /
 selectors:
-  - "Git actions"
-  - "Push"
-  - "Pull"
-  - "No upstream branch to pull from."
+  - 'Git actions'
+  - 'Push'
+  - 'Pull'
+  - 'No upstream branch to pull from.'
 tests:
   - apps/web/spec/integration/git-actions-push.test.tsx
 api:
@@ -50,5 +50,5 @@ Automated coverage: `git-actions-push.test.tsx`.
 
 ## Gotchas
 
-- Use `/^Push/` and `/^Pull/`: menu names include descriptions/reasons. Until the branch status arrives the menu lists Commit… and Amend last commit… above Reading Git status…; Push, Pull, Fetch and the stash rows then appear together.
+- Use `/^Push/` and `/^Pull/`: menu names include descriptions/reasons. Until the branch status arrives the menu lists Commit… and Amend last commit… (with one small spinner after 400 ms); Push, Pull, Fetch and the stash rows then appear together.
 - Remove the fixture remote afterward with `git -C "$REPO" remote remove origin`.

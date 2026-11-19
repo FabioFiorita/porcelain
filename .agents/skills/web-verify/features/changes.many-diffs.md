@@ -4,7 +4,6 @@ selectors:
   - 'Review'
   - 'All changes'
   - 'The changes in this document could not be read.'
-  - 'Loading changes…'
 tests:
   - apps/web/spec/integration/changes-many-diffs.test.tsx
   - apps/web/spec/integration/changes-presentation.test.tsx
@@ -15,7 +14,7 @@ api:
 
 # changes.many-diffs
 
-All changes shows the diffs of more tracked changes than one diff request may carry (200 files) by splitting them over several requests, with no failure notice. While the initial diff is pending, a file-shaped skeleton names the first changed path and reserves code-line space below its header; already loaded diffs stay readable during later reads. Loading placeholders do not claim an exact final diff height.
+All changes shows the diffs of more tracked changes than one diff request may carry (200 files) by splitting them over several requests, with no failure notice. While the initial diff is pending, the document shows nothing in its place (no skeleton or loading words); already loaded diffs stay readable during later reads.
 
 ## How to get to it (user POV)
 
@@ -47,7 +46,7 @@ git -C "$REPO" status --porcelain | wc -l   # prints 205
 
 ### Loading presentation
 
-Hold the initial change-diff request through the browser harness. The Loading changes status names the first file and contains a header plus reserved code-line space instead of a small text box. Release the request: the placeholder disappears and the real diff becomes readable. Repeat after an already loaded file is selected to confirm later reads do not hide its content. Errors retain Load the changes again.
+Hold the initial change-diff request through the browser harness. No skeleton, placeholder or loading words appear for the pending diff. Release the request: the real diff becomes readable. Repeat after an already loaded file is selected to confirm later reads do not hide its content. Errors show one line with Try again.
 
 ### Observable proof
 
