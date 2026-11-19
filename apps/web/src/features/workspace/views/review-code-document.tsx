@@ -143,11 +143,10 @@ export function ReviewCodeDocument({
   };
   const loading = !quiet && (diffs.pending || untracked.pending);
   const failed =
-    (diffs.failed || untracked.failed) &&
     !diffs.pending &&
     !untracked.pending &&
-    kept.size === 0 &&
-    keptText.size === 0;
+    ((diffs.failed && kept.size === 0) ||
+      (untracked.failed && keptText.size === 0));
   const notes = new Map(files.map((file) => [file.path, file.note]));
   const unrenderable = items.flatMap((item) => {
     const reasons = item.comparisons.flatMap((change) => {

@@ -158,3 +158,26 @@ test('a file that appears during a refused refresh raises no alert', async ({
     .element(app.page.getByText('A change to review.', { exact: true }))
     .toBeVisible();
 });
+
+test('a refused first diff read keeps Try again while an untracked file shows', async ({
+  repo,
+  render,
+  fetchGate,
+  server,
+}) => {
+  await repo.write('loose.txt', 'A loose note\n');
+  const project = await server.project();
+  const worktree = project.worktrees.find((entry) => entry.main);
+  if (!worktree) throw new Error('The fixture has no main worktree.');
+  const refusals = fetchGate.failChangeDiffs();
+  refusals.start();
+  const app = await render.route(
+    `/${project.id}/${worktree.id}?entry=all-changes`,
+  );
+  await expect
+    .element(app.page.getByText('A loose note', { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(app.page.getByRole('button', { name: 'Try again', exact: true }))
+    .toBeVisible();
+});

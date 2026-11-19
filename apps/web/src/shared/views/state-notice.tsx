@@ -69,9 +69,10 @@ export function StateSpinner({ label }: { label: string }) {
             const regions = state.regions.filter((entry) => entry.id !== id);
             return {
               regions,
-              last: shown
-                ? state.regions.find((entry) => entry.id === id)
-                : undefined,
+              last:
+                shown && Date.now() - state.startedAt >= PENDING_DELAY_MS
+                  ? state.regions.find((entry) => entry.id === id)
+                  : undefined,
               startedAt: state.startedAt,
               idleSince:
                 regions.length === 0 && state.regions.length > 0
