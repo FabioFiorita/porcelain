@@ -68,7 +68,7 @@ test('direct detail URLs recover a missing computer and explain the local effect
       { exact: true },
     ),
   ).toBeVisible();
-  await closeSettings(page);
+  await page.keyboard.press('Escape');
   await expect(page).toHaveURL(/\/settings\/computers$/);
   await page
     .getByRole('textbox', { name: 'Pairing link', exact: true })
@@ -131,7 +131,7 @@ test('a computer detail uses its identity, reloads directly, and Back and the br
   await expect(
     page.getByRole('navigation', { name: 'breadcrumb', exact: true }),
   ).toContainText(name);
-  await closeSettings(page);
+  await page.keyboard.press('Escape');
   await expect(row.getByRole('button', { name: /^Open / })).toBeFocused();
   await expect
     .poll(() => list.evaluate((element) => element.scrollTop))
@@ -160,7 +160,7 @@ test('a computer detail uses its identity, reloads directly, and Back and the br
   await expect(
     page.getByText(inventory.environmentId, { exact: true }),
   ).toBeVisible();
-  await closeSettings(page);
+  await page.keyboard.press('Escape');
   await expect(page).toHaveURL(/\/settings\/computers$/);
 });
 
@@ -181,7 +181,6 @@ test('Computers and outage links open the exact computer, saved offline details 
   await page.getByRole('button', { name: 'Add', exact: true }).click();
   await openComputer(page, name);
   await expect(page.getByText('Online', { exact: true })).toBeVisible();
-  await closeSettings(page);
   await closeSettings(page);
   await expect(page).toHaveURL(workspace);
   await page
@@ -206,7 +205,7 @@ test('Computers and outage links open the exact computer, saved offline details 
   await expect(page).toHaveURL(/\/settings\/computers$/);
   await page.goForward();
   await expect(page).toHaveURL(new RegExp(`${detail}$`));
-  await closeSettings(page);
+  await page.keyboard.press('Escape');
   await expect(page).toHaveURL(/\/settings\/computers$/);
   await closeSettings(page);
   await expect(page).toHaveURL(workspace);
@@ -319,7 +318,7 @@ test('forgetting from detail protects an unsavable remote draft and succeeds aft
   await expect(page).toHaveURL(
     new RegExp(`/settings/computers/${inventory.environmentId}$`),
   );
-  await closeSettings(page);
+  await page.keyboard.press('Escape');
   await expect(
     page.getByRole('listitem', {
       name: inventory.environment.name,
@@ -328,7 +327,6 @@ test('forgetting from detail protects an unsavable remote draft and succeeds aft
   ).toBeVisible();
   await closeSettings(page);
   await expect(page).toHaveURL(new RegExp(`${workspace}\\?`));
-  await page.getByRole('button', { name: 'Resume edit', exact: true }).click();
   await expect(editor).toHaveText('Keep this unsaved remote draft');
   await expect
     .poll(async () => (await remote.server.text(readme)).text)
@@ -398,7 +396,7 @@ for (const status of ['online', 'offline']) {
         await expect(row).toBeFocused();
         await row.click();
         await expect(
-          page.getByRole('main', { name: 'Settings', exact: true }),
+          page.getByRole('dialog', { name: 'Settings', exact: true }),
         ).toBeFocused();
         await expect(
           page

@@ -12,7 +12,7 @@ test('the Settings menu opens Settings, which shows the app version and that the
   ).toBeVisible();
 
   await app.clickMenu('open-settings');
-  const settings = page.getByRole('main', { name: 'Settings', exact: true });
+  const settings = page.getByRole('dialog', { name: 'Settings', exact: true });
   await expect(settings).toBeVisible();
   await settings
     .getByRole('button', { name: 'Computers', exact: true })
@@ -29,12 +29,7 @@ test('the Settings menu opens Settings, which shows the app version and that the
   await expect(
     settings.getByRole('button', { name: 'Check for updates', exact: true }),
   ).not.toBeAttached();
-  await page
-    .getByRole('button', { name: 'Close Settings', exact: true })
-    .click();
-  await page
-    .getByRole('button', { name: 'Close Settings', exact: true })
-    .click();
+  await settings.getByRole('button', { name: 'Close', exact: true }).click();
   await expect(settings).toBeHidden();
   expect(app.errors).toEqual([]);
 });

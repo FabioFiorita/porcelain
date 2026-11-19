@@ -116,7 +116,7 @@ test('credentials the app cannot decrypt read as unreadable, are never saved ove
 
   await page.reload();
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
-  const settings = page.getByRole('main', { name: 'Settings', exact: true });
+  const settings = page.getByRole('dialog', { name: 'Settings', exact: true });
   await settings
     .getByRole('button', { name: 'Computers', exact: true })
     .click();

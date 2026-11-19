@@ -12,7 +12,7 @@ selectors:
   - 'Open This computer:'
   - 'Disconnect this browser'
   - 'Save or discard unsaved file drafts before disconnecting.'
-  - 'Close Settings'
+  - 'Close'
   - 'Resume edit'
   - 'Reload'
   - 'This browser is not paired'
@@ -59,19 +59,19 @@ None before step 1. Step 5 writes README.md on disk in the middle of the flow (a
 6. Fill textbox `README.md` with 'A draft the browser cannot save', then wait for 'Not saving: changed on disk'
    Look for (within about 3 s, the autosave wait): status text "Not saving: changed on disk" and an alert "The file changed on disk since you opened it. Reload it before saving. Your draft is kept here." with buttons "Copy draft" and "Reload".
 7. Click button `Toggle Sidebar`, then click button `Settings`
-   Expect: main "Settings", URL `/settings/general`, title "Settings".
+   Expect: dialog "Settings", URL `/settings/general`, title "Settings — Porcelain".
 8. Click button `Computers`, then button named `Open This computer: <name>`
    Expect: URL `/settings/computers/this-computer`; text "This browser"; button "Disconnect this browser".
 9. Click button `Disconnect this browser`
-   Expect: an alert inside main "Settings" reading "Save or discard unsaved file drafts before disconnecting."; URL stays `/settings/computers/this-computer`.
+   Expect: an alert inside dialog "Settings" reading "Save or discard unsaved file drafts before disconnecting."; URL stays `/settings/computers/this-computer`.
    Disk: `cat "$REPO/README.md"` prints `Changed on disk before the browser disconnects`.
    Inspect HTTP traffic: exactly one `POST /api/worktrees/<worktreeId>/files` answered 409, and no `DELETE /api/session`.
 
 ### Case 2: disconnect ends the session (continues from case 1)
 
-10. Click button `Close Settings`
-    Expect: main "Settings" is gone; the README.md document shows button "Resume edit" (the draft still differs from the saved text).
-11. Click button `Resume edit`, then click button `Reload`
+10. Click button `Close` in dialog "Settings"
+    Expect: dialog "Settings" is gone; the README.md editor is still open with the unsaved draft (the workspace stayed mounted behind Settings, so no Resume edit step).
+11. Click button `Reload`
     Expect: "Not saving: changed on disk" is gone; the editor closes (textbox "README.md" gone), the document shows the disk text "Changed on disk before the browser disconnects" and its button reads "Edit" again.
 12. Click button `Toggle Sidebar`, click button `Settings`, click button `Computers`, then button named `Open This computer: <name>`
     Expect: button "Disconnect this browser".

@@ -2,7 +2,10 @@ import * as Schema from 'effect/Schema';
 import { DateTime } from 'effect';
 import { readInventoryResponseSchema } from '@porcelain/contracts/projects';
 import { expect } from 'vitest';
-import { eventually } from '../kit/reads.ts';
+import { readFile, stat, utimes, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { eventually, watching } from '../kit/reads.ts';
+import { read } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
 import {
   list,
@@ -18,6 +21,13 @@ const everyProjectIs =
     list(body.projects).every(
       (project) => record(project).available === available,
     );
+
+const readsUncommittedWork = (body: Record<string, unknown>) =>
+  list(body.projects).every((project) =>
+    list(record(project).worktrees).every(
+      (worktree) => record(worktree).uncommittedChangedAt !== undefined,
+    ),
+  );
 
 const registered = async (session: Session, available: boolean) => ({
   id: session.projectId,
@@ -40,6 +50,17 @@ const registered = async (session: Session, available: boolean) => ({
                 ).trim(),
               ),
             ),
+            uncommittedChangedAt: DateTime.formatIso(
+              DateTime.makeUnsafe(
+                Math.floor(
+                  (
+                    await stat(
+                      join(session.repository, session.fixture.readme.path),
+                    )
+                  ).mtimeMs,
+                ),
+              ),
+            ),
           }
         : {}),
     },
@@ -49,6 +70,7 @@ const registered = async (session: Session, available: boolean) => ({
 test('reading the inventory lists the registered project with its main worktree and is never cached', async ({
   session,
 }) => {
+  await read(session, { method: 'POST', path: '/api/inventory/refresh' });
   const response = await session.send({
     method: 'GET',
     path: '/api/inventory',
@@ -64,6 +86,74 @@ test('reading the inventory lists the registered project with its main worktree 
   expect(list(record(response.body).projects)).toStrictEqual([
     await registered(session, true),
   ]);
+});
+
+test('an uncommitted edit dates its worktree and live viewers hear it as uncommitted work only', async ({
+  session,
+}) => {
+  const connection = await watching(session);
+  const edited =
+    DateTime.toEpochMillis(DateTime.makeUnsafe('2026-03-02T09:30:00.000Z')) /
+    1000;
+  await session.writeFile(
+    session.fixture.readme.path,
+    session.fixture.readme.changed,
+  );
+  await utimes(
+    join(session.repository, session.fixture.readme.path),
+    edited,
+    edited,
+  );
+
+  const refreshed = await session.send({
+    method: 'POST',
+    path: '/api/inventory/refresh',
+  });
+
+  expect(refreshed.status).toBe(200);
+  const [project] = list(record(refreshed.body).projects);
+  expect(list(record(project).worktrees)).toStrictEqual([
+    expect.objectContaining({
+      id: session.worktreeId,
+      uncommittedChangedAt: '2026-03-02T09:30:00.000Z',
+    }),
+  ]);
+  expect(
+    await connection.next((notice) => notice.type === 'inventory'),
+  ).toStrictEqual({ type: 'inventory', change: 'activity' });
+});
+
+test('a failed status read keeps the worktree’s last uncommitted-change date until a later read succeeds', async ({
+  session,
+}) => {
+  const edited =
+    DateTime.toEpochMillis(DateTime.makeUnsafe('2026-04-05T06:07:08.000Z')) /
+    1000;
+  await utimes(
+    join(session.repository, session.fixture.readme.path),
+    edited,
+    edited,
+  );
+  const changedAt = async () => {
+    const response = await session.send({
+      method: 'POST',
+      path: '/api/inventory/refresh',
+    });
+    expect(response.status).toBe(200);
+    const [project] = list(record(response.body).projects);
+    const [worktree] = list(record(project).worktrees);
+    return record(worktree).uncommittedChangedAt;
+  };
+  expect(await changedAt()).toBe('2026-04-05T06:07:08.000Z');
+  const index = join(session.repository, '.git', 'index');
+  const saved = await readFile(index);
+  await writeFile(index, 'not an index');
+  try {
+    expect(await changedAt()).toBe('2026-04-05T06:07:08.000Z');
+  } finally {
+    await writeFile(index, saved);
+  }
+  expect(await changedAt()).toBe('2026-04-05T06:07:08.000Z');
 });
 
 test('a project whose folder has gone away stays registered as unavailable and is available again once the folder is back', async ({
@@ -94,7 +184,15 @@ test('a project whose folder has gone away stays registered as unavailable and i
     await session.rename(moved, session.repository);
   }
   expect(
-    list((await eventually(session, inventory, everyProjectIs(true))).projects),
+    list(
+      (
+        await eventually(
+          session,
+          inventory,
+          (body) => everyProjectIs(true)(body) && readsUncommittedWork(body),
+        )
+      ).projects,
+    ),
   ).toStrictEqual([await registered(session, true)]);
 });
 

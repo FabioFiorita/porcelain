@@ -1,7 +1,5 @@
 import { createFileRoute, redirect, useMatch } from '@tanstack/react-router';
-import { SettingsPage, settingsSections } from '@/app/settings-page';
-import { ConnectedWorkspace } from '@/app/connected-workspace';
-import { useDocumentTitle } from '@/shared/hooks/use-document-title';
+import { SettingsDialog, settingsTarget } from '@/app/settings-page';
 
 export const Route = createFileRoute('/_paired/settings/$section')({
   beforeLoad: ({ params }) => {
@@ -22,17 +20,6 @@ function SettingsRoute() {
     from: '/_paired/settings/$section/$environmentId',
     shouldThrow: false,
   });
-  const valid =
-    settingsSections.some((item) => item.id === section) &&
-    (detail === undefined || section === 'computers');
-  useDocumentTitle(valid ? 'Settings — Porcelain' : 'Porcelain');
-  if (!valid) return <ConnectedWorkspace notice="not-found" />;
-  return (
-    <ConnectedWorkspace settingsOpen>
-      <SettingsPage
-        section={section}
-        environmentId={detail?.params.environmentId}
-      />
-    </ConnectedWorkspace>
-  );
+  const target = settingsTarget(section, detail?.params.environmentId);
+  return target ? <SettingsDialog {...target} /> : null;
 }

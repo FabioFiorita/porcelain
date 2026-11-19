@@ -28,6 +28,9 @@ function projectReport(
       ...(worktree.headCommittedAt
         ? { headCommittedAt: worktree.headCommittedAt }
         : {}),
+      ...(worktree.uncommittedChangedAt
+        ? { uncommittedChangedAt: worktree.uncommittedChangedAt }
+        : {}),
       available: worktree.available,
     })),
   };

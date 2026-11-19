@@ -25,6 +25,7 @@ const worktreeSchema = Schema.Struct({
   main: Schema.Boolean,
   branch: nullableAsUndefined(Schema.String),
   headCommittedAt: Schema.optionalKey(isoDateTimeSchema),
+  uncommittedChangedAt: Schema.optionalKey(isoDateTimeSchema),
   walkthroughTitle: Schema.optionalKey(Schema.String),
   pullRequestTitle: Schema.optionalKey(Schema.String),
   available: Schema.Boolean,

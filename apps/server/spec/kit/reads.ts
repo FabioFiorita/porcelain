@@ -149,3 +149,7 @@ export async function tunnelOn(session: Session, hostname: string) {
       record(record(record(body.routes).cloudflare).status).kind === 'on',
   );
 }
+
+export function inventoryNotice(notice: Record<string, unknown>) {
+  return notice.type === 'inventory' && notice.change === undefined;
+}

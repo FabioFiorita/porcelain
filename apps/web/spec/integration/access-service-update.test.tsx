@@ -13,7 +13,7 @@ test.for([1280, 414])(
       const offered = await server.serviceUpdate();
       const from = offered.version ?? '';
       const to = offered.latest ?? '';
-      const settings = page.getByRole('main', {
+      const settings = page.getByRole('dialog', {
         name: 'Settings',
         exact: true,
       });
@@ -136,7 +136,7 @@ test('Computers refreshes settled service status once and exposes recovery after
   await expect.poll(() => server.serviceUpdateReads()).toBe(1);
   await repo.serviceUpdate('error');
   await app.page.getByRole('button', { name: 'Settings', exact: true }).click();
-  const settings = app.page.getByRole('main', {
+  const settings = app.page.getByRole('dialog', {
     name: 'Settings',
     exact: true,
   });

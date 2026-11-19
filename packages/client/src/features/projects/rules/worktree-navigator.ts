@@ -36,6 +36,7 @@ export type NavigatorPullRequest =
   | {
       state: 'available';
       number: number;
+      merged: boolean;
       checks?:
         | { state: 'loading' }
         | { state: 'unavailable' }
@@ -65,6 +66,7 @@ export type NavigatorEntry = {
   branch: string;
   main: boolean;
   headCommittedAt?: string;
+  uncommittedChangedAt?: string;
   detached: boolean;
   available: boolean;
   pullRequest: NavigatorPullRequest;
@@ -72,17 +74,82 @@ export type NavigatorEntry = {
 };
 type NavigatorOrder = Pick<
   NavigatorEntry,
-  'key' | 'name' | 'main' | 'headCommittedAt'
+  'key' | 'name' | 'main' | 'headCommittedAt' | 'uncommittedChangedAt'
 >;
+function touchedAt(entry: NavigatorOrder) {
+  const times = [entry.headCommittedAt, entry.uncommittedChangedAt].filter(
+    (time) => time !== undefined,
+  );
+  return times.length === 0 ? undefined : times.sort().at(-1);
+}
 export function navigatorWorktreeOrder(a: NavigatorOrder, b: NavigatorOrder) {
+  const aTouched = touchedAt(a);
+  const bTouched = touchedAt(b);
   return (
     Number(b.main) - Number(a.main) ||
-    Number(b.headCommittedAt !== undefined) -
-      Number(a.headCommittedAt !== undefined) ||
-    (b.headCommittedAt ?? '').localeCompare(a.headCommittedAt ?? '') ||
+    Number(bTouched !== undefined) - Number(aTouched !== undefined) ||
+    (bTouched ?? '').localeCompare(aTouched ?? '') ||
     a.name.localeCompare(b.name) ||
     a.key.localeCompare(b.key)
   );
+}
+const NAVIGATOR_RECENT_ROWS = 5;
+export function navigatorVisibleRows<
+  Row extends { key: string; main: boolean },
+>(
+  rows: readonly Row[],
+  options: {
+    selectedKey: string | undefined;
+    showAll: boolean;
+    searching: boolean;
+  },
+) {
+  if (options.searching) return { rows, more: 0, less: false };
+  const recent = new Set(
+    rows
+      .filter((row) => !row.main)
+      .slice(0, NAVIGATOR_RECENT_ROWS)
+      .map((row) => row.key),
+  );
+  const collapsed = rows.filter(
+    (row) => row.main || recent.has(row.key) || row.key === options.selectedKey,
+  );
+  const extra = rows.length - collapsed.length;
+  return options.showAll
+    ? { rows, more: 0, less: extra > 0 }
+    : { rows: collapsed, more: extra, less: false };
+}
+export function navigatorDisplayTitle(worktree: {
+  branch?: string | undefined;
+  walkthroughTitle?: string | undefined;
+  pullRequestTitle?: string | undefined;
+}) {
+  const title = worktree.walkthroughTitle || worktree.pullRequestTitle;
+  return title && title !== worktree.branch ? title : undefined;
+}
+export function navigatorRowTitle(
+  entry: Pick<NavigatorEntry, 'displayTitle' | 'name'>,
+) {
+  return entry.displayTitle ?? entry.name;
+}
+export type NavigatorTrailing =
+  | { kind: 'pull-request'; number: number; text: string }
+  | { kind: 'changes'; text: string };
+export function navigatorRowTrailing(
+  entry: Pick<NavigatorEntry, 'pullRequest' | 'changes'>,
+): NavigatorTrailing | undefined {
+  if (entry.pullRequest.state === 'available')
+    return {
+      kind: 'pull-request',
+      number: entry.pullRequest.number,
+      text: `#${entry.pullRequest.number}${entry.pullRequest.merged ? ' merged' : ''}`,
+    };
+  if (entry.changes.state === 'available' && entry.changes.count > 0)
+    return {
+      kind: 'changes',
+      text: `${entry.changes.count} ${entry.changes.count === 1 ? 'file' : 'files'}`,
+    };
+  return undefined;
 }
 export function navigatorChangesLabel(changes: NavigatorChanges) {
   if (changes.state === 'loading') return 'Reading changes…';
@@ -112,20 +179,21 @@ export function navigatorChecksLabel(
   return labels[checks.result];
 }
 export function navigatorEntryLabel(entry: NavigatorEntry) {
+  const title = navigatorRowTitle(entry);
   return [
-    entry.name,
+    title,
+    entry.branch !== title ? entry.branch : undefined,
     entry.projectName,
     entry.environmentName,
     entry.main ? 'Main worktree' : undefined,
-    entry.detached ? 'Detached HEAD' : undefined,
     entry.detached ? entry.path : undefined,
-    entry.kind === 'worktree'
-      ? navigatorChangesLabel(entry.changes)
+    entry.changes.state === 'available' && entry.changes.count > 0
+      ? `${entry.changes.count} uncommitted ${entry.changes.count === 1 ? 'file' : 'files'}`
       : undefined,
     entry.pullRequest.state === 'available'
-      ? `Pull request #${entry.pullRequest.number}`
+      ? `Pull request #${entry.pullRequest.number}${entry.pullRequest.merged ? ' merged' : ''}`
       : undefined,
-    !entry.available && entry.kind === 'worktree' ? 'Unavailable' : undefined,
+    !entry.available ? 'Unavailable' : undefined,
   ]
     .filter(Boolean)
     .join(', ');

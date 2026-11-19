@@ -44,6 +44,10 @@ export function sampleRepository(step: Step, fixture: RepoFixture) {
     merge: (name: string) => step({ kind: 'merge', name }),
     worktree: (name: string) => step({ kind: 'worktree', name }),
     detachWorktree: (name: string) => step({ kind: 'detach-worktree', name }),
+    commitAfterMain: (name: string, message: string) =>
+      step({ kind: 'worktree-commit', name, message }),
+    writeInWorktree: (name: string, path: string, text: string) =>
+      step({ kind: 'worktree-write', name, path, text }),
     fifo: (path: string) => step({ kind: 'fifo', path }),
     remote: (name: string, url: string) => step({ kind: 'remote', name, url }),
   };

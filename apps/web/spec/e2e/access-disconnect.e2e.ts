@@ -23,7 +23,7 @@ async function refuseDisconnectWithDraft(page: Page, repo: Repo) {
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
-  const settings = page.getByRole('main', { name: 'Settings', exact: true });
+  const settings = page.getByRole('dialog', { name: 'Settings', exact: true });
   await openThisComputer(page);
   await settings
     .getByRole('button', { name: 'Disconnect this browser', exact: true })
@@ -65,7 +65,7 @@ test('disconnecting is refused while a file draft cannot be saved, and the file 
   await pairedPage
     .getByRole('button', { name: 'Settings', exact: true })
     .click();
-  const settings = pairedPage.getByRole('main', {
+  const settings = pairedPage.getByRole('dialog', {
     name: 'Settings',
     exact: true,
   });
@@ -87,16 +87,15 @@ test('disconnecting this browser ends its session and shows how to pair it again
   server,
 }) => {
   await refuseDisconnectWithDraft(pairedPage, repo);
-  const settings = pairedPage.getByRole('main', {
+  const settings = pairedPage.getByRole('dialog', {
     name: 'Settings',
     exact: true,
   });
   await closeSettings(settings.page());
-  await closeSettings(settings.page());
   await expect(settings).not.toBeAttached();
-  await pairedPage
-    .getByRole('button', { name: 'Resume edit', exact: true })
-    .click();
+  await expect(
+    pairedPage.getByRole('textbox', { name: repo.readme.path, exact: true }),
+  ).toHaveText('A draft the browser cannot save');
   await pairedPage.getByRole('button', { name: 'Reload', exact: true }).click();
   await expect(
     pairedPage.getByText('Not saving: changed on disk', { exact: true }),

@@ -19,8 +19,11 @@ export const webSocketEventPublisherLayer = Layer.effect(
         },
       );
     return {
-      inventoryChanged: Effect.fn('EventPublisher.inventoryChanged')(() =>
-        connectionsCapability.toEveryone({ type: 'inventory' }),
+      inventoryChanged: Effect.fn('EventPublisher.inventoryChanged')(
+        (change?: 'activity') =>
+          connectionsCapability.toEveryone(
+            change ? { type: 'inventory', change } : { type: 'inventory' },
+          ),
       ),
       projectChanged: Effect.fn('EventPublisher.projectChanged')((input) =>
         connectionsCapability.toProject(input.projectId, {

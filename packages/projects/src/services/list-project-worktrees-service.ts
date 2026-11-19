@@ -7,6 +7,7 @@ import { WorktreeCatalogStore } from '../ports/worktree-catalog-store.ts';
 import { WorktreeListingReader } from '../ports/worktree-listing-reader.ts';
 import { repositoryMoved } from '../rules/repository-moved.ts';
 import { unavailableWorktrees } from '../rules/unavailable-worktrees.ts';
+import { carryWorktreeActivity } from '../rules/worktree-activity.ts';
 
 export class ListProjectWorktreesService extends Context.Service<
   ListProjectWorktreesService,
@@ -35,7 +36,12 @@ export class ListProjectWorktreesService extends Context.Service<
               projectId: listing.projectId,
               available: true,
               complete: listing.unidentified === 0,
-              worktrees: listing.worktrees,
+              worktrees: carryWorktreeActivity(
+                listing.worktrees,
+                worktreeCatalogCapability.lastSeen({
+                  projectId: listing.projectId,
+                }),
+              ),
             };
           return {
             projectId: listing.projectId,

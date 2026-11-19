@@ -77,6 +77,7 @@ export type Render = {
     page: typeof page;
     navigate: (path: string) => Promise<void>;
     back: () => Promise<void>;
+    forward: () => Promise<void>;
     whenRendered: (path: string) => Promise<void>;
     pair: () => Promise<void>;
     location: () => string;
@@ -203,7 +204,6 @@ function Navigator({
 }) {
   return (
     <ProjectNavigator
-      settingsOpen={false}
       remotes={remotes}
       selected={undefined}
       onSelect={() => {}}
@@ -466,6 +466,10 @@ export const test = base
           },
           back: async () => {
             mounted.router.history.back();
+            await mounted.router.load();
+          },
+          forward: async () => {
+            mounted.router.history.forward();
             await mounted.router.load();
           },
           whenRendered: (path) =>

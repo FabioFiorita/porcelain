@@ -1,3 +1,4 @@
+import { useHotkeysEnabled } from '@/shared/hooks/use-hotkeys-enabled';
 import type { FileDraftHandle } from '@porcelain/client/files';
 import { useWorkspaceWriteBlock } from '@/shared/workspace/connection';
 import { CopyIcon, FileDiffIcon, HistoryIcon, PencilIcon } from 'lucide-react';
@@ -225,8 +226,9 @@ function ReadableFileDocument({
   useDiskChangeNotice(draft, editorId, contentFingerprint);
 
   const showingSource = kind === 'code' || mode === 'source';
+  const hotkeysEnabled = useHotkeysEnabled();
   useHotkey(SHORTCUTS.findInFile, () => setFinding(Date.now()), {
-    enabled: active && showingSource && !editing,
+    enabled: hotkeysEnabled && active && showingSource && !editing,
     ignoreInputs: false,
     conflictBehavior: 'allow',
   });

@@ -291,6 +291,51 @@ it('a file notice invalidates only the connected environment', async () => {
   }
 });
 
+it('an uncommitted-work notice rereads the inventory without rereading pull requests', async () => {
+  const subject = await setup();
+  const reactivity = subject.connection.runtime.runSync(Reactivity.Reactivity);
+  const reads = { inventory: 0, pullRequests: 0 };
+  const stopInventory = reactivity.registerUnsafe(
+    [queryKeys.worktreeInventory(environmentId)],
+    () => {
+      reads.inventory += 1;
+    },
+  );
+  const stopPullRequests = reactivity.registerUnsafe(
+    [queryKeys.inventory(environmentId)],
+    () => {
+      reads.pullRequests += 1;
+    },
+  );
+  try {
+    subject.live()?.onNotice({ type: 'inventory', change: 'activity' });
+    await Promise.resolve();
+    expect(reads).toEqual({ inventory: 1, pullRequests: 0 });
+    subject.live()?.onNotice({ type: 'inventory' });
+    await Promise.resolve();
+    expect(reads).toEqual({ inventory: 1, pullRequests: 1 });
+  } finally {
+    stopInventory();
+    stopPullRequests();
+    await subject.cleanup();
+  }
+});
+
+it('only an ordinary inventory notice rechecks the computer’s status', async () => {
+  let rechecks = 0;
+  const subject = await setup(undefined, undefined, () => {
+    rechecks += 1;
+  });
+  try {
+    subject.live()?.onNotice({ type: 'inventory', change: 'activity' });
+    expect(rechecks).toBe(0);
+    subject.live()?.onNotice({ type: 'inventory' });
+    expect(rechecks).toBe(1);
+  } finally {
+    await subject.cleanup();
+  }
+});
+
 it('inventory updates change the live project subscription', async () => {
   const initial = Promise.withResolvers<void>();
   const refreshed = Promise.withResolvers<void>();

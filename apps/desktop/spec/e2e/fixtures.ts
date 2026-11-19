@@ -138,7 +138,13 @@ export class DesktopApp {
 
   async holdPicker(): Promise<void> {
     await this.electron.evaluate(({ BrowserWindow, dialog }) => {
+      const pages: string[] = [];
+      Reflect.set(dialog, 'porcelainPickerPages', pages);
       dialog.showOpenDialog = async (...args: unknown[]) => {
+        const window = BrowserWindow.getAllWindows()[0];
+        pages.push(
+          new URL(window?.webContents.getURL() ?? 'about:blank').pathname,
+        );
         const options = args[1];
         const read = (name: string): unknown =>
           typeof options === 'object' && options !== null
@@ -179,6 +185,16 @@ export class DesktopApp {
     if (!isPickerRequest(request))
       throw new Error('The native project picker sent an unknown request');
     return request;
+  }
+
+  async pickerPages(): Promise<string[]> {
+    const pages: unknown = await this.electron.evaluate(({ dialog }) => {
+      const recorded: unknown = Reflect.get(dialog, 'porcelainPickerPages');
+      return recorded;
+    });
+    return Array.isArray(pages)
+      ? pages.filter((page): page is string => typeof page === 'string')
+      : [];
   }
 
   async answerPicker(selection: PickerSelection): Promise<void> {

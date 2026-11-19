@@ -1,7 +1,7 @@
 import { expect, type Page } from '@playwright/test';
 
 export async function openThisComputer(page: Page) {
-  const settings = page.getByRole('main', { name: 'Settings', exact: true });
+  const settings = page.getByRole('dialog', { name: 'Settings', exact: true });
   await settings
     .getByRole('navigation', { name: 'Settings sections', exact: true })
     .getByRole('button', { name: 'Computers', exact: true })
@@ -38,19 +38,7 @@ export async function savedPreferences(page: Page): Promise<unknown> {
 }
 
 export async function closeSettings(page: Page) {
-  const navigator = page.getByRole('navigation', {
-    name: 'Projects and worktrees',
-    exact: true,
-  });
-  const opened = !(await navigator.isVisible());
-  if (opened)
-    await page
-      .getByRole('button', { name: 'Toggle Sidebar', exact: true })
-      .click();
-  await navigator
-    .getByRole('button', { name: 'Close Settings', exact: true })
-    .click();
-  await expect(
-    page.getByRole('dialog', { name: 'Sidebar', exact: true }),
-  ).not.toBeVisible();
+  const settings = page.getByRole('dialog', { name: 'Settings', exact: true });
+  await settings.getByRole('button', { name: 'Close', exact: true }).click();
+  await expect(settings).not.toBeAttached();
 }

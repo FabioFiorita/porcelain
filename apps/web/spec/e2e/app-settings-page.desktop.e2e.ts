@@ -1,7 +1,7 @@
 import { closeSettings, openThisComputer } from '../kit/settings.ts';
 import { expect, test } from './fixtures.ts';
 
-test('Settings opens as its own page with one section at a time, and Close returns to the review', async ({
+test('Settings opens over the review with one section at a time, and Close returns to the same review', async ({
   pairedPage,
 }) => {
   const review = pairedPage.getByRole('region', {
@@ -9,18 +9,18 @@ test('Settings opens as its own page with one section at a time, and Close retur
     exact: true,
   });
   await expect(review).toBeVisible();
+  const mounted = await review.elementHandle();
   await pairedPage
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
   await pairedPage
     .getByRole('button', { name: 'Settings', exact: true })
     .click();
-  const settings = pairedPage.getByRole('main', {
+  const settings = pairedPage.getByRole('dialog', {
     name: 'Settings',
     exact: true,
   });
   await expect(settings).toBeVisible();
-  await expect(review).not.toBeAttached();
   await expect(
     settings.getByRole('heading', { name: 'General', exact: true }),
   ).toBeVisible();
@@ -40,8 +40,10 @@ test('Settings opens as its own page with one section at a time, and Close retur
   ).not.toBeAttached();
 
   await closeSettings(settings.page());
-  await expect(settings).not.toBeAttached();
   await expect(review).toBeVisible();
+  await expect
+    .poll(() => mounted?.evaluate((element) => element.isConnected))
+    .toBe(true);
 });
 
 test('Escape leaves Settings, except while typing in one of its fields', async ({
@@ -54,7 +56,7 @@ test('Escape leaves Settings, except while typing in one of its fields', async (
   await pairedPage
     .getByRole('button', { name: 'Settings', exact: true })
     .click();
-  const settings = pairedPage.getByRole('main', {
+  const settings = pairedPage.getByRole('dialog', {
     name: 'Settings',
     exact: true,
   });
@@ -112,7 +114,7 @@ test('Settings still opens once the last project is removed', async ({
   await pairedPage
     .getByRole('button', { name: 'Settings', exact: true })
     .click();
-  const settings = pairedPage.getByRole('main', {
+  const settings = pairedPage.getByRole('dialog', {
     name: 'Settings',
     exact: true,
   });
@@ -125,22 +127,22 @@ test('Settings still opens once the last project is removed', async ({
   ).toBeVisible();
 });
 
-test('Settings keeps worktrees beside its section navigation and owns Close in the navigator footer', async ({
+test('Settings opens as a dialog over the worktrees, and a click outside closes it', async ({
   pairedPage,
 }) => {
   await pairedPage.setViewportSize({ width: 1440, height: 960 });
-  await pairedPage
-    .getByRole('button', { name: 'Settings', exact: true })
-    .click();
-  const settings = pairedPage.getByRole('main', {
-    name: 'Settings',
-    exact: true,
-  });
+  await expect(pairedPage).toHaveTitle(/^Review — /);
   const worktrees = pairedPage.getByRole('navigation', {
     name: 'Projects and worktrees',
     exact: true,
   });
-  await expect(worktrees).toBeVisible();
+  const open = worktrees.getByRole('button', { name: 'Settings', exact: true });
+  await open.click();
+  const settings = pairedPage.getByRole('dialog', {
+    name: 'Settings',
+    exact: true,
+  });
+  await expect(settings).toBeVisible();
   await expect(pairedPage).toHaveTitle('Settings — Porcelain');
   await expect(
     settings.getByRole('navigation', {
@@ -148,33 +150,16 @@ test('Settings keeps worktrees beside its section navigation and owns Close in t
       exact: true,
     }),
   ).toBeVisible();
-  await expect(
-    settings.getByRole('button', { name: 'Close Settings', exact: true }),
-  ).not.toBeAttached();
-  await expect(
-    worktrees.getByRole('button', { name: 'Close Settings', exact: true }),
-  ).toBeVisible();
   await expect
     .poll(async () => {
-      const worktreeBox = await worktrees.boundingBox();
-      const pageBox = await settings.boundingBox();
-      return worktreeBox && pageBox ? worktreeBox.x - pageBox.x : 0;
+      const box = await settings.boundingBox();
+      return box ? box.x : 0;
     })
-    .toBeLessThan(0);
-  await settings
-    .getByRole('button', { name: 'Toggle Sidebar', exact: true })
-    .click();
-  await expect(worktrees).not.toBeVisible();
-  await settings
-    .getByRole('button', { name: 'Toggle Sidebar', exact: true })
-    .click();
-  const close = worktrees.getByRole('button', {
-    name: 'Close Settings',
-    exact: true,
-  });
-  await close.focus();
-  await close.press('Escape');
+    .toBeGreaterThan(0);
+  await pairedPage.mouse.click(8, 8);
   await expect(settings).not.toBeAttached();
+  await expect(pairedPage).toHaveTitle(/^Review — /);
+  await expect(open).toBeFocused();
 });
 
 test('reviewing archive deletions keeps Close returning to the worktree', async ({
@@ -186,7 +171,7 @@ test('reviewing archive deletions keeps Close returning to the worktree', async 
   await pairedPage
     .getByRole('button', { name: 'Settings', exact: true })
     .click();
-  const settings = pairedPage.getByRole('main', {
+  const settings = pairedPage.getByRole('dialog', {
     name: 'Settings',
     exact: true,
   });

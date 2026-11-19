@@ -1,3 +1,4 @@
+import { inventoryNotice } from '../kit/reads.ts';
 import * as Schema from 'effect/Schema';
 import {
   issueLiveTicketResponseSchema,
@@ -130,7 +131,7 @@ test('a ticket opens live updates from another origin that hear changes and clos
     id: session.projectId,
     name: 'Announced',
   });
-  const notice = await connection.next((entry) => entry.type === 'inventory');
+  const notice = await connection.next(inventoryNotice);
   expect(notice).toStrictEqual({ type: 'inventory' });
   expect(notice).toEqual(
     expect.schemaMatching(

@@ -2,7 +2,7 @@ import { renameEnvironmentResponseSchema } from '@porcelain/contracts/access';
 import * as Schema from 'effect/Schema';
 import { expect } from 'vitest';
 import { apiError } from '../kit/answers.ts';
-import { inventory, watching } from '../kit/reads.ts';
+import { inventory, inventoryNotice, watching } from '../kit/reads.ts';
 import { test } from '../kit/server-test.ts';
 import { record, type Session } from '../kit/session.ts';
 
@@ -40,9 +40,9 @@ test('the owner names the environment with the spaces trimmed and live viewers h
     name: 'Workstation',
     custom: true,
   });
-  expect(
-    await connection.next((entry) => entry.type === 'inventory'),
-  ).toStrictEqual({ type: 'inventory' });
+  expect(await connection.next(inventoryNotice)).toStrictEqual({
+    type: 'inventory',
+  });
 });
 
 test('clearing the environment name goes back to the host name', async ({

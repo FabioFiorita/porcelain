@@ -101,10 +101,14 @@ const connectLiveSession = Effect.fn('Live.connect')(function* (
         queryKeys.environment(connection.environmentId),
       ]);
     if (notice.type === 'inventory')
-      yield* reactivity.invalidate([
-        queryKeys.inventory(connection.environmentId),
-        queryKeys.reviewGitSettings(connection.environmentId),
-      ]);
+      yield* reactivity.invalidate(
+        notice.change === 'activity'
+          ? [queryKeys.worktreeInventory(connection.environmentId)]
+          : [
+              queryKeys.inventory(connection.environmentId),
+              queryKeys.reviewGitSettings(connection.environmentId),
+            ],
+      );
     if (notice.type === 'worktree') {
       yield* reactivity.invalidate([
         queryKeys.worktreeInventory(connection.environmentId),
@@ -146,7 +150,8 @@ const connectLiveSession = Effect.fn('Live.connect')(function* (
     .connect({
       onNotice: (notice) => {
         if (connection.isClosed() || scope.state._tag === 'Closed') return;
-        if (notice.type === 'inventory') connection.onStatusChange?.();
+        if (notice.type === 'inventory' && notice.change !== 'activity')
+          connection.onStatusChange?.();
         if (notice.type === 'ready') recoverPending();
         run(
           Symbol(),

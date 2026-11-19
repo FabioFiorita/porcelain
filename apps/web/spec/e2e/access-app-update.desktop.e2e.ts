@@ -12,7 +12,7 @@ async function openUpdates(page: Page) {
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
-  const settings = page.getByRole('main', { name: 'Settings', exact: true });
+  const settings = page.getByRole('dialog', { name: 'Settings', exact: true });
   await settings
     .getByRole('navigation', { name: 'Settings sections', exact: true })
     .getByRole('button', { name: 'Computers', exact: true })
@@ -212,7 +212,7 @@ for (const width of [1440, 414]) {
       await expect(badge).not.toBeAttached();
       await page.keyboard.press('Enter');
       await expect(
-        page.getByRole('main', { name: 'Settings', exact: true }),
+        page.getByRole('dialog', { name: 'Settings', exact: true }),
       ).toBeVisible();
       if (width === 414) {
         await expect(

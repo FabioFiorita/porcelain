@@ -81,6 +81,34 @@ describe('ListProjectWorktreesService', () => {
     });
   });
 
+  it('keeps the last uncommitted-change date of the same checkout and drops it for a moved one', async () => {
+    const reader = new ScriptedWorktreeListingReader();
+    reader.answer({
+      kind: 'listed',
+      projectId: project.id,
+      repositoryIdentity: project.repositoryIdentity,
+      worktrees: [
+        worktree('main'),
+        { ...worktree('feature'), path: '/srv/moved' },
+      ],
+      unidentified: 0,
+    });
+    const catalog = seen([
+      { ...worktree('main'), uncommittedChangedAt: '2026-11-01T10:00:00.000Z' },
+      {
+        ...worktree('feature'),
+        uncommittedChangedAt: '2026-11-02T10:00:00.000Z',
+      },
+    ]);
+    const result = await Effect.runPromise(
+      service(reader, catalog).execute({ project }),
+    );
+    expect(result.worktrees).toEqual([
+      { ...worktree('main'), uncommittedChangedAt: '2026-11-01T10:00:00.000Z' },
+      { ...worktree('feature'), path: '/srv/moved' },
+    ]);
+  });
+
   it('keeps a listing with unidentified worktrees available but incomplete', async () => {
     const reader = new ScriptedWorktreeListingReader();
     reader.answer({

@@ -1,3 +1,4 @@
+import { useHotkeysEnabled } from '@/shared/hooks/use-hotkeys-enabled';
 import { Cause, Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import type { GitStatusEntry } from '@pierre/trees';
@@ -258,12 +259,13 @@ function ScopedFileNavigation({
       duplicatePath(path, (candidate) => kinds.has(candidate)),
       openFile,
     );
+  const hotkeysEnabled = useHotkeysEnabled();
   useHotkey(
     SHORTCUTS.duplicateFile,
     () => {
       if (!writeBlock && !edit.result.waiting) duplicate(selected);
     },
-    { enabled: openable.has(selected), ignoreInputs: true },
+    { enabled: hotkeysEnabled && openable.has(selected), ignoreInputs: true },
   );
   const onSelect = (path: string, toSide = false) => {
     const kind = kinds.get(path);

@@ -49,6 +49,8 @@ import {
   MarkProjectsUnavailableService,
   ReadRepositoryOriginService,
   RecordWorktreeCatalogService,
+  ReadWorktreeActivityService,
+  RecordWorktreeActivityService,
   RecordWorktreePresenceService,
   RegisterProjectService,
   RemoveProjectService,
@@ -62,6 +64,7 @@ import {
 } from '@porcelain/projects/services';
 import { gitProjectRepositoryReaderLayer } from '../adapters/projects/git-project-repository-reader.ts';
 import { gitWorktreeListingReaderLayer } from '../adapters/projects/git-worktree-listing-reader.ts';
+import { gitWorktreeActivityReaderLayer } from '../adapters/projects/git-worktree-activity-reader.ts';
 import { Logger } from '../ports/logger.ts';
 import { makeCoalescedWork } from '../runtime/coalesced-work.ts';
 import { WorktreeAccess } from '../runtime/worktree-access.ts';
@@ -121,6 +124,12 @@ export function composeProjects(
       timeout: settings.limits.inventory.listingTimeout,
       worktreeId: dependencies.worktreeId,
     }).pipe(Layer.provide(Layer.succeed(Logger, logger))),
+    gitWorktreeActivityReaderLayer({
+      git: settings.limits.git,
+      reads: settings.limits.inventory.activityReads,
+      timeout: settings.limits.inventory.listingTimeout,
+      budget: settings.limits.inventory.activityBudget,
+    }).pipe(Layer.provide(Layer.succeed(Clock.Clock, clock))),
     gitProjectRepositoryReaderLayer(settings.limits.git),
     Layer.succeed(WorktreeCatalogStore, catalog),
     Layer.succeed(InventoryStore, inventory),
@@ -157,6 +166,8 @@ export function composeProjects(
     RecordWorktreePresenceService.layer,
     MarkProjectsUnavailableService.layer,
     RecordWorktreeCatalogService.layer,
+    ReadWorktreeActivityService.layer,
+    RecordWorktreeActivityService.layer,
     FindWorktreeAtPathService.layer,
     InspectProjectRepositoryService.layer,
     ReadRepositoryOriginService.layer,

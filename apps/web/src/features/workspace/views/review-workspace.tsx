@@ -1,3 +1,4 @@
+import { useHotkeysEnabled } from '@/shared/hooks/use-hotkeys-enabled';
 import type { ComponentType } from 'react';
 import type { DocumentProps, WalkthroughCodeProps } from './documents';
 import type { ReviewIndexProps } from './review-index';
@@ -485,9 +486,10 @@ function DocumentPanes({
     pinned: [],
     active: null,
   };
+  const hotkeysEnabled = useHotkeysEnabled();
   const shortcuts = {
     ignoreInputs: true,
-    enabled: layout.split || focused === 0,
+    enabled: hotkeysEnabled && (layout.split || focused === 0),
   };
   useHotkey(SHORTCUTS.nextTab, () => layout.step(focused, 1), shortcuts);
   useHotkey(SHORTCUTS.previousTab, () => layout.step(focused, -1), shortcuts);

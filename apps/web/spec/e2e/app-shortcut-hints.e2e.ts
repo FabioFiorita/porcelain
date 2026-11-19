@@ -132,7 +132,7 @@ for (const width of [1280, 414]) {
     await search.fill('');
     await footer.focus();
     await page.keyboard.press('Alt+Shift+s');
-    const settings = page.getByRole('main', {
+    const settings = page.getByRole('dialog', {
       name: 'Settings',
       exact: true,
     });

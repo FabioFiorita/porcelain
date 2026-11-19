@@ -193,6 +193,33 @@ export class World {
         step.name,
         join(repository.projectHome, step.name),
       );
+    if (step.kind === 'worktree-commit') {
+      const checkout = join(repository.projectHome, step.name);
+      const mainCommitted = Number(
+        (await repository.git('log', '-1', '--format=%ct')).trim(),
+      );
+      const date = `@${mainCommitted + 1} +0000`;
+      const env = {
+        ...process.env,
+        GIT_AUTHOR_DATE: date,
+        GIT_COMMITTER_DATE: date,
+      };
+      await promisify(execFile)('git', ['-C', checkout, 'add', '--all'], {
+        env,
+      });
+      const { stdout } = await promisify(execFile)(
+        'git',
+        ['-C', checkout, 'commit', '--allow-empty', '-m', step.message],
+        { env },
+      );
+      return stdout;
+    }
+    if (step.kind === 'worktree-write') {
+      const target = join(repository.projectHome, step.name, step.path);
+      await mkdir(dirname(target), { recursive: true });
+      await writeFile(target, step.text);
+      return '';
+    }
     if (step.kind === 'detach-worktree') {
       await promisify(execFile)('git', [
         '-C',

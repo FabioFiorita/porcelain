@@ -11,7 +11,7 @@ selectors:
   - 'Ways in'
   - 'Saved connections'
   - 'Forget on this app'
-  - 'Close Settings'
+  - 'Close'
 tests:
   - apps/web/spec/e2e/access-remote-detail.desktop.e2e.ts
 api:
@@ -38,7 +38,7 @@ This computer comes first, followed by saved computers. A saved row has an expli
 
 Open Settings → Computers, paste a remote pairing link and click Add. Open the named row. Overview shows live name/status and update state; its Details disclosure contains address, Computer ID, version and this device’s ID; Saved connections lists saved addresses read-only. While the computer is online, Ways in shows that computer's live local network, Tailscale and Cloudflare tunnel settings when its owner let this app's device edit ways in, with the way in this app is connected through locked and explained; otherwise it says this device cannot see or change ways in. When this app reaches the computer through that computer's own address (127.0.0.1 or localhost, as the sandbox's remote does), it says instead that ways in cannot be seen or changed over this connection, granted or not. Update progress stays consistent with the computer list. Offline detail keeps saved identity, labels it stale and explains Pair again. Forget on this app lives in the Danger zone and protects unsaved drafts.
 
-Close Settings, the Computers breadcrumb and browser Back restore list scroll and the Open <name> button's focus. Immediate Escape works after click or keyboard activation; input Escape is ignored. Forget removes the row and moves focus to Computers list, so the next Escape can leave Settings. Direct detail URLs reload safely. An extra segment on any other section is not found.
+Escape, the Computers breadcrumb and browser Back restore list scroll and the Open <name> button's focus. Immediate Escape works after click or keyboard activation; input Escape is ignored. Forget removes the row and moves focus to Computers list, so the next Escape can leave Settings. Close (×) leaves Settings from the detail in one step. Direct detail URLs reload safely. An extra segment on any other section is not found.
 
 The former per-computer sidebar shortcut buttons were removed. Use Settings → Computers → Open <name>. An unavailable workspace's Computer settings action still opens that exact computer without changing the selected review.
 

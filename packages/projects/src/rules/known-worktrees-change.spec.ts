@@ -3,7 +3,7 @@ import type {
   ListedWorktree,
   ProjectWorktrees,
 } from '@porcelain/projects/models';
-import { knownWorktreesChanged } from './known-worktrees-changed.ts';
+import { knownWorktreesChange } from './known-worktrees-change.ts';
 
 const main: ListedWorktree = {
   id: 'worktree-1',
@@ -26,60 +26,79 @@ function listing(
   return [{ projectId: 'project-1', available, worktrees }];
 }
 
-describe('knownWorktreesChanged', () => {
+describe('knownWorktreesChange', () => {
   it('sees no change when every project and worktree reads the same', () => {
-    expect(knownWorktreesChanged(listing([main]), listing([{ ...main }]))).toBe(
-      false,
+    expect(knownWorktreesChange(listing([main]), listing([{ ...main }]))).toBe(
+      undefined,
     );
   });
 
   it('sees a project that became unavailable', () => {
     expect(
-      knownWorktreesChanged(
+      knownWorktreesChange(
         listing([main]),
         listing([{ ...main, available: false }], false),
       ),
-    ).toBe(true);
+    ).toBe('inventory');
   });
 
   it('sees a worktree that switched branch, appeared or went away', () => {
     const linked = { ...main, id: 'worktree-2', main: false, path: '/w/two' };
     expect(
-      knownWorktreesChanged(
+      knownWorktreesChange(
         listing([main]),
         listing([{ ...main, branch: 'refs/heads/topic' }]),
       ),
-    ).toBe(true);
-    expect(
-      knownWorktreesChanged(listing([main]), listing([main, linked])),
-    ).toBe(true);
-    expect(
-      knownWorktreesChanged(listing([main, linked]), listing([main])),
-    ).toBe(true);
+    ).toBe('inventory');
+    expect(knownWorktreesChange(listing([main]), listing([main, linked]))).toBe(
+      'inventory',
+    );
+    expect(knownWorktreesChange(listing([main, linked]), listing([main]))).toBe(
+      'inventory',
+    );
   });
 
   it('sees a worktree whose head moved to a newer commit', () => {
     expect(
-      knownWorktreesChanged(
+      knownWorktreesChange(
         listing([{ ...main, headCommittedAt: '2026-10-30T12:00:00.000Z' }]),
         listing([{ ...main, headCommittedAt: '2026-10-31T08:00:00.000Z' }]),
       ),
-    ).toBe(true);
+    ).toBe('inventory');
+  });
+
+  it('tells uncommitted work apart from a change to the listing itself', () => {
+    const edited = {
+      ...main,
+      uncommittedChangedAt: '2026-10-31T09:00:00.000Z',
+    };
+    expect(knownWorktreesChange(listing([main]), listing([edited]))).toBe(
+      'activity',
+    );
+    expect(knownWorktreesChange(listing([edited]), listing([main]))).toBe(
+      'activity',
+    );
+    expect(
+      knownWorktreesChange(
+        listing([main]),
+        listing([{ ...edited, branch: 'refs/heads/topic' }]),
+      ),
+    ).toBe('inventory');
   });
 
   it('ignores identities that only Git plumbing reads', () => {
     expect(
-      knownWorktreesChanged(
+      knownWorktreesChange(
         listing([main]),
         listing([{ ...main, metadataIdentity: 'metadata-2' }]),
       ),
-    ).toBe(false);
+    ).toBe(undefined);
   });
 });
 
 it('publishes a new reason when an unavailable project changes from missing to permission denied', () => {
   expect(
-    knownWorktreesChanged(
+    knownWorktreesChange(
       [
         {
           projectId: 'project',
@@ -97,5 +116,5 @@ it('publishes a new reason when an unavailable project changes from missing to p
         },
       ],
     ),
-  ).toBe(true);
+  ).toBe('inventory');
 });

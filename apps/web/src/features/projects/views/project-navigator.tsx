@@ -3,23 +3,6 @@ import {
   projectPath,
   projectUnavailableMessage,
 } from '@porcelain/client/projects/rules';
-import {
-  Toast,
-  ToastAction,
-  ToastClose,
-  ToastContent,
-  ToastDescription,
-  ToastTitle,
-  ToastPortal,
-  ToastProvider,
-  ToastViewport,
-  useToastManager,
-} from '@/components/ui/toast';
-import {
-  worktreeStatusNotices,
-  worktreeStatusToast,
-  type WorktreeStatusIssue,
-} from '../commands/worktree-status-notice';
 import { TruncatedText } from '@/shared/views/truncated-text';
 import { NavigatorRowMenu } from './navigator-row-menu';
 import { formatForDisplay } from '@tanstack/react-hotkeys';
@@ -39,7 +22,6 @@ import {
   ListFilterIcon,
   SearchIcon,
   SettingsIcon,
-  XIcon,
 } from 'lucide-react';
 import {
   readWorktreeNavigator,
@@ -49,10 +31,12 @@ import {
 } from '@porcelain/client/projects';
 import {
   emptyNavigatorFilter,
+  navigatorEntryLabel,
   navigatorEntrySelected,
-  navigatorCardChangesLabel,
-  navigatorChangesLabel,
   navigatorChecksLabel,
+  navigatorRowTitle,
+  navigatorRowTrailing,
+  navigatorVisibleRows,
   type NavigatorEntry,
 } from '@porcelain/client/projects/rules';
 import {
@@ -93,8 +77,8 @@ import {
   EmptyHeader,
   EmptyTitle,
   EmptyDescription,
+  EmptyContent,
 } from '@/components/ui/empty';
-import { Spinner } from '@/components/ui/spinner';
 import { Item, ItemContent, ItemMedia } from '@/components/ui/item';
 
 import {
@@ -118,62 +102,6 @@ function entryIcon(entry: NavigatorEntry) {
   return entry.main ? HouseIcon : GitBranchIcon;
 }
 
-function StatusToasts({ container }: { container: HTMLElement | null }) {
-  const { toasts } = useToastManager();
-  if (!container) return null;
-  return (
-    <ToastPortal container={container}>
-      <ToastViewport>
-        {toasts.map((notice) => (
-          <Toast key={notice.id} toast={notice}>
-            <ToastContent>
-              <div className="flex min-w-0 flex-1 flex-col gap-1 wrap-anywhere">
-                <ToastTitle />
-                <ToastDescription />
-              </div>
-              <ToastAction />
-              <ToastClose />
-            </ToastContent>
-          </Toast>
-        ))}
-      </ToastViewport>
-    </ToastPortal>
-  );
-}
-
-function statusDescription(issue: WorktreeStatusIssue) {
-  return (
-    <Collapsible render={<span className="block" />}>
-      <span className="block">
-        {issue.failures.length}{' '}
-        {issue.failures.length === 1 ? 'worktree' : 'worktrees'} ·{' '}
-        <CollapsibleTrigger render={<Button variant="link" size="sm" />}>
-          Details
-        </CollapsibleTrigger>
-      </span>
-      <CollapsibleContent render={<span className="block" />}>
-        <span
-          role="list"
-          tabIndex={0}
-          aria-label="Affected worktrees"
-          className="mt-2 block max-h-48 space-y-2 overflow-y-auto"
-        >
-          {issue.failures.map(({ entry, detail }) => (
-            <span
-              role="listitem"
-              key={entry.key}
-              className="block wrap-anywhere"
-            >
-              <span className="block font-medium">{entry.name}</span>
-              {detail && <span className="block">{detail}</span>}
-            </span>
-          ))}
-        </span>
-      </CollapsibleContent>
-    </Collapsible>
-  );
-}
-
 type Props = {
   remotes: readonly RemoteConnection[] | undefined;
   selected:
@@ -184,7 +112,6 @@ type Props = {
   onOpenPullRequest: (entry: NavigatorEntry) => void;
   onOpenProject: (remote: RemoteConnection | null) => void;
   onOpenSettings: () => void;
-  settingsOpen: boolean;
   onOpenShortcuts: () => void;
 };
 
@@ -195,14 +122,10 @@ export function ProjectNavigator({
   onOpenPullRequest,
   onOpenProject,
   onOpenSettings,
-  settingsOpen,
   showRemoteNotice,
   onOpenShortcuts,
 }: Props) {
   const { connection } = useConnectedContext();
-  const [toastContainer, setToastContainer] = useState<HTMLDivElement | null>(
-    null,
-  );
   const settingsButton = useElement<HTMLButtonElement>();
   const firstEntry = useElement<HTMLElement>();
   const lastEntry = useElement<HTMLElement>();
@@ -210,7 +133,7 @@ export function ProjectNavigator({
     connection,
     ...(remotes ?? []).map((entry) => entry.connection),
   ];
-  const { projects, filters, loading, messages } = useAtomValue(
+  const { projects, filters, loading, neverRead } = useAtomValue(
     readWorktreeNavigator(connections),
   );
   const state = useAtomValue(worktreeNavigatorState);
@@ -218,9 +141,6 @@ export function ProjectNavigator({
   const { query, filter } = state;
   useAtomMount(refreshInventories(connections));
   const retry = useAtomSet(refreshWorktreeNavigator(connections));
-  useAtomMount(
-    worktreeStatusNotices({ connections, description: statusDescription }),
-  );
   const location = useLocation();
   const [menu, setMenu] = useState({ href: location.href, open: false });
   const menuOpen = menu.href === location.href && menu.open;
@@ -245,8 +165,25 @@ export function ProjectNavigator({
       }
     : undefined;
   const selection = checkoutSelection;
-  const visibleEntries = projects
-    .flatMap((project) => (project.expanded ? project.entries : []))
+  const searching = query.trim().length > 0;
+  const shownProjects = projects.map((source) => ({
+    source,
+    shown: navigatorVisibleRows(source.entries, {
+      selectedKey: source.entries.find(
+        (entry) =>
+          selection !== undefined && navigatorEntrySelected(entry, selection),
+      )?.key,
+      showAll: state.showingAll[source.key] === true,
+      searching,
+    }),
+  }));
+  const setShowingAll = (key: string, showingAll: boolean) =>
+    setState((current) => ({
+      ...current,
+      showingAll: { ...current.showingAll, [key]: showingAll },
+    }));
+  const visibleEntries = shownProjects
+    .flatMap(({ source, shown }) => (source.expanded ? shown.rows : []))
     .filter(
       (entry) => entry.available || entry.pullRequest.state === 'available',
     );
@@ -376,16 +313,7 @@ export function ProjectNavigator({
           </DropdownMenu>
         </div>
         <SidebarContent>
-          {loading && (
-            <div
-              role="status"
-              className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground"
-            >
-              <Spinner aria-label="Reading worktrees" />
-              Reading worktrees…
-            </div>
-          )}
-          {projects.map((source) => (
+          {shownProjects.map(({ source, shown }) => (
             <SidebarGroup key={source.key} className="mb-3">
               <Collapsible
                 open={source.expanded}
@@ -473,7 +401,7 @@ export function ProjectNavigator({
                 )}
                 <CollapsibleContent>
                   <SidebarMenu>
-                    {source.entries.map((entry) => {
+                    {shown.rows.map((entry) => {
                       const active =
                         selection !== undefined &&
                         navigatorEntrySelected(entry, selection);
@@ -481,10 +409,15 @@ export function ProjectNavigator({
                         entry.pullRequest.state === 'available'
                           ? entry.pullRequest
                           : undefined;
-                      const changes =
-                        entry.kind === 'worktree'
-                          ? navigatorCardChangesLabel(entry.changes)
-                          : '';
+                      const title = navigatorRowTitle(entry);
+                      const trailing = navigatorRowTrailing(entry);
+                      const disclosure = [
+                        title,
+                        entry.name !== title ? entry.name : undefined,
+                        entry.path,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ');
                       const EntryIcon = entryIcon(entry);
                       const failed =
                         review?.checks?.state === 'available' &&
@@ -492,7 +425,7 @@ export function ProjectNavigator({
                       let attach =
                         entry.key === lastKey ? lastEntry.attach : undefined;
                       if (entry.key === firstKey) attach = firstEntry.attach;
-                      const label = `${[entry.name, entry.projectName, entry.environmentName, entry.main ? 'Main worktree' : undefined, entry.detached ? 'Detached HEAD' : undefined, entry.detached ? entry.path : undefined, entry.kind === 'worktree' ? navigatorChangesLabel(entry.changes) : undefined, review?.number ? `Pull request #${review.number}` : undefined, !entry.available ? 'Unavailable' : undefined].filter(Boolean).join(', ')}${active ? ', Current' : ''}`;
+                      const label = `${navigatorEntryLabel(entry)}${active ? ', Current' : ''}`;
                       return (
                         <SidebarMenuItem key={entry.key}>
                           <NavigatorRowMenu
@@ -517,12 +450,8 @@ export function ProjectNavigator({
                             }}
                           >
                             <TruncatedText
-                              text={
-                                entry.path
-                                  ? `${entry.name} · ${entry.path}`
-                                  : entry.name
-                              }
-                              disclose={entry.detached ? 'always' : 'clipped'}
+                              text={disclosure}
+                              disclose="always"
                               renderTrigger={(_label, clip) => (
                                 <div
                                   data-navigator-card=""
@@ -553,21 +482,16 @@ export function ProjectNavigator({
                                     size="xs"
                                     className="pointer-events-none relative"
                                   >
-                                    <ItemMedia className="self-start">
-                                      <EntryIcon className="mt-0.5 size-3.5 text-muted-foreground" />
+                                    <ItemMedia>
+                                      <EntryIcon className="size-3.5 text-muted-foreground" />
                                     </ItemMedia>
                                     <ItemContent className="min-w-0">
                                       <div className="flex min-w-0 items-center gap-1">
                                         {clip(
-                                          entry.displayTitle ?? entry.name,
+                                          title,
                                           active
                                             ? 'min-w-0 flex-1 font-semibold'
                                             : 'min-w-0 flex-1 font-medium',
-                                        )}
-                                        {entry.detached && (
-                                          <span className="text-xs text-muted-foreground">
-                                            Detached
-                                          </span>
                                         )}
                                         {failed && (
                                           <CircleAlertIcon
@@ -575,43 +499,28 @@ export function ProjectNavigator({
                                             aria-label="Checks failed"
                                           />
                                         )}
-                                      </div>
-                                      {entry.displayTitle && (
-                                        <div className="min-w-0 font-mono text-2xs text-muted-foreground">
-                                          {clip(
-                                            entry.branch,
-                                            'block font-mono text-2xs',
-                                          )}
-                                        </div>
-                                      )}
-                                      {(review?.number || changes) && (
-                                        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-2xs text-muted-foreground">
-                                          {review?.number && (
-                                            <Button
-                                              variant="ghost"
-                                              size="xs"
-                                              className="relative pointer-events-auto cursor-pointer"
-                                              aria-label={`Open PR #${review.number} · ${entry.projectName} · ${entry.environmentName} · ${navigatorChecksLabel(review.checks)}`}
-                                              onClick={() => {
-                                                onOpenPullRequest(entry);
-                                                setOpenMobile(false);
-                                              }}
-                                            >
-                                              <span className="text-muted-foreground">
-                                                #{review.number}
-                                              </span>
-                                            </Button>
-                                          )}
-                                          {changes && (
-                                            <span
-                                              role="img"
-                                              aria-label={`Local uncommitted changes: ${navigatorChangesLabel(entry.changes)}`}
-                                            >
-                                              {changes}
+                                        {trailing?.kind === 'pull-request' && (
+                                          <Button
+                                            variant="ghost"
+                                            size="xs"
+                                            className="pointer-events-auto relative shrink-0 cursor-pointer"
+                                            aria-label={`Open PR #${trailing.number} · ${entry.projectName} · ${entry.environmentName} · ${navigatorChecksLabel(review?.checks)}`}
+                                            onClick={() => {
+                                              onOpenPullRequest(entry);
+                                              setOpenMobile(false);
+                                            }}
+                                          >
+                                            <span className="text-2xs text-muted-foreground tabular-nums">
+                                              {trailing.text}
                                             </span>
-                                          )}
-                                        </div>
-                                      )}
+                                          </Button>
+                                        )}
+                                        {trailing?.kind === 'changes' && (
+                                          <span className="shrink-0 text-2xs text-muted-foreground tabular-nums">
+                                            {trailing.text}
+                                          </span>
+                                        )}
+                                      </div>
                                     </ItemContent>
                                   </Item>
                                 </div>
@@ -621,6 +530,24 @@ export function ProjectNavigator({
                         </SidebarMenuItem>
                       );
                     })}
+                    {(shown.more > 0 || shown.less) && (
+                      <SidebarMenuItem>
+                        <Button
+                          variant="ghost"
+                          size="xs"
+                          className="w-full cursor-pointer justify-start"
+                          onClick={() =>
+                            setShowingAll(source.key, shown.more > 0)
+                          }
+                        >
+                          <span className="text-muted-foreground">
+                            {shown.more > 0
+                              ? `Show ${shown.more} more`
+                              : 'Show less'}
+                          </span>
+                        </Button>
+                      </SidebarMenuItem>
+                    )}
                     {source.entries.length === 0 && !loading && (
                       <p className="px-2 py-3 text-xs text-muted-foreground">
                         No matching worktrees
@@ -631,7 +558,19 @@ export function ProjectNavigator({
               </Collapsible>
             </SidebarGroup>
           ))}
-          {!loading && messages.length === 0 && projects.length === 0 && (
+          {!loading && projects.length === 0 && neverRead && (
+            <Empty>
+              <EmptyHeader>
+                <EmptyTitle>Couldn’t reach Porcelain</EmptyTitle>
+              </EmptyHeader>
+              <EmptyContent>
+                <Button variant="outline" onClick={() => retry(undefined)}>
+                  Try again
+                </Button>
+              </EmptyContent>
+            </Empty>
+          )}
+          {!loading && projects.length === 0 && !neverRead && (
             <Empty>
               <EmptyHeader>
                 <EmptyTitle>{emptyTitle}</EmptyTitle>
@@ -639,30 +578,7 @@ export function ProjectNavigator({
               </EmptyHeader>
             </Empty>
           )}
-          {messages.map((message) => (
-            <p
-              key={message}
-              role="status"
-              className="px-3 text-xs wrap-anywhere"
-            >
-              {message}
-            </p>
-          ))}
-          {messages.length > 0 && (
-            <Button
-              variant="ghost"
-              disabled={loading}
-              onClick={() => retry(undefined)}
-            >
-              Read again
-            </Button>
-          )}
         </SidebarContent>
-        <div ref={setToastContainer}>
-          <ToastProvider toastManager={worktreeStatusToast}>
-            <StatusToasts container={toastContainer} />
-          </ToastProvider>
-        </div>
         <footer
           role="group"
           aria-label="Navigator controls"
@@ -675,38 +591,16 @@ export function ProjectNavigator({
                   ref={(element) => settingsButton.attach(element)}
                   variant="ghost"
                   className="min-w-0 shrink"
-                  aria-label={settingsOpen ? 'Close Settings' : 'Settings'}
-                  type={settingsOpen ? 'submit' : 'button'}
-                  form={settingsOpen ? 'close-settings' : undefined}
-                  onClick={settingsOpen ? undefined : onOpenSettings}
-                  onKeyDown={(event) => {
-                    if (settingsOpen && event.key === 'Escape') {
-                      event.preventDefault();
-                      event.currentTarget.form?.requestSubmit();
-                    }
-                  }}
+                  aria-label="Settings"
+                  onClick={onOpenSettings}
                 />
               }
             >
-              {settingsOpen ? (
-                <XIcon />
-              ) : (
-                <SettingsIcon className="text-muted-foreground" />
-              )}
-              <TruncatedText text={settingsOpen ? 'Close' : 'Settings'} />
-              {settingsOpen && (
-                <Kbd>{formatForDisplay(SHORTCUTS.closeSettings)}</Kbd>
-              )}
+              <SettingsIcon className="text-muted-foreground" />
+              <TruncatedText text="Settings" />
             </TooltipTrigger>
             <TooltipContent role="tooltip">
-              {settingsOpen ? 'Close Settings' : 'Settings'}{' '}
-              <Kbd>
-                {formatForDisplay(
-                  settingsOpen
-                    ? SHORTCUTS.closeSettings
-                    : SHORTCUTS.openSettings,
-                )}
-              </Kbd>
+              Settings <Kbd>{formatForDisplay(SHORTCUTS.openSettings)}</Kbd>
             </TooltipContent>
           </Tooltip>
           <div className="ml-auto flex shrink-0 items-center gap-1">

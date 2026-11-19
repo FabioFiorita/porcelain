@@ -1,3 +1,4 @@
+import { useHotkeysEnabled } from '@/shared/hooks/use-hotkeys-enabled';
 import { cn } from '@/shared/lib/utils';
 import { TruncatedText } from '@/shared/views/truncated-text';
 import { diffSelection, omissionReason } from '@porcelain/client/changes/rules';
@@ -445,9 +446,10 @@ function OmittedActions({
     toast.add(notice),
   );
   const target = fileReviewControl(scope, context, item);
+  const hotkeysEnabled = useHotkeysEnabled();
   const toggle = () => review.toggle(target);
   useHotkey(SHORTCUTS.toggleReviewed, toggle, {
-    enabled: active,
+    enabled: hotkeysEnabled && active,
     ignoreInputs: true,
   });
   return (

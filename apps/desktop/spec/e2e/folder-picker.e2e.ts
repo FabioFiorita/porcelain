@@ -52,6 +52,32 @@ test('the Open Project menu opens the native folder sheet directly, and cancelin
   expect(app.errors).toEqual([]);
 });
 
+test('the Open Project menu leaves Settings alone while it is open, and works again once Settings closes', async ({
+  desktop,
+}) => {
+  const app = await desktop.launch();
+  const page = await app.window();
+  await expect(
+    page
+      .getByRole('navigation', { name: 'Projects and worktrees', exact: true })
+      .getByRole('button', { name: 'Open project', exact: true }),
+  ).toBeVisible();
+  await app.holdPicker();
+  await app.clickMenu('open-settings');
+  const settings = page.getByRole('dialog', { name: 'Settings', exact: true });
+  await expect(settings).toBeVisible();
+  await app.clickMenu('open-project');
+  await expect(settings).toBeVisible();
+
+  await settings.getByRole('button', { name: 'Close', exact: true }).click();
+  await expect(settings).toBeHidden();
+  await app.clickMenu('open-project');
+  expect((await app.pickerRequest()).title).toBe('Open project');
+  expect(await app.pickerPages()).toEqual(['/']);
+  await app.answerPicker({ canceled: true, filePaths: [] });
+  expect(app.errors).toEqual([]);
+});
+
 test('the Open project button opens the chosen Git repository through the native sheet, without folder browsing, and the app serves its history and live file changes', async ({
   desktop,
 }) => {
