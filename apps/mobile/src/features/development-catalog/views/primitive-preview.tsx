@@ -11,9 +11,8 @@ import { Separator } from '../../../components/ui/separator';
 import { Card } from '../../../components/ui/card';
 import { StatusTile } from '../../../components/ui/status-tile';
 import { Empty } from '../../../components/ui/empty';
-import { Loading } from '../../../components/ui/loading';
+import { Spinner } from '../../../components/ui/spinner';
 import { ErrorState } from '../../../components/ui/error-state';
-import { FileNotice } from '../../../components/ui/file-notice';
 import { FileTree } from '../../../components/ui/file-tree';
 import { HistoryList } from '../../../components/ui/history-list';
 import type { FileTreeEntry } from '@porcelain/client/files/rules';
@@ -36,7 +35,7 @@ export function PrimitivePreview({ name }: { name: string }) {
     ].includes(name)
   )
     return (
-      <Suspense fallback={<Loading />}>
+      <Suspense fallback={<Spinner />}>
         <NativePreview name={name} />
       </Suspense>
     );
@@ -189,7 +188,7 @@ export function PrimitivePreview({ name }: { name: string }) {
         ) : null}
         {name === 'States' ? (
           <>
-            <Loading label="Loading example…" />
+            <Spinner />
             <ErrorState
               message="The environment could not be reached."
               retry={{
@@ -199,22 +198,12 @@ export function PrimitivePreview({ name }: { name: string }) {
             />
             <Text variant="secondary">Retries: {actions}</Text>
             <Empty
-              icon="folder"
               title="No changed files"
-              description="Your worktree is clean."
               action={{
                 label: 'Refresh example',
                 onPress: () => setActions(actions + 1),
               }}
             />
-          </>
-        ) : null}
-        {name === 'Files' ? (
-          <>
-            <FileNotice kind="binary" />
-            <FileNotice kind="unsupported" />
-            <FileNotice kind="unavailable" />
-            <FileNotice kind="oversized" />
           </>
         ) : null}
         {name === 'IconButton' ? (

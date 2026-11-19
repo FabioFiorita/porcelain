@@ -1,12 +1,12 @@
 import { useAtomRefresh, useAtomSet, useAtomValue } from '@effect/atom-react';
 import { useState, type ReactNode } from 'react';
 import { useRouter } from 'expo-router';
+import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { readTextFile } from '@porcelain/client/files';
-import type { DiffContent } from '@porcelain/client/changes/rules';
 import type { ReviewComparison } from '../../../shared/rules/review-comparison';
 import { Box } from '../../../components/ui/box';
-import { Loading } from '../../../components/ui/loading';
+import { Spinner } from '../../../components/ui/spinner';
 import { Empty } from '../../../components/ui/empty';
 import { Screen } from '../../../components/ui/screen';
 import { Text } from '../../../components/ui/text';
@@ -19,15 +19,16 @@ import {
   walkthroughChangeEntries,
   type ComparedEntry,
 } from '../rules/changes-page';
-import { diffBody, diffChunk, sourceBody } from '../rules/diff-page';
+import {
+  chunkState,
+  diffChunk,
+  partState,
+  sourceBody,
+  type DiffPageState,
+} from '../rules/diff-page';
 import { reviewFileDocumentKey, reviewParams } from '../rules/navigation';
 import { chooseReviewFileScope } from '../store';
-import {
-  DiffPage,
-  DiffPagePart,
-  type DiffPagePartProps,
-  type DiffPageState,
-} from './diff-page';
+import { DiffPage, DiffPagePart, type DiffPagePartProps } from './diff-page';
 import { ReviewReadState } from './read-state';
 
 export function ChangesPageScreen({
@@ -42,14 +43,8 @@ export function ChangesPageScreen({
   return (
     <Screen layout="fixed">
       <WorkspaceGate
-        title="Review"
         expectedWorkspace={workspaceKey ?? ''}
-        changed={
-          <Empty
-            title="Review unavailable"
-            description="Return to Changes and select the worktree again."
-          />
-        }
+        changed={<Empty title="Review unavailable" />}
       >
         {(workspace) => (
           <ChangesPage
@@ -70,7 +65,7 @@ type ChangesReading = {
   only: readonly string[];
   header: ReactNode;
   actions: readonly TopBarAction[];
-  empty: { title: string; description: string };
+  empty: { title: string };
 };
 
 type ChangesPageProps = {
@@ -92,11 +87,12 @@ export function ChangesPage(props: ChangesPageProps) {
 
 function ComparisonChanges(props: ChangesPageProps) {
   const snapshot = useReviewSnapshot(props.workspace, props.comparison);
-  if (!AsyncResult.isSuccess(snapshot.result))
+  const value = Option.getOrUndefined(AsyncResult.value(snapshot.result));
+  if (!value)
     return (
       <ReviewReadState result={snapshot.result} refresh={snapshot.refresh} />
     );
-  const files = changeEntries(snapshot.result.value)
+  const files = changeEntries(value)
     .filter(
       (file) =>
         props.reading === undefined || props.reading.only.includes(file.path),
@@ -110,7 +106,7 @@ function ComparisonChanges(props: ChangesPageProps) {
     <ChangesReader
       {...props}
       files={files}
-      summary={changesSummary(snapshot.result.value, files.length)}
+      summary={changesSummary(value, files.length)}
     />
   );
 }
@@ -118,15 +114,17 @@ function ComparisonChanges(props: ChangesPageProps) {
 function WalkthroughChanges(props: ChangesPageProps) {
   const branch = useReviewSnapshot(props.workspace, props.comparison);
   const working = useReviewSnapshot(props.workspace, WORKTREE);
-  if (!AsyncResult.isSuccess(branch.result))
+  const branchValue = Option.getOrUndefined(AsyncResult.value(branch.result));
+  const workingValue = Option.getOrUndefined(AsyncResult.value(working.result));
+  if (!branchValue)
     return <ReviewReadState result={branch.result} refresh={branch.refresh} />;
-  if (!AsyncResult.isSuccess(working.result))
+  if (!workingValue)
     return (
       <ReviewReadState result={working.result} refresh={working.refresh} />
     );
   const files = walkthroughChangeEntries(
-    branch.result.value,
-    working.result.value,
+    branchValue,
+    workingValue,
     props.reading?.only,
   );
   const hasBranch = files.some((file) => file.comparison.kind === 'branch');
@@ -190,18 +188,7 @@ function ChangesReader({
           )
         }
         empty={
-          reading ? (
-            <Empty {...reading.empty} />
-          ) : (
-            <Empty
-              title="No changes"
-              description={
-                comparison.kind === 'branch'
-                  ? 'This branch has no changed files against this base.'
-                  : 'This worktree has no uncommitted changes.'
-              }
-            />
-          )
+          reading ? <Empty {...reading.empty} /> : <Empty title="No changes" />
         }
         onOpenFile={(file) => {
           if (file.scope)
@@ -259,7 +246,7 @@ function FirstDiffs({
     AsyncResult.isSuccess(result) ||
     AsyncResult.isFailure(result);
   if (settled && !opened) setOpened(true);
-  if (!settled && !opened) return <Loading label="Loading changes…" />;
+  if (!settled && !opened) return <Spinner />;
   return children;
 }
 
@@ -291,22 +278,6 @@ function ChunkPart({ workspace, comparison, keys, ...props }: ChangePartProps) {
   );
 }
 
-function chunkState(
-  result: AsyncResult.AsyncResult<
-    ReadonlyMap<string, DiffContent | undefined>,
-    unknown
-  >,
-  key: string,
-  retry: () => void,
-): DiffPageState {
-  if (AsyncResult.isFailure(result)) return { kind: 'failed', retry };
-  if (!AsyncResult.isSuccess(result)) return { kind: 'loading' };
-  const content = result.value.get(key);
-  return content
-    ? diffBody(content)
-    : { kind: 'notice', title: 'Diff unavailable' };
-}
-
 function UntrackedPart({ workspace, ...props }: ChangePartProps) {
   const query = readTextFile({
     connection: workspace.connection,
@@ -325,9 +296,9 @@ function untrackedState(
   >,
   retry: () => void,
 ): DiffPageState {
-  if (AsyncResult.isFailure(result)) return { kind: 'failed', retry };
-  if (!AsyncResult.isSuccess(result)) return { kind: 'loading' };
-  if ('kind' in result.value)
-    return { kind: 'notice', title: result.value.reason };
-  return sourceBody(result.value.text);
+  return partState(result, retry, (value) =>
+    'kind' in value
+      ? { kind: 'notice', title: value.reason }
+      : sourceBody(value.text),
+  );
 }

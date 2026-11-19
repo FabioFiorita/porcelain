@@ -1,16 +1,17 @@
 import { ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import type {
   WalkthroughEvidence,
   WalkthroughRun,
 } from '@porcelain/client/walkthroughs/rules';
 import { Box } from '../../../components/ui/box';
+import { ErrorState } from '../../../components/ui/error-state';
 import { ImageTile } from '../../../components/ui/image-tile';
 import { ImageView } from '../../../components/ui/image-view';
-import { Loading } from '../../../components/ui/loading';
+import { Spinner } from '../../../components/ui/spinner';
 import { RichText } from '../../../components/ui/rich-text';
-import { Text } from '../../../components/ui/text';
 import type { Workspace } from '../../projects/index';
 import { useWalkthroughAsset } from '../queries/walkthrough';
 
@@ -19,32 +20,36 @@ export function EvidenceImage({
   runId,
   item,
   label,
+  tile = false,
 }: {
   workspace: Workspace;
   runId: string;
   item: WalkthroughEvidence;
   label: string;
+  tile?: boolean;
 }) {
-  const data = useWalkthroughAsset({
+  const asset = useWalkthroughAsset({
     workspace,
     runId,
     assetId: item.assetId,
   });
-  if (AsyncResult.isFailure(data))
+  const image = Option.getOrUndefined(AsyncResult.value(asset.result));
+  if (image) return <ImageView data={image} label={label} quiet={tile} />;
+  if (tile) return <Box className="flex-1" />;
+  if (AsyncResult.isFailure(asset.result))
     return (
-      <Box className="flex-1 items-center justify-center" padding={2}>
-        <Text variant="caption" tone="muted" className="text-center">
-          This screenshot could not be loaded.
-        </Text>
+      <Box className="flex-1 justify-center" padding={4}>
+        <ErrorState
+          message="This screenshot could not be loaded."
+          retry={{
+            label: 'Read screenshot again',
+            onPress: asset.refresh,
+            pending: asset.result.waiting,
+          }}
+        />
       </Box>
     );
-  if (!AsyncResult.isSuccess(data))
-    return (
-      <Box className="flex-1 justify-center">
-        <Loading label="Loading…" />
-      </Box>
-    );
-  return <ImageView data={data.value} label={label} />;
+  return <Spinner />;
 }
 
 export function WalkthroughProof({
@@ -76,6 +81,7 @@ export function WalkthroughProof({
               runId={run.id}
               item={item}
               label={`Screenshot ${index + 1}`}
+              tile
             />
           }
           caption={

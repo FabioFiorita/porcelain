@@ -7,10 +7,8 @@ import { CommitPage } from './commit-page';
 
 export function CommitScreen({
   diffRoute = '/history/commit/[oid]/diff',
-  returnTo = 'History',
 }: {
   diffRoute?: '/history/commit/[oid]/diff' | '/timeline-diff';
-  returnTo?: 'History' | 'Files';
 }) {
   const { oid, workspace, path } = useLocalSearchParams<{
     oid: string;
@@ -19,14 +17,8 @@ export function CommitScreen({
   }>();
   return (
     <WorkspaceGate
-      title="History"
       expectedWorkspace={workspace}
-      changed={
-        <Empty
-          title="Workspace changed"
-          description={`Return to ${returnTo} to open a commit in the selected worktree.`}
-        />
-      }
+      changed={<Empty title="Another worktree is selected now." />}
     >
       {(current) => (
         <CommitDetail

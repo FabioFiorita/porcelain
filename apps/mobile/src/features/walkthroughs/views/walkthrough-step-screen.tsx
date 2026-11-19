@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { plainText, stopPaths } from '@porcelain/client/walkthroughs/rules';
+import { stopPaths } from '@porcelain/client/walkthroughs/rules';
 import { Box } from '../../../components/ui/box';
 import { Empty } from '../../../components/ui/empty';
 import { RichText } from '../../../components/ui/rich-text';
@@ -23,14 +23,8 @@ export function WalkthroughStepScreen({
   return (
     <Screen layout="fixed">
       <WorkspaceGate
-        title="Step"
         expectedWorkspace={workspace ?? ''}
-        changed={
-          <Empty
-            title="Step unavailable"
-            description="Another worktree is selected now. Open the step again from its walkthrough."
-          />
-        }
+        changed={<Empty title="Another worktree is selected now." />}
       >
         {(selected) => <StepReader workspace={selected} step={Number(step)} />}
       </WorkspaceGate>
@@ -53,8 +47,7 @@ function StepReader({
   if (!ready || !stop)
     return (
       <Empty
-        title="This step isn't available"
-        description="The walkthrough changed since this step was opened. Open the walkthrough for the current steps."
+        title="The walkthrough changed since this step opened."
         action={{ label: 'Open walkthrough', onPress: () => router.back() }}
       />
     );
@@ -98,10 +91,7 @@ function StepReader({
             />
           </Box>
         ),
-        empty: {
-          title: 'No changed files',
-          description: `The files of “${plainText(stop.title)}” no longer have changes in the branch or working tree.`,
-        },
+        empty: { title: 'No changed files' },
       }}
     />
   );

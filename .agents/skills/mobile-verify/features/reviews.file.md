@@ -1,7 +1,7 @@
 ---
 screen: /review-file
 selectors:
-  - 'No longer changed'
+  - 'This file is no longer changed.'
   - 'Mark reviewed'
   - 'Comparison:'
   - 'More actions'

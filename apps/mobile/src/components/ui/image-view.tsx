@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { requireNativeView } from 'expo';
 import { View, type NativeSyntheticEvent } from 'react-native';
-import { Loading } from './loading';
+import { Spinner } from './spinner';
 import { ErrorState } from './error-state';
 
 const NativeImage = requireNativeView<{
@@ -9,16 +9,17 @@ const NativeImage = requireNativeView<{
   onLoad: (event: NativeSyntheticEvent<{ success: boolean }>) => void;
   style: { flex: number };
 }>('PorcelainRenderer', 'ImageSurface');
-export function ImageView({ data, label }: { data: string; label: string }) {
-  return <ImageContent key={data} data={data} label={label} />;
+type ImageViewProps = { data: string; label: string; quiet?: boolean };
+export function ImageView(props: ImageViewProps) {
+  return <ImageContent key={props.data} {...props} />;
 }
-function ImageContent({ data, label }: { data: string; label: string }) {
+function ImageContent({ data, label, quiet = false }: ImageViewProps) {
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>(
     'loading',
   );
   return (
     <View className="flex-1 bg-background" accessibilityLabel={label}>
-      {status === 'error' ? (
+      {status === 'error' && !quiet ? (
         <ErrorState message="This image could not be decoded." />
       ) : (
         <NativeImage
@@ -29,12 +30,12 @@ function ImageContent({ data, label }: { data: string; label: string }) {
           style={{ flex: 1 }}
         />
       )}
-      {status === 'loading' ? (
+      {status === 'loading' && !quiet ? (
         <View
           className="absolute inset-0 items-center justify-center"
           pointerEvents="none"
         >
-          <Loading label="Loading image…" />
+          <Spinner />
         </View>
       ) : null}
     </View>

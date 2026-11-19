@@ -4,7 +4,6 @@ export const primitiveNames = [
   'Badge',
   'Item',
   'States',
-  'Files',
   'FileTree',
   'Review',
   'History',

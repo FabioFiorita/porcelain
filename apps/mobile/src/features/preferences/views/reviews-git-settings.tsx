@@ -14,7 +14,7 @@ import { Button } from '../../../components/ui/button';
 import { CardRows } from '../../../components/ui/card';
 import { ErrorState } from '../../../components/ui/error-state';
 import { GroupHeader } from '../../../components/ui/group-header';
-import { Loading } from '../../../components/ui/loading';
+import { Spinner } from '../../../components/ui/spinner';
 import { Text } from '../../../components/ui/text';
 import { remoteConnectionState } from '../../../shared/application/store';
 import {
@@ -47,9 +47,7 @@ function ComputerReviewGitSettings({
     save({ kind: 'change', change: next });
   return (
     <>
-      {view.kind === 'reading' ? (
-        <Loading label="Reading Reviews & Git settings…" />
-      ) : null}
+      {view.kind === 'reading' ? <Spinner /> : null}
       {view.kind === 'unsupported' ? (
         <ErrorState
           message={`Update Porcelain on ${computer} to use its Reviews & Git settings.`}

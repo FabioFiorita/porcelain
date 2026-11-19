@@ -39,7 +39,7 @@ export function ReviewPane({ workspace }: ReviewPaneProps) {
   const focused = useIsFocused();
   if (!focused) return null;
   return (
-    <WorkspaceGate title="Changes" expectedWorkspace={workspace} frame="pane">
+    <WorkspaceGate expectedWorkspace={workspace} frame="pane">
       {(selected) => <PhoneReview key={selected.key} workspace={selected} />}
     </WorkspaceGate>
   );
@@ -111,8 +111,7 @@ function ReviewNavigation({
   let label = 'Uncommitted';
   if (comparison.kind === 'branch') {
     if (base) label = `Branch · ${refLabel(base)}`;
-    else if (AsyncResult.isInitial(result) || result.waiting)
-      label = 'Branch · Reading base…';
+    else if (AsyncResult.isInitial(result) || result.waiting) label = 'Branch';
     else if (AsyncResult.isFailure(result)) label = 'Branch · Base unavailable';
     else label = 'Branch · No base';
   }
@@ -148,12 +147,7 @@ function ReviewNavigation({
               onComparison={onComparison}
             />
           </Box>
-          {AsyncResult.isInitial(bases) || bases.waiting ? (
-            <Text variant="caption" tone="muted" accessibilityRole="text">
-              {choices ? 'Refreshing branches…' : 'Reading branches…'}
-            </Text>
-          ) : null}
-          {AsyncResult.isFailure(bases) ? (
+          {AsyncResult.isFailure(bases) && !choices ? (
             <Box className="flex-row flex-wrap items-center" gap={2}>
               <Text variant="caption" tone="muted">
                 Base branches could not be read.
@@ -196,9 +190,9 @@ function ChangedFiles({
   onFile: (path: string) => void;
   onAll: () => void;
 }) {
-  const snapshot = AsyncResult.isSuccess(snapshotRead.result)
-    ? snapshotRead.result.value
-    : undefined;
+  const snapshot = Option.getOrUndefined(
+    AsyncResult.value(snapshotRead.result),
+  );
   const marks = useReviewMarks(workspace, snapshot);
   if (!snapshot)
     return (
@@ -207,9 +201,10 @@ function ChangedFiles({
         refresh={snapshotRead.refresh}
       />
     );
-  if (!AsyncResult.isSuccess(marks.result))
+  const reviewed = Option.getOrUndefined(AsyncResult.value(marks.result));
+  if (!reviewed)
     return <ReviewReadState result={marks.result} refresh={marks.refresh} />;
-  const files = reviewFiles(snapshot, marks.result.value);
+  const files = reviewFiles(snapshot, reviewed);
   const changes = snapshotChangeMarks(snapshotRead.result);
   const branch = snapshot.kind === 'branch' ? snapshot.answer : undefined;
   return (
@@ -222,14 +217,7 @@ function ChangedFiles({
         </Text>
       ) : null}
       {files.length === 0 ? (
-        <Empty
-          title="No changes"
-          description={
-            snapshot.kind === 'branch'
-              ? 'This branch has no changed files against this base.'
-              : 'This worktree has no uncommitted changes.'
-          }
-        />
+        <Empty title="No changes" />
       ) : (
         <Card>
           <Item

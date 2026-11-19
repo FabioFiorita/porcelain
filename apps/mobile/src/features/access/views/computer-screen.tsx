@@ -20,10 +20,7 @@ export function ComputerScreen({
   if (!remote)
     return (
       <Screen layout="fixed">
-        <Empty
-          title="Computer unavailable"
-          description="This computer is no longer paired. Return to Computers."
-        />
+        <Empty title="This computer is no longer paired." />
       </Screen>
     );
   return (

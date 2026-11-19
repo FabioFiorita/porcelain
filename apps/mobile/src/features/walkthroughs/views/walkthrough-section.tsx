@@ -2,7 +2,7 @@ import { Box } from '../../../components/ui/box';
 import { Empty } from '../../../components/ui/empty';
 import { ErrorState } from '../../../components/ui/error-state';
 import { ListDetail } from '../../../components/ui/list-detail';
-import { Loading } from '../../../components/ui/loading';
+import { Spinner } from '../../../components/ui/spinner';
 import { AsyncResult } from 'effect/reactivity';
 import { WorkspaceGate, type Workspace } from '../../projects/index';
 import { useWalkthrough } from '../queries/walkthrough';
@@ -12,14 +12,8 @@ import { WalkthroughSteps } from './walkthrough-steps';
 export function WalkthroughSection() {
   return (
     <WorkspaceGate
-      title="Walkthrough"
       frame="pane"
-      changed={
-        <Empty
-          title="Workspace changed"
-          description="Another worktree is selected now. Open the walkthrough again from the worktree you want."
-        />
-      }
+      changed={<Empty title="Another worktree is selected now." />}
     >
       {(workspace) => (
         <WalkthroughReader key={workspace.key} workspace={workspace} />
@@ -39,7 +33,7 @@ function WalkthroughReader({ workspace }: { workspace: Workspace }) {
         />
       </Box>
     ) : (
-      <Loading label="Loading walkthrough…" />
+      <Spinner />
     );
   const page = <WalkthroughPage workspace={workspace} phase={phase} />;
   if (phase.kind !== 'ready' || phase.content.stops.length === 0) return page;

@@ -1,8 +1,8 @@
 import { useAtomValue, useAtomSet } from '@effect/atom-react';
-import { Atom } from 'effect/reactivity';
+import { Option } from 'effect';
+import { AsyncResult, Atom } from 'effect/reactivity';
 import {
   readServiceUpdate,
-  serviceUpdateSnapshot,
   settingsUpdatesVisible,
   settingsUpdateBatch,
   type ServiceUpdateTarget,
@@ -18,7 +18,7 @@ const serviceUpdates = Atom.make((get) => {
       );
     }
     const result = get(readServiceUpdate(connection));
-    const state = serviceUpdateSnapshot(result);
+    const state = Option.getOrUndefined(AsyncResult.value(result));
     const target: ServiceUpdateTarget | undefined = state
       ? {
           kind: 'service',
@@ -29,7 +29,13 @@ const serviceUpdates = Atom.make((get) => {
           deviceId: connection.activeRoute?.value?.deviceId ?? remote.deviceId,
         }
       : undefined;
-    return { remote, connection, result, target };
+    return {
+      remote,
+      connection,
+      result,
+      target,
+      confirmed: AsyncResult.isSuccess(result),
+    };
   });
 });
 
@@ -47,7 +53,10 @@ export function useServiceUpdates() {
     rows,
     checking: rows.some((row) => row.result.waiting),
     refresh: () => refresh(undefined),
-    targets: rows.flatMap((row) => (row.target ? [row.target] : [])),
+    targets: rows.flatMap((row) =>
+      row.target && row.confirmed ? [row.target] : [],
+    ),
+    failed: rows.some((row) => AsyncResult.isFailure(row.result)),
   };
 }
 

@@ -9,7 +9,6 @@ import { ErrorState } from '../../../components/ui/error-state';
 import { Icon } from '../../../components/ui/icon';
 import { Item } from '../../../components/ui/item';
 import { ListDetail } from '../../../components/ui/list-detail';
-import { Loading } from '../../../components/ui/loading';
 import { documentHeading } from '../../../shared/rules/document-heading';
 import { sourceLanguage } from '../../../shared/rules/highlight-code';
 import { usePreferences } from '../../preferences/index';
@@ -21,18 +20,13 @@ import {
   openingFile,
   stuckHeading,
   headingRow,
-  type DiffPageBody,
   type DiffPageFile,
   type DiffPageRow,
+  type DiffPageState,
 } from '../rules/diff-page';
 import { diffPageCurrent, diffPageOpening, diffPageStuck } from '../store';
 
-export type { DiffPageFile } from '../rules/diff-page';
-
-export type DiffPageState =
-  | { kind: 'loading' }
-  | { kind: 'failed'; retry: () => void }
-  | DiffPageBody;
+export type { DiffPageFile, DiffPageState } from '../rules/diff-page';
 
 export type DiffPagePartProps<F extends DiffPageFile> = {
   file: F;
@@ -347,7 +341,7 @@ function DiffPageContent({
   const { preferences } = usePreferences();
   switch (state.kind) {
     case 'loading':
-      return <Loading label="Loading diff…" />;
+      return null;
     case 'failed':
       return (
         <Box padding={4}>

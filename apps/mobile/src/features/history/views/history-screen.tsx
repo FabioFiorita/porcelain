@@ -11,14 +11,8 @@ export function HistoryScreen({
   const router = useRouter();
   return (
     <WorkspaceGate
-      title="History"
       expectedWorkspace={workspace}
-      changed={
-        <Empty
-          title="Workspace changed"
-          description="Another worktree is selected now. Open History again from the worktree you want."
-        />
-      }
+      changed={<Empty title="Another worktree is selected now." />}
     >
       {(current) => (
         <HistoryNavigation

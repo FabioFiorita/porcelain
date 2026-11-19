@@ -5,7 +5,7 @@ import { AsyncResult } from 'effect/reactivity';
 import type { CommitFile } from '@porcelain/client/history/rules';
 import { Empty } from '../../../components/ui/empty';
 import { ErrorState } from '../../../components/ui/error-state';
-import { Loading } from '../../../components/ui/loading';
+import { Spinner } from '../../../components/ui/spinner';
 import { DocumentHeader } from '../../../components/ui/document-header';
 import { DiffView } from '../../documents/index';
 import { diffLines } from '@porcelain/client/changes/rules';
@@ -80,10 +80,7 @@ function CommitFileContent({
           file={file}
         />
       ) : (
-        <Empty
-          title="File unavailable"
-          description="This file is not part of the commit comparison."
-        />
+        <Empty title="This file is not part of the commit comparison." />
       )}
     </Box>
   );
@@ -112,7 +109,7 @@ function FilePatchContent({
   const failed = AsyncResult.isFailure(patch.result);
   const submodule = isSubmoduleChange(file);
   const unavailable = diffUnavailableReason(file, content, failed);
-  if (failed && !submodule)
+  if (failed && !content && !submodule)
     return (
       <ErrorState
         message="Couldn't load diff"
@@ -121,20 +118,11 @@ function FilePatchContent({
     );
   if (!content && !submodule)
     return patch.result.waiting || AsyncResult.isInitial(patch.result) ? (
-      <Loading label="Loading diff…" />
+      <Spinner />
     ) : (
-      <Empty
-        title="Diff unavailable"
-        description="The server returned no patch for this file."
-      />
+      <Empty title="The server returned no patch for this file." />
     );
-  if (unavailable)
-    return (
-      <Empty
-        title={unavailable}
-        description="This file change has no code preview."
-      />
-    );
+  if (unavailable) return <Empty title={unavailable} />;
   if (parsed?.kind === 'invalid')
     return (
       <ErrorState
@@ -152,10 +140,5 @@ function FilePatchContent({
         wrap={preferences.lineOverflow === 'wrap'}
       />
     );
-  return (
-    <Empty
-      title="No code change"
-      description="This comparison has no changed lines."
-    />
-  );
+  return <Empty title="No changed lines" />;
 }

@@ -1,4 +1,12 @@
+import { useState } from 'react';
+import {
+  idleRead,
+  requestRead,
+  requestedRead,
+  type RequestedRead,
+} from '../../../shared/rules/requested-read';
 import { useAtomRefresh, useAtomValue } from '@effect/atom-react';
+import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { readProjectPullRequest } from '@porcelain/client/projects';
 import {
@@ -15,7 +23,7 @@ import { Box } from '../../../components/ui/box';
 import { Text } from '../../../components/ui/text';
 import { Button } from '../../../components/ui/button';
 import { ErrorState } from '../../../components/ui/error-state';
-import { Loading } from '../../../components/ui/loading';
+import { Spinner } from '../../../components/ui/spinner';
 import { MarkdownView } from '../../documents/index';
 import { usePreviewLink } from '../../../shared/adapters/preview-link';
 import { pullRequestMarkdown } from '../rules/pull-request-document';
@@ -44,16 +52,24 @@ function ConnectedPullRequest({
   });
   const result = useAtomValue(query);
   const refresh = useAtomRefresh(query);
+  const [request, setRequest] = useState<RequestedRead>(idleRead);
+  const next = requestedRead(request, {
+    waiting: result.waiting,
+    failed: AsyncResult.isFailure(result),
+    current: [result],
+  });
+  if (next !== request) setRequest(next);
+  const reread = () => {
+    setRequest(requestRead([result]));
+    refresh();
+  };
   const link = usePreviewLink();
   const unavailable = AsyncResult.isFailure(result)
     ? { kind: 'failed' as const }
     : { kind: 'loading' as const };
-  const pull: PullRequestRead | typeof unavailable = AsyncResult.isSuccess(
-    result,
-  )
-    ? result.value
-    : unavailable;
-  if (pull.kind === 'loading') return <Loading label="Reading pull request…" />;
+  const pull: PullRequestRead | typeof unavailable =
+    Option.getOrUndefined(AsyncResult.value(result)) ?? unavailable;
+  if (pull.kind === 'loading') return <Spinner />;
   if (pull.kind !== 'available')
     return (
       <ErrorState
@@ -86,7 +102,7 @@ function ConnectedPullRequest({
             label="Read pull request again"
             variant="plain"
             pending={result.waiting}
-            onPress={refresh}
+            onPress={reread}
           />
           <Button
             label="Open on GitHub"
@@ -94,6 +110,11 @@ function ConnectedPullRequest({
             onPress={() => link.open(available.url)}
           />
         </Box>
+        {next.kind === 'failed' ? (
+          <Text accessibilityRole="alert" variant="caption" tone="destructive">
+            The pull request could not be read.
+          </Text>
+        ) : null}
         {available.state !== 'open' ? (
           <PullRequestArchive
             projectId={target.projectId}

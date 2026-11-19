@@ -7,6 +7,7 @@ import { usePreferences } from '../../preferences/index';
 import { useIsFocused } from 'expo-router';
 import { View } from 'react-native';
 import { useAtom, useAtomValue, useAtomRefresh } from '@effect/atom-react';
+import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import {
   readChangeDiffWindow,
@@ -51,20 +52,11 @@ export function ReviewFileScreen({
   path?: string | undefined;
   comparison: ReviewComparison;
 }) {
-  const changed = (
-    <Empty
-      title="Review unavailable"
-      description="Return to Review and select a worktree and changed file."
-    />
-  );
+  const changed = <Empty title="Review unavailable" />;
   if (!path) return <Screen layout="fixed">{changed}</Screen>;
   return (
     <DocumentScreen path={path}>
-      <WorkspaceGate
-        title="Review"
-        expectedWorkspace={workspaceKey ?? ''}
-        changed={changed}
-      >
+      <WorkspaceGate expectedWorkspace={workspaceKey ?? ''} changed={changed}>
         {(workspace) => (
           <ReviewFileContent
             key={`${workspace.key}:${path}:${JSON.stringify(comparison)}`}
@@ -95,12 +87,13 @@ function FocusedReviewFileContent({
   comparison,
 }: ReviewFileContentProps) {
   const { result, refresh } = useReviewSnapshot(workspace, comparison);
+  const snapshot = Option.getOrUndefined(AsyncResult.value(result));
   return (
     <Box className="flex-1" surface="background">
-      {AsyncResult.isSuccess(result) ? (
+      {snapshot ? (
         <ReviewedFile
           workspace={workspace}
-          snapshot={result.value}
+          snapshot={snapshot}
           path={path}
           comparison={comparison}
         />
@@ -123,18 +116,13 @@ function ReviewedFile({
   comparison: ReviewComparison;
 }) {
   const marks = useReviewMarks(workspace, snapshot);
-  if (!AsyncResult.isSuccess(marks.result))
+  const reviewed = Option.getOrUndefined(AsyncResult.value(marks.result));
+  if (!reviewed)
     return <ReviewReadState result={marks.result} refresh={marks.refresh} />;
-  const file = reviewFiles(snapshot, marks.result.value).find(
+  const file = reviewFiles(snapshot, reviewed).find(
     (item) => item.path === path,
   );
-  if (!file)
-    return (
-      <Empty
-        title="No longer changed"
-        description="This file is no longer in this comparison. Return to Review for the current changes."
-      />
-    );
+  if (!file) return <Empty title="This file is no longer changed." />;
   return (
     <ChangedFile
       workspace={workspace}
@@ -240,17 +228,11 @@ function WorktreeComparison(
   if (change.scope === 'unmerged')
     return (
       <Empty
-        title="Conflict"
-        description={`This file has an unresolved ${change.conflict} conflict. Resolve it on your computer, then return to Review.`}
+        title={`This file has an unresolved ${change.conflict} conflict.`}
       />
     );
   if (!change.supported)
-    return (
-      <Empty
-        title="Unsupported comparison"
-        description="This file cannot be compared as a text diff."
-      />
-    );
+    return <Empty title="This file cannot be compared as a text diff." />;
   return <WorktreeDiff {...props} change={change} />;
 }
 
@@ -273,14 +255,13 @@ function WorktreeDiff(
   });
   const window = useAtomValue(query);
   const refresh = useAtomRefresh(query);
-  if (!AsyncResult.isSuccess(window.result))
+  const diffs = Option.getOrUndefined(AsyncResult.value(window.result));
+  if (!diffs)
     return <ReviewReadState result={window.result} refresh={refresh} />;
   return (
     <DiffContentView
       {...props}
-      content={
-        selection ? window.result.value.get(selectionKey(selection)) : undefined
-      }
+      content={selection ? diffs.get(selectionKey(selection)) : undefined}
       missing="This comparison did not return a diff. Return to Review and choose the current change."
     />
   );
@@ -292,12 +273,7 @@ function BranchFile(
   const { snapshot, file } = props;
   const entry = snapshot.answer.files.find((item) => item.path === file.path);
   if (!entry || !snapshot.answer.mergeBaseOid)
-    return (
-      <Empty
-        title="No comparison base"
-        description="Return to Review and choose a base for this branch."
-      />
-    );
+    return <Empty title="No comparison base" />;
   return (
     <BranchDiff
       {...props}
@@ -324,12 +300,12 @@ function BranchDiff({
   });
   const result = useAtomValue(query);
   const refresh = useAtomRefresh(query);
-  if (!AsyncResult.isSuccess(result))
-    return <ReviewReadState result={result} refresh={refresh} />;
+  const diffs = Option.getOrUndefined(AsyncResult.value(result));
+  if (!diffs) return <ReviewReadState result={result} refresh={refresh} />;
   return (
     <DiffContentView
       {...props}
-      content={result.value.diffs[0]?.content}
+      content={diffs.diffs[0]?.content}
       missing="This comparison did not return a diff."
     />
   );
@@ -344,11 +320,10 @@ function UntrackedFile(props: FileProps) {
   });
   const result = useAtomValue(query);
   const refresh = useAtomRefresh(query);
-  if (!AsyncResult.isSuccess(result))
-    return <ReviewReadState result={result} refresh={refresh} />;
-  if ('kind' in result.value)
-    return <Empty title="File unavailable" description={result.value.reason} />;
-  return <SelectableContent {...props} source={result.value.text} />;
+  const text = Option.getOrUndefined(AsyncResult.value(result));
+  if (!text) return <ReviewReadState result={result} refresh={refresh} />;
+  if ('kind' in text) return <Empty title={text.reason} />;
+  return <SelectableContent {...props} source={text.text} />;
 }
 
 function DiffContentView({
@@ -357,15 +332,10 @@ function DiffContentView({
   ...props
 }: FileProps & { content: DiffContent | undefined; missing: string }) {
   const { preferences } = usePreferences();
-  if (!content) return <Empty title="Diff unavailable" description={missing} />;
+  if (!content) return <Empty title={missing} />;
   const presentation = diffPresentation(content);
   if (presentation.kind === 'notice')
-    return (
-      <Empty
-        title={presentation.title}
-        description={presentation.description}
-      />
-    );
+    return <Empty title={presentation.title} />;
   if (presentation.kind === 'metadata')
     return (
       <View className="flex-1">

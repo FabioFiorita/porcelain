@@ -6,7 +6,7 @@ selectors:
   - 'Compare parent'
   - "Couldn't load commit"
   - 'Files'
-  - 'Loading diff…'
+  - 'spinner'
   - 'Large diff'
 tests:
   - apps/mobile/src/features/workspace/rules/diff-page.spec.ts

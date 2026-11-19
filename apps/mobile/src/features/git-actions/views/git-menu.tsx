@@ -1,7 +1,6 @@
-import { networkLabel } from '@porcelain/client/git-actions/rules';
 import { Box } from '../../../components/ui/box';
 import { Text } from '../../../components/ui/text';
-import { Loading } from '../../../components/ui/loading';
+import { Spinner } from '../../../components/ui/spinner';
 import { ErrorState } from '../../../components/ui/error-state';
 import { Button } from '../../../components/ui/button';
 import { TopBarActions } from '../../../shared/application/top-bar';
@@ -24,21 +23,31 @@ export function GitMenu({
             id: 'git-actions',
             label: 'Git actions',
             icon: 'branch',
-            choices: (['fetch', 'pull'] as const).map((action) => {
-              const reason = menu.blocker(action);
-              const label = action === 'fetch' ? 'Fetch' : 'Pull';
-              return {
-                label: reason ? `${label} — ${reason}` : label,
-                disabled: Boolean(reason),
-                onPress: () => menu.run(action),
-              };
-            }),
+            choices: [
+              ...(['fetch', 'pull'] as const).map((action) => {
+                const reason = menu.blocker(action);
+                const label = action === 'fetch' ? 'Fetch' : 'Pull';
+                return {
+                  label: reason ? `${label} — ${reason}` : label,
+                  disabled: Boolean(reason) || menu.pending(action),
+                  onPress: () => menu.run(action),
+                };
+              }),
+              ...(menu.statusFailed
+                ? [
+                    {
+                      label: 'Read Git status again',
+                      onPress: menu.refreshStatus,
+                    },
+                  ]
+                : []),
+            ],
           },
         ]}
       />
       {menu.running ? (
         <Box gap={2}>
-          <Loading label={`${networkLabel(menu.running.action)}…`} />
+          <Spinner />
           {menu.running?.operation?.receipt?.progress
             .slice(-4)
             .map((line, index) => (

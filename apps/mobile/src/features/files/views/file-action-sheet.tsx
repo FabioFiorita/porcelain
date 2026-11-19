@@ -42,14 +42,8 @@ export function FileActionSheet({
   return (
     <Sheet title={action ? actionTitle(action) : 'File'}>
       <WorkspaceGate
-        title="Files"
         expectedWorkspace={workspace ?? ''}
-        changed={
-          <Empty
-            title="Workspace changed"
-            description="Another worktree is selected now. Open Files again from the worktree you want."
-          />
-        }
+        changed={<Empty title="Another worktree is selected now." />}
       >
         {(selected) =>
           action ? (
@@ -60,10 +54,7 @@ export function FileActionSheet({
               onCreated={(path) => onCreated(path, selected.key)}
             />
           ) : (
-            <Empty
-              title="Action unavailable"
-              description="Return to Files and choose the action again."
-            />
+            <Empty title="This action is no longer available." />
           )
         }
       </WorkspaceGate>

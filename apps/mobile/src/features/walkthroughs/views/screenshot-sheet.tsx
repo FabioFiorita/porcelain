@@ -10,10 +10,7 @@ import { useReadyWalkthrough } from '../queries/walkthrough';
 import { EvidenceImage } from './walkthrough-evidence';
 
 const unavailable = (
-  <Empty
-    title="Screenshot unavailable"
-    description="The walkthrough changed. Open the screenshot again from its step."
-  />
+  <Empty title="The walkthrough changed since this screenshot opened." />
 );
 
 export function WalkthroughScreenshotSheet({
@@ -30,7 +27,6 @@ export function WalkthroughScreenshotSheet({
   return (
     <Sheet title="Screenshot" layout="fixed">
       <WorkspaceGate
-        title="Screenshot"
         frame="pane"
         expectedWorkspace={workspace ?? ''}
         changed={unavailable}

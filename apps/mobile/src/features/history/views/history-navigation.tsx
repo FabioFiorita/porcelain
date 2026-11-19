@@ -1,9 +1,10 @@
 import { useAtom } from '@effect/atom-react';
 import { historyPlace } from '@porcelain/client/history';
 import { Box } from '../../../components/ui/box';
+import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { ErrorState } from '../../../components/ui/error-state';
-import { Loading } from '../../../components/ui/loading';
+import { Spinner } from '../../../components/ui/spinner';
 import { Text } from '../../../components/ui/text';
 import { HistoryList } from '../../../components/ui/history-list';
 import {
@@ -56,8 +57,9 @@ function HistoryNavigationContent({
     selected: selectedCommit,
     onOpen: open,
   });
-  const branch = AsyncResult.isSuccess(status.result)
-    ? historyStatus(status.result.value, value?.snapshot ?? null)
+  const statusValue = Option.getOrUndefined(AsyncResult.value(status.result));
+  const branch = statusValue
+    ? historyStatus(statusValue, value?.snapshot ?? null)
     : undefined;
   return (
     <Box collapsable={false} className="flex-1" surface="background">
@@ -97,7 +99,7 @@ function HistoryNavigationContent({
           open(oid);
         }}
         footer={<HistoryFooter history={history} />}
-        unavailable={failed}
+        unavailable={failed && !value}
       />
     </Box>
   );
@@ -147,7 +149,7 @@ function BranchStatus({
         }}
       />
     );
-  return <Loading label="Loading branch status…" />;
+  return null;
 }
 
 export function HistoryFooter({
@@ -178,16 +180,16 @@ export function HistoryFooter({
           retry={{ label: 'Retry', onPress: history.retry }}
         />
       );
-    return <Loading label="Loading commits…" />;
+    return <Spinner />;
   }
-  if (failed)
+  if (failed && value.nextAfter)
     return (
       <ErrorState
         message="Couldn't load older commits"
         retry={{ label: 'Retry', onPress: history.readMore }}
       />
     );
-  if (history.result.waiting) return <Loading label="Loading older commits…" />;
+  if (history.result.waiting) return <Spinner />;
   if (value.nextAfter)
     return (
       <Box padding={4}>

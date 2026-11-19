@@ -1,5 +1,5 @@
 import { ErrorState } from '../../../components/ui/error-state';
-import { Loading } from '../../../components/ui/loading';
+import { Spinner } from '../../../components/ui/spinner';
 import type { ReactNode } from 'react';
 import { AsyncResult } from 'effect/reactivity';
 import type { useCommit } from '../queries/history';
@@ -13,7 +13,7 @@ export function CommitReadState({
     value: NonNullable<ReturnType<typeof useCommit>['value']>,
   ) => ReactNode;
 }) {
-  if (AsyncResult.isFailure(commit.result) || !commit.value)
+  if (!commit.value)
     return (
       <CommitState
         failed={AsyncResult.isFailure(commit.result)}
@@ -36,6 +36,6 @@ function CommitState({
       retry={{ label: 'Retry', onPress: retry }}
     />
   ) : (
-    <Loading label="Loading commit…" />
+    <Spinner />
   );
 }

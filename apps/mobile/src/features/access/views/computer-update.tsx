@@ -1,7 +1,5 @@
 import { useState } from 'react';
 import { useAtom, useAtomValue, useAtomRefresh } from '@effect/atom-react';
-import { Cause } from 'effect';
-import { AsyncResult } from 'effect/reactivity';
 import {
   readServiceUpdate,
   runSettingsUpdates,
@@ -12,14 +10,12 @@ import {
   type ServiceUpdateTarget,
   type SettingsUpdateEntry,
 } from '@porcelain/client/access';
-import { connectionErrorMessage } from '@porcelain/client/access/rules';
 import { Box } from '../../../components/ui/box';
 import { Item } from '../../../components/ui/item';
 import { Separator } from '../../../components/ui/separator';
 import { Icon } from '../../../components/ui/icon';
 import { Button } from '../../../components/ui/button';
-import { ErrorState } from '../../../components/ui/error-state';
-import { Loading } from '../../../components/ui/loading';
+import { Spinner } from '../../../components/ui/spinner';
 import { Text } from '../../../components/ui/text';
 import { useServiceUpdates } from '../queries/service-updates';
 
@@ -37,7 +33,6 @@ function ConnectedComputerUpdate({
   row: ReturnType<typeof useServiceUpdates>['rows'][number];
 }) {
   const batch = useAtomValue(settingsUpdateBatch);
-  const refresh = useAtomRefresh(readServiceUpdate(row.connection));
   const target = row.target;
   const entry = batch.entries.find(
     (candidate) => candidate.id === row.remote.environmentId,
@@ -49,15 +44,6 @@ function ConnectedComputerUpdate({
   return (
     <>
       <Box paddingX={4} paddingY={2} gap={2}>
-        {AsyncResult.isInitial(row.result) ? (
-          <Loading label="Checking updates…" />
-        ) : null}
-        {AsyncResult.isFailure(row.result) ? (
-          <ErrorState
-            message={connectionErrorMessage(Cause.squash(row.result.cause))}
-            retry={{ label: 'Check updates again', onPress: refresh }}
-          />
-        ) : null}
         {target ? (
           <Text variant="caption" tone="muted">
             {target.state.version ?? 'Unknown version'}
@@ -68,13 +54,15 @@ function ConnectedComputerUpdate({
         ) : null}
         {inBatch ? (
           <Text variant="caption" tone="muted">
-            {entry.status === 'queued' ? 'Queued' : 'Updating…'}
+            {entry.status === 'queued' ? 'Queued' : 'Updating'}
           </Text>
         ) : null}
         {!inBatch && target ? <ServiceUpdateNote target={target} /> : null}
         {entry && !inBatch ? <UpdateOutcome entry={entry} /> : null}
       </Box>
-      {!inBatch && target ? <ServiceUpdateAction target={target} /> : null}
+      {!inBatch && target && row.confirmed ? (
+        <ServiceUpdateAction target={target} />
+      ) : null}
     </>
   );
 }
@@ -88,7 +76,7 @@ function ServiceUpdateNote({ target }: { target: ServiceUpdateTarget }) {
       </Text>
     );
   if (settingsUpdateTrust(target)) return null;
-  if (target.state.running) return <Loading label="Updating…" />;
+  if (target.state.running) return <Spinner />;
   if (settingsUpdateVersion(target)) return null;
   return (
     <Text variant="caption" tone="muted">
@@ -176,7 +164,7 @@ function UpdateOutcome({ entry }: { entry: SettingsUpdateEntry }) {
         {entry.message}
       </Text>
     );
-  let label = 'Updating…';
+  let label = 'Updating';
   if (entry.status === 'queued') label = 'Queued';
   if (entry.status === 'updated') label = `Updated to ${entry.version}`;
   return (

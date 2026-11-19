@@ -2,7 +2,7 @@ import { openSettings } from 'expo-linking';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Empty } from '../../../components/ui/empty';
-import { Loading } from '../../../components/ui/loading';
+import { Spinner } from '../../../components/ui/spinner';
 import { QrScanner } from '../../../components/ui/qr-scanner';
 import { useCameraPermission } from '../queries/camera-permission';
 import { scannedPairingLink } from '../rules/pairing-link-intake';
@@ -16,16 +16,14 @@ export function ScanPairingLinkScreen() {
   const close = () => router.back();
 
   if (permission === undefined)
-    return <QrScanner onClose={close} blocked={<Loading />} />;
+    return <QrScanner onClose={close} blocked={<Spinner />} />;
   if (!permission.granted)
     return (
       <QrScanner
         onClose={close}
         blocked={
           <Empty
-            icon="camera"
-            title="Allow camera access"
-            description="Porcelain uses the camera only to read the pairing QR code your computer shows. You can close this and paste the link instead."
+            title="Allow camera access to scan the pairing code."
             action={
               permission.canAskAgain
                 ? {

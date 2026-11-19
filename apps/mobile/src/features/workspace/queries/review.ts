@@ -1,6 +1,7 @@
 import type { ReviewComparison } from '../../../shared/rules/review-comparison';
 import { useAtomValue, useAtomRefresh } from '@effect/atom-react';
 import { Atom, AsyncResult } from 'effect/reactivity';
+import { keepLoadedChunk } from '../rules/diff-page';
 import {
   readChanges,
   readBranchChanges,
@@ -147,15 +148,10 @@ export const changePageDiffs = Atom.family(
           workspace,
           keys,
         );
-        const previous = Option.getOrUndefined(get.self<ChunkDiffs>());
-        if (
-          !AsyncResult.isSuccess(current) &&
-          !AsyncResult.isFailure(current) &&
-          previous &&
-          AsyncResult.isSuccess(previous)
-        )
-          return AsyncResult.success(previous.value, { waiting: true });
-        return current;
+        return keepLoadedChunk(
+          current,
+          Option.getOrUndefined(get.self<ChunkDiffs>()),
+        );
       },
       (refresh) =>
         refresh(source.query ?? snapshots({ workspace, comparison })),

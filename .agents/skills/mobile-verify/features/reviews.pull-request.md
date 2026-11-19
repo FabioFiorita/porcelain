@@ -3,8 +3,9 @@ screen: /pull-request
 selectors:
   - 'PR #'
   - 'Read pull request again'
+  - 'The pull request could not be read.'
   - 'Open on GitHub'
-  - 'Reading pull request…'
+  - 'spinner'
   - 'Archive'
 tests:
   - apps/mobile/src/shared/rules/markdown.spec.ts

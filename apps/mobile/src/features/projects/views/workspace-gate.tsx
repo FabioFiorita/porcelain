@@ -3,21 +3,19 @@ import { useRouter } from 'expo-router';
 import { Box } from '../../../components/ui/box';
 import { Empty } from '../../../components/ui/empty';
 import { ErrorState } from '../../../components/ui/error-state';
-import { Loading } from '../../../components/ui/loading';
+import { Spinner } from '../../../components/ui/spinner';
 import { Screen } from '../../../components/ui/screen';
 import type { Workspace } from '../commands/workspace-connection';
 import { useWorkspace } from './workspace';
 import { useOpenComputers } from './open-computers';
 
 export function WorkspaceGate({
-  title,
   expectedWorkspace,
   changed,
   unavailable,
   frame = 'screen',
   children,
 }: {
-  title: string;
   expectedWorkspace?: string | undefined;
   changed?: ReactNode;
   unavailable?: ReactNode;
@@ -30,7 +28,7 @@ export function WorkspaceGate({
   const notice = () => {
     switch (state.kind) {
       case 'loading':
-        return <Loading label="Reading workspace…" />;
+        return <Spinner />;
       case 'failed':
         return (
           <Box padding={4}>
@@ -48,8 +46,7 @@ export function WorkspaceGate({
         return (
           unavailable ?? (
             <Empty
-              title="Workspace unavailable"
-              description={state.reason}
+              title={state.reason}
               action={
                 remote
                   ? { label: 'Read again', onPress: read }
@@ -67,17 +64,13 @@ export function WorkspaceGate({
           (environments.length === 0 ? (
             <Empty
               title="Pair a computer"
-              description="Pair a computer, then select a project and worktree."
               action={{
                 label: 'Add computer',
                 onPress: openComputers,
               }}
             />
           ) : (
-            <Empty
-              title="Select a worktree"
-              description={`Choose a worktree in Worktrees to continue to ${title}.`}
-            />
+            <Empty title="Select a worktree" />
           ))
         );
       case 'selected':

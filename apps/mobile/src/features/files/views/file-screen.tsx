@@ -23,8 +23,7 @@ import { useFileAsset } from '../queries/asset';
 import { isNativeImagePath } from '../../../shared/rules/file-tree';
 import { Empty } from '../../../components/ui/empty';
 import { ErrorState } from '../../../components/ui/error-state';
-import { Loading } from '../../../components/ui/loading';
-import { FileNotice } from '../../../components/ui/file-notice';
+import { Spinner } from '../../../components/ui/spinner';
 import {
   DocumentHeader,
   DocumentScreen,
@@ -54,14 +53,8 @@ export function FileScreen(props: ContentProps & { workspace: string }) {
   return (
     <DocumentScreen path={props.path}>
       <WorkspaceGate
-        title="Files"
         expectedWorkspace={props.workspace}
-        changed={
-          <Empty
-            title="Workspace changed"
-            description="Return to Files and choose a file in the selected worktree."
-          />
-        }
+        changed={<Empty title="Another worktree is selected now." />}
       >
         {(selected) => (
           <ReturnBeside path={props.path} workspace={selected.key}>
@@ -208,18 +201,14 @@ function FileContentView(props: FileProps) {
 function FileImage({ path, selected }: { path: string; selected: Workspace }) {
   const asset = useFileAsset(selected.connection, selected.scope, path);
   const data = Option.getOrUndefined(AsyncResult.value(asset.result));
-  if (AsyncResult.isFailure(asset.result))
+  if (AsyncResult.isFailure(asset.result) && !data)
     return (
       <ErrorState
         message={fileErrorMessage(Cause.squash(asset.result.cause))}
         retry={{ label: 'Read image again', onPress: asset.refresh }}
       />
     );
-  return data ? (
-    <ImageView data={data.base64} label={path} />
-  ) : (
-    <Loading label="Reading image…" />
-  );
+  return data ? <ImageView data={data.base64} label={path} /> : <Spinner />;
 }
 
 function FileText(props: FileProps) {
@@ -243,17 +232,10 @@ function FileText(props: FileProps) {
         retry={{ label: 'Read file again', onPress: file.refresh }}
       />,
     );
-  if (!data) return plain(<Loading label="Reading file…" />);
-  if ('kind' in data)
-    return plain(<FileNotice kind="unsupported" description={data.reason} />);
+  if (!data) return plain(<Spinner />);
+  if ('kind' in data) return plain(<Empty title={data.reason} />);
   return (
     <View className="flex-1">
-      {AsyncResult.isFailure(file.result) ? (
-        <ErrorState
-          message={fileErrorMessage(Cause.squash(file.result.cause))}
-          retry={{ label: 'Read file again', onPress: file.refresh }}
-        />
-      ) : null}
       <FilePreview {...props} actions={actions} file={data} text={data.text} />
     </View>
   );
@@ -326,7 +308,7 @@ function FileContentsPreview({
   onSelect?: ((range: ReviewRange) => void) | undefined;
 }) {
   const { preferences } = usePreferences();
-  if (text === '') return <FileNotice kind="empty" />;
+  if (text === '') return <Empty title="Empty file" />;
   if (/\.mdx?$/i.test(path))
     return (
       <MarkdownContent

@@ -5,7 +5,7 @@ import { historyPlace, focusCommitFile } from '@porcelain/client/history';
 import { isSubmoduleChange } from '@porcelain/client/changes/rules';
 import { Box } from '../../../components/ui/box';
 import { Empty } from '../../../components/ui/empty';
-import { Loading } from '../../../components/ui/loading';
+import { Spinner } from '../../../components/ui/spinner';
 import { Text } from '../../../components/ui/text';
 import { Badge } from '../../../components/ui/badge';
 import {
@@ -103,12 +103,7 @@ function CommitPageView({
                     commitPaths(file.change).includes(focusedPath),
                 )?.key
               }
-              empty={
-                <Empty
-                  title="No changed files"
-                  description="This commit has no file changes against this comparison."
-                />
-              }
+              empty={<Empty title="No changed files" />}
               onFocused={() =>
                 setPlace((current) => ({ ...current, selected: undefined }))
               }
@@ -178,9 +173,6 @@ function CommitPageView({
                     variant="secondary"
                     weight="medium"
                   >{`${value.files.length} file${value.files.length === 1 ? '' : 's'} changed`}</Text>
-                  {commit.result.waiting ? (
-                    <Loading label="Loading comparison…" />
-                  ) : null}
                 </Box>
               )}
             />
@@ -207,7 +199,7 @@ function FirstDiffs({
   const first = chunk[0];
   const patch = useCommitPatch(selection, oid, parent, first ?? [], chunk);
   if (first && !patch.value && !AsyncResult.isFailure(patch.result))
-    return <Loading label="Loading commit…" />;
+    return <Spinner />;
   return children;
 }
 

@@ -483,10 +483,6 @@ function Unwritten({
           <Text variant="largeTitle" weight="semibold">
             No walkthrough yet.
           </Text>
-          <Text tone="muted">
-            A fresh agent reads this change and explains it. It never edits the
-            code.
-          </Text>
           <Button
             label="Write walkthrough"
             pending={waiting}

@@ -4,11 +4,7 @@ import { Empty } from '../../../components/ui/empty';
 import { WorkspaceGate } from '../../projects';
 import { DiffContent } from './diff-content';
 
-export function CommitDiffScreen({
-  returnTo = 'History',
-}: {
-  returnTo?: 'History' | 'Files';
-}) {
+export function CommitDiffScreen() {
   const {
     oid,
     workspace,
@@ -21,19 +17,10 @@ export function CommitDiffScreen({
     parent?: string;
   }>();
   const parent = Number(requestedParent ?? 1);
-  const changed = (
-    <Empty
-      title="Workspace changed"
-      description={`Return to ${returnTo} to open a commit in the selected worktree.`}
-    />
-  );
+  const changed = <Empty title="Another worktree is selected now." />;
   return (
     <DocumentScreen path={path}>
-      <WorkspaceGate
-        title="History"
-        expectedWorkspace={workspace}
-        changed={changed}
-      >
+      <WorkspaceGate expectedWorkspace={workspace} changed={changed}>
         {(current) =>
           Number.isInteger(parent) && parent > 0 ? (
             <DiffContent

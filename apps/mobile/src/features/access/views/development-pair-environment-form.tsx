@@ -29,11 +29,7 @@ export default function DevelopmentPairEnvironmentForm(
             </Text>
             <Button
               testID="development-pairing-link"
-              label={
-                development.result.waiting
-                  ? 'Creating pairing link…'
-                  : 'Use development server'
-              }
+              label="Use development server"
               variant="tonal"
               pending={development.result.waiting}
               disabled={disabled}

@@ -5,7 +5,7 @@ selectors:
   - 'Add computer'
   - 'Forget computer'
   - 'No computers paired.'
-  - 'Reading saved computers…'
+  - 'spinner'
   - 'Try again'
   - 'Manage connections'
   - 'Check updates again'

@@ -6,6 +6,7 @@ import {
 } from '@porcelain/client/projects/rules';
 import { connectionErrorMessage } from '@porcelain/client/access/rules';
 import { useProjectSelectionCommands } from '../commands/selection';
+import { pickerError } from '../rules/picker-error';
 import { useInventories } from '../queries/inventory';
 import { useWorkspace } from './workspace';
 import type { WorkspacePickerProps } from './workspace-picker-props';
@@ -36,19 +37,14 @@ export function useWorkspacePickerModel() {
       access.status !== 'ready' ||
       selection.status !== 'ready' ||
       commands.pending > 0,
-    messages: initializing
-      ? ['Reading workspace…']
-      : commands.pending > 0
-        ? ['Changing workspace…', ...messages]
-        : messages,
+    messages: initializing ? [] : messages,
     canReadInventory: canReadAgain,
-    error:
-      (workspace.state.kind === 'failed'
-        ? workspace.state.message
-        : undefined) ??
-      (AsyncResult.isFailure(commands.result)
+    error: pickerError(
+      workspace.state,
+      AsyncResult.isFailure(commands.result)
         ? connectionErrorMessage(Cause.squash(commands.result.cause))
-        : undefined),
+        : undefined,
+    ),
     onRead:
       workspace.state.kind === 'failed'
         ? workspace.read

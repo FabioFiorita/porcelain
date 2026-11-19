@@ -40,14 +40,14 @@ it('identifies a detached checkout by its folder', () => {
   ).toBe('qa-531');
 });
 
-it('keeps pending and failed reads distinct from a clean checkout without a review', () => {
-  expect(
-    worktreeRow({
-      ...entry,
-      changes: { state: 'loading' },
-      pullRequest: { state: 'loading' },
-    }),
-  ).toMatchObject({ changes: 'Reading changes…' });
+it('says nothing while changes are read and marks a failed read apart from a clean checkout', () => {
+  const pending = worktreeRow({
+    ...entry,
+    changes: { state: 'loading' },
+    pullRequest: { state: 'loading' },
+  });
+  expect(pending.changes).toBe('');
+  expect(pending.accessibilityLabel).not.toMatch(/Reading|…/);
   expect(
     worktreeRow({
       ...entry,

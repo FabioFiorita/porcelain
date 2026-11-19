@@ -48,7 +48,7 @@ export function SettingsScreen({
     settingsUpdateCount(targets),
   );
   const paired = {
-    loading: 'Reading saved computers…',
+    loading: '',
     unreadable: 'Saved computers could not be read',
     ready: computers.paired,
   }[storage.status];

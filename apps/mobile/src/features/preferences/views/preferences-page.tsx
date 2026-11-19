@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { ScrollView } from 'react-native';
 import { Box } from '../../../components/ui/box';
 import { ErrorState } from '../../../components/ui/error-state';
-import { Loading } from '../../../components/ui/loading';
+import { Spinner } from '../../../components/ui/spinner';
 import { usePreferences } from '../store';
 
 export function PreferencesPage({
@@ -22,9 +22,7 @@ export function PreferencesPage({
       contentInsetAdjustmentBehavior="automatic"
     >
       <Box className="w-full max-w-2xl self-center" gap={6} padding={4}>
-        {status === 'loading' ? (
-          <Loading label="Reading saved preferences…" />
-        ) : null}
+        {status === 'loading' ? <Spinner /> : null}
         {error ? (
           <ErrorState
             message={error}

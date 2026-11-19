@@ -144,7 +144,7 @@ export function ButtonPreview() {
             </Text>
             <Button label="Disabled" disabled onPress={act} />
             <Button
-              label={pending ? 'Working…' : 'Start pending demo'}
+              label="Start pending demo"
               pending={pending}
               onPress={() => {
                 act();

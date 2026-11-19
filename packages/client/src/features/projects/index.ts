@@ -43,8 +43,6 @@ export type {
   WorktreeCleanupRequest,
 } from '@porcelain/contracts/projects';
 
-export { worktreeStatusNotices } from './store/worktree-navigator.ts';
-
 export { readWalkthroughWriterSettings } from './queries/walkthrough-writer.ts';
 export { saveDefaultWalkthroughWriter } from './commands/projects.ts';
 

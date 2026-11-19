@@ -18,6 +18,7 @@ import { Empty } from '../../../components/ui/empty';
 import { Sheet } from '../../../components/ui/sheet';
 import { Switch } from '../../../components/ui/switch';
 import { Box } from '../../../components/ui/box';
+import { Spinner } from '../../../components/ui/spinner';
 import { Text } from '../../../components/ui/text';
 import { useReviewGitSettings } from '../../preferences';
 import { useInventory } from '../queries/inventory';
@@ -99,12 +100,7 @@ export function ArchivePullRequestSheet({
 }
 
 function ArchiveUnavailable() {
-  return (
-    <Empty
-      title="Pull request unavailable"
-      description="Return to the pull request and choose Archive again."
-    />
-  );
+  return <Empty title="Pull request unavailable" />;
 }
 
 function ArchiveConfirmation({
@@ -126,12 +122,12 @@ function ArchiveConfirmation({
   const risky = Boolean(plan && (plan.dirty || plan.unpushed));
   if (AsyncResult.isInitial(result) && !result.waiting)
     return <ArchiveUnavailable />;
-  let description = 'Checking the worktree and branches…';
+  let description: string | undefined;
   if (failure) description = 'Archiving could not be completed.';
   if (plan) description = archiveDescription(plan);
   return (
     <>
-      <Text>{description}</Text>
+      {description ? <Text>{description}</Text> : <Spinner />}
       {risky ? (
         <Box className="flex-row items-center" gap={2}>
           <Switch

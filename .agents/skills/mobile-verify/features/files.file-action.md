@@ -6,7 +6,7 @@ selectors:
   - 'Rename'
   - 'file-action-path'
   - 'file-action-submit'
-  - 'Action unavailable'
+  - 'This action is no longer available.'
 tests: []
 api:
   - POST /api/worktrees/:worktreeId/files
@@ -32,4 +32,4 @@ Preconditions: [surface baseline](README.md).
 
 ## Gotchas
 
-- The sheet carries the workspace key; if another worktree is selected meanwhile it says Workspace changed instead of editing the wrong checkout.
+- The sheet carries the workspace key; if another worktree is selected meanwhile it says Another worktree is selected now. instead of editing the wrong checkout.

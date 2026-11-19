@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { FlatList, View } from 'react-native';
 import { CommitRow, type HistoryEntry } from './commit-row';
 import { Empty } from './empty';
-import { Loading } from './loading';
+import { Spinner } from './spinner';
 import { Text } from './text';
 import { Item } from './item';
 import { useListReadingOffset } from './list-reading-offset';
@@ -106,22 +106,14 @@ export function HistoryList({
         loading || unavailable || hasMore ? (
           <></>
         ) : (
-          <>
-            {empty ?? (
-              <Empty
-                title="No commits yet"
-                description="Commits will appear here once this worktree has history."
-                icon="history"
-              />
-            )}
-          </>
+          <>{empty ?? <Empty title="No commits yet" />}</>
         )
       }
       ListFooterComponent={
         footer !== undefined ? (
           <>{footer}</>
         ) : loading ? (
-          <Loading label="Loading commits…" />
+          <Spinner />
         ) : entries.length && !hasMore ? (
           <View className="py-4">
             <Text variant="caption" tone="muted" className="text-center">

@@ -6,7 +6,6 @@ describe('review diff presentation', () => {
     expect(diffPresentation({ kind: 'binary' })).toEqual({
       kind: 'notice',
       title: 'Binary change',
-      description: 'This comparison cannot be displayed as text.',
     });
   });
   it('retains mode and rename metadata without selectable code lines', () => {
@@ -28,15 +27,13 @@ describe('review diff presentation', () => {
       }),
     ).toEqual({
       kind: 'notice',
-      title: 'Diff unavailable',
-      description: 'The server returned a patch that could not be displayed.',
+      title: 'This diff could not be displayed.',
     });
   });
   it('explains a text comparison without changed lines', () => {
     expect(diffPresentation({ kind: 'text', patch: '' })).toEqual({
       kind: 'notice',
       title: 'No text changes',
-      description: 'This comparison contains no changed text lines.',
     });
   });
 });
