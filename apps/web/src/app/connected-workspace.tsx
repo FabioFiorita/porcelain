@@ -49,7 +49,7 @@ import {
 } from '@/features/workspace/index';
 import { useDocumentTitle } from '@/shared/hooks/use-document-title';
 import { useAtomSet, useAtomValue } from '@effect/atom-react';
-import { settingsReturnFocus } from '@/shared/store';
+import { navigatorFocusPending } from '@/shared/store';
 import {
   useOpenProjectOnThisComputer,
   worktreeLocation,
@@ -106,11 +106,23 @@ export function ConnectedWorkspace({
   showRemoteNotice?: boolean | undefined;
   notice?: 'not-found' | 'missing-worktree' | undefined;
 }) {
-  const navigationTrigger = useElement<HTMLButtonElement>();
+  const trigger = useElement<HTMLButtonElement>();
+  const focusPending = useAtomValue(navigatorFocusPending);
+  const setFocusPending = useAtomSet(navigatorFocusPending);
+  const returnFocusTo = (element: HTMLButtonElement | null) => {
+    if (!element || !focusPending || background) return;
+    element.focus();
+    if (document.activeElement === element) setFocusPending(false);
+  };
+  const navigationTrigger: ElementTarget<HTMLButtonElement> = {
+    element: trigger.element,
+    attach: (element) => {
+      trigger.attach(element);
+      returnFocusTo(element);
+    },
+  };
   const [restoreNavigatorFocus, setRestoreNavigatorFocus] = useState(false);
   const [shortcuts, setShortcuts] = useState(false);
-  const returnFocus = useAtomValue(settingsReturnFocus);
-  const setReturnFocus = useAtomSet(settingsReturnFocus);
   const { setOpenMobile, isMobile, open, openMobile } = useSidebar();
   const mobileNavigatorEvents: Pick<
     ComponentProps<typeof Sheet>,
@@ -125,10 +137,7 @@ export function ConnectedWorkspace({
         setRestoreNavigatorFocus(false);
         navigationTrigger.element?.focus();
       }
-      if (!next && !background && returnFocus) {
-        returnFocus.focus();
-        if (document.activeElement === returnFocus) setReturnFocus(null);
-      }
+      if (!next) returnFocusTo(navigationTrigger.element);
     },
   };
   const navigate = useNavigate();
@@ -179,10 +188,7 @@ export function ConnectedWorkspace({
   const openWorktree = (target: WorktreeTarget) =>
     navigate({ ...worktreeLocation(target), replace: review === undefined });
   const openHere = useOpenProjectOnThisComputer(local.connection, openWorktree);
-  const leaveForSettings = () => {
-    setReturnFocus(isMobile && openMobile ? navigationTrigger.element : null);
-    setOpenMobile(false);
-  };
+  const leaveForSettings = () => setOpenMobile(false);
   const openSettings = (section = defaultSettingsSection) => {
     leaveForSettings();
     void navigate({ to: '/settings/$section', params: { section } });

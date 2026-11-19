@@ -2,9 +2,7 @@ import { Atom } from 'effect/reactivity';
 
 export const atomRegistry = Atom.make((get) => get.registry);
 
-export const settingsReturnFocus = Atom.make<HTMLElement | null>(null).pipe(
-  Atom.keepAlive,
-);
+export const navigatorFocusPending = Atom.make(false).pipe(Atom.keepAlive);
 
 export const mediaQuery = Atom.family((query: string) =>
   Atom.make((get) => {

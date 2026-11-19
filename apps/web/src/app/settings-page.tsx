@@ -7,8 +7,7 @@ import {
 } from 'lucide-react';
 import { useCanGoBack, useNavigate, useRouter } from '@tanstack/react-router';
 import { useState, type ReactNode } from 'react';
-import { useHotkey } from '@tanstack/react-hotkeys';
-import { useAtomSet, useAtomValue } from '@effect/atom-react';
+import { useAtomSet } from '@effect/atom-react';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -20,6 +19,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useSidebar } from '@/components/ui/sidebar';
 import {
   ComputerSettings,
   RemoteComputers,
@@ -35,8 +35,7 @@ import {
 import { useInventory } from '@/features/projects/index';
 import { useDocumentTitle } from '@/shared/hooks/use-document-title';
 import { cn } from '@/shared/lib/utils';
-import { settingsReturnFocus } from '@/shared/store';
-import { SHORTCUTS } from '@/shared/workspace/shortcuts';
+import { navigatorFocusPending } from '@/shared/store';
 import {
   goThen,
   recordSettingsSession,
@@ -61,6 +60,14 @@ export function settingsTarget(
   if (!settingsSections.some((item) => item.id === section)) return undefined;
   if (environmentId !== undefined && section !== 'computers') return undefined;
   return { section, environmentId };
+}
+
+function togglesNavigator(event: {
+  key: string;
+  ctrlKey: boolean;
+  metaKey: boolean;
+}) {
+  return event.key.toLowerCase() === 'b' && (event.ctrlKey || event.metaKey);
 }
 
 function settingsPlace(pathname: string) {
@@ -127,13 +134,18 @@ export function SettingsDialog({
   const navigate = useNavigate();
   const router = useRouter();
   const canGoBack = useCanGoBack();
+  const { isMobile } = useSidebar();
   const [origin] = useState<SettingsSession>(() => {
     const entry = settingsEntry(router.history);
-    return entry.session ?? { start: entry.index, workspace: canGoBack };
-  });
-  useHotkey(SHORTCUTS.toggleNavigator, () => undefined, {
-    stopPropagation: true,
-    ignoreInputs: false,
+    const navigator =
+      isMobile && document.querySelector('[data-mobile="true"]') !== null;
+    return (
+      entry.session ?? {
+        start: entry.index,
+        workspace: canGoBack,
+        ...(navigator ? { navigator } : {}),
+      }
+    );
   });
   const session = () => {
     const entry = settingsEntry(router.history);
@@ -141,19 +153,24 @@ export function SettingsDialog({
   };
   useDocumentTitle('Settings — Porcelain');
   const [opener] = useState(() =>
-    document.activeElement instanceof HTMLElement
+    document.activeElement instanceof HTMLElement &&
+    document.activeElement !== document.body
       ? document.activeElement
       : null,
   );
-  const returnFocus = useAtomValue(settingsReturnFocus);
-  const setReturnFocus = useAtomSet(settingsReturnFocus);
+  const setNavigatorFocusPending = useAtomSet(navigatorFocusPending);
   const attachSession = (element: HTMLElement | null) => {
     if (!element) return;
+    setNavigatorFocusPending(false);
     let previous: { index: number; list: boolean } | undefined;
-    const record = () => {
+    const record = (forward: boolean) => {
       const entry = settingsEntry(router.history);
       const place = settingsPlace(entry.pathname);
       if (!place) return;
+      if (entry.session?.retired && forward) {
+        router.history.back();
+        return;
+      }
       if (entry.session) {
         previous = {
           index: entry.index,
@@ -169,23 +186,27 @@ export function SettingsDialog({
       recordSettingsSession(router.history, {
         start: origin.start,
         workspace: origin.workspace,
+        ...(origin.navigator ? { navigator: true } : {}),
         ...(fromList && previous ? { list: previous.index } : {}),
       });
     };
-    record();
-    const stop = router.history.subscribe(record);
+    record(false);
+    const stop = router.history.subscribe(({ action }) =>
+      record(
+        action.type === 'FORWARD' || (action.type === 'GO' && action.index > 0),
+      ),
+    );
     return () => {
       stop();
       queueMicrotask(() => {
         if (element.isConnected) return;
-        if (returnFocus) {
-          returnFocus.focus();
-          if (document.activeElement === returnFocus) setReturnFocus(null);
-        } else if (
-          opener?.isConnected &&
-          document.activeElement === document.body
-        )
-          opener.focus({ preventScroll: true });
+        if (origin.navigator && isMobile) {
+          setNavigatorFocusPending(true);
+          return;
+        }
+        const focused = document.activeElement;
+        if (focused === null || focused === document.body)
+          opener?.focus({ preventScroll: true });
       });
     };
   };
@@ -213,9 +234,11 @@ export function SettingsDialog({
         params: { section: id },
         replace: true,
       });
-    if (environmentId !== undefined && list !== undefined)
+    if (environmentId !== undefined && list !== undefined) {
+      const { index: _detail, ...detail } = session();
+      recordSettingsSession(router.history, { ...detail, retired: true });
       goThen(router.history, list - index, replace);
-    else replace();
+    } else replace();
   };
   const openRemote = (id: string) => {
     setListReturn({
@@ -286,6 +309,9 @@ export function SettingsDialog({
       <DialogContent
         ref={attachPopup}
         finalFocus={false}
+        onKeyDown={(event) => {
+          if (togglesNavigator(event)) event.stopPropagation();
+        }}
         aria-label="Settings"
         className="flex h-[min(48rem,calc(100svh-2rem))] w-[min(64rem,calc(100vw-2rem))] max-w-none flex-col overflow-hidden sm:max-w-none"
       >

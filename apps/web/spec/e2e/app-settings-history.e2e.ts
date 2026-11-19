@@ -69,40 +69,50 @@ for (const predecessor of [false, true]) {
   }
 }
 
-test('Close after reloading a computer detail returns to the workspace that opened Settings', async ({
-  pairedPage,
-  app,
-}) => {
-  await pairedPage.setViewportSize({ width: 1440, height: 900 });
-  const review = pairedPage.getByRole('region', {
-    name: 'Review content',
-    exact: true,
+for (const width of [1440, 414]) {
+  test(`Close after reloading a computer detail returns to the workspace that opened Settings at ${width}`, async ({
+    pairedPage,
+    app,
+  }) => {
+    await pairedPage.setViewportSize({ width, height: 900 });
+    const review = pairedPage.getByRole('region', {
+      name: 'Review content',
+      exact: true,
+    });
+    await expect(review).toBeVisible();
+    await expect(pairedPage).toHaveTitle(/^Changes — /);
+    const workspace = new URL(pairedPage.url()).pathname;
+    const toggle = pairedPage.getByRole('button', {
+      name: 'Toggle Sidebar',
+      exact: true,
+    });
+    if (width < 768) await toggle.click();
+    await pairedPage
+      .getByRole('navigation', { name: 'Projects and worktrees', exact: true })
+      .getByRole('button', { name: 'Settings', exact: true })
+      .click();
+    const settings = pairedPage.getByRole('dialog', {
+      name: 'Settings',
+      exact: true,
+    });
+    await settings
+      .getByRole('button', { name: 'Computers', exact: true })
+      .click();
+    await settings
+      .getByRole('button', { name: /^Open This computer:/u })
+      .click();
+    await expect(pairedPage).toHaveURL(/\/settings\/computers\/this-computer$/);
+    await app.reload();
+    await expect(
+      settings
+        .getByRole('navigation', { name: 'breadcrumb', exact: true })
+        .getByText('This computer', { exact: true }),
+    ).toBeVisible();
+    await settings.getByRole('button', { name: 'Close', exact: true }).click();
+    await expect(settings).not.toBeAttached();
+    await expect.poll(() => new URL(pairedPage.url()).pathname).toBe(workspace);
+    await expect(pairedPage).toHaveTitle(/^Changes — /);
+    await expect(review).toBeVisible();
+    if (width < 768) await expect(toggle).toBeFocused();
   });
-  await expect(review).toBeVisible();
-  await expect(pairedPage).toHaveTitle(/^Changes — /);
-  const workspace = pairedPage.url();
-  await pairedPage
-    .getByRole('navigation', { name: 'Projects and worktrees', exact: true })
-    .getByRole('button', { name: 'Settings', exact: true })
-    .click();
-  const settings = pairedPage.getByRole('dialog', {
-    name: 'Settings',
-    exact: true,
-  });
-  await settings
-    .getByRole('button', { name: 'Computers', exact: true })
-    .click();
-  await settings.getByRole('button', { name: /^Open This computer:/u }).click();
-  await expect(pairedPage).toHaveURL(/\/settings\/computers\/this-computer$/);
-  await app.reload();
-  await expect(
-    settings
-      .getByRole('navigation', { name: 'breadcrumb', exact: true })
-      .getByText('This computer', { exact: true }),
-  ).toBeVisible();
-  await settings.getByRole('button', { name: 'Close', exact: true }).click();
-  await expect(settings).not.toBeAttached();
-  await expect(pairedPage).toHaveURL(workspace);
-  await expect(pairedPage).toHaveTitle(/^Changes — /);
-  await expect(review).toBeVisible();
-});
+}

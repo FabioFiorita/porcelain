@@ -290,3 +290,105 @@ test('Close on Settings opened without a workspace replaces it, so Back does not
   await expect.poll(() => app.location()).toBe(workspace);
   await expect.element(settings).not.toBeInTheDocument();
 });
+
+for (const width of [1440, 414]) {
+  test(`with Mac key handling, Control+B and Command+B leave the workspace alone while Settings is open at ${width}`, async ({
+    render,
+    server,
+    reviewLayout,
+  }) => {
+    const restore = reviewLayout.reportPlatform('MacIntel');
+    try {
+      const { app, opener, settings, toggle, openSettings } =
+        await openWorktree(render, server, '', width);
+      await openSettings();
+      const general = settings.getByRole('button', {
+        name: 'General',
+        exact: true,
+      });
+      await expect.element(general).toHaveFocus();
+      await userEvent.keyboard('{Control>}b{/Control}');
+      await userEvent.keyboard('{Meta>}b{/Meta}');
+      await expect
+        .element(app.page.getByRole('dialog', { name: 'Sidebar', exact: true }))
+        .not.toBeInTheDocument();
+      await expect.element(general).toHaveFocus();
+      await settings
+        .getByRole('button', { name: 'Close', exact: true })
+        .click();
+      await expect.element(settings).not.toBeInTheDocument();
+      await expect.element(width < 768 ? toggle : opener).toHaveFocus();
+    } finally {
+      restore();
+      await page.viewport(414, 896);
+    }
+  });
+}
+
+for (const way of ['Close', 'Back'] as const) {
+  test(`${way} from Settings opened by the phone sidebar's Manage computers returns focus to Toggle Sidebar`, async ({
+    render,
+    server,
+  }) => {
+    const { app, path, settings, toggle } = await openWorktree(
+      render,
+      server,
+      '',
+      414,
+    );
+    await toggle.click();
+    await app.page.getByRole('button', { name: 'Update', exact: true }).click();
+    await app.page
+      .getByRole('button', { name: 'Manage computers', exact: true })
+      .click();
+    await expect.element(settings).toBeVisible();
+    await expect
+      .poll(() => pathname(app.location()))
+      .toBe('/settings/computers');
+    if (way === 'Close')
+      await settings
+        .getByRole('button', { name: 'Close', exact: true })
+        .click();
+    else await app.back();
+    await expect.element(settings).not.toBeInTheDocument();
+    await expect.poll(() => pathname(app.location())).toBe(path);
+    await expect.element(toggle).toHaveFocus();
+  });
+}
+
+test('Forward after switching section from a computer detail cannot reopen that detail', async ({
+  render,
+  server,
+}) => {
+  try {
+    const { app, path, settings, openSettings } = await openWorktree(
+      render,
+      server,
+    );
+    await openSettings();
+    await settings
+      .getByRole('button', { name: 'Computers', exact: true })
+      .click();
+    await settings
+      .getByRole('button', { name: /^Open This computer:/u })
+      .click();
+    await expect
+      .poll(() => pathname(app.location()))
+      .toBe('/settings/computers/this-computer');
+    await settings
+      .getByRole('button', { name: 'General', exact: true })
+      .click();
+    await expect.poll(() => pathname(app.location())).toBe('/settings/general');
+    await app.back();
+    await expect.poll(() => pathname(app.location())).toBe(path);
+    await app.forward();
+    await expect.poll(() => pathname(app.location())).toBe('/settings/general');
+    await app.forward();
+    await expect.poll(() => pathname(app.location())).toBe('/settings/general');
+    await expect
+      .element(settings.getByRole('heading', { name: 'General', exact: true }))
+      .toBeVisible();
+  } finally {
+    await page.viewport(414, 896);
+  }
+});

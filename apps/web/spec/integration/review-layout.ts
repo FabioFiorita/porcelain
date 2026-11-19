@@ -36,6 +36,13 @@ function historyScroller(locator: Locator) {
 }
 
 export const reviewLayout = {
+  reportPlatform(platform: string) {
+    Object.defineProperty(navigator, 'platform', {
+      value: platform,
+      configurable: true,
+    });
+    return () => Reflect.deleteProperty(navigator, 'platform');
+  },
   stillMounted(locator: Locator) {
     const element = locator.element();
     return () => element.isConnected;

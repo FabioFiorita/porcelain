@@ -5,6 +5,8 @@ const sessionSchema = Schema.Struct({
   start: Schema.Number,
   workspace: Schema.Boolean,
   list: Schema.optional(Schema.Number),
+  retired: Schema.optional(Schema.Boolean),
+  navigator: Schema.optional(Schema.Boolean),
 });
 
 export type SettingsSession = typeof sessionSchema.Type;
