@@ -37,12 +37,12 @@ function PairedLayout() {
   const current = useMatches({
     select: (matches) => pairedView(matches.at(-1)),
   });
-  const { workspace, settingsOpen } = useWorkspaceBehindSettings(current);
+  const { workspace, workspaceKey, settingsOpen } =
+    useWorkspaceBehindSettings(current);
   const settled = useRouterState({
     select: (state) =>
       state.status === 'idle' && state.location.pathname === workspace.pathname,
   });
-  const href = useRouterState({ select: (state) => state.location.href });
   const empty = useRouterState({
     select: (state) => state.location.pathname === '/',
   });
@@ -52,7 +52,7 @@ function PairedLayout() {
         view={workspace}
         settled={settled}
         background={settingsOpen}
-        resetKey={href}
+        resetKey={workspaceKey}
       />
       <Outlet />
       <DesktopActions

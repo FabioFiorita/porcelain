@@ -7,6 +7,8 @@ import {
 } from 'lucide-react';
 import { useCanGoBack, useNavigate, useRouter } from '@tanstack/react-router';
 import { useState, type ReactNode } from 'react';
+import { useHotkey } from '@tanstack/react-hotkeys';
+import { useAtomSet, useAtomValue } from '@effect/atom-react';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -33,6 +35,14 @@ import {
 import { useInventory } from '@/features/projects/index';
 import { useDocumentTitle } from '@/shared/hooks/use-document-title';
 import { cn } from '@/shared/lib/utils';
+import { settingsReturnFocus } from '@/shared/store';
+import { SHORTCUTS } from '@/shared/workspace/shortcuts';
+import {
+  goThen,
+  recordSettingsSession,
+  settingsEntry,
+  type SettingsSession,
+} from './settings-history';
 
 type SettingsSection = { id: string; label: string; icon: LucideIcon };
 
@@ -51,6 +61,16 @@ export function settingsTarget(
   if (!settingsSections.some((item) => item.id === section)) return undefined;
   if (environmentId !== undefined && section !== 'computers') return undefined;
   return { section, environmentId };
+}
+
+function settingsPlace(pathname: string) {
+  const [, root, section, environmentId, extra] = pathname.split('/');
+  if (root !== 'settings' || section === undefined || extra !== undefined)
+    return undefined;
+  return settingsTarget(
+    section,
+    environmentId === '' ? undefined : environmentId,
+  );
 }
 
 type ContentLayout = 'reading' | 'list' | 'wide';
@@ -107,12 +127,68 @@ export function SettingsDialog({
   const navigate = useNavigate();
   const router = useRouter();
   const canGoBack = useCanGoBack();
-  const [open, setOpen] = useState(true);
-  const [entry] = useState(() => ({
-    historyIndex: router.history.location.state.__TSR_index,
-    hasPredecessor: canGoBack,
-  }));
+  const [origin] = useState<SettingsSession>(() => {
+    const entry = settingsEntry(router.history);
+    return entry.session ?? { start: entry.index, workspace: canGoBack };
+  });
+  useHotkey(SHORTCUTS.toggleNavigator, () => undefined, {
+    stopPropagation: true,
+    ignoreInputs: false,
+  });
+  const session = () => {
+    const entry = settingsEntry(router.history);
+    return { index: entry.index, ...(entry.session ?? origin) };
+  };
   useDocumentTitle('Settings — Porcelain');
+  const [opener] = useState(() =>
+    document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null,
+  );
+  const returnFocus = useAtomValue(settingsReturnFocus);
+  const setReturnFocus = useAtomSet(settingsReturnFocus);
+  const attachSession = (element: HTMLElement | null) => {
+    if (!element) return;
+    let previous: { index: number; list: boolean } | undefined;
+    const record = () => {
+      const entry = settingsEntry(router.history);
+      const place = settingsPlace(entry.pathname);
+      if (!place) return;
+      if (entry.session) {
+        previous = {
+          index: entry.index,
+          list:
+            place.section === 'computers' && place.environmentId === undefined,
+        };
+        return;
+      }
+      const fromList =
+        place.environmentId !== undefined &&
+        previous?.list === true &&
+        previous.index === entry.index - 1;
+      recordSettingsSession(router.history, {
+        start: origin.start,
+        workspace: origin.workspace,
+        ...(fromList && previous ? { list: previous.index } : {}),
+      });
+    };
+    record();
+    const stop = router.history.subscribe(record);
+    return () => {
+      stop();
+      queueMicrotask(() => {
+        if (element.isConnected) return;
+        if (returnFocus) {
+          returnFocus.focus();
+          if (document.activeElement === returnFocus) setReturnFocus(null);
+        } else if (
+          opener?.isConnected &&
+          document.activeElement === document.body
+        )
+          opener.focus({ preventScroll: true });
+      });
+    };
+  };
   const remote = useRemoteConnection(environmentId ?? '')?.remote;
   const { element: list, attach: setList } = useElement<HTMLDivElement>();
   const [listReturn, setListReturn] = useState<{
@@ -120,13 +196,26 @@ export function SettingsDialog({
     focus: HTMLElement | null;
   } | null>(null);
   const returnToList = () => {
-    if (listReturn) router.history.back();
+    const { index, list } = session();
+    if (list !== undefined) router.history.go(list - index);
     else
       void navigate({
         to: '/settings/$section',
         params: { section: 'computers' },
         replace: true,
       });
+  };
+  const showSection = (id: string) => {
+    const { index, list } = session();
+    const replace = () =>
+      void navigate({
+        to: '/settings/$section',
+        params: { section: id },
+        replace: true,
+      });
+    if (environmentId !== undefined && list !== undefined)
+      goThen(router.history, list - index, replace);
+    else replace();
   };
   const openRemote = (id: string) => {
     setListReturn({
@@ -165,18 +254,18 @@ export function SettingsDialog({
   if (environmentId === 'this-computer') detailName = 'This computer';
   else if (remote) detailName = <RemoteComputerName remote={remote} />;
   const leave = () => {
-    if (entry.hasPredecessor)
-      router.history.go(
-        -Math.max(
-          1,
-          router.history.location.state.__TSR_index - entry.historyIndex + 1,
-        ),
+    const { index, start, workspace } = session();
+    if (workspace) router.history.go(start - 1 - index);
+    else
+      goThen(
+        router.history,
+        start - index,
+        () => void navigate({ to: '/', replace: true }),
       );
-    else void navigate({ to: '/' });
   };
   return (
     <Dialog
-      open={open}
+      open
       onOpenChange={(next, details) => {
         if (next) return;
         if (details.reason === 'escape-key') {
@@ -191,19 +280,20 @@ export function SettingsDialog({
           !overlayPress(details.event.target)
         )
           return;
-        setOpen(false);
-      }}
-      onOpenChangeComplete={(next) => {
-        if (!next) leave();
+        leave();
       }}
     >
       <DialogContent
         ref={attachPopup}
+        finalFocus={false}
         aria-label="Settings"
         className="flex h-[min(48rem,calc(100svh-2rem))] w-[min(64rem,calc(100vw-2rem))] max-w-none flex-col overflow-hidden sm:max-w-none"
       >
         <div className="-m-4 flex min-h-0 flex-1 flex-col bg-card text-base text-card-foreground">
-          <header className="settings-bar flex min-h-12 shrink-0 items-center gap-2 border-b pr-12 pl-4">
+          <header
+            ref={attachSession}
+            className="settings-bar flex min-h-12 shrink-0 items-center gap-2 border-b pr-12 pl-4"
+          >
             <Breadcrumb className="min-w-0 flex-1">
               <BreadcrumbList className="min-w-0 flex-nowrap">
                 <BreadcrumbItem>Settings</BreadcrumbItem>
@@ -258,11 +348,7 @@ export function SettingsDialog({
                           returnToList();
                           return;
                         }
-                        void navigate({
-                          to: '/settings/$section',
-                          params: { section: item.id },
-                          replace: true,
-                        });
+                        showSection(item.id);
                       }}
                     >
                       <Icon />

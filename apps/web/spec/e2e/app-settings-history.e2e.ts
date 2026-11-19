@@ -68,3 +68,41 @@ for (const predecessor of [false, true]) {
     });
   }
 }
+
+test('Close after reloading a computer detail returns to the workspace that opened Settings', async ({
+  pairedPage,
+  app,
+}) => {
+  await pairedPage.setViewportSize({ width: 1440, height: 900 });
+  const review = pairedPage.getByRole('region', {
+    name: 'Review content',
+    exact: true,
+  });
+  await expect(review).toBeVisible();
+  await expect(pairedPage).toHaveTitle(/^Changes — /);
+  const workspace = pairedPage.url();
+  await pairedPage
+    .getByRole('navigation', { name: 'Projects and worktrees', exact: true })
+    .getByRole('button', { name: 'Settings', exact: true })
+    .click();
+  const settings = pairedPage.getByRole('dialog', {
+    name: 'Settings',
+    exact: true,
+  });
+  await settings
+    .getByRole('button', { name: 'Computers', exact: true })
+    .click();
+  await settings.getByRole('button', { name: /^Open This computer:/u }).click();
+  await expect(pairedPage).toHaveURL(/\/settings\/computers\/this-computer$/);
+  await app.reload();
+  await expect(
+    settings
+      .getByRole('navigation', { name: 'breadcrumb', exact: true })
+      .getByText('This computer', { exact: true }),
+  ).toBeVisible();
+  await settings.getByRole('button', { name: 'Close', exact: true }).click();
+  await expect(settings).not.toBeAttached();
+  await expect(pairedPage).toHaveURL(workspace);
+  await expect(pairedPage).toHaveTitle(/^Changes — /);
+  await expect(review).toBeVisible();
+});

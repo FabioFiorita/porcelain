@@ -54,14 +54,13 @@ export function DesktopActions({
   const openHere = useOpenProjectOnThisComputer(connection, openWorktree);
   useAtomMount(
     desktopActions((action) => {
-      if (typeof action === 'object') return;
-      if (action === 'open-settings') {
-        if (settingsOpen) return;
+      if (typeof action === 'object' || settingsOpen) return;
+      if (action === 'open-settings')
         void navigate({
           to: '/settings/$section',
           params: { section: defaultSettingsSection },
         });
-      } else openHere();
+      else openHere();
     }),
   );
   return (

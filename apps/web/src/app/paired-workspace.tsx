@@ -53,9 +53,7 @@ type WorkspaceView =
     }
   | { kind: 'not-found'; pathname: string };
 
-type PairedView =
-  | WorkspaceView
-  | { kind: 'settings'; section: string; environmentId: string | undefined };
+type PairedView = WorkspaceView | { kind: 'settings' };
 
 const home: WorkspaceView = { kind: 'home', pathname: '/', search: {} };
 
@@ -90,9 +88,7 @@ export function pairedView(match: MakeRouteMatchUnion | undefined): PairedView {
           ? match.params.environmentId
           : undefined,
       );
-      return target
-        ? { kind: 'settings', ...target }
-        : { kind: 'not-found', pathname };
+      return target ? { kind: 'settings' } : { kind: 'not-found', pathname };
     }
     default:
       return { kind: 'not-found', pathname };
@@ -107,10 +103,9 @@ export function useWorkspaceBehindSettings(current: PairedView) {
   }));
   if (current.kind !== 'settings' && behind.key !== key)
     setBehind({ key, view: current });
-  return {
-    workspace: current.kind === 'settings' ? behind.view : current,
-    settingsOpen: current.kind === 'settings',
-  };
+  return current.kind === 'settings'
+    ? { workspace: behind.view, workspaceKey: behind.key, settingsOpen: true }
+    : { workspace: current, workspaceKey: key, settingsOpen: false };
 }
 
 export function PairedWorkspace({

@@ -9,11 +9,16 @@ type Projects = {
 };
 
 function pathname(location: string) {
-  return location.split('?')[0];
+  return location.split(/[?#]/u)[0];
 }
 
-async function openWorktree(render: Render, server: Projects, entry = '') {
-  await page.viewport(1440, 896);
+async function openWorktree(
+  render: Render,
+  server: Projects,
+  entry = '',
+  width = 1440,
+) {
+  await page.viewport(width, 896);
   const project = await server.project();
   const worktree = project.worktrees.find((entry) => entry.main);
   if (!worktree) throw new Error('The fixture has no main worktree');
@@ -31,7 +36,16 @@ async function openWorktree(render: Render, server: Projects, entry = '') {
     name: 'Settings',
     exact: true,
   });
-  return { app, path, content, opener, settings };
+  const toggle = app.page.getByRole('button', {
+    name: 'Toggle Sidebar',
+    exact: true,
+  });
+  const openSettings = async () => {
+    if (width < 768) await toggle.click();
+    await opener.click();
+    await expect.element(settings).toBeVisible();
+  };
+  return { app, path, content, opener, settings, toggle, openSettings };
 }
 
 test('leaving Settings with Back keeps the same workspace mounted', async ({
@@ -136,4 +150,143 @@ test('workspace shortcuts stay inert while Settings is open', async ({
   } finally {
     await page.viewport(414, 896);
   }
+});
+
+for (const width of [1440, 414]) {
+  test(`the navigator shortcut leaves the workspace alone while Settings is open at ${width}`, async ({
+    render,
+    server,
+  }) => {
+    try {
+      const { app, opener, settings, toggle, openSettings } =
+        await openWorktree(render, server, '', width);
+      await openSettings();
+      const general = settings.getByRole('button', {
+        name: 'General',
+        exact: true,
+      });
+      await expect.element(general).toHaveFocus();
+      await userEvent.keyboard('{Control>}b{/Control}');
+      await expect
+        .element(app.page.getByRole('dialog', { name: 'Sidebar', exact: true }))
+        .not.toBeInTheDocument();
+      await expect.element(general).toHaveFocus();
+      await settings
+        .getByRole('button', { name: 'Close', exact: true })
+        .click();
+      await expect.element(settings).not.toBeInTheDocument();
+      await expect.element(width < 768 ? toggle : opener).toHaveFocus();
+    } finally {
+      await page.viewport(414, 896);
+    }
+  });
+}
+
+for (const way of ['Close', 'Back'] as const) {
+  test(`${way} from Settings opened in the phone sidebar returns focus to Toggle Sidebar`, async ({
+    render,
+    server,
+  }) => {
+    const { app, path, settings, toggle, openSettings } = await openWorktree(
+      render,
+      server,
+      '',
+      414,
+    );
+    await openSettings();
+    if (way === 'Close')
+      await settings
+        .getByRole('button', { name: 'Close', exact: true })
+        .click();
+    else await app.back();
+    await expect.element(settings).not.toBeInTheDocument();
+    await expect.poll(() => pathname(app.location())).toBe(path);
+    await expect.element(toggle).toHaveFocus();
+  });
+}
+
+test('Back after switching section from a computer detail returns to the workspace', async ({
+  render,
+  server,
+}) => {
+  try {
+    const { app, path, settings, openSettings } = await openWorktree(
+      render,
+      server,
+    );
+    await openSettings();
+    await settings
+      .getByRole('button', { name: 'Computers', exact: true })
+      .click();
+    await settings
+      .getByRole('button', { name: /^Open This computer:/u })
+      .click();
+    await expect
+      .poll(() => pathname(app.location()))
+      .toBe('/settings/computers/this-computer');
+    await settings
+      .getByRole('button', { name: 'General', exact: true })
+      .click();
+    await expect.poll(() => pathname(app.location())).toBe('/settings/general');
+    await app.back();
+    await expect.poll(() => pathname(app.location())).toBe(path);
+    await expect.element(settings).not.toBeInTheDocument();
+  } finally {
+    await page.viewport(414, 896);
+  }
+});
+
+test('Escape from a detail opened by the Devices link returns to Computers, and Back then reaches the workspace', async ({
+  render,
+  server,
+}) => {
+  try {
+    const { app, path, settings, openSettings } = await openWorktree(
+      render,
+      server,
+    );
+    await openSettings();
+    await settings
+      .getByRole('button', { name: 'Computers', exact: true })
+      .click();
+    await settings.getByRole('link', { name: /› Devices$/u }).click();
+    await expect
+      .poll(() => pathname(app.location()))
+      .toBe('/settings/computers/this-computer');
+    await userEvent.keyboard('{Escape}');
+    await expect
+      .poll(() => pathname(app.location()))
+      .toBe('/settings/computers');
+    await app.back();
+    await expect.poll(() => pathname(app.location())).toBe(path);
+    await expect.element(settings).not.toBeInTheDocument();
+  } finally {
+    await page.viewport(414, 896);
+  }
+});
+
+test('Close on Settings opened without a workspace replaces it, so Back does not reopen Settings', async ({
+  render,
+}) => {
+  const app = await render.route('/settings/computers');
+  const settings = app.page.getByRole('dialog', {
+    name: 'Settings',
+    exact: true,
+  });
+  await expect.element(settings).toBeVisible();
+  await settings.getByRole('button', { name: /^Open This computer:/u }).click();
+  await expect
+    .poll(() => pathname(app.location()))
+    .toBe('/settings/computers/this-computer');
+  await settings.getByRole('button', { name: 'Close', exact: true }).click();
+  await expect.element(settings).not.toBeInTheDocument();
+  await expect
+    .element(
+      app.page.getByRole('region', { name: 'Review content', exact: true }),
+    )
+    .toBeVisible();
+  const workspace = app.location();
+  await app.back();
+  await expect.poll(() => app.location()).toBe(workspace);
+  await expect.element(settings).not.toBeInTheDocument();
 });

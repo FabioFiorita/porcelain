@@ -48,7 +48,8 @@ import {
   workspaceTitle,
 } from '@/features/workspace/index';
 import { useDocumentTitle } from '@/shared/hooks/use-document-title';
-import { useAtomValue } from '@effect/atom-react';
+import { useAtomSet, useAtomValue } from '@effect/atom-react';
+import { settingsReturnFocus } from '@/shared/store';
 import {
   useOpenProjectOnThisComputer,
   worktreeLocation,
@@ -108,6 +109,8 @@ export function ConnectedWorkspace({
   const navigationTrigger = useElement<HTMLButtonElement>();
   const [restoreNavigatorFocus, setRestoreNavigatorFocus] = useState(false);
   const [shortcuts, setShortcuts] = useState(false);
+  const returnFocus = useAtomValue(settingsReturnFocus);
+  const setReturnFocus = useAtomSet(settingsReturnFocus);
   const { setOpenMobile, isMobile, open, openMobile } = useSidebar();
   const mobileNavigatorEvents: Pick<
     ComponentProps<typeof Sheet>,
@@ -121,6 +124,10 @@ export function ConnectedWorkspace({
       if (!next && restoreNavigatorFocus) {
         setRestoreNavigatorFocus(false);
         navigationTrigger.element?.focus();
+      }
+      if (!next && !background && returnFocus) {
+        returnFocus.focus();
+        if (document.activeElement === returnFocus) setReturnFocus(null);
       }
     },
   };
@@ -172,8 +179,12 @@ export function ConnectedWorkspace({
   const openWorktree = (target: WorktreeTarget) =>
     navigate({ ...worktreeLocation(target), replace: review === undefined });
   const openHere = useOpenProjectOnThisComputer(local.connection, openWorktree);
-  const openSettings = (section = defaultSettingsSection) => {
+  const leaveForSettings = () => {
+    setReturnFocus(isMobile && openMobile ? navigationTrigger.element : null);
     setOpenMobile(false);
+  };
+  const openSettings = (section = defaultSettingsSection) => {
+    leaveForSettings();
     void navigate({ to: '/settings/$section', params: { section } });
   };
   const navigator = {
@@ -216,7 +227,7 @@ export function ConnectedWorkspace({
         : openHere(),
     onOpenSettings: () => openSettings(),
     onOpenRemotes: (environmentId: string) => {
-      setOpenMobile(false);
+      leaveForSettings();
       void navigate({
         to: '/settings/$section/$environmentId',
         params: { section: 'computers', environmentId },

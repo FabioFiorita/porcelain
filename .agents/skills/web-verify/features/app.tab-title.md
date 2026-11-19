@@ -37,7 +37,7 @@ The exact strings, with `P` = project name ("repository" in the disposable insta
 - branch changes: `Branch changes — P`; commit graph: `Commit graph — P`; file timeline: `Timeline of <file name> — P`
 - no document open: the surface, `Changes — P`, `Files — P` or `History — P`
 - a worktree on a remote computer, or on this computer once it has a custom name: the above followed by ` · <computer name>`
-- Settings: `Settings` (or `Settings · <computer name>` when this computer has a custom name)
+- Settings: `Settings — Porcelain`, whatever the project or computer name
 - no worktree selected (empty workspace), the pairing page and the initial HTML: `Porcelain`
 
 ### Setup
@@ -59,7 +59,7 @@ None before step 1. Step 5 commits on disk; do it only after step 4, because "Op
 7. Click button `/^Name the tab after the commit/`
    Expect: title "`OID` — repository".
 8. Click button `Toggle Sidebar`, then click button `Settings`
-   Expect: URL `/settings/general`; title "Settings".
+   Expect: URL `/settings/general`; title "Settings — Porcelain".
 9. Click button `Close` in dialog "Settings"
    Expect: title "`OID` — repository" again.
 
@@ -74,4 +74,4 @@ Automated coverage: `app-tab-title.e2e.ts`.
 - Order matters: after the commit README.md has no changes, so its tree menu offers "Open" instead of "Open file".
 - The separator is an em dash with spaces (`—`), and the computer-name suffix uses `·`.
 - Switching the sidebar surface does not change the title while a file or commit document is selected (step 6 keeps "README.md — repository"); with the Changes document selected the title stays `Changes — P`. With no document open the title follows the surface, defaulting to `Files — P`.
-- In an instance where another feature committed, renamed the project or gave this computer a custom name, the strings change accordingly (`Settings · <name>`, ` · <name>` suffix).
+- In an instance where another feature committed, renamed the project or gave this computer a custom name, the strings change accordingly (` · <name>` suffix on workspace titles).

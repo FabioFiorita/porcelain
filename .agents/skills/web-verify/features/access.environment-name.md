@@ -49,14 +49,14 @@ Required instance mode: `--desktop`.
 1. Click button `Toggle Sidebar`
    Expect: navigation "Projects and worktrees" with application header "Porcelain". There is no redundant caption with one connected computer. Project actions and collapse controls include `$HOST` in their full accessible names. With multiple connected computers the static caption has role img `Computer: $HOST`.
 2. Click button `Settings`
-   Expect: URL ends `/settings/general`; title "Settings".
+   Expect: URL ends `/settings/general`; title "Settings — Porcelain".
 3. Click button `Computers`, then button named `Open This computer: <name>`, then button `Rename`
    Expect: URL ends `/settings/computers/this-computer`; textbox "Name of this computer" focused and empty (its placeholder is `$HOST`); button "Save" disabled.
 4. Fill textbox `Name of this computer` with 'Workstation'
    Expect: button "Save" enabled.
 5. Click button `Save`
-   Expect: title "Settings · Workstation"; the name field closes; heading "Computers. Workstation".
-   Proof before continuing: reload `/settings/computers/this-computer` now: Workstation and Settings · Workstation persist. Inventory returns `{ name, custom }`; each name PUT answers 200.
+   Expect: title "Settings — Porcelain"; the name field closes; heading "Computers. Workstation".
+   Proof before continuing: reload `/settings/computers/this-computer` now: Workstation persists and the title stays Settings — Porcelain. Inventory returns `{ name, custom }`; each name PUT answers 200.
 
 6. Click button `Rename`, then press `Escape`
    Expect: the name field closes without saving; heading "Computers. Workstation".
@@ -67,13 +67,13 @@ Required instance mode: `--desktop`.
 9. Click button `Toggle Sidebar`
    Expect: navigation "Projects and worktrees" keeps application header "Porcelain" and updates the project controls to include Workstation in their accessible identity; old host-labelled controls are absent. A single computer still has no caption. With multiple computers, the static caption updates to `Computer: Workstation`, retaining its full accessible name.
 10. Click button `Settings`
-    Expect: URL ends `/settings/general`; title "Settings · Workstation".
+    Expect: URL ends `/settings/general`; title "Settings — Porcelain".
 11. Click button `Computers`, then button named `Open This computer: <name>`, then button `Rename`
     Expect: textbox "Name of this computer" holds "Workstation".
 12. Fill textbox `Name of this computer` with ''
     Expect: textbox empty; button "Save" enabled.
 13. Click button `Save`
-    Expect: title "Settings"; the name field closes and the heading shows `$HOST`.
+    Expect: title "Settings — Porcelain"; the name field closes and the heading shows `$HOST`.
 14. Click button `Close` in dialog "Settings"
     Expect: title "Changes — repository"; reopening the navigator restores `$HOST` in the project controls, without a single-computer caption.
 
