@@ -147,8 +147,16 @@ it('preserves original marks beyond the absence grace period and a restart, then
         ),
       ),
     ).toEqual(marks);
+    const current = await runtime.runPromise(
+      Effect.flatMap(InventoryStore, (store) =>
+        store.find({ projectId: project.id }),
+      ),
+    );
+    if (!current) throw new Error('The project was not registered');
     await runtime.runPromise(
-      Effect.flatMap(InventoryStore, (store) => store.markAllUnavailable()),
+      Effect.flatMap(InventoryStore, (store) =>
+        store.save({ ...current, available: false }),
+      ),
     );
     await register('original');
     await record('original', ['original']);

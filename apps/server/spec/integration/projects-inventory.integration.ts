@@ -2,7 +2,8 @@ import * as Schema from 'effect/Schema';
 import { DateTime } from 'effect';
 import { readInventoryResponseSchema } from '@porcelain/contracts/projects';
 import { expect } from 'vitest';
-import { readFile, stat, utimes, writeFile } from 'node:fs/promises';
+import { execFileSync } from 'node:child_process';
+import { mkdir, readFile, rm, stat, utimes, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { eventually, watching } from '../kit/reads.ts';
 import { read } from '../kit/requests.ts';
@@ -154,6 +155,53 @@ test('a failed status read keeps the worktree’s last uncommitted-change date u
     await writeFile(index, saved);
   }
   expect(await changedAt()).toBe('2026-04-05T06:07:08.000Z');
+});
+
+test('a Git listing timeout keeps the project and its checkouts available until Git confirms a removal', async ({
+  session,
+}) => {
+  const checkout = join(session.projectHome, 'linked');
+  await session.git('worktree', 'add', '-b', 'linked', checkout);
+  const refresh = { method: 'POST', path: '/api/inventory/refresh' } as const;
+  const projects = async () => {
+    const body = await read(session, refresh);
+    return list(body.projects).map((entry) => {
+      const project = record(entry);
+      return {
+        id: project.id,
+        available: project.available,
+        worktrees: list(project.worktrees).map((tree) => {
+          const worktree = record(tree);
+          return { path: worktree.path, available: worktree.available };
+        }),
+      };
+    });
+  };
+  const main = { path: session.repository, available: true };
+  const linked = { path: checkout, available: true };
+  const project = { id: session.projectId, available: true };
+  expect(await projects()).toEqual([{ ...project, worktrees: [main, linked] }]);
+
+  const pending = join(session.repository, '.git', 'worktrees', 'pending');
+  await mkdir(pending);
+  try {
+    execFileSync('mkfifo', [join(pending, 'gitdir')]);
+    const during = await projects();
+    const directory = await session.send({
+      method: 'GET',
+      path: `/api/worktrees/${session.worktreeId}/directory`,
+      query: { path: '' },
+    });
+    expect({ during, directoryStatus: directory.status }).toEqual({
+      during: [{ ...project, worktrees: [main, linked] }],
+      directoryStatus: 200,
+    });
+  } finally {
+    await rm(pending, { recursive: true, force: true });
+  }
+
+  await session.git('worktree', 'remove', checkout);
+  expect(await projects()).toEqual([{ ...project, worktrees: [main] }]);
 });
 
 test('a project whose folder has gone away stays registered as unavailable and is available again once the folder is back', async ({

@@ -38,17 +38,6 @@ export class InMemoryInventoryStore implements InventoryStore {
     });
   }
 
-  markAllUnavailable(): Effect.Effect<void> {
-    return Effect.sync(() => {
-      this.projects = new Map(
-        [...this.projects].map(([id, project]) => [
-          id,
-          { ...project, available: false },
-        ]),
-      );
-    });
-  }
-
   remove(input: ProjectKey): Effect.Effect<void> {
     return Effect.sync(() => {
       this.projects.delete(input.projectId);

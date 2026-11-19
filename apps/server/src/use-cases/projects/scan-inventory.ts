@@ -4,7 +4,6 @@ import {
   ListKnownWorktreesService,
   ListProjectWorktreesService,
   ListRegisteredProjectsService,
-  MarkProjectsUnavailableService,
   ReadWorktreeActivityService,
   RecordWorktreeActivityService,
   RecordWorktreeCatalogService,
@@ -27,8 +26,6 @@ export class ScanInventoryUseCase extends Context.Service<
         yield* ListRegisteredProjectsService;
       const listKnownWorktreesCapability = yield* ListKnownWorktreesService;
       const listProjectWorktreesCapability = yield* ListProjectWorktreesService;
-      const markProjectsUnavailableCapability =
-        yield* MarkProjectsUnavailableService;
       const updateProjectAvailabilityCapability =
         yield* UpdateProjectAvailabilityService;
       const recordWorktreePresenceCapability =
@@ -68,7 +65,6 @@ export class ScanInventoryUseCase extends Context.Service<
                   );
                   return yield* Effect.uninterruptible(
                     Effect.gen(function* () {
-                      yield* markProjectsUnavailableCapability.execute();
                       for (const worktrees of listings) {
                         yield* updateProjectAvailabilityCapability.execute({
                           worktrees,

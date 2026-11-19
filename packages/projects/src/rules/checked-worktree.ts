@@ -23,12 +23,16 @@ export function checkedWorktree(
   entry: CatalogEntry | undefined,
   observations: readonly CatalogObservation[],
   project: RegisteredProject | undefined,
-  clock: { now: string; staleAfterMs: number },
+  clock?: { now: string; staleAfterMs: number },
 ): WorktreeCheckAnswer {
-  const stale = (observation: CatalogObservation) =>
-    observationStale(observation, clock.now, clock.staleAfterMs);
   if (!entry) {
-    if (observations.length === 0 || observations.some(stale))
+    if (
+      clock &&
+      (observations.length === 0 ||
+        observations.some((observation) =>
+          observationStale(observation, clock.now, clock.staleAfterMs),
+        ))
+    )
       return { kind: 'stale' };
     return observations.some((observation) => !observation.available)
       ? { kind: 'unavailable' }
@@ -39,7 +43,11 @@ export function checkedWorktree(
     entry.worktree.projectId !== input.projectId
   )
     return { kind: 'missing' };
-  if (stale(entry.observation)) return { kind: 'stale' };
+  if (
+    clock &&
+    observationStale(entry.observation, clock.now, clock.staleAfterMs)
+  )
+    return { kind: 'stale' };
   if (!entry.observation.available) return { kind: 'unavailable' };
   if (
     input.requireAvailableProject &&

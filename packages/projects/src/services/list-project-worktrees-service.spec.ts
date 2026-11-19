@@ -109,7 +109,7 @@ describe('ListProjectWorktreesService', () => {
     ]);
   });
 
-  it('keeps a listing with unidentified worktrees available but incomplete', async () => {
+  it('keeps previously listed checkouts when Git cannot identify every worktree', async () => {
     const reader = new ScriptedWorktreeListingReader();
     reader.answer({
       kind: 'listed',
@@ -118,11 +118,16 @@ describe('ListProjectWorktreesService', () => {
       worktrees: [worktree('main')],
       unidentified: 1,
     });
+    const feature = worktree('feature');
     const result = await Effect.runPromise(
-      service(reader).execute({ project }),
+      service(reader, seen([worktree('main'), feature])).execute({ project }),
     );
-    expect(result.available).toBe(true);
-    expect(result.complete).toBe(false);
+    expect(result).toEqual({
+      projectId: project.id,
+      available: true,
+      complete: false,
+      worktrees: [worktree('main'), feature],
+    });
   });
 
   it.each(['missing', 'permission', 'git-failed'] as const)(

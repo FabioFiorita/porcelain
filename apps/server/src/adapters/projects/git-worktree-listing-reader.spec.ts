@@ -283,11 +283,12 @@ describe('gitWorktreeListingReaderLayer', () => {
     expect(reports).toEqual([]);
   });
 
-  it('reports a listing that fails unexpectedly as unavailable and logs why', async () => {
-    const { list, reports } = listing(repository(), { outputBytes: 4 });
+  it('reports an inconclusive listing when Git output exceeds its limit and logs why', async () => {
+    const project = repository();
+    const { list, reports } = listing(project, { outputBytes: 4 });
     expect(await Effect.runPromise(list)).toEqual({
-      kind: 'unavailable',
-      reason: 'git-failed',
+      kind: 'inconclusive',
+      repositoryIdentity: project.repositoryIdentity,
       projectId: 'project-1',
     });
     expect(reports).toMatchObject([
@@ -299,14 +300,14 @@ describe('gitWorktreeListingReaderLayer', () => {
     ]);
   });
 
-  it('stops Git when the listing outlives its deadline, then reports it unavailable and logs the timeout', async () => {
+  it('stops Git when the listing outlives its deadline and reports an inconclusive result', async () => {
     const { project, head } = repositoryWhoseHeadPipeHoldsGit();
     const { list, reports } = listing(project, {
       timeout: Duration.millis(300),
     });
     expect(await Effect.runPromise(list)).toEqual({
-      kind: 'unavailable',
-      reason: 'git-failed',
+      kind: 'inconclusive',
+      repositoryIdentity: project.repositoryIdentity,
       projectId: 'project-1',
     });
     expect(reports).toMatchObject([
@@ -345,16 +346,16 @@ it('leaves the moved decision to the projects domain', async () => {
   expect(reports).toEqual([]);
 });
 
-it('reports an absent Git executable as git-failed rather than a missing repository', async () => {
+it('reports an inconclusive listing when Git cannot start', async () => {
   const project = repository();
   const previous = process.env.PATH;
   process.env.PATH = root;
   try {
     const { list, reports } = listing(project);
     expect(await Effect.runPromise(list)).toEqual({
-      kind: 'unavailable',
+      kind: 'inconclusive',
       projectId: 'project-1',
-      reason: 'git-failed',
+      repositoryIdentity: project.repositoryIdentity,
     });
     expect(reports).toMatchObject([
       {

@@ -21,13 +21,6 @@ export const sqliteInventoryStoreLayer = Layer.effect(
     });
 
     return InventoryStore.of({
-      markAllUnavailable: Effect.fn('InventoryStore.markAllUnavailable')(
-        function* () {
-          yield* sql`UPDATE inventory_projects SET available = 0`.pipe(
-            Effect.orDie,
-          );
-        },
-      ),
       read: Effect.fn('InventoryStore.read')(function* () {
         return { projects: yield* all(undefined).pipe(Effect.orDie) };
       }),

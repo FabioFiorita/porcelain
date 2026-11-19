@@ -28,32 +28,57 @@ export class ListProjectWorktreesService extends Context.Service<
           input: ListProjectWorktreesInput,
         ): Effect.fn.Return<ListProjectWorktreesResult, never> {
           const listing = yield* worktreeListingCapability.list(input.project);
+          const previous = worktreeCatalogCapability.lastSeen({
+            projectId: listing.projectId,
+          });
+          const moved =
+            listing.kind !== 'unavailable' &&
+            repositoryMoved(input.project, listing);
+          if (listing.kind === 'listed' && !moved) {
+            const complete = listing.unidentified === 0;
+            const worktrees = carryWorktreeActivity(
+              listing.worktrees,
+              previous,
+            );
+            return {
+              projectId: listing.projectId,
+              available: true,
+              complete,
+              worktrees: complete
+                ? worktrees
+                : [
+                    ...worktrees,
+                    ...previous.filter(
+                      (known) =>
+                        !worktrees.some((worktree) => worktree.id === known.id),
+                    ),
+                  ],
+            };
+          }
+          const observation = worktreeCatalogCapability
+            .listObservations()
+            .find((entry) => entry.id === listing.projectId);
           if (
-            listing.kind === 'listed' &&
-            !repositoryMoved(input.project, listing)
+            listing.kind === 'inconclusive' &&
+            !moved &&
+            observation?.available
           )
             return {
               projectId: listing.projectId,
               available: true,
-              complete: listing.unidentified === 0,
-              worktrees: carryWorktreeActivity(
-                listing.worktrees,
-                worktreeCatalogCapability.lastSeen({
-                  projectId: listing.projectId,
-                }),
-              ),
+              complete: false,
+              worktrees: previous,
             };
           return {
             projectId: listing.projectId,
             available: false,
-            unavailableReason:
-              listing.kind === 'listed' ? 'moved' : listing.reason,
+            unavailableReason: moved
+              ? 'moved'
+              : listing.kind === 'unavailable'
+                ? listing.reason
+                : (observation?.unavailableReason ?? 'git-failed'),
             complete: false,
-            worktrees: unavailableWorktrees(
-              worktreeCatalogCapability.lastSeen({
-                projectId: listing.projectId,
-              }),
-            ),
+            worktrees: unavailableWorktrees(previous),
           };
         }),
       };
