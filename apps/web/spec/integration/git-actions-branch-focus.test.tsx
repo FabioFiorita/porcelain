@@ -55,7 +55,7 @@ test('with changes to commit, the Git menu offers Commit at once and adds the ro
   await expect.element(menu.getByRole('status')).not.toBeInTheDocument();
 });
 
-test('the commit dialog skips the branch label and one Escape closes it back to its opener', async ({
+test('the commit dialog opens in its message, skips the branch label and one Escape closes it back to its opener', async ({
   workspace,
 }) => {
   const opener = workspace.getByRole('button', { name: 'Commit', exact: true });
@@ -68,11 +68,16 @@ test('the commit dialog skips the branch label and one Escape closes it back to 
     .element(dialog.getByText('No upstream', { exact: true }))
     .toBeVisible();
   await expect
-    .element(dialog.getByRole('button', { name: 'Close', exact: true }))
+    .element(dialog.getByRole('textbox', { name: 'Message', exact: true }))
     .toHaveFocus();
-  await userEvent.tab();
+  await userEvent.tab({ shift: true });
+  await userEvent.tab({ shift: true });
   await expect
     .element(dialog.getByRole('tab', { name: 'Single commit', exact: true }))
+    .toHaveFocus();
+  await userEvent.tab({ shift: true });
+  await expect
+    .element(dialog.getByRole('button', { name: 'Close', exact: true }))
     .toHaveFocus();
   await userEvent.keyboard('{Escape}');
   await expect.element(dialog).not.toBeInTheDocument();
