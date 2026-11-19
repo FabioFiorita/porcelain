@@ -78,20 +78,6 @@ export function inventoryStoreContract(
       ).toBeUndefined();
     });
 
-    it('marks every project unavailable and keeps everything else', async () => {
-      await Effect.runPromise(store.save(project('api', 1)));
-      await Effect.runPromise(
-        store.save({ ...project('web', 2), available: false }),
-      );
-      await Effect.runPromise(store.markAllUnavailable());
-      expect(await Effect.runPromise(store.read())).toEqual({
-        projects: [
-          { ...project('api', 1), available: false },
-          { ...project('web', 2), available: false },
-        ],
-      });
-    });
-
     it('removes only the asked project', async () => {
       await Effect.runPromise(store.save(project('api', 1)));
       await Effect.runPromise(store.save(project('web', 2)));

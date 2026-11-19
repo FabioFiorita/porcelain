@@ -10,6 +10,11 @@ export type WorktreeListing =
       unidentified: number;
     }
   | {
+      kind: 'inconclusive';
+      projectId: string;
+      repositoryIdentity: string;
+    }
+  | {
       kind: 'unavailable';
       reason: Exclude<ProjectUnavailableReason, 'moved'>;
       projectId: string;

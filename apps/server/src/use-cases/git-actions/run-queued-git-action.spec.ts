@@ -238,7 +238,6 @@ const fixture = Effect.fn(function* (progress?: string) {
       read: () => Effect.succeed({ projects: [project] }),
       find: () => Effect.succeed(project),
       save: () => Effect.void,
-      markAllUnavailable: () => Effect.void,
       remove: () => Effect.void,
     }),
   );

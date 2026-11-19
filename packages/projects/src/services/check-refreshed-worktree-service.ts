@@ -1,5 +1,4 @@
-import { CheckWorktreeOptions } from '../ports/check-worktree-options.ts';
-import { Effect, Context, Layer, Clock, DateTime } from 'effect';
+import { Effect, Context, Layer } from 'effect';
 import { WorktreeNotFoundError } from '@porcelain/kernel/errors';
 import { WorktreeUnavailableError } from '../errors/worktree-unavailable-error.ts';
 import {
@@ -26,8 +25,6 @@ export class CheckRefreshedWorktreeService extends Context.Service<
     Effect.gen(function* () {
       const catalogCapability = yield* WorktreeCatalogStore;
       const inventoryCapability = yield* InventoryStore;
-      const clockCapability = yield* Clock.Clock;
-      const optionsCapability = yield* CheckWorktreeOptions;
 
       return {
         execute: Effect.fn('CheckRefreshedWorktreeService.execute')(function* (
@@ -48,12 +45,6 @@ export class CheckRefreshedWorktreeService extends Context.Service<
                   projectId: entry.worktree.projectId,
                 })
               : undefined,
-            {
-              now: DateTime.formatIso(
-                DateTime.makeUnsafe(yield* clockCapability.currentTimeMillis),
-              ),
-              staleAfterMs: optionsCapability.staleAfterMs,
-            },
           );
           if (answer.kind === 'found') return answer.worktree;
           if (answer.kind === 'missing')

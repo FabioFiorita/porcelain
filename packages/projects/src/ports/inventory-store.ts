@@ -10,7 +10,6 @@ export interface InventoryStore {
   read(): Effect.Effect<Inventory>;
   find(input: ProjectKey): Effect.Effect<RegisteredProject | undefined>;
   save(input: RegisteredProject): Effect.Effect<void>;
-  markAllUnavailable(): Effect.Effect<void>;
   remove(input: ProjectKey): Effect.Effect<void>;
 }
 

@@ -93,8 +93,6 @@ async function useCase(before: CatalogSnapshot, afterRefresh: CatalogSnapshot) {
             Effect.provide(CheckRefreshedWorktreeService.layer),
             Effect.provideService(WorktreeCatalogStore, catalog),
             Effect.provideService(InventoryStore, inventory),
-            Effect.provideService(Clock.Clock, clock),
-            Effect.provideService(CheckWorktreeOptions, staleness),
           ),
         ),
       ),
