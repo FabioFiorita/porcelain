@@ -52,6 +52,7 @@ export function ReviewCodeDocument({
   footer,
   column = false,
   fullHeight = false,
+  windowLimit,
 }: {
   footer?: () => ReactNode;
   scope: ReviewScope;
@@ -63,6 +64,7 @@ export function ReviewCodeDocument({
   header?: (controls: CodeHeaderControls) => ReactNode;
   column?: boolean;
   fullHeight?: boolean | undefined;
+  windowLimit?: number | undefined;
   headerActions?: ReactNode;
   headerLeading?: ReactNode;
   toolbar?: (collapseControl: ReactNode) => ReactNode;
@@ -115,6 +117,20 @@ export function ReviewCodeDocument({
           ),
         ),
   );
+  const [settledLimit, setSettledLimit] = useState(windowLimit);
+  const expanding =
+    windowLimit !== undefined &&
+    settledLimit !== undefined &&
+    windowLimit > settledLimit;
+  if (
+    expanding &&
+    !diffs.pending &&
+    !diffs.failed &&
+    !untracked.pending &&
+    !untracked.failed
+  )
+    setSettledLimit(windowLimit);
+  const keepLoaded = quiet || expanding;
   const [keptText, setKeptText] = useState(untracked.contents);
   if (
     interaction.hidden !== true &&
@@ -125,7 +141,7 @@ export function ReviewCodeDocument({
     setKeptText(untracked.contents);
   const textOf = (path: string) =>
     untracked.contents.get(path) ??
-    (quiet || untracked.failed ? keptText.get(path) : undefined);
+    (keepLoaded || untracked.failed ? keptText.get(path) : undefined);
   const [kept, setKept] = useState(diffs.diffs);
   if (!diffs.pending && !diffs.failed && kept !== diffs.diffs)
     setKept(diffs.diffs);
@@ -138,15 +154,17 @@ export function ReviewCodeDocument({
     if (!selection) return undefined;
     return (
       livePatch(change) ??
-      (quiet || diffs.failed ? kept.get(selectionKey(selection)) : undefined)
+      (keepLoaded || diffs.failed
+        ? kept.get(selectionKey(selection))
+        : undefined)
     );
   };
   const loading = !quiet && (diffs.pending || untracked.pending);
   const failed =
     !diffs.pending &&
     !untracked.pending &&
-    ((diffs.failed && kept.size === 0) ||
-      (untracked.failed && keptText.size === 0));
+    ((diffs.failed && (expanding || kept.size === 0)) ||
+      (untracked.failed && (expanding || keptText.size === 0)));
   const notes = new Map(files.map((file) => [file.path, file.note]));
   const unrenderable = items.flatMap((item) => {
     const reasons = item.comparisons.flatMap((change) => {

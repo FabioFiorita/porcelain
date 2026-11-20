@@ -6,7 +6,7 @@ const paths = Array.from(
   (_, index) => `note-${String(index).padStart(3, '0')}.md`,
 );
 
-test('All changes shows the diffs of more tracked changes than one diff request holds', async ({
+test('All changes read to its end splits more tracked changes than one diff request holds', async ({
   render,
   repo,
   server,
@@ -23,15 +23,43 @@ test('All changes shows the diffs of more tracked changes than one diff request 
   const opened = (
     await render.route(`/${project.id}/${worktree.id}?entry=all-changes`)
   ).page;
-  await opened
-    .getByRole('region', { name: '205 uncommitted changes', exact: true })
+  const table = opened.getByRole('region', {
+    name: '205 uncommitted changes',
+    exact: true,
+  });
+  const code = opened.getByRole('region', {
+    name: 'Code content',
+    exact: true,
+  });
+  await table
     .getByRole('button', { name: `${paths[0]} +1 −1`, exact: true })
     .click();
   await expect
+    .element(code.getByText(`${paths[0]} changed`, { exact: true }))
+    .toBeVisible();
+  const reads = async () =>
+    (await server.changeDiffHits()).filter((hit) => hit.status === 200).length;
+  const readMore = opened.getByRole('button', {
+    name: /^Read \d+ more of \d+$/,
+  });
+  for (let shown = 25; shown + 25 < count; shown += 25) {
+    await readMore.click();
+    await expect
+      .element(
+        table.getByRole('button', {
+          name: new RegExp(`^${paths[shown] ?? ''}`),
+        }),
+      )
+      .toBeVisible();
+  }
+  const before = await reads();
+  await readMore.click();
+  await expect.element(readMore).not.toBeInTheDocument();
+  await expect
     .element(
-      opened
-        .getByRole('region', { name: 'Code content', exact: true })
-        .getByText(`${paths[0]} changed`, { exact: true }),
+      table.getByRole('button', {
+        name: new RegExp(`^${paths[count - 1] ?? ''}`),
+      }),
     )
     .toBeVisible();
   await expect
@@ -42,10 +70,6 @@ test('All changes shows the diffs of more tracked changes than one diff request 
     )
     .not.toBeInTheDocument();
   await expect
-    .poll(
-      async () =>
-        (await server.changeDiffHits()).filter((hit) => hit.status === 200)
-          .length,
-    )
+    .poll(async () => (await reads()) - before)
     .toBeGreaterThanOrEqual(2);
 });

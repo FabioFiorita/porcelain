@@ -190,6 +190,9 @@ export function createFetchGate(filePath: string) {
         start: () => {
           refusing = true;
         },
+        stop: () => {
+          refusing = false;
+        },
         refused: () => refused,
       };
     },
