@@ -4,6 +4,7 @@ import {
   connectionHistoryAt,
   withoutWebLocks,
   failHistoryWrites,
+  seedObsoleteHistorySnapshot,
   emitNetworkChange,
   savedHistory,
   historySnapshotCount,
@@ -181,4 +182,25 @@ test('history keeps successive events across storage write failures and saves th
     2,
   );
   await expect(page.getByText('Network online', { exact: true })).toBeVisible();
+});
+
+test('history reclaims an obsolete snapshot when storage is full', async ({
+  pairedPage: page,
+}) => {
+  const openHistory = await connectionHistoryAt(page);
+  await expect.poll(() => savedHistory(page)).toContain('Document navigation');
+  const obsolete = await seedObsoleteHistorySnapshot(page);
+  const quota = await failHistoryWrites(page, obsolete);
+  try {
+    await emitNetworkChange(page, 'offline');
+    await expect.poll(() => quota.attempts()).toBeGreaterThan(0);
+    await expect.poll(() => savedHistory(page)).toContain('Network offline');
+  } finally {
+    await quota.restore();
+  }
+  await page.reload();
+  await openHistory();
+  await expect(
+    page.getByText('Network offline', { exact: true }),
+  ).toBeVisible();
 });

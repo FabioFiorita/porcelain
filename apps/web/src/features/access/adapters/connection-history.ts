@@ -42,7 +42,7 @@ export function newestConnectionHistory(entries: readonly HistoryEntry[]) {
     .slice(-historyLimit);
 }
 
-export function readOtherConnectionHistory(prune = false) {
+export function readOtherConnectionHistory(prune?: 'superseded' | 'expired') {
   try {
     const keys = Object.keys(localStorage)
       .filter(isConnectionHistoryKey)
@@ -59,12 +59,16 @@ export function readOtherConnectionHistory(prune = false) {
       const saved = localStorage.getItem(key);
       if (saved === null) continue;
       const entries = Option.getOrUndefined(decodeHistory(saved));
-      if (entries) documents.set(owner, { key, entries });
+      if (!entries) continue;
+      const previous = documents.get(owner);
+      if (prune === 'superseded' && previous)
+        localStorage.removeItem(previous.key);
+      documents.set(owner, { key, entries });
     }
     const recent = newestConnectionHistory(
       [...documents.values()].flatMap(({ entries }) => entries),
     );
-    if (prune) {
+    if (prune === 'expired') {
       const retained = new Set(
         recent.map((entry) => documents.get(entry.documentId)?.key),
       );
@@ -85,7 +89,17 @@ export function writeConnectionHistory(
   try {
     const version = String(revision).padStart(16, '0');
     const key = `${keyPrefix}${documentId}:${version}`;
-    localStorage.setItem(key, JSON.stringify(entries));
+    const snapshot = JSON.stringify(entries);
+    try {
+      localStorage.setItem(key, snapshot);
+    } catch (error) {
+      if (
+        !(error instanceof DOMException && error.name === 'QuotaExceededError')
+      )
+        throw error;
+      readOtherConnectionHistory('superseded');
+      localStorage.setItem(key, snapshot);
+    }
     return true;
   } catch {
     return false;

@@ -42,33 +42,56 @@ export function withoutWebLocks(context: BrowserContext) {
   });
 }
 
-export async function failHistoryWrites(page: Page) {
-  const failure = await page.evaluateHandle((historyKey) => {
-    const property = Object.getOwnPropertyDescriptor(
-      Storage.prototype,
-      'setItem',
-    );
-    const setItem: unknown = property?.value;
-    if (!property || typeof setItem !== 'function')
-      throw new Error('Storage.setItem is unavailable.');
+export function seedObsoleteHistorySnapshot(page: Page) {
+  return page.evaluate((prefix) => {
+    const latest = Object.keys(localStorage)
+      .filter((key) => key.startsWith(prefix))
+      .sort()
+      .at(-1);
+    if (!latest) throw new Error('Expected a saved history snapshot');
+    const snapshot = localStorage.getItem(latest);
+    if (snapshot === null) throw new Error('Expected history contents');
+    const obsolete = latest.replace(/:[0-9]+$/, ':0000000000000000');
+    localStorage.setItem(obsolete, snapshot);
+    return obsolete;
+  }, `${historyKey}:`);
+}
 
-    let attempts = 0;
-    Storage.prototype.setItem = function (key, value) {
-      if (
-        this === localStorage &&
-        (key === historyKey || key.startsWith(`${historyKey}:`))
-      ) {
-        attempts += 1;
-        throw new DOMException('History storage is full', 'QuotaExceededError');
-      }
-      Reflect.apply(setItem, this, [key, value]);
-    };
-    return {
-      attempts: () => attempts,
-      restore: () =>
-        Object.defineProperty(Storage.prototype, 'setItem', property),
-    };
-  }, historyKey);
+export async function failHistoryWrites(page: Page, untilRemoved?: string) {
+  const failure = await page.evaluateHandle(
+    ({ historyKey, untilRemoved }) => {
+      const property = Object.getOwnPropertyDescriptor(
+        Storage.prototype,
+        'setItem',
+      );
+      const setItem: unknown = property?.value;
+      if (!property || typeof setItem !== 'function')
+        throw new Error('Storage.setItem is unavailable.');
+
+      let attempts = 0;
+      Storage.prototype.setItem = function (key, value) {
+        if (
+          this === localStorage &&
+          (key === historyKey || key.startsWith(`${historyKey}:`)) &&
+          (untilRemoved === undefined ||
+            localStorage.getItem(untilRemoved) !== null)
+        ) {
+          attempts += 1;
+          throw new DOMException(
+            'History storage is full',
+            'QuotaExceededError',
+          );
+        }
+        Reflect.apply(setItem, this, [key, value]);
+      };
+      return {
+        attempts: () => attempts,
+        restore: () =>
+          Object.defineProperty(Storage.prototype, 'setItem', property),
+      };
+    },
+    { historyKey, untilRemoved },
+  );
   return {
     attempts: () => failure.evaluate((state) => state.attempts()),
     restore: () =>

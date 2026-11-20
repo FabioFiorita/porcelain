@@ -91,7 +91,9 @@ function appendConnectionHistory(entry: HistoryEntry) {
   const own = newestConnectionHistory([...previous.own, entry]);
   const revision = previous.revision + 1;
   const written = writeConnectionHistory(revision, own);
-  const others = readOtherConnectionHistory(written) ?? previous.others;
+  const others =
+    readOtherConnectionHistory(written ? 'expired' : undefined) ??
+    previous.others;
   history.set({ revision, own, others });
 }
 
