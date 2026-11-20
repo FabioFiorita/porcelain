@@ -1,3 +1,4 @@
+import { page, userEvent } from 'vitest/browser';
 import { expect, test } from './fixtures.tsx';
 
 test('without a coding CLI the commit dialog says drafting is unavailable, and a typed message still commits', async ({
@@ -45,3 +46,35 @@ test('without a coding CLI the commit dialog says drafting is unavailable, and a
     .poll(async () => (await server.commits()).commits[0]?.subject)
     .toBe(message);
 });
+
+test.for([1440, 414])(
+  'the commit dialog opens in the message so typing and Mod+Enter commit at %i px',
+  async (width, { workspace, server }) => {
+    await page.viewport(width, 896);
+    try {
+      const message = 'Commit typed from the keyboard';
+      await workspace
+        .getByRole('button', { name: 'Commit', exact: true })
+        .click();
+      const dialog = workspace.getByRole('dialog', {
+        name: 'Commit changes',
+        exact: true,
+      });
+      const field = dialog.getByRole('textbox', {
+        name: 'Message',
+        exact: true,
+      });
+      await expect.element(field).toHaveFocus();
+      await userEvent.keyboard(message);
+      await userEvent.keyboard('{ControlOrMeta>}{Enter}{/ControlOrMeta}');
+      await expect
+        .element(dialog.getByText('succeeded', { exact: true }))
+        .toBeVisible();
+      await expect
+        .poll(async () => (await server.commits()).commits[0]?.subject)
+        .toBe(message);
+    } finally {
+      await page.viewport(414, 896);
+    }
+  },
+);

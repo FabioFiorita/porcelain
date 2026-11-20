@@ -1,4 +1,5 @@
 import { useHotkeysEnabled } from '@/shared/hooks/use-hotkeys-enabled';
+import { useElement } from '@/shared/hooks/use-element';
 import type { FileDraftHandle } from '@porcelain/client/files';
 import { useWorkspaceWriteBlock } from '@/shared/workspace/connection';
 import { CopyIcon, FileDiffIcon, HistoryIcon, PencilIcon } from 'lucide-react';
@@ -222,6 +223,8 @@ function ReadableFileDocument({
   const [editing, setEditing] = useState(false);
   const [finding, setFinding] = useState<number>();
   const [foundLine, setFoundLine] = useState<{ line: number; nonce: number }>();
+  const { element: codeArea, attach: attachCodeArea } =
+    useElement<HTMLDivElement>();
   const editorId = useId();
   useDiskChangeNotice(draft, editorId, contentFingerprint);
 
@@ -364,13 +367,20 @@ function ReadableFileDocument({
           />
         </>
       ) : (
-        <div className="flex min-h-0 flex-1 flex-col">
+        <div ref={attachCodeArea} className="flex min-h-0 flex-1 flex-col">
           {finding !== undefined && (
             <FindBar
               text={text}
               focusRequest={finding}
               onReveal={(line) => setFoundLine({ line, nonce: Date.now() })}
-              onClose={() => setFinding(undefined)}
+              onClose={() => {
+                setFinding(undefined);
+                codeArea
+                  ?.querySelector<HTMLElement>(
+                    '[aria-label="Code content"] [tabindex="-1"]',
+                  )
+                  ?.focus({ preventScroll: true });
+              }}
             />
           )}
           <FileHeading path={path} note={note} diff={diff}>

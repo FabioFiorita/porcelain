@@ -69,6 +69,12 @@ test('finding in a long file brings a match far below the fold into view in the 
     .toBeVisible();
   await userEvent.keyboard('{Escape}');
   await expect.element(find).not.toBeInTheDocument();
+  await userEvent.keyboard('{End}');
+  await expect
+    .element(
+      workspace.getByRole('tabpanel').getByText('filler 3999', { exact: true }),
+    )
+    .toBeVisible();
 
   await workspace.getByRole('button', { name: 'Edit', exact: true }).click();
   await expect
