@@ -390,6 +390,7 @@ export function PlainChangesDocument({
         scope={scope}
         context={context}
         interaction={interaction}
+        windowLimit={limit}
         {...(specsOnly || only || limit !== undefined
           ? { paths: shown.map((item) => item.path) }
           : {})}

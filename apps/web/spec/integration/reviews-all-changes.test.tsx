@@ -622,3 +622,71 @@ test('All changes lists and reads its first files, and the next ones only when a
     .element(workspace.getByRole('button', { name: /^Read 11 more of \d+$/ }))
     .toBeVisible();
 });
+
+test('All changes preserves readable diffs and retries a failed final window', async ({
+  repo,
+  render,
+  server,
+  fetchGate,
+}) => {
+  const notes = Array.from(
+    { length: 30 },
+    (_, index) => `note-${String(index).padStart(2, '0')}.md`,
+  );
+  for (const path of notes) await repo.write(path, `Original ${path}\n`);
+  await repo.commit('Track the notes');
+  for (const path of notes) await repo.write(path, `Edited ${path}\n`);
+
+  const outage = fetchGate.failChangeDiffs();
+  const held = fetchGate.holdNextPost('/changes/diffs');
+  const project = await server.project();
+  const worktree = project.worktrees.find((entry) => entry.main);
+  if (!worktree) throw new Error('The fixture has no main worktree.');
+  const { page: workspace } = await render.route(
+    `/${project.id}/${worktree.id}?entry=all-changes`,
+  );
+  const table = workspace.getByRole('region', {
+    name: '30 uncommitted changes',
+    exact: true,
+  });
+  const content = workspace.getByRole('region', {
+    name: 'Code content',
+    exact: true,
+  });
+  const first = content.getByText('Edited note-00.md', { exact: true });
+  const firstRow = table.getByRole('button', { name: /^note-00\.md/ });
+  await firstRow.click();
+  await expect.element(first).toBeVisible();
+  held.arm();
+
+  try {
+    await workspace
+      .getByRole('button', { name: /^Read 5 more of \d+$/ })
+      .click();
+    await held.requested;
+    await firstRow.click();
+    await expect.element(first).toBeVisible();
+
+    outage.start();
+    held.release();
+    const retry = workspace.getByRole('button', {
+      name: 'Try again',
+      exact: true,
+    });
+    await expect.element(retry).toBeVisible();
+    await firstRow.click();
+    await expect.element(first).toBeVisible();
+
+    outage.stop();
+    await retry.click();
+    const lastRow = table.getByRole('button', { name: /^note-29\.md \+/ });
+    await expect.element(lastRow).toBeVisible();
+    await lastRow.click();
+    await expect
+      .element(content.getByText('Edited note-29.md', { exact: true }))
+      .toBeVisible();
+    await expect.element(retry).not.toBeInTheDocument();
+  } finally {
+    fetchGate.restore();
+  }
+});
