@@ -56,7 +56,7 @@ export async function archiveFixture(
     isDraft: false,
     author: { login: 'fixture' },
     headRefName: branch,
-    updatedAt: '2026-10-21T03:00:00Z',
+    updatedAt: new Date(git('show', '-s', '--format=%cI', head)).toISOString(),
     commits: { nodes: [] },
     body: options.description ?? 'Finished',
     baseRefName: 'main',
