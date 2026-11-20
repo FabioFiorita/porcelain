@@ -1,4 +1,4 @@
-import { userEvent } from 'vitest/browser';
+import { page as browserPage, userEvent } from 'vitest/browser';
 import {
   expect,
   test,
@@ -80,4 +80,59 @@ test('dragging a file onto a folder that already holds that name is refused and 
   await expect
     .poll(async () => (await server.text(`${folder}/${clash}`)).text)
     .toBe('Already in the folder\n');
+});
+
+test('dragging two open files into a folder moves both tabs with them', async ({
+  agent,
+  render,
+  repo,
+}) => {
+  await browserPage.viewport(1280, 896);
+  try {
+    await agent.editFile({
+      kind: 'create',
+      path: folder,
+      entryKind: 'directory',
+    });
+    await repo.write('first.md', 'First note\n');
+    await repo.write('second.md', 'Second note\n');
+    const page = await render.workspace();
+    await userEvent.keyboard('{Alt>}1{/Alt}');
+    const first = page.getByRole('treeitem', { name: 'first.md', exact: true });
+    const second = page.getByRole('treeitem', {
+      name: 'second.md',
+      exact: true,
+    });
+    await first.click();
+    await second.click();
+    await expect
+      .element(page.getByRole('tab', { name: 'second.md', exact: true }))
+      .toHaveAttribute('aria-selected', 'true');
+    await first.click({ modifiers: ['ControlOrMeta'] });
+    await userEvent.dragAndDrop(
+      second,
+      page.getByRole('treeitem', { name: folder, exact: true }),
+    );
+    const firstTab = page.getByRole('tab', {
+      name: `${folder}/first.md`,
+      exact: true,
+    });
+    const secondTab = page.getByRole('tab', {
+      name: `${folder}/second.md`,
+      exact: true,
+    });
+    await expect
+      .element(firstTab)
+      .toHaveAttribute('data-entry', `file:${folder}/first.md`);
+    await expect
+      .element(secondTab)
+      .toHaveAttribute('data-entry', `file:${folder}/second.md`);
+    for (const stale of ['first.md', 'second.md'])
+      await expect
+        .element(page.getByRole('tab', { name: stale, exact: true }))
+        .not.toBeInTheDocument();
+    await expect.element(secondTab).toHaveAttribute('aria-selected', 'true');
+  } finally {
+    await browserPage.viewport(414, 896);
+  }
 });

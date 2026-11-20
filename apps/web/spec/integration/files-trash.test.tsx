@@ -1,3 +1,4 @@
+import { userEvent } from 'vitest/browser';
 import { expect, test } from './fixtures.tsx';
 
 const kept = 'old-notes.md';
@@ -69,4 +70,43 @@ test('moving a file another writer already removed to the trash is refused and s
   await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
   await expect.element(dialog).not.toBeInTheDocument();
   await expect.poll(() => names(server)).toContain(repo.readme.path);
+});
+
+test('moving an open file to the trash closes its tab', async ({
+  render,
+  repo,
+}) => {
+  await repo.write(kept, 'Notes to throw away\n');
+  const page = await render.workspace();
+  await page.getByRole('button', { name: 'Review', exact: true }).click();
+  await page.getByRole('tab', { name: 'Files', exact: true }).click();
+  await page.getByRole('treeitem', { name: kept, exact: true }).click();
+  await expect
+    .element(page.getByRole('tab', { name: kept, exact: true }))
+    .toHaveAttribute('aria-selected', 'true');
+  await page.getByRole('button', { name: 'Review', exact: true }).click();
+  await page.getByRole('tab', { name: 'Files', exact: true }).click();
+  await page
+    .getByRole('treeitem', { name: kept, exact: true })
+    .click({ button: 'right' });
+  await page
+    .getByRole('menuitem', { name: 'Move to trash', exact: true })
+    .click();
+  const dialog = page.getByRole('alertdialog');
+  await dialog
+    .getByRole('button', { name: 'Move to trash', exact: true })
+    .click();
+  await expect.element(dialog).not.toBeInTheDocument();
+  await expect
+    .element(page.getByRole('treeitem', { name: kept, exact: true }))
+    .not.toBeInTheDocument();
+  await userEvent.keyboard('{Escape}');
+  await expect
+    .element(
+      page.getByRole('tab', { name: kept, exact: true, includeHidden: true }),
+    )
+    .not.toBeInTheDocument();
+  await expect
+    .element(page.getByRole('tab', { name: 'Review', exact: true }))
+    .toHaveAttribute('aria-selected', 'true');
 });

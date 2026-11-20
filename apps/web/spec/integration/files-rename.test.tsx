@@ -1,4 +1,4 @@
-import { userEvent } from 'vitest/browser';
+import { page as browserPage, userEvent } from 'vitest/browser';
 import { expect, test } from './fixtures.tsx';
 
 const before = 'draft-notes.md';
@@ -210,4 +210,86 @@ test('renaming a pinned file clears the tree search before showing the inline na
   await expect
     .poll(async () => (await server.text(after)).text)
     .toBe('Pinned notes\n');
+});
+
+test('renaming an open file moves its tab to the new name', async ({
+  render,
+  repo,
+}) => {
+  await repo.write(before, 'Notes to rename\n');
+  const app = await render.route('/');
+  const page = app.page;
+  await page.getByRole('button', { name: 'Review', exact: true }).click();
+  await page.getByRole('tab', { name: 'Files', exact: true }).click();
+  await page.getByRole('treeitem', { name: before, exact: true }).click();
+  await expect
+    .element(page.getByRole('tab', { name: before, exact: true }))
+    .toHaveAttribute('aria-selected', 'true');
+  await page.getByRole('button', { name: 'Review', exact: true }).click();
+  await page.getByRole('tab', { name: 'Files', exact: true }).click();
+  await page
+    .getByRole('treeitem', { name: before, exact: true })
+    .click({ button: 'right' });
+  await page.getByRole('menuitem', { name: 'Rename', exact: true }).click();
+  const name = page.getByRole('textbox', { name: /rename/i });
+  await expect.element(name).toBeVisible();
+  await name.fill(after);
+  await userEvent.keyboard('{Enter}');
+  await expect
+    .element(page.getByRole('treeitem', { name: after, exact: true }))
+    .toBeVisible();
+  await userEvent.keyboard('{Escape}');
+  const renamed = page.getByRole('tab', { name: after, exact: true });
+  await expect.element(renamed).toHaveAttribute('data-entry', `file:${after}`);
+  await expect.element(renamed).toHaveAttribute('aria-selected', 'true');
+  await expect
+    .element(
+      page.getByRole('tab', { name: before, exact: true, includeHidden: true }),
+    )
+    .not.toBeInTheDocument();
+  await expect.poll(() => app.title()).toMatch(new RegExp(`^${after} — `));
+  await expect
+    .element(page.getByText(/could not be loaded/))
+    .not.toBeInTheDocument();
+});
+
+test('renaming a file also moves a tab opened to the side during the request', async ({
+  fetchGate,
+  render,
+  repo,
+}) => {
+  await browserPage.viewport(1280, 896);
+  try {
+    await repo.write(before, 'Notes to rename\n');
+    const gate = fetchGate.holdNextPost('/files');
+    const page = await render.workspace();
+    await userEvent.keyboard('{Alt>}1{/Alt}');
+    const file = page.getByRole('treeitem', { name: before, exact: true });
+    await file.click();
+    const tab = page.getByRole('tab', { name: before, exact: true });
+    await expect.element(tab).toHaveAttribute('aria-selected', 'true');
+    await file.click({ button: 'right' });
+    await page.getByRole('menuitem', { name: 'Rename', exact: true }).click();
+    await page.getByRole('textbox', { name: /rename/i }).fill(after);
+    gate.arm();
+    await userEvent.keyboard('{Enter}');
+    await gate.requested;
+    await tab.click({ button: 'right' });
+    await page.getByRole('menuitem', { name: /Open to the side/ }).click();
+    const right = page.getByRole('region', { name: 'Right pane', exact: true });
+    await expect
+      .element(right.getByRole('tab', { name: before, exact: true }))
+      .toHaveAttribute('aria-selected', 'true');
+    gate.release();
+    for (const name of ['Left pane', 'Right pane']) {
+      const pane = page.getByRole('region', { name, exact: true });
+      await expect
+        .element(pane.getByRole('tab', { name: after, exact: true }))
+        .toHaveAttribute('aria-selected', 'true');
+    }
+    await expect.element(tab).not.toBeInTheDocument();
+  } finally {
+    fetchGate.restore();
+    await browserPage.viewport(414, 896);
+  }
 });

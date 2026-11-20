@@ -2,6 +2,8 @@ import { expect, test } from 'vitest';
 import {
   fileTreeExpansion,
   mergeFileTreeEntries,
+  movedPath,
+  pathInside,
   visibleFileTreeRows,
 } from './file-tree.ts';
 test('folder reads attach only to currently reachable parents and preserve file identities', () => {
@@ -241,4 +243,12 @@ test('expansion accepts merged folder entries and either folder set convention',
   expect(
     fileTreeExpansion(entries, new Set(['a/']), new Set(['a/', 'a/b/'])),
   ).toEqual(['a']);
+});
+
+test('a moved folder carries the paths inside it and leaves look-alike siblings', () => {
+  expect(movedPath('docs', 'docs/', 'notes')).toBe('notes');
+  expect(movedPath('docs/sub/a.md', 'docs', 'notes/')).toBe('notes/sub/a.md');
+  expect(movedPath('docsx/a.md', 'docs', 'notes')).toBe('docsx/a.md');
+  expect(pathInside('docs/a.md', 'docs/')).toBe(true);
+  expect(pathInside('docs.md', 'docs')).toBe(false);
 });

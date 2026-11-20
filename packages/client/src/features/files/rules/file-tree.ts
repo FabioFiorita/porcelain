@@ -21,6 +21,21 @@ function fileTreeEntries(directory: Directory): FileTreeEntry[] {
   }));
 }
 
+const withoutTrailingSlash = (path: string) => path.replace(/\/$/, '');
+
+export function pathInside(path: string, root: string): boolean {
+  const base = withoutTrailingSlash(root);
+  const target = withoutTrailingSlash(path);
+  return target === base || target.startsWith(`${base}/`);
+}
+
+export function movedPath(path: string, from: string, to: string): string {
+  const base = withoutTrailingSlash(from);
+  return pathInside(path, base)
+    ? `${withoutTrailingSlash(to)}${path.slice(base.length)}`
+    : path;
+}
+
 export function fileTreeAncestors(path: string): string[] {
   const segments = path.split('/').filter(Boolean);
   return segments
