@@ -59,6 +59,52 @@ jobs:
     name: Submit iOS to TestFlight
     needs: [build_ios]
     type: submit
+    env:
+      APP_VARIANT: production
     params:
       build_id: ${{ needs.build_ios.outputs.build_id }}
+      profile: production
+
+  get_android_build:
+    name: Find a compatible Android production build
+    needs: [fingerprint]
+    type: get-build
+    params:
+      platform: android
+      profile: production
+      distribution: store
+      channel: production
+      fingerprint_hash: ${{ needs.fingerprint.outputs.android_fingerprint_hash }}
+      wait_for_in_progress: true
+
+  publish_android_update:
+    name: Publish Android production OTA
+    needs: [get_android_build]
+    if: ${{ !inputs.force_build && needs.get_android_build.outputs.build_id }}
+    type: update
+    environment: production
+    env:
+      APP_VARIANT: production
+    params:
+      platform: android
+      channel: production
+      message: ${{ substring(github.commit_message || 'Manual production update', 0, 1024) }}
+
+  build_android:
+    name: Build Android production
+    needs: [get_android_build]
+    if: ${{ inputs.force_build || !needs.get_android_build.outputs.build_id }}
+    type: build
+    params:
+      platform: android
+      profile: production
+
+  submit_android:
+    name: Submit Android to Google Play internal testing
+    needs: [build_android]
+    type: submit
+    env:
+      APP_VARIANT: production
+    params:
+      build_id: ${{ needs.build_android.outputs.build_id }}
       profile: production
