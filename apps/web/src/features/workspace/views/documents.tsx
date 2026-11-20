@@ -437,6 +437,7 @@ export function PlainChangesDocument({
       {onReadMore && (
         <ReadMoreFiles
           more={changes.length - shown.length}
+          total={changes.length}
           pending={false}
           onReadMore={onReadMore}
         />

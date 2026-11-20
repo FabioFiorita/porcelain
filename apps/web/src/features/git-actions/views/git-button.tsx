@@ -479,6 +479,7 @@ export function GitButton({
               context={context}
               entry={action}
               status={openedStatus ?? status}
+              current={status}
               onBusy={setBusy}
               onLookAgain={menu.lookAgain}
             />

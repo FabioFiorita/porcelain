@@ -40,6 +40,36 @@ export const receiptWords = (receipt: Receipt) =>
 export const changedSinceLooked = (receipt: Receipt) =>
   receipt.state === 'rejected' && receipt.reason === 'CHANGED_SINCE_LOOKED';
 
+export function changedSinceLookedPaths(
+  looked: GitActionStatus,
+  current: GitActionStatus,
+): string[] {
+  const fingerprints = (status: GitActionStatus) =>
+    new Map(
+      (status.files ?? []).map((file) => [file.path, file.fingerprint ?? null]),
+    );
+  const before = fingerprints(looked);
+  const after = fingerprints(current);
+  return [...new Set([...before.keys(), ...after.keys()])]
+    .filter(
+      (path) =>
+        before.has(path) !== after.has(path) ||
+        before.get(path) !== after.get(path),
+    )
+    .sort();
+}
+
+export function changedSinceLookedText(paths: readonly string[]) {
+  const [first] = paths;
+  const changed =
+    first === undefined
+      ? 'The worktree'
+      : paths.length === 1
+        ? first
+        : `${first} and ${paths.length - 1} more`;
+  return `${changed} changed after this was read. Look again before trying.`;
+}
+
 export function gitErrorMessage(error: unknown) {
   return error instanceof Error
     ? error.message

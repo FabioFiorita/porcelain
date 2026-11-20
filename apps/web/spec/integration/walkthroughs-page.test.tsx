@@ -240,6 +240,62 @@ test('local edits group by step, and files the walkthrough never read stand apar
     .not.toBeInTheDocument();
 });
 
+test('with Spec files on, specs outside the walkthrough get their own list', async ({
+  repo,
+  codingTool,
+  render,
+}) => {
+  await browserPage.viewport(1280, 896);
+  await branchWithTwoFiles(repo);
+  await codingTool.install();
+  const app = await render.route('/');
+  const page = app.page;
+  await page.getByRole('tab', { name: 'Review', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'Write walkthrough', exact: true })
+    .click();
+  await expect
+    .element(
+      page.getByRole('heading', {
+        name: /^Teach the sample to explain itself\. One call is yours\.$/,
+      }),
+    )
+    .toBeVisible();
+  await repo.write('local-note.txt', 'not read yet\n');
+  await repo.write('local-note.spec.ts', 'not read yet either\n');
+  const review = app.location();
+  await app.navigate('/settings/git');
+  await page
+    .getByRole('button', {
+      name: 'Use these settings for this computer',
+      exact: true,
+    })
+    .click();
+  const setting = page.getByRole('switch', { name: 'Spec files', exact: true });
+  await setting.click();
+  await expect.element(setting).toBeChecked();
+  await app.navigate(review);
+  const sidebar = page.getByRole('complementary', {
+    name: 'Review sidebar',
+    exact: true,
+  });
+  await sidebar.getByRole('tab', { name: 'Uncommitted', exact: true }).click();
+  const outside = sidebar.getByRole('group', {
+    name: 'Not in the walkthrough yet',
+    exact: true,
+  });
+  const specs = sidebar.getByRole('group', { name: 'Specs', exact: true });
+  await expect
+    .element(specs.getByText(/local-note\.spec\.ts/).first())
+    .toBeVisible();
+  await expect
+    .element(outside.getByText(/local-note\.txt/).first())
+    .toBeVisible();
+  await expect
+    .element(outside.getByText(/local-note\.spec\.ts/))
+    .not.toBeInTheDocument();
+});
+
 test('a later commit lists its file outside the steps, and a refused Update says why', async ({
   repo,
   codingTool,
@@ -557,15 +613,39 @@ test('uncommitted-only work opens the review with its diffs and stays fresh when
       page.getByRole('button', { name: 'Update walkthrough', exact: true }),
     )
     .toBeVisible();
+  const status = page.getByRole('region', {
+    name: 'Walkthrough status',
+    exact: true,
+  });
+  await expect.element(status.getByText(/^Saved /)).toBeVisible();
+  await expect
+    .element(
+      page.getByRole('progressbar', {
+        name: 'Walkthrough stages',
+        exact: true,
+      }),
+    )
+    .not.toBeInTheDocument();
+  await expect
+    .element(page.getByText('Update log', { exact: true }))
+    .not.toBeInTheDocument();
+  await page
+    .getByRole('button', { name: 'Update walkthrough', exact: true })
+    .click();
+  await expect
+    .element(
+      status.getByText(
+        'Already up to date: the saved walkthrough was reused.',
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
   await repo.write('notes.md', 'first line\nsecond line\nnew edit\n');
   await expect
     .element(
-      page.getByText(
-        'The work changed after this walkthrough’s snapshot. Update to include the latest changes.',
-        {
-          exact: true,
-        },
-      ),
+      page
+        .getByRole('region', { name: 'Walkthrough status', exact: true })
+        .getByText(/· Behind the current work$/),
     )
     .toBeVisible();
   await expect(server.walkthrough()).resolves.toMatchObject({

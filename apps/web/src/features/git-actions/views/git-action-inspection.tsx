@@ -32,6 +32,8 @@ import type { GitAction, GitScope } from '@porcelain/client/git-actions/rules';
 import { gitActionLabel } from '@porcelain/client/git-actions/rules';
 import {
   changedSinceLooked,
+  changedSinceLookedPaths,
+  changedSinceLookedText,
   gitErrorMessage,
   receiptFailed,
 } from '@porcelain/client/git-actions/rules';
@@ -54,6 +56,7 @@ export function GitActionInspection({
   context,
   entry,
   status,
+  current,
   onBusy,
   onLookAgain,
 }: {
@@ -61,6 +64,7 @@ export function GitActionInspection({
   context: ConnectionContext;
   entry: GitAction;
   status: GitActionStatus;
+  current: GitActionStatus;
   onBusy: (busy: boolean) => void;
   onLookAgain?: (() => Promise<void>) | undefined;
 }) {
@@ -90,6 +94,7 @@ export function GitActionInspection({
       context={context}
       action={entry}
       status={status}
+      current={current}
       onBusy={onBusy}
       onLookAgain={onLookAgain}
     />
@@ -171,9 +176,10 @@ function StashActionForm({
   context,
   action,
   status,
+  current,
   onBusy,
   onLookAgain,
-}: InspectionFormProps<FormAction>) {
+}: InspectionFormProps<FormAction> & { current: GitActionStatus }) {
   return (
     <GitStatusInspection
       scope={scope}
@@ -187,6 +193,7 @@ function StashActionForm({
           action={action}
           status={{ ...status, branch: details.branch ?? status.branch }}
           expectedStatus={status}
+          current={current}
           onBusy={onBusy}
           onLookAgain={onLookAgain}
         />
@@ -232,10 +239,12 @@ function ActionForm({
   action,
   status,
   expectedStatus = status,
+  current = status,
   onBusy,
   onLookAgain,
 }: InspectionFormProps<FormAction> & {
   expectedStatus?: GitActionStatus;
+  current?: GitActionStatus;
 }) {
   const branch = status.branch;
   const [message, setMessage] = useState('Porcelain review');
@@ -248,6 +257,7 @@ function ActionForm({
     onLookAgain,
   });
   const { busy, uncertain, outcome, error } = git;
+  const stale = Boolean(outcome && changedSinceLooked(outcome));
   return (
     <form
       className="flex min-w-0 flex-col gap-4"
@@ -323,10 +333,18 @@ function ActionForm({
             : 'Restore staged changes'}
         </label>
       </fieldset>
-      <ActionOutcome outcome={outcome} />
+      {stale ? (
+        <p role="alert" className="text-sm">
+          {changedSinceLookedText(
+            changedSinceLookedPaths(expectedStatus, current),
+          )}
+        </p>
+      ) : (
+        <ActionOutcome outcome={outcome} />
+      )}
       {uncertain && !outcome && <p role="status">Outcome not yet confirmed</p>}
       {error ? <GitActionError text={gitErrorMessage(error)} /> : null}
-      {outcome && changedSinceLooked(outcome) && onLookAgain && (
+      {stale && onLookAgain && (
         <Button
           type="button"
           variant="outline"
@@ -336,7 +354,7 @@ function ActionForm({
           Look again
         </Button>
       )}
-      {git.operation && !busy && (
+      {git.operation && !busy && !stale && (
         <Button type="button" variant="outline" onClick={git.checkOutcome}>
           Check outcome
         </Button>
@@ -344,12 +362,7 @@ function ActionForm({
       <Button
         type="submit"
         aria-description={writeBlock}
-        disabled={
-          Boolean(writeBlock) ||
-          busy ||
-          uncertain ||
-          Boolean(outcome && changedSinceLooked(outcome))
-        }
+        disabled={Boolean(writeBlock) || busy || uncertain || stale}
       >
         {busy ? 'Working…' : gitActionLabel(action)}
       </Button>

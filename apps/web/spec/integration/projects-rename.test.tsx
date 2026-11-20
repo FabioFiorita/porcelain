@@ -25,7 +25,9 @@ test('renaming a project in the navigator shows the new name and the server keep
   await expect
     .element(navigator.getByRole('button', { name: 'Rename', exact: true }))
     .toBeDisabled();
-  await expect.element(navigator.getByRole('alert')).toBeVisible();
+  await expect
+    .element(navigator.getByRole('alert'))
+    .toMatchTextContent(/^Enter a project name\.$/);
   await navigator
     .getByRole('textbox', { name: 'Name', exact: true })
     .fill(name);

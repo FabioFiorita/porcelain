@@ -23,6 +23,12 @@ test("a removed project's worktree address says the worktree is no longer presen
   await dialog.getByRole('button', { name: 'other', exact: true }).click();
   await dialog.getByRole('button', { name: 'Open other', exact: true }).click();
   await expect(dialog).not.toBeAttached();
+  await expect(
+    pairedPage.getByRole('dialog', { name: 'Sidebar', exact: true }),
+  ).not.toBeAttached();
+  await pairedPage
+    .getByRole('button', { name: 'Toggle Sidebar', exact: true })
+    .click();
   await pairedPage
     .getByRole('button', {
       name: `Project actions: ${sample.name} · ${computer}`,

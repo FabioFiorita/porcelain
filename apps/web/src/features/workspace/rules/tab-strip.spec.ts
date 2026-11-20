@@ -8,6 +8,8 @@ import {
   closeInPane,
   closeOthersInPane,
   closeUnpinnedInPane,
+  closeRemovedInPane,
+  moveInPane,
   togglePinInPane,
   openInPane,
   openToSideText,
@@ -311,4 +313,64 @@ it('gives each document its own tab and panel ids, even for files with one name'
     panel: 'pane-file%3Asrc%2Fa%20b%2Findex.ts-panel',
   });
   expect(second.panel).not.toBe(first.panel);
+});
+
+describe('files moved or removed on disk', () => {
+  it('moves file tabs inside a renamed folder and keeps their pins', () => {
+    expect(
+      moveInPane(
+        {
+          tabs: [
+            'review',
+            'file:docs/a.md',
+            'file:docs/sub/b.md',
+            'file:docsx.md',
+            'change:docs/a.md',
+          ],
+          pinned: ['file:docs/sub/b.md'],
+        },
+        'docs/',
+        'notes',
+      ),
+    ).toEqual({
+      tabs: [
+        'review',
+        'file:notes/a.md',
+        'file:notes/sub/b.md',
+        'file:docsx.md',
+        'change:docs/a.md',
+      ],
+      pinned: ['file:notes/sub/b.md'],
+    });
+  });
+
+  it('keeps one tab when the new name is already open', () => {
+    expect(
+      moveInPane(
+        { tabs: ['file:old.md', 'file:new.md'], pinned: [] },
+        'old.md',
+        'new.md',
+      ),
+    ).toEqual({ tabs: ['file:new.md'], pinned: [] });
+  });
+
+  it('closes file tabs inside a trashed folder and leaves other documents', () => {
+    expect(
+      closeRemovedInPane(
+        {
+          tabs: [
+            'review',
+            'file:docs/a.md',
+            'file:docs.md',
+            'timeline:docs/a.md',
+          ],
+          pinned: ['file:docs/a.md'],
+        },
+        'docs/',
+      ),
+    ).toEqual({
+      tabs: ['review', 'file:docs.md', 'timeline:docs/a.md'],
+      pinned: [],
+    });
+  });
 });

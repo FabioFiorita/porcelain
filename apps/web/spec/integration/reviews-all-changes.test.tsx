@@ -320,7 +320,7 @@ test('Review reads more local files only when asked', async ({
     .element(local.getByText('Note number 29', { exact: true }))
     .not.toBeInTheDocument();
   await local
-    .getByRole('button', { name: 'Read 6 more of 6', exact: true })
+    .getByRole('button', { name: 'Read 6 more of 31', exact: true })
     .click();
   await expect
     .element(local.getByText('Note number 29', { exact: true }))

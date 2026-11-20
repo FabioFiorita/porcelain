@@ -16,7 +16,7 @@ api:
 
 # git-actions.stash
 
-Stashing sets the changes aside and popping the stash brings them back and drops it; popping over a file changed since is refused with what Git said, and the stash is kept. A stash dialog opened again starts fresh, without the previous run's outcome.
+Stashing sets the changes aside and popping the stash brings them back and drops it; popping over a file changed since is refused with what Git said, and the stash is kept. If a file changes while the Pop dialog is open, submitting is refused with one line naming it ("<file> changed after this was read. Look again before trying.") and Look again is the only action. A stash dialog opened again starts fresh, without the previous run's outcome.
 
 ## How to get to it (user POV)
 

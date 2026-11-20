@@ -13,6 +13,7 @@ import type { WorktreeConnection } from '../../../shared/api/connection.ts';
 import type { LiveConnection } from '../ports/connection.ts';
 import type { Remote } from '../../access/rules/remotes.ts';
 import type { AccessPlatformValue } from '../../access/ports/access-platform.ts';
+import type { LiveDiagnostic } from '../rules/diagnostics.ts';
 import { remoteLiveUpdates } from './remote-live-updates.ts';
 
 export function openLiveConnection(
@@ -56,6 +57,7 @@ export function openRemoteConnection(
   > & {
     readonly send: AccessPlatformValue['send'];
     readonly activity?: StatusActivity;
+    readonly diagnostic?: (event: LiveDiagnostic) => void;
     readonly onStatusChange?: (() => void) | undefined;
     readonly socket: Parameters<typeof remoteLiveUpdates>[2];
     readonly timeoutMs: number;
@@ -78,6 +80,7 @@ export function openRemoteConnection(
         input.socket,
         routing,
         input.activity,
+        input.diagnostic,
       ),
       ...(input.onStatusChange ? { onStatusChange: input.onStatusChange } : {}),
       timeoutMs: input.timeoutMs,

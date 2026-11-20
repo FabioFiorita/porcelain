@@ -390,6 +390,7 @@ function BranchDiffs({
       />
       <ReadMoreFiles
         more={more}
+        total={items.length}
         pending={diffs.pending}
         onReadMore={() => setShown(shown + DIFF_WINDOW_FILES)}
       />

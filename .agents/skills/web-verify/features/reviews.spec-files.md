@@ -29,7 +29,7 @@ Preconditions: [surface baseline](README.md).
 
 Create untracked `search.ts` and `search.spec.ts` in `REPO` before loading. Keep the initial modified README.md, for three changes.
 
-Open all specs opens a continuous document containing just those files, with individual and bulk reviewed controls. All changes still includes specs. The Settings switch "Spec files" enables this grouping and starts the section and its files collapsed. Off keeps specs in the ordinary file list and its original order. It does not remove them from progress or coverage.
+Open all specs opens a continuous document containing just those files, with individual and bulk reviewed controls. All changes still includes specs. The Settings switch "Spec files" enables this grouping and starts the section and its files collapsed. Off keeps specs in the ordinary file list and its original order. It does not remove them from progress or coverage. On a worktree whose walkthrough has steps, the steps keep their files, and specs outside the walkthrough are listed in their own group "Specs" after group "Not in the walkthrough yet".
 
 1. With the setting off, open Review → Changes. Expect README.md, search.spec.ts and search.ts in their original order, with no Specs section.
 2. Close the phone review sheet with Escape, then Toggle Sidebar → Settings → Changes & Git. On a fresh instance choose Use these settings for this computer first ([its settings](preferences.reviews-git.md)), then switch Spec files on and Back.

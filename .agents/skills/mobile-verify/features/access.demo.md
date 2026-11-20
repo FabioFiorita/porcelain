@@ -24,7 +24,7 @@ The bundled demo opens the real mobile screens with a local sample computer and 
 
 ## Driving it with the surface harness
 
-1. Start a disposable mobile instance with `--manual-pairing`; leave its development server unpaired. Open Worktrees and press `demo-start`. Expect Hello Garden and Demo computer without pairing.
+1. Start a disposable mobile instance with `--manual-pairing`; leave its development server unpaired. Open Worktrees: No computers paired, Add computer and the demo explanation stay below the native status and navigation bars, including the iOS large title. At larger text sizes or in landscape, scroll to reach the controls without overlap. Press `demo-start`. Expect Hello Garden and Demo computer without pairing.
 2. Open the sample worktree. Expect the demo notice and ready Walkthrough. Open its step and source excerpt. Ask two questions; expect your text and replies beginning Simulated demo reply. Copy as prompt for one question must copy only that question. Save one question; Copy together must include only the saved question. No external conversation service is contacted.
 3. Open Changes → src/welcome.ts. Read the diff, mark it Reviewed and unmark it. Repeat on Branch · main: mark a file, leave and reopen the comparison, expect Reviewed to remain; unmark it, leave and reopen, expect Unreviewed. Open Files → README.md and read the Markdown preview and source, then open its timeline. Mobile has no text editor.
 4. Open History, then a commit and its diff, and return. In Settings press Reset demo; reopen the worktree and expect original sample content and no reviewed marks or conversation messages.

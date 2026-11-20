@@ -11,6 +11,7 @@ import {
 } from '@/features/projects/index';
 import { defaultSettingsSection } from '@/app/settings-page';
 import { desktopActions } from '@/shared/adapters/desktop';
+import { useSidebar } from '@/components/ui/sidebar';
 import type { Connection } from '@/shared/workspace/connection';
 
 export function worktreeLocation(target: WorktreeTarget) {
@@ -49,8 +50,11 @@ export function DesktopActions({
 }) {
   const navigate = useNavigate();
   const remotes = useRemoteConnections();
-  const openWorktree = (target: WorktreeTarget) =>
-    navigate({ ...worktreeLocation(target), replace: empty });
+  const { setOpenMobile } = useSidebar();
+  const openWorktree = (target: WorktreeTarget) => {
+    setOpenMobile(false);
+    return navigate({ ...worktreeLocation(target), replace: empty });
+  };
   const openHere = useOpenProjectOnThisComputer(connection, openWorktree);
   useAtomMount(
     desktopActions((action) => {

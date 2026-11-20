@@ -1,4 +1,10 @@
-import { canonicalEntry, withDocument } from './documents';
+import { movedPath, pathInside } from '@porcelain/client/files/rules';
+import {
+  canonicalEntry,
+  entryKey,
+  parseEntry,
+  withDocument,
+} from './documents';
 
 export type Pane = {
   readonly tabs: readonly string[];
@@ -103,6 +109,32 @@ export function togglePinInPane(pane: Pane, key: string): Pane {
   return pane.pinned.includes(key)
     ? { ...pane, pinned: pane.pinned.filter((entry) => entry !== key) }
     : { ...pane, pinned: [...pane.pinned, key] };
+}
+
+export function movedEntry(key: string, from: string, to: string): string {
+  const ref = parseEntry(key);
+  return ref?.kind === 'file' && pathInside(ref.path, from)
+    ? entryKey({ kind: 'file', path: movedPath(ref.path, from, to) })
+    : key;
+}
+
+export function moveInPane(pane: Pane, from: string, to: string): Pane {
+  const move = (keys: readonly string[]) => [
+    ...new Set(keys.map((key) => movedEntry(key, from, to))),
+  ];
+  return { tabs: move(pane.tabs), pinned: move(pane.pinned) };
+}
+
+export function removedEntry(key: string, path: string) {
+  const ref = parseEntry(key);
+  return ref?.kind === 'file' && pathInside(ref.path, path);
+}
+
+export function closeRemovedInPane(pane: Pane, path: string): Pane {
+  return {
+    tabs: pane.tabs.filter((key) => !removedEntry(key, path)),
+    pinned: pane.pinned.filter((key) => !removedEntry(key, path)),
+  };
 }
 
 export function neighbourAfterClose(

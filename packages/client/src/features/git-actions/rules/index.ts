@@ -8,6 +8,8 @@ export {
 } from './git-action.ts';
 export {
   changedSinceLooked,
+  changedSinceLookedPaths,
+  changedSinceLookedText,
   expectationFor,
   gitErrorMessage,
   receiptFailed,
