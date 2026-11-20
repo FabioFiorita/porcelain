@@ -108,11 +108,12 @@ test('the timeline of a renamed file lists its commits across the rename and ope
   await timeline
     .getByRole('button', { name: new RegExp(`^${explained}`) })
     .click();
+  const commit = workspace.getByRole('tabpanel');
   await expect
-    .element(workspace.getByRole('heading', { name: explained, exact: true }))
+    .element(commit.getByRole('heading', { name: explained, exact: true }))
     .toBeVisible();
   await expect
-    .element(workspace.getByText('A change to review.', { exact: true }))
+    .element(commit.getByText('A change to review.', { exact: true }))
     .toBeVisible();
 });
 
