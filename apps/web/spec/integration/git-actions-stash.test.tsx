@@ -178,3 +178,67 @@ test('popping a stash over a file changed since is refused with what Git said an
       `On ${(await server.gitStatus()).branch?.name}: Porcelain review`,
     ]);
 });
+
+test('popping a stash after a file changed under the open dialog names the file and offers only Look again', async ({
+  workspace,
+  repo,
+  server,
+}) => {
+  const readme = repo.readme.path;
+  await workspace
+    .getByRole('button', { name: 'Git actions', exact: true })
+    .click();
+  await workspace.getByRole('menuitem', { name: /^Stash changes/ }).click();
+  const stash = workspace.getByRole('dialog', {
+    name: 'Stash changes',
+    exact: true,
+  });
+  await stash
+    .getByRole('button', { name: 'Stash changes', exact: true })
+    .click();
+  await expect
+    .element(stash.getByText('succeeded', { exact: true }))
+    .toBeVisible();
+  await userEvent.keyboard('{Escape}');
+  await expect.element(stash).not.toBeInTheDocument();
+
+  await repo.write('notes.md', 'Written before Pop\n');
+  await expect
+    .element(
+      workspace.getByRole('button', {
+        name: 'Mark notes.md as reviewed',
+        exact: true,
+      }),
+    )
+    .toBeVisible();
+  await workspace
+    .getByRole('button', { name: 'Git actions', exact: true })
+    .click();
+  await workspace.getByRole('menuitem', { name: /^Pop stash/ }).click();
+  const pop = workspace.getByRole('dialog', {
+    name: 'Pop stash',
+    exact: true,
+  });
+  await expect
+    .element(pop.getByRole('button', { name: 'Pop stash', exact: true }))
+    .toBeEnabled();
+  await repo.write('notes.md', 'Changed while Pop was open\n');
+  await pop.getByRole('button', { name: 'Pop stash', exact: true }).click();
+  await expect
+    .element(pop.getByRole('alert'))
+    .toMatchTextContent(
+      /^notes\.md changed after this was read\. Look again before trying\.$/,
+    );
+  await expect
+    .element(pop.getByRole('button', { name: 'Look again', exact: true }))
+    .toBeVisible();
+  await expect
+    .element(pop.getByRole('button', { name: 'Check outcome', exact: true }))
+    .not.toBeInTheDocument();
+  await expect
+    .poll(async () => (await server.gitStatus()).branch?.stashes?.length)
+    .toBe(1);
+  await expect
+    .poll(async () => (await server.text(readme)).text)
+    .not.toBe(repo.readme.changed);
+});

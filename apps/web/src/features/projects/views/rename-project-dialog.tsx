@@ -105,7 +105,11 @@ function RenameProjectContent({
               {field.state.meta.isTouched && !field.state.meta.isValid && (
                 <FieldError
                   id="project-name-error"
-                  errors={field.state.meta.errors}
+                  errors={
+                    field.state.value.trim() === ''
+                      ? [{ message: 'Enter a project name.' }]
+                      : field.state.meta.errors
+                  }
                 />
               )}
             </Field>

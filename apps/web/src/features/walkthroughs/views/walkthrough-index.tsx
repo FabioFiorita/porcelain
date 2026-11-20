@@ -17,6 +17,9 @@ import {
   type UncommittedFileGrouping,
 } from '@/features/workspace/index';
 import { TruncatedText } from '@/shared/views/truncated-text';
+import { isSpecPath } from '@porcelain/client/changes/rules';
+import { useSpecsApart } from '@/features/preferences/index';
+import type { ConnectionContext } from '@/shared/workspace/connection';
 import {
   useBranchRenames,
   useWalkthroughContent,
@@ -83,21 +86,41 @@ function StepList<File>({
   );
 }
 
-function NotInWalkthrough<File>({
+function NotInWalkthrough<File extends { path: string }>({
   files,
   row,
+  context,
 }: {
   files: readonly File[];
   row: (file: File) => ReactNode;
+  context: ConnectionContext;
 }) {
-  if (files.length === 0) return null;
+  const specsApart = useSpecsApart(context.connection);
+  const specs = specsApart ? files.filter((file) => isSpecPath(file.path)) : [];
+  const others = specsApart
+    ? files.filter((file) => !isSpecPath(file.path))
+    : files;
   return (
-    <div className="mt-1 flex flex-col">
-      <p className="px-2 pt-2 pb-1 text-2xs text-muted-foreground">
-        Not in the walkthrough yet
-      </p>
-      {files.map(row)}
-    </div>
+    <>
+      {others.length > 0 && (
+        <div
+          role="group"
+          aria-label="Not in the walkthrough yet"
+          className="mt-1 flex flex-col"
+        >
+          <p className="px-2 pt-2 pb-1 text-2xs text-muted-foreground">
+            Not in the walkthrough yet
+          </p>
+          {others.map(row)}
+        </div>
+      )}
+      {specs.length > 0 && (
+        <div role="group" aria-label="Specs" className="mt-1 flex flex-col">
+          <p className="px-2 pt-2 pb-1 text-2xs text-muted-foreground">Specs</p>
+          {specs.map(row)}
+        </div>
+      )}
+    </>
   );
 }
 
@@ -120,7 +143,7 @@ function BranchSteps({
         onOpen={onOpen}
         row={row}
       />
-      <NotInWalkthrough files={grouped.outside} row={row} />
+      <NotInWalkthrough files={grouped.outside} row={row} context={context} />
     </>
   );
 }
@@ -180,6 +203,7 @@ function UncommittedSteps({
       <NotInWalkthrough
         files={grouped.outside}
         row={(file) => row(file.path)}
+        context={context}
       />
     </div>
   );

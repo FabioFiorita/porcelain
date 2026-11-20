@@ -216,6 +216,7 @@ export function CommitDocument({
       />
       <ReadMoreFiles
         more={more}
+        total={commit.files.length}
         pending={diffs.pending}
         onReadMore={readMore}
       />
