@@ -56,7 +56,13 @@ export function useTabLayout({
   focusBoundary: HTMLElement | null;
   focusBoundaryOpen: boolean;
 }) {
-  const { panes: stored, saved, save, latest } = useTabLayoutStore(worktreeId);
+  const {
+    panes: stored,
+    saved,
+    save,
+    latest,
+    saveActives,
+  } = useTabLayoutStore(worktreeId);
   const [pending, setPending] = useState<[Target, Target]>([
     undefined,
     undefined,
@@ -121,9 +127,11 @@ export function useTabLayout({
       setLastActive(actives);
   }
   useAtomMount(persistTabLayout({ worktreeId, panes, ready }));
-  const recent = useAtomValue(tabActivationState(worktreeId));
+  const { recent } = useAtomValue(tabActivationState(worktreeId));
   const active = actives[focused] ?? null;
-  useAtomMount(rememberTabActivation({ worktreeId, panes, active, ready }));
+  useAtomMount(
+    rememberTabActivation({ worktreeId, panes, actives, active, ready }),
+  );
   const recentFiles = recentTabEntries(recent, panes, active).flatMap((key) => {
     const document = parseEntry(key);
     return document?.kind === 'file' ? [document.path] : [];
@@ -131,6 +139,11 @@ export function useTabLayout({
 
   const go = (updates: { entry?: string | null; side?: string | null }) => {
     cancelDestinationFocus();
+    const current = latest().actives ?? actives;
+    saveActives([
+      'entry' in updates ? (updates.entry ?? null) : current[0],
+      'side' in updates ? (updates.side ?? null) : current[1],
+    ]);
     setPending((previous) => [
       'entry' in updates ? (updates.entry ?? null) : previous[0],
       'side' in updates ? (updates.side ?? null) : previous[1],
@@ -155,13 +168,7 @@ export function useTabLayout({
     const current = now.panes
       ? [primaryPane(now.panes[0] ?? emptyPane()), ...now.panes.slice(1)]
       : panes;
-    const active = actives.map((key, index) =>
-      index === focused &&
-      now.active !== undefined &&
-      current[index]?.tabs.includes(now.active)
-        ? now.active
-        : key,
-    );
+    const active = now.actives ?? actives;
     const { next, after } = change(current, active);
     if (next.length > 1 && (next[1]?.tabs.length ?? 0) === 0) {
       save([next[0] ?? emptyPane()]);
@@ -490,11 +497,13 @@ const rememberTabActivation = Atom.family(
   ({
     worktreeId,
     panes,
+    actives,
     active,
     ready,
   }: {
     worktreeId: string;
     panes: readonly Pane[];
+    actives: readonly [string | null, string | null];
     active: string | null;
     ready: boolean;
   }) =>
@@ -502,13 +511,15 @@ const rememberTabActivation = Atom.family(
       if (!ready) return;
       const atom = tabActivationState(worktreeId);
       const current = get.once(atom);
-      const next = recentTabEntries(current, panes, active);
+      const recent = recentTabEntries(current.recent, panes, active);
       if (
-        current.length === next.length &&
-        current.every((key, index) => key === next[index])
+        current.actives?.[0] === actives[0] &&
+        current.actives[1] === actives[1] &&
+        current.recent.length === recent.length &&
+        current.recent.every((key, index) => key === recent[index])
       )
         return;
-      get.set(atom, next);
+      get.set(atom, { recent, actives });
     }),
 );
 

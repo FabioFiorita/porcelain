@@ -69,7 +69,10 @@ const tabs = Atom.family((worktreeId: string) =>
   }),
 );
 export const tabActivationState = Atom.family((_worktreeId: string) =>
-  Atom.make<readonly string[]>([]).pipe(Atom.keepAlive),
+  Atom.make<{
+    recent: readonly string[];
+    actives: readonly [string | null, string | null] | null;
+  }>({ recent: [], actives: null }).pipe(Atom.keepAlive),
 );
 const folds = Atom.family((key: string) =>
   Atom.kvs({
@@ -85,6 +88,7 @@ export function useTabLayoutStore(worktreeId: string) {
   const { panes, saved, focused } = useAtomValue(atom);
   const set = useAtomSet(atom);
   const registry = useAtomValue(atomRegistry);
+  const activation = tabActivationState(worktreeId);
   return {
     panes,
     saved,
@@ -98,8 +102,11 @@ export function useTabLayoutStore(worktreeId: string) {
       set((current) => ({ ...current, panes, saved: true })),
     latest: () => ({
       panes: registry.get(atom).panes,
-      active: registry.get(tabActivationState(worktreeId))[0],
+      actives: registry.get(activation).actives,
     }),
+    saveActives: (actives: readonly [string | null, string | null]) => {
+      registry.set(activation, { ...registry.get(activation), actives });
+    },
   };
 }
 export function useCodeFolds(worktreeId: string, entry: string) {
