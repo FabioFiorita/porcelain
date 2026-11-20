@@ -30,6 +30,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import { ConnectionHistory } from './connection-history';
 import { WaysIn } from './ways-in';
 import { RemoteServiceUpdate } from './service-update';
 
@@ -139,6 +140,7 @@ function RemoteDetails({
                       </div>
                     )}
                   </dl>
+                  <ConnectionHistory environmentId={remote.environmentId} />
                 </CollapsibleContent>
               </Collapsible>
             </ItemContent>

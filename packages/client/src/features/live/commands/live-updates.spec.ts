@@ -20,6 +20,7 @@ import { TestClock } from 'effect/testing';
 import { LiveUpdatesRpc, type LiveNotice } from '@porcelain/contracts/access';
 import { RequestError } from '@porcelain/client/transport';
 import type { LiveSubscription } from '../ports/live-update.ts';
+import type { LiveDiagnostic } from '../rules/diagnostics.ts';
 import { createLiveUpdates } from './live-updates.ts';
 
 const socketPort = (sendReady = true) =>
@@ -133,12 +134,12 @@ const socketPort = (sendReady = true) =>
       silence: () => {
         silent = true;
       },
-      disconnect: (code: number) =>
+      disconnect: (code: number, closeReason?: string) =>
         Queue.failCauseUnsafe(
           frames,
           Cause.fail(
             new Socket.SocketError({
-              reason: new Socket.SocketCloseError({ code }),
+              reason: new Socket.SocketCloseError({ code, closeReason }),
             }),
           ),
         ),
@@ -651,6 +652,7 @@ const observedSession = Effect.fn(function* (initialReady: boolean = true) {
     Clock.Clock,
     activityClock,
   );
+  const diagnostics: LiveDiagnostic[] = [];
   let refreshes = 0;
   let attempts = 0;
   const port = createLiveUpdates(
@@ -663,7 +665,7 @@ const observedSession = Effect.fn(function* (initialReady: boolean = true) {
       );
     }),
     context,
-    { activity: activity.port },
+    { activity: activity.port, diagnostic: (event) => diagnostics.push(event) },
   );
   yield* port
     .connect({
@@ -685,6 +687,7 @@ const observedSession = Effect.fn(function* (initialReady: boolean = true) {
     activity,
     ready,
     refreshed,
+    diagnostics,
     port,
     refreshes: () => refreshes,
     attempts: () => attempts,
@@ -777,6 +780,44 @@ it.effect(
     }),
 );
 
+it.effect('records a silent connected socket as a liveness timeout', () =>
+  Effect.gen(function* () {
+    const subject = yield* connectedSession;
+    subject.first.silence();
+    yield* TestClock.adjust(10000);
+    yield* Queue.take(subject.first.closed);
+    yield* TestClock.adjust(500);
+    yield* Queue.take(subject.ready);
+    expect(subject.diagnostics.map(({ event }) => event)).toEqual([
+      'Connection attempt',
+      'Server ready',
+      'Connected',
+      'Liveness timeout',
+      'Retry scheduled',
+      'Connection attempt',
+      'Server ready',
+      'Refreshed in place',
+      'Connected',
+    ]);
+  }),
+);
+
+it.effect('records the close code and excludes untrusted close reasons', () =>
+  Effect.gen(function* () {
+    const subject = yield* connectedSession;
+    subject.first.disconnect(1012, 'wss://example.test/api/live?ticket=secret');
+    yield* TestClock.adjust(500);
+    yield* Queue.take(subject.ready);
+    expect(subject.diagnostics).toContainEqual({
+      at: 0,
+      event: 'Socket closed',
+      code: 1012,
+      reason: 'Reason withheld',
+    });
+    expect(JSON.stringify(subject.diagnostics)).not.toContain('secret');
+  }),
+);
+
 it.effect(
   'replaces a silently dead session after the foreground round trip fails',
   () =>
@@ -808,6 +849,10 @@ it.effect('bounds an RPC session that never becomes ready', () =>
     yield* TestClock.adjust(500);
     yield* Queue.take(subject.ready);
     expect(subject.attempts()).toBe(2);
+    expect(subject.diagnostics).toContainEqual({
+      at: 10000,
+      event: 'Ready timeout',
+    });
     expect(subject.port.state.value).toBe('connected');
     yield* Scope.close(subject.scope, Exit.void);
   }),

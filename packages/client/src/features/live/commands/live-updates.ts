@@ -1,3 +1,4 @@
+import type { LiveDiagnostic } from '../rules/diagnostics.ts';
 import { liveSessionState } from '../store.ts';
 import {
   Cause,
@@ -30,24 +31,70 @@ import {
   LIVE_SUBSCRIPTION_BUFFER,
 } from '../../../config/limits.ts';
 
+function socketReason(error: unknown) {
+  return error instanceof RpcClientError.RpcClientError ||
+    Socket.isSocketError(error)
+    ? error.reason
+    : undefined;
+}
+
 function unauthorized(error: unknown) {
   if (error instanceof RequestError) return error.status === 401;
-  if (
-    error instanceof RpcClientError.RpcClientError ||
-    Socket.isSocketError(error)
-  )
-    return (
-      error.reason._tag === 'SocketCloseError' &&
-      error.reason.code === LIVE_ACCESS_REVOKED_CLOSE_CODE
-    );
-  return false;
+  const reason = socketReason(error);
+  return (
+    reason?._tag === 'SocketCloseError' &&
+    reason.code === LIVE_ACCESS_REVOKED_CLOSE_CODE
+  );
 }
+
+type TimeoutEvent =
+  | 'Connection setup timeout'
+  | 'Ready timeout'
+  | 'Follow timeout';
+
+function disconnectDiagnostic(
+  error: unknown,
+  deadline: TimeoutEvent,
+  silent: boolean,
+): Omit<LiveDiagnostic, 'at'> {
+  if (Cause.isTimeoutError(error)) return { event: deadline };
+  const reason = socketReason(error);
+  if (reason?._tag === 'SocketCloseError') {
+    const { code, closeReason } = reason;
+    return {
+      event: 'Socket closed',
+      code,
+      ...(closeReason
+        ? {
+            reason:
+              code === LIVE_ACCESS_REVOKED_CLOSE_CODE &&
+              closeReason === 'Device access revoked'
+                ? 'Device access revoked'
+                : 'Reason withheld',
+          }
+        : {}),
+    };
+  }
+  if (silent) return { event: 'Liveness timeout' };
+  if (reason?._tag === 'SocketOpenError' && reason.kind === 'Timeout')
+    return { event: 'Connection setup timeout' };
+  if (reason) return { event: 'Socket error' };
+  return {
+    event: unauthorized(error) ? 'Access refused' : 'Connection setup failed',
+  };
+}
+
+const activityEvents = {
+  suspend: 'Suspended',
+  resume: 'Resumed',
+} as const;
 
 export function createLiveUpdates<E>(
   open: Effect.Effect<Socket.Socket, E, Scope.Scope>,
   context: Context.Context<never> = Context.empty(),
   options?: {
     readonly activity?: StatusActivity;
+    readonly diagnostic?: (event: LiveDiagnostic) => void;
     readonly recoverUnauthorized?: () => Effect.Effect<boolean>;
   },
 ): LiveUpdatePort {
@@ -64,6 +111,15 @@ export function createLiveUpdates<E>(
         worktrees: [],
       });
       const clock = yield* Clock.Clock;
+      const record = (entry: Omit<LiveDiagnostic, 'at'>) =>
+        options?.diagnostic?.({
+          ...entry,
+          at: clock.currentTimeMillisUnsafe(),
+        });
+      const refreshInPlace = () => {
+        record({ event: 'Refreshed in place' });
+        onReconnect();
+      };
       const wakeups = yield* Queue.sliding<void>(1);
       let refreshOnForeground = false;
       const foreground = Queue.take(wakeups);
@@ -75,6 +131,7 @@ export function createLiveUpdates<E>(
         yield* Effect.acquireRelease(
           Effect.sync(() =>
             activity.subscribe((event) => {
+              if (event) record({ event: activityEvents[event] });
               if (event) suspended = event === 'suspend';
               const active = !suspended && activity.isActive();
               const now = clock.monotonicTimeNanosUnsafe();
@@ -96,10 +153,16 @@ export function createLiveUpdates<E>(
       const updates = yield* Queue.sliding<void>(LIVE_SUBSCRIPTION_BUFFER);
       let readyCount = 0;
       let retryMs = LIVE_RECONNECT_FIRST_MS;
+      let deadline: TimeoutEvent = 'Connection setup timeout';
+      let silent = false;
       const connection = Effect.scoped(
         Effect.gen(function* () {
           state.set(readyCount === 0 ? 'connecting' : 'reconnecting');
+          deadline = 'Connection setup timeout';
+          silent = false;
+          record({ event: 'Connection attempt' });
           const socket = yield* open;
+          deadline = 'Ready timeout';
           const ready = yield* Deferred.make<void>();
           const announced = yield* Deferred.make<void>();
           const disconnected = yield* Deferred.make<
@@ -107,6 +170,9 @@ export function createLiveUpdates<E>(
             Socket.SocketError
           >();
           const protocol = yield* RpcClient.makeProtocolSocket({
+            onPingTimeout: Effect.sync(() => {
+              silent = true;
+            }),
             retryPolicy: Schedule.forever.pipe(
               Schedule.setInputType<Socket.SocketError>(),
               Schedule.tap(({ input }) => Deferred.fail(disconnected, input)),
@@ -139,8 +205,11 @@ export function createLiveUpdates<E>(
           );
           const establish = Effect.gen(function* () {
             yield* Deferred.await(announced);
+            deadline = 'Follow timeout';
+            record({ event: 'Server ready' });
             yield* follow;
-            if (readyCount > 0) onReconnect();
+            if (readyCount > 0) refreshInPlace();
+            record({ event: 'Connected' });
             readyCount += 1;
             retryMs = LIVE_RECONNECT_FIRST_MS;
             state.set('connected');
@@ -164,7 +233,7 @@ export function createLiveUpdates<E>(
               refreshOnForeground = false;
               yield* follow.pipe(Effect.timeout(LIVE_PROBE_TIMEOUT_MS));
               if (refresh) {
-                onReconnect();
+                refreshInPlace();
                 onNotice({ type: 'ready' });
               }
             }),
@@ -184,10 +253,12 @@ export function createLiveUpdates<E>(
           );
           while (true) {
             const result = yield* Effect.exit(connection);
-            if (
-              Exit.isFailure(result) &&
-              unauthorized(Cause.squash(result.cause))
-            ) {
+            const error = Exit.isFailure(result)
+              ? Cause.squash(result.cause)
+              : undefined;
+            if (Exit.isFailure(result))
+              record(disconnectDiagnostic(error, deadline, silent));
+            if (unauthorized(error)) {
               if (
                 !(yield* (
                   options?.recoverUnauthorized?.() ?? Effect.succeed(false)
@@ -199,6 +270,7 @@ export function createLiveUpdates<E>(
               }
             }
             state.set(readyCount === 0 ? 'connecting' : 'reconnecting');
+            record({ event: 'Retry scheduled', retryMs });
             yield* Effect.sleep(retryMs).pipe(Effect.raceFirst(foreground));
             retryMs = Math.min(
               retryMs * LIVE_RECONNECT_BACKOFF,

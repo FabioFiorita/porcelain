@@ -6,3 +6,7 @@ export {
   openLiveConnection,
   openRemoteConnection,
 } from './commands/live-connection.ts';
+export {
+  liveDiagnosticSchema,
+  type LiveDiagnostic,
+} from './rules/diagnostics.ts';
