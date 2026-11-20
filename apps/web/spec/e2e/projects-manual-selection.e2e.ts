@@ -39,6 +39,12 @@ test('only the repository selected by browsing is registered', async ({
     .getByRole('button', { name: 'Open selected', exact: true })
     .click();
   await expect(dialog).not.toBeAttached();
+  await expect(
+    pairedPage.getByRole('dialog', { name: 'Sidebar', exact: true }),
+  ).not.toBeAttached();
+  await pairedPage
+    .getByRole('button', { name: 'Toggle Sidebar', exact: true })
+    .click();
 
   await expect(
     pairedPage.getByRole('button', {
