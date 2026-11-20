@@ -131,7 +131,11 @@ export function WorktreeNavigator({
   });
   if (storage.status === 'ready' && paired.length === 0)
     return (
-      <Box className="flex-1" testID="worktree-navigator">
+      <ScrollView
+        className="flex-1"
+        testID="worktree-navigator"
+        contentInsetAdjustmentBehavior="automatic"
+      >
         <Box paddingX={4} paddingY={3} gap={2}>
           <Text variant="secondary" tone="muted">
             No computers paired
@@ -145,7 +149,7 @@ export function WorktreeNavigator({
           </Box>
           <DemoControls />
         </Box>
-      </Box>
+      </ScrollView>
     );
   return (
     <Box className="flex-1" testID="worktree-navigator" collapsable={false}>
