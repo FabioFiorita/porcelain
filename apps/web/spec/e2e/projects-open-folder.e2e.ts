@@ -37,6 +37,12 @@ test('browsing to a Git repository opens it as a project in the navigator and th
     .click();
 
   await expect(dialog).not.toBeAttached();
+  await expect(
+    pairedPage.getByRole('dialog', { name: 'Sidebar', exact: true }),
+  ).not.toBeAttached();
+  await pairedPage
+    .getByRole('button', { name: 'Toggle Sidebar', exact: true })
+    .click();
 
   await expect(
     pairedPage.getByRole('button', {

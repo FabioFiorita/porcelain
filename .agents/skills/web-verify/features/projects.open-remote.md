@@ -70,7 +70,7 @@ Required instance mode: `--desktop`.
 4. Click button `elsewhere`
    Expect: text "Every worktree appears in the sidebar."; button "Open elsewhere" enabled.
 5. Click button `Open elsewhere`
-   Expect: the dialog is gone; URL `/remotes/<remote environmentId>/<projectId>/<worktreeId>`; title "Review — elsewhere · Remote journey computer"; in the sheet, group "Remote journey computer" holds project button "elsewhere" and group "This computer" does not.
+   Expect: the dialog is gone; URL `/remotes/<remote environmentId>/<projectId>/<worktreeId>`; title "Review — elsewhere · Remote journey computer"; at phone width the sidebar sheet has closed on the new review. Click `Toggle Sidebar`: group "Remote journey computer" holds project button "elsewhere" and group "This computer" does not.
 6. Inspect HTTP traffic
    Expect: `POST /api/projects` sent to the remote's address (`127.0.0.1:<remote port>`) with status 200; none to this computer's web address.
 

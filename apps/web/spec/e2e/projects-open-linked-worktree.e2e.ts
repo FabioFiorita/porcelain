@@ -71,6 +71,12 @@ test('opening a repository with a linked worktree from the empty workspace after
     })
     .click();
   await expect(dialog).not.toBeAttached();
+  await expect(
+    opened.getByRole('dialog', { name: 'Sidebar', exact: true }),
+  ).not.toBeAttached();
+  await opened
+    .getByRole('button', { name: 'Toggle Sidebar', exact: true })
+    .click();
 
   const reopened = async () =>
     (await server.inventory()).projects.find((project) =>
