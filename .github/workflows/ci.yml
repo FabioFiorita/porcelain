@@ -20,6 +20,8 @@ jobs:
       server: ${{ steps.affected.outputs.server }}
       web-integration: ${{ steps.affected.outputs.web-integration }}
       web-e2e: ${{ steps.affected.outputs.web-e2e }}
+      web-e2e-shards: ${{ steps.affected.outputs.web-e2e-shards }}
+      web-e2e-spec: ${{ steps.affected.outputs.web-e2e-spec }}
       desktop: ${{ steps.affected.outputs.desktop }}
       storage: ${{ steps.affected.outputs.storage }}
       package: ${{ steps.affected.outputs.package }}
@@ -27,6 +29,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
+          filter: blob:none
       - uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3
         with:
           runtime: node@26.13.0
@@ -36,6 +39,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Find affected runtime checks
         id: affected
+        env:
+          OWNER_PULL_REQUEST: ${{ github.event_name == 'pull_request' && github.base_ref == 'main' && github.event.pull_request.user.login == github.event.repository.owner.login && github.event.pull_request.head.repo.full_name == github.repository }}
         run: |
           pnpm exec turbo run test:integration test:e2e build build:package db:check --affected --dry=json > "$RUNNER_TEMP/runtime.json"
           jq -e '.tasks | type == "array"' "$RUNNER_TEMP/runtime.json" > /dev/null
@@ -45,6 +50,16 @@ jobs:
           desktop=$(jq 'any(.tasks[]; .taskId == "@porcelain/desktop#test:e2e")' "$RUNNER_TEMP/runtime.json")
           storage=$(jq 'any(.tasks[]; .taskId == "@porcelain/storage#db:check")' "$RUNNER_TEMP/runtime.json")
           package=$(jq 'any(.tasks[]; .taskId == "//#build:package")' "$RUNNER_TEMP/runtime.json")
+          web_e2e_spec=
+          web_e2e_shards='[1,2,3,4]'
+          if [[ "$OWNER_PULL_REQUEST" == true ]]; then
+            web_e2e_spec=$(node ci/routine-web-spec.ts)
+            if [[ -n "$web_e2e_spec" ]]; then
+              web_e2e=true
+              web_e2e_shards='[1]'
+            fi
+          fi
+          printf 'web-e2e-spec=%s\nweb-e2e-shards=%s\n' "$web_e2e_spec" "$web_e2e_shards" >> "$GITHUB_OUTPUT"
           for surface in server web_integration web_e2e desktop storage package; do
             case "${!surface}" in
               true|false) printf '%s=%s\n' "${surface//_/-}" "${!surface}" >> "$GITHUB_OUTPUT" ;;
@@ -60,6 +75,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
+          filter: blob:none
       - uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3
         with:
           runtime: node@26.13.0
@@ -81,6 +97,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
+          filter: blob:none
       - uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3
         with:
           runtime: node@26.13.0
@@ -129,6 +146,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
+          filter: blob:none
       - uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3
         with:
           runtime: node@26.13.0
@@ -157,6 +175,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
+          filter: blob:none
       - uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3
         with:
           runtime: node@26.13.0
@@ -185,11 +204,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: ${{ fromJSON(needs.affected.outputs.web-e2e-shards || '[1,2,3,4]') }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
+          filter: blob:none
       - uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3
         with:
           runtime: node@26.13.0
@@ -203,7 +223,21 @@ jobs:
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
       - run: bwrap --ro-bind / / --dev /dev --proc /proc --unshare-pid --unshare-ipc --unshare-net --new-session --die-with-parent -- true
       - run: pnpm exec playwright install --only-shell chromium
-      - run: pnpm --filter @porcelain/web test:e2e --shard=${{ matrix.shard }}/4
+      - name: Run browser journeys
+        env:
+          ROUTINE_WEB_SPEC: ${{ needs.affected.outputs.web-e2e-spec }}
+          SHARD: ${{ matrix.shard }}
+        run: |
+          if [[ -z "$ROUTINE_WEB_SPEC" ]]; then
+            pnpm --filter @porcelain/web test:e2e --shard="$SHARD/4"
+          else
+            smoke=spec/e2e/access-pairing.e2e.ts
+            if [[ "$ROUTINE_WEB_SPEC" == "$smoke" ]]; then
+              smoke=spec/e2e/app-routing.e2e.ts
+            fi
+            pnpm --filter @porcelain/web test:e2e "$ROUTINE_WEB_SPEC" --workers=1
+            pnpm --filter @porcelain/web test:e2e "$smoke" --workers=1
+          fi
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: failure()
         with:
@@ -219,6 +253,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
+          filter: blob:none
       - uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3
         with:
           runtime: node@26.13.0

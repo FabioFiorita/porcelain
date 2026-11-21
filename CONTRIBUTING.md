@@ -6,7 +6,9 @@ Porcelain is built by one developer working with coding agents, and it moves qui
 
 ## How a pull request lands
 
-An automated loop reviews and lands pull requests into `main`. Once CI passes, an OpenAI model decides whether the change needs a review, an OpenAI agent reviews it when it does, and another model judges whether the change is easy to undo. A comment on your pull request shows each verdict, and findings are labelled `agent-fixes`: push fixes and the loop looks again. A pull request from someone without write access waits until the maintainer adds the `agent-review` label, and it always needs the maintainer's approval before it lands.
+Every pull request needs green `checks` and an `Agent verdict`. A same-repository PR from the owner that modifies one existing browser E2E spec runs that spec and an independent smoke test before merge. Its verdict comes from the review policy unless a review is requested or already in progress. CI runs the affected browser suite on the resulting main commit.
+
+For other changes, an OpenAI model checks whether the patch needs a review, an agent reviews it when needed, and a second model assesses whether owner approval is needed. A comment shows the verdict and `agent-fixes` marks findings to address. Pull requests from contributors without write access need the maintainer's review request and approval. Protected changes and releases require an explicit owner decision.
 
 ## Architecture and decisions
 
@@ -52,12 +54,14 @@ pnpm build:package
 
 The output is generated in `dist-porcelain/`, including its package readme. Pack it with `npm pack ./dist-porcelain`, then install the printed tarball into a separate directory with `npm install --prefix <directory> <tarball>`. This installs the runtime dependencies; the CLI is `<directory>/node_modules/.bin/porcelain`. Start it with `serve` and pair a browser with `pair`, using the same absolute `--data-directory` for all commands.
 
-Check static rules and run a single named unit test, for example:
+During an edit, run the relevant test by name and use the affected static check for quick feedback from your worktree. For example, with an up-to-date `origin/main`:
 
 ```sh
-pnpm check:local
 pnpm test --project @porcelain/client packages/client/src/features/walkthroughs/rules/conversations.spec.ts
+TURBO_SCM_BASE=origin/main pnpm check:local --affected
 ```
+
+Run the full static check with `pnpm check:local` before handing off the change. The pre-push hook also runs it.
 
 Browser integration and E2E tests also need Playwright's pinned Chromium headless shell. Install it after installing or updating dependencies, then run a named file:
 

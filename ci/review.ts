@@ -33,6 +33,7 @@ import {
 import { decisionModel, dollars, reviewModel } from './openai.ts';
 import { judgeReview } from './review-judgment.ts';
 import { readReviewPatch } from './review-patch.ts';
+import { routineWebSpec } from './routine-web-spec.ts';
 
 const reviewDeadlineMs = 15 * 60 * 1000;
 const statusContext = 'Agent verdict';
@@ -48,12 +49,15 @@ const PullRequestView = Schema.Struct({
   baseRefName: Schema.String,
   baseRefOid: Schema.String,
   headRefOid: Schema.String,
+  author: Schema.NullOr(Schema.Struct({ login: Schema.String })),
+  isCrossRepository: Schema.Boolean,
   labels: Schema.Array(Schema.Struct({ name: Schema.String })),
 });
 type PullRequestView = typeof PullRequestView.Type;
 
 const ChangedFile = Schema.Struct({
   filename: Schema.String,
+  status: Schema.String,
   previous_filename: Schema.optional(Schema.String),
   additions: Schema.Int,
   deletions: Schema.Int,
@@ -246,7 +250,7 @@ function readView(repository: string, number: number): PullRequestView {
       '--repo',
       repository,
       '--json',
-      'number,title,body,state,isDraft,baseRefName,baseRefOid,headRefOid,labels',
+      'number,title,body,state,isDraft,baseRefName,baseRefOid,headRefOid,author,isCrossRepository,labels',
     ]),
   );
 }
@@ -387,11 +391,21 @@ report(
 
 let outcome = 'stopped before a verdict';
 try {
-  const client = new OpenAI({ apiKey: required('OPENAI_API_KEY') });
+  let reviewClient: OpenAI | undefined;
+  const client = () =>
+    (reviewClient ??= new OpenAI({ apiKey: required('OPENAI_API_KEY') }));
   const changed = pages(
     Schema.Array(ChangedFile),
     `repos/${repository}/pulls/${number}/files`,
   ).flat();
+  const owner = repository.split('/')[0]?.toLowerCase();
+  const routine =
+    trusted &&
+    !view.isCrossRepository &&
+    owner === view.author?.login.toLowerCase() &&
+    !current.has(labels.fixes)
+      ? routineWebSpec(changed)
+      : undefined;
   const evidence = `Pull request title: ${view.title}\n\nDescription:\n${view.body}\n\nChanged files:\n${changed
     .map((file) => `${file.filename} (+${file.additions}/-${file.deletions})`)
     .join('\n')}`;
@@ -399,14 +413,16 @@ try {
   const { triage, review, ownerApprovalProbability } = await judgeReview(
     {
       evidence,
-      patch: readReviewPatch(
-        {
-          remote: `https://github.com/${repository}.git`,
-          baseSha: view.baseRefOid,
-          headSha: view.headRefOid,
-        },
-        () => gh(['pr', 'diff', String(number), '--repo', repository]),
-      ),
+      routineWebSpec: routine,
+      readPatch: () =>
+        readReviewPatch(
+          {
+            remote: `https://github.com/${repository}.git`,
+            baseSha: view.baseRefOid,
+            headSha: view.headRefOid,
+          },
+          () => gh(['pr', 'diff', String(number), '--repo', repository]),
+        ),
       requested: current.has(labels.review),
       markedReviewedHead,
       previous,
@@ -415,7 +431,7 @@ try {
     {
       decide: (question) =>
         ask(
-          client,
+          client(),
           question.stage,
           question.evidence,
           question.name,
@@ -423,7 +439,7 @@ try {
         ),
       review: () =>
         runReview(
-          client,
+          client(),
           repository,
           view,
           previous && isAncestor(repository, previous.sha, view.headRefOid)
@@ -460,9 +476,9 @@ try {
         : [file.filename],
     ),
   };
-  const judge = (now: ReadonlySet<string>) => {
+  const judge = (body: string, now: ReadonlySet<string>) => {
     const assessment = assess(
-      pullRequest,
+      { ...pullRequest, body },
       review,
       ownerApprovalProbability,
       now,
@@ -480,18 +496,29 @@ try {
     latest.headRefOid === view.headRefOid &&
     latest.baseRefName === landingBranch &&
     latest.state === 'OPEN' &&
+    !latest.isDraft &&
+    (triage.source !== 'routine-web-spec' ||
+      !latest.labels.some(
+        (label) => label.name === labels.review || label.name === labels.fixes,
+      )) &&
     (markedReviewedHead === undefined ||
       latest.labels.some((label) => label.name === labels.reviewed));
   const before = readView(repository, number);
   const first = unchanged(before)
-    ? judge(new Set(before.labels.map((label) => label.name)))
+    ? judge(before.body, new Set(before.labels.map((label) => label.name)))
     : undefined;
   if (first) {
     upsertComment(
       repository,
       number,
       reviewCommentMarker,
-      reviewComment(pullRequest, triage, review, first.assessment, state),
+      reviewComment(
+        { ...pullRequest, body: before.body },
+        triage,
+        review,
+        first.assessment,
+        state,
+      ),
     );
     changeLabels(repository, number, first.step.add, first.step.remove);
   }
@@ -499,6 +526,7 @@ try {
   const settled =
     first && unchanged(latest)
       ? judge(
+          latest.body,
           new Set([
             ...latest.labels.map((label) => label.name),
             ...first.step.add,

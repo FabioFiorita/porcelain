@@ -39,7 +39,7 @@ function scenario(
   };
   const input = {
     evidence: 'Description: Door: two-way. No new dependency.',
-    patch: options.patch ?? patch,
+    readPatch: () => options.patch ?? patch,
     requested: options.requested ?? false,
     markedReviewedHead: options.markedReviewedHead,
     previous: options.previous,
@@ -78,6 +78,44 @@ function outcome(result: Awaited<ReturnType<typeof judgeReview>>) {
 }
 
 describe('review judgment', () => {
+  it('reports an owner’s single browser spec without requiring model access or the patch', async () => {
+    const run = scenario();
+    const result = await judgeReview(
+      {
+        ...run.input,
+        routineWebSpec: 'spec/e2e/projects-manual-selection.e2e.ts',
+        readPatch: () => {
+          throw new Error('Routine judgment read the patch');
+        },
+      },
+      run.host,
+    );
+    expect(run.timeline).toEqual([
+      'Routine browser spec: spec/e2e/projects-manual-selection.e2e.ts',
+    ]);
+    expect(outcome(result).step).toMatchObject({
+      status: 'success',
+      merge: true,
+    });
+    expect(outcome(result).comment).toContain('**Approval policy:**');
+  });
+
+  it.each([
+    { requested: true },
+    { previous: { sha: 'earlier', review: cleanReview } },
+  ])(
+    'keeps a requested or continued review on the full path %j',
+    async (options) => {
+      const run = scenario(options);
+      await judgeReview(
+        { ...run.input, routineWebSpec: 'spec/e2e/app-routing.e2e.ts' },
+        run.host,
+      );
+      expect(run.timeline).toContain('Review API');
+      expect(run.timeline).toContain('needs_owner_approval');
+    },
+  );
+
   it('shows each stage before its API operation and requires approval despite a two-way declaration', async () => {
     const run = scenario();
     const result = await judgeReview(run.input, run.host);
@@ -199,7 +237,7 @@ describe('review judgment', () => {
   it('stops before asking the models when the patch cannot be read', async () => {
     const run = scenario();
     await expect(
-      judgeReview({ ...run.input, patch: undefined }, run.host),
+      judgeReview({ ...run.input, readPatch: () => undefined }, run.host),
     ).rejects.toThrow(
       'The patch could not be read; Doorkeeper needs it to assess owner approval',
     );

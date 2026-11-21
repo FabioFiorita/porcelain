@@ -610,26 +610,49 @@ export async function runGuardrailCases(named = []) {
         entry.unitCommand,
         'CI runs unit projects through affected task selection',
       );
-      for (const [name, shards, command] of [
-        [
-          'web-integration',
-          entry.webIntegrationShards,
-          entry.webIntegrationCommand,
-        ],
-        ['web-e2e', entry.webE2eShards, entry.webE2eCommand],
-      ]) {
+      const integration = workflow.jobs['web-integration'];
+      deepStrictEqual(
+        integration.strategy.matrix.shard,
+        entry.webIntegrationShards,
+      );
+      strictEqual(
+        integration.steps.find((step) => step.run?.includes('--shard='))?.run,
+        entry.webIntegrationCommand,
+      );
+      const browser = workflow.jobs['web-e2e'];
+      strictEqual(browser.strategy.matrix.shard, entry.webE2eShardPlan);
+      const runBrowser = browser.steps.find(
+        (step) => step.name === 'Run browser journeys',
+      );
+      for (const fixture of entry.webE2eCases) {
+        const shell = `pnpm() {
+  [[ "$1 $2 $3" == "--filter @porcelain/web test:e2e" ]] || return 2
+  shift 3
+  printf '%s\\n' "$*"
+  [[ "$1" != "$REJECT" ]]
+}
+${runBrowser.run}`;
+        const result = spawnSync(
+          'bash',
+          ['-e', '-o', 'pipefail', '-c', shell],
+          {
+            encoding: 'utf8',
+            env: {
+              ...process.env,
+              SHARD: fixture.shard,
+              ROUTINE_WEB_SPEC: fixture.spec,
+              REJECT: fixture.reject ?? '',
+            },
+          },
+        );
+        if (result.error) throw result.error;
+        strictEqual(result.status, fixture.status, fixture.name);
         deepStrictEqual(
-          workflow.jobs[name].strategy.matrix.shard,
-          shards,
-          name,
+          result.stdout.trim().split('\n'),
+          fixture.commands,
+          fixture.name,
         );
-        strictEqual(
-          workflow.jobs[name].steps.find((step) =>
-            step.run?.includes('--shard='),
-          )?.run,
-          command,
-          name,
-        );
+        process.stdout.write(`PASS ci-required-checks: ${fixture.name}\n`);
       }
       const gate = workflow.jobs.checks;
       deepStrictEqual(
