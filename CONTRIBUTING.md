@@ -52,12 +52,14 @@ pnpm build:package
 
 The output is generated in `dist-porcelain/`, including its package readme. Pack it with `npm pack ./dist-porcelain`, then install the printed tarball into a separate directory with `npm install --prefix <directory> <tarball>`. This installs the runtime dependencies; the CLI is `<directory>/node_modules/.bin/porcelain`. Start it with `serve` and pair a browser with `pair`, using the same absolute `--data-directory` for all commands.
 
-Check static rules and run a single named unit test, for example:
+During an edit, run the relevant test by name and use the affected static check for quick feedback from your worktree. For example, with an up-to-date `origin/main`:
 
 ```sh
-pnpm check:local
 pnpm test --project @porcelain/client packages/client/src/features/walkthroughs/rules/conversations.spec.ts
+TURBO_SCM_BASE=origin/main pnpm check:local --affected
 ```
+
+Run the full static check with `pnpm check:local` before handing off the change. The pre-push hook also runs it.
 
 Browser integration and E2E tests also need Playwright's pinned Chromium headless shell. Install it after installing or updating dependencies, then run a named file:
 
