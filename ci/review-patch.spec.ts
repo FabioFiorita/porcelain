@@ -64,7 +64,7 @@ describe('review patch', () => {
       const result = await judgeReview(
         {
           evidence: 'Approved retry of a reviewed change.',
-          patch,
+          readPatch: () => patch,
           requested: true,
           previous: { sha: headSha, review: cleanReview },
           headSha,

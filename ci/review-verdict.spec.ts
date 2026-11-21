@@ -44,7 +44,7 @@ const owner = { approved: false, trusted: true };
 function step(
   paths: readonly string[],
   findings: readonly ReviewFinding[] | undefined,
-  ownerApproval: number,
+  ownerApproval: number | undefined,
   labels: ReadonlySet<string> = none,
   body?: string,
   access = { approved: labels.has('approved'), trusted: true },
@@ -58,6 +58,35 @@ function step(
 }
 
 describe('nextStep', () => {
+  it.each([
+    { label: 'decision', body: 'Door: two-way' },
+    { label: 'agent-review', body: 'Door: one-way' },
+  ])(
+    'requires the exact-head owner approval for a declared or labelled decision without model input %j',
+    ({ label, body }) => {
+      expect(
+        step(
+          ['apps/web/spec/e2e/app-routing.e2e.ts'],
+          undefined,
+          undefined,
+          new Set([label]),
+          body,
+        ),
+      ).toMatchObject({ status: 'failure', merge: false });
+    },
+  );
+
+  it('honors a hold without calling for owner approval on a routine spec', () => {
+    expect(
+      step(
+        ['apps/web/spec/e2e/app-routing.e2e.ts'],
+        undefined,
+        undefined,
+        new Set(['hold']),
+      ),
+    ).toMatchObject({ status: 'success', merge: false });
+  });
+
   it('merges a reviewed two-way change with only minor notes', () => {
     expect(step(product, [finding(3)], 0.01)).toEqual({
       verdict: 'ready',
@@ -88,13 +117,20 @@ describe('nextStep', () => {
     ).toMatchObject({ add: [], remove: ['agent-fixes'], merge: true });
   });
 
-  it('waits for the owner on workflow changes even when Doorkeeper calls them two-way', () => {
-    expect(step(['.github/workflows/ci.yml'], undefined, 0.01)).toMatchObject({
-      verdict: 'needs-owner',
-      add: ['decision'],
-      merge: false,
-    });
-  });
+  it.each([
+    '.github/workflows/ci.yml',
+    'turbo.json',
+    '.agents/skills/release/SKILL.md',
+  ])(
+    'waits for the owner on a workflow or release policy change to %s',
+    (path) => {
+      expect(step([path], undefined, 0.01)).toMatchObject({
+        verdict: 'needs-owner',
+        add: ['decision'],
+        merge: false,
+      });
+    },
+  );
 
   it('treats an agent instruction file in any folder as the owner’s call', () => {
     expect(step(['apps/web/AGENTS.md'], undefined, 0.01).verdict).toBe(

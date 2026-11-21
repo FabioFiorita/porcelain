@@ -27,6 +27,7 @@ export type PullRequest = {
 };
 
 export type Triage =
+  | { source: 'routine-web-spec' }
   | { source: 'marked-reviewed' }
   | { source: 'requested' }
   | { source: 'continued' }
@@ -37,7 +38,7 @@ export type Assessment = {
   fixes: readonly ReviewFinding[];
   notes: readonly ReviewFinding[];
   protectedPaths: readonly string[];
-  ownerApprovalProbability: number;
+  ownerApprovalProbability: number | undefined;
   declaredDoor: 'two-way' | 'one-way' | undefined;
   markedDecision: boolean;
   approved: boolean;
@@ -78,6 +79,7 @@ const protectedFiles = new Set([
   'package.json',
   'pnpm-lock.yaml',
   'pnpm-workspace.yaml',
+  'turbo.json',
   '.oxlintrc.json',
   '.oxfmtrc.json',
   'scripts/architecture.ts',
@@ -85,6 +87,7 @@ const protectedFiles = new Set([
 ]);
 const protectedFolders = [
   '.github/',
+  '.agents/skills/release/',
   'architecture/',
   'ci/',
   'packages/contracts/',
@@ -95,7 +98,11 @@ const ownerApprovalThreshold = 0.5;
 const reviewThreshold = 0.5;
 
 export function needsReview(triage: Triage): boolean {
-  if (triage.source === 'marked-reviewed') return false;
+  if (
+    triage.source === 'marked-reviewed' ||
+    triage.source === 'routine-web-spec'
+  )
+    return false;
   return (
     triage.source !== 'decision' ||
     triage.reviewProbability === undefined ||
@@ -128,7 +135,7 @@ export function approvalHolds(
 export function assess(
   pullRequest: PullRequest,
   review: Review | undefined,
-  ownerApprovalProbability: number,
+  ownerApprovalProbability: number | undefined,
   current: ReadonlySet<string>,
   access: { approved: boolean; trusted: boolean },
 ): Assessment {
@@ -149,7 +156,7 @@ function verdict(assessment: Assessment): Verdict {
   if (assessment.fixes.length > 0) return 'needs-fixes';
   const ownerDecides =
     assessment.protectedPaths.length > 0 ||
-    assessment.ownerApprovalProbability >= ownerApprovalThreshold ||
+    modelRequiresApproval(assessment) ||
     assessment.declaredDoor === 'one-way' ||
     assessment.markedDecision ||
     !assessment.trusted;
@@ -252,8 +259,7 @@ function findingLine(pullRequest: PullRequest, finding: ReviewFinding): string {
 }
 
 function ownerReasons(assessment: Assessment): string[] {
-  const ownerApproval =
-    assessment.ownerApprovalProbability >= ownerApprovalThreshold;
+  const ownerApproval = modelRequiresApproval(assessment);
   return [
     ...(assessment.protectedPaths.length > 0
       ? [
@@ -281,6 +287,8 @@ function probability(value: number): string {
 }
 
 export function reviewReason(triage: Triage): string {
+  if (triage.source === 'routine-web-spec')
+    return 'one existing browser spec modified by the repository owner';
   if (triage.source === 'marked-reviewed')
     return 'skipped because this commit was marked reviewed';
   if (triage.source === 'requested')
@@ -299,11 +307,18 @@ export function reviewReason(triage: Triage): string {
 }
 
 function doorkeeperLine(assessment: Assessment): string {
-  const decision =
-    assessment.ownerApprovalProbability >= ownerApprovalThreshold
-      ? 'owner approval required'
-      : 'no owner approval required';
-  return `- **Doorkeeper:** ${decision} (${probability(assessment.ownerApprovalProbability)}).`;
+  const estimate = assessment.ownerApprovalProbability;
+  if (estimate === undefined)
+    return '- **Approval policy:** the declared door and decision label still apply.';
+  const decision = modelRequiresApproval(assessment)
+    ? 'owner approval required'
+    : 'no owner approval required';
+  return `- **Doorkeeper:** ${decision} (${probability(estimate)}).`;
+}
+
+function modelRequiresApproval(assessment: Assessment): boolean {
+  const estimate = assessment.ownerApprovalProbability;
+  return estimate !== undefined && estimate >= ownerApprovalThreshold;
 }
 
 export function reviewComment(
@@ -317,6 +332,7 @@ export function reviewComment(
   const findings = [...assessment.fixes, ...assessment.notes];
   const reviewer = review ? [`- **Reviewer:** ${review.summary}`] : [];
   const markedReviewed = triage.source === 'marked-reviewed';
+  const routine = triage.source === 'routine-web-spec';
   return [
     reviewCommentMarker,
     ...stateComment(state),
@@ -344,7 +360,7 @@ export function reviewComment(
           reasons.map((reason) => `- ${reason}`).join('\n'),
         ]
       : []),
-    ...(markedReviewed
+    ...(markedReviewed || routine
       ? []
       : [
           `<sub>Triage and Doorkeeper: \`${decisionModel}\` on the OpenAI Decisions API. Reviewer: \`${reviewModel}\` on the OpenAI Agents API.</sub>`,

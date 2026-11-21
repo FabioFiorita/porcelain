@@ -24,7 +24,8 @@ export type JudgmentHost = {
 export async function judgeReview(
   input: {
     evidence: string;
-    patch: string | undefined;
+    readPatch: () => string | undefined;
+    routineWebSpec?: string | undefined;
     requested: boolean;
     markedReviewedHead?: string | undefined;
     previous: ReviewedCommit | undefined;
@@ -34,9 +35,18 @@ export async function judgeReview(
 ): Promise<{
   triage: Triage;
   review: Review | undefined;
-  ownerApprovalProbability: number;
+  ownerApprovalProbability: number | undefined;
 }> {
-  const { patch, evidence, previous } = input;
+  const { evidence, previous } = input;
+  if (input.routineWebSpec && !input.requested && !previous) {
+    host.report(`Routine browser spec: ${input.routineWebSpec}`);
+    return {
+      triage: { source: 'routine-web-spec' },
+      review: undefined,
+      ownerApprovalProbability: undefined,
+    };
+  }
+  const patch = input.readPatch();
   if (patch === undefined)
     throw new Error(
       'The patch could not be read; Doorkeeper needs it to assess owner approval',
