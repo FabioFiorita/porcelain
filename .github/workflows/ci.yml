@@ -2,8 +2,13 @@ name: CI
 
 on:
   pull_request:
+    branches: [main, release]
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [main]
+
+env:
+  AFFECTED: ${{ github.base_ref != 'release' && '--affected' || '' }}
 
 permissions:
   contents: read
@@ -20,8 +25,9 @@ jobs:
       server: ${{ steps.affected.outputs.server }}
       web-integration: ${{ steps.affected.outputs.web-integration }}
       web-e2e: ${{ steps.affected.outputs.web-e2e }}
-      web-e2e-shards: ${{ steps.affected.outputs.web-e2e-shards }}
-      web-e2e-spec: ${{ steps.affected.outputs.web-e2e-spec }}
+      shards: ${{ steps.affected.outputs.shards }}
+      integration: ${{ steps.affected.outputs.integration }}
+      e2e: ${{ steps.affected.outputs.e2e }}
       desktop: ${{ steps.affected.outputs.desktop }}
       storage: ${{ steps.affected.outputs.storage }}
       package: ${{ steps.affected.outputs.package }}
@@ -33,40 +39,20 @@ jobs:
       - uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3
         with:
           runtime: node@26.13.0
-          cache: true
-          save-cache: false
+          cache: false
           require-lockfile: true
-      - run: pnpm install --frozen-lockfile
-      - name: Find affected runtime checks
+      - name: Select checks for this lane
         id: affected
         env:
-          OWNER_PULL_REQUEST: ${{ github.event_name == 'pull_request' && github.base_ref == 'main' && github.event.pull_request.user.login == github.event.repository.owner.login && github.event.pull_request.head.repo.full_name == github.repository }}
+          RELEASE_LANE: ${{ github.base_ref == 'release' }}
+          VALID_PROMOTION: ${{ github.head_ref == 'main' && github.event.pull_request.head.repo.full_name == github.repository }}
+          DIFF_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: |
-          pnpm exec turbo run test:integration test:e2e build build:package db:check --affected --dry=json > "$RUNNER_TEMP/runtime.json"
-          jq -e '.tasks | type == "array"' "$RUNNER_TEMP/runtime.json" > /dev/null
-          server=$(jq 'any(.tasks[]; .taskId == "@porcelain/server#test:integration" or .taskId == "@porcelain/client#test:integration" or .taskId == "@porcelain/verification#test:integration")' "$RUNNER_TEMP/runtime.json")
-          web_integration=$(jq 'any(.tasks[]; .taskId == "@porcelain/web#test:integration")' "$RUNNER_TEMP/runtime.json")
-          web_e2e=$(jq 'any(.tasks[]; .taskId == "@porcelain/web#test:e2e")' "$RUNNER_TEMP/runtime.json")
-          desktop=$(jq 'any(.tasks[]; .taskId == "@porcelain/desktop#test:e2e")' "$RUNNER_TEMP/runtime.json")
-          storage=$(jq 'any(.tasks[]; .taskId == "@porcelain/storage#db:check")' "$RUNNER_TEMP/runtime.json")
-          package=$(jq 'any(.tasks[]; .taskId == "//#build:package")' "$RUNNER_TEMP/runtime.json")
-          web_e2e_spec=
-          web_e2e_shards='[1,2,3,4]'
-          if [[ "$OWNER_PULL_REQUEST" == true ]]; then
-            web_e2e_spec=$(node ci/routine-web-spec.ts)
-            if [[ -n "$web_e2e_spec" ]]; then
-              web_e2e=true
-              web_e2e_shards='[1]'
-            fi
+          if [[ "$RELEASE_LANE" == true && "$VALID_PROMOTION" != true ]]; then
+            echo 'Promote the main branch of this repository into release.' >&2
+            exit 1
           fi
-          printf 'web-e2e-spec=%s\nweb-e2e-shards=%s\n' "$web_e2e_spec" "$web_e2e_shards" >> "$GITHUB_OUTPUT"
-          for surface in server web_integration web_e2e desktop storage package; do
-            case "${!surface}" in
-              true|false) printf '%s=%s\n' "${surface//_/-}" "${!surface}" >> "$GITHUB_OUTPUT" ;;
-              *) exit 1 ;;
-            esac
-          done
-          cat "$GITHUB_OUTPUT"
+          node ci/runtime-plan.ts >> "$GITHUB_OUTPUT"
 
   static:
     runs-on: ubuntu-latest
@@ -88,7 +74,7 @@ jobs:
           path: .turbo/cache
           key: turbo-${{ runner.os }}-${{ github.sha }}
           restore-keys: turbo-${{ runner.os }}-
-      - run: pnpm check:static --affected --concurrency=100%
+      - run: pnpm check:static $AFFECTED --concurrency=100%
 
   units:
     runs-on: ubuntu-latest
@@ -110,9 +96,10 @@ jobs:
           path: .turbo/cache
           key: turbo-units-${{ runner.os }}-${{ github.sha }}
           restore-keys: turbo-units-${{ runner.os }}-
-      - run: pnpm exec turbo run test --affected --concurrency=1 --continue
-      - name: Verify affected production mobile exports
-        run: pnpm exec turbo run build --affected --filter=@porcelain/mobile --concurrency=1
+      - run: pnpm exec turbo run test $AFFECTED --concurrency=1 --continue
+      - name: Verify production mobile exports
+        if: github.base_ref == 'release'
+        run: pnpm exec turbo run build --filter=@porcelain/mobile --concurrency=1
 
   package:
     needs: affected
@@ -160,7 +147,7 @@ jobs:
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
       - run: bwrap --ro-bind / / --dev /dev --proc /proc --unshare-pid --unshare-ipc --unshare-net --new-session --die-with-parent -- true
       - run: pnpm exec playwright install --only-shell chromium
-      - run: pnpm exec turbo run test:integration --affected --filter=@porcelain/server --filter=@porcelain/client --filter=@porcelain/verification --concurrency=1 --continue
+      - run: pnpm exec turbo run test:integration --filter=@porcelain/server --filter=@porcelain/client --filter=@porcelain/verification --concurrency=1 --continue
 
   web-integration:
     needs: affected
@@ -170,7 +157,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: ${{ fromJSON(needs.affected.outputs.shards || '[1]') }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -189,7 +176,15 @@ jobs:
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
       - run: bwrap --ro-bind / / --dev /dev --proc /proc --unshare-pid --unshare-ipc --unshare-net --new-session --die-with-parent -- true
       - run: pnpm exec playwright install --only-shell chromium
-      - run: pnpm --filter @porcelain/web test:integration --shard=${{ matrix.shard }}/4
+      - if: github.base_ref == 'release'
+        run: pnpm --filter @porcelain/web test:integration --shard=${{ matrix.shard }}/4
+      - if: github.base_ref != 'release'
+        env:
+          SPECS: ${{ needs.affected.outputs.integration }}
+        run: |
+          mapfile -d '' files < <(jq -j '.[] | ., "\u0000"' <<< "$SPECS")
+          (( ${#files[@]} > 0 ))
+          pnpm --filter @porcelain/web test:integration "${files[@]}"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: failure()
         with:
@@ -204,7 +199,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: ${{ fromJSON(needs.affected.outputs.web-e2e-shards || '[1,2,3,4]') }}
+        shard: ${{ fromJSON(needs.affected.outputs.shards || '[1]') }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -223,21 +218,17 @@ jobs:
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
       - run: bwrap --ro-bind / / --dev /dev --proc /proc --unshare-pid --unshare-ipc --unshare-net --new-session --die-with-parent -- true
       - run: pnpm exec playwright install --only-shell chromium
-      - name: Run browser journeys
+      - if: github.base_ref == 'release'
+        run: pnpm --filter @porcelain/web test:e2e --shard=${{ matrix.shard }}/4
+      - if: github.base_ref != 'release'
         env:
-          ROUTINE_WEB_SPEC: ${{ needs.affected.outputs.web-e2e-spec }}
-          SHARD: ${{ matrix.shard }}
+          SPECS: ${{ needs.affected.outputs.e2e }}
         run: |
-          if [[ -z "$ROUTINE_WEB_SPEC" ]]; then
-            pnpm --filter @porcelain/web test:e2e --shard="$SHARD/4"
-          else
-            smoke=spec/e2e/access-pairing.e2e.ts
-            if [[ "$ROUTINE_WEB_SPEC" == "$smoke" ]]; then
-              smoke=spec/e2e/app-routing.e2e.ts
-            fi
-            pnpm --filter @porcelain/web test:e2e "$ROUTINE_WEB_SPEC" --workers=1
-            pnpm --filter @porcelain/web test:e2e "$smoke" --workers=1
-          fi
+          mapfile -d '' files < <(jq -j '.[] | ., "\u0000"' <<< "$SPECS")
+          (( ${#files[@]} > 0 ))
+          for spec in "${files[@]}"; do
+            pnpm --filter @porcelain/web test:e2e "$spec" --workers=1
+          done
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: failure()
         with:
@@ -315,6 +306,7 @@ jobs:
           path: ${{ runner.temp }}/desktop-e2e-crashes/
 
   checks:
+    name: ${{ github.base_ref == 'release' && 'release checks' || 'checks' }}
     needs:
       [
         affected,

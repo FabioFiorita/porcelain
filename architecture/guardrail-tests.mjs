@@ -605,7 +605,7 @@ export async function runGuardrailCases(named = []) {
       }
       strictEqual(
         workflow.jobs.units.steps.find((step) =>
-          step.run?.includes('run test --affected'),
+          step.run?.includes('turbo run test '),
         )?.run,
         entry.unitCommand,
         'CI runs unit projects through affected task selection',
@@ -621,17 +621,27 @@ export async function runGuardrailCases(named = []) {
       );
       const browser = workflow.jobs['web-e2e'];
       strictEqual(browser.strategy.matrix.shard, entry.webE2eShardPlan);
-      const runBrowser = browser.steps.find(
-        (step) => step.name === 'Run browser journeys',
+      strictEqual(
+        workflow.env.AFFECTED,
+        "${{ github.base_ref != 'release' && '--affected' || '' }}",
       );
       for (const fixture of entry.webE2eCases) {
+        const release = fixture.specs.length === 0;
+        const runBrowser = browser.steps.find(
+          (step) =>
+            step.if ===
+            (release
+              ? "github.base_ref == 'release'"
+              : "github.base_ref != 'release'"),
+        );
+
         const shell = `pnpm() {
   [[ "$1 $2 $3" == "--filter @porcelain/web test:e2e" ]] || return 2
   shift 3
   printf '%s\\n' "$*"
   [[ "$1" != "$REJECT" ]]
 }
-${runBrowser.run}`;
+${runBrowser.run.replace('${{ matrix.shard }}', '"$SHARD"')}`;
         const result = spawnSync(
           'bash',
           ['-e', '-o', 'pipefail', '-c', shell],
@@ -640,7 +650,7 @@ ${runBrowser.run}`;
             env: {
               ...process.env,
               SHARD: fixture.shard,
-              ROUTINE_WEB_SPEC: fixture.spec,
+              SPECS: JSON.stringify(fixture.specs),
               REJECT: fixture.reject ?? '',
             },
           },

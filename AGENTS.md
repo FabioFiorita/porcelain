@@ -21,7 +21,7 @@ The codebase is the example. Copy the nearest feature's shape, and extract a sec
 
 1. **Killing by pattern.** Stop only processes you started, by the PID you captured; the verification CLIs stop their own instances. Your own agent's command line contains the worktree path, and other worktrees run on the same machine.
 2. **Touching the installed app.** Never build, install or launch the installed Porcelain app or service, and never point a test at its data. Development uses disposable instances and `pnpm dev --desktop` (Porcelain Dev, with its own profile).
-3. **Running whole suites locally.** CI selects affected runtime suites with `--affected`; its `checks` gate requires the selected jobs. A full local run has exhausted these machines before.
+3. **Running whole suites locally.** Use focused local checks. The release lane runs every runtime suite. A full local run has exhausted these machines before.
 
 ## Hit every surface
 
@@ -76,7 +76,7 @@ Prove a new or changed test can fail: revert the change it protects, watch it fa
 
 ## Verifying
 
-Prove a change with the smallest sufficient local proof: `pnpm check:local` and the relevant test files by name. Changed runtime behavior also needs the affected feature driven through its surface's skill (`server-verify`, `web-verify`, `desktop-verify`, `mobile-verify`); documentation, configuration, policy and test deletion changes use direct checks of what changed. Each skill's CLI at `scripts/cli` prepares a disposable instance, publishes its connections, records deterministic fixture operations and owns cleanup; the agent drives the surface with its harness tools and retains evidence. Its feature map (or the server contract) says how to reach each feature. CI runs `pnpm check:static --affected`, affected unit projects through Turborepo and the selected runtime jobs. A new or changed guardrail proves its rule with a fixture in `architecture/rule-cases.mjs`; removing one removes its wiring and fixtures and runs the remaining architecture fixtures.
+Prove a change with the smallest sufficient local proof: `pnpm check:local` and the relevant test files by name. Changed runtime behavior also needs the affected feature driven through its surface's skill (`server-verify`, `web-verify`, `desktop-verify`, `mobile-verify`); documentation, configuration, policy and test deletion changes use direct checks of what changed. Each skill's CLI at `scripts/cli` prepares a disposable instance, publishes its connections, records deterministic fixture operations and owns cleanup; the agent drives the surface with its harness tools and retains evidence. Its feature map (or the server contract) says how to reach each feature. The CI lanes are described below. A new or changed guardrail proves its rule with a fixture in `architecture/rule-cases.mjs`; removing one removes its wiring and fixtures and runs the remaining architecture fixtures.
 
 While you iterate with the developer, keep one verification instance running between edits and restart it only when its skill says the edit requires it; it is their preview too. Run the changed E2E specs once, when the work is done.
 
@@ -86,18 +86,13 @@ The root integration command runs suite tasks sequentially, because each Vitest 
 
 Work on your own branch from `main`, in your own worktree, one concern per pull request. Open it into `main` from the template. The developer reads every body, so make it easy to read: what and why in a few sentences, how it was verified, screenshots attached with `gh pr create --attach` inside a collapsed section, and the risks. Commit only the paths you changed, each commit one short imperative sentence. Plans and scratch notes stay out of the repository.
 
-Every pull request lands through one loop. For a same-repository pull request by the owner that modifies only one existing web E2E spec, CI runs that spec and an independent smoke test. The affected suite runs on the main push. After green PR CI, the verdict is deterministic unless review was requested or needs to continue. Add `agent-review` before CI finishes to request review. Explicit `decision`, `hold`, and one-way door declarations still apply.
+Feature PRs into `main` run affected static and unit checks, changed browser specs, a browser smoke test for web or shared runtime changes, and the migration check for storage changes. After green CI, the Decisions API checks whether the owner needs to decide. Routine owner-authored changes merge automatically. Keep a PR in draft or add `hold` to defer landing.
 
-For other pull requests, Triage decides from the patch whether review is needed once CI passes. The Reviewer picks up where it stopped on later green pushes. A pull request already reviewed before opening carries `reviewed` on its head commit. Triage and the Reviewer skip that commit. Add `reviewed` only when your task says that exact commit was reviewed. Later pushes go through the usual review loop unless `reviewed` is added again.
+Promote `main` into `release` with a PR. This lane runs full static, unit, server, browser and desktop suites, mobile exports, migrations and package checks. The hosted agent reviews the accumulated changes. Address findings on main. Promotion preserves main’s history. Only an explicit version tag publishes the qualified commit.
 
-On the full review path, Doorkeeper reads the patch and decides whether owner approval is required, including on a commit marked `reviewed`. New architecture, a new pattern or a new dependency needs approval even when reversible. One-way doors need approval too. The loop posts one verdict comment and sets the `Agent verdict` check on the commit. A ready pull request merges itself.
+The workflow reuses a completed decision or review for the same candidate. A maintainer can request an additional hosted review and CI failure explanations on a feature PR with `agent-review`. Verify `agent-fixes` findings. A local verification marked `reviewed` can satisfy an optional feature review; a release requires its hosted review.
 
-`agent-review` keeps the Reviewer on the pull request. `agent-fixes` asks you to fix the findings and push. `decision` asks the owner to decide. When your pull request gets `decision`, ask the owner in your conversation, naming the pull request and why it needs them. Add `approved` (`gh pr edit <number> --add-label approved`) only after they say yes. `hold` keeps a ready pull request from merging. Only people with write access can add labels. A pull request from anyone else waits until a maintainer requests review with `agent-review` or marks the head `reviewed`.
-
-Name its door under Risks, and prepare it for landing by it:
-
-- A two-way door, easy to revert, lands when its own head commit has green required checks and a ready verdict; it does not need the latest `main`. Never run `gh pr update-branch`.
-- A one-way door, such as data loss, a migration, a public contract, a rule change or a release, opens the body with what needs deciding and lands only after the owner approves it through `approved`.
+In Risks, declare `Door: one-way` for a release, destructive data change, breaking compatibility, permission or secret change. Explain what needs deciding. The loop also checks release, migration, landing-policy and workflow permission changes, outside contributions and an explicit `decision` label. Routine features, dependency updates and backward-compatible API additions use `Door: two-way`. When a PR needs approval, name the PR and commit to the owner. Apply `approved` only after they approve that commit. Recheck after a push. The loop rechecks the head before merging. Never use GitHub auto-merge or merge around it.
 
 Workers open the pull request, fix CI failures and `agent-fixes` findings until it merges or gets `decision`, then hand off its URL and full head commit. Never enable GitHub auto-merge or merge around the loop.
 
