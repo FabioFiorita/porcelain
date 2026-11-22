@@ -8,6 +8,7 @@ selectors:
   - 'Reviewed'
 tests:
   - apps/web/spec/integration/files-return.test.tsx
+  - apps/web/spec/integration/reviews-document-navigation.test.tsx
   - apps/web/spec/integration/pierre-workers.test.tsx
   - apps/web/spec/e2e/access-app-update.desktop.e2e.ts
 api:
@@ -33,5 +34,7 @@ Choose a worktree in the project/worktree sidebar, open Files, then select a pla
 7. Open a known relative path such as config/.env through Quick Open while Files is closed. Git ignore must not prevent explicit guarded access. Paths deliberately hidden in Porcelain follow Show hidden. Missing/unreadable paths show recovery without changing the current workspace.
 8. Capture light/dark and keyboard focus/return behavior. Long-path labels retain the full accessible value. Record directory/text requests and compare a warm return to the same fixture, without correctness assertions on wall-clock durations.
 9. Open a long TypeScript file, visit another document and return. Record worker highlighting requests: an unchanged revision reuses its highlighted result, while changed contents request a new revision. Check that source files and diff cards preserve their separate palettes when both appear in split panes. Opening an unguided source file must not request a branch comparison solely to choose a default review scope. On a fresh development instance, worker initialization must not reload the document and dismiss an open application dialog.
+
+10. From Review, select a previously unopened tracked file and hold its text response. The current Review remains visible with its tab selected. Release the read and confirm the file tab and its text appear together. Use browser Back, then reopen the file and verify the same reading landmark.
 
 Web/desktop renderer behavior is shared. Electron bridge, native phone Back and iPad dock/sheet behavior require their own surface proof. No browser width is native evidence.
