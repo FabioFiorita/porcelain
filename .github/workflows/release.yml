@@ -15,6 +15,9 @@ permissions:
 jobs:
   version:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
     outputs:
       version: ${{ steps.version.outputs.version }}
       publish: ${{ steps.version.outputs.publish }}
@@ -25,6 +28,7 @@ jobs:
       - name: Validate the release or rehearsal
         id: version
         env:
+          GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.event_name == 'push' && github.ref_type == 'tag' && github.ref_name || '' }}
         run: |
           set -euo pipefail
@@ -38,10 +42,17 @@ jobs:
               echo "Tag $TAG does not match the root package.json version $version." >&2
               exit 1
             fi
-            if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
-              echo "Tag $TAG points at a commit that is not on main." >&2
-              exit 1
-            fi
+            candidate=$(git rev-parse 'HEAD^{commit}')
+            git merge-base --is-ancestor "$candidate" origin/main
+            git merge-base --is-ancestor "$candidate" origin/release
+            gh api --paginate "repos/$GITHUB_REPOSITORY/pulls?base=release&state=closed&per_page=100" |
+              jq -ers --arg sha "$candidate" --arg repo "$GITHUB_REPOSITORY" '
+                add | map(select(.merged_at and .base.ref == "release" and .head.ref == "main"
+                  and .head.repo.full_name == $repo and .head.sha == $sha)) | first.merge_commit_sha // empty
+              ' > "$RUNNER_TEMP/promoted-merge"
+            merge=$(cat "$RUNNER_TEMP/promoted-merge")
+            git merge-base --is-ancestor "$merge" origin/release
+            git diff --quiet "$merge" "$candidate"
             echo "publish=true" >> "$GITHUB_OUTPUT"
           else
             echo "publish=false" >> "$GITHUB_OUTPUT"

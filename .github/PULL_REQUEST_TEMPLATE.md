@@ -19,6 +19,6 @@ Surfaces: <!-- Which of AGENTS.md's "Hit every surface" checks applied (entry po
 
 ## Risks
 
-Door: <!-- two-way (easy to revert) or one-way (data loss, migration, public contract, rule change, release) -->
+Door: <!-- two-way (easy to revert) or one-way (release, destructive data change, breaking compatibility, permission or secret change) -->
 
 <!-- What could break, or "None". -->

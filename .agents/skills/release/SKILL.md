@@ -7,23 +7,13 @@ description: Release a new Porcelain version (the npm package and the notarized 
 
 The version in the root `package.json` is the one version for the npm package `@fabiofiorita/porcelain`, the Mac app and its server. Pushing a tag `v<version>` runs `.github/workflows/release.yml`: it builds the notarized Mac disk image and the update files, creates the GitHub release with them and generated notes, then checks the packed npm package and publishes it. A final, separate job installs the published package from npm. When the release workflow succeeds, `.github/workflows/release-notes.yml` rewrites the release body into user-facing notes drafted by an OpenAI model from the release's pull requests, keeping the full pull request list; if it fails, the generated notes stay and it can be re-run. The owner approves every release.
 
-1. **Bump.** Set `version` in the root `package.json` (minor for features, patch for fixes). Open a pull request `Release <version>`. Doorkeeper marks it `decision`; ask the owner, and after their yes add the `approved` label, which merges it once CI is green.
-2. **Pin the candidate.** Use the merged release PR's full commit SHA. With `release_pr` set to its number and `version` to the approved version, run the following and stop if any check fails.
-
-   ```sh
-   candidate=$(gh pr view "$release_pr" --json state,mergeCommit --jq 'select(.state == "MERGED") | .mergeCommit.oid // empty') &&
-     test -n "$candidate" &&
-     git fetch origin main &&
-     git merge-base --is-ancestor "$candidate" origin/main &&
-     manifest=$(git show "$candidate:package.json") &&
-     printf '%s\n' "$manifest" | jq -e --arg version "$version" '.version == $version'
-   ```
-
-3. **Qualify that commit.** Open the main push CI run for that SHA with `gh run list --workflow ci.yml --branch main --event push --commit "$candidate"`. Record a successful `checks` result and confirm CI ran the server, browser, Linux and macOS Electron, migration, package and mobile export checks. The release bump normally selects all of them. Run any missing checks before tagging.
+1. **Bump.** Set `version` in the root `package.json` (minor for features, patch for fixes). Open a pull request `Release <version>`. The landing workflow marks it `decision`; ask the owner, and after their yes add the `approved` label, which merges it once CI is green.
+2. **Promote.** Open a PR from this repository’s `main` into `release`. The `release checks` gate runs all suites and `Release verdict` runs a hosted agent review against the previous promotion. Fix failures on main. The workflow merges the promotion with a merge commit after green checks and a clean review.
+3. **Pin the tested candidate.** Read the merged promotion’s `headRefOid` from `gh pr view "$promotion" --json state,baseRefName,headRefName,headRefOid,mergeCommit`. Confirm the PR merged from main into release and its head passed both required checks. Set `candidate` to that head, verify its root package version, and confirm its tree matches the promotion merge with `git diff --exit-code "$candidate" "$merge"`.
 
    In an isolated checkout at `$candidate`, use the relevant verification skills to drive the journeys that changed since the previous release. For mobile, use the affected device class and platform, including both orientations for shared tablet changes. Record the candidate SHA, CI link, journeys driven and any outstanding proof.
 4. **Rehearse build or release changes.** Use `gh workflow run release.yml --ref main` when the build or release workflow changed. Dispatch while `main` points at `$candidate`, then verify the rehearsal's `headSha` and successful `mac` job. If `main` advanced before rehearsal, qualify the new candidate with the owner. The tag workflow verifies signing, notarization and Gatekeeper acceptance before publishing the Mac artifacts.
-5. **Tag.** Tag the qualified SHA with `git tag -a "v$version" "$candidate" -m "Porcelain $version"`, then push that tag with `git push origin "refs/tags/v$version"`. The workflow validates the version and main ancestry. Re-runs preserve an existing GitHub release and skip an npm version that is already published.
+5. **Tag.** Tag the qualified SHA with `git tag -a "v$version" "$candidate" -m "Porcelain $version"`, then push that tag with `git push origin "refs/tags/v$version"`. The workflow validates the version, the merged promotion and the exact qualified tree. Re-runs preserve an existing GitHub release and skip an npm version that is already published.
 6. **Confirm.** Watch `gh run list --workflow release.yml`. The release is done when `npm view @fabiofiorita/porcelain dist-tags` shows the version as `latest` and the GitHub release carries `Porcelain-<version>-arm64.dmg`, `Porcelain-<version>-arm64-mac.zip` and `latest-mac.yml`.
 
 ## When it fails
