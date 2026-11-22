@@ -71,6 +71,15 @@ pnpm --filter @porcelain/web test:integration spec/integration/files-quick-open.
 pnpm --filter @porcelain/web test:e2e spec/e2e/access-pairing.e2e.ts --project web --workers=1
 ```
 
+To iterate on one browser case, keep Vitest in watch mode. This command reruns the Quick Open case whenever its view changes.
+
+```sh
+pnpm --filter @porcelain/web exec vitest watch --config vitest.config.ts \
+  spec/integration/files-quick-open.test.tsx -t 'quick open finds no file an ignore rule hides'
+```
+
+Press `q` to stop. After a failing rerun, the watcher can exit with a failure status even if the latest rerun passed. Use the named file command above for the final result. Restart the watcher after a server edit so Vitest rebuilds the disposable server.
+
 On macOS, `pnpm dev --desktop` runs Porcelain Dev with a disposable profile. `pnpm desktop:build` builds the Mac app into `dist/desktop/`; it does not install it. Native iOS development requires Xcode and CocoaPods. Android development works on Linux or macOS with an Android SDK and compatible JDK; follow the [Android setup](.agents/skills/mobile-verify/references/android.md).
 
 `pnpm --filter @porcelain/mobile build` checks the production JavaScript export without generating native projects or installing CocoaPods. To build a native development client, use `.agents/skills/mobile-verify/scripts/cli build` for iOS on macOS, or add `--device android` for Android. The [mobile verification guide](.agents/skills/mobile-verify/SKILL.md) covers device selection, startup, pairing and cleanup.
