@@ -22,18 +22,20 @@ jobs:
         github.event.workflow_run.event == 'pull_request' &&
         github.event.workflow_run.conclusion == 'success') ||
       (github.event_name == 'pull_request_target' && github.event.action == 'labeled' &&
-        contains(fromJSON('["agent-review", "approved", "reviewed"]'), github.event.label.name)) ||
+        contains(fromJSON('["agent-review", "approved", "reviewed", "decision", "hold"]'), github.event.label.name)) ||
       (github.event_name == 'pull_request_target' && github.event.action == 'unlabeled' &&
-        contains(fromJSON('["hold", "reviewed"]'), github.event.label.name)) ||
+        contains(fromJSON('["hold", "reviewed", "agent-review", "decision"]'), github.event.label.name)) ||
       (github.event_name == 'pull_request_target' && github.event.action == 'ready_for_review')
     concurrency:
       group: agent-review-${{ github.event.workflow_run.head_repository.full_name || github.event.pull_request.head.repo.full_name }}-${{ github.event.workflow_run.head_branch || github.event.pull_request.head.ref }}-${{ github.event.workflow_run.head_sha || github.event.pull_request.head.sha }}
-      cancel-in-progress: true
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Check out the revision that defines this trusted workflow
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          ref: ${{ github.workflow_sha }}
           persist-credentials: false
       - uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3
         with:
@@ -42,7 +44,7 @@ jobs:
           save-cache: false
           require-lockfile: true
       - run: pnpm install --frozen-lockfile --ignore-scripts --filter @porcelain/ci
-      - name: Triage, review, judge and merge
+      - name: Check landing rules and merge
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           MERGE_TOKEN: ${{ secrets.AGENT_MERGE_TOKEN }}

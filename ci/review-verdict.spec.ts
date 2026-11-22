@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   approvalHolds,
   assess,
-  needsReview,
   nextStep,
   reviewComment,
   savedState,
@@ -18,7 +17,12 @@ function pullRequest(
   paths: readonly string[],
   body = 'Door: two-way',
 ): PullRequest {
-  return { repository: 'owner/repo', headSha, body, paths };
+  return {
+    repository: 'owner/repo',
+    headSha,
+    body,
+    files: paths.map((filename) => ({ filename })),
+  };
 }
 
 function finding(priority: ReviewFinding['priority']): ReviewFinding {
@@ -36,141 +40,83 @@ function review(findings: readonly ReviewFinding[]): Review {
   return { findings, summary: 'Checked the diff.' };
 }
 
-const product = ['apps/web/src/features/reviews/store.ts'];
+const product = ['apps/web/src/features/walkthroughs/view.tsx'];
 const none = new Set<string>();
-
-const owner = { approved: false, trusted: true };
-
+const owner = { approved: false, owner: true };
 function step(
-  paths: readonly string[],
-  findings: readonly ReviewFinding[] | undefined,
-  ownerApproval: number,
-  labels: ReadonlySet<string> = none,
-  body?: string,
-  access = { approved: labels.has('approved'), trusted: true },
+  files: PullRequest['files'],
+  options: {
+    body?: string;
+    labels?: string[];
+    owner?: boolean;
+    approved?: boolean;
+    requestedDecision?: boolean;
+    review?: Review;
+  } = {},
 ) {
-  const reviewed = findings === undefined ? undefined : review(findings);
+  const labels = new Set(options.labels);
   return nextStep(
-    assess(pullRequest(paths, body), reviewed, ownerApproval, labels, access),
-    reviewed !== undefined,
+    assess(
+      { ...pullRequest(product, options.body), files },
+      options.review,
+      labels,
+      { ...owner, ...options, owner: options.owner ?? true },
+    ),
     labels,
   );
 }
 
-describe('nextStep', () => {
-  it('merges a reviewed two-way change with only minor notes', () => {
-    expect(step(product, [finding(3)], 0.01)).toEqual({
-      verdict: 'ready',
-      status: 'success',
-      description: 'Ready: merging once CI is green',
-      add: ['agent-review'],
-      remove: [],
-      merge: true,
-    });
-  });
-
-  it('merges a change Triage left unreviewed when Doorkeeper calls it two-way', () => {
-    expect(step(['README.md'], undefined, 0.02).merge).toBe(true);
-  });
-
-  it('holds back a priority 2 bug for the agent to fix, even in a two-way change', () => {
-    expect(step(product, [finding(2)], 0.01)).toMatchObject({
-      verdict: 'needs-fixes',
-      status: 'failure',
-      add: ['agent-review', 'agent-fixes'],
-      merge: false,
-    });
-  });
-
-  it('clears the fixes label once the next review is clean', () => {
-    expect(
-      step(product, [], 0.01, new Set(['agent-review', 'agent-fixes'])),
-    ).toMatchObject({ add: [], remove: ['agent-fixes'], merge: true });
-  });
-
-  it('waits for the owner on workflow changes even when Doorkeeper calls them two-way', () => {
-    expect(step(['.github/workflows/ci.yml'], undefined, 0.01)).toMatchObject({
-      verdict: 'needs-owner',
-      add: ['decision'],
-      merge: false,
-    });
-  });
-
-  it('treats an agent instruction file in any folder as the owner’s call', () => {
-    expect(step(['apps/web/AGENTS.md'], undefined, 0.01).verdict).toBe(
-      'needs-owner',
-    );
-  });
-
-  it('waits for the owner when Doorkeeper requires approval for a reversible architectural decision', () => {
-    expect(step(product, [], 0.9).verdict).toBe('needs-owner');
-  });
-
-  it('waits for the owner when the description declares a one-way door', () => {
-    expect(step(product, [], 0.01, none, 'Door: one-way').verdict).toBe(
-      'needs-owner',
-    );
-  });
-
-  it('keeps a decision label someone added by hand until the owner approves', () => {
-    expect(step(product, [], 0.01, new Set(['decision'])).merge).toBe(false);
-  });
-
-  it('merges a one-way change once the owner approves it', () => {
-    expect(
-      step(
-        ['package.json'],
-        undefined,
-        0.99,
-        new Set(['decision', 'approved']),
-      ),
-    ).toMatchObject({ verdict: 'ready', add: [], merge: true });
-  });
-
-  it('never lets approval override a bug the Reviewer found', () => {
-    expect(
-      step(product, [finding(1)], 0.01, new Set(['approved'])).verdict,
-    ).toBe('needs-fixes');
-  });
-
-  it('sends a stranger’s clean pull request to the owner', () => {
-    expect(
-      step(product, [], 0.01, new Set(['agent-review']), undefined, {
-        approved: false,
-        trusted: false,
-      }),
-    ).toMatchObject({ verdict: 'needs-owner', merge: false });
-  });
-
-  it('drops an approval that was given for an earlier commit', () => {
-    expect(
-      step(
-        ['package.json'],
-        undefined,
-        0.99,
-        new Set(['decision', 'approved']),
-        undefined,
-        {
-          approved: false,
-          trusted: true,
-        },
-      ),
-    ).toMatchObject({
-      verdict: 'needs-owner',
-      remove: ['approved'],
-      merge: false,
-    });
-  });
-
-  it('passes the check but does not merge while the hold label is on', () => {
-    expect(step(product, [], 0.01, new Set(['hold']))).toMatchObject({
-      status: 'success',
-      description: 'Ready, but the hold label keeps it from merging',
-      merge: false,
-    });
-  });
+it('lands the optional API addition, dependency update and ordinary CI command on green checks', () => {
+  expect(
+    step([
+      { filename: 'packages/contracts/src/walkthroughs/api.ts' },
+      { filename: 'pnpm-lock.yaml' },
+      { filename: 'package.json', patch: '+    "vite": "8.4.0"' },
+      { filename: '.github/workflows/ci.yml', patch: '+      - run: vp test' },
+    ]),
+  ).toMatchObject({ merge: true, add: [] });
 });
-
+it.each([
+  { filename: 'packages/storage/drizzle/001-drop.sql' },
+  { filename: '.github/workflows/ci.yml', patch: '+  contents: write' },
+  {
+    filename: '.github/workflows/ci.yml',
+    patch: '+        env: ${{ secrets.API_KEY }}',
+  },
+  { filename: '.github/workflows/ci.yml' },
+  { filename: 'new.yml', previous_filename: '.github/workflows/release.yml' },
+  { filename: 'package.json', patch: '+  "version": "2.0.0"' },
+  { filename: 'ci/review-verdict.ts' },
+])('asks for approval on a sensitive change %j', (file) => {
+  expect(step([file])).toMatchObject({ verdict: 'needs-owner', merge: false });
+});
+it.each([
+  { owner: false },
+  { body: 'Door: one-way' },
+  { requestedDecision: true },
+  { labels: ['decision'] },
+])('asks the owner for an outside or consequential change %j', (options) => {
+  expect(step([], options).merge).toBe(false);
+  expect(
+    step([], { ...options, approved: true, labels: ['approved'] }).merge,
+  ).toBe(true);
+});
+it('keeps a hold, actionable findings and old approvals from merging a head', () => {
+  expect(step([], { labels: ['hold'] })).toMatchObject({
+    merge: false,
+    status: 'success',
+  });
+  expect(
+    step([], { approved: true, review: review([finding(2)]) }),
+  ).toMatchObject({ merge: false, add: ['agent-fixes'] });
+  expect(step([], { labels: ['approved', 'decision'] })).toMatchObject({
+    merge: false,
+    remove: ['approved'],
+  });
+  expect(
+    step([], { review: review([finding(3)]), labels: ['agent-fixes'] }),
+  ).toMatchObject({ merge: true, remove: ['agent-fixes'] });
+});
 describe('approvalHolds', () => {
   it('counts the approved label only for the commit it was given on', () => {
     const labels = new Set(['approved']);
@@ -186,9 +132,8 @@ describe('withState', () => {
   it('keeps an approval given while CI was still running', () => {
     const earlier = reviewComment(
       pullRequest(product),
-      { reviewProbability: 0.97, source: 'decision' },
       review([]),
-      assess(pullRequest(product), review([]), 0.9, none, owner),
+      assess(pullRequest(product), review([]), none, owner),
       { reviewed: { sha: 'an-earlier-commit', review: review([]) } },
     );
     const updated = withState(earlier, { approvedHead: headSha });
@@ -197,7 +142,7 @@ describe('withState', () => {
       { approvedHead: headSha },
       { approvedHead: headSha },
     ]);
-    expect(updated).toContain('### Needs the owner’s decision');
+    expect(updated).toContain('### Ready to merge');
     expect(updated).toContain('- **Reviewer:** Checked the diff.');
     expect(initial).toContain('### Waiting for CI');
   });
@@ -209,90 +154,23 @@ describe('withState', () => {
   });
 });
 
-describe('needsReview', () => {
-  it('skips the review when Triage finds nothing to read', () => {
-    expect(needsReview({ reviewProbability: 0.08, source: 'decision' })).toBe(
-      false,
-    );
-  });
-
-  it('reviews when Triage could not judge the patch', () => {
-    expect(
-      needsReview({ reviewProbability: undefined, source: 'decision' }),
-    ).toBe(true);
-  });
-
-  it('keeps reviewing every push once the label is on', () => {
-    expect(needsReview({ source: 'requested' })).toBe(true);
-  });
-});
-
-describe('reviewComment', () => {
-  it('explains the skipped review and posts a ready verdict when the marked head needs no approval', () => {
-    const current = new Set(['reviewed']);
-    const pull = pullRequest(product);
-    const assessment = assess(pull, undefined, 0.02, current, owner);
-    expect(nextStep(assessment, false, current)).toMatchObject({
-      verdict: 'ready',
-      status: 'success',
-      add: [],
-      merge: true,
-    });
-    const comment = reviewComment(
-      pull,
-      { source: 'marked-reviewed' },
-      undefined,
-      assessment,
-      undefined,
-    );
-    expect(comment).toContain('### Ready to merge');
-    expect(comment).toContain(
-      '**Reviewer:** skipped because this commit was marked reviewed.',
-    );
-    expect(comment).toContain('**Doorkeeper:** no owner approval required');
-    expect(comment).not.toContain('**Triage:**');
-    expect(comment).not.toContain('<sub>');
-  });
-
-  it('saves the review so the next push is reviewed from where it stopped', () => {
-    const saved = {
-      reviewed: { sha: headSha, review: review([finding(2)]) },
-      approvedHead: headSha,
-    };
-    const comment = reviewComment(
-      pullRequest(product),
-      { reviewProbability: 0.97, source: 'decision' },
-      saved.reviewed.review,
-      assess(pullRequest(product), saved.reviewed.review, 0.01, none, owner),
-      saved,
-    );
-    expect(savedState(comment)).toEqual(saved);
-  });
-
-  it('links each finding to its lines at the reviewed commit', () => {
-    const comment = reviewComment(
-      pullRequest(product),
-      { reviewProbability: 0.97, source: 'decision' },
-      review([finding(2)]),
-      assess(pullRequest(product), review([finding(2)]), 0.01, none, owner),
-      undefined,
-    );
-    expect(comment).toContain(
-      `[Clear the viewer only when the detached handle is current](https://github.com/owner/repo/blob/${headSha}/apps/web/src/features/reviews/store.ts#L256-L257)`,
-    );
-  });
-
-  it('says who decided what when Triage skips the review', () => {
-    const comment = reviewComment(
-      pullRequest(['README.md']),
-      { reviewProbability: 0.08, source: 'decision' },
-      undefined,
-      assess(pullRequest(['README.md']), undefined, 0.02, none, owner),
-      undefined,
-    );
-    expect(comment).toContain(
-      `### Ready to merge\n\nJudged commit \`${headSha.slice(0, 12)}\`.\n\n- **Triage:** no review needed (probability 0.08).\n- **Doorkeeper:** no owner approval required (probability 0.02).`,
-    );
-    expect(comment).not.toContain('**Reviewer:**');
-  });
+it('retains the checked commit, its decision, and links actionable findings to the right lines', () => {
+  const pull = pullRequest(product);
+  const checked = review([finding(2)]);
+  const saved = {
+    reviewed: { sha: headSha, review: checked },
+    decision: { sha: headSha, needsOwner: false },
+  };
+  const comment = reviewComment(
+    pull,
+    checked,
+    assess(pull, checked, none, owner),
+    saved,
+  );
+  expect(savedState(comment)).toEqual(saved);
+  expect(comment).toContain(
+    'https://github.com/owner/repo/blob/' +
+      headSha +
+      '/apps/web/src/features/reviews/store.ts#L256-L257',
+  );
 });

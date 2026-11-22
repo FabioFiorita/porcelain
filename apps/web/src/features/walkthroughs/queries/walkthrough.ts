@@ -106,3 +106,16 @@ export function useWalkthroughAssetUrl(input: {
     retry: useAtomRefresh(readWalkthroughAsset(read)),
   };
 }
+
+export function useCapturedWalkthroughPatch(
+  scope: ReviewScope,
+  context: ConnectionContext,
+  runId: string,
+  step: number,
+) {
+  const atom = readWalkthrough({
+    ...worktreeSelection(scope, context),
+    excerpt: { runId, step },
+  });
+  return { result: useAtomValue(atom), retry: useAtomRefresh(atom) };
+}

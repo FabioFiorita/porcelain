@@ -6342,7 +6342,6 @@ export const guardrailCases = [
     rule: 'ci-required-checks',
     dependencyStoreWriter: 'units',
     dependencyStoreReaders: [
-      'affected',
       'static',
       'package',
       'server-integration',
@@ -6351,13 +6350,58 @@ export const guardrailCases = [
       'migrations',
     ],
     unitCommand:
-      'pnpm exec turbo run test --affected --concurrency=1 --continue',
-    webIntegrationShards: [1, 2, 3, 4],
+      'pnpm exec turbo run test $AFFECTED --concurrency=1 --continue',
+    webIntegrationShards:
+      "${{ fromJSON(needs.affected.outputs.shards || '[1]') }}",
     webIntegrationCommand:
       'pnpm --filter @porcelain/web test:integration --shard=${{ matrix.shard }}/4',
-    webE2eShards: [1, 2, 3, 4],
-    webE2eCommand:
-      'pnpm --filter @porcelain/web test:e2e --shard=${{ matrix.shard }}/4',
+    webE2eShardPlan: "${{ fromJSON(needs.affected.outputs.shards || '[1]') }}",
+    webE2eCases: [
+      {
+        name: 'ordinary browser job executes its full shard',
+        shard: '3',
+        specs: [],
+        commands: ['--shard=3/4'],
+        status: 0,
+      },
+      {
+        name: 'focused browser job runs the changed spec and pairing smoke independently',
+        shard: '1',
+        specs: [
+          'spec/e2e/projects-manual-selection.e2e.ts',
+          'spec/e2e/access-pairing.e2e.ts',
+        ],
+        commands: [
+          'spec/e2e/projects-manual-selection.e2e.ts --workers=1',
+          'spec/e2e/access-pairing.e2e.ts --workers=1',
+        ],
+        status: 0,
+      },
+      {
+        name: 'a pairing spec edit gets an independent routing smoke',
+        shard: '1',
+        specs: [
+          'spec/e2e/access-pairing.e2e.ts',
+          'spec/e2e/app-routing.e2e.ts',
+        ],
+        commands: [
+          'spec/e2e/access-pairing.e2e.ts --workers=1',
+          'spec/e2e/app-routing.e2e.ts --workers=1',
+        ],
+        status: 0,
+      },
+      {
+        name: 'a missing or failing changed spec fails the browser job before smoke',
+        shard: '1',
+        specs: [
+          'spec/e2e/projects-manual-selection.e2e.ts',
+          'spec/e2e/access-pairing.e2e.ts',
+        ],
+        reject: 'spec/e2e/projects-manual-selection.e2e.ts',
+        commands: ['spec/e2e/projects-manual-selection.e2e.ts --workers=1'],
+        status: 1,
+      },
+    ],
     needs: {
       affected: {
         result: 'success',

@@ -65,7 +65,36 @@ const headSha = required('HEAD_SHA');
 const given = Schema.decodeUnknownSync(
   Schema.fromJsonString(Schema.Array(Schema.Int)),
 )(required('PULL_REQUESTS'));
-const client = new OpenAI({ apiKey: required('OPENAI_API_KEY') });
+const numbers = pullRequestNumbers(repository, headSha, given).filter(
+  (number) => {
+    if (!trustedAuthor(repository, number)) return false;
+    const pull = Schema.decodeUnknownSync(
+      Schema.fromJsonString(
+        Schema.Struct({
+          headRefOid: Schema.String,
+          isDraft: Schema.Boolean,
+          labels: Schema.Array(Schema.Struct({ name: Schema.String })),
+        }),
+      ),
+    )(
+      gh([
+        'pr',
+        'view',
+        String(number),
+        '--repo',
+        repository,
+        '--json',
+        'headRefOid,isDraft,labels',
+      ]),
+    );
+    return (
+      !pull.isDraft &&
+      pull.headRefOid === headSha &&
+      pull.labels.some((label) => label.name === 'agent-review')
+    );
+  },
+);
+if (numbers.length === 0) process.exit(0);
 
 const jobs = pages(
   Schema.Struct({ jobs: Schema.Array(Job) }),
@@ -87,10 +116,8 @@ const failed: FailedJob[] = await Promise.all(
       excerpt: failureExcerpt(await jobLog(repository, token, job.id)),
     })),
 );
-const numbers = pullRequestNumbers(repository, headSha, given).filter(
-  (number) => trustedAuthor(repository, number),
-);
-if (failed.length > 0 && numbers.length > 0) {
+if (failed.length > 0) {
+  const client = new OpenAI({ apiKey: required('OPENAI_API_KEY') });
   const explanation = await structuredAnswer(client, {
     name: 'failure_explanation',
     schema: Explanation,

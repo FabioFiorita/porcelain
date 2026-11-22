@@ -13,6 +13,7 @@
     "test": "pnpm --dir ../.. test --project @porcelain/walkthroughs"
   },
   "dependencies": {
+    "@pierre/diffs": "1.6.4",
     "@porcelain/effects": "workspace:*",
     "@porcelain/git": "workspace:*",
     "@porcelain/kernel": "workspace:*",

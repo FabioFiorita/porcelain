@@ -45,6 +45,7 @@ export function focusPatch(
   patch: string,
   spans: readonly LineSpan[],
   context = 3,
+  side: 'old' | 'new' = 'new',
 ): string | null {
   const parsed = readDiff(patch);
   if (parsed.kind !== 'valid') return parsed.kind === 'empty' ? patch : null;
@@ -62,7 +63,7 @@ export function focusPatch(
       const line = { ...entry, text: entry.source };
       const keep = line.text.startsWith('\\')
         ? run.length > 0
-        : near(line.position);
+        : near(side === 'old' ? line.oldLine : line.position);
       if (keep) run.push(line);
       else if (run.length > 0) {
         out.push(...joinRun(run));

@@ -3,9 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { judgeReview, type JudgmentHost } from './review-judgment.ts';
 import { readReviewPatch } from './review-patch.ts';
-import { assess, nextStep } from './review-verdict.ts';
 
 function git(directory: string, ...args: string[]): string {
   return execFileSync('git', ['-C', directory, ...args], {
@@ -18,7 +16,7 @@ function unavailableHostedPatch(): string {
 }
 
 describe('review patch', () => {
-  it('delivers a large patch from the exact Git commits when GitHub refuses the diff, including an approved retry', async () => {
+  it('delivers a large patch from the exact Git commits when GitHub refuses the diff', async () => {
     const remote = mkdtempSync(join(temporaryRoot, 'porcelain-review-remote-'));
     try {
       git(remote, 'init', '-q', '-b', 'main');
@@ -51,47 +49,11 @@ describe('review patch', () => {
         { remote, baseSha, headSha },
         unavailableHostedPatch,
       );
-      const evidence: string[] = [];
-      const cleanReview = { findings: [], summary: 'No actionable bugs.' };
-      const host: JudgmentHost = {
-        decide: async (question) => {
-          evidence.push(question.evidence);
-          return 0.02;
-        },
-        review: async () => cleanReview,
-        report: () => {},
-      };
-      const result = await judgeReview(
-        {
-          evidence: 'Approved retry of a reviewed change.',
-          patch,
-          requested: true,
-          previous: { sha: headSha, review: cleanReview },
-          headSha,
-        },
-        host,
-      );
-      const current = new Set(['agent-review', 'approved']);
-      const assessment = assess(
-        {
-          repository: 'owner/repo',
-          headSha,
-          body: 'Door: two-way',
-          paths: ['large.txt'],
-        },
-        result.review,
-        result.ownerApprovalProbability,
-        current,
-        { approved: true, trusted: true },
-      );
       expect(patch).toContain('@@ -0,0 +1,20001 @@');
       expect(patch).toContain('+line 1\n');
       expect(patch).toContain('+line 20001\n');
       expect(patch).not.toContain('later.txt');
       expect(patch).not.toContain('main-only.txt');
-      expect(evidence).toHaveLength(1);
-      expect(evidence[0]).toContain('+line 20001\n');
-      expect(nextStep(assessment, true, current).merge).toBe(true);
     } finally {
       rmSync(remote, { recursive: true, force: true });
     }

@@ -142,7 +142,31 @@ function walkthroughContent(files: readonly string[], outcome: string) {
               question: 'Should `notes` stay in the sample?',
             }
           : null,
-      excerpts: [],
+      excerpts:
+        outcome.startsWith('line-excerpt') && paths[0] === 'renamed notes.txt'
+          ? [
+              {
+                path:
+                  outcome === 'line-excerpt-old'
+                    ? 'original notes.txt'
+                    : paths[0],
+                side: outcome === 'line-excerpt-old' ? 'old' : 'new',
+                start:
+                  outcome === 'line-excerpt-old'
+                    ? 10
+                    : outcome === 'line-excerpt-updated'
+                      ? 17
+                      : 16,
+                end:
+                  outcome === 'line-excerpt-old'
+                    ? 10
+                    : outcome === 'line-excerpt-updated'
+                      ? 17
+                      : 16,
+                caption: 'The local search rule',
+              },
+            ]
+          : [],
       evidence: [],
       files: paths.map((path) => ({ path, note: 'Changed' })),
     })),

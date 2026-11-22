@@ -88,10 +88,18 @@ const startWalkthroughRequestSchema = Schema.Struct({
   pullRequestNumber: Schema.optional(Schema.Int.check(Schema.isGreaterThan(0))),
   writer: Schema.optional(writerSchema),
 });
+const readWalkthroughQuerySchema = Schema.Struct({
+  excerptRunId: Schema.optional(Schema.String),
+  excerptStep: Schema.optional(
+    Schema.NumberFromString.check(Schema.isInt(), Schema.isGreaterThan(0)),
+  ),
+});
+export type ReadWalkthroughQuery = typeof readWalkthroughQuerySchema.Type;
 export const readWalkthroughResponseSchema = Schema.Struct({
   walkthrough: nullableAsUndefined(walkthroughRunSchema),
   attempt: Schema.optional(walkthroughRunSchema),
   freshness: walkthroughFreshnessSchema,
+  capturedPatch: Schema.optional(Schema.String),
 });
 export const walkthroughWriterSettingsSchema = Schema.Struct({
   writer: writerSchema,
@@ -136,6 +144,7 @@ export class WalkthroughsApi extends porcelainApi.add(
         {
           disableCodecs: true,
           params: worktreeParamsSchema,
+          query: readWalkthroughQuerySchema.fields,
           success: readWalkthroughResponseSchema,
           error: [...worktreeFailures, ...gitReadFailures],
         },
