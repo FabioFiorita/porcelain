@@ -2,6 +2,15 @@ import { expect, it } from 'vitest';
 import { judgeReview } from './review-judgment.ts';
 
 const clean = { findings: [], summary: 'All clear' };
+const finding = {
+  title: 'Data loss',
+  body: 'Data lost',
+  priority: 1 as const,
+  path: 'file',
+  line_start: 1,
+  line_end: 1,
+};
+const blocked = { summary: 'Data loss', findings: [finding] };
 const unavailable = () =>
   Promise.reject(new Error('No paid provider is available'));
 function run() {
@@ -50,18 +59,10 @@ it('runs both requested checks and reuses the result on an approval recheck of t
 
 it('keeps outstanding blocking findings until the new commit has received review', async () => {
   const input = run();
-  const finding = {
-    title: 'Data loss',
-    body: 'Data lost',
-    priority: 1 as const,
-    path: 'file',
-    line_start: 1,
-    line_end: 1,
-  };
   const saved = {
     reviewed: {
       sha: 'previous',
-      review: { summary: 'One issue', findings: [finding] },
+      review: blocked,
     },
   };
   await expect(judgeReview({ ...input, saved })).rejects.toThrow(
@@ -75,11 +76,11 @@ it('keeps outstanding blocking findings until the new commit has received review
 it('keeps an outstanding finding on the same head even after review is turned off', async () => {
   const input = run();
   const saved = {
-    reviewed: { sha: 'head', review: clean },
+    reviewed: { sha: 'head', review: blocked },
     decision: { sha: 'head', needsOwner: true },
   };
   expect(await judgeReview({ ...input, saved })).toEqual({
-    review: clean,
+    review: blocked,
     decision: saved.decision,
   });
 });
