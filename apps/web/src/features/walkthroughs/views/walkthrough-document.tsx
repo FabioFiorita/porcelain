@@ -44,6 +44,7 @@ import {
 } from './walkthrough-conversation';
 import { WalkthroughStatus } from './walkthrough-status';
 import { WalkthroughProof } from './walkthrough-evidence';
+import { WalkthroughExcerpt } from './walkthrough-excerpt';
 import { WalkthroughStart } from './walkthrough-start';
 import { ReviewCode } from './walkthrough-code-document';
 import { DIFF_WINDOW_FILES } from '@/config/limits';
@@ -240,6 +241,7 @@ function Step({
   branch,
   eager,
   conversation,
+  excerpt,
 }: {
   stop: WalkthroughStop;
   step: number;
@@ -249,6 +251,7 @@ function Step({
   branch: ComparedBranch | undefined;
   eager: boolean;
   conversation: Conversation | undefined;
+  excerpt: WalkthroughStop['excerpts'][number] | undefined;
 }) {
   return (
     <li
@@ -273,6 +276,14 @@ function Step({
       <p className="text-prose text-foreground-2">
         <RichText text={stop.explanation} />
       </p>
+      {excerpt && (
+        <WalkthroughExcerpt
+          document={props}
+          runId={run.id}
+          step={step}
+          excerpt={excerpt}
+        />
+      )}
       {stop.evidence.length > 0 && (
         <WalkthroughProof
           scope={props.scope}
@@ -322,6 +333,9 @@ function Written({
     | undefined;
 }) {
   const owner = { ...props, runId: run.id };
+  const excerptStep =
+    content.stops.find((stop) => stop.attention && stop.excerpts.length > 0) ??
+    content.stops.find((stop) => stop.excerpts.length > 0);
   const writeBlock = useWorkspaceWriteBlock(props.context);
   const conversation: Conversation = ({ kind, step }) => {
     const title = content.stops[step - 1]!.title;
@@ -392,6 +406,7 @@ function Written({
             branch={code.branch}
             eager={code.eager.steps[index] ?? true}
             conversation={conversation}
+            excerpt={stop === excerptStep ? stop.excerpts[0] : undefined}
           />
         ))}
       </ol>

@@ -2,18 +2,36 @@ import { Atom } from 'effect/reactivity';
 import type { WorktreeSelection } from '../../../shared/api/connection.ts';
 import { clientWorktreeRead } from '../../../shared/api/worktree-read.ts';
 
-export const readWalkthrough = Atom.family((selection: WorktreeSelection) =>
-  clientWorktreeRead(
-    selection,
-    ['walkthrough'],
-    (api) =>
-      api.walkthroughs.readWalkthrough({
-        params: { worktreeId: selection.scope.worktreeId },
-      }),
-    (answer) =>
-      answer.walkthrough === undefined ||
-      answer.walkthrough.worktreeId === selection.scope.worktreeId,
-  ),
+export const readWalkthrough = Atom.family(
+  (
+    selection: WorktreeSelection & {
+      excerpt?: { runId: string; step: number };
+    },
+  ) =>
+    clientWorktreeRead(
+      selection,
+      selection.excerpt === undefined
+        ? ['walkthrough']
+        : [
+            'walkthrough-excerpt',
+            selection.excerpt.runId,
+            selection.excerpt.step,
+          ],
+      (api) =>
+        api.walkthroughs.readWalkthrough({
+          params: { worktreeId: selection.scope.worktreeId },
+          query:
+            selection.excerpt === undefined
+              ? {}
+              : {
+                  excerptRunId: selection.excerpt.runId,
+                  excerptStep: selection.excerpt.step,
+                },
+        }),
+      (answer) =>
+        answer.walkthrough === undefined ||
+        answer.walkthrough.worktreeId === selection.scope.worktreeId,
+    ),
 );
 
 export const readWalkthroughAsset = Atom.family(

@@ -865,6 +865,9 @@ importers:
 
   packages/walkthroughs:
     dependencies:
+      '@pierre/diffs':
+        specifier: 1.6.4
+        version: 1.6.4(patch_hash=7a37d94505526b01286480d4f1f5519799f536fae7c931f72a89aab2297148e7)(@shikijs/themes@4.4.3)(react-dom@19.2.8(react@19.3.0))(react@19.3.0)
       '@porcelain/effects':
         specifier: workspace:*
         version: link:../effects

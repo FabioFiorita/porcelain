@@ -65,8 +65,8 @@ export function walkthroughsRoutes(useCases: {
             .execute({ ...params, ...payload })
             .pipe(Effect.map(presentWalkthrough)),
         )
-        .handle('readWalkthrough', ({ params }) =>
-          useCases.read.execute(params).pipe(
+        .handle('readWalkthrough', ({ params, query }) =>
+          useCases.read.execute({ ...params, ...query }).pipe(
             Effect.map((value) => ({
               ...value,
               attempt:
