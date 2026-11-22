@@ -918,6 +918,119 @@ test('a step citing a staged rename shows the committed file and its local edit 
     .not.toBeInTheDocument();
 });
 
+for (const side of ['old', 'new'] as const) {
+  test(`See the lines shows the ${side} side of a captured dirty rename and returns to the same step`, async ({
+    repo,
+    codingTool,
+    render,
+    server,
+  }) => {
+    await browserPage.viewport(1280, 896);
+    const lines = Array.from(
+      { length: 15 },
+      (_, index) => `Unchanged line ${index + 1}`,
+    );
+    const notes = () => `${lines.join('\n')}\n`;
+    await repo.write('original notes.txt', notes());
+    await repo.commit('Add the original notes');
+    await repo.branch('excerpt-base');
+    await repo.branch('excerpt-feature');
+    await repo.switch('excerpt-feature');
+    lines[1] = 'Rule committed on the branch';
+    await repo.write('original notes.txt', notes());
+    await repo.commit('Change the branch rule');
+    await repo.rename('original notes.txt', 'renamed notes.txt');
+    lines[9] = 'Rule from the captured local edit';
+    const prefix = 'One\nTwo\nThree\nFour\nFive\nSix\n';
+    await repo.write('renamed notes.txt', `${prefix}${notes()}`);
+    await codingTool.install();
+    await repo.write(SCENARIO, `line-excerpt-${side}`);
+    const { page } = await render.route('/?base=refs%2Fheads%2Fexcerpt-base');
+    await page
+      .getByRole('button', { name: 'Write walkthrough', exact: true })
+      .click();
+    const step = page
+      .getByRole('listitem')
+      .filter({ hasText: 'Step about renamed notes.txt' });
+    const open = step.getByRole('button', {
+      name: 'See the lines',
+      exact: true,
+    });
+    const excerpt = page.getByRole('dialog', {
+      name: 'Captured diff',
+      exact: true,
+    });
+    const expectedLine =
+      side === 'old'
+        ? 'Unchanged line 10'
+        : 'Rule from the captured local edit';
+    const qualifiedLine = excerpt.getByText(expectedLine, { exact: true });
+    await open.click();
+    await expect
+      .element(
+        excerpt.getByText(
+          side === 'old'
+            ? 'original notes.txt · Old line 10'
+            : 'renamed notes.txt · New line 16',
+          { exact: true },
+        ),
+      )
+      .toBeVisible();
+    await expect.element(qualifiedLine).toBeVisible();
+    await expect
+      .element(
+        excerpt.getByText('Rule committed on the branch', { exact: true }),
+      )
+      .not.toBeInTheDocument();
+    await excerpt
+      .getByRole('button', { name: 'Back to step', exact: true })
+      .click();
+    await expect.element(open).toHaveFocus();
+    if (side === 'old') return;
+    const firstRunId = (await server.walkthrough()).walkthrough?.id;
+
+    lines[9] = 'Rule in the current worktree';
+    await repo.write(
+      'renamed notes.txt',
+      `A new line before the snapshot\n${prefix}${notes()}`,
+    );
+    const status = page
+      .getByRole('region', { name: 'Walkthrough status', exact: true })
+      .getByRole('status');
+    const stale = status.filter({ hasText: 'Behind the current work' });
+    await expect.element(stale).toBeVisible();
+    await open.click();
+    await expect.element(qualifiedLine).toBeVisible();
+    await expect
+      .element(
+        excerpt.getByText('Rule in the current worktree', { exact: true }),
+      )
+      .not.toBeInTheDocument();
+    await userEvent.keyboard('{Escape}');
+    await expect.element(open).toHaveFocus();
+    await repo.write(SCENARIO, 'line-excerpt-updated');
+    await page
+      .getByRole('button', { name: 'Update walkthrough', exact: true })
+      .click();
+    await expect
+      .poll(async () => (await server.walkthrough()).walkthrough?.id)
+      .not.toBe(firstRunId);
+    await expect.element(status.filter({ hasText: /^Saved / })).toBeVisible();
+    await expect.element(stale).not.toBeInTheDocument();
+    await open.click();
+    await expect
+      .element(
+        excerpt.getByText('renamed notes.txt · New line 17', { exact: true }),
+      )
+      .toBeVisible();
+    await expect
+      .element(
+        excerpt.getByText('Rule in the current worktree', { exact: true }),
+      )
+      .toBeVisible();
+  });
+}
+
 test('a long walkthrough loads a step code only when the step comes near view', async ({
   repo,
   codingTool,

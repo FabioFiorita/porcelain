@@ -19,6 +19,8 @@ selectors:
   - 'Not in the walkthrough yet'
   - 'Previous step'
   - 'Next step'
+  - 'See the lines'
+  - 'Back to step'
 tests:
   - apps/web/spec/integration/walkthroughs-page.test.tsx
   - apps/web/spec/integration/walkthrough-writer-availability.test.tsx
@@ -42,6 +44,7 @@ Every worktree opens on its review: the document tab "Review", pinned at the lef
 - A worktree with no change since the base and no run shows the one line "No changes to review." with one Files button in Review. A branch with no commits yet shows its local files with no comparison error.
 - Review reads quietly: local files show without waiting for the branch comparison, code already shown stays while a newer patch is read, and no loading words or placeholders appear inside it (the writer's status stays). Each Uncommitted section shows its first 25 files, then "Read N more of <total files>". While another tab is shown, Review keeps its place but reads no patches; it catches up when shown again.
 - Each step shows group "Code: Step N" under its prose: region "Step N: branch" for its committed files and "Step N: uncommitted" for its local edits, each diff rendered with Pierre; then textbox "Ask about this step". A file cited by two steps appears in both. Changed files no step cites appear under heading "Not covered by the steps" at the end (regions "Not covered by the steps: branch" / "…: uncommitted"); the heading is absent when every file is in a step.
+- "See the lines" opens the first qualified excerpt on the first eligible step with a call, or the first eligible step when there is no such call. The Captured diff dialog selects the saved path, side and line range in its matching snapshot hunk. If the work changes, opening the saved run still shows its saved lines. "Back to step" and Escape return focus to the action. When the hunk is unavailable, "Open step code" opens the current comparison.
 - The Changes panel's "By step" rows still open document "Step N" (`entry=walkthrough-step:N`) after Review: it selects the comparisons containing the step's files, with one Reviewed toggle for the step and buttons "Previous step" and "Next step" in its header row. Its "All changes" row opens the uncommitted file table ("All changes", `entry=all-changes`).
 - Changes panel on a walkthrough worktree opens by default, on Uncommitted when there are local files and no committed files, otherwise Branch (an explicit tab choice wins): "All changes" with its count, "By step" with file counts and a "Your call" dot; under Uncommitted, empty step groups and their "By step" heading are hidden and files the walkthrough never read are under "Not in the walkthrough yet".
 
@@ -49,7 +52,7 @@ Every worktree opens on its review: the document tab "Review", pinned at the lef
 
 Preconditions: [surface baseline](README.md), started with `$C start --coding-tool`, which installs the fake writer. The fake answers from a scenario file in the repository's Git directory: no file writes a ready walkthrough; `hold` waits until the file changes; `signed-out` fails signed out; `nothing` writes the short page.
 
-For a ready synthetic page without running the fake writer, start with `$C start --walkthrough-sample` and open the initial worktree. Expect one call, two steps, "How the system grew" and "What the code doesn't say".
+For a ready synthetic page without running the fake writer, start with `$C start --walkthrough-sample` and open the initial worktree. Expect one call, two steps, "How the system grew" and "What the code doesn't say". Follow the call to Step 1, then open "See the lines". Expect `src/search.ts` · New line 2 with the title-matching rule selected. Click "Back to step" and confirm the original step stays in view.
 
 ### Setup
 

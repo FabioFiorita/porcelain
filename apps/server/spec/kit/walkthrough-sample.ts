@@ -101,14 +101,18 @@ export async function seedWalkthroughSample(
                     question: 'Should an empty search show every note?',
                     note: 'Showing all notes makes browsing easy; showing none keeps the first view quiet.',
                   },
-                  excerpts: [],
+                  excerpts: [
+                    {
+                      path: 'src/search.ts',
+                      side: 'new',
+                      start: 2,
+                      end: 2,
+                      caption: 'An empty string matches every title.',
+                    },
+                  ],
                   evidence: [],
                   files: [
                     { path: 'README.md', note: 'Introduces the sample.' },
-                    {
-                      path: 'src/search.ts',
-                      note: 'Owns title matching and the empty query behavior.',
-                    },
                   ],
                 },
                 {

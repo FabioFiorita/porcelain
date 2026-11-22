@@ -4,6 +4,7 @@ export {
   readWalkthroughResponseSchema,
   type StartWalkthroughRequest,
   type ReadWalkthroughResult,
+  type ReadWalkthroughQuery,
   type WalkthroughAssetParams,
 } from './api.ts';
 

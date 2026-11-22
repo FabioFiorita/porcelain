@@ -1,4 +1,5 @@
 import type { WorktreeParams } from '@porcelain/contracts/shared';
+import type { ReadWalkthroughQuery } from '@porcelain/contracts/walkthroughs';
 import { Context, Effect, Layer } from 'effect';
 import { ReadWalkthroughService } from '@porcelain/walkthroughs/services';
 import type {
@@ -11,11 +12,14 @@ import type { GitIoFailure } from '@porcelain/git/errors';
 export class ReadWalkthroughUseCase extends Context.Service<
   ReadWalkthroughUseCase,
   {
-    readonly execute: (input: WorktreeParams) => Effect.Effect<
+    readonly execute: (
+      input: WorktreeParams & ReadWalkthroughQuery,
+    ) => Effect.Effect<
       {
         walkthrough: WalkthroughRun | undefined;
         attempt: WalkthroughRun | undefined;
         freshness: WalkthroughFreshness;
+        capturedPatch?: string;
       },
       WorktreeAccessFailure | GitIoFailure
     >;
@@ -29,11 +33,7 @@ export class ReadWalkthroughUseCase extends Context.Service<
       return {
         execute: Effect.fn('ReadWalkthroughUseCase.execute')(function* (input) {
           return yield* access.read(input.worktreeId, () =>
-            Effect.gen(function* () {
-              const { walkthrough, attempt, freshness } =
-                yield* store.execute(input);
-              return { walkthrough, attempt, freshness };
-            }),
+            store.execute(input),
           );
         }),
       };

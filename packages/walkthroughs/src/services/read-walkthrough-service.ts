@@ -7,14 +7,21 @@ import type {
   WalkthroughRun,
   WalkthroughFreshness,
 } from '../models/walkthrough.ts';
+import { capturedExcerpt } from '../rules/captured-excerpt.ts';
+
 export class ReadWalkthroughService extends Context.Service<
   ReadWalkthroughService,
   {
-    readonly execute: (input: { worktreeId: string }) => Effect.Effect<
+    readonly execute: (input: {
+      worktreeId: string;
+      excerptRunId?: string | undefined;
+      excerptStep?: number | undefined;
+    }) => Effect.Effect<
       {
         walkthrough: WalkthroughRun | undefined;
         attempt: WalkthroughRun | undefined;
         freshness: WalkthroughFreshness;
+        capturedPatch?: string;
       },
       GitIoFailure,
       WorktreeRead
@@ -52,8 +59,15 @@ export class ReadWalkthroughService extends Context.Service<
                     baseRef: job.run.baseRef,
                   })
                   .pipe(Effect.catch(() => Effect.succeed(undefined)));
+          const capturedPatch =
+            job !== undefined &&
+            job.run.id === input.excerptRunId &&
+            input.excerptStep !== undefined
+              ? capturedExcerpt(job, input.excerptStep)
+              : undefined;
           return {
             walkthrough,
+            ...(capturedPatch === undefined ? {} : { capturedPatch }),
             freshness:
               walkthrough === undefined || identity === undefined
                 ? 'unknown'
