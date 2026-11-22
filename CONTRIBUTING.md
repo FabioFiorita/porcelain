@@ -6,9 +6,9 @@ Porcelain is built by one developer working with coding agents, and it moves qui
 
 ## How a pull request lands
 
-Every pull request needs green `checks` and an `Agent verdict`. A same-repository PR from the owner that modifies one existing browser E2E spec runs that spec and an independent smoke test before merge. Its verdict comes from the review policy unless a review is requested or already in progress. CI runs the affected browser suite on the resulting main commit.
+Pull requests into `main` run affected checks and a lightweight Decisions API check. The owner reviews outside contributions and consequential changes. Routine owner changes land after green checks. A maintainer can request a hosted review with `agent-review`.
 
-For other changes, an OpenAI model checks whether the patch needs a review, an agent reviews it when needed, and a second model assesses whether owner approval is needed. A comment shows the verdict and `agent-fixes` marks findings to address. Pull requests from contributors without write access need the maintainer's review request and approval. Protected changes and releases require an explicit owner decision.
+A promotion PR from `main` into `release` runs every runtime suite and a hosted agent review. A version tag on that qualified main commit publishes the release. The pull request and release sections of the development guide describe the gates.
 
 ## Architecture and decisions
 
