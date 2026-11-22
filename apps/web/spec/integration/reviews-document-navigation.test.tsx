@@ -55,6 +55,40 @@ test.for(['arrive', 'return'] as const)(
   },
 );
 
+test('Review stays visible until a newly opened file can be read', async ({
+  repo,
+  render,
+  server,
+  fetchGate,
+  reviewLayout,
+}) => {
+  await repo.write('notes.txt', 'Ready to read\n');
+  await repo.commit('Add notes');
+  const project = await server.project();
+  const main = project.worktrees.find((worktree) => worktree.main);
+  if (!main) throw new Error('The fixture has no main worktree');
+  reviewLayout.saveTabs(main.id, ['file:notes.txt']);
+  const held = fetchGate.holdNextTextRead('notes.txt');
+  held.arm();
+  const app = await render.route(`/${project.id}/${main.id}?entry=review`);
+  const review = app.page.getByRole('tab', { name: 'Review', exact: true });
+  const emptyReview = app.page.getByText('No changes to review.', {
+    exact: true,
+  });
+  await expect.element(emptyReview).toBeVisible();
+  try {
+    await app.page.getByRole('tab', { name: 'notes.txt', exact: true }).click();
+    await held.requested;
+    await expect.element(review).toHaveAttribute('aria-selected', 'true');
+    await expect.element(emptyReview).toBeVisible();
+  } finally {
+    held.release();
+  }
+  await expect
+    .element(app.page.getByText('Ready to read', { exact: true }))
+    .toBeVisible();
+});
+
 test('the old All changes link lands on Review over a saved file tab', async ({
   render,
   server,

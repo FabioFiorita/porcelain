@@ -712,33 +712,40 @@ function PaneView({
           />
         </div>
       )}
-      {pane.tabs
-        .filter(
-          (key) => key === shownEntry || (key === REVIEW_TAB && reviewOpened),
-        )
-        .map((key) => {
-          const ref = parseEntry(key);
-          if (!ref) return null;
-          const showing = key === shownEntry;
-          return (
-            <div
-              key={ref.kind === 'review' ? REVIEW_TAB : 'document'}
-              role="tabpanel"
-              id={documentIds(paneId, key).panel}
-              aria-labelledby={documentIds(paneId, key).tab}
-              aria-hidden={!showing}
-              inert={!showing || pending}
-              className={cn(
-                'flex min-h-0 flex-1 flex-col overflow-hidden',
-                !showing &&
-                  'pointer-events-none invisible absolute opacity-0 inset-x-0 top-12 bottom-0',
-              )}
+      {[
+        {
+          slot: REVIEW_TAB,
+          entry:
+            reviewOpened && pane.tabs.includes(REVIEW_TAB) ? REVIEW_TAB : null,
+        },
+        {
+          slot: 'document',
+          entry: shownEntry === REVIEW_TAB ? null : shownEntry,
+        },
+      ].map(({ slot, entry }) => {
+        const ref = parseEntry(entry ?? undefined);
+        const showing = ref !== null && entry === shownEntry;
+        const ids = entry ? documentIds(paneId, entry) : undefined;
+        return (
+          <div
+            key={slot}
+            role={ref ? 'tabpanel' : undefined}
+            id={ids?.panel}
+            aria-labelledby={ids?.tab}
+            aria-hidden={!showing}
+            inert={!showing || pending}
+            className={cn(
+              'flex min-h-0 flex-1 flex-col overflow-hidden',
+              !showing &&
+                'pointer-events-none invisible absolute opacity-0 inset-x-0 top-12 bottom-0',
+            )}
+          >
+            <ReviewBoundary
+              documentKey={entry ?? undefined}
+              connection={context.connection}
+              scope={scope}
             >
-              <ReviewBoundary
-                documentKey={key}
-                connection={context.connection}
-                scope={scope}
-              >
+              {ref && (
                 <DocumentView
                   review={review}
                   walkthroughCode={walkthroughCode}
@@ -760,10 +767,11 @@ function PaneView({
                       : undefined
                   }
                 />
-              </ReviewBoundary>
-            </div>
-          );
-        })}
+              )}
+            </ReviewBoundary>
+          </div>
+        );
+      })}
     </section>
   );
 }
