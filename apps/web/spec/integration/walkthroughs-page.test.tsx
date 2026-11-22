@@ -1008,15 +1008,20 @@ for (const side of ['old', 'new'] as const) {
       .not.toBeInTheDocument();
     await userEvent.keyboard('{Escape}');
     await expect.element(open).toHaveFocus();
-    await repo.write(SCENARIO, 'line-excerpt-updated');
+    await repo.write(SCENARIO, 'hold');
     await page
       .getByRole('button', { name: 'Update walkthrough', exact: true })
       .click();
     await expect
-      .poll(async () => (await server.walkthrough()).walkthrough?.id)
-      .not.toBe(firstRunId);
+      .element(page.getByText('Writing the walkthrough', { exact: true }))
+      .toBeVisible();
+    const savedId = async () => (await server.walkthrough()).walkthrough?.id;
+    await expect.poll(savedId).toBe(firstRunId);
+    await repo.write(SCENARIO, 'line-excerpt-updated');
     await expect.element(status.filter({ hasText: /^Saved / })).toBeVisible();
     await expect.element(stale).not.toBeInTheDocument();
+    await expect.poll(savedId).toBeTypeOf('string');
+    await expect.poll(savedId).not.toBe(firstRunId);
     await open.click();
     await expect
       .element(
