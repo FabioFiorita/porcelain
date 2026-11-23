@@ -1,10 +1,9 @@
-import { execFile, execFileSync, spawn } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
+import { createInterface } from 'node:readline';
 import { setTimeout } from 'node:timers/promises';
-import { promisify } from 'node:util';
 
-const run = promisify(execFile);
 const image = process.argv[2];
 if (!image) throw new Error('Pass the signed Porcelain disk image');
 
@@ -32,60 +31,36 @@ try {
         HOME: home,
         PORCELAIN_CODING_TOOL_DIRECTORY: 'none',
       },
-      stdio: 'inherit',
+      stdio: ['ignore', 'inherit', 'pipe'],
     },
   );
   const exited = new Promise<string>((resolve) => {
     app.once('error', (error) => resolve(error.message));
     app.once('close', (code, signal) => resolve(String(code ?? signal)));
   });
-  const windowProbe = new AbortController();
-  try {
-    if (app.pid === undefined)
-      throw new Error(
-        `The mounted Porcelain app did not launch (${await exited})`,
-      );
-    await Promise.race([
-      run(
-        'swift',
-        [
-          '-e',
-          String.raw`
-import CoreGraphics
-import Foundation
+  const ready = new Promise<void>((resolve) => {
+    createInterface({ input: app.stderr }).on('line', (line) => {
+      process.stderr.write(`${line}\n`);
+      if (line === 'Porcelain: renderer ready') resolve();
+    });
+  });
 
-let pid = ${app.pid}
-let deadline = ProcessInfo.processInfo.systemUptime + 30
-while ProcessInfo.processInfo.systemUptime < deadline {
-    let windows = CGWindowListCopyWindowInfo(
-        [.optionOnScreenOnly, .excludeDesktopElements],
-        kCGNullWindowID
-    ) as? [[String: Any]] ?? []
-    let visible = windows.contains { window in
-        guard window[kCGWindowOwnerPID as String] as? Int == pid,
-              window[kCGWindowLayer as String] as? Int == 0,
-              let bounds = window[kCGWindowBounds as String] as? [String: Double],
-              let width = bounds["Width"], let height = bounds["Height"] else { return false }
-        return width >= 800 && height >= 600
-    }
-    if visible { exit(0) }
-    Thread.sleep(forTimeInterval: 0.25)
-}
-FileHandle.standardError.write(Data("Porcelain did not show its main window.\n".utf8))
-exit(1)
-`,
-        ],
-        { signal: windowProbe.signal, timeout: 60_000 },
-      ),
+  try {
+    await Promise.race([
+      ready,
       exited.then((reason) => {
         throw new Error(
-          `Porcelain exited before showing its main window (${reason})`,
+          `Porcelain exited before its renderer was ready (${reason})`,
+        );
+      }),
+      setTimeout(30_000, undefined, { ref: false }).then(() => {
+        throw new Error(
+          'The mounted Porcelain app did not report renderer readiness',
         );
       }),
     ]);
-    console.log('The mounted Porcelain app showed its main window.');
+    console.log('The mounted Porcelain app reached renderer readiness.');
   } finally {
-    windowProbe.abort();
     app.kill();
     const stopped = await Promise.race([
       exited.then(() => true),

@@ -491,6 +491,7 @@ const start = Effect.fn('start')(function* () {
   });
   ipcMain.on('porcelain:actions-ready', (event) => {
     if (quitting || window === undefined || !trusted(event)) return;
+    if (!actionsReady) process.stderr.write('Porcelain: renderer ready\n');
     actionsReady = true;
     if (pendingAction !== undefined) {
       window.webContents.send('porcelain:action', pendingAction);
