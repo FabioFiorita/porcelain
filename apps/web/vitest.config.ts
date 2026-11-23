@@ -1,6 +1,6 @@
 import { availableParallelism } from 'node:os';
-import { playwright } from '@vitest/browser-playwright';
-import { defineConfig } from 'vitest/config';
+import { playwright } from 'vite-plus/test/browser-playwright';
+import { defineConfig } from 'vite-plus';
 import { hostCommands, serverProxy } from './spec/integration/host.ts';
 import web from './vite.config.ts';
 import { BrowserShardSequencer } from './spec/kit/browser-shards.ts';

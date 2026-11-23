@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { githubDescription } from './github-description.ts';
 
 const id = '78eec28e-0341-411a-b9b2-7ce767b53f3f';

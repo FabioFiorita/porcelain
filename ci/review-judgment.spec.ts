@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { judgeReview } from './review-judgment.ts';
 
 const clean = { findings: [], summary: 'All clear' };

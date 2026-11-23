@@ -71,7 +71,6 @@ const ignoredDirectories = new Set([
   'node_modules',
   'dist',
   '.vite',
-  '.turbo',
   'test-results',
 ]);
 const ignoredFile = /(?:^\.DS_Store|\.tsbuildinfo)$/;

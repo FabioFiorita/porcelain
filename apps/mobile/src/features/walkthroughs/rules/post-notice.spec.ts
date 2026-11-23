@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { stillSavedNotice } from './post-notice';
 
 it('says how many comments stayed saved without repeating their text', () => {

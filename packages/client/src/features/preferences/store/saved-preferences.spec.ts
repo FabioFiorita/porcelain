@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { defaultReviewGitSettings } from '../rules/review-git-settings.ts';
 import { Effect, Option, Schema } from 'effect';
 import { KeyValueStore } from 'effect/persistence';

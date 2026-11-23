@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vite-plus/test';
 import { Effect } from 'effect';
 import { AtomRegistry } from 'effect/reactivity';
 import type { Transport } from '@porcelain/client/transport';

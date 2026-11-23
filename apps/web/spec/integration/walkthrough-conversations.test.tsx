@@ -1,4 +1,4 @@
-import { page as browserPage, userEvent } from 'vitest/browser';
+import { page as browserPage, userEvent } from 'vite-plus/test/browser';
 import { expect, test, conversationFixture } from './fixtures.tsx';
 
 const reply =

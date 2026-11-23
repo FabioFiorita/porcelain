@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { Effect, Exit, Layer, ManagedRuntime } from 'effect';
 import { WorkflowEngine } from 'effect/workflow';
 import { NodeServices } from '@effect/platform-node';
-import { expect, it, onTestFinished } from 'vitest';
+import { expect, it, onTestFinished } from 'vite-plus/test';
 import { storageLayer } from '@porcelain/storage';
 import { IdSource } from '@porcelain/kernel/ports';
 import type { ListedWorktree } from '@porcelain/projects/models';

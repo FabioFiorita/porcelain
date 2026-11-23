@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { releaseTitle } from './first-document-title.ts';
 
 it('keeps the newer title when an older owner releases after it was replaced', () => {

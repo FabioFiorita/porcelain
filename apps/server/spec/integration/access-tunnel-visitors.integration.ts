@@ -1,6 +1,6 @@
 import * as Schema from 'effect/Schema';
 import { readInventoryResponseSchema } from '@porcelain/contracts/projects';
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import {
   apiError,
   deviceCookieForm,

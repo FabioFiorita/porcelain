@@ -1,4 +1,4 @@
-import { userEvent } from 'vitest/browser';
+import { userEvent } from 'vite-plus/test/browser';
 import { expect, expectInputFocus, test } from './fixtures.tsx';
 
 test.for([1280, 414])(

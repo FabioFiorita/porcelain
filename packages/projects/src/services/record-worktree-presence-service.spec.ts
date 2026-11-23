@@ -9,7 +9,7 @@ import {
   WorktreePresenceStore,
 } from '@porcelain/projects/ports';
 import { Clock, Effect } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { InMemoryInventoryStore } from '../../spec/fakes/in-memory-inventory-store.ts';
 import { InMemoryWorktreePresenceStore } from '../../spec/fakes/in-memory-worktree-presence-store.ts';
 import { RecordWorktreePresenceService } from './record-worktree-presence-service.ts';

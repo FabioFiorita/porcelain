@@ -33,7 +33,7 @@ import { channel } from 'node:diagnostics_channel';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import { gitBranchArchiverLayer } from '../../src/adapters/projects/git-branch-archiver.ts';
 import { LIMITS } from '../../src/config/limits.ts';
 import { InventoryScan } from '../../src/ports/inventory-scan.ts';

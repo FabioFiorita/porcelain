@@ -1,6 +1,6 @@
 import { sharedMemoConnections } from '../../../spec/kit/client-fixture.ts';
 import { Deferred, Effect, HashMap } from 'effect';
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 
 import { ReadSubscriptions } from './read-subscriptions.ts';
 

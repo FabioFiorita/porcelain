@@ -6,7 +6,7 @@ import type {
   BrowserCommand,
   BrowserCommandContext,
   TestProject,
-} from 'vitest/node';
+} from 'vite-plus/test/node';
 import type {
   CodingToolReplies,
   PairingParts,

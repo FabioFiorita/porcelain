@@ -1,5 +1,5 @@
 import { AtomRegistry } from 'effect/reactivity';
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { worktreeNavigatorState } from './worktree-navigator.ts';
 
 it('retains search, combined filters and independent project expansion across navigator unmounts', () => {

@@ -2,7 +2,7 @@ import { withReadLease } from '@porcelain/effects/worktree';
 import { DirectoryTooLargeError } from '@porcelain/files/errors';
 import { WorktreePathsReader } from '@porcelain/files/ports';
 import { Effect } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { InMemoryWorktreePathsReader } from '../../spec/fakes/in-memory-worktree-paths-reader.ts';
 import { ListWorktreePathsService } from './list-worktree-paths-service.ts';
 

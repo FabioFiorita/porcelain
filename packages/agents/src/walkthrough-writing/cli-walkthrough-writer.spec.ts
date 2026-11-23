@@ -11,7 +11,7 @@ import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import { Effect, Layer, ManagedRuntime, Schema } from 'effect';
 import { NodeServices } from '@effect/platform-node';
-import { expect, it, onTestFinished } from 'vitest';
+import { expect, it, onTestFinished } from 'vite-plus/test';
 import {
   WalkthroughModelReader,
   WalkthroughWriter,

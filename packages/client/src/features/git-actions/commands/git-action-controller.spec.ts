@@ -6,7 +6,7 @@ import { SecureRandom } from 'effect/crypto';
 import type { Context } from 'effect';
 import { AsyncResult, Atom, AtomRegistry } from 'effect/reactivity';
 import { readChanges } from '@porcelain/client/changes';
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import { it } from '@effect/vitest';
 import { Effect, Schema } from 'effect';
 import {

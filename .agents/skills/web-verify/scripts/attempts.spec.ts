@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { type Attempted, captureOnceMore } from './attempts.ts';
 
 type Outcome = { problems?: string[]; throws?: string };

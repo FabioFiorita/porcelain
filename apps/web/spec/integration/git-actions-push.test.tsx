@@ -1,4 +1,4 @@
-import { userEvent } from 'vitest/browser';
+import { userEvent } from 'vite-plus/test/browser';
 import { expect, test } from './fixtures.tsx';
 
 test('pushing to a remote whose address Porcelain cannot use is refused in the Git button box, which keeps the reason until closed, and the branch gains no upstream', async ({

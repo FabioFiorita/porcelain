@@ -1,6 +1,6 @@
 import { readRemoteAccessResponseSchema } from '@porcelain/contracts/access';
 import { Schema } from 'effect';
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import type { RemoteAccess } from '@porcelain/client/access/rules';
 import { computerSummary, deviceKind, devicePlatformName } from './settings';
 

@@ -10,7 +10,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vite-plus/test';
 import { readInProgress } from './read-in-progress.ts';
 
 const ONE = '6c1b860d27b09e27478a7e1cd13377dc66dc1dec';

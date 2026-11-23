@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { isTemporaryWrite, temporaryWriteName } from './temporary-write.ts';
 
 const id = '0f8fad5b-d9cb-469f-a165-70867728950e';

@@ -2,7 +2,7 @@ import type {
   ChangeComparison,
   TrackedComparison,
 } from '@porcelain/kernel/models';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { isTracked } from './is-tracked.ts';
 
 const sides: Omit<TrackedComparison, 'scope'> = {

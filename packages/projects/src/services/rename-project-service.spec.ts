@@ -2,7 +2,7 @@ import { ProjectNotFoundError } from '@porcelain/projects/errors';
 import { type RegisteredProject } from '@porcelain/projects/models';
 import { InventoryStore } from '@porcelain/projects/ports';
 import { Effect } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { InMemoryInventoryStore } from '../../spec/fakes/in-memory-inventory-store.ts';
 import { RenameProjectService } from './rename-project-service.ts';
 

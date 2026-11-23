@@ -1,4 +1,4 @@
-import { expect, test } from 'vitest';
+import { expect, test } from 'vite-plus/test';
 import { scheduledRegistry } from '../../../spec/kit/atom-registry';
 import { nextList } from '../rules/list-cursor';
 import { activeKeyCommands, pressKeyCommand } from '../rules/key-commands';

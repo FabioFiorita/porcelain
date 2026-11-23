@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { expiredReceipts } from './expired-receipts.ts';
 
 const day = 24 * 60 * 60 * 1000;

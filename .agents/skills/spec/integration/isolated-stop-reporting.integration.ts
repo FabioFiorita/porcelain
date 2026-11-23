@@ -10,7 +10,7 @@ import { promisify } from 'node:util';
 import { Schema } from 'effect';
 import { readInventoryResponseSchema } from '@porcelain/contracts/projects';
 import { World } from '@porcelain/web/kit/world';
-import { expect, inject } from 'vitest';
+import { expect, inject } from 'vite-plus/test';
 import {
   IsolatedServer,
   Recorder,

@@ -6,7 +6,7 @@ import {
 } from '@porcelain/projects/ports';
 import { Effect, Clock } from 'effect';
 import { WorktreeNotFoundError } from '@porcelain/kernel/errors';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { WorktreeUnavailableError } from '@porcelain/projects/errors';
 import {
   type CatalogObservation,

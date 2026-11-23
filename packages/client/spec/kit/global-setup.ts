@@ -1,5 +1,5 @@
 import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
-import type { TestProject } from 'vitest/node';
+import type { TestProject } from 'vite-plus/test/node';
 import { temporaryServerBuild } from '@porcelain/server/kit/sandbox';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';

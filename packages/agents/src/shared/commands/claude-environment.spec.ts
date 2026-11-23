@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { claudeEnvironment } from './claude-environment.ts';
 
 it('uses the normal macOS home and Keychain identity without inventing a config override', () => {

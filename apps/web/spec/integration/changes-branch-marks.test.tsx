@@ -1,4 +1,4 @@
-import { page as browserPage } from 'vitest/browser';
+import { page as browserPage } from 'vite-plus/test/browser';
 import { expect, test } from './fixtures.tsx';
 
 test('a branch mark belongs to its branch: another branch starts fresh and switching back finds it', async ({

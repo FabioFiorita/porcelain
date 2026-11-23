@@ -1,6 +1,6 @@
 import { writeFile, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import { test } from '../kit/server-test.ts';
 import { read } from '../kit/requests.ts';
 import { record, text } from '../kit/session.ts';

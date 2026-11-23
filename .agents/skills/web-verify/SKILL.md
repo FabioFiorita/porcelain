@@ -1,11 +1,11 @@
 ---
 name: web-verify
-description: Prepare a disposable Porcelain server and Vite, drive the web app with an independent browser tool following tool-neutral feature maps, and retain evidence. Use before calling a web change done, when checking a feature or web performance, or when correcting a map.
+description: Prepare a disposable Porcelain server and Vite+, drive the web app with an independent browser tool following tool-neutral feature maps, and retain evidence. Use before calling a web change done, when checking a feature or web performance, or when correcting a map.
 ---
 
 # Web verification
 
-From the repository root, `C=.agents/skills/web-verify/scripts/cli`. Run `$C` for command help. The CLI prepares disposable server/Vite processes and fixtures; use a browser driver for interactions and assertions.
+From the repository root, `C=.agents/skills/web-verify/scripts/cli`. Run `$C` for command help. The CLI prepares disposable server/Vite+ processes and fixtures; use a browser driver for interactions and assertions.
 
 ## Prepare and connect
 

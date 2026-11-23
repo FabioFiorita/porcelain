@@ -2,7 +2,7 @@ import { WorktreeChangedError } from '@porcelain/kernel/errors';
 import { type ListedWorktree } from '@porcelain/projects/models';
 import { WorktreeCatalogStore } from '@porcelain/projects/ports';
 import { Effect } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { InMemoryWorktreeCatalogStore } from '../../spec/fakes/in-memory-worktree-catalog-store.ts';
 import { ConfirmWorktreeService } from './confirm-worktree-service.ts';
 

@@ -17,7 +17,7 @@ import { storageLayer } from '@porcelain/storage';
 import { SqlClient } from 'effect/sql';
 import { seedStoredWalkthroughs } from '../kit/walkthrough-fixture.ts';
 import { readWalkthroughResponseSchema } from '@porcelain/contracts/walkthroughs';
-import { expect, vi } from 'vitest';
+import { expect, vi } from 'vite-plus/test';
 import { GitHubReader } from '@porcelain/reviews/ports';
 import { composeServer } from '../../src/bootstrap/compose-server.ts';
 import { readServerSettings } from '../../src/config/server-settings.ts';

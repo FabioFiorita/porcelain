@@ -4,7 +4,7 @@ import {
   readRemoteAccessResponseSchema,
   setWaysInPermissionResponseSchema,
 } from '@porcelain/contracts/access';
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import { apiError, invalidRequest, unauthenticated } from '../kit/answers.ts';
 import { tunnelOn } from '../kit/reads.ts';
 import {

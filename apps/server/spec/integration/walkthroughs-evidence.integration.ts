@@ -1,5 +1,5 @@
 import { DatabaseSync } from 'node:sqlite';
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from '../kit/server-test.ts';

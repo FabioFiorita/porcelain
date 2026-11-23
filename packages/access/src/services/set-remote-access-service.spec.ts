@@ -7,7 +7,7 @@ import {
   RemoteAccessOptions,
 } from '@porcelain/access/ports';
 import { Effect, Layer } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import {
   InvalidTailnetHostnameError,
   InvalidTunnelHostnameError,

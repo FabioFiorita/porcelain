@@ -1,5 +1,5 @@
 import { Effect } from 'effect';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vite-plus/test';
 import type { WorktreePresence } from '../../src/models/worktree-presence.ts';
 import type { WorktreePresenceStore } from '../../src/ports/worktree-presence-store.ts';
 

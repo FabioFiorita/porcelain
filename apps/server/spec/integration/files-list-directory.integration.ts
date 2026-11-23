@@ -1,6 +1,6 @@
 import { listDirectoryResponseSchema } from '@porcelain/contracts/files';
 import * as Schema from 'effect/Schema';
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import { apiError, unreadablePath } from '../kit/answers.ts';
 import { worktreePath } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';

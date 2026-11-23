@@ -15,7 +15,7 @@ import {
   CheckWorktreeService,
 } from '@porcelain/projects/services';
 import { Clock, Effect } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { InMemoryInventoryStore } from '../../../spec/fakes/in-memory-inventory-store.ts';
 import { InMemoryWorktreeCatalogStore } from '../../../spec/fakes/in-memory-worktree-catalog-store.ts';
 import { ScriptedInventoryScan } from '../../../spec/fakes/scripted-inventory-scan.ts';

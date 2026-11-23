@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { isRelativePath } from './relative-path.ts';
 
 const relative = (path: string) => isRelativePath(path, 4096);

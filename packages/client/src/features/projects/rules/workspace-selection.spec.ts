@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import type { Inventory } from './inventory.ts';
 import { workspaceSelection } from './workspace-selection.ts';
 

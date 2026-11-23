@@ -10,7 +10,6 @@ dist/
 .env
 .env.*
 !.env.example
-.turbo/
 apps/marketing/.astro/
 
 /dist-porcelain/

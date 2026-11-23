@@ -1,4 +1,9 @@
-import { deepStrictEqual, strictEqual, throws } from 'node:assert/strict';
+import {
+  deepStrictEqual,
+  match,
+  strictEqual,
+  throws,
+} from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import {
   mkdirSync,
@@ -29,6 +34,7 @@ import { checkStyle } from '../scripts/style.ts';
 import { handlerCoverage } from '../apps/server/spec/kit/route-coverage.ts';
 import { featureMapProblems } from '../scripts/feature-maps.ts';
 import knip from './knip.ts';
+import config from '../vite.config.ts';
 import { reactCompilerProblems } from '../scripts/react-compiler.ts';
 import { nativeMigrationHistoryProblems } from '../packages/storage/scripts/native-migration-history.ts';
 
@@ -207,13 +213,15 @@ function ciSelectionFixture(entry) {
       'package.json',
       'pnpm-lock.yaml',
       'pnpm-workspace.yaml',
-      'turbo.json',
+      'ci/check-plan.ts',
+      'vite.config.ts',
       '.github/workflows/ci.yml',
       ...manifests,
     ])
       writeFiles(root, {
         [path]: readFileSync(join(repository, path), 'utf8'),
       });
+    writeFiles(root, entry.files);
     for (const fixture of entry.cases)
       if (fixture.source) writeFiles(root, { [fixture.path]: fixture.source });
     run('git', ['init', '--quiet']);
@@ -230,107 +238,88 @@ function ciSelectionFixture(entry) {
       '-m',
       'Create CI selection fixture',
     ]);
-    const ruleHash = () =>
-      JSON.parse(
-        run(join(repository, 'node_modules/.bin/turbo'), [
-          'run',
-          'test:rules',
-          '--dry=json',
-        ]),
-      ).tasks.find((task) => task.taskId === '//#test:rules').hash;
-    const originalHash = ruleHash();
-    const unitHashes = (dry) =>
-      new Map(
-        dry.tasks
-          .filter(
-            (task) => task.task === 'test' && task.command !== '<NONEXISTENT>',
-          )
-          .map((task) => [task.package, task.hash]),
-      );
-    const originalUnits = unitHashes(
-      JSON.parse(
-        run(join(repository, 'node_modules/.bin/turbo'), [
-          'run',
-          'test',
-          '--dry=json',
-        ]),
-      ),
+    const base = run('git', ['rev-parse', 'HEAD']).trim();
+    const planner = join(repository, 'ci/check-plan.ts');
+    const runtimePlanner = 'ci/runtime-plan.ts';
+    const workflow = parse(
+      readFileSync(join(root, '.github/workflows/ci.yml'), 'utf8'),
+    );
+    match(
+      workflow.jobs.affected.steps.find(({ id }) => id === 'affected').run,
+      /^node ci\/runtime-plan\.ts >> "\$GITHUB_OUTPUT"$/m,
     );
     for (const fixture of entry.cases) {
       const path = fixture.path && join(root, fixture.path);
       const original = path && readFileSync(path, 'utf8');
-      if (path) writeFileSync(path, original + '\n');
-      const dry = JSON.parse(
-        run(
-          join(repository, 'node_modules/.bin/turbo'),
-          [
-            'run',
-            'test:rules',
-            'test',
-            'test:integration',
-            'test:e2e',
-            'build',
-            'build:package',
-            'db:check',
-            '--affected',
-            '--dry=json',
-          ],
-          { TURBO_SCM_BASE: 'HEAD', TURBO_SCM_HEAD: 'HEAD' },
-        ),
-      );
-      if (fixture.source && Object.hasOwn(fixture, 'rules'))
-        strictEqual(
-          (dry.tasks.find((task) => task.taskId === '//#test:rules')?.hash ??
-            ruleHash()) !== originalHash,
-          fixture.rules,
-          `${fixture.name}: test:rules cache hash`,
+      if (path) {
+        writeFileSync(path, original + '\n');
+        for (const removed of fixture.remove ?? []) rmSync(join(root, removed));
+        run('git', ['add', '--', fixture.path, ...(fixture.remove ?? [])]);
+        run('git', [
+          '-c',
+          'user.name=CI fixture',
+          '-c',
+          'user.email=ci-fixture@example.invalid',
+          '-c',
+          'commit.gpgsign=false',
+          'commit',
+          '--quiet',
+          '-m',
+          fixture.name,
+        ]);
+      }
+      const plan = (suite) =>
+        JSON.parse(
+          run(process.execPath, [planner, suite, '--ci', '--list'], {
+            DIFF_BASE: base,
+            RELEASE_LANE: String(fixture.release ?? false),
+          }),
         );
-      const tasks = new Set(dry.tasks.map((task) => task.taskId));
       if (fixture.unitProjects)
         deepStrictEqual(
-          dry.tasks
-            .filter(
-              (task) =>
-                task.task === 'test' && task.command !== '<NONEXISTENT>',
-            )
-            .map((task) => task.package)
-            .sort((left, right) => left.localeCompare(right)),
+          plan('unit').map((id) => id.split('#')[0]),
           fixture.unitProjects,
           `${fixture.name}: affected unit projects`,
         );
-      if (fixture.changedUnitProjects)
-        deepStrictEqual(
-          [...unitHashes(dry)]
-            .filter(([name, hash]) => originalUnits.get(name) !== hash)
-            .map(([name]) => name)
-            .sort((left, right) => left.localeCompare(right)),
-          fixture.changedUnitProjects,
-          `${fixture.name}: invalidated unit results`,
-        );
       strictEqual(
-        tasks.has('//#test:rules'),
+        plan('static').includes('//#test:rules'),
         fixture.rules ?? false,
         `${fixture.name}: test:rules affected selection`,
       );
+      const outputs = run(
+        process.execPath,
+        [join(repository, runtimePlanner)],
+        {
+          DIFF_BASE: base,
+          RELEASE_LANE: String(fixture.release ?? false),
+        },
+      )
+        .trim()
+        .split('\n');
       const selected = [
-        [
-          'server',
-          [
-            '@porcelain/server#test:integration',
-            '@porcelain/client#test:integration',
-            '@porcelain/verification#test:integration',
-          ],
-        ],
-        ['web-integration', ['@porcelain/web#test:integration']],
-        ['web-e2e', ['@porcelain/web#test:e2e']],
-        ['desktop', ['@porcelain/desktop#test:e2e']],
-        ['storage', ['@porcelain/storage#db:check']],
-        ['package', ['//#build:package']],
-      ]
-        .filter(([, ids]) => ids.some((id) => tasks.has(id)))
-        .map(([gate]) => gate);
+        'server',
+        'web-integration',
+        'web-e2e',
+        'desktop',
+        'storage',
+        'package',
+      ].filter((gate) => {
+        const output = outputs.find((line) => line.startsWith(`${gate}=`));
+        strictEqual(
+          output === `${gate}=true` || output === `${gate}=false`,
+          true,
+          `${fixture.name}: ${gate} must be a boolean output`,
+        );
+        return output === `${gate}=true`;
+      });
       deepStrictEqual(selected, fixture.selected, fixture.name);
-      if (path) writeFileSync(path, original);
+      if (fixture.integration)
+        strictEqual(
+          outputs.find((line) => line.startsWith('integration=')),
+          `integration=${JSON.stringify(fixture.integration)}`,
+          `${fixture.name}: integration spec output`,
+        );
+      if (path) run('git', ['reset', '--hard', '--quiet', base]);
       process.stdout.write(`PASS ci-affected-selection: ${fixture.name}\n`);
     }
   } finally {
@@ -370,8 +359,7 @@ async function styleConfigFixture(entry) {
       'apps/marketing/astro.config.ts': 'export {};',
     };
     for (const name of [
-      '.oxlintrc.json',
-      '.oxfmtrc.json',
+      'vite.config.ts',
       'tsconfig.json',
       'apps/web/tsconfig.json',
       'apps/server/tsconfig.json',
@@ -380,15 +368,22 @@ async function styleConfigFixture(entry) {
     ])
       files[name] = readFileSync(join(repository, name), 'utf8');
     for (const [name, replacements] of Object.entries(entry.json ?? {})) {
-      const config = JSON.parse(files[name]);
+      const settings =
+        name === 'vite.config.ts'
+          ? structuredClone(config)
+          : JSON.parse(files[name]);
       for (const [path, value] of Object.entries(replacements)) {
         const keys = path.split('.');
         const key = keys.pop();
-        const parent = keys.reduce((at, part) => at[part], config);
+        const parent = keys.reduce((at, part) => at[part], settings);
         if (value === undefined) delete parent[key];
         else parent[key] = value;
       }
-      files[name] = JSON.stringify(config);
+      const serialized = JSON.stringify(settings);
+      files[name] =
+        name === 'vite.config.ts'
+          ? `export default ${serialized};`
+          : serialized;
     }
     writeFiles(root, { ...files, ...entry.files });
     if (entry.target === 'web') {
@@ -407,9 +402,9 @@ async function styleConfigFixture(entry) {
     );
     if (entry.toolOutput !== undefined) {
       writeFiles(root, {
-        'node_modules/.bin/oxlint': `#!/bin/sh\nprintf '%s' '${entry.toolOutput}'\n`,
+        'node_modules/.bin/vp': `#!/bin/sh\nprintf '%s' '${entry.toolOutput}'\n`,
       });
-      chmodSync(join(root, 'node_modules/.bin/oxlint'), 0o755);
+      chmodSync(join(root, 'node_modules/.bin/vp'), 0o755);
     }
     const initialized = run('git', ['init', '--quiet']);
     strictEqual(initialized.status, 0, initialized.stderr);
@@ -623,7 +618,7 @@ export async function runGuardrailCases(named = []) {
       }
       strictEqual(
         workflow.jobs.units.steps.find((step) =>
-          step.run?.includes('turbo run test '),
+          step.run?.includes('check:unit'),
         )?.run,
         entry.unitCommand,
         'CI runs unit projects through affected task selection',
@@ -639,10 +634,11 @@ export async function runGuardrailCases(named = []) {
       );
       const browser = workflow.jobs['web-e2e'];
       strictEqual(browser.strategy.matrix.shard, entry.webE2eShardPlan);
-      strictEqual(
-        workflow.env.AFFECTED,
-        "${{ github.base_ref != 'release' && '--affected' || '' }}",
-      );
+      deepStrictEqual(workflow.env, {
+        RELEASE_LANE: "${{ github.base_ref == 'release' }}",
+        DIFF_BASE:
+          '${{ github.event.pull_request.base.sha || github.event.before }}',
+      });
       for (const fixture of entry.webE2eCases) {
         const release = fixture.specs.length === 0;
         const runBrowser = browser.steps.find(
@@ -759,16 +755,18 @@ ${runBrowser.run.replace('${{ matrix.shard }}', '"$SHARD"')}`;
           join(root, 'node_modules'),
           'dir',
         );
+        writeFiles(root, { 'package.json': '{"type":"module"}' });
         for (const [source, errors] of [
           [entry.valid, []],
           [entry.invalid, entry.errors],
         ]) {
           writeFiles(root, { [entry.path ?? 'fixture.ts']: source });
           const checked = spawnSync(
-            join(repository, 'node_modules/.bin/oxlint'),
+            join(repository, 'node_modules/.bin/vp'),
             [
+              'lint',
               '--config',
-              join(repository, '.oxlintrc.json'),
+              join(repository, 'vite.config.ts'),
               '--format',
               'json',
               join(root, entry.path ?? 'fixture.ts'),
@@ -776,6 +774,7 @@ ${runBrowser.run.replace('${{ matrix.shard }}', '"$SHARD"')}`;
             { encoding: 'utf8', cwd: root },
           );
           if (checked.error) throw checked.error;
+          if (!checked.stdout) throw new Error(checked.stderr);
           const diagnostics = JSON.parse(checked.stdout).diagnostics;
           deepStrictEqual(
             diagnostics.map((diagnostic) => diagnostic.code),

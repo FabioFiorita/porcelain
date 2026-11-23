@@ -1,7 +1,7 @@
 import { testClock } from '@porcelain/kernel/test-kit';
 import { PairingGrantStore } from '@porcelain/access/ports';
 import { Effect, Clock } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import type { StoredPairingGrant } from '@porcelain/access/models';
 import { InMemoryPairingGrantStore } from '../../spec/fakes/in-memory-pairing-grant-store.ts';
 import { RevokePairingGrantService } from './revoke-pairing-grant-service.ts';

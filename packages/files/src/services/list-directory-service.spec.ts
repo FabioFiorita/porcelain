@@ -5,7 +5,7 @@ import {
 } from '@porcelain/files/ports';
 import { Effect } from 'effect';
 import { withReadLease } from '@porcelain/effects/worktree';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import {
   ContentChangedError,
   DirectoryTooLargeError,

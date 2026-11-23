@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import type { NetworkAddress } from '@porcelain/access/models';
 import { HOME_ROUTER_HARDWARE } from '../../spec/fixtures/default-routes.ts';
 import { localNetwork, sameNetwork, subnetOf } from './local-network.ts';

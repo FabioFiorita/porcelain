@@ -1,5 +1,5 @@
 import { Effect } from 'effect';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vite-plus/test';
 import { openHttpApplication } from '@porcelain/server/kit/http';
 import { gitActionsRoutes } from './git-actions-api.ts';
 

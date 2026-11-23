@@ -16,7 +16,7 @@ import { join } from 'node:path';
 import { gitLimits } from '../../spec/fixtures/git-limits.ts';
 import { gitWorktree } from '../../spec/fixtures/git-worktree.ts';
 import { Cause, Duration, Effect, Exit, Fiber, Schedule } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 function run<A, E>(operation: Effect.Effect<A, E, NodeServices.NodeServices>) {
   return Effect.runPromise(operation.pipe(Effect.provide(NodeServices.layer)));
 }

@@ -19,7 +19,7 @@ type Surface = {
   sources: readonly string[];
   flows?: string;
 };
-const skipped = new Set(['node_modules', 'dist', '.vite', '.turbo']);
+const skipped = new Set(['node_modules', 'dist', '.vite']);
 const sourceFile = /\.(?:tsx?|css|html)$/;
 const entrySchema = Schema.Struct({
   route: Schema.optional(Schema.String.check(Schema.isStartingWith('/'))),

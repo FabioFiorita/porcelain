@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { discardSelection } from './discard-selection';
 
 it('rejects selections crossing from additions to deletions', () => {

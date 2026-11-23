@@ -4,7 +4,7 @@ import {
   CollectAbsentWorktreesOptions,
 } from '@porcelain/projects/ports';
 import { Effect, Clock } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { type WorktreePresence } from '@porcelain/projects/models';
 import { InMemoryWorktreePresenceStore } from '../../spec/fakes/in-memory-worktree-presence-store.ts';
 import { CollectAbsentWorktreesService } from './collect-absent-worktrees-service.ts';

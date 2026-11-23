@@ -1,5 +1,5 @@
 import { Effect } from 'effect';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vite-plus/test';
 import type { StoredDevice } from '../../src/models/device.ts';
 import type { DeviceStore } from '../../src/ports/device-store.ts';
 

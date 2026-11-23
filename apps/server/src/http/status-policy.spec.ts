@@ -6,7 +6,7 @@ import * as projectsErrors from '@porcelain/projects/errors';
 import * as reviewsErrors from '@porcelain/reviews/errors';
 import * as gitErrors from '@porcelain/git/errors';
 import * as kernelErrors from '@porcelain/kernel/errors';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { abandonedByClient, toStatusResponse } from './status-policy.ts';
 
 const domainErrors: Record<string, Record<string, unknown>> = {

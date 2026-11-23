@@ -1,6 +1,6 @@
 import * as Schema from 'effect/Schema';
 import { browseProjectFoldersResponseSchema } from '@porcelain/contracts/projects';
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import { apiError, invalidRequest } from '../kit/answers.ts';
 import { test } from '../kit/server-test.ts';
 

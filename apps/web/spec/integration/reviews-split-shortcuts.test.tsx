@@ -1,4 +1,4 @@
-import { page, userEvent } from 'vitest/browser';
+import { page, userEvent } from 'vite-plus/test/browser';
 import { expect, test } from './fixtures.tsx';
 
 test('returning from Settings restores the focused side pane for tab shortcuts', async ({

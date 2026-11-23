@@ -1,6 +1,6 @@
 import { EnvironmentLabelStore, HostNameReader } from '@porcelain/access/ports';
 import { Effect } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { FixedHostNameReader } from '../../spec/fakes/fixed-host-name-reader.ts';
 import { InMemoryEnvironmentLabelStore } from '../../spec/fakes/in-memory-environment-label-store.ts';
 import { RenameEnvironmentService } from './rename-environment-service.ts';

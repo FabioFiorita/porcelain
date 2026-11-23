@@ -1,4 +1,4 @@
-import { page, userEvent, type Locator } from 'vitest/browser';
+import { page, userEvent, type Locator } from 'vite-plus/test/browser';
 
 function uncovered(element: Element) {
   const box = element.getBoundingClientRect();

@@ -1,6 +1,6 @@
 import { Effect } from 'effect';
 import { AtomRegistry } from 'effect/reactivity';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import type { RegisterProjectResponse } from '@porcelain/contracts/projects';
 import { clientFixtures } from '../../../../spec/kit/client-fixture.ts';
 import { openProject } from './open-project.ts';

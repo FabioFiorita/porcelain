@@ -1,6 +1,6 @@
 import { readWorktreeSummaryResponseSchema } from '@porcelain/contracts/changes';
 import * as Schema from 'effect/Schema';
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import { test } from '../kit/server-test.ts';
 import { read, worktreePath } from '../kit/requests.ts';
 

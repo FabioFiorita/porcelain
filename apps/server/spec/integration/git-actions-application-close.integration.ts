@@ -1,4 +1,4 @@
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import { closeRunningCommit } from '../kit/application-close.ts';
 import { test } from '../kit/server-test.ts';
 

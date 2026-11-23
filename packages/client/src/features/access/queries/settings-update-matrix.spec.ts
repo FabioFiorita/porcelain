@@ -1,6 +1,6 @@
 import { Effect } from 'effect';
 import { AsyncResult, AtomRegistry } from 'effect/reactivity';
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { clientFixtures } from '../../../../spec/kit/client-fixture.ts';
 import type { ReadServiceUpdateResponse } from '@porcelain/contracts/access';
 import type { SettingsUpdateTarget } from '../commands/settings-updates.ts';

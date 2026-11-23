@@ -1,7 +1,7 @@
 import { RepositoryUnavailableError } from '@porcelain/kernel/errors';
 import { ProjectRepositoryReader } from '@porcelain/projects/ports';
 import { Effect } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { ScriptedProjectRepositoryReader } from '../../spec/fakes/scripted-project-repository-reader.ts';
 import { InspectProjectRepositoryService } from './inspect-project-repository-service.ts';
 

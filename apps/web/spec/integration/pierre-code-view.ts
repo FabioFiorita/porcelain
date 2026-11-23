@@ -1,5 +1,5 @@
 import { CodeView, type CodeViewItem } from '@pierre/diffs';
-import { expect, vi, type MockInstance } from 'vitest';
+import { expect, vi, type MockInstance } from 'vite-plus/test';
 
 type DisposableInstance = { cleanUp: (recycle?: boolean) => void };
 type CleanupSpy = MockInstance<(recycle?: boolean) => void>;

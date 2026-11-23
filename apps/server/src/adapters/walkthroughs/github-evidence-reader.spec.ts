@@ -1,6 +1,6 @@
 import { GitHubReadError } from '@porcelain/reviews/errors';
 import type { githubPullRequestSchema } from '@porcelain/reviews/models';
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { Effect, Layer } from 'effect';
 import { FetchHttpClient } from 'effect/http';
 import { GitHubReader, GitHubAccountStore } from '@porcelain/reviews/ports';

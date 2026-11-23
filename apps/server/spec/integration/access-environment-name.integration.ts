@@ -1,6 +1,6 @@
 import { renameEnvironmentResponseSchema } from '@porcelain/contracts/access';
 import * as Schema from 'effect/Schema';
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import { apiError } from '../kit/answers.ts';
 import { inventory, inventoryNotice, watching } from '../kit/reads.ts';
 import { test } from '../kit/server-test.ts';

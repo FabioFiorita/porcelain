@@ -1,4 +1,4 @@
-import { userEvent } from 'vitest/browser';
+import { userEvent } from 'vite-plus/test/browser';
 import { expect, test, type Render, type Repo } from './fixtures.tsx';
 
 const target = 'quick-target.md';

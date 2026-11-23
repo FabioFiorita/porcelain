@@ -1,4 +1,4 @@
-import { expect, test } from 'vitest';
+import { expect, test } from 'vite-plus/test';
 import { Effect, Layer, Schema } from 'effect';
 import { AtomRegistry } from 'effect/reactivity';
 import { readBranchBases, readBranchChanges } from '@porcelain/client/changes';

@@ -1,6 +1,6 @@
 import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { ConnectionError } from '../../../shared/api/connection-error.ts';
 import { workspaceInventory, workspaceReadiness } from './inventory-state.ts';
 

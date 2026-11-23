@@ -2,7 +2,7 @@ import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { mkdir, readFile, rm, symlink, stat } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import { test } from '@porcelain/server/kit/server-test';
 import { list, record, text } from '@porcelain/server/kit/session';
 import {

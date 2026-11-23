@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { Effect, Layer, ManagedRuntime, Schema } from 'effect';
 import { WorkflowEngine } from 'effect/workflow';
 import { NodeServices } from '@effect/platform-node';
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { storageLayer } from '@porcelain/storage';
 import {
   WalkthroughModelReader,

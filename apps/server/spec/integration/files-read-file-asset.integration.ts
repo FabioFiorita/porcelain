@@ -1,6 +1,6 @@
 import * as Schema from 'effect/Schema';
 import { readFileAssetResponseSchema } from '@porcelain/contracts/files';
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import {
   apiError,
   CREDENTIAL_LINK,

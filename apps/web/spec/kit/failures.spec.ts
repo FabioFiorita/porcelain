@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { createFailures, failureMessage } from './failures.ts';
 import type { BrowserFailure, ServerHit } from './protocol.ts';
 

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { fingerprintChange } from './fingerprint-change.ts';
 import { modified, unmerged } from '../../spec/fixtures/comparisons.ts';
 

@@ -1,5 +1,5 @@
 import { Effect } from 'effect';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vite-plus/test';
 import type { PushRegistrationStore } from '../../src/ports/push-registration-store.ts';
 
 export type PushRegistrationStoreSubject = {

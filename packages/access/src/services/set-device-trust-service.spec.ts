@@ -1,6 +1,6 @@
 import { DeviceStore } from '@porcelain/access/ports';
 import { Effect } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { DeviceNotFoundError } from '@porcelain/access/errors';
 import type { StoredDevice } from '@porcelain/access/models';
 import { InMemoryDeviceStore } from '../../spec/fakes/in-memory-device-store.ts';

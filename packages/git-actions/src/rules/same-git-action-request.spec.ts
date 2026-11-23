@@ -2,7 +2,7 @@ import type {
   AcceptGitActionInput,
   GitActionReceipt,
 } from '@porcelain/git-actions/models';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { sameGitActionRequest } from './same-git-action-request.ts';
 
 const expected = {

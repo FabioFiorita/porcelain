@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { humanTranscript } from './filesystem-transcript-reader.ts';
 const line = (entry: unknown) => JSON.stringify(entry);
 it('reads only human Claude text from the exact worktree and skips sidechains, meta, tool results and injected session scaffolding', () => {

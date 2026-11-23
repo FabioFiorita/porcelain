@@ -1,4 +1,4 @@
-import { expect, test } from 'vitest';
+import { expect, test } from 'vite-plus/test';
 import { isNativeImagePath } from './file-tree';
 
 test('SVG files use editable source while bitmap images keep native previews', () => {

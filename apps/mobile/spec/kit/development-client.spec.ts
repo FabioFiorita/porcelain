@@ -1,5 +1,5 @@
 import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
-import { afterEach, beforeEach, expect, it } from 'vitest';
+import { afterEach, beforeEach, expect, it } from 'vite-plus/test';
 import { randomUUID } from 'node:crypto';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';

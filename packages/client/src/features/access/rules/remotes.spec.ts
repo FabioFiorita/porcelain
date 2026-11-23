@@ -1,6 +1,6 @@
 import { ENVIRONMENT_PROTOCOL } from '@porcelain/contracts/shared';
 import { Redacted } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import {
   connectionRoutes,
   connectionRouteTitle,

@@ -2,7 +2,7 @@ import type {
   CommitDraftCapture,
   CommitGroupLimits,
 } from '@porcelain/git-actions/models';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { commitGroupsCoverSelection } from './commit-groups-cover-selection.ts';
 
 const limits: CommitGroupLimits = { maxGroups: 20, maxMessageBytes: 16_384 };

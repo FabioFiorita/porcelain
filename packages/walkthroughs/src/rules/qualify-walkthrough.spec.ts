@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import type { WalkthroughContent, DiffFile } from '../models/walkthrough.ts';
 import { qualifyWalkthrough } from './qualify-walkthrough.ts';
 const files: DiffFile[] = [

@@ -1,5 +1,5 @@
 import { createLiveUpdates } from '../../src/features/live/commands/live-updates.ts';
-import { afterEach, expect } from 'vitest';
+import { afterEach, expect } from 'vite-plus/test';
 import { Effect, Layer, Option } from 'effect';
 import { AtomRegistry, type Atom, AsyncResult } from 'effect/reactivity';
 import { createWorktreeConnection } from '../../src/shared/api/worktree-connection.ts';

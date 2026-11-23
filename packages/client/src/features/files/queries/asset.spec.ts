@@ -1,5 +1,5 @@
 import { clientFixtures } from '../../../../spec/kit/client-fixture.ts';
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { Effect } from 'effect';
 import { AtomRegistry } from 'effect/reactivity';
 import { type Transport } from '@porcelain/client/transport';

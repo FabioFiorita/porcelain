@@ -8,7 +8,7 @@ import {
   ManagedRuntime,
 } from 'effect';
 import { Atom, AtomRegistry } from 'effect/reactivity';
-import { afterEach, expect, it } from 'vitest';
+import { afterEach, expect, it } from 'vite-plus/test';
 import {
   AccessPlatform,
   AccessStore,

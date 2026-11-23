@@ -1,4 +1,4 @@
-import { userEvent } from 'vitest/browser';
+import { userEvent } from 'vite-plus/test/browser';
 import { expect, test } from './fixtures.tsx';
 
 test('first run offers project registration without inactive search advice', async ({

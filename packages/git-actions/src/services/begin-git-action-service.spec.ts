@@ -1,5 +1,5 @@
 import { Clock, Effect, Layer } from 'effect';
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { testClock } from '@porcelain/kernel/test-kit';
 import { sampleReceipt } from '../../spec/fixtures/git-action-samples.ts';
 import { InMemoryGitActionReceiptStore } from '../../spec/fakes/in-memory-git-action-receipt-store.ts';

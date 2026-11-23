@@ -1,6 +1,6 @@
 import * as Schema from 'effect/Schema';
 import { readHealthResponseSchema } from '@porcelain/contracts/access';
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import { inventory } from '../kit/reads.ts';
 import { pairDevice } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';

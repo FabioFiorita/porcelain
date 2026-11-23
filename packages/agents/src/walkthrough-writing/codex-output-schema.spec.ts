@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { Predicate, Schema } from 'effect';
 import { walkthroughContentSchema } from '@porcelain/contracts/walkthroughs';
 import { firstPassSchema } from './writing-prompts.ts';

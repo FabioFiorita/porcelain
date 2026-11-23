@@ -1,6 +1,6 @@
 import { RemoteAccessStore, RouteStateStore } from '@porcelain/access/ports';
 import { Effect } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import type { RouteState } from '@porcelain/access/models';
 import { InMemoryRemoteAccessStore } from '../../spec/fakes/in-memory-remote-access-store.ts';
 import { InMemoryRouteStateStore } from '../../spec/fakes/in-memory-route-state-store.ts';

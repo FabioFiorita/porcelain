@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { Cause, Effect, Exit } from 'effect';
 import { releaseInOrder } from './release-in-order.ts';
 

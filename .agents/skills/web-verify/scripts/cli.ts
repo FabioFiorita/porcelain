@@ -19,13 +19,13 @@ import {
   serverRead,
 } from '../../verify-core/fixtures.ts';
 import { registry, type WebInstance } from './instance.ts';
-import { start, serve, vite, remoteRequest, remoteFailed } from './start.ts';
+import { start, serve, vp, remoteRequest, remoteFailed } from './start.ts';
 
 const remoteReadyMs = 90 * 1000;
 const remotePollMs = 200;
 const usage = `Usage: .agents/skills/web-verify/scripts/cli <command> [--instance <id>]
   start [--browser-fixture] [--desktop] [--coding-tool] [--walkthrough-sample] [--git-interruption]
-                          start a disposable server and Vite; print the card and optional one-time browser fixture URL
+                          start a disposable server and Vite+; print the card and optional one-time browser fixture URL
   doctor                  check startup dependencies; list optional browser drivers
   status                  inspect captured ownership, build staleness and connection metadata
   logs                    print redacted server and Vite output
@@ -49,11 +49,11 @@ Drive the browser with your own tools. Open the browser fixture URL in a fresh b
 `;
 async function doctor(): Promise<string> {
   const sandbox = sandboxProblems();
-  if (sandbox.length > 0 || !existsSync(vite)) process.exitCode = 1;
+  if (sandbox.length > 0 || !existsSync(vp)) process.exitCode = 1;
   const checks = [
     `node ${process.versions.node}`,
     ...(sandbox.length > 0 ? sandbox : ['server sandbox and Git: ready']),
-    `Vite: ${existsSync(vite) ? 'ready' : 'missing; run pnpm install --frozen-lockfile'}`,
+    `Vite+: ${existsSync(vp) ? 'ready' : 'missing; run pnpm install --frozen-lockfile'}`,
     'Optional drivers (not required for startup): harness browser, project Playwright MCP, pnpm exec playwright cli',
     ...optionalDrivers(),
   ];

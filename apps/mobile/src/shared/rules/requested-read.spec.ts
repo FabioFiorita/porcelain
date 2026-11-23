@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { idleRead, requestRead, requestedRead } from './requested-read';
 
 const before = { status: 'before' };

@@ -9,7 +9,7 @@ import { SqlClient } from 'effect/sql';
 import { DatabaseSync } from 'node:sqlite';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { databaseLayer } from './connection.ts';
 import { prepareNativeDatabase } from '../../spec/kit/native-database.ts';
 

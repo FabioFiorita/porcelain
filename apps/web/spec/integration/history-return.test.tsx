@@ -1,4 +1,4 @@
-import { page } from 'vitest/browser';
+import { page } from 'vite-plus/test/browser';
 import { expect, test } from './fixtures.tsx';
 
 test('History and graph retain selection and reading position after leaving them', async ({

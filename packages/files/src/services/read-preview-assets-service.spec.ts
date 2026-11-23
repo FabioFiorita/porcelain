@@ -1,7 +1,7 @@
 import { FileReader, ReadPreviewAssetsOptions } from '@porcelain/files/ports';
 import { Effect } from 'effect';
 import { withReadLease } from '@porcelain/effects/worktree';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { type FileRead } from '@porcelain/files/models';
 import { InMemoryFileReader } from '../../spec/fakes/in-memory-file-reader.ts';
 import { ReadPreviewAssetsService } from './read-preview-assets-service.ts';

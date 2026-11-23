@@ -1,7 +1,7 @@
 import { readGitStatusResponseSchema } from '@porcelain/contracts/changes';
 import * as Schema from 'effect/Schema';
 import { randomUUID } from 'node:crypto';
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import {
   changes,
   expectation,

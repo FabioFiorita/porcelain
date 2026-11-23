@@ -3,7 +3,7 @@ import {
   FilePreferenceStore,
 } from '@porcelain/projects/ports';
 import { Effect } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { InMemoryFilePreferenceStore } from '../../spec/fakes/in-memory-file-preference-store.ts';
 import { InMemoryWorktreePresenceStore } from '../../spec/fakes/in-memory-worktree-presence-store.ts';
 import { ForgetProjectRecordsService } from './forget-project-records-service.ts';

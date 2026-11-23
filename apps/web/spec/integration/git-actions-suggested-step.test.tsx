@@ -1,4 +1,4 @@
-import { userEvent } from 'vitest/browser';
+import { userEvent } from 'vite-plus/test/browser';
 import { expect, test } from './fixtures.tsx';
 
 test('the Git button suggests applying a waiting stash once the tree is clean, and applying it brings the changes back', async ({

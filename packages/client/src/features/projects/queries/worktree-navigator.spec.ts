@@ -1,5 +1,5 @@
 import type { Transport } from '../../../shared/api/transport.ts';
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { AsyncResult, type AtomRegistry } from 'effect/reactivity';
 import {
   clientFixtures,

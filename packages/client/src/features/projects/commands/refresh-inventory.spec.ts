@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { Effect, Layer, Option } from 'effect';
 import { AtomRegistry, Reactivity } from 'effect/reactivity';
 import type { ReadInventoryResponse } from '@porcelain/contracts/projects';

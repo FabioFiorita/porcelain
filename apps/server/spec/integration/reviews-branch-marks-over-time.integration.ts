@@ -1,4 +1,4 @@
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import { read, worktreePath } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
 import { list, record, text, type Session } from '../kit/session.ts';

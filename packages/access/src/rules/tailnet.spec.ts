@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import type { RouteState } from '@porcelain/access/models';
 import { tailnetNeedsCheck, tailnetShownWhileChecking } from './tailnet.ts';
 

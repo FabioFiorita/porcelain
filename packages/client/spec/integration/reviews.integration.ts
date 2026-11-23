@@ -1,4 +1,4 @@
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import { test } from '@porcelain/server/kit/server-test';
 import {
   readChangeDiffs,

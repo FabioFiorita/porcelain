@@ -9,7 +9,7 @@ import {
   writeFile,
 } from 'node:fs/promises';
 import { delimiter, dirname, join, resolve } from 'node:path';
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import { test } from '@porcelain/server/kit/server-test';
 import { list, record, text } from '@porcelain/server/kit/session';
 import {

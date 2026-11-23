@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { itemAccessibilityLabel } from './item-label.ts';
 
 it('labels plain rows and respects an explicit announcement', () => {

@@ -1,4 +1,4 @@
-import { page as browserPage, userEvent } from 'vitest/browser';
+import { page as browserPage, userEvent } from 'vite-plus/test/browser';
 import { expect, test } from './fixtures.tsx';
 
 test('single-computer inventory cards retain accessible identity without a redundant badge', async ({

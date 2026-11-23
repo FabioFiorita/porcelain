@@ -1,4 +1,4 @@
-import { page, userEvent } from 'vitest/browser';
+import { page, userEvent } from 'vite-plus/test/browser';
 import { expect, test } from './fixtures.tsx';
 
 test('without a coding CLI the commit dialog says drafting is unavailable, and a typed message still commits', async ({

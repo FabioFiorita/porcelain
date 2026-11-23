@@ -1,7 +1,7 @@
 import { BranchRangeReader } from '@porcelain/changes/ports';
 import { Effect } from 'effect';
 import { withReadLease } from '@porcelain/effects/worktree';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { InMemoryBranchRangeReader } from '../../spec/fakes/in-memory-branch-range-reader.ts';
 import { ReadBranchDiffsService } from './read-branch-diffs-service.ts';
 

@@ -1,5 +1,5 @@
 import { Redacted } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { savedRemotes } from './remotes.ts';
 
 const environmentId = '1bc3e6b1-f849-4176-93b2-850147d4ebb3';

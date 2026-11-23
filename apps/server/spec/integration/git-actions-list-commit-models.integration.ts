@@ -1,6 +1,6 @@
 import * as Schema from 'effect/Schema';
 import { listCommitModelsResponseSchema } from '@porcelain/contracts/git-actions';
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import { unauthenticated } from '../kit/answers.ts';
 import { test } from '../kit/server-test.ts';
 

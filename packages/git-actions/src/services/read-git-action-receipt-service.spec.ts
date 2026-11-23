@@ -1,7 +1,7 @@
 import { GitActionReceiptStore } from '@porcelain/git-actions/ports';
 import { Effect } from 'effect';
 import { GitActionNotFoundError } from '@porcelain/git-actions/errors';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { sampleReceipt } from '../../spec/fixtures/git-action-samples.ts';
 import { InMemoryGitActionReceiptStore } from '../../spec/fakes/in-memory-git-action-receipt-store.ts';
 import { ReadGitActionReceiptService } from './read-git-action-receipt-service.ts';

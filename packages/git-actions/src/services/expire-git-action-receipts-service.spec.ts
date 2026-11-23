@@ -4,7 +4,7 @@ import {
   ExpireGitActionReceiptsOptions,
 } from '@porcelain/git-actions/ports';
 import { Effect, Clock } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { sampleReceipt } from '../../spec/fixtures/git-action-samples.ts';
 import { InMemoryGitActionReceiptStore } from '../../spec/fakes/in-memory-git-action-receipt-store.ts';
 import { ExpireGitActionReceiptsService } from './expire-git-action-receipts-service.ts';

@@ -10,7 +10,7 @@ import type {
 } from '@porcelain/walkthroughs/models';
 import { apiError } from '../kit/answers.ts';
 import { handlerCoverage } from '../kit/route-coverage.ts';
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import { Schema } from 'effect';
 import {
   readWalkthroughResponseSchema,

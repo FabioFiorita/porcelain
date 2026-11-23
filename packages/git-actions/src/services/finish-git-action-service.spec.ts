@@ -2,7 +2,7 @@ import { testClock } from '@porcelain/kernel/test-kit';
 import { GitActionReceiptStore } from '@porcelain/git-actions/ports';
 import { Effect, Clock } from 'effect';
 import { GitActionNotFoundError } from '@porcelain/git-actions/errors';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import {
   REQUEST_ID,
   sampleReceipt,

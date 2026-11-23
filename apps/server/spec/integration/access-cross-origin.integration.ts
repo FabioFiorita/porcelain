@@ -5,7 +5,7 @@ import {
   readHealthResponseSchema,
   redeemPairingResponseSchema,
 } from '@porcelain/contracts/access';
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import { apiError, credentialForm, unauthenticated } from '../kit/answers.ts';
 import { inventory } from '../kit/reads.ts';
 import {

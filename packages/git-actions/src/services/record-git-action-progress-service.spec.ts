@@ -3,7 +3,7 @@ import {
   RecordGitActionProgressOptions,
 } from '@porcelain/git-actions/ports';
 import { Effect } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import {
   REQUEST_ID,
   sampleReceipt,

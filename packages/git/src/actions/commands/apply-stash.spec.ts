@@ -4,7 +4,7 @@ import { Effect } from 'effect';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vite-plus/test';
 import { applyStash } from './apply-stash.ts';
 import { gitLimits } from '../../../spec/fixtures/git-limits.ts';
 

@@ -1,5 +1,5 @@
 import { ownFileDraftLifetime } from '../../../../spec/kit/file-draft-lifetime.ts';
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { Effect, Layer, ManagedRuntime } from 'effect';
 import { AtomRegistry } from 'effect/reactivity';
 import { FileDrafts } from '@porcelain/client/files';

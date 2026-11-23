@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { focusedPatch } from './focused-patch';
 
 const header = 'diff --git a/a.ts b/a.ts\n--- a/a.ts\n+++ b/a.ts';

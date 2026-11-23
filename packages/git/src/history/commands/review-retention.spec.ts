@@ -4,7 +4,7 @@ import { NodeServices } from '@effect/platform-node';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { readBranchDiffs } from './read-branch-diffs.ts';
 import { readBlobAtOid } from '../../inspection/index.ts';
 import { pinReviewRevision } from '../../inspection/index.ts';

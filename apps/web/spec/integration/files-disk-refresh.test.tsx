@@ -1,4 +1,4 @@
-import { page, userEvent } from 'vitest/browser';
+import { page, userEvent } from 'vite-plus/test/browser';
 import { expect, test, replaceEditorContent } from './fixtures.tsx';
 
 test.for(['clean', 'unsaved'] as const)(

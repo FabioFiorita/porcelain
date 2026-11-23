@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { fileWatchPaths } from './file-watch-paths.ts';
 
 it('ignores a batch containing only temporary writes instead of invalidating every file', () => {

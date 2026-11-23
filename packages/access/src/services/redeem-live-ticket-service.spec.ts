@@ -6,7 +6,7 @@ import {
   RedeemLiveTicketOptions,
 } from '@porcelain/access/ports';
 import { Redacted, Effect, Clock } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import type { StoredDevice } from '@porcelain/access/models';
 import { credential } from '@porcelain/access/rules';
 import { sha256Hex } from '@porcelain/kernel/rules';

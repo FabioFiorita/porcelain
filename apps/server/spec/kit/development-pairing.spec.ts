@@ -4,7 +4,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { networkInterfaces } from 'node:os';
 import { join } from 'node:path';
 import { once } from 'node:events';
-import { beforeEach, afterEach, it, expect } from 'vitest';
+import { beforeEach, afterEach, it, expect } from 'vite-plus/test';
 import { developmentPairing } from './development-pairing.ts';
 
 async function close(server: Server) {

@@ -7,7 +7,7 @@ const untouched = {
 };
 import { Effect } from 'effect';
 import { Reactivity } from 'effect/reactivity';
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import type { LiveNotice } from '@porcelain/contracts/access';
 import type { RunGitActionResponse } from '@porcelain/contracts/git-actions';
 import { queryKeys } from '@porcelain/client/transport';

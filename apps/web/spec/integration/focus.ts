@@ -1,5 +1,5 @@
-import { expect } from 'vitest';
-import type { Locator } from 'vitest/browser';
+import { expect } from 'vite-plus/test';
+import type { Locator } from 'vite-plus/test/browser';
 
 export async function expectInputFocus(input: Locator) {
   await expect

@@ -3,7 +3,7 @@ import { NodeServices } from '@effect/platform-node';
 import { Clock, Effect, Layer, ManagedRuntime } from 'effect';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { testClock } from '@porcelain/kernel/test-kit';
 import { SequentialIdSource } from '@porcelain/kernel/fakes';
 import { IdSource } from '@porcelain/kernel/ports';

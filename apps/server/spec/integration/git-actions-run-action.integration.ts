@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import {
   apiError,
   invalidRequest,

@@ -1,4 +1,4 @@
-import { vi } from 'vitest';
+import { vi } from 'vite-plus/test';
 import { read, receiptPath, waysInChange, worktreePath } from './requests.ts';
 import {
   list,

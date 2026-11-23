@@ -126,7 +126,7 @@ export async function stageDesktop(stage: {
       '--filter',
       '@porcelain/web',
       'exec',
-      'vite',
+      'vp',
       'build',
       '--mode',
       'desktop',

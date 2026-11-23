@@ -1,4 +1,4 @@
-import { expect, test } from 'vitest';
+import { expect, test } from 'vite-plus/test';
 import { liveNotices } from './live-notices.ts';
 import { record, type LiveConnection } from './session.ts';
 

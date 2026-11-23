@@ -1,6 +1,6 @@
 import { fileURLToPath } from 'node:url';
 import { deepStrictEqual, throws, ok } from 'node:assert/strict';
-import { RuleTester } from 'oxlint/plugins-dev';
+import { RuleTester } from 'vite-plus/lint/plugins-dev';
 import { parseSync } from 'oxc-parser';
 import plugin from './oxlint-plugin.mjs';
 import { runGuardrailCases } from './guardrail-tests.mjs';
@@ -8,7 +8,7 @@ import { runGuardrailCases } from './guardrail-tests.mjs';
 import ruleCases from './rule-cases.mjs';
 import { runBoundaryCases } from './boundary-tests.mjs';
 const root = new URL('../', import.meta.url);
-import { spawnSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import {
   cpSync,
   mkdirSync,
@@ -22,6 +22,15 @@ import { dirname, join } from 'node:path';
 import { domainPackages } from './policy.ts';
 import boundaryCases from './boundary-cases.mjs';
 import { guardrailCases } from './rule-cases.mjs';
+
+const repositoryGitVariables = execFileSync(
+  'git',
+  ['rev-parse', '--local-env-vars'],
+  { encoding: 'utf8' },
+)
+  .trim()
+  .split('\n');
+for (const name of repositoryGitVariables) delete process.env[name];
 
 function diagnosticFixture(entry) {
   const directory = mkdtempSync(join(tmpdir(), 'porcelain-diagnostic-'));
@@ -89,8 +98,7 @@ function diagnosticFixture(entry) {
         recursive: true,
       });
       for (const path of [
-        '.oxlintrc.json',
-        '.oxfmtrc.json',
+        'vite.config.ts',
         'tsconfig.json',
         'apps/web/tsconfig.json',
         'apps/server/tsconfig.json',

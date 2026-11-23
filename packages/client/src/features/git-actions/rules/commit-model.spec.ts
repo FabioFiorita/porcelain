@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { resolveCommitModel } from './commit-model.ts';
 
 const models = [

@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { Option, Schema } from 'effect';
 import { pullRequestTargetSchema } from './pull-request-target';
 

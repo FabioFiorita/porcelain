@@ -6,7 +6,7 @@ import {
 } from '../../../../spec/kit/client-fixture.ts';
 import { holdReturningRead } from '../../../../spec/kit/held-transport.ts';
 import { editFile } from '@porcelain/client/files';
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { Effect, HashMap, Option, Schema, Stream } from 'effect';
 import { DIFFS_PER_REQUEST } from '@porcelain/contracts/shared';
 import {

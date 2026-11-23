@@ -1,4 +1,4 @@
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import { threeCommits } from '../kit/reads.ts';
 import { worktreePath } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';

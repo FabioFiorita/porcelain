@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { diffPresentation } from './diff-presentation';
 
 describe('review diff presentation', () => {

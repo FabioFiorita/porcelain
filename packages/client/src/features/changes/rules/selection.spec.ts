@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { diffSelection } from './selection.ts';
 it.each(['staged', 'unstaged'] as const)(
   'keeps both rename paths for %s',

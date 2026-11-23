@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import type { ReadChangesResponse } from '@porcelain/contracts/changes';
 import {
   firstDocument,

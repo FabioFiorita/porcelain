@@ -1,5 +1,5 @@
 import { liveSessionState } from '../../live/store.ts';
-import { afterEach, describe, expect } from 'vitest';
+import { afterEach, describe, expect } from 'vite-plus/test';
 import { AsyncResult, AtomRegistry } from 'effect/reactivity';
 import type { AccessPlatformValue } from '../ports/access-platform.ts';
 import { it } from '@effect/vitest';

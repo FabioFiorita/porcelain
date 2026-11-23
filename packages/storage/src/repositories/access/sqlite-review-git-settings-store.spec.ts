@@ -5,7 +5,7 @@ import { ReviewGitSettingsStore } from '@porcelain/access/ports';
 import { storageLayer } from '../../index.ts';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vite-plus/test';
 import { reviewGitSettingsStoreContract } from '@porcelain/access/store-contracts';
 
 function open(dataDirectory: string) {

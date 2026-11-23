@@ -1,6 +1,6 @@
 import { listCommitsResponseSchema } from '@porcelain/contracts/changes';
 import * as Schema from 'effect/Schema';
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import { unknownOid } from '../kit/answers.ts';
 import { threeCommits } from '../kit/reads.ts';
 import { read, worktreePath } from '../kit/requests.ts';

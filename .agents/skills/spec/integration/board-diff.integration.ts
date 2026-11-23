@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, expect } from 'vitest';
+import { afterAll, beforeAll, expect } from 'vite-plus/test';
 import { test as it } from '@porcelain/server/kit/server-test';
 import { chromium, type Browser } from 'playwright';
 import {

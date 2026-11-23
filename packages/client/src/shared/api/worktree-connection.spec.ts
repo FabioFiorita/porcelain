@@ -1,5 +1,5 @@
 import { Cause, Deferred, Effect, Exit, Fiber, Layer, Scope } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { createWorktreeConnection } from './worktree-connection.ts';
 
 const transport = () => Promise.resolve(Response.json({}));

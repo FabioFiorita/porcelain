@@ -9,7 +9,7 @@ import { Equal, Layer } from 'effect';
 import { SecureRandom } from 'effect/crypto';
 
 import { Effect } from 'effect';
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import {
   createWorktreeConnection,
   queryKeys,

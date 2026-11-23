@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import type { WalkthroughRun } from '../models/walkthrough.ts';
 import type { StoredWalkthroughMessage } from '../models/conversation.ts';
 import { composeBrief, conversationsView, planPost } from './conversations.ts';

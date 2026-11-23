@@ -1,6 +1,6 @@
 import { diffLines } from '@porcelain/client/changes/rules';
 import { createOnigurumaEngine } from 'shiki/engine/oniguruma';
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 
 import { createCodeHighlighter } from './code-highlighter';
 import {
