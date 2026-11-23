@@ -61,70 +61,48 @@ jobs:
 
   mac:
     needs: version
+    if: needs.version.outputs.publish == 'false'
     runs-on: macos-latest
-    timeout-minutes: 60
+    timeout-minutes: 12
+    permissions:
+      contents: read
+      actions: read
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/setup@v3
+      - uses: actions/setup-node@v7
         with:
-          runtime: node@26.13.0
-          cache: true
-          require-lockfile: true
-      - run: pnpm install --frozen-lockfile
-      - name: Import the Developer ID certificate into a temporary keychain
-        env:
-          CSC_LINK: ${{ secrets.CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
-        run: |
-          set -euo pipefail
-          keychain="$RUNNER_TEMP/release.keychain-db"
-          password=$(openssl rand -hex 24)
-          printf '%s' "$CSC_LINK" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
-          security create-keychain -p "$password" "$keychain"
-          security set-keychain-settings -lut 21600 "$keychain"
-          security unlock-keychain -p "$password" "$keychain"
-          security import "$RUNNER_TEMP/certificate.p12" -P "$CSC_KEY_PASSWORD" -A -t cert -f pkcs12 -k "$keychain"
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$password" "$keychain" > /dev/null
-          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
-          rm "$RUNNER_TEMP/certificate.p12"
-          echo "PORCELAIN_MAC_KEYCHAIN=$keychain" >> "$GITHUB_ENV"
-      - name: Build, sign and notarize the Mac app, its disk image and its update
-        env:
-          PORCELAIN_MAC_SIGNING_IDENTITY: 'Developer ID Application: Fabio Luiz Fiorita Pontes (9QH8M89WF9)'
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: node scripts/build-desktop.ts --release
-      - name: Verify what Gatekeeper will check
-        env:
-          VERSION: ${{ needs.version.outputs.version }}
-        run: |
-          set -euo pipefail
-          image="dist/desktop/Porcelain-$VERSION-arm64.dmg"
-          app=$(find dist/desktop -maxdepth 2 -name Porcelain.app -type d -print -quit)
-          codesign --verify --deep --strict --verbose=2 "$app"
-          xcrun stapler validate "$app"
-          xcrun stapler validate "$image"
-          spctl --assess --type open --context context:primary-signature --verbose "$image"
-          test -f "$app/Contents/Resources/app-update.yml"
-          grep -qx "version: \"$VERSION\"" dist/desktop/latest-mac.yml
-          test -f "dist/desktop/Porcelain-$VERSION-arm64-mac.zip"
-      - uses: actions/upload-artifact@v7
+          node-version: 26.13.0
+      - uses: actions/download-artifact@v7
+        id: image
         with:
           name: mac
-          path: |
-            dist/desktop/*.dmg
-            dist/desktop/*-mac.zip
-            dist/desktop/latest-mac.yml
-          if-no-files-found: error
-          retention-days: 14
-      - name: Launch Porcelain from its signed disk image
+          run-id: 45291167073
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/signed-image
+      - name: Record macOS session and image attributes
         env:
-          VERSION: ${{ needs.version.outputs.version }}
-        run: node scripts/check-desktop-release.ts "dist/desktop/Porcelain-$VERSION-arm64.dmg"
-      - name: Remove the temporary keychain
-        if: always()
-        run: security delete-keychain "$RUNNER_TEMP/release.keychain-db" || true
+          IMAGE: ${{ runner.temp }}/signed-image/Porcelain-${{ needs.version.outputs.version }}-arm64.dmg
+        run: |
+          sw_vers
+          scutil <<< 'show State:/Users/ConsoleUser' || true
+          /usr/bin/xattr -l "$IMAGE"
+          /usr/sbin/spctl --assess --type open --context context:primary-signature --verbose "$IMAGE"
+      - name: Launch the signed app from the mounted image
+        if: always() && steps.image.outcome == 'success'
+        env:
+          IMAGE: ${{ runner.temp }}/signed-image/Porcelain-${{ needs.version.outputs.version }}-arm64.dmg
+        run: node scripts/check-desktop-release.ts "$IMAGE"
+      - name: Launch the same signed app after copying from the image
+        if: always() && steps.image.outcome == 'success'
+        env:
+          IMAGE: ${{ runner.temp }}/signed-image/Porcelain-${{ needs.version.outputs.version }}-arm64.dmg
+          PORCELAIN_REHEARSAL_COPY: 'true'
+        run: node scripts/check-desktop-release.ts "$IMAGE"
+      - name: Record system launch and code-signing diagnostics
+        if: always() && steps.image.outcome == 'success'
+        run: |
+          /usr/bin/log show --last 5m --style compact --predicate 'process CONTAINS[c] "Porcelain" OR ((process == "amfid" OR process == "syspolicyd" OR process == "launchservicesd") AND eventMessage CONTAINS[c] "Porcelain")' | tail -160
+          find "$HOME/Library/Logs/DiagnosticReports" -name 'Porcelain*' -print 2>/dev/null || true
 
   release:
     needs: [version, mac, package]

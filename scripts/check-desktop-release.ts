@@ -22,8 +22,24 @@ try {
     { stdio: 'inherit' },
   );
   mounted = true;
+  const mountedBundle = join(mount, 'Porcelain.app');
+  const bundle =
+    process.env.PORCELAIN_REHEARSAL_COPY === 'true'
+      ? join(workspace, 'Porcelain.app')
+      : mountedBundle;
+  if (bundle !== mountedBundle)
+    execFileSync('/usr/bin/ditto', [mountedBundle, bundle], {
+      stdio: 'inherit',
+    });
+  execFileSync(
+    '/usr/bin/codesign',
+    ['--verify', '--deep', '--strict', bundle],
+    {
+      stdio: 'inherit',
+    },
+  );
   const app = spawn(
-    join(mount, 'Porcelain.app', 'Contents', 'MacOS', 'Porcelain'),
+    join(bundle, 'Contents', 'MacOS', 'Porcelain'),
     ['--data-directory', profile, '--project-home', projects],
     {
       env: {
@@ -60,6 +76,21 @@ try {
       }),
     ]);
     console.log('The mounted Porcelain app reached renderer readiness.');
+  } catch (error) {
+    const processes = execFileSync(
+      '/bin/ps',
+      ['-axww', '-o', 'pid=,ppid=,state=,command='],
+      {
+        encoding: 'utf8',
+      },
+    );
+    console.error(
+      processes
+        .split('\n')
+        .filter((line) => line.includes(workspace))
+        .join('\n'),
+    );
+    throw error;
   } finally {
     app.kill();
     const stopped = await Promise.race([
