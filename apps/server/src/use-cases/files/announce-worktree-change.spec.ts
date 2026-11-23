@@ -2,7 +2,7 @@ import { Logger } from '../../ports/logger.ts';
 import { EventPublisher } from '../../ports/event-publisher.ts';
 import { InvalidateReviewedMarksUseCasePort } from '../../ports/invalidate-reviewed-marks-use-case-port.ts';
 import { Effect } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { InMemoryReviewedMarks } from '../../../spec/fakes/in-memory-reviewed-marks.ts';
 import { RecordingEventPublisher } from '../../../spec/fakes/recording-event-publisher.ts';
 import { AnnounceWorktreeChangeUseCase } from './announce-worktree-change.ts';

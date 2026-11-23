@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { generalSettingsSummary } from './settings-summary.ts';
 
 it.each([['system', 'wrap', 'System theme · Wrap long lines']] as const)(

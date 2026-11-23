@@ -1,5 +1,5 @@
 import { Effect, Layer } from 'effect';
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
 import type { ListPullRequestsResponse } from '@porcelain/contracts/projects';
 import { ReadInventoryUseCasePort } from '../../ports/read-inventory-use-case-port.ts';

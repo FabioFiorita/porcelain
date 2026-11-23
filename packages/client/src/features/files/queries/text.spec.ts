@@ -8,7 +8,7 @@ import {
   mountRetainedClientRead,
 } from '../../../../spec/kit/client-fixture.ts';
 import { Deferred } from 'effect';
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { Cause, Effect, Exit, HashMap } from 'effect';
 import { AtomRegistry } from 'effect/reactivity';
 import { ReadSubscriptions } from '../../../shared/api/read-subscriptions.ts';

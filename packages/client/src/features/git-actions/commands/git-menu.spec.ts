@@ -1,6 +1,6 @@
 import { Effect } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import type { GitNotice } from '../rules/index.ts';
 import { runNetworkAction, type GitMenuControls } from './git-menu.ts';
 

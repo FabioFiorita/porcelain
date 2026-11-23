@@ -4,7 +4,7 @@ import {
   RefundPairingAttemptOptions,
 } from '@porcelain/access/ports';
 import { Effect, Clock } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { InMemoryPairingAttemptStore } from '../../spec/fakes/in-memory-pairing-attempt-store.ts';
 import { RefundPairingAttemptService } from './refund-pairing-attempt-service.ts';
 

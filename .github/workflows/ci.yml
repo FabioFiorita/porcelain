@@ -8,7 +8,8 @@ on:
     branches: [main]
 
 env:
-  AFFECTED: ${{ github.base_ref != 'release' && '--affected' || '' }}
+  RELEASE_LANE: ${{ github.base_ref == 'release' }}
+  DIFF_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
 
 permissions:
   contents: read
@@ -44,9 +45,7 @@ jobs:
       - name: Select checks for this lane
         id: affected
         env:
-          RELEASE_LANE: ${{ github.base_ref == 'release' }}
           VALID_PROMOTION: ${{ github.head_ref == 'main' && github.event.pull_request.head.repo.full_name == github.repository }}
-          DIFF_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: |
           if [[ "$RELEASE_LANE" == true && "$VALID_PROMOTION" != true ]]; then
             echo 'Promote the main branch of this repository into release.' >&2
@@ -69,12 +68,7 @@ jobs:
           save-cache: false
           require-lockfile: true
       - run: pnpm install --frozen-lockfile
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
-        with:
-          path: .turbo/cache
-          key: turbo-${{ runner.os }}-${{ github.sha }}
-          restore-keys: turbo-${{ runner.os }}-
-      - run: pnpm check:static $AFFECTED --concurrency=100%
+      - run: pnpm check:static --ci
 
   units:
     runs-on: ubuntu-latest
@@ -91,15 +85,10 @@ jobs:
           save-cache: true
           require-lockfile: true
       - run: pnpm install --frozen-lockfile
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
-        with:
-          path: .turbo/cache
-          key: turbo-units-${{ runner.os }}-${{ github.sha }}
-          restore-keys: turbo-units-${{ runner.os }}-
-      - run: pnpm exec turbo run test $AFFECTED --concurrency=1 --continue
+      - run: pnpm check:unit --ci
       - name: Verify production mobile exports
         if: github.base_ref == 'release'
-        run: pnpm exec turbo run build --filter=@porcelain/mobile --concurrency=1
+        run: pnpm exec vp run @porcelain/mobile#build
 
   package:
     needs: affected
@@ -147,7 +136,7 @@ jobs:
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
       - run: bwrap --ro-bind / / --dev /dev --proc /proc --unshare-pid --unshare-ipc --unshare-net --new-session --die-with-parent -- true
       - run: pnpm exec playwright install --only-shell chromium
-      - run: pnpm exec turbo run test:integration --filter=@porcelain/server --filter=@porcelain/client --filter=@porcelain/verification --concurrency=1 --continue
+      - run: pnpm exec vp run --concurrency-limit 1 --filter @porcelain/server --filter @porcelain/client --filter @porcelain/verification test:integration
 
   web-integration:
     needs: affected

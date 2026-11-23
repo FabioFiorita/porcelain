@@ -11,7 +11,7 @@ import { Effect, Deferred, Layer, ManagedRuntime } from 'effect';
 import { WorkflowEngine } from 'effect/workflow';
 import { SqlClient } from 'effect/sql';
 import { NodeServices } from '@effect/platform-node';
-import { expect, it, onTestFinished } from 'vitest';
+import { expect, it, onTestFinished } from 'vite-plus/test';
 import { storageLayer } from '@porcelain/storage';
 import {
   WalkthroughStore,

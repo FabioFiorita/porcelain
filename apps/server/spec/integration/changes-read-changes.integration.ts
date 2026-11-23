@@ -1,6 +1,6 @@
 import { readChangesResponseSchema } from '@porcelain/contracts/changes';
 import * as Schema from 'effect/Schema';
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import { apiError } from '../kit/answers.ts';
 import {
   blobOf,

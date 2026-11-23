@@ -1,7 +1,7 @@
 import * as Schema from 'effect/Schema';
 import { readEnvironmentResponseSchema } from '@porcelain/contracts/access';
 import { ENVIRONMENT_PROTOCOL } from '@porcelain/contracts/shared';
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import { inventory } from '../kit/reads.ts';
 import { read } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';

@@ -1,6 +1,6 @@
 import { build } from 'esbuild';
 import { fileURLToPath } from 'node:url';
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 
 const mobileRoot = fileURLToPath(new URL('..', import.meta.url));
 const fixtures = [

@@ -1,6 +1,6 @@
 import { sharedMemoConnections } from '../../../spec/kit/client-fixture.ts';
 import { it } from '@effect/vitest';
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import {
   Cause,
   Context,

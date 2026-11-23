@@ -1,5 +1,5 @@
 import { Effect } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { fixture } from '../../../spec/fixtures/fixture.ts';
 import { gitLimits } from '../../../spec/fixtures/git-limits.ts';
 import { parseFileCommits as parseFileCommitsEffect } from './parse-file-commits.ts';

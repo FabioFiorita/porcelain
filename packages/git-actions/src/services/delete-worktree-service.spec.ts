@@ -1,6 +1,6 @@
 import { Effect, Layer } from 'effect';
 import { withWriteLease } from '@porcelain/effects/worktree';
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { WorktreeCleaner } from '../ports/worktree-cleaner.ts';
 import { DeleteWorktreeService } from './delete-worktree-service.ts';
 import type { WorktreeCleanupTarget } from '../models/worktree-cleanup.ts';

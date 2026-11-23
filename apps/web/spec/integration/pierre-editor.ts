@@ -1,6 +1,6 @@
 import { VirtualizedFile, Virtualizer } from '@pierre/diffs';
 import { Editor } from '@pierre/diffs/edit';
-import { vi } from 'vitest';
+import { vi } from 'vite-plus/test';
 import { createPierreFileOptions } from '@/shared/lib/pierre';
 
 export function createPierreEditor() {

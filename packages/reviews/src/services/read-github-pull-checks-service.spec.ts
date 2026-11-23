@@ -1,5 +1,5 @@
 import { Effect, Layer } from 'effect';
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { GitHubReader } from '../ports/github-reader.ts';
 import { ReadGitHubPullChecksService } from './read-github-pull-checks-service.ts';
 import type { GitHubPullChecks } from '../models/pull-request.ts';

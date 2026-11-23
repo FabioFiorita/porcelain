@@ -7,7 +7,7 @@ import {
 import { GitActionRunner } from '@porcelain/git-actions/ports';
 import { type FileChange } from '@porcelain/kernel/models';
 import { Effect } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { ScriptedGitActionRunner } from '../../spec/fakes/scripted-git-action-runner.ts';
 import {
   CLEAN_EXPECTATION,

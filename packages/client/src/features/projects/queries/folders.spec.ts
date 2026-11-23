@@ -1,7 +1,7 @@
 import { unreachableClientFixture } from '../../../../spec/kit/client-fixture.ts';
 import { Effect } from 'effect';
 import { AtomRegistry } from 'effect/reactivity';
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { ConnectionError } from '@porcelain/client/transport';
 import { readProjectFolder } from './folders.ts';
 

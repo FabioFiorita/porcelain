@@ -23,7 +23,7 @@ import {
   UpdateProjectAvailabilityService,
 } from '@porcelain/projects/services';
 import { Clock, Deferred, Effect, Fiber, Layer } from 'effect';
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { InMemoryInventoryStore } from '../../../spec/fakes/in-memory-inventory-store.ts';
 import { InMemoryWorktreeCatalogStore } from '../../../spec/fakes/in-memory-worktree-catalog-store.ts';
 import { EventPublisher } from '../../ports/event-publisher.ts';

@@ -1,6 +1,6 @@
 import { registerProjectResponseSchema } from '@porcelain/contracts/projects';
 import * as Schema from 'effect/Schema';
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import { apiError } from '../kit/answers.ts';
 import { worktreePath } from '../kit/requests.ts';
 import { fingerprintOf, inventory } from '../kit/reads.ts';

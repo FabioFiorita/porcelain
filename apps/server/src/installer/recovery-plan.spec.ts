@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { recoveryPlan } from './recovery-plan.ts';
 
 const journal = { installed: { version: '1.0.0' }, backup: '/backups/one' };

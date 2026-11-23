@@ -9,7 +9,7 @@ import {
   RedeemPairingOptions,
 } from '@porcelain/access/ports';
 import { Redacted, Effect, Clock } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import {
   InvalidDeviceDetailsError,
   InvalidPairingError,

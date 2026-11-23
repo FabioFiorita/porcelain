@@ -14,7 +14,7 @@ import {
   type UntrackedFileRead,
 } from '@porcelain/git-actions/models';
 import { type FileChange } from '@porcelain/kernel/models';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import {
   GUIDE_FINGERPRINT,
   HEAD_OID,

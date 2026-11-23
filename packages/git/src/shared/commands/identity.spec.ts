@@ -2,7 +2,7 @@ import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { Effect } from 'effect';
 import { mkdtempSync, renameSync, rmSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { identity, formatIdentity } from './identity.ts';
 
 describe('filesystem identity', () => {

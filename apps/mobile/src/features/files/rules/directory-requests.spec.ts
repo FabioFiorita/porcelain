@@ -1,4 +1,4 @@
-import { expect, test } from 'vitest';
+import { expect, test } from 'vite-plus/test';
 import { directoryRequests } from './directory-requests';
 
 test('renamed and removed ancestors stop directory reads, including stale descendants', () => {

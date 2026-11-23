@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { requestFailure } from './error-handler.ts';
 
 function request(url: string, abandoned = false) {

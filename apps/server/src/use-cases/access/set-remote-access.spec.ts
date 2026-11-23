@@ -26,7 +26,7 @@ import { storageLayer } from '@porcelain/storage';
 import { Deferred, Effect, Exit, Fiber, Layer, ManagedRuntime } from 'effect';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vite-plus/test';
 import { cachedDeviceStoreLayer } from '../../adapters/access/cached-device-store.ts';
 import { inMemoryDeviceSightingStoreLayer } from '../../adapters/access/in-memory-device-sighting-store.ts';
 import { inMemoryRouteStateStoreLayer } from '../../adapters/access/in-memory-route-state-store.ts';

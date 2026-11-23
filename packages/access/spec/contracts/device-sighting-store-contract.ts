@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import type { StoredDevice } from '../../src/models/device.ts';
 import type { DeviceSightingStore } from '../../src/ports/device-sighting-store.ts';
 

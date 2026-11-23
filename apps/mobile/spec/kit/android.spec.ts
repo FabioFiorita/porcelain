@@ -1,6 +1,6 @@
 import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { Schema } from 'effect';
-import { afterEach, beforeEach, expect, it } from 'vitest';
+import { afterEach, beforeEach, expect, it } from 'vite-plus/test';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { delimiter, join } from 'node:path';
 import {

@@ -1,4 +1,4 @@
-import { commands } from 'vitest/browser';
+import { commands } from 'vite-plus/test/browser';
 import type {
   CodingToolReplies,
   PairingParts,

@@ -12,7 +12,7 @@
     "start": "node ../../scripts/server.ts",
     "typecheck": "tsc --noEmit",
     "test": "pnpm --dir ../.. test --project @porcelain/server",
-    "test:integration": "vitest run --config ../../vitest.integration.config.ts --project @porcelain/server-integration"
+    "test:integration": "vp test run --config ../../vitest.integration.config.ts --project @porcelain/server-integration"
   },
   "dependencies": {
     "@effect/platform-node": "4.1.2",

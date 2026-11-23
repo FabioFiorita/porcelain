@@ -13,7 +13,7 @@ import {
   ProjectRepositoryReader,
 } from '@porcelain/projects/ports';
 import { Effect } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { ScriptedProjectFolderReader } from '../../spec/fakes/scripted-project-folder-reader.ts';
 import { ScriptedProjectRepositoryReader } from '../../spec/fakes/scripted-project-repository-reader.ts';
 import { BrowseProjectFoldersService } from './browse-project-folders-service.ts';

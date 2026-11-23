@@ -47,7 +47,7 @@ import {
 import { InventoryStore } from '@porcelain/projects/ports';
 import { FindProjectService } from '@porcelain/projects/services';
 import { expect, it } from '@effect/vitest';
-import { describe } from 'vitest';
+import { describe } from 'vite-plus/test';
 import { EventPublisher } from '../../ports/event-publisher.ts';
 import { LaneKeys } from '../../runtime/lane-keys.ts';
 import { Lanes } from '../../runtime/lanes.ts';

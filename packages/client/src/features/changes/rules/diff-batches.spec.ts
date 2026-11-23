@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { consecutiveBatches, diffBatches } from './diff-batches.ts';
 
 const name = (index: number) => `file-${String(index).padStart(4, '0')}.md`;

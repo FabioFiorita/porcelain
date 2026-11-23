@@ -1,7 +1,7 @@
 import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { NodeServices } from '@effect/platform-node';
 import { ConfigProvider, Effect, FileSystem, Path } from 'effect';
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { findExecutable } from './find-executable.ts';
 
 const cases = [

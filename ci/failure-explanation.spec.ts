@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { explanationComment, failureExcerpt } from './failure-explanation.ts';
 
 describe('failureExcerpt', () => {

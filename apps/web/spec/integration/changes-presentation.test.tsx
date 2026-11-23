@@ -1,4 +1,4 @@
-import { page as browserPage } from 'vitest/browser';
+import { page as browserPage } from 'vite-plus/test/browser';
 import { expect, test } from './fixtures.tsx';
 
 test('All changes and the Branch document keep the same reading width', async ({

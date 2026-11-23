@@ -5,7 +5,7 @@ import {
   readHistoryWindow,
 } from '@porcelain/client/history';
 import { test } from '@porcelain/server/kit/server-test';
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import { connection } from '../kit/connection.ts';
 
 test('read root, deleted, binary and empty commit changes without inventing a parent or a surviving path', async ({

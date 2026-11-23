@@ -2,7 +2,7 @@ import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { readReviewPatch } from './review-patch.ts';
 
 function git(directory: string, ...args: string[]): string {

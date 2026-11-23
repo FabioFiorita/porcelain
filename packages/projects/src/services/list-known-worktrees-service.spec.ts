@@ -4,7 +4,7 @@ import {
 } from '@porcelain/projects/models';
 import { WorktreeCatalogStore } from '@porcelain/projects/ports';
 import { Effect } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { InMemoryWorktreeCatalogStore } from '../../spec/fakes/in-memory-worktree-catalog-store.ts';
 import { ListKnownWorktreesService } from './list-known-worktrees-service.ts';
 

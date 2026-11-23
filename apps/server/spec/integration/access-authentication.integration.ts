@@ -1,4 +1,4 @@
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import { unauthenticated, UNKNOWN_UUID, unknownOid } from '../kit/answers.ts';
 import { inventory } from '../kit/reads.ts';
 import { read } from '../kit/requests.ts';

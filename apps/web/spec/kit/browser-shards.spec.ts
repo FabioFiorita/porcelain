@@ -1,5 +1,5 @@
 import { readdirSync } from 'node:fs';
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { browserShardFiles } from './browser-shards.ts';
 import timings from './browser-shards.json' with { type: 'json' };
 

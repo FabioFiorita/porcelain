@@ -15,7 +15,7 @@ import {
 } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { join } from 'node:path';
-import { afterEach, beforeEach, expect, it } from 'vitest';
+import { afterEach, beforeEach, expect, it } from 'vite-plus/test';
 import {
   backupDatabase,
   pruneDatabaseBackups,

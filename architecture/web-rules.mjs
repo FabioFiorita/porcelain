@@ -90,8 +90,8 @@ const journeyImports = {
   'integration-spec': {
     local: /^(?:\.\/fixtures\.tsx|\.\.\/kit\/[a-z0-9-]+\.ts)$/,
     packages: new Map([
-      ['vitest', new Set(['expect', 'describe'])],
-      ['vitest/browser', new Set(['page', 'userEvent'])],
+      ['vite-plus/test', new Set(['expect', 'describe'])],
+      ['vite-plus/test/browser', new Set(['page', 'userEvent'])],
     ]),
   },
   'e2e-spec': {
@@ -1420,7 +1420,7 @@ export const webRules = {
     const message =
       role === 'e2e-spec'
         ? 'An e2e test imports test, expect and its fixtures from ./fixtures.ts, the shared kit from ../kit/ and @porcelain/contracts; the app and the server are reached only through the fixtures, which open the app the way a user does, because fixtures own isolation and pair the app as a user would.'
-        : 'An integration test imports test, expect and its fixtures from ./fixtures.tsx, the shared kit from ../kit/, expect and describe from vitest, page and userEvent from vitest/browser, and @porcelain/contracts; the feature is rendered only through the fixtures, which pair and provide it the way the app does, because fixtures own isolation and pair the app as a user would.';
+        : 'An integration test imports test, expect and its fixtures from ./fixtures.tsx, the shared kit from ../kit/, expect and describe from vite-plus/test, page and userEvent from vite-plus/test/browser, and @porcelain/contracts; the feature is rendered only through the fixtures, which pair and provide it the way the app does, because fixtures own isolation and pair the app as a user would.';
     const allowed = journeyImports[role];
     const check = (node) => {
       const source = sourceOf(node);
@@ -1584,7 +1584,7 @@ export function browserSpecNoMocks(context) {
         context.report({ node, message });
     },
     ImportDeclaration(node) {
-      if (sourceOf(node) !== 'vitest') return;
+      if (sourceOf(node) !== 'vite-plus/test') return;
       for (const specifier of node.specifiers)
         if (
           specifier.type !== 'ImportSpecifier' ||

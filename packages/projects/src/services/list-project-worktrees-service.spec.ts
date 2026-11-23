@@ -3,7 +3,7 @@ import {
   WorktreeCatalogStore,
 } from '@porcelain/projects/ports';
 import { Effect } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { type ListedWorktree } from '@porcelain/projects/models';
 import { InMemoryWorktreeCatalogStore } from '../../spec/fakes/in-memory-worktree-catalog-store.ts';
 import { ScriptedWorktreeListingReader } from '../../spec/fakes/scripted-worktree-listing-reader.ts';

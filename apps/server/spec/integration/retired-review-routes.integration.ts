@@ -1,4 +1,4 @@
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import { test } from '../kit/server-test.ts';
 
 test('old review and worktree discussion routes are absent while walkthrough and reviewed routes stay registered', async ({

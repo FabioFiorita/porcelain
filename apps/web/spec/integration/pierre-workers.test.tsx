@@ -1,4 +1,4 @@
-import { page } from 'vitest/browser';
+import { page } from 'vite-plus/test/browser';
 import { expect, test } from './fixtures.tsx';
 
 test('long files highlight in workers, reuse unchanged revisions and refresh changed contents', async ({

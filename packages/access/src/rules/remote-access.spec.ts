@@ -1,5 +1,5 @@
 import type { RouteState } from '@porcelain/access/models';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import {
   changedRemoteAccess,
   httpsHosts,

@@ -7,7 +7,7 @@ import {
   RemoteRouteOptions,
 } from '@porcelain/access/ports';
 import { Effect } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import type { NetworkAddress } from '@porcelain/access/models';
 import { FixedNetworkAddressReader } from '../../spec/fakes/fixed-network-address-reader.ts';
 import { FixedTunnelProbe } from '../../spec/fakes/fixed-tunnel-probe.ts';

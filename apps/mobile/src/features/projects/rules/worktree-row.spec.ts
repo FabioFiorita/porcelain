@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import type { NavigatorEntry } from '@porcelain/client/projects/rules';
 import { worktreeRow } from './worktree-row';
 

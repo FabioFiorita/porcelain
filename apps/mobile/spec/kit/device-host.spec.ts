@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { hostFromJson } from './device-host.ts';
 
 const hostFile = '/repo/.mobile-device-host.json';

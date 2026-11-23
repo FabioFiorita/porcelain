@@ -3,7 +3,7 @@ import { list, record, text } from '@porcelain/server/kit/session';
 import { existsSync } from 'node:fs';
 import { readFile, stat } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import {
   cli,
   evidenceOf,

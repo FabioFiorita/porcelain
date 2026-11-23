@@ -1,7 +1,7 @@
 import { editFile } from '@porcelain/client/files';
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
-import { afterEach, expect } from 'vitest';
+import { afterEach, expect } from 'vite-plus/test';
 import { Effect } from 'effect';
 import { AtomRegistry, type Atom, type AsyncResult } from 'effect/reactivity';
 import { test } from '@porcelain/server/kit/server-test';

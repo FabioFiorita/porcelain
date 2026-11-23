@@ -4,7 +4,7 @@ import {
   readRemoteAccessResponseSchema,
   revokeAccessResponseSchema,
 } from '@porcelain/contracts/access';
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import { apiError } from '../kit/answers.ts';
 import { read } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';

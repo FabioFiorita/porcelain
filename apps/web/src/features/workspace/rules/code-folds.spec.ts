@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { isFolded, parseCodeFolds, withFolds } from './code-folds.ts';
 
 describe('parseCodeFolds', () => {

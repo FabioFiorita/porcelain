@@ -3,7 +3,7 @@ import {
   readServiceUpdateResponseSchema,
   startServiceUpdateResponseSchema,
 } from '@porcelain/contracts/access';
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import { apiError, unauthenticated } from '../kit/answers.ts';
 import { eventually, tunnelOn } from '../kit/reads.ts';
 import { pairDevice, read, pairBrowser } from '../kit/requests.ts';

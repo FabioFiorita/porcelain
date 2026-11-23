@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { resolve } from 'node:path';
 import { createInterface } from 'node:readline';
-import { expect, inject, test } from 'vitest';
+import { expect, inject, test } from 'vite-plus/test';
 import { record, text } from '@porcelain/server/kit/session';
 
 test('a development server ignores terminal input and closes normally', async ({

@@ -16,7 +16,7 @@ import type { WalkthroughJob } from '@porcelain/walkthroughs/models';
 import { storageLayer } from '../../index.ts';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 
 function job(
   id: string,

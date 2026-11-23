@@ -25,7 +25,7 @@ import {
   Stream,
 } from 'effect';
 import { LanguageModel, Model } from 'effect/ai';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { codingToolScript } from '../../spec/fixtures/coding-tool.ts';
 import { CommitPlanner } from './commit-planner.ts';
 

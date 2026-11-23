@@ -4,7 +4,7 @@ import { Effect } from 'effect';
 import { ProjectRepositoryReader } from '@porcelain/projects/ports';
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vite-plus/test';
 import { gitLimits } from '../../../spec/fixtures/git-limits.ts';
 import { gitProjectRepositoryReaderLayer } from './git-project-repository-reader.ts';
 

@@ -7,7 +7,7 @@ import {
 } from '@pierre/diffs/worker';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { vi } from 'vitest';
+import { vi } from 'vite-plus/test';
 import {
   PierreCodeView,
   PierreWorkers,

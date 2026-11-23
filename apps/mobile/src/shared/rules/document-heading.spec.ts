@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { documentHeading } from './document-heading.ts';
 
 it('titles a document by its file name and names its folder and status beneath', () => {

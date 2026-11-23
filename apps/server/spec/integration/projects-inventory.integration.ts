@@ -1,7 +1,7 @@
 import * as Schema from 'effect/Schema';
 import { DateTime } from 'effect';
 import { readInventoryResponseSchema } from '@porcelain/contracts/projects';
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import { execFileSync } from 'node:child_process';
 import { mkdir, readFile, rm, stat, utimes, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';

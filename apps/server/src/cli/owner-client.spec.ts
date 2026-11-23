@@ -3,7 +3,7 @@ import { Cause, Effect, Exit, Fiber } from 'effect';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { createServer, type Server } from 'node:http';
 import { join } from 'node:path';
-import { afterEach, expect, it } from 'vitest';
+import { afterEach, expect, it } from 'vite-plus/test';
 import { ownerSocketPath } from '../config/owner-socket-settings.ts';
 import { ownerClient, ownerRequest, probeOwner } from './owner-client.ts';
 

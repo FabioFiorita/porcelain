@@ -1,6 +1,6 @@
 import { fileURLToPath } from 'node:url';
 import { deepStrictEqual, throws, ok } from 'node:assert/strict';
-import { RuleTester } from 'oxlint/plugins-dev';
+import { RuleTester } from 'vite-plus/lint/plugins-dev';
 import { parseSync } from 'oxc-parser';
 import plugin from './oxlint-plugin.mjs';
 import { runGuardrailCases } from './guardrail-tests.mjs';
@@ -89,8 +89,7 @@ function diagnosticFixture(entry) {
         recursive: true,
       });
       for (const path of [
-        '.oxlintrc.json',
-        '.oxfmtrc.json',
+        'vite.config.ts',
         'tsconfig.json',
         'apps/web/tsconfig.json',
         'apps/server/tsconfig.json',

@@ -9,7 +9,7 @@ import { GitActionReceiptStore } from '@porcelain/git-actions/ports';
 import { storageLayer } from '../../index.ts';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vite-plus/test';
 import type { GitActionReceipt } from '@porcelain/git-actions/models';
 import { gitActionReceiptStoreContract } from '@porcelain/git-actions/store-contracts';
 

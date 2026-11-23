@@ -1,7 +1,7 @@
 import { Layer, Effect, ManagedRuntime, Exit } from 'effect';
 import { type EditFileRequest } from '@porcelain/contracts/files';
 
-import { describe, expect } from 'vitest';
+import { describe, expect } from 'vite-plus/test';
 import { it } from '@effect/vitest';
 import { AtomRegistry } from 'effect/reactivity';
 import { ContentChangedError } from '@porcelain/files/errors';

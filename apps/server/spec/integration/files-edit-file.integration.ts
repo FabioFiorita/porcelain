@@ -1,6 +1,6 @@
 import { editFileResponseSchema } from '@porcelain/contracts/files';
 import * as Schema from 'effect/Schema';
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import {
   apiError,
   CREDENTIAL_LINK,

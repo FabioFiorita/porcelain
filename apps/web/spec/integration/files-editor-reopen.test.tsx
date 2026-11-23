@@ -1,4 +1,4 @@
-import { userEvent } from 'vitest/browser';
+import { userEvent } from 'vite-plus/test/browser';
 import { expect, test, replaceEditorContent } from './fixtures.tsx';
 
 test('closing an editor saves its draft and reopening starts a fresh editor session', async ({

@@ -1,8 +1,9 @@
 import { Schema, Result } from 'effect';
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { pathToFileURL } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
-import { basename, join, relative } from 'node:path';
+import { basename, join, relative, resolve } from 'node:path';
 import {
   domainPackages,
   mobileNativeSourceProblem,
@@ -55,6 +56,7 @@ export async function checkStyle(
     'architecture',
     'scripts',
     'ci',
+    'vite.config.ts',
     'vitest.config.ts',
     'vitest.integration.config.ts',
     '.agents/skills/server-verify/scripts',
@@ -77,7 +79,7 @@ export async function checkStyle(
   const roots = target === 'web' ? webRoots : serverRoots;
   const disableDirective =
     /(?:\/\/|\/\*)\s*(?:eslint|oxlint)-(?:disable|enable)/;
-  const lintConfig = '.oxlintrc.json';
+  const configFile = 'vite.config.ts';
   const lintedFile = /\.[cm]?[jt]sx?$/;
   const strayLintConfig =
     /^(?:\.(?:oxlintrc|eslintrc)(?:\..+)?|\.(?:eslint|oxlint)ignore|(?:oxlint|eslint)\.config\.[cm]?[jt]s)$/;
@@ -95,7 +97,6 @@ export async function checkStyle(
     '.claude',
     'dist',
     '.vite',
-    '.turbo',
     'test-results',
   ]);
   function filesUnder(path: string): string[] {
@@ -166,31 +167,25 @@ export async function checkStyle(
         : [];
     });
   }
-  const formatConfig = '.oxfmtrc.json';
   const strayFormatConfig =
     /^(?:\.oxfmtrc(?:\..+)?|\.prettierrc(?:\..+)?|\.prettierignore|prettier\.config\.[cm]?[jt]s)$/;
   function strayFormatConfigs(): Problem[] {
     return filesUnder('.')
-      .filter(
-        (path) =>
-          path !== formatConfig && strayFormatConfig.test(basename(path)),
-      )
+      .filter((path) => strayFormatConfig.test(basename(path)))
       .map((path) =>
         problem(
           'format-config',
-          `${path}: the format check reads one configuration, the root ${formatConfig}, with no ignore files; remove this file, because a second configuration can exclude code from the root format check.`,
+          `${path}: the format check reads one configuration, the root ${configFile}, with no ignore files; remove this file, because a second configuration can exclude code from the root format check.`,
         ),
       );
   }
   function strayLintConfigs(): Problem[] {
     return filesUnder('.')
-      .filter(
-        (path) => path !== lintConfig && strayLintConfig.test(basename(path)),
-      )
+      .filter((path) => strayLintConfig.test(basename(path)))
       .map((path) =>
         problem(
           'one-lint-config',
-          `${path}: lint reads one configuration, the root ${lintConfig}, with no ignore files; remove this file, because a second configuration can hide code from the root lint policy.`,
+          `${path}: lint reads one configuration, the root ${configFile}, with no ignore files; remove this file, because a second configuration can hide code from the root lint policy.`,
         ),
       );
   }
@@ -277,18 +272,33 @@ export async function checkStyle(
   }
   async function configProblems(): Promise<Problem[]> {
     const problems: Problem[] = [];
+    const loaded: unknown = await import(
+      pathToFileURL(resolve(configFile)).href
+    )
+      .then((module: { default?: unknown }) => module.default)
+      .catch(() => undefined);
+    const settings = Schema.decodeUnknownResult(
+      Schema.Struct({ lint: Schema.Unknown, fmt: Schema.Unknown }),
+    )(loaded);
+    if (!Result.isSuccess(settings))
+      return [
+        problem(
+          'lint-config',
+          `${configFile} must export lint and fmt settings, because the shared policy comes from the root Vite+ config.`,
+        ),
+      ];
     const config = Schema.decodeUnknownResult(lintConfigSchema, {
       onExcessProperty: 'error',
-    })(strictJson('.oxlintrc.json'));
+    })(settings.success.lint);
     if (!Result.isSuccess(config))
       return [
         problem(
           'lint-config',
-          `.oxlintrc.json holds plugins, jsPlugins, options, rules and overrides only, because unsupported fields can bypass the shared lint policy: ${config.failure.message}`,
+          `${configFile} lint holds plugins, jsPlugins, options, rules and overrides only, because unsupported fields can bypass the shared lint policy: ${config.failure.message}`,
         ),
       ];
     const format = Schema.decodeUnknownResult(formatConfigSchema)(
-      strictJson(formatConfig),
+      settings.success.fmt,
     );
     if (
       !Result.isSuccess(format) ||
@@ -297,7 +307,7 @@ export async function checkStyle(
       problems.push(
         problem(
           'format-config',
-          `${formatConfig} ignores nothing; every file under the format roots is checked, because a second configuration can exclude code from the root format check.`,
+          `${configFile} ignores nothing; every file under the format roots is checked, because a second configuration can exclude code from the root format check.`,
         ),
       );
     const { plugins, jsPlugins, rules } = config.success;
@@ -305,7 +315,7 @@ export async function checkStyle(
       problems.push(
         problem(
           'lint-config',
-          '.oxlintrc.json loads the typescript plugin, because disabling a configured rule leaves its mistakes unchecked.',
+          `${configFile} lint loads the typescript plugin, because disabling a configured rule leaves its mistakes unchecked.`,
         ),
       );
     for (const name of requiredRules)
@@ -313,7 +323,7 @@ export async function checkStyle(
         problems.push(
           problem(
             'lint-config',
-            `.oxlintrc.json keeps ${name} on as "error"; a built-in rule leaves lint only by changing this check, where the change is visible, because disabling a configured rule leaves its mistakes unchecked.`,
+            `${configFile} lint keeps ${name} on as "error"; a built-in rule leaves lint only by changing this check, where the change is visible, because disabling a configured rule leaves its mistakes unchecked.`,
           ),
         );
     if (
@@ -325,7 +335,7 @@ export async function checkStyle(
       problems.push(
         problem(
           'lint-config',
-          '.oxlintrc.json loads the Porcelain and shadcn plugins, because disabling a configured rule leaves its mistakes unchecked.',
+          `${configFile} lint loads the Porcelain and shadcn plugins, because disabling a configured rule leaves its mistakes unchecked.`,
         ),
       );
     const pluginPath = new URL(
@@ -340,7 +350,7 @@ export async function checkStyle(
         problems.push(
           problem(
             'lint-config',
-            `.oxlintrc.json sets porcelain/${name} to "error", because disabling a configured rule leaves its mistakes unchecked.`,
+            `${configFile} lint sets porcelain/${name} to "error", because disabling a configured rule leaves its mistakes unchecked.`,
           ),
         );
     for (const [name, level] of Object.entries(rules)) {
@@ -348,7 +358,7 @@ export async function checkStyle(
         problems.push(
           problem(
             'lint-config',
-            `.oxlintrc.json turns ${name} on as "error" or leaves it out, because disabling a configured rule leaves its mistakes unchecked.`,
+            `${configFile} lint turns ${name} on as "error" or leaves it out, because disabling a configured rule leaves its mistakes unchecked.`,
           ),
         );
       if (
@@ -358,7 +368,7 @@ export async function checkStyle(
         problems.push(
           problem(
             'lint-config',
-            `.oxlintrc.json names ${name}, which the plugin does not define, because disabling a configured rule leaves its mistakes unchecked.`,
+            `${configFile} lint names ${name}, which the plugin does not define, because disabling a configured rule leaves its mistakes unchecked.`,
           ),
         );
     }
@@ -506,10 +516,11 @@ export async function checkStyle(
           !path.startsWith(`${uiFolder}/`),
       );
     const result = spawnSync(
-      join('node_modules', '.bin', 'oxlint'),
+      join('node_modules', '.bin', 'vp'),
       [
+        'lint',
         '--config',
-        lintConfig,
+        configFile,
         '--no-ignore',
         '--type-aware',
         '--report-unused-disable-directives',
@@ -551,8 +562,15 @@ export async function checkStyle(
   }
   if (mode === 'format') {
     const result = spawnSync(
-      join('node_modules', '.bin', 'oxfmt'),
-      ['--check', ...roots, `!${mobileGeneratedTypes}`],
+      join('node_modules', '.bin', 'vp'),
+      [
+        'fmt',
+        '--config',
+        configFile,
+        '--check',
+        ...roots,
+        `!${mobileGeneratedTypes}`,
+      ],
       {
         stdio: 'inherit',
       },

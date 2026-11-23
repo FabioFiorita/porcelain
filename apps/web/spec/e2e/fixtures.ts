@@ -8,7 +8,7 @@ import {
   type Page,
 } from '@playwright/test';
 import { pairingLink } from '@porcelain/contracts/access';
-import { createServer, type ViteDevServer } from 'vite';
+import { createServer, type ViteDevServer } from 'vite-plus';
 import {
   createFailures,
   failureMessage,

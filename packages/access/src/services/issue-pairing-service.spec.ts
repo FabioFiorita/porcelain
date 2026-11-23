@@ -16,7 +16,7 @@ import { IdSource, SecretSource } from '@porcelain/kernel/ports';
 import { testClock } from '@porcelain/kernel/test-kit';
 import type { Context } from 'effect';
 import { Clock, Effect, Redacted } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { FixedPairingReachReader } from '../../spec/fakes/fixed-pairing-reach-reader.ts';
 import { InMemoryPairingGrantStore } from '../../spec/fakes/in-memory-pairing-grant-store.ts';
 import { IssuePairingService } from './issue-pairing-service.ts';

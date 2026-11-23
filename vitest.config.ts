@@ -1,8 +1,8 @@
 import { existsSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { defineConfig } from 'vitest/config';
-import type { Reporter } from 'vitest/node';
+import { defineConfig } from 'vite-plus';
+import type { Reporter } from 'vite-plus/test/node';
 
 const root = dirname(fileURLToPath(import.meta.url));
 const packages = readdirSync(join(root, 'packages'), { withFileTypes: true })

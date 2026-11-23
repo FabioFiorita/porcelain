@@ -35,7 +35,7 @@ import {
 import { registry } from './instance.ts';
 import { verificationEnvironment } from '../../verify-core/environment.ts';
 
-export const vite = join(root, 'apps/web/node_modules/.bin/vite');
+export const vp = join(root, 'apps/web/node_modules/.bin/vp');
 const readyTimeoutMs = 60 * 1000;
 const remotePollMs = 200;
 export const remoteRequest = 'remote-request';
@@ -146,8 +146,9 @@ export function serve(folder: string): Promise<void> {
     const origin = `http://127.0.0.1:${port}`;
     const log = openSync(join(evidence, 'vite.log'), 'a', 0o600);
     const web = spawn(
-      vite,
+      vp,
       [
+        'dev',
         '--mode',
         desktop ? 'desktop' : 'test',
         '--host',
@@ -169,9 +170,6 @@ export function serve(folder: string): Promise<void> {
     closeSync(log);
     web.once('error', () => life.stop('Vite failed to start'));
     web.once('exit', () => life.stop('Vite exited'));
-    life.onStop(() => {
-      web.kill('SIGTERM');
-    });
     await reachable(`${origin}/src/main.tsx`, Date.now() + readyTimeoutMs);
     serveRemote(folder, life.id, build, life);
     const { environmentId } = await readServerHealth(server.address);
@@ -208,9 +206,9 @@ export async function start(options: typeof startOptions.Encoded) {
   refuseMissing([
     ...sandboxProblems(),
     memoryProblem(),
-    existsSync(vite)
+    existsSync(vp)
       ? undefined
-      : 'Vite is missing: run pnpm install --frozen-lockfile',
+      : 'Vite+ is missing: run pnpm install --frozen-lockfile',
   ]);
   const instance = await registry.launch(options, readyTimeoutMs * 2);
   if (instance.connectionPath === undefined)

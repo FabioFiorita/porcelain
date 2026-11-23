@@ -1,5 +1,5 @@
 import { Effect } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { WorktreeNotFoundError } from '@porcelain/kernel/errors';
 import type { WorktreeCheck } from '@porcelain/kernel/models';
 import type { ListedWorktree } from '@porcelain/projects/models';

@@ -1,4 +1,4 @@
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import { apiError } from '../kit/answers.ts';
 import { test } from '../kit/server-test.ts';
 import { type HttpRequest } from '../kit/session.ts';

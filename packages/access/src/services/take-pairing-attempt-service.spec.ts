@@ -4,7 +4,7 @@ import {
   TakePairingAttemptOptions,
 } from '@porcelain/access/ports';
 import { Effect, Clock } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { TooManyPairingAttemptsError } from '@porcelain/access/errors';
 import { InMemoryPairingAttemptStore } from '../../spec/fakes/in-memory-pairing-attempt-store.ts';
 import { TakePairingAttemptService } from './take-pairing-attempt-service.ts';

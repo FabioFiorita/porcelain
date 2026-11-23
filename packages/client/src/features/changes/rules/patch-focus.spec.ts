@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { focusPatch, spansLabel } from './patch-focus.ts';
 
 it('focuses a patch with shared line accounting and preserves no-newline markers', () => {

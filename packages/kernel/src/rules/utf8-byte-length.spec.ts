@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { utf8ByteLength } from './utf8-byte-length.ts';
 
 describe('utf8ByteLength', () => {

@@ -5,7 +5,7 @@ import {
   GitActionNotFoundError,
   GitActionReceiptMismatchError,
 } from '@porcelain/git-actions/errors';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import {
   PROJECT_ID,
   REQUEST_ID,

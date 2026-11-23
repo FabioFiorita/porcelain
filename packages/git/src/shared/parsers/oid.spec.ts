@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { isNullOid, isOid } from './oid.ts';
 
 const sha1 = 'a009a75e6294ff85720885cbc63f5ef03b85b3dd';

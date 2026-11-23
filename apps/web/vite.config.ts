@@ -7,7 +7,7 @@ import babel from '@rolldown/plugin-babel';
 import tailwindcss from '@tailwindcss/vite';
 import { tanstackRouter } from '@tanstack/router-plugin/vite';
 import react, { reactCompilerPreset } from '@vitejs/plugin-react';
-import { defineConfig, normalizePath } from 'vite';
+import { defineConfig, normalizePath } from 'vite-plus';
 import { devPair } from './dev-pair.ts';
 
 const packageInfo = Schema.decodeUnknownSync(

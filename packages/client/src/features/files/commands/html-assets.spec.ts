@@ -1,5 +1,5 @@
 import { Cause, Effect, Schema } from 'effect';
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import { it } from '@effect/vitest';
 import type { ReadFileAssetResponse } from '@porcelain/contracts/files';
 import { collectHtmlAssets } from './html-assets.ts';

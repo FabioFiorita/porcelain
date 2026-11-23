@@ -6,7 +6,7 @@ import {
 } from '@porcelain/client/transport';
 import { Effect, Layer, Option, Schema, Stream } from 'effect';
 import { AsyncResult, AtomRegistry, type Atom } from 'effect/reactivity';
-import { afterEach, expect, it } from 'vitest';
+import { afterEach, expect, it } from 'vite-plus/test';
 import { reviewedCommands } from './reviewed.ts';
 
 const scope = { projectId: 'project', worktreeId: '0'.repeat(32) };

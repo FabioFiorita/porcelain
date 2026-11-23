@@ -1,7 +1,7 @@
 import { readTextFileResponseSchema } from '@porcelain/contracts/files';
 import { TEXT_BYTES } from '@porcelain/contracts/shared';
 import * as Schema from 'effect/Schema';
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import { apiError, CREDENTIAL_LINK, unreadablePath } from '../kit/answers.ts';
 import { read, worktreePath } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';

@@ -1,7 +1,7 @@
 import { testClock } from '@porcelain/kernel/test-kit';
 import { PairingGrantStore, DeviceStore } from '@porcelain/access/ports';
 import { Effect, Clock } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import type {
   StoredDevice,
   StoredPairingGrant,

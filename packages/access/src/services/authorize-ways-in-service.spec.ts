@@ -1,6 +1,6 @@
 import { DeviceStore } from '@porcelain/access/ports';
 import { Effect, Exit } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import type { StoredDevice, WaysInCaller } from '@porcelain/access/models';
 import { InMemoryDeviceStore } from '../../spec/fakes/in-memory-device-store.ts';
 import { AuthorizeWaysInService } from './authorize-ways-in-service.ts';

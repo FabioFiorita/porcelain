@@ -1,5 +1,5 @@
 import { Effect, Fiber } from 'effect';
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import type { RunGitActionResponse } from '@porcelain/contracts/git-actions';
 import { operationStoreFixture } from '../../../../spec/kit/operation-store.ts';
 import { operationKey } from '../store/operations.ts';

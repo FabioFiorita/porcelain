@@ -1,4 +1,4 @@
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import { tunnelOn } from '../kit/reads.ts';
 import { issuePairing, read, waysInChange } from '../kit/requests.ts';
 import { list, record, text, type Session } from '../kit/session.ts';

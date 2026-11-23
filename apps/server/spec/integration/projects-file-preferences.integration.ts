@@ -1,6 +1,6 @@
 import { listFilePreferencesResponseSchema } from '@porcelain/contracts/projects';
 import * as Schema from 'effect/Schema';
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import { invalidRequest } from '../kit/answers.ts';
 import { read } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';

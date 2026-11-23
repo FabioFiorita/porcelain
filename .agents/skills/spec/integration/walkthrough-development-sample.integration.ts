@@ -1,5 +1,5 @@
 import { resolve } from 'node:path';
-import { expect, inject, test } from 'vitest';
+import { expect, inject, test } from 'vite-plus/test';
 import { Schema } from 'effect';
 import { readWalkthroughResponseSchema } from '@porcelain/contracts/walkthroughs';
 import {

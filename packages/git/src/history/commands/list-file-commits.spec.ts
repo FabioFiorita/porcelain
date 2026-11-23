@@ -10,7 +10,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vite-plus/test';
 import { gitLimits } from '../../../spec/fixtures/git-limits.ts';
 import { listFileCommits as listFileCommitsEffect } from './list-file-commits.ts';
 

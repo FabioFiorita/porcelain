@@ -1,7 +1,7 @@
 import * as Schema from 'effect/Schema';
 import { listAccessResponseSchema } from '@porcelain/contracts/access';
 import { readInventoryResponseSchema } from '@porcelain/contracts/projects';
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import { unauthenticated } from '../kit/answers.ts';
 import { tunnelOn } from '../kit/reads.ts';
 import { issuePairing } from '../kit/requests.ts';

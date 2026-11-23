@@ -1,4 +1,4 @@
-import { afterEach } from 'vitest';
+import { afterEach } from 'vite-plus/test';
 import type { ManagedRuntime } from 'effect';
 import type { AtomRegistry } from 'effect/reactivity';
 import type { FileDrafts } from '../../src/features/files/store.ts';

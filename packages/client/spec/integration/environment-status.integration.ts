@@ -1,5 +1,5 @@
 import { readInventoryResponseSchema } from '@porcelain/contracts/projects';
-import { afterEach, expect, inject } from 'vitest';
+import { afterEach, expect, inject } from 'vite-plus/test';
 import { Redacted, Schema, Effect } from 'effect';
 import { AtomRegistry } from 'effect/reactivity';
 import {

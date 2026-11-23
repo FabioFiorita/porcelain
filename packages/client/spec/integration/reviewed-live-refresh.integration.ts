@@ -1,7 +1,7 @@
 import { NodeCrypto } from '@effect/platform-node';
 import { Equal, Effect, Layer } from 'effect';
 import { AtomRegistry } from 'effect/reactivity';
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import { test } from '@porcelain/server/kit/server-test';
 import { read, worktreePath } from '@porcelain/server/kit/requests';
 import { readChanges, readReviewedFiles } from '@porcelain/client/changes';

@@ -3,7 +3,7 @@ import {
   SetFilePreferenceOptions,
 } from '@porcelain/projects/ports';
 import { Effect } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { FilePreferenceLimitError } from '@porcelain/projects/errors';
 import { InMemoryFilePreferenceStore } from '../../spec/fakes/in-memory-file-preference-store.ts';
 import { SetFilePreferenceService } from './set-file-preference-service.ts';

@@ -54,9 +54,10 @@ try {
   const installed = names.map((name) =>
     join(web, 'src', 'components', 'ui', name),
   );
-  run(join(root, 'node_modules', '.bin', 'oxfmt'), [
+  run(join(root, 'node_modules', '.bin', 'vp'), [
+    'fmt',
     '--config',
-    join(root, '.oxfmtrc.json'),
+    join(root, 'vite.config.ts'),
     ...installed,
   ]);
   const pins = Object.fromEntries(

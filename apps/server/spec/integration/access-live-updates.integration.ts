@@ -3,7 +3,7 @@ import * as Schema from 'effect/Schema';
 import { randomUUID } from 'node:crypto';
 import { once } from 'node:events';
 import WebSocket from 'ws';
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import { apiError, unauthenticated, upgradeHeaders } from '../kit/answers.ts';
 import {
   expectation,

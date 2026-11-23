@@ -4,7 +4,7 @@ import { NodeServices } from '@effect/platform-node';
 import { execFileSync } from 'node:child_process';
 import { chmodSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vite-plus/test';
 import {
   readCommitDiffsEffect,
   readDiff,

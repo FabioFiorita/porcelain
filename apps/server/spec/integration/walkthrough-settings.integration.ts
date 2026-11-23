@@ -1,6 +1,6 @@
 import { record } from '../kit/session.ts';
 import { walkthroughWriterSettingsSchema } from '@porcelain/contracts/walkthroughs';
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import { test } from '../kit/server-test.ts';
 import { read } from '../kit/requests.ts';
 import { inventory, eventually } from '../kit/reads.ts';

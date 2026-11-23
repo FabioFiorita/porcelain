@@ -1,5 +1,5 @@
 import { Schema } from 'effect';
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { ReviewedMarkConflictError } from '@porcelain/reviews/errors';
 import { BranchArchiveRefusedError } from '@porcelain/projects/errors';
 import { httpFailure } from './http-failure.ts';

@@ -1,7 +1,7 @@
 import { Deferred, Duration, Effect, Fiber, ManagedRuntime } from 'effect';
 import { TestClock } from 'effect/testing';
 import { ContentChangedError } from '@porcelain/files/errors';
-import { afterEach, describe, expect } from 'vitest';
+import { afterEach, describe, expect } from 'vite-plus/test';
 import { it } from '@effect/vitest';
 import { ConnectionError } from '@porcelain/client/transport';
 import {

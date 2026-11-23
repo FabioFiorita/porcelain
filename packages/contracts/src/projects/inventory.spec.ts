@@ -1,5 +1,5 @@
 import { Schema } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { readInventoryResponseSchema } from './inventory.ts';
 
 const id = '21c20d74-aee9-4293-b9d2-66b6a4d46c26';

@@ -1,6 +1,6 @@
 import { Effect, Layer, Redacted, Schema } from 'effect';
 import { AtomRegistry, type Atom, type AsyncResult } from 'effect/reactivity';
-import { afterEach } from 'vitest';
+import { afterEach } from 'vite-plus/test';
 import { createWorktreeConnection } from '../../src/shared/api/worktree-connection.ts';
 import { remoteTransport } from '../../src/shared/api/transport.ts';
 import type { IsolatedServer } from '@porcelain/server/kit/isolated-server';

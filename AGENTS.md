@@ -15,7 +15,7 @@ Simple systems, the smallest model that makes the correct behaviour unsurprising
 
 Agents author this codebase. Prefer one enforced, typed abstraction per responsibility; dependency requirements and invalid alternatives should fail before runtime. Familiarity with the old implementation is not a reason to preserve it: when a new path replaces an old one, move every caller and delete the old path and its tests in the same change.
 
-The codebase is the example. Copy the nearest feature's shape, and extract a second copy into its owner rather than pasting it. TypeScript, Oxlint, Oxfmt and the architecture check are the rulebook, and every lint message says why its rule exists: when one blocks you, change the code. When a rule fights the task itself, say so and ask before changing the rule. Code comments, including `@ts-ignore`, are banned by `no-comments`: express rules in code or a verification skill, because comment prose can drift from the behavior enforced by executable checks.
+The codebase is the example. Copy the nearest feature's shape, and extract a second copy into its owner rather than pasting it. Patched TypeScript, Vite+ lint and format, and the architecture check are the rulebook, and every lint message says why its rule exists: when one blocks you, change the code. When a rule fights the task itself, say so and ask before changing the rule. Code comments, including `@ts-ignore`, are banned by `no-comments`: express rules in code or a verification skill, because comment prose can drift from the behavior enforced by executable checks.
 
 ## Ways to hurt yourself
 
@@ -80,7 +80,7 @@ Prove a change with the smallest sufficient local proof: `pnpm check:local` and 
 
 While you iterate with the developer, keep one verification instance running between edits and restart it only when its skill says the edit requires it; it is their preview too. Run the changed E2E specs once, when the work is done.
 
-The root integration command runs suite tasks sequentially, because each Vitest runner already owns a machine-sized worker budget. Keep parallelism inside the suite; concurrent runners must not multiply that budget or require longer product deadlines.
+Vite+ runs the workspace tasks and the Vitest projects. Use `pnpm test` with a project and file for a focused unit run. The root integration command runs suite tasks sequentially, because each Vitest runner already owns a machine-sized worker budget. Keep parallelism inside the suite; concurrent runners must not multiply that budget or require longer product deadlines.
 
 ## Pull requests
 

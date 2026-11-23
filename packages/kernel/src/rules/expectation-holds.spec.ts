@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { expectationHolds } from './expectation-holds.ts';
 
 const readme = { path: 'README.md', fingerprint: 'a'.repeat(64) };

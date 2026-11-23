@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { resolve } from 'node:path';
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import { readServerSettings } from '../../src/config/server-settings.ts';
 import { apiError, UNKNOWN_UUID } from '../kit/answers.ts';
 import { expectation, fingerprintOf, settledReceipt } from '../kit/reads.ts';

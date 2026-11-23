@@ -1,7 +1,7 @@
 import { ReadChangeLinesOptions } from '@porcelain/changes/ports';
 import { InvalidLineRangeError } from '@porcelain/kernel/errors';
 import { Effect } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { ReadChangeLinesService } from './read-change-lines-service.ts';
 
 const text = 'one\ntwo\nthree\nfour\n';

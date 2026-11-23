@@ -1,6 +1,6 @@
 import { ReviewedFileStore } from '@porcelain/reviews/ports';
 import { Effect } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { InMemoryReviewedFileStore } from '../../spec/fakes/in-memory-reviewed-file-store.ts';
 import { InvalidateReviewedMarksService } from './invalidate-reviewed-marks-service.ts';
 

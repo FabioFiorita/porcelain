@@ -1,6 +1,6 @@
 import { WorktreeChangedError } from '@porcelain/kernel/errors';
 import { Effect } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { fileChange, modified } from '../../spec/fixtures/comparisons.ts';
 import { ConfirmDiffObservationService } from './confirm-diff-observation-service.ts';
 

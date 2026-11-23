@@ -10,7 +10,7 @@ import {
   DeviceStore,
 } from '@porcelain/access/ports';
 import { InventoryStore } from '@porcelain/projects/ports';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vite-plus/test';
 import { storageLayer } from './storage-layer.ts';
 
 const journalSchema = Schema.fromJsonString(

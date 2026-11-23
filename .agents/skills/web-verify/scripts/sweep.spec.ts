@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { Refusal } from '../../verify-core/cli.ts';
 import { indexMarkdown, sweepResult } from './sweep.ts';
 

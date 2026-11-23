@@ -1,5 +1,5 @@
 import type { WalkthroughConversationsResponse } from '@porcelain/contracts/walkthroughs';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import {
   answerTo,
   canPostMessage,

@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { runtimePlan } from './runtime-plan.ts';
 
 it('runs touched browser specs, a separate smoke and storage checks on main', () => {

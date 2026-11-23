@@ -1,4 +1,4 @@
-import { expect, test } from 'vitest';
+import { expect, test } from 'vite-plus/test';
 import { routeCoverage, handlerCoverage } from './route-coverage.ts';
 
 test('a complete selection counts only executed modules for route logs', () => {

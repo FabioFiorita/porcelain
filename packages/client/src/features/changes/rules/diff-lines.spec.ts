@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { diffLines, readDiff } from './diff-lines.ts';
 
 it('keeps both line numbers across multiple hunks and does not confuse content with file headers', () => {

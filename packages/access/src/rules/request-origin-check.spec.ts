@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import type { CheckRequestOriginInput } from '@porcelain/access/models';
 import { requestOriginCheck } from './request-origin-check.ts';
 

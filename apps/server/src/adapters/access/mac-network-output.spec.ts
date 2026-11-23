@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { macNetworkOutput } from '../../../spec/fixtures/mac-network-output.ts';
 import {
   macDefaultRoute,

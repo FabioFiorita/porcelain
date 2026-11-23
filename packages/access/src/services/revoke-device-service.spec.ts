@@ -5,7 +5,7 @@ import {
   PushRegistrationStore,
 } from '@porcelain/access/ports';
 import { Effect, Clock } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { InMemoryDeviceSightingStore } from '../../spec/fakes/in-memory-device-sighting-store.ts';
 import { InMemoryDeviceStore } from '../../spec/fakes/in-memory-device-store.ts';
 import { InMemoryPushRegistrationStore } from '../../spec/fakes/in-memory-push-registration-store.ts';

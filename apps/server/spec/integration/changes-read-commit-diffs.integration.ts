@@ -1,6 +1,6 @@
 import { readCommitDiffsResponseSchema } from '@porcelain/contracts/changes';
 import * as Schema from 'effect/Schema';
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import { apiError, unknownOid } from '../kit/answers.ts';
 import { threeCommits } from '../kit/reads.ts';
 import { worktreePath } from '../kit/requests.ts';

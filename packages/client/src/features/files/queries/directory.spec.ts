@@ -1,6 +1,6 @@
 import { Effect, HashMap } from 'effect';
 import { AsyncResult, AtomRegistry } from 'effect/reactivity';
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import {
   clientFixtures,
   readClientAtom,

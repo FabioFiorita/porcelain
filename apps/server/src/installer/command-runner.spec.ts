@@ -1,6 +1,6 @@
 import { NodeServices } from '@effect/platform-node';
 import { Effect } from 'effect';
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { commandRunner } from './command-runner.ts';
 
 const run = (args: readonly string[]) =>

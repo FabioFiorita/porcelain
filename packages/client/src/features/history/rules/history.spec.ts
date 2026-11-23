@@ -1,5 +1,5 @@
 import type { ListFileCommitsResponse } from '@porcelain/contracts/changes';
-import { expect, test } from 'vitest';
+import { expect, test } from 'vite-plus/test';
 import { fileTimelineWindow } from './history.ts';
 
 function page(oid: string, subject: string): ListFileCommitsResponse {

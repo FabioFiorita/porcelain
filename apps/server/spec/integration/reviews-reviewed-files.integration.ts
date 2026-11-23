@@ -3,7 +3,7 @@ import {
   setReviewedFilesResponseSchema,
 } from '@porcelain/contracts/changes';
 import * as Schema from 'effect/Schema';
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import { apiError, unknownFingerprint } from '../kit/answers.ts';
 import { fingerprintOf } from '../kit/reads.ts';
 import { read, worktreePath } from '../kit/requests.ts';

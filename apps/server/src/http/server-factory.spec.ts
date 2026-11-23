@@ -1,6 +1,6 @@
 import { Duration, Effect, Exit, Layer, Scope } from 'effect';
 import { HttpRouter, HttpServerResponse } from 'effect/http';
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { createHttpListener } from './server-factory.ts';
 import {
   occupyPort,

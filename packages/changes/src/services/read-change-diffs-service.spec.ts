@@ -1,7 +1,7 @@
 import { ChangeDiffReader } from '@porcelain/changes/ports';
 import { Effect } from 'effect';
 import { withReadLease } from '@porcelain/effects/worktree';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { IncompleteDiffReadError } from '@porcelain/changes/errors';
 import { ReadChangeDiffsService } from './read-change-diffs-service.ts';
 import { modified } from '../../spec/fixtures/comparisons.ts';

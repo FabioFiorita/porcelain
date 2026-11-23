@@ -1,5 +1,5 @@
 import { Cause, Effect, Exit } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { currentAnswerEffect } from './stale-answer.ts';
 
 describe('answers stay with their connected context', () => {

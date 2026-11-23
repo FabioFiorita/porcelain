@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { branchFile } from '../../spec/fixtures/branch-files.ts';
 import {
   branchFilePath,

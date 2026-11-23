@@ -688,7 +688,7 @@ function timingPath(node, context) {
       return definition.node.type === 'ImportNamespaceSpecifier'
         ? 'effect-test'
         : `effect-test.${name}`;
-    if (source === 'vitest')
+    if (source === 'vite-plus/test')
       return definition.node.type === 'ImportNamespaceSpecifier'
         ? 'vitest'
         : `vitest.${name === 'vitest' ? 'vi' : name}`;
@@ -1207,7 +1207,7 @@ function caseCall(node, context) {
   return (
     definition.type === 'ImportBinding' &&
     [
-      'vitest',
+      'vite-plus/test',
       '@effect/vitest',
       '@playwright/test',
       'playwright/test',
@@ -2972,7 +2972,7 @@ export default {
               });
           },
           ImportExpression(node) {
-            if (moduleSource(node) === 'vitest')
+            if (moduleSource(node) === 'vite-plus/test')
               context.report({
                 node,
                 message:
@@ -2980,7 +2980,7 @@ export default {
               });
           },
           ImportDeclaration(node) {
-            if (node.source.value !== 'vitest') return;
+            if (node.source.value !== 'vite-plus/test') return;
             for (const specifier of node.specifiers)
               if (
                 specifier.type === 'ImportNamespaceSpecifier' ||

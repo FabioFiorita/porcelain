@@ -13,7 +13,7 @@ import {
 } from '@porcelain/git-actions/services';
 import { type ListedWorktree } from '@porcelain/projects/models';
 import { Clock, Effect, Layer, ManagedRuntime } from 'effect';
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { EventPublisher } from '../../ports/event-publisher.ts';
 import { GitActionQueueRunner } from '../../ports/git-action-queue-runner.ts';
 import { WorktreeConsistencyProbe } from '../../ports/worktree-consistency-probe.ts';
