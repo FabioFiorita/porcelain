@@ -1,3 +1,4 @@
+import { historyFiles } from './history-files.ts';
 import { Effect } from 'effect';
 import type { GitLimits } from '../../shared/dtos/git-limits.ts';
 import {
@@ -13,14 +14,13 @@ import type {
 } from '../dtos/branch-range.ts';
 import type { HistoryCheckout } from '../dtos/commit-history.ts';
 import { InvalidHistoryRequestError } from '../../shared/errors/invalid-history-request-error.ts';
-import { ReadLimitExceededError } from '../../shared/errors/read-limit-exceeded-error.ts';
 import { UnsupportedHistoryDataError } from '../../shared/errors/unsupported-history-data-error.ts';
 import {
   confirmHistoryCheckout,
   inspectHistoryCheckout,
 } from './inspect-history-checkout.ts';
 import { lookupBranchRefs, readDefaultBase } from './read-default-base.ts';
-import { diffFlags, fileStatus } from './read-commit-files.ts';
+import { diffFlags } from './read-commit-files.ts';
 import { readHistoryAnswer, runHistory } from './run-history.ts';
 
 const ABSENT = 1;
@@ -131,21 +131,15 @@ const readFiles = Effect.fn('Git.readFiles')(function* (
   ).pipe(
     Effect.mapError((cause) => new UnsupportedHistoryDataError({ cause })),
   );
-  if (entries.length > limits.history.maxCommitFiles)
-    return yield* Effect.fail(new ReadLimitExceededError());
-  return yield* Effect.forEach(entries, (entry) =>
-    Effect.gen(function* () {
-      const status = yield* fileStatus(entry.status);
-      return {
-        oldPath: status === 'added' ? null : entry.oldPath,
-        newPath: status === 'deleted' ? null : entry.newPath,
-        status,
-        oldMode: entry.oldMode,
-        newMode: entry.newMode,
-        oldOid: status === 'added' ? null : entry.oldOid,
-        newOid: status === 'deleted' ? null : entry.newOid,
-      } satisfies BranchFile;
-    }),
+  return yield* historyFiles(
+    entries,
+    limits.history.maxCommitFiles,
+    (file, entry) =>
+      ({
+        ...file,
+        oldOid: file.status === 'added' ? null : entry.oldOid,
+        newOid: file.status === 'deleted' ? null : entry.newOid,
+      }) satisfies BranchFile,
   );
 });
 

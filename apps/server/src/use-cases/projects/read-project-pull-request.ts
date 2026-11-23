@@ -1,3 +1,4 @@
+import { readProjectPull } from '../../runtime/read-project-pull.ts';
 import { Context, Effect, Layer } from 'effect';
 import type {
   ProjectPullRequestParams,
@@ -23,27 +24,16 @@ export class ReadProjectPullRequestUseCase extends Context.Service<
       return {
         execute: Effect.fn('ReadProjectPullRequestUseCase.execute')(
           function* (input) {
-            const linked = yield* target.execute(input);
-            if (linked.kind !== 'available') return linked;
-            const result = yield* github
-              .execute({
-                ...linked.repository,
-                account: linked.account,
-                number: linked.number,
-              })
-              .pipe(Effect.result);
-            if (result._tag === 'Failure')
-              return {
-                kind: 'unavailable',
-                reason:
-                  result.failure._tag === 'GitHubPullRequestNotFoundError'
-                    ? 'pull-request-not-found'
-                    : result.failure.reason,
-              };
+            const pulled = yield* readProjectPull(
+              target,
+              input,
+              github.execute,
+            );
+            if (pulled.kind !== 'available') return pulled;
             return {
               kind: 'available',
-              account: linked.account,
-              pullRequest: mapPullRequest(result.success),
+              account: pulled.account,
+              pullRequest: mapPullRequest(pulled.result),
             };
           },
         ),

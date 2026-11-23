@@ -1,13 +1,12 @@
+import {
+  captureProviderRuntime,
+  withProviderScope,
+} from './commands/provider-runtime.ts';
 import { claudeEnvironment } from '../shared/commands/claude-environment.ts';
-import { installedModels } from '../shared/commands/installed-models.ts';
-import { Context, Effect, FileSystem, Layer, Path } from 'effect';
-import { ChildProcessSpawner } from 'effect/process';
-import { findExecutable } from '../shared/commands/find-executable.ts';
+import { Context, Effect, Layer } from 'effect';
 import { codingModel } from './commands/coding-model.ts';
-import { runProvider } from './commands/run-provider.ts';
 import type { AgentLimits } from './dtos/agent-limits.ts';
 import { ProviderNotInstalledError } from './errors/provider-not-installed-error.ts';
-import { ProviderProcessFailedError } from './errors/provider-process-failed-error.ts';
 import type { Provider } from './interfaces/provider.ts';
 import { claudeAnswer } from './parsers/parse-provider-answer.ts';
 
@@ -18,23 +17,14 @@ export class ClaudeProvider extends Context.Service<ClaudeProvider, Provider>()(
     return Layer.effect(
       ClaudeProvider,
       Effect.gen(function* () {
-        const fs = yield* FileSystem.FileSystem;
-        const path = yield* Path.Path;
-        const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
-        const executable = (name: string) =>
-          findExecutable(name).pipe(
-            Effect.provideService(FileSystem.FileSystem, fs),
-            Effect.provideService(Path.Path, path),
-          );
+        const {
+          fs,
+          executable,
+          models: installedModels,
+          run,
+        } = yield* captureProviderRuntime();
         const models = Effect.fn('ClaudeProvider.models')(function* () {
-          return (yield* installedModels('claude', limits, false).pipe(
-            Effect.provideService(FileSystem.FileSystem, fs),
-            Effect.provideService(Path.Path, path),
-            Effect.provideService(
-              ChildProcessSpawner.ChildProcessSpawner,
-              spawner,
-            ),
-          ))
+          return (yield* installedModels('claude', limits, false))
             .filter((model) => model.model !== 'claude-opus-5-5')
             .map((model) => ({
               id: `${model.provider}:${model.model}`,
@@ -53,7 +43,7 @@ export class ClaudeProvider extends Context.Service<ClaudeProvider, Provider>()(
                   prefix: 'porcelain-commit-draft-',
                 });
 
-                const output = yield* runProvider({
+                const output = yield* run({
                   command,
                   env: claudeEnvironment(process.env),
                   args: [
@@ -76,19 +66,9 @@ export class ClaudeProvider extends Context.Service<ClaudeProvider, Provider>()(
                   maxBytes: limits.claudeOutputBytes,
                   timeoutMs: limits.processDeadlineMs,
                   processGroup: limits.processGroup,
-                }).pipe(
-                  Effect.provideService(
-                    ChildProcessSpawner.ChildProcessSpawner,
-                    spawner,
-                  ),
-                );
+                });
                 return yield* claudeAnswer(output);
-              }).pipe(
-                Effect.scoped,
-                Effect.catchTag('PlatformError', (cause) =>
-                  Effect.fail(new ProviderProcessFailedError({ cause })),
-                ),
-              ),
+              }).pipe(withProviderScope),
             );
           }),
         };

@@ -108,6 +108,18 @@ export const walkthroughWriterSettingsSchema = Schema.Struct({
 export type WalkthroughWriterSettings =
   typeof walkthroughWriterSettingsSchema.Type;
 export type SaveDefaultWalkthroughWriterRequest = typeof writerSchema.Type;
+const postWalkthroughFailures = [
+  ...worktreeFailures,
+  httpFailure(WalkthroughTargetNotFoundError, 'NotFound'),
+  httpFailure(WalkthroughMessageNotFoundError, 'NotFound'),
+  httpFailure(WalkthroughPostFailedError, 'BadGateway', {
+    message: { fromError: true },
+  }),
+  httpFailure(WalkthroughRepositoryChangedError, 'Conflict', {
+    message: { fromError: true },
+  }),
+] as const;
+
 export class WalkthroughsApi extends porcelainApi.add(
   HttpApiGroup.make('walkthroughs')
     .add(
@@ -225,17 +237,7 @@ export class WalkthroughsApi extends porcelainApi.add(
           disableCodecs: true,
           params: walkthroughMessageParamsSchema,
           success: postWalkthroughMessagesResponseSchema,
-          error: [
-            ...worktreeFailures,
-            httpFailure(WalkthroughTargetNotFoundError, 'NotFound'),
-            httpFailure(WalkthroughMessageNotFoundError, 'NotFound'),
-            httpFailure(WalkthroughPostFailedError, 'BadGateway', {
-              message: { fromError: true },
-            }),
-            httpFailure(WalkthroughRepositoryChangedError, 'Conflict', {
-              message: { fromError: true },
-            }),
-          ],
+          error: postWalkthroughFailures,
         },
       ),
       HttpApiEndpoint.post(
@@ -245,17 +247,7 @@ export class WalkthroughsApi extends porcelainApi.add(
           disableCodecs: true,
           params: walkthroughConversationParamsSchema,
           success: postWalkthroughMessagesResponseSchema,
-          error: [
-            ...worktreeFailures,
-            httpFailure(WalkthroughTargetNotFoundError, 'NotFound'),
-            httpFailure(WalkthroughMessageNotFoundError, 'NotFound'),
-            httpFailure(WalkthroughPostFailedError, 'BadGateway', {
-              message: { fromError: true },
-            }),
-            httpFailure(WalkthroughRepositoryChangedError, 'Conflict', {
-              message: { fromError: true },
-            }),
-          ],
+          error: postWalkthroughFailures,
         },
       ),
       HttpApiEndpoint.get(

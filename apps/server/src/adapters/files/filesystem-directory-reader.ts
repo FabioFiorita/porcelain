@@ -1,4 +1,3 @@
-import { admittedRead } from '@porcelain/effects';
 import type { Dirent } from 'node:fs';
 import { lstat, readlink } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -13,14 +12,11 @@ import { Effect, Layer, type Scope } from 'effect';
 import {
   type GuardedPathFailure,
   inspectPath,
-  readFailure,
   verifyPath,
 } from './inspect-path.ts';
 import { openRawDirectory, syscall } from './guarded-filesystem-syscalls.ts';
-import {
-  listedWorktreeEffect,
-  type ListedWorktrees,
-} from '../projects/checkout-session.ts';
+import type { ListedWorktrees } from '../projects/checkout-session.ts';
+import { readGuardedWorktree } from './read-guarded-worktree.ts';
 
 const nameDecoder = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
 
@@ -31,54 +27,35 @@ export const filesystemDirectoryReaderLayer = (
   Layer.succeed(DirectoryReader, {
     list: Effect.fn('FilesystemDirectoryReader.list')(
       (input: DirectoryReadInput) =>
-        admittedRead(
-          input.worktreeId,
-          Effect.gen(function* () {
-            const checkout = yield* listedWorktreeEffect(
-              worktrees,
-              input.worktreeId,
-            ).pipe(Effect.orDie);
-            const target = { root: checkout.path, path: input.path };
-            return yield* Effect.scoped(
-              Effect.gen(function* (): Effect.fn.Return<
-                DirectoryRead,
-                GuardedPathFailure,
-                Scope.Scope
-              > {
-                const before = yield* inspectPath(target);
-                if (!before.info.isDirectory())
-                  return { kind: 'failed', failure: 'unreadable' };
-                const directory = yield* openRawDirectory(before.path);
-                const found: { name: string; entry: Dirent }[] = [];
-                let truncated = false;
-                for (;;) {
-                  const entry = yield* syscall(() => directory.read());
-                  if (entry === null) break;
-                  const name = decodedName(entry.name);
-                  if (name === undefined)
-                    return { kind: 'failed', failure: 'unsupported-name' };
-                  if (found.length === input.limit) {
-                    truncated = true;
-                    break;
-                  }
-                  found.push({ name, entry });
-                }
-                const entries = yield* Effect.forEach(
-                  found,
-                  ({ name, entry }) =>
-                    describe(before.path, name, entry, options.gitDirectory),
-                );
-                yield* verifyPath(before, target);
-                return { kind: 'listed', entries, truncated };
-              }),
-            ).pipe(
-              Effect.catch((error) => {
-                const failure = readFailure(error);
-                return failure === undefined
-                  ? Effect.die(error)
-                  : Effect.succeed<DirectoryRead>({ kind: 'failed', failure });
-              }),
+        readGuardedWorktree(worktrees, input, (target) =>
+          Effect.gen(function* (): Effect.fn.Return<
+            DirectoryRead,
+            GuardedPathFailure,
+            Scope.Scope
+          > {
+            const before = yield* inspectPath(target);
+            if (!before.info.isDirectory())
+              return { kind: 'failed', failure: 'unreadable' };
+            const directory = yield* openRawDirectory(before.path);
+            const found: { name: string; entry: Dirent }[] = [];
+            let truncated = false;
+            for (;;) {
+              const entry = yield* syscall(() => directory.read());
+              if (entry === null) break;
+              const name = decodedName(entry.name);
+              if (name === undefined)
+                return { kind: 'failed', failure: 'unsupported-name' };
+              if (found.length === input.limit) {
+                truncated = true;
+                break;
+              }
+              found.push({ name, entry });
+            }
+            const entries = yield* Effect.forEach(found, ({ name, entry }) =>
+              describe(before.path, name, entry, options.gitDirectory),
             );
+            yield* verifyPath(before, target);
+            return { kind: 'listed', entries, truncated };
           }),
         ),
     ),

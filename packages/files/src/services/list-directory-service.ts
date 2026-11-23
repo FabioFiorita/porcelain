@@ -1,14 +1,14 @@
+import { fileFailure } from './file-failure.ts';
 import { ListDirectoryOptions } from '../ports/list-directory-options.ts';
 import { type WorktreeRead } from '@porcelain/effects/worktree';
 import { utf8ByteLength, withoutGitDirectory } from '@porcelain/kernel/rules';
 import { Effect, Context, Layer } from 'effect';
-import { ContentChangedError } from '../errors/content-changed-error.ts';
+import type { ContentChangedError } from '../errors/content-changed-error.ts';
 import { DirectoryTooLargeError } from '../errors/directory-too-large-error.ts';
-import { PathNotFoundError } from '../errors/path-not-found-error.ts';
-import { PathNotReadableError } from '../errors/path-not-readable-error.ts';
-import { UnsupportedEntryNameError } from '../errors/unsupported-entry-name-error.ts';
+import type { PathNotFoundError } from '../errors/path-not-found-error.ts';
+import type { PathNotReadableError } from '../errors/path-not-readable-error.ts';
+import type { UnsupportedEntryNameError } from '../errors/unsupported-entry-name-error.ts';
 import { type DirectoryEntry } from '../models/directory-entry.ts';
-import { type ListFailure } from '../models/file-failure.ts';
 import {
   type ListDirectoryInput,
   type ListDirectoryResult,
@@ -38,18 +38,6 @@ export class ListDirectoryService extends Context.Service<
       const directoryReaderCapability = yield* DirectoryReader;
       const ignoredEntriesReaderCapability = yield* IgnoredEntriesReader;
       const optionsCapability = yield* ListDirectoryOptions;
-      function operationFailure(failure: ListFailure): ListFailureError {
-        switch (failure) {
-          case 'missing':
-            return new PathNotFoundError();
-          case 'unreadable':
-            return new PathNotReadableError();
-          case 'changed':
-            return new ContentChangedError();
-          case 'unsupported-name':
-            return new UnsupportedEntryNameError();
-        }
-      }
       return {
         execute: Effect.fn('ListDirectoryService.execute')(function* (
           input: ListDirectoryInput,
@@ -64,7 +52,7 @@ export class ListDirectoryService extends Context.Service<
             limit: optionsCapability.maxEntries + 1,
           });
           if (read.kind === 'failed')
-            return yield* Effect.fail(operationFailure(read.failure));
+            return yield* Effect.fail(fileFailure[read.failure]());
           const entries = withoutGitDirectory(read.entries).toSorted(byName);
           if (read.truncated || entries.length > optionsCapability.maxEntries)
             return yield* new DirectoryTooLargeError();

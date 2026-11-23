@@ -34,12 +34,41 @@ export function duplicateScope() {
     why: 'Keep shared client logic and specs in one owner so fixes cannot drift between apps.',
   };
 }
+export function serverDuplicateScope() {
+  return {
+    name: 'server',
+    sources: [
+      'apps/server/src',
+      ...[
+        'access',
+        'agents',
+        'changes',
+        'contracts',
+        'effects',
+        'files',
+        'git',
+        'git-actions',
+        'kernel',
+        'process',
+        'projects',
+        'reviews',
+        'storage',
+        'walkthroughs',
+      ].map((name) => `packages/${name}/src`),
+    ],
+    metric: 'clones' as const,
+    ceiling: 8,
+    ignored: ['**/*.spec.ts', '**/*.spec.tsx'],
+    why: 'Share server behavior at its source and keep independent contracts and platform boundaries explicit.',
+  };
+}
 export function scanDuplicates(
   from: string,
   scope: {
     sources: readonly string[];
     metric: 'clones' | 'duplicatedLines';
     ceiling: number;
+    ignored?: readonly string[];
   },
 ) {
   const scratch = mkdtempSync(join(tmpdir(), 'porcelain-duplicates-'));
@@ -56,7 +85,11 @@ export function scanDuplicates(
         '--mode',
         'mild',
         '--ignore',
-        '**/apps/web/src/components/ui/**,**/routeTree.gen.ts',
+        [
+          '**/apps/web/src/components/ui/**',
+          '**/routeTree.gen.ts',
+          ...(scope.ignored ?? []),
+        ].join(','),
         '--absolute',
         '--no-colors',
         '--reporters',

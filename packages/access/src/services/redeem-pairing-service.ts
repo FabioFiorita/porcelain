@@ -1,8 +1,9 @@
+import { requireDeviceDetail } from './require-device-detail.ts';
 import { RedeemPairingOptions } from '../ports/redeem-pairing-options.ts';
 import { Redacted, Effect, Context, Layer, Clock, DateTime } from 'effect';
 import { IdSource, SecretSource } from '@porcelain/kernel/ports';
 import { sha256Hex } from '@porcelain/kernel/rules';
-import { InvalidDeviceDetailsError } from '../errors/invalid-device-details-error.ts';
+import type { InvalidDeviceDetailsError } from '../errors/invalid-device-details-error.ts';
 import { InvalidPairingError } from '../errors/invalid-pairing-error.ts';
 import type { Device } from '../models/device.ts';
 import type {
@@ -37,15 +38,6 @@ export class RedeemPairingService extends Context.Service<
       const idSource = yield* IdSource;
       const secretSource = yield* SecretSource;
       const options = yield* RedeemPairingOptions;
-      const operationDetail = Effect.fn('RedeemPairingService.operationDetail')(
-        function* (
-          value: string | undefined,
-        ): Effect.fn.Return<string, InvalidDeviceDetailsError> {
-          if (value === undefined)
-            return yield* Effect.fail(new InvalidDeviceDetailsError());
-          return value;
-        },
-      );
       return {
         execute: Effect.fn('RedeemPairingService.execute')(function* (
           input: RedeemPairingInput,
@@ -58,10 +50,10 @@ export class RedeemPairingService extends Context.Service<
           const label =
             input.label === undefined
               ? undefined
-              : yield* operationDetail(
+              : yield* requireDeviceDetail(
                   validLabel(input.label, options.labelLength),
                 );
-          const platform = yield* operationDetail(
+          const platform = yield* requireDeviceDetail(
             validPlatform(input.platform, options.platformLength),
           );
           const now = DateTime.formatIso(

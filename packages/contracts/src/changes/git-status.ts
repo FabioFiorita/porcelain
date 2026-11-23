@@ -99,20 +99,24 @@ export const gitChangeSchema = Schema.Union([
   unmergedChangeSchema,
 ]);
 
+export const gitBranchSummarySchema = Schema.Struct({
+  name: nullableAsUndefined(Schema.String),
+  upstream: nullableAsUndefined(Schema.String),
+  ahead: Schema.Number.check(Schema.isInt()).check(
+    Schema.isGreaterThanOrEqualTo(0),
+  ),
+  behind: Schema.Number.check(Schema.isInt()).check(
+    Schema.isGreaterThanOrEqualTo(0),
+  ),
+});
+
 export const readGitStatusResponseSchema = Schema.Struct({
   environmentId: Schema.String.check(Schema.isUUID()),
   worktreeId: worktreeIdSchema,
   statusToken: fingerprintSchema,
   branch: Schema.optional(
     Schema.Struct({
-      name: nullableAsUndefined(Schema.String),
-      upstream: nullableAsUndefined(Schema.String),
-      ahead: Schema.Number.check(Schema.isInt()).check(
-        Schema.isGreaterThanOrEqualTo(0),
-      ),
-      behind: Schema.Number.check(Schema.isInt()).check(
-        Schema.isGreaterThanOrEqualTo(0),
-      ),
+      ...gitBranchSummarySchema.fields,
       remoteName: nullableAsUndefined(Schema.String),
       sourceRef: nullableAsUndefined(Schema.String),
       upstreamOid: nullableAsUndefined(oidSchema),

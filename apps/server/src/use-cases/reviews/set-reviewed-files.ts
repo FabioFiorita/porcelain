@@ -1,3 +1,4 @@
+import { readWorktreeFingerprints } from '../../runtime/read-worktree-fingerprints.ts';
 import { type GitIoFailure } from '@porcelain/git/errors';
 import {
   type BranchBaseNotFoundError,
@@ -53,14 +54,11 @@ export class SetReviewedFilesUseCase extends Context.Service<
       const eventsCapability = yield* EventPublisher;
       function operationWorktreeChanges(worktreeId: string) {
         return Effect.gen(function* () {
-          const status = yield* readWorktreeStatusCapability.execute({
+          const { changes } = yield* readWorktreeFingerprints(
+            readWorktreeStatusCapability,
+            readChangeFingerprintsCapability,
             worktreeId,
-          });
-          const { changes } = yield* readChangeFingerprintsCapability.execute({
-            worktreeId,
-            comparisons: status.changes,
-            paths: undefined,
-          });
+          );
           return changes;
         });
       }

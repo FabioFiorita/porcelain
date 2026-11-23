@@ -1,13 +1,12 @@
-import { installedModels } from '../shared/commands/installed-models.ts';
-import { Context, Effect, FileSystem, Layer, Path } from 'effect';
-import { ChildProcessSpawner } from 'effect/process';
-import { findExecutable } from '../shared/commands/find-executable.ts';
+import {
+  captureProviderRuntime,
+  withProviderScope,
+} from './commands/provider-runtime.ts';
+import { Context, Effect, Layer, FileSystem } from 'effect';
 import { codingModel } from './commands/coding-model.ts';
-import { runProvider } from './commands/run-provider.ts';
 import { readBoundedText } from './commands/read-bounded-text.ts';
 import type { AgentLimits } from './dtos/agent-limits.ts';
 import { ProviderNotInstalledError } from './errors/provider-not-installed-error.ts';
-import { ProviderProcessFailedError } from './errors/provider-process-failed-error.ts';
 import type { Provider } from './interfaces/provider.ts';
 import { codexAnswer } from './parsers/parse-provider-answer.ts';
 
@@ -18,26 +17,20 @@ export class CodexProvider extends Context.Service<CodexProvider, Provider>()(
     return Layer.effect(
       CodexProvider,
       Effect.gen(function* () {
-        const fs = yield* FileSystem.FileSystem;
-        const path = yield* Path.Path;
-        const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
-        const executable = (name: string) =>
-          findExecutable(name).pipe(
-            Effect.provideService(FileSystem.FileSystem, fs),
-            Effect.provideService(Path.Path, path),
-          );
+        const {
+          fs,
+          path,
+          executable,
+          models: installedModels,
+          run,
+        } = yield* captureProviderRuntime();
         const models = Effect.fn('CodexProvider.models')(function* () {
-          return (yield* installedModels('codex', limits, false).pipe(
-            Effect.provideService(FileSystem.FileSystem, fs),
-            Effect.provideService(Path.Path, path),
-            Effect.provideService(
-              ChildProcessSpawner.ChildProcessSpawner,
-              spawner,
-            ),
-          )).map((model) => ({
-            id: `${model.provider}:${model.model}`,
-            label: model.label,
-          }));
+          return (yield* installedModels('codex', limits, false)).map(
+            (model) => ({
+              id: `${model.provider}:${model.model}`,
+              label: model.label,
+            }),
+          );
         });
         return {
           models,
@@ -53,7 +46,7 @@ export class CodexProvider extends Context.Service<CodexProvider, Provider>()(
                 const schemaPath = path.join(root, 'schema.json');
                 const outputPath = path.join(root, 'result.json');
                 yield* fs.writeFileString(schemaPath, outputSchema);
-                yield* runProvider({
+                yield* run({
                   command,
                   args: [
                     'exec',
@@ -88,23 +81,13 @@ export class CodexProvider extends Context.Service<CodexProvider, Provider>()(
                   maxBytes: limits.codexOutputBytes,
                   timeoutMs: limits.processDeadlineMs,
                   processGroup: limits.processGroup,
-                }).pipe(
-                  Effect.provideService(
-                    ChildProcessSpawner.ChildProcessSpawner,
-                    spawner,
-                  ),
-                );
+                });
                 const text = yield* readBoundedText(
                   outputPath,
                   limits.codexOutputBytes,
                 ).pipe(Effect.provideService(FileSystem.FileSystem, fs));
                 return yield* codexAnswer(text);
-              }).pipe(
-                Effect.scoped,
-                Effect.catchTag('PlatformError', (cause) =>
-                  Effect.fail(new ProviderProcessFailedError({ cause })),
-                ),
-              ),
+              }).pipe(withProviderScope),
             );
           }),
         };

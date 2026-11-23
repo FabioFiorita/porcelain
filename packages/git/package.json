@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./limits": "./src/shared/dtos/git-limits.ts",
     "./discovery": "./src/discovery/index.ts",
     "./inspection": "./src/inspection/index.ts",
     "./history": "./src/history/index.ts",

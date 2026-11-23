@@ -1,14 +1,14 @@
 import { CheckWorktreeOptions } from '../ports/check-worktree-options.ts';
 import { Effect, Context, Layer, Clock, DateTime } from 'effect';
-import { WorktreeNotFoundError } from '@porcelain/kernel/errors';
-import { WorktreeUnavailableError } from '../errors/worktree-unavailable-error.ts';
+import type { WorktreeNotFoundError } from '@porcelain/kernel/errors';
+import type { WorktreeUnavailableError } from '../errors/worktree-unavailable-error.ts';
 import {
   type CheckWorktreeInput,
   type CheckWorktreeResult,
 } from '../models/check-worktree.ts';
 import { InventoryStore } from '../ports/inventory-store.ts';
 import { WorktreeCatalogStore } from '../ports/worktree-catalog-store.ts';
-import { checkedWorktree } from '../rules/checked-worktree.ts';
+import { lookupCheckedWorktree } from './lookup-checked-worktree.ts';
 
 export class CheckWorktreeService extends Context.Service<
   CheckWorktreeService,
@@ -36,30 +36,17 @@ export class CheckWorktreeService extends Context.Service<
           CheckWorktreeResult,
           WorktreeNotFoundError | WorktreeUnavailableError
         > {
-          const entry = catalogCapability.find({
-            worktreeId: input.worktreeId,
-          });
-          const answer = checkedWorktree(
+          return yield* lookupCheckedWorktree(
             input,
-            entry,
-            catalogCapability.listObservations(),
-            entry && input.requireAvailableProject
-              ? yield* inventoryCapability.find({
-                  projectId: entry.worktree.projectId,
-                })
-              : undefined,
-            {
-              now: DateTime.formatIso(
-                DateTime.makeUnsafe(yield* clockCapability.currentTimeMillis),
-              ),
-              staleAfterMs: optionsCapability.staleAfterMs,
-            },
+            catalogCapability,
+            inventoryCapability,
+            clockCapability.currentTimeMillis.pipe(
+              Effect.map((time) => ({
+                now: DateTime.formatIso(DateTime.makeUnsafe(time)),
+                staleAfterMs: optionsCapability.staleAfterMs,
+              })),
+            ),
           );
-          if (answer.kind === 'missing')
-            return yield* Effect.fail(new WorktreeNotFoundError());
-          if (answer.kind === 'unavailable')
-            return yield* Effect.fail(new WorktreeUnavailableError());
-          return answer;
         }),
       };
     }),

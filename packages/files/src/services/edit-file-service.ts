@@ -1,3 +1,4 @@
+import { fileFailure } from './file-failure.ts';
 import { EditFileOptions } from '../ports/edit-file-options.ts';
 import {
   type WorktreeRead,
@@ -6,21 +7,20 @@ import {
 import { sha256Hex } from '@porcelain/kernel/rules';
 import { Effect, Context, Layer } from 'effect';
 import { ContentChangedError } from '../errors/content-changed-error.ts';
-import { CrossDeviceMoveError } from '../errors/cross-device-move-error.ts';
-import { DiskFullError } from '../errors/disk-full-error.ts';
-import { EntryExistsError } from '../errors/entry-exists-error.ts';
+import type { CrossDeviceMoveError } from '../errors/cross-device-move-error.ts';
+import type { DiskFullError } from '../errors/disk-full-error.ts';
+import type { EntryExistsError } from '../errors/entry-exists-error.ts';
 import { FileTooLargeError } from '../errors/file-too-large-error.ts';
 import { InvalidMoveError } from '../errors/invalid-move-error.ts';
-import { PathNotFoundError } from '../errors/path-not-found-error.ts';
-import { PathNotReadableError } from '../errors/path-not-readable-error.ts';
-import { TrashUnavailableError } from '../errors/trash-unavailable-error.ts';
-import { UnsupportedTextError } from '../errors/unsupported-text-error.ts';
+import type { PathNotFoundError } from '../errors/path-not-found-error.ts';
+import type { PathNotReadableError } from '../errors/path-not-readable-error.ts';
+import type { TrashUnavailableError } from '../errors/trash-unavailable-error.ts';
+import type { UnsupportedTextError } from '../errors/unsupported-text-error.ts';
 import {
   type EditFileInput,
   type EditFileResult,
 } from '../models/edit-file.ts';
 import { type FileEdit } from '../models/file-edit.ts';
-import { type TextFailure, type WriteFailure } from '../models/file-failure.ts';
 import { type FileLocation } from '../models/file-location.ts';
 import { type FileWrite } from '../models/file-write.ts';
 import { FileReader } from '../ports/file-reader.ts';
@@ -72,7 +72,7 @@ export class EditFileService extends Context.Service<
           maxBytes: optionsCapability.maxCurrentBytes,
         });
         if (current.kind === 'failed')
-          return yield* Effect.fail(operationFailure(current.failure));
+          return yield* Effect.fail(fileFailure[current.failure]());
         if (current.kind === 'too-large') return yield* new FileTooLargeError();
         if (sha256Hex(current.text) !== command.expectedFingerprint)
           return yield* new ContentChangedError();
@@ -91,33 +91,9 @@ export class EditFileService extends Context.Service<
         write: FileWrite,
       ): Effect.fn.Return<void, EditFileFailure> {
         return yield* write.kind === 'failed'
-          ? Effect.fail(operationFailure(write.failure))
+          ? Effect.fail(fileFailure[write.failure]())
           : Effect.void;
       });
-      function operationFailure(
-        failure: TextFailure | WriteFailure,
-      ): EditFileFailure {
-        switch (failure) {
-          case 'missing':
-            return new PathNotFoundError();
-          case 'unreadable':
-            return new PathNotReadableError();
-          case 'changed':
-            return new ContentChangedError();
-          case 'unsupported-text':
-            return new UnsupportedTextError();
-          case 'exists':
-            return new EntryExistsError();
-          case 'cross-device':
-            return new CrossDeviceMoveError();
-          case 'trash-unavailable':
-            return new TrashUnavailableError();
-          case 'too-large':
-            return new FileTooLargeError();
-          case 'no-space':
-            return new DiskFullError();
-        }
-      }
       return {
         execute: Effect.fn('EditFileService.execute')(function* (
           input: EditFileInput,

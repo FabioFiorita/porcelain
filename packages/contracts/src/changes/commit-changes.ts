@@ -1,15 +1,10 @@
 import { Schema } from 'effect';
-import {
-  COMMIT_FILES,
-  COMMIT_PARENTS,
-  DIFFS_PER_REQUEST,
-  PATHS_PER_CHANGE,
-} from '../shared/limits.ts';
+import { COMMIT_FILES, COMMIT_PARENTS } from '../shared/limits.ts';
 import { nullableAsUndefined } from '../shared/schema.ts';
 import { oidSchema } from '../shared/oid.ts';
 import { worktreeIdSchema } from '../shared/schema.ts';
 import { commitSummarySchema } from './commit-history.ts';
-import { gitDiffContentSchema } from './git-diff.ts';
+import { comparisonPathsSchema, comparisonPatchesSchema } from './git-diff.ts';
 
 const commitComparisonSchema = Schema.Union([
   Schema.Struct({
@@ -63,22 +58,11 @@ export const readCommitDiffsRequestSchema = Schema.Struct({
       .check(Schema.isGreaterThanOrEqualTo(1))
       .check(Schema.isLessThanOrEqualTo(COMMIT_PARENTS)),
   ),
-  paths: Schema.Array(
-    Schema.Array(Schema.String)
-      .check(Schema.isMinLength(1))
-      .check(Schema.isMaxLength(PATHS_PER_CHANGE)),
-  )
-    .check(Schema.isMinLength(1))
-    .check(Schema.isMaxLength(DIFFS_PER_REQUEST)),
+  paths: comparisonPathsSchema,
 });
 export const readCommitDiffsResponseSchema = Schema.Struct({
   commitOid: oidSchema,
-  diffs: Schema.Array(
-    Schema.Struct({
-      paths: Schema.Array(Schema.String),
-      content: gitDiffContentSchema,
-    }),
-  ),
+  diffs: comparisonPatchesSchema,
 });
 
 export type ReadCommitFilesParams = typeof readCommitFilesParamsSchema.Type;

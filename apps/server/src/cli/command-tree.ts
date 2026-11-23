@@ -75,13 +75,9 @@ const finish = Effect.fn('Cli.exitCode')(function* (code: number) {
   yield* Ref.set(exit, code);
 });
 
-const serveHandler = Effect.fn('Cli.serveCommand')(function* (input: {
-  readonly dataDirectory: Option.Option<string>;
-  readonly host: Option.Option<string>;
-  readonly port: Option.Option<number>;
-  readonly allowHosts: readonly string[];
-  readonly lan: boolean;
-}) {
+const serveHandler = Effect.fn('Cli.serveCommand')(function* (
+  input: Parameters<typeof serverSettingsFor>[0],
+) {
   const operations = yield* CliOperations;
   yield* operations.serve(yield* serverSettingsFor(input));
 });
