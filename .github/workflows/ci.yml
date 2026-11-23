@@ -27,6 +27,7 @@ jobs:
       web-integration: ${{ steps.affected.outputs.web-integration }}
       web-e2e: ${{ steps.affected.outputs.web-e2e }}
       shards: ${{ steps.affected.outputs.shards }}
+      browser-shards: ${{ steps.affected.outputs.browser-shards }}
       integration: ${{ steps.affected.outputs.integration }}
       e2e: ${{ steps.affected.outputs.e2e }}
       desktop: ${{ steps.affected.outputs.desktop }}
@@ -146,7 +147,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: ${{ fromJSON(needs.affected.outputs.shards || '[1]') }}
+        shard: ${{ fromJSON(needs.affected.outputs.browser-shards || '[1]') }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -166,7 +167,7 @@ jobs:
       - run: bwrap --ro-bind / / --dev /dev --proc /proc --unshare-pid --unshare-ipc --unshare-net --new-session --die-with-parent -- true
       - run: pnpm exec playwright install --only-shell chromium
       - if: github.base_ref == 'release'
-        run: pnpm --filter @porcelain/web test:integration --shard=${{ matrix.shard }}/4
+        run: pnpm --filter @porcelain/web test:integration --shard=${{ matrix.shard }}/${{ strategy.job-total }}
       - if: github.base_ref != 'release'
         env:
           SPECS: ${{ needs.affected.outputs.integration }}

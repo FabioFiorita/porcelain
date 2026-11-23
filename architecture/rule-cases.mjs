@@ -6578,9 +6578,9 @@ export const guardrailCases = [
     ],
     unitCommand: 'pnpm check:unit --ci',
     webIntegrationShards:
-      "${{ fromJSON(needs.affected.outputs.shards || '[1]') }}",
+      "${{ fromJSON(needs.affected.outputs.browser-shards || '[1]') }}",
     webIntegrationCommand:
-      'pnpm --filter @porcelain/web test:integration --shard=${{ matrix.shard }}/4',
+      'pnpm --filter @porcelain/web test:integration --shard=${{ matrix.shard }}/${{ strategy.job-total }}',
     webE2eShardPlan: "${{ fromJSON(needs.affected.outputs.shards || '[1]') }}",
     webE2eCases: [
       {

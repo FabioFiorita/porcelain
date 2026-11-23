@@ -37,7 +37,7 @@ it('partitions only the filtered files when there are more shards than files', (
   ]);
 });
 
-it.each([1, 2, 4, 8])(
+it.each([1, 2, 4, 6, 8])(
   'runs every actual browser file exactly once across %i shards',
   (count) => {
     const files = readdirSync(new URL('../integration', import.meta.url))
