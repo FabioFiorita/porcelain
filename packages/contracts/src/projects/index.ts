@@ -23,10 +23,6 @@ export {
   type RenameProjectResponse,
   type SetFilePreferenceParams,
 } from './inventory.ts';
-export {
-  type FindWorktreeByPathRequest,
-  type FindWorktreeByPathResponse,
-} from './worktree-path.ts';
 export { ProjectsApi } from './api.ts';
 
 export {

@@ -5,12 +5,7 @@ import {
   BranchRangeReader,
 } from '@porcelain/changes/ports';
 import { ReviewedFileStore } from '@porcelain/reviews/ports';
-import {
-  FileReader,
-  ReadTextFileOptions,
-  ReadTextFilesOptions,
-  ReadBinaryFilesOptions,
-} from '@porcelain/files/ports';
+import { FileReader, ReadTextFileOptions } from '@porcelain/files/ports';
 import { Context, Effect, Layer, Clock } from 'effect';
 import {
   EnvironmentIdentityReader,
@@ -33,14 +28,12 @@ import {
   WorktreeCatalogStore,
   InventoryStore,
   CheckWorktreeOptions,
-  WorktreePresenceStore,
 } from '@porcelain/projects/ports';
 import {
   CheckRefreshedWorktreeService,
   CheckWorktreeService,
   ConfirmWorktreeService,
   ListKnownWorktreesService,
-  ListRecordedWorktreesService,
   ListRegisteredProjectsService,
 } from '@porcelain/projects/services';
 import { InvalidateReviewedMarksService } from '@porcelain/reviews/services';
@@ -49,11 +42,7 @@ import { gitChangeDiffReaderLayer } from '../adapters/changes/git-change-diff-re
 import { gitChangeStatusReaderLayer } from '../adapters/changes/git-change-status-reader.ts';
 import { gitWorktreeSideReaderLayer } from '../adapters/changes/git-worktree-side-reader.ts';
 import { inspectionCheckouts } from '../adapters/changes/inspection-checkouts.ts';
-import {
-  ReadBinaryFilesService,
-  ReadTextFileService,
-  ReadTextFilesService,
-} from '@porcelain/files/services';
+import { ReadTextFileService } from '@porcelain/files/services';
 import { filesystemFileReaderLayer } from '../adapters/files/filesystem-file-reader.ts';
 import { gitHeadTextReaderLayer } from '../adapters/files/git-head-text-reader.ts';
 import { gitWorktreeAccessReaderLayer } from '../adapters/projects/git-worktree-access-reader.ts';
@@ -90,7 +79,6 @@ export function composeShared(dependencies: SharedDependencies) {
       filesystemFileReaderLayer(worktreeAccess),
       gitHeadTextReaderLayer(openInspection),
       Layer.succeed(ReadTextFileOptions, limits.files.readTextFile),
-      Layer.succeed(ReadTextFilesOptions, limits.files.readTextFile),
       gitChangeStatusReaderLayer(openInspection),
       gitWorktreeSideReaderLayer(openInspection, limits.changes.worktreeReads),
       Layer.succeed(ReadChangeFingerprintsOptions, limits.changes.fingerprints),
@@ -101,8 +89,6 @@ export function composeShared(dependencies: SharedDependencies) {
       Layer.succeed(CheckWorktreeOptions, staleness),
       gitBranchRangeReaderLayer(worktreeAccess, gitVersion, limits.git),
       Layer.succeed(GitActionReceiptStore, stores.gitActions),
-      Layer.succeed(WorktreePresenceStore, stores.worktreePresence),
-      Layer.succeed(ReadBinaryFilesOptions, limits.reviews.proof),
       Layer.succeed(ReviewedFileStore, stores.reviewedFiles),
     );
     const native = Layer.mergeAll(
@@ -127,7 +113,6 @@ export function composeShared(dependencies: SharedDependencies) {
       .pipe(Layer.provideMerge(ports));
     const services = Layer.mergeAll(
       ReadTextFileService.layer,
-      ReadTextFilesService.layer,
       ReadWorktreeStatusService.layer,
       ReadChangeFingerprintsService.layer,
       ReadChangeDiffsService.layer,
@@ -138,8 +123,6 @@ export function composeShared(dependencies: SharedDependencies) {
       ReadInterruptedGitActionService.layer,
       ListRegisteredProjectsService.layer,
       ListKnownWorktreesService.layer,
-      ListRecordedWorktreesService.layer,
-      ReadBinaryFilesService.layer,
       InvalidateReviewedMarksService.layer,
     ).pipe(Layer.provideMerge(native));
     const runtime = yield* Layer.build(services);
@@ -166,9 +149,6 @@ export function composeShared(dependencies: SharedDependencies) {
         readInterruptedGitAction: yield* ReadInterruptedGitActionService,
         listRegisteredProjects: yield* ListRegisteredProjectsService,
         listKnownWorktrees: yield* ListKnownWorktreesService,
-        listRecordedWorktrees: yield* ListRecordedWorktreesService,
-        readTextFilesService: yield* ReadTextFilesService,
-        readBinaryFiles: yield* ReadBinaryFilesService,
         invalidateReviewedMarks: yield* InvalidateReviewedMarksService,
       };
     }).pipe(Effect.provideContext(runtime));
