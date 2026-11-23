@@ -90,22 +90,22 @@ export function gitActionReceiptStoreContract(
     });
 
     it('reads nothing for an unknown request', async () => {
-      await Effect.runPromise(store.insert(running('known')));
+      await Effect.runPromise(store.accept(running('known')));
       expect(
         await Effect.runPromise(store.read({ requestId: 'unknown' })),
       ).toBeUndefined();
     });
 
     it('reads an inserted receipt back with everything it holds', async () => {
-      await Effect.runPromise(store.insert(committed));
+      await Effect.runPromise(store.accept(committed));
       expect(
         await Effect.runPromise(store.read({ requestId: 'committed' })),
       ).toEqual(committed);
     });
 
     it('claims each exact request once without claiming another request', async () => {
-      await Effect.runPromise(store.insert(running('first')));
-      await Effect.runPromise(store.insert(running('second')));
+      await Effect.runPromise(store.accept(running('first')));
+      await Effect.runPromise(store.accept(running('second')));
       expect(
         await Effect.runPromise(store.claimExecution({ requestId: 'first' })),
       ).toBe(true);
@@ -121,7 +121,7 @@ export function gitActionReceiptStoreContract(
     });
 
     it('atomically admits only one concurrent attempt for the same request', async () => {
-      await Effect.runPromise(store.insert(running('contended')));
+      await Effect.runPromise(store.accept(running('contended')));
       expect(
         await Promise.all([
           Effect.runPromise(store.claimExecution({ requestId: 'contended' })),
@@ -131,7 +131,7 @@ export function gitActionReceiptStoreContract(
     });
 
     it('reads a receipt back as it was last saved', async () => {
-      await Effect.runPromise(store.insert(running('fetch')));
+      await Effect.runPromise(store.accept(running('fetch')));
       const settled = running('fetch', {
         state: 'no-change',
         progress: ['Receiving objects'],
@@ -153,11 +153,11 @@ export function gitActionReceiptStoreContract(
     });
 
     it('lists the running receipts of every worktree and nothing that finished', async () => {
-      await Effect.runPromise(store.insert(running('first')));
+      await Effect.runPromise(store.accept(running('first')));
       await Effect.runPromise(
-        store.insert(running('second', { worktreeId: otherWorktreeId })),
+        store.accept(running('second', { worktreeId: otherWorktreeId })),
       );
-      await Effect.runPromise(store.insert(committed));
+      await Effect.runPromise(store.accept(committed));
       expect(
         (await Effect.runPromise(store.running()))
           .map((receipt) => receipt.requestId)
@@ -166,7 +166,7 @@ export function gitActionReceiptStoreContract(
     });
 
     it('stops listing a receipt as running once it is saved finished', async () => {
-      await Effect.runPromise(store.insert(running('fetch')));
+      await Effect.runPromise(store.accept(running('fetch')));
       await Effect.runPromise(
         store.save(interrupted('fetch', '2026-09-23T09:00:05.000Z')),
       );
@@ -175,27 +175,27 @@ export function gitActionReceiptStoreContract(
 
     it('finds the latest undismissed interrupted receipt of a worktree by when it finished', async () => {
       await Effect.runPromise(
-        store.insert(interrupted('early', '2026-09-23T09:59:59.999Z')),
+        store.accept(interrupted('early', '2026-09-23T09:59:59.999Z')),
       );
       await Effect.runPromise(
-        store.insert(interrupted('latest', '2026-09-23T10:00:00.000Z')),
+        store.accept(interrupted('latest', '2026-09-23T10:00:00.000Z')),
       );
       await Effect.runPromise(
-        store.insert(
+        store.accept(
           interrupted('dismissed', '2026-09-23T11:00:00.000Z', {
             dismissedAt: '2026-09-23T11:30:00.000Z',
           }),
         ),
       );
       await Effect.runPromise(
-        store.insert(
+        store.accept(
           interrupted('elsewhere', '2026-09-23T12:00:00.000Z', {
             worktreeId: otherWorktreeId,
           }),
         ),
       );
       await Effect.runPromise(
-        store.insert(
+        store.accept(
           running('rejected', {
             state: 'rejected',
             finishedAt: '2026-09-23T13:00:00.000Z',
@@ -210,7 +210,7 @@ export function gitActionReceiptStoreContract(
 
     it('finds no interrupted receipt once the last one is dismissed', async () => {
       const receipt = interrupted('only', '2026-09-23T10:00:00.000Z');
-      await Effect.runPromise(store.insert(receipt));
+      await Effect.runPromise(store.accept(receipt));
       await Effect.runPromise(
         store.save({ ...receipt, dismissedAt: '2026-09-23T10:30:00.000Z' }),
       );
@@ -221,7 +221,7 @@ export function gitActionReceiptStoreContract(
 
     it('finds no interrupted receipt for a worktree without any', async () => {
       await Effect.runPromise(
-        store.insert(interrupted('elsewhere', '2026-09-23T10:00:00.000Z')),
+        store.accept(interrupted('elsewhere', '2026-09-23T10:00:00.000Z')),
       );
       expect(
         await Effect.runPromise(
@@ -231,11 +231,11 @@ export function gitActionReceiptStoreContract(
     });
 
     it('lists every finished receipt with when it finished, and none still running', async () => {
-      await Effect.runPromise(store.insert(running('running')));
+      await Effect.runPromise(store.accept(running('running')));
       await Effect.runPromise(
-        store.insert(interrupted('old', '2026-08-01T00:00:00.000Z')),
+        store.accept(interrupted('old', '2026-08-01T00:00:00.000Z')),
       );
-      await Effect.runPromise(store.insert(committed));
+      await Effect.runPromise(store.accept(committed));
       expect(
         (await Effect.runPromise(store.finished())).toSorted((left, right) =>
           left.requestId.localeCompare(right.requestId),
@@ -247,12 +247,12 @@ export function gitActionReceiptStoreContract(
     });
 
     it('removes the asked receipts and keeps the others', async () => {
-      await Effect.runPromise(store.insert(running('running')));
+      await Effect.runPromise(store.accept(running('running')));
       await Effect.runPromise(
-        store.insert(interrupted('old', '2026-08-01T00:00:00.000Z')),
+        store.accept(interrupted('old', '2026-08-01T00:00:00.000Z')),
       );
       await Effect.runPromise(
-        store.insert(interrupted('recent', '2026-09-23T10:00:00.000Z')),
+        store.accept(interrupted('recent', '2026-09-23T10:00:00.000Z')),
       );
       await Effect.runPromise(store.remove({ requestIds: ['old', 'unknown'] }));
       await Effect.runPromise(store.remove({ requestIds: [] }));
@@ -271,7 +271,7 @@ export function gitActionReceiptStoreContract(
 
     it('hands out copies, so changing a returned receipt leaves the stored one unchanged', async () => {
       const inserted = running('fetch');
-      await Effect.runPromise(store.insert(inserted));
+      await Effect.runPromise(store.accept(inserted));
       inserted.progress.push('Changed after inserting');
       (
         await Effect.runPromise(store.read({ requestId: 'fetch' }))

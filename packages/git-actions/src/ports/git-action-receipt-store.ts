@@ -10,7 +10,11 @@ import {
 
 export interface GitActionReceiptStore {
   read(input: GitActionReceiptKey): Effect.Effect<GitActionReceipt | undefined>;
-  insert(input: GitActionReceipt): Effect.Effect<void>;
+  accept(
+    input: GitActionReceipt,
+  ): Effect.Effect<
+    { kind: 'inserted' } | { kind: 'existing'; receipt: GitActionReceipt }
+  >;
   claimExecution(input: GitActionReceiptKey): Effect.Effect<boolean>;
   save(input: GitActionReceipt): Effect.Effect<void>;
   running(): Effect.Effect<GitActionReceipt[]>;

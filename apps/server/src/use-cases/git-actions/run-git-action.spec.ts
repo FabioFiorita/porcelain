@@ -29,10 +29,14 @@ function receiptStore(): GitActionReceiptStore {
   const queued = new Set<string>();
   return GitActionReceiptStore.of({
     read: ({ requestId }) => Effect.sync(() => rows.get(requestId)),
-    insert: (row) =>
+    accept: (row) =>
       Effect.sync(() => {
+        const existing = rows.get(row.requestId);
+        if (existing)
+          return { kind: 'existing', receipt: structuredClone(existing) };
         rows.set(row.requestId, structuredClone(row));
         queued.add(row.requestId);
+        return { kind: 'inserted' };
       }),
     claimExecution: ({ requestId }) =>
       Effect.sync(() => queued.delete(requestId)),

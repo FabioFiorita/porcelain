@@ -43,6 +43,7 @@ import {
   Layer,
   Clock,
   DateTime,
+  Option,
 } from 'effect';
 import { InventoryStore } from '@porcelain/projects/ports';
 import { FindProjectService } from '@porcelain/projects/services';
@@ -63,11 +64,20 @@ class Receipts implements GitActionReceiptStore {
       return row && structuredClone(row);
     });
   }
-  insert(row: GitActionReceipt) {
-    return Effect.sync(() => {
-      this.rows.set(row.requestId, structuredClone(row));
-      this.queued.add(row.requestId);
-    });
+  accept(row: GitActionReceipt): ReturnType<GitActionReceiptStore['accept']> {
+    return Effect.sync(() =>
+      Option.match(Option.fromUndefinedOr(this.rows.get(row.requestId)), {
+        onSome: (existing) => ({
+          kind: 'existing',
+          receipt: structuredClone(existing),
+        }),
+        onNone: () => {
+          this.rows.set(row.requestId, structuredClone(row));
+          this.queued.add(row.requestId);
+          return { kind: 'inserted' };
+        },
+      }),
+    );
   }
   claimExecution(input: { requestId: string }) {
     return Effect.sync(() => this.queued.delete(input.requestId));
@@ -252,7 +262,7 @@ const fixture = Effect.fn(function* (progress?: string) {
     ReadChangeFingerprintsService.layer,
     FindProjectService.layer,
   ).pipe(Layer.provideMerge(ports));
-  yield* receipts.insert({
+  yield* receipts.accept({
     requestId,
     projectId: worktree.projectId,
     worktreeId: worktree.id,
