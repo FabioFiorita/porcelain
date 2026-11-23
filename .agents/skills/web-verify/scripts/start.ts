@@ -204,9 +204,7 @@ export function serve(folder: string): Promise<void> {
     };
   });
 }
-export async function start(
-  options: typeof startOptions.Encoded,
-): Promise<string> {
+export async function start(options: typeof startOptions.Encoded) {
   refuseMissing([
     ...sandboxProblems(),
     memoryProblem(),
@@ -217,11 +215,12 @@ export async function start(
   const instance = await registry.launch(options, readyTimeoutMs * 2);
   if (instance.connectionPath === undefined)
     throw new Error('The web launcher published no connection metadata');
-  return connectionCard(
+  const card = connectionCard(
     Schema.decodeUnknownSync(connectionSchema)(
       JSON.parse(readFileSync(instance.connectionPath, 'utf8')),
     ),
     instance.connectionPath,
     instance.readyMs,
   );
+  return { instance, card };
 }
