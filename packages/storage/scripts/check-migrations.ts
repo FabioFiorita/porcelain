@@ -19,12 +19,16 @@ import { RemoteAccessRow } from '../src/db/models/remote-access.ts';
 import { ReviewGitSettingsRow } from '../src/db/models/review-git-settings.ts';
 import { ReviewedFileRow } from '../src/db/models/reviewed-files.ts';
 import { WorktreePresenceRow } from '../src/db/models/worktree-presence.ts';
+import { nativeMigrationHistoryProblems } from './native-migration-history.ts';
 
 class MigrationCheckError extends Data.TaggedError('MigrationCheckError')<{
   message: string;
 }> {}
 
 const directory = fileURLToPath(new URL('../drizzle/', import.meta.url));
+const nativeRegistry = fileURLToPath(
+  new URL('../src/db/migrate.ts', import.meta.url),
+);
 const models = [
   GitHubAccountRow,
   DeviceRow,
@@ -97,6 +101,19 @@ const check = Effect.gen(function* () {
     }
   }
   if (base) {
+    const nativeHistory = yield* git([
+      'show',
+      `${base}:packages/storage/src/db/migrate.ts`,
+    ]);
+    if (nativeHistory === undefined)
+      problems.push(`No shipped native migration registry found in ${base}.`);
+    else
+      problems.push(
+        ...nativeMigrationHistoryProblems(
+          nativeHistory,
+          yield* fs.readFileString(nativeRegistry),
+        ),
+      );
     const original = yield* git(['show', `${base}:./meta/_journal.json`]);
     if (original !== undefined) {
       const journalSchema = Schema.fromJsonString(
@@ -177,7 +194,7 @@ const check = Effect.gen(function* () {
       new MigrationCheckError({ message: problems.join('\n') }),
     );
   yield* Effect.logInfo(
-    `Native SQL models and migrations agree; every journaled migration matches ${base} and HEAD.`,
+    `Native SQL models and migrations agree; shipped native migrations match ${base}, and journaled migrations match ${base} and HEAD.`,
   );
 }).pipe(Effect.scoped, Effect.provide(NodeServices.layer));
 

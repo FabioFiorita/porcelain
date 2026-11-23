@@ -6110,7 +6110,52 @@ const styleConfigCases = [
   ]),
 ];
 
+const nativeMigrationRegistry = (body) =>
+  `export const nativeMigrations = Migrator.fromRecord({ ${body} });`;
+const shippedNativeMigrations = `'001_adopt': Effect.void, '003_retain': Effect.gen(function* () { yield* sql\`ALTER TABLE example ADD COLUMN retained INTEGER NOT NULL DEFAULT 0\`; })`;
+
 export const guardrailCases = [
+  {
+    rule: 'native-migration-history',
+    shipped: nativeMigrationRegistry(shippedNativeMigrations),
+    cases: [
+      {
+        name: 'accepts a new numbered migration',
+        current: nativeMigrationRegistry(
+          `${shippedNativeMigrations}, '004_add': Effect.void`,
+        ),
+        problems: [],
+      },
+      {
+        name: 'rejects an edited migration body',
+        current: nativeMigrationRegistry(
+          shippedNativeMigrations.replace('DEFAULT 0', 'DEFAULT 1'),
+        ),
+        problems: ['Shipped native migration edited: 003_retain.'],
+      },
+      {
+        name: 'rejects an omitted registration',
+        current: nativeMigrationRegistry("'001_adopt': Effect.void"),
+        problems: ['Shipped native migration removed or renamed: 003_retain.'],
+      },
+      {
+        name: 'rejects a renamed registration',
+        current: nativeMigrationRegistry(
+          shippedNativeMigrations.replace('003_retain', '003_keep'),
+        ),
+        problems: ['Shipped native migration removed or renamed: 003_retain.'],
+      },
+      {
+        name: 'rejects a migration inserted before the shipped prefix ends',
+        current: nativeMigrationRegistry(
+          `${shippedNativeMigrations}, '002_inserted': Effect.void`,
+        ),
+        problems: [
+          'Native migration added inside shipped history: 002_inserted. Use a new migration number.',
+        ],
+      },
+    ],
+  },
   { rule: 'style-config', cases: styleConfigCases },
   {
     rule: 'ci-action-pins',
