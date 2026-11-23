@@ -424,7 +424,7 @@ function ScopedFileNavigation({
                 <DropdownMenuItem
                   disabled={Boolean(writeBlock)}
                   aria-description={writeBlock}
-                  onClick={() =>
+                  onSelect={() =>
                     setCreating({
                       kind: 'file',
                       folder: '',
@@ -438,7 +438,7 @@ function ScopedFileNavigation({
                 <DropdownMenuItem
                   disabled={Boolean(writeBlock)}
                   aria-description={writeBlock}
-                  onClick={() =>
+                  onSelect={() =>
                     setCreating({
                       kind: 'directory',
                       folder: '',

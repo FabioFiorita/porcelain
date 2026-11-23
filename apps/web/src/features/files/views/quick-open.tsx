@@ -68,12 +68,17 @@ function QuickOpen({ scope, connection, openFiles, onOpen, bindPopup }: Props) {
   );
   const showHidden = navigation.state.showHidden;
   return (
-    <Command ref={bindPopup} shouldFilter={false}>
+    <Command
+      ref={bindPopup}
+      filter={false}
+      query={query}
+      onQueryChange={(next, details) => {
+        if (details.reason !== 'escape-key') setQuery(next);
+      }}
+    >
       <CommandInput
         aria-label="Find a file by name"
         placeholder="Find a file by name"
-        value={query}
-        onValueChange={setQuery}
       />
       {visibility === undefined && (
         <div className="p-3 text-xs text-muted-foreground">

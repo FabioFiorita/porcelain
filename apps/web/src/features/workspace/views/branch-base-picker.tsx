@@ -21,7 +21,10 @@ import {
 import { refLabel } from '@porcelain/client/history/rules';
 import { useBranchBases, useBranchChanges } from '@/features/changes/index';
 import { cn } from '@/shared/lib/utils';
-import type { ReviewScope } from '@porcelain/client/changes/rules';
+import {
+  branchSearchGroups,
+  type ReviewScope,
+} from '@porcelain/client/changes/rules';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
 export function BranchBasePicker({
@@ -38,6 +41,7 @@ export function BranchBasePicker({
   compact?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
   const bases = useBranchBases(scope, connection, open);
   const comparison = useBranchChanges(scope, connection, base);
   const branches = Option.getOrUndefined(AsyncResult.value(bases.result));
@@ -47,16 +51,19 @@ export function BranchBasePicker({
     currentBase === undefined ? 'the default branch' : refLabel(currentBase);
   const defaultRef = branches?.defaultRef ?? null;
   const chosen = base ?? defaultRef;
-  const groups = [
-    {
-      heading: 'Local',
-      entries: branches?.bases.filter((entry) => !entry.remote) ?? [],
-    },
-    {
-      heading: 'Remote',
-      entries: branches?.bases.filter((entry) => entry.remote) ?? [],
-    },
-  ].filter((group) => group.entries.length > 0);
+  const groups = branchSearchGroups(
+    [
+      {
+        heading: 'Local',
+        entries: branches?.bases.filter((entry) => !entry.remote) ?? [],
+      },
+      {
+        heading: 'Remote',
+        entries: branches?.bases.filter((entry) => entry.remote) ?? [],
+      },
+    ],
+    query,
+  );
   const choose = (ref: string) => {
     onBase(ref === defaultRef ? undefined : ref);
     setOpen(false);
@@ -100,7 +107,7 @@ export function BranchBasePicker({
         <ChevronsUpDownIcon className="size-3.5 shrink-0 text-muted-foreground" />
       </PopoverTrigger>
       <PopoverContent align="start" className="w-72">
-        <Command>
+        <Command filter={false} query={query} onQueryChange={setQuery}>
           <CommandInput
             aria-label="Find a base branch"
             placeholder="Find a branch"
@@ -132,7 +139,7 @@ export function BranchBasePicker({
                 {group.entries.map((entry) => (
                   <CommandItem
                     key={entry.ref}
-                    value={entry.name}
+                    value={entry.ref}
                     data-checked={entry.ref === chosen}
                     onSelect={() => choose(entry.ref)}
                   >

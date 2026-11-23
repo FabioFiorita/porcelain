@@ -20,13 +20,35 @@ type Pins = typeof pinsSchema.Type;
 export function digest(text: string): string {
   return createHash('sha256').update(text).digest('hex');
 }
-export function uiFiles(root: string): string[] {
+const uiSdkFiles: ReadonlySet<string> = new Set([
+  'command.tsx',
+  'context-menu.tsx',
+  'dropdown-menu.tsx',
+]);
+function folderFiles(root: string): string[] {
   const folder = join(root, uiFolder);
   return existsSync(folder)
     ? readdirSync(folder)
         .filter((name) => name.endsWith('.tsx'))
         .toSorted()
     : [];
+}
+export function uiFiles(root: string): string[] {
+  return folderFiles(root).filter((name) => !uiSdkFiles.has(name));
+}
+function uiSdkProblems(root: string): string[] {
+  return folderFiles(root)
+    .filter((name) => uiSdkFiles.has(name))
+    .filter(
+      (name) =>
+        !readFileSync(join(root, uiFolder, name), 'utf8').includes(
+          "from '@ui-sdk/react/",
+        ),
+    )
+    .map(
+      (name) =>
+        `${uiFolder}/${name} is listed as UI SDK-owned but does not import @ui-sdk/react; pin it from the shadcn registry instead, because only components built on UI SDK leave registry ownership.`,
+    );
 }
 function readPins(root: string): { pins: Pins; problems: string[] } {
   const path = join(root, pinsFile);
@@ -70,6 +92,7 @@ export function pinProblems(root: string): string[] {
   if (problems.length > 0) return problems;
   const files = uiFiles(root);
   return [
+    ...uiSdkProblems(root),
     ...files.flatMap((name) => {
       const path = `${uiFolder}/${name}`;
       const pinned = pins[name];

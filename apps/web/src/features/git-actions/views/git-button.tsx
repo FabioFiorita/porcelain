@@ -372,7 +372,7 @@ export function GitButton({
                               (blocker !== null && blocker !== undefined)
                             }
                             aria-description={writeBlock}
-                            onClick={() => choose(candidate.id)}
+                            onSelect={() => choose(candidate.id)}
                           >
                             <GitActionIcon action={candidate.id} />
                             <span className="flex min-w-0 flex-col">
@@ -424,7 +424,7 @@ export function GitButton({
                       >
                         <TooltipTrigger render={<span className="block" />}>
                           <DropdownMenuItem
-                            onClick={() => {
+                            onSelect={() => {
                               setMenuOpen(false);
                               menu.restoreDiscarded(item);
                             }}

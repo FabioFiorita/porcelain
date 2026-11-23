@@ -65,7 +65,7 @@ export function OpenProjectMenu({
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuGroup>
           <DropdownMenuLabel>Open project on</DropdownMenuLabel>
-          <DropdownMenuItem onClick={() => openProject(null)}>
+          <DropdownMenuItem onSelect={() => openProject(null)}>
             <MonitorIcon />
             This computer
           </DropdownMenuItem>
@@ -92,7 +92,7 @@ function RemoteItem({
   const status = useRemoteStatus(entry.remote);
   const online = status.kind === 'online';
   return (
-    <DropdownMenuItem disabled={!online} onClick={onOpen}>
+    <DropdownMenuItem disabled={!online} onSelect={onOpen}>
       <ServerIcon />
       <TruncatedText
         className="min-w-0"

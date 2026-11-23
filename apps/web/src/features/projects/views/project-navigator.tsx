@@ -271,9 +271,10 @@ export function ProjectNavigator({
                     {section.items.map((option) => (
                       <DropdownMenuCheckboxItem
                         key={option.id}
+                        value={option.id}
                         className="cursor-pointer"
                         checked={option.checked}
-                        closeOnClick={false}
+                        closeOnSelect={false}
                         onCheckedChange={() =>
                           setState((current) => ({
                             ...current,
@@ -297,7 +298,7 @@ export function ProjectNavigator({
                 ))}
                 <DropdownMenuItem
                   className="cursor-pointer"
-                  onClick={() =>
+                  onSelect={() =>
                     setState((current) => ({
                       ...current,
                       filter: emptyNavigatorFilter,

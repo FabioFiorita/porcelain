@@ -6,6 +6,7 @@ import { AsyncResult } from 'effect/reactivity';
 import { CheckIcon, GitBranchIcon } from 'lucide-react';
 import { worktreeBranchChoices } from '@porcelain/client/projects/rules';
 import { useBranchBases } from '@/features/changes';
+import { branchSearchMatches } from '@porcelain/client/changes/rules';
 import { useInventory } from '../queries/inventory';
 import { TruncatedText } from '@/shared/views/truncated-text';
 import { Button } from '@/components/ui/button';
@@ -56,6 +57,7 @@ function SwitchWorktreeBranchContent({
   const { connection } = context;
   const writeBlock = useWorkspaceWriteBlock(context);
   const [chosen, setChosen] = useState<string>();
+  const [query, setQuery] = useState('');
   const {
     result: outcome,
     pending,
@@ -79,6 +81,7 @@ function SwitchWorktreeBranchContent({
     project?.worktrees ?? [],
     worktreeId,
   );
+  const shown = branchSearchMatches(choices, query, (branch) => branch.name);
   const eligible = choices.some(
     (branch) => branch.ref === chosen && !branch.current && !branch.inUse,
   );
@@ -93,7 +96,7 @@ function SwitchWorktreeBranchContent({
           are unavailable.
         </DialogDescription>
       </DialogHeader>
-      <Command>
+      <Command filter={false} query={query} onQueryChange={setQuery}>
         <CommandInput aria-label="Find a branch" placeholder="Find a branch" />
         <CommandList aria-label="Branches">
           {AsyncResult.isInitial(branches) && (
@@ -108,10 +111,10 @@ function SwitchWorktreeBranchContent({
           )}
           {answer && <CommandEmpty>No matching branch</CommandEmpty>}
           <CommandGroup>
-            {choices.map((branch) => (
+            {shown.map((branch) => (
               <CommandItem
                 key={branch.ref}
-                value={branch.name}
+                value={branch.ref}
                 disabled={
                   pending || unresolved || branch.current || branch.inUse
                 }

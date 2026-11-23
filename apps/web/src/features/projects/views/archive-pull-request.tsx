@@ -76,7 +76,7 @@ export function ArchivePullRequest({
       <ContextMenuItem
         disabled={!settings || Boolean(writeBlock)}
         aria-description={writeBlock}
-        onClick={open}
+        onSelect={open}
       >
         <span className="flex min-w-0 flex-col">
           Archive

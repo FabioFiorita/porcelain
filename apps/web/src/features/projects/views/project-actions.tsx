@@ -114,8 +114,8 @@ export function ProjectActions({
             <DropdownMenuItem
               key={label}
               className="cursor-pointer"
-              variant={destructive ? 'destructive' : 'default'}
-              onClick={run}
+              destructive={destructive}
+              onSelect={run}
             >
               <Icon />
               {label}

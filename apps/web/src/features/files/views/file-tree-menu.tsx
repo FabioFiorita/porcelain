@@ -78,7 +78,7 @@ export function FileTreeMenu({
         const active = document.activeElement;
         const stayed =
           active === document.body || popup.element?.contains(active);
-        return stayed ? finalFocus() : false;
+        return (stayed && finalFocus()) || null;
       }}
     >
       <FileTreeMenuList
@@ -138,8 +138,8 @@ function FileTreeMenuAction({
       <ContextMenuItem
         disabled={Boolean(blocked)}
         aria-description={blocked}
-        variant={action.id === 'trash' ? 'destructive' : 'default'}
-        onClick={() => onAction(action.id)}
+        destructive={action.id === 'trash'}
+        onSelect={() => onAction(action.id)}
       >
         <Icon />
         {action.label}

@@ -343,7 +343,7 @@ export function DocumentTabs({
                   <DropdownMenuRadioItem
                     key={key}
                     value={key}
-                    closeOnClick
+                    closeOnSelect
                     aria-label={accessibleName}
                     className="items-start"
                   >
@@ -515,17 +515,20 @@ function DocumentTab({
         >
           {tabTitle}
         </TruncatedText>
-        <ContextMenuContent className="min-w-52" finalFocus={!openingSide}>
+        <ContextMenuContent
+          className="min-w-52"
+          finalFocus={openingSide ? 'none' : 'trigger'}
+        >
           <ContextMenuItem
             disabled={permanentTab(tabKey)}
-            onClick={() => onTogglePin(tabKey)}
+            onSelect={() => onTogglePin(tabKey)}
           >
             {pinned ? <PinOffIcon /> : <PinIcon />}
             {pinned ? 'Unpin' : 'Pin'}
           </ContextMenuItem>
           <ContextMenuItem
             disabled={onOpenToSide === undefined || permanentTab(tabKey)}
-            onClick={() => {
+            onSelect={() => {
               flushSync(() => setOpeningSide(true));
               onOpenToSide?.(tabKey);
             }}
@@ -537,7 +540,7 @@ function DocumentTab({
             </ContextMenuShortcut>
           </ContextMenuItem>
           {onClosePane && (
-            <ContextMenuItem onClick={onClosePane}>
+            <ContextMenuItem onSelect={onClosePane}>
               <Columns2Icon />
               Close pane
             </ContextMenuItem>
@@ -545,7 +548,7 @@ function DocumentTab({
           <ContextMenuSeparator />
           <ContextMenuItem
             disabled={permanentTab(tabKey)}
-            onClick={() => onClose(tabKey)}
+            onSelect={() => onClose(tabKey)}
           >
             <XIcon />
             Close
@@ -553,11 +556,11 @@ function DocumentTab({
               {formatForDisplay(SHORTCUTS.closeTab)}
             </ContextMenuShortcut>
           </ContextMenuItem>
-          <ContextMenuItem onClick={() => onCloseOthers(tabKey)}>
+          <ContextMenuItem onSelect={() => onCloseOthers(tabKey)}>
             <SquareXIcon />
             Close others
           </ContextMenuItem>
-          <ContextMenuItem disabled={!hasUnpinned} onClick={onCloseUnpinned}>
+          <ContextMenuItem disabled={!hasUnpinned} onSelect={onCloseUnpinned}>
             <ListXIcon />
             Close unpinned
           </ContextMenuItem>
