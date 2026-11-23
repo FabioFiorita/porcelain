@@ -921,6 +921,23 @@ const nativeLaneCases = [
 ];
 
 export default [
+  {
+    rule: 'pending-control-owner',
+    path: 'apps/web/src/features/history/views/file-timeline.tsx',
+    valid: "import { PendingButton } from '@/shared/views/pending-button';",
+    invalid:
+      "import { Spinner as RawIndicator } from '@/components/ui/spinner';",
+    errors: 1,
+  },
+  {
+    rule: 'pending-control-owner',
+    path: 'apps/mobile/src/features/access/views/computer-updates-summary.tsx',
+    valid:
+      "import { Spinner } from '../../../components/ui/spinner'; export const read = <Spinner />;",
+    invalid:
+      "import { Spinner as Indicator } from '../../../components/ui/spinner'; import { Item as Row } from '../../../components/ui/item'; export const control = <Row trailing={<Indicator inline />} />;",
+    errors: 1,
+  },
   ...[
     ['"Save"', 'Save', 'Delete'],
     ["{'Save'}", "{'Save'}", "{'Delete'}"],

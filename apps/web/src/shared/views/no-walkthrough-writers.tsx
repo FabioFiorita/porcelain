@@ -1,6 +1,5 @@
+import { PendingButton } from '@/shared/views/pending-button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
-import { Spinner } from '@/components/ui/spinner';
 
 export function NoWalkthroughWriters({
   checking,
@@ -17,17 +16,16 @@ export function NoWalkthroughWriters({
           Install Claude Code or Codex on the connected computer, then sign in
           with <code>claude auth login</code> or <code>codex login</code>.
         </p>
-        <Button
+        <PendingButton
+          pending={checking}
           type="button"
           className="mt-2"
           variant="outline"
           size="sm"
-          disabled={checking}
           onClick={onCheck}
         >
-          {checking && <Spinner aria-hidden="true" />}
           Check writers again
-        </Button>
+        </PendingButton>
       </AlertDescription>
     </Alert>
   );

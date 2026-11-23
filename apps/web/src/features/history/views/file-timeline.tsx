@@ -1,4 +1,4 @@
-import { Spinner } from '@/components/ui/spinner';
+import { PendingButton } from '@/shared/views/pending-button';
 import { TruncatedText } from '@/shared/views/truncated-text';
 import { Empty, EmptyHeader, EmptyTitle } from '@/components/ui/empty';
 import { useFileTimeline } from '../queries/file-timeline';
@@ -98,15 +98,14 @@ function TimelineStatus({
     );
   if (timeline.nextAfter)
     return (
-      <Button
+      <PendingButton
+        pending={timeline.result.waiting}
         size="sm"
         variant="outline"
-        disabled={timeline.result.waiting}
         onClick={timeline.readMore}
       >
-        {timeline.result.waiting && <Spinner aria-hidden="true" />}
         Load older commits
-      </Button>
+      </PendingButton>
     );
   return (
     <span>

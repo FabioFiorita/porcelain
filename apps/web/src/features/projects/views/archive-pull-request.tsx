@@ -1,5 +1,5 @@
+import { PendingButton } from '@/shared/views/pending-button';
 import { PendingSpinner } from '@/shared/views/state-notice';
-import { Spinner } from '@/components/ui/spinner';
 import { ContextMenuItem } from '@/components/ui/context-menu';
 import { type ReactNode, useState } from 'react';
 import { AlertDialog as AlertDialogPrimitive } from '@base-ui/react/alert-dialog';
@@ -176,7 +176,8 @@ function ArchivePullRequestContent({
       ) : null}
       <AlertDialogFooter>
         <AlertDialogCancel disabled={result.waiting}>Cancel</AlertDialogCancel>
-        <Button
+        <PendingButton
+          pending={result.waiting}
           variant="destructive"
           disabled={
             Boolean(writeBlock) ||
@@ -193,9 +194,8 @@ function ArchivePullRequestContent({
               });
           }}
         >
-          {result.waiting && <Spinner aria-hidden="true" />}
           Archive pull request
-        </Button>
+        </PendingButton>
       </AlertDialogFooter>
     </AlertDialogContent>
   );

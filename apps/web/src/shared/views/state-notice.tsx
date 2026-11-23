@@ -12,7 +12,7 @@ export function PendingSpinner({
   className,
   startedAt,
 }: {
-  label: string;
+  label?: string;
   className?: string;
   startedAt?: number;
 }) {
@@ -28,7 +28,7 @@ export function PendingSpinner({
       )}
       style={{ animationDelay: `${delay}ms` }}
     >
-      <Spinner aria-label={label} />
+      <Spinner aria-hidden={label === undefined} aria-label={label} />
     </span>
   );
 }

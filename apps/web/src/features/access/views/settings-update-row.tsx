@@ -4,6 +4,7 @@ import {
   TooltipContent,
 } from '@/components/ui/tooltip';
 import type { ReactNode } from 'react';
+import { PendingSpinner } from '@/shared/views/state-notice';
 import {
   settingsUpdateAvailable,
   settingsUpdateTrust,
@@ -20,7 +21,6 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import { Spinner } from '@/components/ui/spinner';
 import { cn } from '@/shared/lib/utils';
 import { copyText } from '@/shared/workspace/copy';
 import {
@@ -65,7 +65,7 @@ export function SettingsUpdateRow({
   if (pending || progress)
     action = (
       <p role="status" className="flex items-center gap-2 text-xs leading-4">
-        <Spinner />
+        <PendingSpinner className="text-current" />
         {progress ?? (entry?.status === 'queued' ? 'Queued' : 'Updating…')}
       </p>
     );

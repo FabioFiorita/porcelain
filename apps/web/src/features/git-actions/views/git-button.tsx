@@ -1,3 +1,4 @@
+import { PendingButton, PendingContent } from '@/shared/views/pending-button';
 import { PendingSpinner } from '@/shared/views/state-notice';
 import { useWorkspaceWriteBlock } from '@/shared/workspace/connection';
 import { TruncatedText } from '@/shared/views/truncated-text';
@@ -41,7 +42,6 @@ import {
   TooltipTrigger,
   TooltipContent,
 } from '@/components/ui/tooltip';
-import { Spinner } from '@/components/ui/spinner';
 import { toast } from '@/components/ui/toast';
 import { useReviewGitSettings } from '@/features/preferences/index';
 import {
@@ -210,6 +210,7 @@ export function GitButton({
                           primaryBlocked ||
                           Boolean(writeBlock))
                       }
+                      aria-busy={Boolean(running)}
                       aria-description={writeBlock}
                       focusableWhenDisabled
                       className="aria-disabled:cursor-default"
@@ -226,14 +227,12 @@ export function GitButton({
                 />
               }
             >
-              {running ? (
-                <Spinner className="size-3.5" />
-              ) : (
+              <PendingContent pending={Boolean(running)}>
                 <GitActionIcon
                   action={primaryIcon(primary)}
                   className="size-3.5"
                 />
-              )}
+              </PendingContent>
               <span
                 ref={measureLabel}
                 aria-hidden="true"
@@ -285,14 +284,13 @@ export function GitButton({
                     <GitActionError text={result.description} />
                   )}
                   {running && (
-                    <Button
+                    <PendingButton
                       variant="outline"
-                      disabled={running.checking}
+                      pending={running.checking}
                       onClick={menu.checkOutcome}
                     >
-                      {running.checking && <Spinner aria-hidden="true" />}
                       Check outcome
-                    </Button>
+                    </PendingButton>
                   )}
                 </>
               )}

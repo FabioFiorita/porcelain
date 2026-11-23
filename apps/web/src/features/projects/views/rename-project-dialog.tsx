@@ -1,3 +1,4 @@
+import { PendingButton } from '@/shared/views/pending-button';
 import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';
 import { useForm } from '@tanstack/react-form';
 import { Button } from '@/components/ui/button';
@@ -11,7 +12,6 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Field, FieldError } from '@/components/ui/field';
-import { Spinner } from '@/components/ui/spinner';
 import { submitForm } from '@/shared/lib/submit-form';
 import {
   renameProjectValidator,
@@ -131,15 +131,15 @@ function RenameProjectContent({
         </Button>
         <form.Subscribe selector={(state) => state.canSubmit}>
           {(canSubmit) => (
-            <Button
+            <PendingButton
+              pending={result.waiting}
               type="submit"
               disabled={
                 !canSubmit || result.waiting || unavailable !== undefined
               }
             >
-              {result.waiting && <Spinner />}
-              {result.waiting ? 'Renaming…' : 'Rename'}
-            </Button>
+              Rename
+            </PendingButton>
           )}
         </form.Subscribe>
       </DialogFooter>

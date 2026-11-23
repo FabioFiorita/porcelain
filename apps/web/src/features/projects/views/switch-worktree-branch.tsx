@@ -1,4 +1,4 @@
-import { Spinner } from '@/components/ui/spinner';
+import { PendingButton } from '@/shared/views/pending-button';
 import { useState } from 'react';
 import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';
 import { Cause, Option } from 'effect';
@@ -155,7 +155,8 @@ function SwitchWorktreeBranchContent({
         <DialogClose render={<Button variant="outline" />} disabled={pending}>
           Cancel
         </DialogClose>
-        <Button
+        <PendingButton
+          pending={pending}
           disabled={
             Boolean(writeBlock) || pending || (!unresolved && !eligible)
           }
@@ -164,9 +165,8 @@ function SwitchWorktreeBranchContent({
             void submit(chosen, () => switchWorktreeBranchDialog.close())
           }
         >
-          {pending && <Spinner aria-hidden="true" />}
           {actionLabel}
-        </Button>
+        </PendingButton>
       </DialogFooter>
     </DialogContent>
   );

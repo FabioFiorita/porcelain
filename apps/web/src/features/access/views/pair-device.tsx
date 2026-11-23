@@ -1,3 +1,4 @@
+import { PendingButton } from '@/shared/views/pending-button';
 import { Cause } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { CopyIcon, LinkIcon } from 'lucide-react';
@@ -15,7 +16,6 @@ import {
   SelectValue,
   SelectItem,
 } from '@/components/ui/select';
-import { Spinner } from '@/components/ui/spinner';
 import { PAIRING_LABEL_MAX_LENGTH } from '@/config/limits';
 import { copyText } from '@/shared/workspace/copy';
 import { submitForm } from '@/shared/lib/submit-form';
@@ -125,15 +125,16 @@ export function PairDevice({
             </p>
           </Field>
         )}
-        <Button
+        <PendingButton
+          pending={issue.waiting}
           type="submit"
           size="sm"
           className="shrink-0"
           disabled={disabled || issue.waiting || label.trim() === ''}
         >
-          {issue.waiting ? <Spinner /> : <LinkIcon />}
+          <LinkIcon />
           Create pairing link
-        </Button>
+        </PendingButton>
       </form>
       <Field orientation="horizontal">
         <Switch

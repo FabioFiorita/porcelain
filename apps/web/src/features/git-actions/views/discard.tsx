@@ -1,4 +1,4 @@
-import { Spinner } from '@/components/ui/spinner';
+import { PendingButton } from '@/shared/views/pending-button';
 import { useWorkspaceWriteBlock } from '@/shared/workspace/connection';
 import { TruncatedText } from '@/shared/views/truncated-text';
 import { AsyncResult } from 'effect/reactivity';
@@ -142,10 +142,9 @@ export function DiscardButton({
           </AlertDialogCancel>
           {!error?.moved &&
             (uncertain ? (
-              <Button disabled={busy} onClick={discard.checkOutcome}>
-                {busy && <Spinner aria-hidden="true" />}
+              <PendingButton pending={busy} onClick={discard.checkOutcome}>
                 Check outcome
-              </Button>
+              </PendingButton>
             ) : (
               <Button
                 variant="destructive"

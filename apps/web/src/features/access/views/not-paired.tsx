@@ -1,7 +1,7 @@
 import { TruncatedText } from '@/shared/views/truncated-text';
+import { PendingSpinner } from '@/shared/views/state-notice';
 import { CheckIcon, CopyIcon, XIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Spinner } from '@/components/ui/spinner';
 import {
   Tooltip,
   TooltipContent,
@@ -55,7 +55,9 @@ export function NotPaired({
               : 'bg-foreground text-background',
           )}
         >
-          {pending && <Spinner className="size-3" />}
+          {pending && (
+            <PendingSpinner className="text-current [&>svg]:size-3" />
+          )}
           {pending ? 'Pairing' : 'Not paired'}
         </span>
         {status}

@@ -1,3 +1,4 @@
+import { PendingButton } from '@/shared/views/pending-button';
 import { useAtomRefresh, useAtomValue } from '@effect/atom-react';
 import { useForm } from '@tanstack/react-form';
 import { AsyncResult } from 'effect/reactivity';
@@ -28,7 +29,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Spinner } from '@/components/ui/spinner';
 import { PendingSpinner } from '@/shared/views/state-notice';
 import { NoWalkthroughWriters } from '@/shared/views/no-walkthrough-writers';
 import { submitForm } from '@/shared/lib/submit-form';
@@ -307,7 +307,8 @@ function WriterForm({
         })}
       >
         {({ writer, effort }) => (
-          <Button
+          <PendingButton
+            pending={result.waiting}
             type="submit"
             disabled={
               result.waiting ||
@@ -321,8 +322,8 @@ function WriterForm({
               })
             }
           >
-            {result.waiting && <Spinner />}Save
-          </Button>
+            Save
+          </PendingButton>
         )}
       </form.Subscribe>
     </form>

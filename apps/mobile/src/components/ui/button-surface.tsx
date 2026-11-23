@@ -1,10 +1,6 @@
 import type { ReactNode } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  View,
-  type PressableProps,
-} from 'react-native';
+import { Pressable, View, type PressableProps } from 'react-native';
+import { PendingContent } from './pending-content';
 import { hitTarget } from './hit-target';
 import { usePressRipple } from './press-ripple';
 const variants = {
@@ -29,10 +25,10 @@ const indicatorTones = {
   destructivePlain: 'accent-destructive',
 };
 const sizes = {
-  default: 'min-h-11 gap-2 px-5',
-  sm: 'min-h-8 gap-1.5 px-3.5',
-  icon: 'size-10',
-  iconSm: 'size-8',
+  default: { surface: 'min-h-11 px-5', gap: 'gap-2' },
+  sm: { surface: 'min-h-8 px-3.5', gap: 'gap-1.5' },
+  icon: { surface: 'size-10', gap: '' },
+  iconSm: { surface: 'size-8', gap: '' },
 };
 
 export type ButtonSurfaceProps = Omit<
@@ -96,20 +92,19 @@ export function ButtonSurface({
             align === 'start' ? 'justify-start' : 'justify-center',
             icon ? '' : 'self-stretch',
             variants[variant],
-            sizes[size],
+            sizes[size].surface,
             pressed ? (surface ? 'opacity-70' : 'opacity-50') : '',
           ]
             .filter(Boolean)
             .join(' ')}
         >
-          {pending ? (
-            <ActivityIndicator
-              accessible={false}
-              size="small"
-              colorClassName={indicatorTones[variant]}
-            />
-          ) : null}
-          {children}
+          <PendingContent
+            pending={pending}
+            colorClassName={indicatorTones[variant]}
+            className={sizes[size].gap}
+          >
+            {children}
+          </PendingContent>
         </View>
       )}
     </Pressable>
