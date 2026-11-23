@@ -26,6 +26,7 @@ import { handlerCoverage } from '../apps/server/spec/kit/route-coverage.ts';
 import { featureMapProblems } from '../scripts/feature-maps.ts';
 import knip from './knip.ts';
 import { reactCompilerProblems } from '../scripts/react-compiler.ts';
+import { nativeMigrationHistoryProblems } from '../packages/storage/scripts/native-migration-history.ts';
 
 function fixtureRoot(prefix) {
   return realpathSync(mkdtempSync(join(tmpdir(), prefix)));
@@ -534,7 +535,18 @@ export async function runGuardrailCases(named = []) {
     'Name an existing guardrail fixture rule.',
   );
   for (const entry of cases) {
-    if (entry.rule === 'ci-action-pins') {
+    if (entry.rule === 'native-migration-history') {
+      for (const fixture of entry.cases) {
+        deepStrictEqual(
+          nativeMigrationHistoryProblems(entry.shipped, fixture.current),
+          fixture.problems,
+          fixture.name,
+        );
+        process.stdout.write(
+          `PASS native-migration-history: ${fixture.name}\n`,
+        );
+      }
+    } else if (entry.rule === 'ci-action-pins') {
       for (const fixture of entry.cases) {
         deepStrictEqual(
           ciActionPinProblems(fixture.workflow),
