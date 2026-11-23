@@ -1,7 +1,7 @@
 import { Effect, FileSystem } from 'effect';
 import {
   acquireDataDirectoryLock,
-  prepareDataDirectory,
+  canonicalDataDirectory,
 } from '../runtime/data-directory.ts';
 import {
   serviceIsHealthy,
@@ -18,7 +18,12 @@ import { UpdatedServiceUnhealthyError } from './errors/updated-service-unhealthy
 import { InterruptedUpdateUnrecoverableError } from './errors/interrupted-update-unrecoverable-error.ts';
 import { RestoredServiceUnhealthyError } from './errors/restored-service-unhealthy-error.ts';
 import { exists, writeJsonFile } from './json-file.ts';
-import { readServiceConfiguration, readUpdateJournal } from './records.ts';
+import {
+  readInstalledRecord,
+  readServiceConfiguration,
+  readUpdateJournal,
+  readUpdateRecord,
+} from './records.ts';
 import { recoveryPlan } from './recovery-plan.ts';
 
 export type RecoveryOutcome = {
@@ -38,6 +43,14 @@ export const recoverInterruptedUpdate = Effect.fn(
     pending === undefined
       ? yield* readUpdateJournal(paths.rollbackJournal)
       : undefined;
+  if (
+    rollback !== undefined &&
+    (yield* readInstalledRecord(paths.installed))?.version !==
+      rollback.installed.version
+  ) {
+    yield* fs.remove(paths.rollbackJournal, { force: true });
+    return NOTHING_RECOVERED;
+  }
   const journal = pending ?? rollback;
   const plan = recoveryPlan({
     journal,
@@ -71,7 +84,7 @@ export const recoverInterruptedUpdate = Effect.fn(
   if (plan !== 'finish-rollback') {
     if ((yield* systemd.probe()).running) yield* systemd.stop();
     yield* Effect.gen(function* () {
-      const directory = yield* prepareDataDirectory(
+      const directory = yield* canonicalDataDirectory(
         configuration.dataDirectory,
       );
       yield* acquireDataDirectoryLock(
@@ -95,11 +108,15 @@ export const recoverInterruptedUpdate = Effect.fn(
   if (!(yield* serviceIsHealthy(context, configuration.dataDirectory)))
     return yield* Effect.fail(new RestoredServiceUnhealthyError());
   yield* fs.remove(paths.nextRuntime, { recursive: true, force: true });
-  yield* writeJsonFile(paths.updateRecord, {
-    ...progress,
-    stage: 'failed',
-    reason: `The update was interrupted, so Porcelain went back to ${journal.installed.version} and the database it had before the update.`,
-  });
+  if (
+    plan !== 'finish-rollback' ||
+    (yield* readUpdateRecord(paths.updateRecord))?.stage !== 'updated'
+  )
+    yield* writeJsonFile(paths.updateRecord, {
+      ...progress,
+      stage: 'failed',
+      reason: `The update was interrupted, so Porcelain went back to ${journal.installed.version} and the database it had before the update.`,
+    });
   yield* fs.remove(paths.rollbackJournal, { force: true });
   return RECOVERED;
 });

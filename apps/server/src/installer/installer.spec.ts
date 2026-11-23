@@ -9,6 +9,7 @@ import {
   type ChildProcess,
 } from 'node:child_process';
 import {
+  chmodSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -564,6 +565,48 @@ it('holds the data directory lease while promoting the restored database', async
   expect(claims).toEqual(['Failure']);
   expect(existsSync(join(data, 'server.lock'))).toBe(false);
 });
+
+it('can roll back to a runtime that used a readable legacy data directory', async () => {
+  await interruptedRollback();
+  chmodSync(data, 0o755);
+  expect(await execute({ action: 'recover' })).toMatchObject({
+    result: { recovered: true },
+  });
+  expect(readDatabase(database())).toBe('saved database');
+  expect(service?.pid).toBeGreaterThan(0);
+  expect(statSync(data).mode & 0o777).toBe(0o755);
+});
+
+it.each(['uninstalled', 'updated', 'updated to the same version'] as const)(
+  'cleans up completed rollback state when the older CLI left the service %s',
+  async (action) => {
+    const journal = await interruptedRollback();
+    const rollback = join(root, 'rollback.json');
+    renameSync(journal, rollback);
+    const version = action === 'updated' ? '3.0.0' : '1.0.0';
+    const receipt = { from: '1.0.0', target: version, stage: 'updated' };
+    if (action === 'uninstalled') {
+      rmSync(runtime(), { recursive: true });
+      rmSync(join(root, 'installed.json'));
+      expect(await execute({ action: 'recover' })).toMatchObject({
+        result: { recovered: false },
+      });
+    } else {
+      writeFileSync(
+        manifest(runtime()),
+        JSON.stringify({ name: packageName, version }),
+      );
+      writeFileSync(join(root, 'installed.json'), JSON.stringify({ version }));
+      writeFileSync(join(root, 'update-record.json'), JSON.stringify(receipt));
+      expect(await execute({ action: 'recover' })).toMatchObject({
+        result: { recovered: true },
+      });
+      expect(record('update-record.json')).toEqual(receipt);
+    }
+    expect(existsSync(rollback)).toBe(false);
+    expect(readDatabase(database())).toBe('interrupted database');
+  },
+);
 
 it('preserves writes after rollback restarts the service and cleanup fails', async () => {
   const journal = await interruptedRollback();

@@ -3,11 +3,18 @@ import type { Limits } from '../config/limits.ts';
 import { acquireDirectoryLock } from './directory-lock.ts';
 import { DataDirectoryInsecureError } from './errors/data-directory-insecure-error.ts';
 
-export const prepareDataDirectory = Effect.fn('prepareDataDirectory')(
+export const canonicalDataDirectory = Effect.fn('canonicalDataDirectory')(
   function* (dataDirectory: string) {
     const fs = yield* FileSystem.FileSystem;
     yield* fs.makeDirectory(dataDirectory, { recursive: true, mode: 0o700 });
-    const directory = yield* fs.realPath(dataDirectory);
+    return yield* fs.realPath(dataDirectory);
+  },
+);
+
+export const prepareDataDirectory = Effect.fn('prepareDataDirectory')(
+  function* (dataDirectory: string) {
+    const fs = yield* FileSystem.FileSystem;
+    const directory = yield* canonicalDataDirectory(dataDirectory);
     const stats = yield* fs.stat(directory);
     const uid = process.getuid?.();
     if (uid !== undefined && Option.getOrUndefined(stats.uid) !== uid)
