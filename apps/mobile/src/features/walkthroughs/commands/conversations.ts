@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useAtom } from '@effect/atom-react';
+import { useAtom, useAtomSet } from '@effect/atom-react';
 import type { Atom } from 'effect/reactivity';
 import {
   walkthroughCommandBinding,
@@ -10,16 +10,13 @@ import {
   postOutcome,
   type DeveloperMessage,
 } from '@porcelain/client/walkthroughs/rules';
+import { notify as notifyCommand } from '../../notifications';
 import { copyToClipboard } from '../../../shared/adapters/clipboard';
 import {
   conversationSelection,
   type ConversationOwner,
 } from '../queries/conversations';
-import {
-  copiedNotice,
-  stillSavedNotice,
-  type PostNotice,
-} from '../rules/post-notice';
+import { stillSavedNotice, type PostNotice } from '../rules/post-notice';
 
 function useBound<I, A, E>(command: Atom.AtomResultFn<I, A, E>) {
   return walkthroughCommandBinding(useAtom(command, { mode: 'promiseExit' }));
@@ -34,6 +31,7 @@ export function usePostActions(
   message: DeveloperMessage | undefined,
 ) {
   const commands = commandsOf(owner);
+  const notify = useAtomSet(notifyCommand);
   const postOne = useBound(commands.postMessage);
   const postSaved = useBound(commands.postSavedMessages);
   const saving = useBound(commands.saveMessage);
@@ -42,8 +40,8 @@ export function usePostActions(
   const fail = (error: unknown) => setNotice(conversationFailure(error));
   const toClipboard = (text: string) =>
     copyToClipboard(text).then(
-      () => setNotice(copiedNotice(true)),
-      () => setNotice(copiedNotice(false)),
+      () => notify({ kind: 'copy', target: 'brief' }),
+      () => setNotice({ text: 'Could not copy the brief.', copy: false }),
     );
   return {
     notice,

@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/tooltip';
 import { reviewedCommandFailure } from '@porcelain/client/changes';
 import { Cause } from 'effect';
-import { toast } from '@/components/ui/toast';
+import { notify } from '@/shared/views/notify';
 import { AsyncResult } from 'effect/reactivity';
 import {
   CheckIcon,
@@ -266,7 +266,7 @@ export function StepReviewed({
     range,
     branch,
     worktree,
-    (notice) => toast.add(notice),
+    (notice) => notify(notice),
   );
 
   if (!interaction.toolbarTarget) return null;

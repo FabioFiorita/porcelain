@@ -9,10 +9,3 @@ export function stillSavedNotice(count: number): PostNotice {
     copy: false,
   };
 }
-
-export function copiedNotice(copied: boolean): PostNotice {
-  return {
-    text: copied ? 'Copied brief' : 'Could not copy the brief.',
-    copy: false,
-  };
-}

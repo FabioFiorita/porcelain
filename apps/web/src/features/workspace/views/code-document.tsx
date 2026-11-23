@@ -26,7 +26,7 @@ import { type ReactNode, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/shared/lib/utils';
 import { ButtonGroup } from '@/components/ui/button-group';
-import { toast } from '@/components/ui/toast';
+import { notify } from '@/shared/views/notify';
 import { DiscardButton } from '@/features/git-actions/index';
 import {
   contentVersion,
@@ -103,7 +103,7 @@ export function CodeDocument(props: Props) {
   const review = useToggleReviewed(
     props.scope,
     props.context,
-    (notice) => toast.add(notice),
+    (notice) => notify(notice),
     props.range,
   );
   return (

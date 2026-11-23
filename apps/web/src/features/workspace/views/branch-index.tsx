@@ -5,7 +5,7 @@ import { GitBranchIcon } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { refLabel } from '@porcelain/client/history/rules';
 import type { useBranchChanges } from '@/features/changes/index';
-import { toast } from '@/components/ui/toast';
+import { notify } from '@/shared/views/notify';
 import { useToggleReviewed } from '../commands/reviewed';
 import { useReviewedMarks } from '../queries/reviewed';
 import { counted } from '@porcelain/client/changes/rules';
@@ -135,7 +135,7 @@ function BranchFileList({
   const reviewed = useToggleReviewed(
     scope,
     context,
-    (notice) => toast.add(notice),
+    (notice) => notify(notice),
     range,
   );
   if (branch.base === null || branch.base === undefined) return null;

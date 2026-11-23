@@ -7,7 +7,7 @@ import { useHotkey } from '@tanstack/react-hotkeys';
 import { CheckIcon, SquareIcon } from 'lucide-react';
 import { BarAction } from '@/shared/workspace/bar-action';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
-import { toast } from '@/components/ui/toast';
+import { notify } from '@/shared/views/notify';
 import { useToggleReviewed } from '../commands/reviewed';
 import { Badge } from '@/components/ui/badge';
 import { isImagePath } from '@porcelain/client/files/rules';
@@ -443,9 +443,7 @@ function OmittedActions({
   active: boolean;
   children: ReactNode;
 }) {
-  const review = useToggleReviewed(scope, context, (notice) =>
-    toast.add(notice),
-  );
+  const review = useToggleReviewed(scope, context, (notice) => notify(notice));
   const target = fileReviewControl(scope, context, item);
   const hotkeysEnabled = useHotkeysEnabled();
   const toggle = () => review.toggle(target);

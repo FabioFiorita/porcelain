@@ -1685,6 +1685,67 @@ export default {
         };
       },
     },
+    'notification-owner': {
+      create(context) {
+        const path = repositoryPath(context);
+        const web = path.startsWith('apps/web/src/');
+        const mobile = path.startsWith('apps/mobile/src/');
+        if (!web && !mobile) return {};
+        if (
+          path === 'apps/web/src/shared/views/notify.tsx' ||
+          path === 'apps/web/src/components/ui/toast.tsx' ||
+          path === 'apps/mobile/src/components/ui/notify.tsx'
+        )
+          return {};
+
+        const message =
+          'Call the client notify API for transient confirmations, because one presenter controls what is shown and announced.';
+        const checkImport = (node) => {
+          const source = staticString(node.source, context);
+          if (!source) return;
+          const target = source.startsWith('@/')
+            ? `apps/web/src/${source.slice(2)}`
+            : posix.join(posix.dirname(path), source);
+          const rawWeb =
+            target.replace(/\.tsx?$/, '') ===
+              'apps/web/src/components/ui/toast' ||
+            /^(?:@base-ui\/react\/toast(?:\/|$)|sonner(?:\/|$))/.test(source) ||
+            (source === '@base-ui/react' &&
+              node.specifiers?.some(
+                (specifier) => specifier.imported?.name === 'Toast',
+              ));
+          const rawMobile =
+            source === 'react-native' &&
+            node.specifiers?.some(
+              (specifier) => specifier.imported?.name === 'ToastAndroid',
+            );
+          if ((web && rawWeb) || (mobile && rawMobile))
+            context.report({ node, message });
+        };
+        const checkConfirmation = (node, value) => {
+          if (
+            typeof value === 'string' &&
+            /^(?:Copied (?:brief|worktree path)|Saved on this computer|Changes saved|Changes (?:committed|pushed))\.?$/i.test(
+              value.trim(),
+            )
+          )
+            context.report({ node, message });
+        };
+        return {
+          ImportDeclaration: checkImport,
+          ExportNamedDeclaration: checkImport,
+          ExportAllDeclaration: checkImport,
+          ImportExpression: checkImport,
+          JSXText(node) {
+            checkConfirmation(node, node.value);
+          },
+          JSXExpressionContainer(node) {
+            if (node.parent?.type === 'JSXElement')
+              checkConfirmation(node, staticString(node.expression, context));
+          },
+        };
+      },
+    },
     'worktree-admission-owner': {
       create(context) {
         const path = repositoryPath(context);

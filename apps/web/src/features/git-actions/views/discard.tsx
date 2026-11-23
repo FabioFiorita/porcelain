@@ -15,7 +15,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
-import { toast } from '@/components/ui/toast';
+import { dismissNotice, notify } from '@/shared/views/notify';
 import {
   useReadCurrentChanges,
   useReviewOverview,
@@ -69,8 +69,8 @@ export function DiscardButton({
     what,
     look: candidate,
     readChanges,
-    notify: (notice) => toast.add(notice),
-    dismissNotice: (id) => toast.close(id),
+    notify,
+    dismissNotice,
     close: () => setOpen(false),
   });
   const { busy, error, uncertain } = discard;

@@ -1,2 +1,2 @@
 export { NotificationsSettings } from './views/notifications-settings';
-export { notificationsSync } from './store';
+export { notificationsSync, notificationNotice, notify } from './store';
