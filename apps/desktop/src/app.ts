@@ -203,6 +203,42 @@ const openWindow = Effect.fn('openWindow')(function* () {
   });
   window = view;
   actionsReady = false;
+  view.webContents.on('did-fail-load', (_event, code, reason, url, main) => {
+    process.stderr.write(
+      `REHEARSAL load failed ${code} ${reason} ${url} main=${main}\n`,
+    );
+  });
+  view.webContents.on('render-process-gone', (_event, details) => {
+    process.stderr.write(
+      `REHEARSAL renderer gone ${JSON.stringify(details)}\n`,
+    );
+  });
+  view.webContents.on('preload-error', (_event, _source, error) => {
+    process.stderr.write(`REHEARSAL preload failed ${error.message}\n`);
+  });
+  view.webContents.on('console-message', (event) => {
+    if (event.level === 'error' || event.level === 'warning')
+      process.stderr.write(
+        `REHEARSAL console ${event.level} ${event.message}\n`,
+      );
+  });
+  view.webContents.once('did-finish-load', () => {
+    void view.webContents
+      .executeJavaScript(`JSON.stringify({
+      href: location.href,
+      contentType: document.contentType,
+      bridge: typeof window.porcelainDesktop,
+      hasRoot: Boolean(document.querySelector('#root')),
+      heading: document.querySelector('h1')?.textContent,
+      body: document.body?.innerText?.slice(0, 160)
+    })`)
+      .then(
+        (result: string) =>
+          process.stderr.write(`REHEARSAL loaded ${result}\n`),
+        (error: Error) =>
+          process.stderr.write(`REHEARSAL evaluate failed ${error.message}\n`),
+      );
+  });
   view.webContents.on(
     'did-start-navigation',
     (_event, _url, inPlace, mainFrame) => {
@@ -247,6 +283,7 @@ const openWindow = Effect.fn('openWindow')(function* () {
     actionsReady = false;
   });
   view.once('ready-to-show', () => {
+    process.stderr.write('REHEARSAL ready-to-show\n');
     if (!quitting && !view.isDestroyed()) view.show();
   });
   view.webContents.session.setPermissionRequestHandler(
@@ -490,6 +527,9 @@ const start = Effect.fn('start')(function* () {
     updateWindowBackground();
   });
   ipcMain.on('porcelain:actions-ready', (event) => {
+    process.stderr.write(
+      `REHEARSAL renderer action subscription trusted=${trusted(event)}\n`,
+    );
     if (quitting || window === undefined || !trusted(event)) return;
     if (!actionsReady) process.stderr.write('Porcelain: renderer ready\n');
     actionsReady = true;
