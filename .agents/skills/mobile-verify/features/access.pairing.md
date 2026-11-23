@@ -44,6 +44,10 @@ Preconditions: [surface baseline](README.md).
 
 Automated coverage: `development-pairing.spec.ts`.
 
+## Android pairing regression
+
+Start a fresh focused Android run with `--manual-pairing`. Use the card's agent-device command to run `replay apps/mobile/spec/android/pair-computer.ad --timeout 120000` from the repository root. The replay submits the development link and waits for Online on Computers. Run the card's `server devices` readback and confirm one Android device registered.
+
 ## Gotchas
 
 - Pairing a missing connection (Pair again), Add connection and the linked-review Pair this computer keep the same form inline, with its heading and `cancel-pairing`.

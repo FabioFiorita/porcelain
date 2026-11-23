@@ -1,0 +1,11 @@
+wait 'label="Settings"' 60000
+press 'label="Settings"'
+wait 'id="settings-computers"' 30000
+press 'id="settings-computers"'
+wait 'label="Add computer"' 30000
+press 'label="Add computer"'
+wait 'id="development-pairing-link"' 30000
+press 'id="development-pairing-link"'
+wait 'id="pair-environment" enabled=true' 30000
+press 'id="pair-environment"'
+wait text Online 30000
