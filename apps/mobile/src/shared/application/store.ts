@@ -14,6 +14,8 @@ import {
   ProjectSelectionCommands,
   ProjectSelectionStorage,
   ProjectSelectionStore,
+  WorktreeSnapshots,
+  WorktreeSnapshotStorage,
   workspaceSelectionCleanupLayer,
 } from '@porcelain/client/projects';
 import {
@@ -25,6 +27,7 @@ import { accessPlatform } from '../adapters/access-platform';
 import { environmentStorage } from '../adapters/environment-storage';
 import { projectSelectionStorage } from '../adapters/selection-storage';
 import { preferenceStorage } from '../adapters/preference-storage';
+import { worktreeSnapshotStorage } from '../adapters/worktree-snapshot-storage';
 
 const memoMap = Layer.makeMemoMapUnsafe();
 const platform = Layer.succeed(AccessPlatform, accessPlatform);
@@ -43,9 +46,18 @@ const stores = Layer.mergeAll(
     ),
   ),
 );
-const cleanup = workspaceSelectionCleanupLayer.pipe(Layer.provide(stores));
+const snapshots = WorktreeSnapshots.layer.pipe(
+  Layer.provide(stores),
+  Layer.provide(
+    Layer.succeed(WorktreeSnapshotStorage, worktreeSnapshotStorage),
+  ),
+);
+const cleanup = workspaceSelectionCleanupLayer.pipe(
+  Layer.provide(Layer.merge(stores, snapshots)),
+);
 const services = Layer.mergeAll(
   stores,
+  snapshots,
   cleanup,
   platform,
   remoteConnectionFactoryLayer(memoMap).pipe(Layer.provide(platform)),
