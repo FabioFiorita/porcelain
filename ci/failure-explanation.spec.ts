@@ -1,5 +1,24 @@
 import { describe, expect, it } from 'vite-plus/test';
 import { explanationComment, failureExcerpt } from './failure-explanation.ts';
+import { summaryDollars } from './openai.ts';
+
+it.each([
+  { input: 2_000, cached: 400, written: 200, cost: 0.00217 },
+  { input: 273_000, cached: 0, written: 0, cost: 0.54675 },
+])('estimates the response cost for $input input tokens', (usage) => {
+  expect(
+    summaryDollars({
+      input_tokens: usage.input,
+      input_tokens_details: {
+        cached_tokens: usage.cached,
+        cache_write_tokens: usage.written,
+      },
+      output_tokens: 100,
+      output_tokens_details: { reasoning_tokens: 25 },
+      total_tokens: usage.input + 100,
+    }),
+  ).toBeCloseTo(usage.cost, 9);
+});
 
 describe('failureExcerpt', () => {
   it('keeps an early assertion from a long log along with its end, without timestamps or colors', () => {
