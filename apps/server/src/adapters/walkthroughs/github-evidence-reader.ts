@@ -66,10 +66,19 @@ export const githubEvidenceReaderLayer = Layer.effect(
               : undefined,
             repositoryKey,
           );
+          let probeFailed = false;
           const account = yield* Effect.findFirst(candidates, (account) =>
-            github.canRead({ ...repository, account }),
+            github.canRead({ ...repository, account }).pipe(
+              Effect.orElseSucceed(() => {
+                probeFailed = true;
+                return false;
+              }),
+            ),
           );
-          if (Option.isNone(account)) return withoutEvidence('github_account');
+          if (Option.isNone(account))
+            return withoutEvidence(
+              probeFailed ? 'github_unavailable' : 'github_account',
+            );
           const pr = yield* github.read({
             ...repository,
             account: account.value,
