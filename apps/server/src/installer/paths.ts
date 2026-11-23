@@ -6,6 +6,7 @@ export type ServicePaths = {
   nextRuntime: string;
   previousRuntime: string;
   updateJournal: string;
+  rollbackJournal: string;
   updateRecord: string;
   updater: string;
   installed: string;
@@ -27,6 +28,7 @@ export function servicePaths(
     nextRuntime: pathApi.join(root, 'runtime.next'),
     previousRuntime: pathApi.join(root, 'runtime.previous'),
     updateJournal: pathApi.join(root, 'update.json'),
+    rollbackJournal: pathApi.join(root, 'rollback.json'),
     updateRecord: pathApi.join(root, 'update-record.json'),
     updater: pathApi.join(root, 'updater'),
     installed: pathApi.join(root, 'installed.json'),

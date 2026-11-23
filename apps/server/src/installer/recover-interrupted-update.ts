@@ -33,9 +33,15 @@ export const recoverInterruptedUpdate = Effect.fn(
 )(function* (context: InstallerContext) {
   const fs = yield* FileSystem.FileSystem;
   const { paths, systemd } = context;
-  const journal = yield* readUpdateJournal(paths.updateJournal);
+  const pending = yield* readUpdateJournal(paths.updateJournal);
+  const rollback =
+    pending === undefined
+      ? yield* readUpdateJournal(paths.rollbackJournal)
+      : undefined;
+  const journal = pending ?? rollback;
   const plan = recoveryPlan({
     journal,
+    rolledBack: rollback !== undefined,
     runtimeExists: yield* exists(paths.runtime),
     previousExists: yield* exists(paths.previousRuntime),
   });
@@ -82,7 +88,7 @@ export const recoverInterruptedUpdate = Effect.fn(
       }
       yield* writeJsonFile(paths.installed, journal.installed);
       yield* systemd.write(servicePlan(context, configuration));
-      yield* writeJsonFile(paths.updateJournal, { ...journal, restored: true });
+      yield* fs.rename(paths.updateJournal, paths.rollbackJournal);
     }).pipe(Effect.scoped);
   }
   if (!(yield* systemd.probe()).running) yield* systemd.start();
@@ -94,7 +100,7 @@ export const recoverInterruptedUpdate = Effect.fn(
     stage: 'failed',
     reason: `The update was interrupted, so Porcelain went back to ${journal.installed.version} and the database it had before the update.`,
   });
-  yield* fs.remove(paths.updateJournal, { force: true });
+  yield* fs.remove(paths.rollbackJournal, { force: true });
   return RECOVERED;
 });
 

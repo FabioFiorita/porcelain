@@ -17,7 +17,6 @@ const updateJournalSchema = Schema.Struct({
   backup: Schema.String,
   target: Schema.optional(Schema.String),
   healthy: Schema.optional(Schema.Boolean),
-  restored: Schema.optional(Schema.Literal(true)),
 });
 export type UpdateJournal = typeof updateJournalSchema.Type;
 const updateRecordSchema = Schema.Struct({

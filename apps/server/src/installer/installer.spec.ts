@@ -529,6 +529,42 @@ it.each(['stopped', 'status unavailable'] as const)(
   },
 );
 
+it('holds the data directory lease while promoting the restored database', async () => {
+  await interruptedRollback();
+  const claims: string[] = [];
+  const files = await Effect.runPromise(
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const clock = yield* Clock.Clock;
+      return {
+        ...fs,
+        rename: (from: string, to: string) =>
+          to === database()
+            ? Effect.gen(function* () {
+                const claim = yield* acquireDirectoryLock({
+                  path: join(data, 'server.lock'),
+                  waitMs: 0,
+                  pollMs: 1,
+                  staleTakeovers: 1,
+                  clock,
+                  held: () => new DataDirectoryOwnedError(data),
+                }).pipe(Effect.scoped, Effect.result);
+                claims.push(claim._tag);
+                yield* fs.rename(from, to);
+              }).pipe(Effect.provide(NodeServices.layer))
+            : fs.rename(from, to),
+      };
+    }).pipe(Effect.provide(NodeServices.layer)),
+  );
+  expect(
+    await execute({ action: 'recover' }, '2.0.0', source, files),
+  ).toMatchObject({
+    result: { recovered: true },
+  });
+  expect(claims).toEqual(['Failure']);
+  expect(existsSync(join(data, 'server.lock'))).toBe(false);
+});
+
 it('preserves writes after rollback restarts the service and cleanup fails', async () => {
   const journal = await interruptedRollback();
   const staging = join(root, 'runtime.next');
@@ -548,7 +584,9 @@ it('preserves writes after rollback restarts the service and cleanup fails', asy
   await expect(
     execute({ action: 'recover' }, '2.0.0', source, files),
   ).rejects.toThrow('missing-cleanup-target');
-  expect(existsSync(journal)).toBe(true);
+  expect(existsSync(journal)).toBe(false);
+  const completedRollback = join(root, 'rollback.json');
+  expect(existsSync(completedRollback)).toBe(true);
   expect(readDatabase(database())).toBe('saved database');
   const pid = service?.pid;
   expect(pid).toBeGreaterThan(0);
@@ -564,6 +602,7 @@ it('preserves writes after rollback restarts the service and cleanup fails', asy
   expect(readDatabase(database())).toBe('written after rollback');
   expect(service?.pid).toBe(pid);
   expect(existsSync(journal)).toBe(false);
+  expect(existsSync(completedRollback)).toBe(false);
   expect(existsSync(staging)).toBe(false);
   expect(record('update-record.json')).toMatchObject({ stage: 'failed' });
 });
