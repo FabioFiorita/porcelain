@@ -60,7 +60,9 @@ async function doctor(
     )
   ).filter((problem) => problem !== undefined);
   if (problems.length > 0) process.exitCode = 1;
-  const live = registry.list().filter((entry) => entry.alive);
+  const live = (problems.length === 0 ? registry.list() : []).filter(
+    (entry) => entry.alive,
+  );
   return [
     `node ${process.versions.node}`,
     ...(problems.length > 0

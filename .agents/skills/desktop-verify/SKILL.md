@@ -57,13 +57,16 @@ Save screenshots and journey observations in the card's evidence directory. Scru
 
 ## Linux and macOS boundaries
 
-Linux needs Electron and a display. Use a desktop session, or:
+Linux needs Electron and a display. Use a desktop session or open an Xvfb shell:
 
 ```sh
-xvfb-run -a $C start
+xvfb-run -a sh
+C=.agents/skills/desktop-verify/scripts/cli
+$C doctor
+$C start
 ```
 
-The detached instance inherits that display, so keep the xvfb owner alive until `$C stop` completes (for a bounded script, run the entire start/renderer/stop journey under `xvfb-run`). `doctor` reports missing display or Electron; run the normal project install to obtain dependencies. If Electron remains missing, report the missing binary/dependencies.
+Keep that shell open while driving the renderer. Run the card's stop command before exiting it. For a script, put start, renderer checks and stop inside the same `xvfb-run` invocation. If `doctor` reports missing Electron, run the normal project install.
 
 Linux can prove the shared renderer and bridge through real Electron, including removable power-event subscriptions, trusted IPC refusal, substituted picker answers, local pages and shutdown. Emitted power events prove delivery, not physical sleep/wake. A substituted picker answer proves the bridge, not the native dialog.
 

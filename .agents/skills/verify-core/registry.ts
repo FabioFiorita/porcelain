@@ -1,7 +1,8 @@
 import { Schema } from 'effect';
-import { spawn } from 'node:child_process';
+import { spawn, type ChildProcess } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
 import {
+  closeSync,
   existsSync,
   openSync,
   readFileSync,
@@ -26,6 +27,7 @@ import {
   endGroup,
   endLeader,
   endProcess,
+  processCaptureProblem,
   processes,
   stopResultSchema,
   type ProcessIdentity,
@@ -325,6 +327,8 @@ export class Registry<Detail> {
     options: unknown,
     readyWithinMs: number,
   ): Promise<Instance<Detail>> {
+    const processProblem = processCaptureProblem();
+    if (processProblem !== undefined) throw new Refusal(processProblem);
     const id = randomBytes(4).toString('hex');
     const folder = this.folderOf(id);
     const evidence = this.evidenceFolder(id);
@@ -340,59 +344,108 @@ export class Registry<Detail> {
       }),
       { mode: 0o600 },
     );
-    const log = openSync(join(evidence, 'supervisor.log'), 'a', 0o600);
-    const supervisor = spawn(process.execPath, [this.cli, 'serve', folder], {
-      cwd: repositoryRoot,
-      env: verificationEnvironment(process.env),
-      detached: true,
-      stdio: ['ignore', log, log],
-    });
-    supervisor.unref();
-    const captured =
-      supervisor.pid === undefined ? undefined : captureProcess(supervisor.pid);
+    let supervisor: ChildProcess | undefined;
+    let captured: ProcessIdentity | undefined;
     let exited = false;
-    supervisor.once('exit', () => {
-      exited = true;
-    });
-    const file = join(folder, 'instance.json');
+    let spawnError: Error | undefined;
     const deadline = Date.now() + readyWithinMs;
-    while (!existsSync(file)) {
-      if (exited || Date.now() > deadline) {
-        const prior = this.stopOutcome(evidence);
-        if (prior?.complete !== true) {
-          let owned = this.owned(folder);
-          if (owned.length === 0 && captured !== undefined) {
-            owned = [captured, ...captureGroup(captured)];
-            await mkdir(folder, { recursive: true, mode: 0o700 });
-            await writeFile(
-              join(folder, 'processes.json'),
-              JSON.stringify(owned),
-              { mode: 0o600 },
-            );
-          }
-          const result =
-            supervisor.pid === undefined
-              ? {
-                  complete: false,
-                  report: ['started supervisor has no captured PID'],
-                }
-              : await this.finish(supervisor.pid, folder, owned);
-          const outcome = await this.retainStop(
-            new Evidence(evidence, new Redactor([]), this.surface.format),
-            new Redactor([]),
-            result,
-          );
-          if (outcome.complete)
-            await rm(folder, { recursive: true, force: true });
-        }
-        const failed = join(evidence, 'start-failed.txt');
-        throw new Refusal(
-          `instance ${id} did not start${exited ? '' : ` within ${readyWithinMs / 1000} s`}: ${existsSync(failed) ? readFileSync(failed, 'utf8').split('\n')[0] : 'read supervisor.log'}; evidence: ${evidence}`,
-        );
+    const timedOut = () => Date.now() > deadline;
+    try {
+      const log = openSync(join(evidence, 'supervisor.log'), 'a', 0o600);
+      try {
+        supervisor = spawn(process.execPath, [this.cli, 'serve', folder], {
+          cwd: repositoryRoot,
+          env: verificationEnvironment(process.env),
+          detached: true,
+          stdio: ['ignore', log, log],
+        });
+        supervisor.once('error', (error) => {
+          spawnError = error;
+        });
+        supervisor.once('exit', () => {
+          exited = true;
+        });
+        supervisor.unref();
+      } finally {
+        closeSync(log);
       }
-      await sleep(startPollMs);
+      if (supervisor.pid !== undefined)
+        captured = captureProcess(supervisor.pid);
+      const file = join(folder, 'instance.json');
+      while (!existsSync(file)) {
+        if (spawnError !== undefined) throw spawnError;
+        if (exited) throw new Refusal('supervisor exited before readiness');
+        if (timedOut())
+          throw new Refusal(
+            `supervisor did not become ready within ${readyWithinMs / 1000} s`,
+          );
+        await sleep(startPollMs);
+      }
+      return this.read(file);
+    } catch (error) {
+      const redactor = new Redactor([]);
+      const recorder = new Evidence(evidence, redactor, this.surface.format);
+      const failed = join(evidence, 'start-failed.txt');
+      if (!existsSync(failed))
+        await recorder.note(
+          'start-failed.txt',
+          `${error instanceof Error ? error.message : String(error)}\n`,
+        );
+      await this.cleanupFailedLaunch(
+        folder,
+        recorder,
+        redactor,
+        supervisor?.pid,
+        captured,
+      );
+      throw new Refusal(
+        `instance ${id} did not start: ${(await readFile(failed, 'utf8')).split('\n')[0]}; evidence: ${evidence}`,
+      );
     }
-    return this.read(file);
+  }
+  private async cleanupFailedLaunch(
+    folder: string,
+    recorder: Evidence,
+    redactor: Redactor,
+    pid: number | undefined,
+    captured: ProcessIdentity | undefined,
+  ): Promise<void> {
+    if (this.stopOutcome(recorder.folder)?.complete === true) return;
+    let result: StopResult;
+    try {
+      let owned = this.owned(folder);
+      if (owned.length === 0 && captured !== undefined) {
+        owned = [captured, ...captureGroup(captured)];
+        const file = join(folder, 'processes.json');
+        try {
+          await writeFile(file, JSON.stringify(owned), {
+            mode: 0o600,
+            flag: 'wx',
+          });
+        } catch (error) {
+          if (
+            !(
+              error instanceof Error &&
+              'code' in error &&
+              error.code === 'EEXIST'
+            )
+          )
+            throw error;
+          owned = this.owned(folder);
+        }
+      }
+      result =
+        pid === undefined
+          ? { complete: true, report: ['no supervisor was spawned'] }
+          : await this.finish(pid, folder, owned);
+    } catch (error) {
+      result = {
+        complete: false,
+        report: [`startup cleanup could not be confirmed: ${String(error)}`],
+      };
+    }
+    const outcome = await this.retainStop(recorder, redactor, result);
+    if (outcome.complete) await rm(folder, { recursive: true, force: true });
   }
   async staleness(instance: Instance<Detail>): Promise<string | undefined> {
     return this.surface.stale(
@@ -590,7 +643,6 @@ export class Registry<Detail> {
       writeFileSync(partial, `${JSON.stringify(owned)}\n`, { mode: 0o600 });
       renameSync(partial, file);
     };
-    own(process.pid);
     const cleanups: ((reason: string) => Promise<void> | void)[] = [];
     const evidence = () =>
       new Evidence(
@@ -670,6 +722,7 @@ export class Registry<Detail> {
       stopping: () => stopping,
     };
     try {
+      own(process.pid);
       const detail = await start(life);
       own(process.pid);
       const instance: Instance<Detail> = {

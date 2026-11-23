@@ -17,6 +17,7 @@ import {
   connectionSchema,
   shellCommand,
 } from '../../verify-core/connection.ts';
+import { processCaptureProblem } from '../../verify-core/processes.ts';
 import { repositoryRoot } from '../../verify-core/registry.ts';
 
 export const desktopInputs = {
@@ -61,15 +62,17 @@ export function desktopProblems(): string[] {
       'Electron is missing for apps/desktop; run pnpm install --frozen-lockfile with the project toolchain. Do not change install policy.',
     );
   }
-  for (const tool of ['git', 'ps', 'pnpm'])
+  for (const tool of ['git', 'pnpm'])
     if (!onPath(tool)) problems.push(`${tool} is missing from PATH`);
+  const capture = processCaptureProblem();
+  if (capture !== undefined) problems.push(capture);
   if (
     process.platform === 'linux' &&
     !process.env.DISPLAY &&
     !process.env.WAYLAND_DISPLAY
   )
     problems.push(
-      'No display is configured; run xvfb-run -a .agents/skills/desktop-verify/scripts/cli start (requires xvfb), or use a desktop session.',
+      'No display is configured; open an owned shell with xvfb-run -a sh and keep it open through stop, or use a desktop session.',
     );
   if (process.platform !== 'darwin' && process.platform !== 'linux')
     problems.push('The desktop launcher supports macOS and Linux');

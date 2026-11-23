@@ -57,8 +57,7 @@ async function doctor(): Promise<string> {
     'Optional drivers (not required for startup): harness browser, project Playwright MCP, pnpm exec playwright cli',
     ...optionalDrivers(),
   ];
-  const live = registry
-    .list()
+  const live = (sandbox.length === 0 ? registry.list() : [])
     .filter((entry) => entry.alive)
     .map(
       ({ instance }) =>

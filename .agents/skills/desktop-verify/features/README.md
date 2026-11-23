@@ -22,7 +22,7 @@ Each map has one short behavior paragraph, then three sections: How to get to it
 ## Proof and skip reporting
 
 - Capture the action and result, with a fresh interactive snapshot and screenshot identifying the app and destination. Store driver actions, URL/title and diagnostics in the card's evidence directory; redact pairing fragments and credentials.
-- Verify mutations independently through the filesystem, Git, storage or the card's typed `$C server …` readbacks. A success toast alone is insufficient.
+- Verify mutations independently through the filesystem, Git, storage, renderer inventory or direct paired HTTP. A success toast alone is insufficient.
 - Report the map, entry points, platform, width and connection actually driven. Named automated tests, source review and live proof are separate results. An unmet precondition is a reported gap, never a reason to weaken the journey.
 - Restore mutated fixtures or restart the disposable instance before repeating. Stop with the card's command; retain evidence after cleanup.
 

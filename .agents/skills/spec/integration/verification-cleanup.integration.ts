@@ -8,7 +8,7 @@ import {
   symlink,
   writeFile,
 } from 'node:fs/promises';
-import { dirname, join, resolve } from 'node:path';
+import { delimiter, dirname, join, resolve } from 'node:path';
 import { expect } from 'vitest';
 import { test } from '@porcelain/server/kit/server-test';
 import { list, record, text } from '@porcelain/server/kit/session';
@@ -391,6 +391,38 @@ test('stop refuses a stale process identity even when its PID and command still 
   ).toStrictEqual([]);
   expect(alive(strangerPid)).toBe(true);
   expect(alive(instance.pid)).toBe(false);
+});
+
+test('doctor and start refuse a failed process query before creating an instance', async ({
+  onTestFinished,
+}) => {
+  const copy = await checkoutCopy(onTestFinished);
+  const home = resolve(instanceFile(copy, 'server', 'abc12345'), '../../..');
+  onTestFinished(() => rm(home, { recursive: true, force: true }));
+  const bin = join(copy, 'refuse-process-query');
+  await mkdir(bin);
+  await writeFile(
+    join(bin, 'ps'),
+    "#!/bin/sh\nprintf '%s\\n' 'fixture refused process query' >&2\nexit 2\n",
+    { mode: 0o700 },
+  );
+  const run = (command: string) =>
+    spawnSync(join(copy, SERVER_CLI), [command], {
+      cwd: copy,
+      env: { ...process.env, PATH: [bin, process.env.PATH].join(delimiter) },
+      encoding: 'utf8',
+    });
+
+  const doctor = run('doctor');
+  const start = run('start');
+
+  expect(doctor.status).toBe(1);
+  expect(doctor.stdout).toContain('FAIL Process capture failed');
+  expect(doctor.stdout).toContain('fixture refused process query');
+  expect(start.status).toBe(1);
+  expect(start.stderr).toContain('fixture refused process query');
+  expect(existsSync(home)).toBe(false);
+  expect(running(home)).toStrictEqual([]);
 });
 
 test('failed startup cleans a captured detached child even when the supervisor dies before readiness', async ({
