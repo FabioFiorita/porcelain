@@ -6,6 +6,7 @@ import {
   WorktreePresenceStore,
 } from '@porcelain/projects/ports';
 import { GitActionReceiptStore } from '@porcelain/git-actions/ports';
+import { AcceptGitActionService } from '@porcelain/git-actions/services';
 import { storageLayer } from '../../index.ts';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
@@ -75,6 +76,101 @@ function receipt(requestId: string, worktreeId: string): GitActionReceipt {
   };
 }
 
+it('accepts a request ID only once across two repositories and keeps exactly one execution claim', async ({
+  onTestFinished,
+}) => {
+  const { session, close } = await openScoped('project', ['first']);
+  onTestFinished(close);
+  await session.runPromise(
+    Effect.gen(function* () {
+      yield* (yield* InventoryStore).save({
+        id: 'other-project',
+        name: 'Other project',
+        namedByOwner: false,
+        commonDirectory: '/repositories/other-project/.git',
+        repositoryIdentity: 'other-identity',
+        available: true,
+        position: 2,
+      });
+      yield* (yield* WorktreePresenceStore).save({
+        rows: [
+          {
+            worktreeId: 'second',
+            projectId: 'other-project',
+            missingSince: undefined,
+          },
+        ],
+      });
+    }),
+  );
+  const store = await session.runPromise(GitActionReceiptStore);
+  const bothReads = Promise.withResolvers<void>();
+  let missingReads = 0;
+  const gatedStore = GitActionReceiptStore.of({
+    ...store,
+    read: (input) =>
+      store.read(input).pipe(
+        Effect.tap((previous) =>
+          previous === undefined
+            ? Effect.promise(() => {
+                missingReads += 1;
+                if (missingReads === 2) bothReads.resolve();
+                return bothReads.promise;
+              })
+            : Effect.void,
+        ),
+      ),
+  });
+  const accept = await Effect.runPromise(
+    AcceptGitActionService.pipe(
+      Effect.provide(AcceptGitActionService.layer),
+      Effect.provideService(GitActionReceiptStore, gatedStore),
+    ),
+  );
+  const requestId = 'fc8cd2dc-3710-452d-88cb-9ef5e3b2d897';
+  const first = {
+    requestId,
+    projectId: 'project',
+    worktreeId: 'first',
+    intent: {
+      action: 'fetch' as const,
+      remoteName: 'origin',
+      sourceRef: 'refs/heads/main',
+    },
+    expected: { upstream: { oid: undefined } },
+  };
+  const second = { ...first, projectId: 'other-project', worktreeId: 'second' };
+  const results = await Effect.runPromise(
+    Effect.all(
+      [
+        accept.execute(first).pipe(Effect.result),
+        accept.execute(second).pipe(Effect.result),
+      ],
+      { concurrency: 2 },
+    ),
+  );
+  expect(
+    results
+      .map((result) =>
+        result._tag === 'Failure' ? result.failure._tag : result.success.kind,
+      )
+      .sort(),
+  ).toEqual(['GitActionReceiptMismatchError', 'accepted']);
+  const winner = results[0]._tag === 'Success' ? first : second;
+  expect(await Effect.runPromise(store.running())).toMatchObject([
+    { requestId, projectId: winner.projectId, worktreeId: winner.worktreeId },
+  ]);
+  expect(await Effect.runPromise(store.claimExecution({ requestId }))).toBe(
+    true,
+  );
+  expect(await Effect.runPromise(accept.execute(winner))).toMatchObject({
+    kind: 'repeated',
+  });
+  expect(await Effect.runPromise(store.claimExecution({ requestId }))).toBe(
+    false,
+  );
+});
+
 describe('SqliteGitActionReceiptStore collection', () => {
   let opened: {
     session: ManagedRuntime.ManagedRuntime<
@@ -94,8 +190,8 @@ describe('SqliteGitActionReceiptStore collection', () => {
 
   it('removes the receipts of a worktree when the worktree is collected, and keeps the others', async () => {
     const store = await opened.session.runPromise(GitActionReceiptStore);
-    await Effect.runPromise(store.insert(receipt('collected', 'collected')));
-    await Effect.runPromise(store.insert(receipt('kept', 'kept')));
+    await Effect.runPromise(store.accept(receipt('collected', 'collected')));
+    await Effect.runPromise(store.accept(receipt('kept', 'kept')));
     await Effect.runPromise(
       (await opened.session.runPromise(WorktreePresenceStore)).remove({
         worktreeIds: ['collected'],
