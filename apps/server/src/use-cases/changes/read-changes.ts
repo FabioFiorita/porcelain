@@ -1,3 +1,4 @@
+import { readWorktreeFingerprints } from '../../runtime/read-worktree-fingerprints.ts';
 import { type MissingEnvironmentIdentityError } from '@porcelain/access/errors';
 import { Context, Effect, Layer } from 'effect';
 import { WorktreeAccess } from '../../runtime/worktree-access.ts';
@@ -45,15 +46,11 @@ export class ReadChangesUseCase extends Context.Service<
             const { worktreeId } = input;
             return accessCapability.read(worktreeId, () =>
               Effect.gen(function* () {
-                const status = yield* readWorktreeStatusCapability.execute({
+                const { status, changes } = yield* readWorktreeFingerprints(
+                  readWorktreeStatusCapability,
+                  readChangeFingerprintsCapability,
                   worktreeId,
-                });
-                const { changes } =
-                  yield* readChangeFingerprintsCapability.execute({
-                    worktreeId,
-                    comparisons: status.changes,
-                    paths: undefined,
-                  });
+                );
                 const interrupted =
                   yield* readInterruptedGitActionCapability.execute({
                     worktreeId,

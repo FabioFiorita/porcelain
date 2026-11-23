@@ -13,6 +13,7 @@ import { pinProblems, uiFolder } from '../architecture/shadcn-pins.ts';
 import {
   duplicateScope,
   scanDuplicates,
+  serverDuplicateScope,
 } from '../architecture/duplicate-policy.ts';
 
 export async function checkStyle(
@@ -469,8 +470,7 @@ export async function checkStyle(
     message: string;
   };
   function duplicateFindings(): Finding[] {
-    if (target !== 'web') return [];
-    const scope = duplicateScope();
+    const scope = target === 'web' ? duplicateScope() : serverDuplicateScope();
     const report = scanDuplicates(process.cwd(), scope);
     const total = report.statistics.total;
     const unit = 'clones';

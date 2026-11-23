@@ -1,8 +1,9 @@
+import { requireDeviceDetail } from './require-device-detail.ts';
 import { IssuePairingOptions } from '../ports/issue-pairing-options.ts';
 import { Redacted, Effect, Context, Layer, Clock, DateTime } from 'effect';
 import { IdSource, SecretSource } from '@porcelain/kernel/ports';
 import { instantAfter, sha256Hex } from '@porcelain/kernel/rules';
-import { InvalidDeviceDetailsError } from '../errors/invalid-device-details-error.ts';
+import type { InvalidDeviceDetailsError } from '../errors/invalid-device-details-error.ts';
 import { InvalidPairingAddressError } from '../errors/invalid-pairing-address-error.ts';
 import type {
   IssuedPairingGrant,
@@ -36,15 +37,6 @@ export class IssuePairingService extends Context.Service<
       const idSource = yield* IdSource;
       const secretSource = yield* SecretSource;
       const options = yield* IssuePairingOptions;
-      const operationDetail = Effect.fn('IssuePairingService.operationDetail')(
-        function* (
-          value: string | undefined,
-        ): Effect.fn.Return<string, InvalidDeviceDetailsError> {
-          if (value === undefined)
-            return yield* Effect.fail(new InvalidDeviceDetailsError());
-          return value;
-        },
-      );
       function operationIssued(
         grant: PairingGrant & { trusted: boolean; canManageSharing: boolean },
         code: Redacted.Redacted<string>,
@@ -76,7 +68,7 @@ export class IssuePairingService extends Context.Service<
           )
             return yield* Effect.fail(new InvalidPairingAddressError());
           const labels = yield* Effect.forEach(input.labels, (label) =>
-            operationDetail(validLabel(label, options.labelLength)),
+            requireDeviceDetail(validLabel(label, options.labelLength)),
           );
           const trusted = input.trusted === true;
           const createdAt = DateTime.formatIso(

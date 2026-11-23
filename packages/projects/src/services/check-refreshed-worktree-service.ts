@@ -1,5 +1,5 @@
 import { Effect, Context, Layer } from 'effect';
-import { WorktreeNotFoundError } from '@porcelain/kernel/errors';
+import type { WorktreeNotFoundError } from '@porcelain/kernel/errors';
 import { WorktreeUnavailableError } from '../errors/worktree-unavailable-error.ts';
 import {
   type CheckRefreshedWorktreeResult,
@@ -7,7 +7,7 @@ import {
 } from '../models/check-worktree.ts';
 import { InventoryStore } from '../ports/inventory-store.ts';
 import { WorktreeCatalogStore } from '../ports/worktree-catalog-store.ts';
-import { checkedWorktree } from '../rules/checked-worktree.ts';
+import { lookupCheckedWorktree } from './lookup-checked-worktree.ts';
 
 export class CheckRefreshedWorktreeService extends Context.Service<
   CheckRefreshedWorktreeService,
@@ -33,23 +33,13 @@ export class CheckRefreshedWorktreeService extends Context.Service<
           CheckRefreshedWorktreeResult,
           WorktreeNotFoundError | WorktreeUnavailableError
         > {
-          const entry = catalogCapability.find({
-            worktreeId: input.worktreeId,
-          });
-          const answer = checkedWorktree(
+          const answer = yield* lookupCheckedWorktree(
             input,
-            entry,
-            catalogCapability.listObservations(),
-            entry && input.requireAvailableProject
-              ? yield* inventoryCapability.find({
-                  projectId: entry.worktree.projectId,
-                })
-              : undefined,
+            catalogCapability,
+            inventoryCapability,
           );
           if (answer.kind === 'found') return answer.worktree;
-          if (answer.kind === 'missing')
-            return yield* Effect.fail(new WorktreeNotFoundError());
-          return yield* Effect.fail(new WorktreeUnavailableError());
+          return yield* new WorktreeUnavailableError();
         }),
       };
     }),

@@ -1,3 +1,4 @@
+import { historyFiles } from './history-files.ts';
 import { Effect } from 'effect';
 import type { GitLimits } from '../../shared/dtos/git-limits.ts';
 import {
@@ -11,7 +12,6 @@ import type {
   HistoryCheckout,
 } from '../dtos/commit-history.ts';
 import { InvalidHistoryRequestError } from '../../shared/errors/invalid-history-request-error.ts';
-import { ReadLimitExceededError } from '../../shared/errors/read-limit-exceeded-error.ts';
 import { UnsupportedHistoryDataError } from '../../shared/errors/unsupported-history-data-error.ts';
 import { decodeHistory } from '../parsers/decode-history.ts';
 import {
@@ -114,35 +114,9 @@ const parseFiles = Effect.fn('Git.parseFiles')(function* (
     Effect.map((parsed) => parsed.entries),
     Effect.mapError((cause) => new UnsupportedHistoryDataError({ cause })),
   );
-  if (entries.length > limits.history.maxCommitFiles)
-    return yield* Effect.fail(new ReadLimitExceededError());
-  return yield* Effect.forEach(entries, (entry) =>
-    Effect.gen(function* () {
-      const status = yield* fileStatus(entry.status);
-      return {
-        oldPath: status === 'added' ? null : entry.oldPath,
-        newPath: status === 'deleted' ? null : entry.newPath,
-        oldMode: entry.oldMode,
-        newMode: entry.newMode,
-        status,
-      };
-    }),
+  return yield* historyFiles(
+    entries,
+    limits.history.maxCommitFiles,
+    (file) => file,
   );
-});
-
-export const fileStatus = Effect.fn('Git.fileStatus')(function* (code: string) {
-  switch (code) {
-    case 'A':
-      return 'added' as const;
-    case 'D':
-      return 'deleted' as const;
-    case 'M':
-      return 'modified' as const;
-    case 'R':
-      return 'renamed' as const;
-    case 'T':
-      return 'type-changed' as const;
-    default:
-      return yield* Effect.fail(new UnsupportedHistoryDataError());
-  }
 });

@@ -1,13 +1,13 @@
+import { fileFailure } from './file-failure.ts';
 import { ReadFileAssetOptions } from '../ports/read-file-asset-options.ts';
 import { type WorktreeRead } from '@porcelain/effects/worktree';
 import { encodeBase64 } from '@porcelain/kernel/rules';
 import { Effect, Context, Layer } from 'effect';
-import { ContentChangedError } from '../errors/content-changed-error.ts';
+import type { ContentChangedError } from '../errors/content-changed-error.ts';
 import { FileTooLargeError } from '../errors/file-too-large-error.ts';
-import { PathNotFoundError } from '../errors/path-not-found-error.ts';
-import { PathNotReadableError } from '../errors/path-not-readable-error.ts';
+import type { PathNotFoundError } from '../errors/path-not-found-error.ts';
+import type { PathNotReadableError } from '../errors/path-not-readable-error.ts';
 import { UnsupportedAssetTypeError } from '../errors/unsupported-asset-type-error.ts';
-import { type ReadFailure } from '../models/file-failure.ts';
 import {
   type ReadFileAssetInput,
   type ReadFileAssetResult,
@@ -38,16 +38,6 @@ export class ReadFileAssetService extends Context.Service<
     Effect.gen(function* () {
       const fileReaderCapability = yield* FileReader;
       const optionsCapability = yield* ReadFileAssetOptions;
-      function operationFailure(failure: ReadFailure): ReadFailureError {
-        switch (failure) {
-          case 'missing':
-            return new PathNotFoundError();
-          case 'unreadable':
-            return new PathNotReadableError();
-          case 'changed':
-            return new ContentChangedError();
-        }
-      }
       return {
         execute: Effect.fn('ReadFileAssetService.execute')(function* (
           input: ReadFileAssetInput,
@@ -65,7 +55,7 @@ export class ReadFileAssetService extends Context.Service<
             maxBytes: optionsCapability.maxBytes,
           });
           if (read.kind === 'failed')
-            return yield* Effect.fail(operationFailure(read.failure));
+            return yield* Effect.fail(fileFailure[read.failure]());
           if (read.kind === 'too-large') return yield* new FileTooLargeError();
           return {
             path: input.path,

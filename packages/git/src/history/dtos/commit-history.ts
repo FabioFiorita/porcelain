@@ -1,3 +1,5 @@
+import type { CommitSummary as SharedCommitSummary } from '@porcelain/kernel/models';
+
 type HeadSnapshot = {
   tipOid: string | null;
   head:
@@ -5,20 +7,8 @@ type HeadSnapshot = {
     | { kind: 'detached' }
     | { kind: 'unborn'; ref: string };
 };
-type CommitRef =
-  | { kind: 'local-branch' | 'remote-branch' | 'tag'; name: string }
-  | { kind: 'head'; name: 'HEAD' };
+export type CommitSummary = SharedCommitSummary<null>;
 
-export type CommitSummary = {
-  oid: string;
-  parentOids: string[];
-  author: { name: string; timestamp: string };
-  subject: string;
-  subjectTruncated: boolean;
-  body: string | null;
-  bodyTruncated: boolean;
-  refs: CommitRef[];
-};
 export type CommitPageRequest = {
   limit?: number;
   after?: readonly string[];

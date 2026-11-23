@@ -6988,6 +6988,23 @@ Effect.runPromise(Effect.provideService(read, WorktreeRead, { assert: () => unde
   })),
   {
     rule: 'duplicate-code',
+    scope: 'server',
+    first: 'apps/server/src/copy.ts',
+    second: 'packages/git/src/copy-again.ts',
+    valid: 'export const label = "Unique";',
+    invalid: duplicateFixtureSource,
+  },
+  {
+    rule: 'duplicate-code',
+    scope: 'server',
+    first: 'apps/server/src/copy.ts',
+    second: 'packages/git/src/copy-again.spec.ts',
+    valid: 'export const label = "Unique";',
+    invalid: duplicateFixtureSource,
+    rejected: false,
+  },
+  {
+    rule: 'duplicate-code',
     first: 'apps/web/src/copy.ts',
     second: 'apps/mobile/src/copy-again.spec.ts',
     valid: 'export const label = "Unique";',

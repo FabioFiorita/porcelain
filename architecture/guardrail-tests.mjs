@@ -18,7 +18,11 @@ import { fileURLToPath } from 'node:url';
 import { parse } from 'yaml';
 import { domainPackages } from './policy.ts';
 import { typeRuleFindings } from './type-rules.ts';
-import { duplicateScope, scanDuplicates } from './duplicate-policy.ts';
+import {
+  duplicateScope,
+  scanDuplicates,
+  serverDuplicateScope,
+} from './duplicate-policy.ts';
 import { selectorAppears } from './feature-selectors.ts';
 import { guardrailCases } from './rule-cases.mjs';
 import { checkStyle } from '../scripts/style.ts';
@@ -155,7 +159,7 @@ function duplicateFixture(entry, source) {
   const root = fixtureRoot('porcelain-clone-rule-');
   try {
     const scope = {
-      ...duplicateScope(),
+      ...(entry.scope === 'server' ? serverDuplicateScope() : duplicateScope()),
       ceiling: 0,
     };
     for (const folder of scope.sources)
@@ -409,6 +413,8 @@ async function styleConfigFixture(entry) {
     }
     const initialized = run('git', ['init', '--quiet']);
     strictEqual(initialized.status, 0, initialized.stderr);
+    for (const source of serverDuplicateScope().sources)
+      mkdirSync(join(root, source), { recursive: true });
     if (entry.tracked) {
       const added = run('git', ['add', entry.tracked]);
       strictEqual(added.status, 0, added.stderr);
@@ -825,12 +831,15 @@ ${runBrowser.run.replace('${{ matrix.shard }}', '"$SHARD"')}`;
         pairs: [],
       });
       deepStrictEqual(duplicateFixture(entry, entry.invalid), {
-        rejected: true,
-        pairs: [
-          [entry.first, entry.second].toSorted((left, right) =>
-            left.localeCompare(right),
-          ),
-        ],
+        rejected: entry.rejected ?? true,
+        pairs:
+          entry.rejected === false
+            ? []
+            : [
+                [entry.first, entry.second].toSorted((left, right) =>
+                  left.localeCompare(right),
+                ),
+              ],
       });
     } else {
       deepStrictEqual(

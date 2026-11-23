@@ -105,7 +105,7 @@ function diagnosticFixture(entry) {
         'lint.mjs',
         `import { registerHooks } from 'node:module';
 registerHooks({ load(url, context, next) {
-  if (url === 'node:child_process') return { format: 'module', shortCircuit: true, source: 'export function spawnSync() { return { stdout: JSON.stringify({ number_of_files: 0, diagnostics: [] }), stderr: String(), status: 0 }; }' };
+  if (url === 'node:child_process') return { format: 'module', shortCircuit: true, source: ${JSON.stringify(`import { writeFileSync } from 'node:fs'; import { join } from 'node:path'; export function spawnSync(command, args) { if (command.endsWith('/jscpd')) writeFileSync(join(args[args.indexOf('--output') + 1], 'jscpd-report.json'), JSON.stringify({ duplicates: [], statistics: { total: { clones: 0, duplicatedLines: 0, percentage: 0 } } })); return { stdout: JSON.stringify({ number_of_files: 0, diagnostics: [] }), stderr: String(), status: 0 }; }`)} };
   return next(url, context);
 } });`,
       );

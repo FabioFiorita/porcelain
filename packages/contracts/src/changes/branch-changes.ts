@@ -1,16 +1,11 @@
 import { Schema } from 'effect';
-import {
-  BRANCH_BASES,
-  COMMIT_FILES,
-  DIFFS_PER_REQUEST,
-  PATHS_PER_CHANGE,
-} from '../shared/limits.ts';
+import { BRANCH_BASES, COMMIT_FILES } from '../shared/limits.ts';
 import { nullableAsUndefined } from '../shared/schema.ts';
 import { branchRefSchema } from '../shared/branch-ref.ts';
 import { fingerprintSchema } from '../shared/fingerprint.ts';
 import { oidSchema } from '../shared/oid.ts';
 import { worktreeIdSchema } from '../shared/schema.ts';
-import { gitDiffContentSchema } from './git-diff.ts';
+import { comparisonPathsSchema, comparisonPatchesSchema } from './git-diff.ts';
 
 const branchBaseSchema = Schema.Struct({ ref: Schema.String, oid: oidSchema });
 
@@ -52,21 +47,10 @@ export const readBranchChangesResponseSchema = Schema.Struct({
 export const readBranchDiffsRequestSchema = Schema.Struct({
   baseOid: oidSchema,
   headOid: oidSchema,
-  paths: Schema.Array(
-    Schema.Array(Schema.String)
-      .check(Schema.isMinLength(1))
-      .check(Schema.isMaxLength(PATHS_PER_CHANGE)),
-  )
-    .check(Schema.isMinLength(1))
-    .check(Schema.isMaxLength(DIFFS_PER_REQUEST)),
+  paths: comparisonPathsSchema,
 });
 export const readBranchDiffsResponseSchema = Schema.Struct({
-  diffs: Schema.Array(
-    Schema.Struct({
-      paths: Schema.Array(Schema.String),
-      content: gitDiffContentSchema,
-    }),
-  ),
+  diffs: comparisonPatchesSchema,
 });
 
 export const listBranchBasesResponseSchema = Schema.Struct({

@@ -1,6 +1,6 @@
 import { Schema } from 'effect';
 import { PATH_LENGTH } from '../shared/limits.ts';
-import { isRelativePath } from '../shared/relative-path.ts';
+import { isRelativePath } from '@porcelain/kernel/relative-path';
 
 const pathSchema = Schema.String.check(
   Schema.makeFilter((path: string) => isRelativePath(path, PATH_LENGTH), {
