@@ -449,17 +449,28 @@ export class Registry<Detail> {
               `could not capture the supervisor's process group: ${String(error)}`,
             );
           }
+          await writeFile(
+            join(folder, 'processes.json'),
+            JSON.stringify(owned),
+            { mode: 0o600, flag: 'wx' },
+          ).catch((error: unknown) => {
+            if (
+              !(
+                error instanceof Error &&
+                'code' in error &&
+                error.code === 'EEXIST'
+              )
+            )
+              report.push(
+                `could not retain recovered process ownership: ${String(error)}`,
+              );
+          });
         }
       }
       result =
         pid === undefined
           ? { complete: true, report: ['no supervisor was spawned'] }
           : await this.finish(pid, folder, owned);
-      if (!result.complete && owned.length > 0)
-        await writeFile(join(folder, 'processes.json'), JSON.stringify(owned), {
-          mode: 0o600,
-          flag: 'wx',
-        }).catch(() => undefined);
     } catch (error) {
       result = {
         complete: false,

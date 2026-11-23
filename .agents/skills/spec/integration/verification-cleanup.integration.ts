@@ -449,6 +449,12 @@ if [ "$1" = -A ] && [ ! -f "${bin}/group-refused" ]; then
   echo 'fixture refused the first process group scan' >&2
   exit 2
 fi
+if [ "$1" = -p ] && [ -f "${bin}/group-refused" ] && [ ! -f "${bin}/finish-started" ]; then
+  touch "${bin}/finish-started"
+  for ledger in "${instances}"/*/processes.json; do
+    if [ -f "$ledger" ]; then cp "$ledger" "${bin}/ownership-before-finish"; fi
+  done
+fi
 exec /bin/ps "$@"
 `,
       { mode: 0o700 },
@@ -481,8 +487,13 @@ exec /bin/ps "$@"
         ? 'supervisor did not become ready'
         : 'fixture refused supervisor capture',
     );
-    if (mode === 'capture')
-      expect(existsSync(join(bin, 'group-refused'))).toBe(true);
+    if (mode === 'capture') {
+      const pid = Number(await readFile(join(bin, 'refused'), 'utf8'));
+      const ownership: unknown = JSON.parse(
+        await readFile(join(bin, 'ownership-before-finish'), 'utf8'),
+      );
+      expect(ownership).toEqual([expect.objectContaining({ pid })]);
+    }
     expect(running(instances)).toStrictEqual([]);
     expect(await instanceIds()).toStrictEqual([]);
   },
