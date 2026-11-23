@@ -1,6 +1,6 @@
-import { join, relative } from 'node:path';
-import type { SqlClient } from 'effect/sql';
-import { API, TypeFlags, type Project, type Type } from 'typescript/sync';
+import { join } from 'node:path';
+import type { Statement } from 'effect/sql';
+import { TypeFlags, type Project, type Type } from 'typescript/sync';
 import type {
   Expression,
   Node,
@@ -16,17 +16,11 @@ import {
   isTaggedTemplateExpression,
 } from 'typescript/ast/is';
 
-function* descendants(node: Node): Generator<Node> {
-  const children: Node[] = [];
-  node.forEachChild((child) => {
-    children.push(child);
-    return undefined;
-  });
-  for (const child of children) {
-    yield child;
-    yield* descendants(child);
-  }
-}
+import {
+  descendants,
+  readTypeScriptProjects,
+  sourceLocation,
+} from '@porcelain/kernel/test-kit/typescript-project';
 
 function isSqlConstructor(type: Type | undefined) {
   return (
@@ -61,7 +55,7 @@ function rowShape(project: Project, node: Expression | undefined) {
 
 function interpolation(
   project: Project,
-  sql: SqlClient.SqlClient,
+  sql: Statement.Constructor,
   expression: Expression,
   checked: Set<Node>,
 ): unknown {
@@ -115,7 +109,7 @@ function interpolation(
 
 function compileQuery(
   project: Project,
-  sql: SqlClient.SqlClient,
+  sql: Statement.Constructor,
   { template }: TaggedTemplateExpression,
   checked: Set<Node>,
 ) {
@@ -133,15 +127,9 @@ function compileQuery(
   return sql(Object.assign(parts, { raw: parts }), ...args).compile()[0];
 }
 
-export function repositoryQueries(root: string, sql: SqlClient.SqlClient) {
-  const api = new API({ cwd: root });
-  try {
-    const config = join(root, 'packages/storage/tsconfig.json');
-    const project = api
-      .createSnapshot({ openProjects: [config] })
-      .getConfiguredProject(config);
-    if (!project) throw new Error(`TypeScript did not open ${config}`);
-
+export function repositoryQueries(root: string, sql: Statement.Constructor) {
+  const config = join(root, 'packages/storage/tsconfig.json');
+  return readTypeScriptProjects(root, [config], (project) => {
     const directory = join(root, 'packages/storage/src/repositories') + '/';
     const queries: { location: string; text: string }[] = [];
     for (const name of project.program.getSourceFileNames()) {
@@ -150,17 +138,13 @@ export function repositoryQueries(root: string, sql: SqlClient.SqlClient) {
       if (!file) throw new Error(`TypeScript did not load ${name}`);
       const checked = new Set<Node>();
       for (const node of descendants(file)) {
-        const { line } = file.getLineAndCharacterOfPosition(
-          node.getStart(file),
-        );
-        const location = `${relative(root, name)}:${line + 1}`;
         try {
           if (
             isTaggedTemplateExpression(node) &&
             isSqlConstructor(project.checker.getTypeAtLocation(node.tag))
           ) {
             queries.push({
-              location,
+              location: sourceLocation(root, node),
               text: compileQuery(project, sql, node, checked).trim(),
             });
           }
@@ -183,12 +167,12 @@ export function repositoryQueries(root: string, sql: SqlClient.SqlClient) {
           )
             throw new Error('Use a SQL template so SQLite can check the query');
         } catch (error) {
-          throw new Error(`${location}: ${String(error)}`, { cause: error });
+          throw new Error(`${sourceLocation(root, node)}: ${String(error)}`, {
+            cause: error,
+          });
         }
       }
     }
     return queries;
-  } finally {
-    api.close();
-  }
+  });
 }

@@ -6214,6 +6214,41 @@ const shippedNativeMigrations = `'001_adopt': Effect.void, '003_retain': Effect.
 
 export const guardrailCases = [
   {
+    rule: 'repository-sql',
+    valid: 'sql`SELECT id FROM items WHERE ${sql.in("id", [1])}`;',
+    query: 'SELECT id FROM items WHERE "id" IN (?)',
+    cases: [
+      {
+        name: 'rejects a fragment in a variable',
+        source: 'sql`SELECT ${fragment}`;',
+        error:
+          /fixture\.ts:4:.*Put SQL helpers directly inside the query template/,
+      },
+      {
+        name: 'rejects an identifier in a variable',
+        source: 'sql`SELECT ${identifier}`;',
+        error:
+          /fixture\.ts:4:.*Put SQL helpers directly inside the query template/,
+      },
+      {
+        name: 'rejects an unsupported inline helper',
+        source: 'sql`SELECT ${sql.literal("id")}`;',
+        error: /fixture\.ts:4:.*Unsupported SQL interpolation literal/,
+      },
+      {
+        name: 'rejects a raw SQL method',
+        source: 'sql.unsafe("SELECT id FROM items");',
+        error: /fixture\.ts:4:.*Use a SQL template and inline SQL helpers/,
+      },
+      {
+        name: 'rejects a direct SQL constructor call',
+        source: 'sql("id");',
+        error:
+          /fixture\.ts:4:.*Use a SQL template so SQLite can check the query/,
+      },
+    ],
+  },
+  {
     rule: 'native-migration-history',
     shipped: nativeMigrationRegistry(shippedNativeMigrations),
     cases: [

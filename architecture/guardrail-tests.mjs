@@ -21,6 +21,8 @@ import { tmpdir } from 'node:os';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse } from 'yaml';
+import { Effect } from 'effect';
+import { Statement } from 'effect/sql';
 import { domainPackages } from './policy.ts';
 import { typeRuleFindings } from './type-rules.ts';
 import {
@@ -37,6 +39,7 @@ import knip from './knip.ts';
 import config from '../vite.config.ts';
 import { reactCompilerProblems } from '../scripts/react-compiler.ts';
 import { nativeMigrationHistoryProblems } from '../packages/storage/scripts/native-migration-history.ts';
+import { repositoryQueries } from '../packages/storage/spec/kit/repository-queries.ts';
 
 function fixtureRoot(prefix) {
   return realpathSync(mkdtempSync(join(tmpdir(), prefix)));
@@ -109,6 +112,43 @@ function writeFiles(root, files) {
     const path = join(root, name);
     mkdirSync(dirname(path), { recursive: true });
     writeFileSync(path, source);
+  }
+}
+
+function repositoryQueryFixture(source) {
+  const root = fixtureRoot('porcelain-repository-sql-');
+  try {
+    symlinkSync(
+      fileURLToPath(new URL('../node_modules', import.meta.url)),
+      join(root, 'node_modules'),
+      'dir',
+    );
+    writeFiles(root, {
+      'package.json': '{"type":"module"}',
+      'packages/storage/tsconfig.json': JSON.stringify({
+        compilerOptions: {
+          strict: true,
+          module: 'nodenext',
+          skipLibCheck: true,
+        },
+        include: ['src/repositories/**/*.ts'],
+      }),
+      'packages/storage/src/repositories/fixture.ts': [
+        'import type { SqlClient, Statement } from "effect/sql";',
+        'declare const sql: SqlClient.SqlClient;',
+        'declare const fragment: Statement.Fragment, identifier: Statement.Identifier;',
+        source,
+      ].join('\n'),
+    });
+    const sql = Statement.make(
+      Effect.die('The SQL fixture only compiles statements'),
+      Statement.makeCompilerSqlite(),
+      [],
+      undefined,
+    );
+    return repositoryQueries(root, sql).map(({ text }) => text);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
   }
 }
 
@@ -536,7 +576,17 @@ export async function runGuardrailCases(named = []) {
     'Name an existing guardrail fixture rule.',
   );
   for (const entry of cases) {
-    if (entry.rule === 'native-migration-history') {
+    if (entry.rule === 'repository-sql') {
+      deepStrictEqual(repositoryQueryFixture(entry.valid), [entry.query]);
+      for (const fixture of entry.cases) {
+        throws(
+          () => repositoryQueryFixture(fixture.source),
+          fixture.error,
+          fixture.name,
+        );
+        process.stdout.write(`PASS repository-sql: ${fixture.name}\n`);
+      }
+    } else if (entry.rule === 'native-migration-history') {
       for (const fixture of entry.cases) {
         deepStrictEqual(
           nativeMigrationHistoryProblems(entry.shipped, fixture.current),

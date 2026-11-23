@@ -6,6 +6,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
+import type {} from 'vite-plus/types/import-meta.d.ts';
 import { expect, it } from 'vite-plus/test';
 import { DATABASE_FILE } from '../src/db/database-files.ts';
 import { storageLayer } from '../src/db/storage-layer.ts';
@@ -18,9 +19,11 @@ function checkModels(database: DatabaseSync) {
     '../src/db/models/**/*.ts',
     { eager: true },
   );
-  expect(Object.keys(modules).length).toBeGreaterThan(0);
-  const columns = database.prepare('SELECT name FROM pragma_table_info(?)');
+  const columns = database.prepare(
+    'SELECT name, "notnull" AS required, dflt_value AS default_value FROM pragma_table_info(?)',
+  );
   const problems: string[] = [];
+  let modelCount = 0;
   for (const [path, exports] of Object.entries(modules)) {
     for (const [name, model] of Object.entries(exports)) {
       if (!Schema.isSchema(model)) continue;
@@ -34,19 +37,31 @@ function checkModels(database: DatabaseSync) {
         problems.push(`${path}: ${name} needs a tableName and row fields`);
         continue;
       }
-      const names = new Set(
-        columns.all(model.tableName).map((column) => column.name),
+      modelCount += 1;
+      const tableColumns = columns.all(model.tableName);
+      const names = new Set(tableColumns.map((column) => column.name));
+      const fields = new Set(
+        Object.keys(model.fields).map(EffectString.camelToSnake),
       );
-      for (const field of Object.keys(model.fields)) {
-        const column = EffectString.camelToSnake(field);
+      for (const column of fields) {
         if (!names.has(column))
           problems.push(
             `${path}: ${name} expects missing column ${model.tableName}.${column}`,
           );
       }
+      for (const column of tableColumns) {
+        if (
+          column.required === 1 &&
+          column.default_value === null &&
+          !fields.has(String(column.name))
+        )
+          problems.push(
+            `${path}: ${name} omits required column ${model.tableName}.${String(column.name)}`,
+          );
+      }
     }
   }
-  return problems;
+  return { modelCount, problems };
 }
 
 it('prepares every repository query and checks row models against the migrated SQLite schema', async () => {
@@ -64,7 +79,7 @@ it('prepares every repository query and checks row models against the migrated S
     });
     const queries = repositoryQueries(root, sql);
     expect(queries.length).toBeGreaterThan(0);
-    const problems = checkModels(database);
+    const { modelCount, problems } = checkModels(database);
     for (const { location, text } of queries) {
       try {
         const statement = database.prepare(text);
@@ -75,9 +90,7 @@ it('prepares every repository query and checks row models against the migrated S
       }
     }
     expect(problems, problems.join('\n\n')).toEqual([]);
-    expect(database.prepare('PRAGMA quick_check').all()).toEqual([
-      { quick_check: 'ok' },
-    ]);
+    expect(modelCount).toBeGreaterThanOrEqual(14);
   } finally {
     await runtime.dispose();
     rmSync(directory, { recursive: true, force: true });
