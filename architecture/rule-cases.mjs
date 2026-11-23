@@ -55,30 +55,6 @@ export const IdSource = Context.Service<'@porcelain/kernel/IdSource', IdSource>(
 const effectRuleCases = [
   ...['effect', 'live', 'scoped'].flatMap((method) => [
     {
-      rule: 'notification-owner',
-      path: 'apps/web/src/features/files/views/file-editor.tsx',
-      validPath: 'apps/web/src/shared/views/notify.tsx',
-      valid: "import { toast } from '@/components/ui/toast';",
-      invalid: "import { toast as rawToast } from '@/components/ui/toast';",
-      errors: 1,
-    },
-    {
-      rule: 'notification-owner',
-      path: 'apps/web/src/components/ui/extra-notices.tsx',
-      valid: "import { notify } from '@/shared/views/notify';",
-      invalid: "export * from './toast.tsx';",
-      errors: 1,
-    },
-    {
-      rule: 'notification-owner',
-      path: 'apps/mobile/src/features/projects/views/worktree-actions-sheet.tsx',
-      valid:
-        "export const view = <Text accessibilityRole='alert'>Could not copy this path.</Text>;",
-      invalid:
-        "import { ToastAndroid as RawToast } from 'react-native'; export const view = <Text>{'Copied brief'}</Text>;",
-      errors: 2,
-    },
-    {
       rule: 'spec-asserts',
       path: 'apps/server/src/runtime/read.spec.ts',
       valid: `import { it, expect } from '@effect/vitest'; import { read } from './read.ts';
@@ -961,6 +937,30 @@ export default [
     invalid:
       "import { Spinner as Indicator } from '../../../components/ui/spinner'; import { Item as Row } from '../../../components/ui/item'; export const control = <Row trailing={<Indicator inline />} />;",
     errors: 1,
+  },
+  {
+    rule: 'notification-owner',
+    path: 'apps/web/src/features/files/views/file-editor.tsx',
+    validPath: 'apps/web/src/shared/views/notify.tsx',
+    valid: "import { toast } from '@/components/ui/toast';",
+    invalid: "import { toast as rawToast } from '@/components/ui/toast';",
+    errors: 1,
+  },
+  {
+    rule: 'notification-owner',
+    path: 'apps/web/src/components/ui/extra-notices.tsx',
+    valid: "import { notify } from '@/shared/views/notify';",
+    invalid: "export * from './toast.tsx';",
+    errors: 1,
+  },
+  {
+    rule: 'notification-owner',
+    path: 'apps/mobile/src/features/projects/views/worktree-actions-sheet.tsx',
+    valid:
+      "export const view = <Text accessibilityRole='alert'>Could not copy this path.</Text>;",
+    invalid:
+      "import { ToastAndroid as RawToast } from 'react-native'; export const view = <Text>{'Copied brief'}</Text>;",
+    errors: 2,
   },
   ...[
     ['"Save"', 'Save', 'Delete'],
