@@ -177,6 +177,8 @@ import { spawn } from 'node:child_process';
 import { Registry } from '../../verify-core/registry.ts';
 import { captureProcess, endProcess, sameProcess } from '../../verify-core/processes.ts';
 import { once } from 'node:events';
+import { symlinkSync } from 'node:fs';
+import { join } from 'node:path';
 const secret = ${JSON.stringify(secret)};
 const registry = new Registry({
   name: 'server',
@@ -189,9 +191,18 @@ const registry = new Registry({
 });
 const command = process.argv[2];
 if (command === 'serve') {
+  if (process.env.PORCELAIN_TEST_HOLD_SUPERVISOR === '1') {
+    setInterval(() => {}, 1000);
+    await new Promise(() => {});
+  }
   await registry.serve(process.argv[3], async (life) => {
     const keepAlive = setInterval(() => {}, 1000);
     life.onStop(() => clearInterval(keepAlive));
+    if (life.options.blockFailureNote) {
+      const evidence = life.evidence().folder;
+      symlinkSync(join(evidence, 'missing', 'failure.txt'), join(evidence, 'start-failed.txt'));
+      await new Promise(() => {});
+    }
     let childPid = 0;
     if (life.options.failure) {
       life.secret(secret);
@@ -205,7 +216,15 @@ if (command === 'serve') {
     return { childPid };
   });
 } else if (command === 'start') {
-  const instance = await registry.launch({ failure: process.argv[3] === 'failure' }, 5000);
+  const mode = process.argv[3];
+  if (mode === 'capture') {
+    process.env.PATH = ${JSON.stringify(join(copy, 'ps-shim'))} + ':' + process.env.PATH;
+    process.env.PORCELAIN_TEST_HOLD_SUPERVISOR = '1';
+  }
+  const instance = await registry.launch({
+    failure: mode === 'failure',
+    blockFailureNote: mode === 'note',
+  }, 5000);
   process.stdout.write(JSON.stringify({ id: instance.id, pid: instance.pid,
     folder: instance.folder, evidence: instance.evidence, childPid: instance.detail.childPid }) + '\n');
 } else if (command === 'stop') {
@@ -257,6 +276,7 @@ if (command === 'serve') {
     }
   });
   return {
+    root: copy,
     secret,
     command: (...args: string[]) => cli(copy, fixture, ...args),
     start: async (failure = false) => {

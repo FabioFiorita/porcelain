@@ -48,7 +48,8 @@ async function doctor(requested: string | undefined): Promise<string> {
     ...optionalDrivers(),
   ];
   if (missing.length > 0) process.exitCode = 1;
-  if (missing.length > 0) return `${lines.join('\n')}\n`;
+  if (missing.length > 0)
+    return `${lines.join('\n')}\n${registry.doctorInstances()}\n`;
   if (requested !== undefined) {
     const status = await registry.status(requested);
     const instance = registry.chosen(requested, { includeStopped: true });
@@ -70,15 +71,7 @@ async function doctor(requested: string | undefined): Promise<string> {
       .evidence(instance)
       .json('doctor', { status, healthy, missing }, recorder);
   } else {
-    lines.push(
-      `live instances: ${
-        registry
-          .list()
-          .filter((entry) => entry.alive)
-          .map((entry) => entry.instance.id)
-          .join(', ') || 'none'
-      }`,
-    );
+    lines.push(registry.doctorInstances());
   }
   return `${lines.join('\n')}\n`;
 }

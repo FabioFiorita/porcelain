@@ -40,10 +40,10 @@ Save browser actions and resulting URL/title, snapshots, screenshots, console an
 Choose evidence for the behavior changed: drive the affected entry and return path, capture its result, and add widths, themes, long text or many items when those dimensions can change that behavior. Use the full sweep for shared shell, responsive layout or theme changes and broad visual audits; record why the selected states are sufficient. QA reuses the same evidence scope:
 
 ```sh
-$C sweep /$projectId/$worktreeId /settings/general --instance <id>
+$C sweep "/$projectId/$worktreeId?entry=review" /settings/general --instance <id>
 ```
 
-- Pass routes as paths (`/settings/general`) or feature maps (`reviews.walkthrough-page`). A map's `$projectId`, `$worktreeId` and `$environmentId` come from the instance; pass a concrete path for anything else. Pass the route the app settles on: a capture that lands elsewhere is a problem. Start with `--desktop` for `shell: desktop` maps such as Settings.
+- Pass routes as paths (`/settings/general`) or feature maps. For `reviews.walkthrough-page`, use the explicit worktree route with `entry=review` above. Its map names the landing page `/`, which redirects. A map's `$projectId`, `$worktreeId` and `$environmentId` come from the instance; pass a concrete path for anything else. Pass the route the app settles on: a capture that lands elsewhere is a problem. Start with `--desktop` for `shell: desktop` maps such as Settings.
 - `--board <png>` after a route compares it with that board: its first 1440 light capture (as-is, or the first seeded state when as-is has no review) beside the board, and the dark capture beside a `-D` or `-dark` sibling when one exists.
 - Each route is captured at 1440, 1080 and 414, light and dark, in three states: as-is, then after a long-text fixture (maximum-length titles, prose, file names, computer, project and device names), then after a many-items fixture (changed files and devices). The seeds stack: many-items diffs against the fixture base, so Changes also lists the sample's and long-text's files. The seeds apply once per instance and stay: committed fixture work, devices, and the computer and project names. Each sweep also pairs one more `Sweep browser` device.
 - As-is and a board beside it need a freshly started instance. On an instance an earlier sweep seeded, the first state is labelled `as-left` (the last seeded fixture, not the fixture) in the folders, the index and the JSON.

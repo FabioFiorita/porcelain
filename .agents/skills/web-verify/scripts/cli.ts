@@ -57,14 +57,11 @@ async function doctor(): Promise<string> {
     'Optional drivers (not required for startup): harness browser, project Playwright MCP, pnpm exec playwright cli',
     ...optionalDrivers(),
   ];
-  const live = registry
-    .list()
-    .filter((entry) => entry.alive)
-    .map(
-      ({ instance }) =>
-        `${instance.id} ${instance.detail.web}${instance.detail.desktop ? ' (desktop)' : ''}`,
-    );
-  return `${checks.join('\n')}\nlive instances: ${live.join(', ') || 'none'}\n`;
+  const live = registry.doctorInstances(
+    ({ id, detail }) =>
+      `${id} ${detail.web}${detail.desktop ? ' (desktop)' : ''}`,
+  );
+  return `${checks.join('\n')}\n${live}\n`;
 }
 function remoteOf(instance: WebInstance) {
   const { remote } = instance.detail;
