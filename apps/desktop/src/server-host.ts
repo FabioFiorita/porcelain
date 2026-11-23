@@ -66,6 +66,9 @@ export const startLocalServer = Effect.fn('startLocalServer')(function* (
   const outputEnd = randomUUID();
   const onMessage = (message: unknown) => {
     const parsed = Schema.decodeUnknownResult(serverMessage)(message);
+    process.stderr.write(
+      `REHEARSAL server message decoded=${Result.isSuccess(parsed)}\n`,
+    );
     if (!Result.isSuccess(parsed)) return;
     const answer = parsed.success;
     if (answer.kind === 'ready')

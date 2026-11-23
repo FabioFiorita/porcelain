@@ -161,6 +161,7 @@ function failure(error: unknown) {
 }
 
 const openWindow = Effect.fn('openWindow')(function* () {
+  process.stderr.write('REHEARSAL enter openWindow\n');
   const local = server;
   if (local === undefined || quitting) return;
   if (window !== undefined) {
@@ -169,14 +170,17 @@ const openWindow = Effect.fn('openWindow')(function* () {
     window.focus();
     return;
   }
+  const previousWindow = yield* savedWindow.read();
+  process.stderr.write('REHEARSAL read window state\n');
   const restored = restoreWindowBounds(
-    yield* savedWindow.read(),
+    previousWindow,
     screen.getAllDisplays().map((display) => display.workArea),
     {
       width: settings.limits.desktop.minWidth,
       height: settings.limits.desktop.minHeight,
     },
   );
+  process.stderr.write('REHEARSAL creating BrowserWindow\n');
   const view = new BrowserWindow({
     width: settings.limits.desktop.windowWidth,
     height: settings.limits.desktop.windowHeight,
@@ -201,6 +205,7 @@ const openWindow = Effect.fn('openWindow')(function* () {
       webSecurity: true,
     },
   });
+  process.stderr.write('REHEARSAL BrowserWindow created\n');
   window = view;
   actionsReady = false;
   view.webContents.on('did-fail-load', (_event, code, reason, url, main) => {
@@ -322,7 +327,9 @@ const openWindow = Effect.fn('openWindow')(function* () {
   view.webContents.on('will-prevent-unload', (event) => {
     if (quitting) event.preventDefault();
   });
+  process.stderr.write('REHEARSAL calling loadURL\n');
   yield* Effect.tryPromise(() => view.loadURL(desktopAddress));
+  process.stderr.write('REHEARSAL loadURL resolved\n');
 });
 
 app.on('window-all-closed', () => {
@@ -371,6 +378,7 @@ const dispatch = Effect.fn('dispatch')(
 
 const start = Effect.fn('start')(function* () {
   yield* Effect.tryPromise(() => app.whenReady());
+  process.stderr.write('REHEARSAL app.whenReady completed\n');
   ipcMain.handle('porcelain:pick-project-folder', (event) =>
     runtime.runPromise(
       Effect.gen(function* () {
@@ -473,12 +481,15 @@ const start = Effect.fn('start')(function* () {
       { role: 'windowMenu' },
     ]),
   );
+  process.stderr.write('REHEARSAL waiting on server startup\n');
   server = yield* startLocalServer(settings);
+  process.stderr.write('REHEARSAL server startup completed\n');
   yield* server.watch(() => {
     if (!quitting)
       failure(new Error('The Porcelain server stopped unexpectedly'));
   });
   stopServing = serveDesktop(server, settings.development);
+  process.stderr.write('REHEARSAL registered desktop protocol\n');
   session.defaultSession.webRequest.onBeforeSendHeaders(
     {
       urls: [
