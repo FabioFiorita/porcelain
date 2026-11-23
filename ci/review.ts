@@ -34,6 +34,8 @@ import {
 import { decisionModel, dollars, reviewModel } from './openai.ts';
 
 const reviewDeadlineMs = 15 * 60 * 1000;
+const mergeRetryDelaysMs = [1000, 2000, 4000, 8000];
+const mergeBlockedMessage = 'the base branch policy prohibits the merge';
 
 const PullRequestView = Schema.Struct({
   number: Schema.Int,
@@ -250,8 +252,10 @@ function merge(repository: string, view: PullRequestView): string | undefined {
   } catch (error) {
     const stderr =
       error instanceof Error && 'stderr' in error ? String(error.stderr) : '';
+    const lines = stderr.trim().split('\n');
     return (
-      stderr.trim().split('\n').at(-1) ||
+      lines.find((line) => line.endsWith(`${mergeBlockedMessage}.`)) ||
+      lines.at(-1) ||
       (error instanceof Error ? error.message : String(error))
     );
   }
@@ -365,9 +369,9 @@ const fail = (reason: string) => {
   }
 };
 process.once('exit', (code) => {
-  if (code === 0) return;
+  if (code === 0 || summarized) return;
   fail(`exit code ${code}`);
-  if (!summarized) writeSummary(number, `stopped with exit code ${code}`);
+  writeSummary(number, `stopped with exit code ${code}`);
 });
 report('pending', 'Checking landing rules for this commit');
 
@@ -526,19 +530,42 @@ try {
     report('failure', 'The pull request changed before this verdict');
   } else {
     report(settled.status, settled.description);
-    const mergeError = settled.merge ? merge(repository, view) : undefined;
-    if (mergeError) report('failure', `Merging failed: ${mergeError}`);
-    outcome = mergeError
-      ? `merge failed: ${mergeError}`
-      : settled.merge
-        ? 'merged'
-        : settled.description;
+    outcome = settled.description;
+    if (settled.merge) {
+      let mergeError = merge(repository, view);
+      for (const delay of mergeRetryDelaysMs) {
+        if (!mergeError?.endsWith(`${mergeBlockedMessage}.`)) break;
+        console.log(`GitHub blocked the merge. Checking again in ${delay} ms.`);
+        await sleep(delay);
+        const candidate = readView(repository, number);
+        if (
+          !unchanged(candidate) ||
+          !judge(
+            candidate.body,
+            new Set(candidate.labels.map((label) => label.name)),
+          ).step.merge
+        ) {
+          mergeError = 'The pull request changed before it could merge';
+          break;
+        }
+        mergeError = merge(repository, view);
+      }
+      if (mergeError?.endsWith(`${mergeBlockedMessage}.`)) {
+        outcome = `merge still blocked after retries: ${mergeError}`;
+        process.exitCode = 1;
+      } else if (mergeError) {
+        outcome = `merge failed: ${mergeError}`;
+        report('failure', `Merging failed: ${mergeError}`);
+      } else {
+        outcome = 'merged';
+      }
+    }
   }
 } catch (error) {
   outcome = error instanceof Error ? error.message : String(error);
   fail(outcome);
   process.exitCode = 1;
 } finally {
-  summarized = true;
   writeSummary(number, outcome);
+  summarized = true;
 }
