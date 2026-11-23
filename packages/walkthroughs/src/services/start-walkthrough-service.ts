@@ -20,7 +20,7 @@ export class StartWalkthroughService extends Context.Service<
       pullRequestNumber: number | undefined;
       writer: WalkthroughRun['writer'] | undefined;
     }) => Effect.Effect<
-      WalkthroughRun,
+      () => Effect.Effect<WalkthroughRun, WalkthroughFailedError>,
       GitIoFailure | WalkthroughFailedError,
       WorktreeRead
     >;
@@ -41,39 +41,40 @@ export class StartWalkthroughService extends Context.Service<
             const createdAt = yield* DateTime.now.pipe(
               Effect.map(DateTime.formatIso),
             );
-            return yield* store.accept(
-              {
-                worktreePath: input.worktreePath,
-                files: snapshot.files,
-                patch: snapshot.patch,
-                omittedFiles: snapshot.omittedFiles,
-                run: {
-                  id: ids.next(),
-                  projectId: input.projectId,
-                  worktreeId: input.worktreeId,
-                  pullRequestNumber: input.pullRequestNumber,
-                  pullRequestRepository: snapshot.githubRepository,
-                  baseOid: snapshot.baseOid,
-                  headOid: snapshot.headOid,
-                  contentTreeOid: snapshot.contentTreeOid,
-                  baseRef: snapshot.baseRef,
-                  includesUncommitted: snapshot.includesUncommitted,
-                  branch: snapshot.branch,
-                  writer,
-                  sessionId: undefined,
-                  createdAt,
-                  progress: [
-                    {
-                      stage: 'queued',
-                      at: createdAt,
-                      message: `Captured ${snapshot.files.length} ${snapshot.files.length === 1 ? 'file' : 'files'} for ${snapshot.headOid.slice(0, 7)}${snapshot.includesUncommitted ? ' and uncommitted work' : ''}. Waiting for the writer.`,
-                    },
-                  ],
-                  state: { status: 'queued' },
+            return () =>
+              store.accept(
+                {
+                  worktreePath: input.worktreePath,
+                  files: snapshot.files,
+                  patch: snapshot.patch,
+                  omittedFiles: snapshot.omittedFiles,
+                  run: {
+                    id: ids.next(),
+                    projectId: input.projectId,
+                    worktreeId: input.worktreeId,
+                    pullRequestNumber: input.pullRequestNumber,
+                    pullRequestRepository: snapshot.githubRepository,
+                    baseOid: snapshot.baseOid,
+                    headOid: snapshot.headOid,
+                    contentTreeOid: snapshot.contentTreeOid,
+                    baseRef: snapshot.baseRef,
+                    includesUncommitted: snapshot.includesUncommitted,
+                    branch: snapshot.branch,
+                    writer,
+                    sessionId: undefined,
+                    createdAt,
+                    progress: [
+                      {
+                        stage: 'queued',
+                        at: createdAt,
+                        message: `Captured ${snapshot.files.length} ${snapshot.files.length === 1 ? 'file' : 'files'} for ${snapshot.headOid.slice(0, 7)}${snapshot.includesUncommitted ? ' and uncommitted work' : ''}. Waiting for the writer.`,
+                      },
+                    ],
+                    state: { status: 'queued' },
+                  },
                 },
-              },
-              input.automaticKey,
-            );
+                input.automaticKey,
+              );
           },
         ),
       };
