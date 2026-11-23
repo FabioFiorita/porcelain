@@ -1,4 +1,4 @@
-import { expect, test } from './fixtures.tsx';
+import { expect, readClipboard, test } from './fixtures.tsx';
 
 test("copying a commit's id and message from its History row and its document", async ({
   workspace,
@@ -6,10 +6,12 @@ test("copying a commit's id and message from its History row and its document", 
   server,
 }) => {
   const subject = 'Explain the change to review';
-  await repo.commit(subject);
+  const message = `${subject}\n\nThe change keeps the project list readable.`;
+  await repo.commit(message);
   await expect
     .poll(async () => (await server.commits()).commits[0]?.subject)
     .toBe(subject);
+  const oid = (await server.commits()).commits[0]?.oid;
   const copied = (label: string) =>
     workspace.getByText(`Copied ${label}`, { exact: true }).last();
 
@@ -22,6 +24,7 @@ test("copying a commit's id and message from its History row and its document", 
   await workspace
     .getByRole('menuitem', { name: 'Copy commit id', exact: true })
     .click();
+  await expect.poll(readClipboard).toBe(oid);
   await expect.element(copied('commit id')).toBeVisible();
   await expect
     .element(
@@ -35,6 +38,7 @@ test("copying a commit's id and message from its History row and its document", 
   await workspace
     .getByRole('menuitem', { name: 'Copy message', exact: true })
     .click();
+  await expect.poll(readClipboard).toBe(message);
   await expect.element(copied('commit message')).toBeVisible();
 
   await row.click();
@@ -42,11 +46,13 @@ test("copying a commit's id and message from its History row and its document", 
     .element(workspace.getByRole('heading', { name: subject, exact: true }))
     .toBeVisible();
   await workspace
-    .getByRole('button', { name: 'Copy message', exact: true })
-    .click();
-  await expect.element(copied('commit message')).toBeVisible();
-  await workspace
     .getByRole('button', { name: 'Copy hash', exact: true })
     .click();
+  await expect.poll(readClipboard).toBe(oid);
   await expect.element(copied('commit id')).toBeVisible();
+  await workspace
+    .getByRole('button', { name: 'Copy message', exact: true })
+    .click();
+  await expect.poll(readClipboard).toBe(message);
+  await expect.element(copied('commit message')).toBeVisible();
 });

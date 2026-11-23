@@ -189,6 +189,15 @@ const porcelainReplaceEditorContent: BrowserCommand<[string, string], void> = (
 const porcelainCollectGarbage: BrowserCommand<[], void> = (context) =>
   context.page.requestGC();
 
+const porcelainAllowClipboardRead: BrowserCommand<[], void> = async (
+  context,
+) => {
+  const frame = await context.frame();
+  await context.context.grantPermissions(['clipboard-read'], {
+    origin: new URL(frame.url()).origin,
+  });
+};
+
 const porcelainWalkthroughConversations: BrowserCommand<
   [
     | 'pr'
@@ -211,6 +220,7 @@ const porcelainWalkthroughConversations: BrowserCommand<
 export const hostCommands = {
   porcelainWalkthroughConversations,
   porcelainCollectGarbage,
+  porcelainAllowClipboardRead,
   porcelainReplaceEditorContent,
   porcelainStart,
   porcelainStop,

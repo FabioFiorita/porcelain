@@ -29,6 +29,7 @@ declare module 'vitest/browser' {
         | 'two-branches',
     ) => Promise<string>;
     porcelainCollectGarbage: () => Promise<void>;
+    porcelainAllowClipboardRead: () => Promise<void>;
     porcelainReplaceEditorContent: (
       selector: string,
       text: string,
@@ -53,6 +54,11 @@ declare module 'vitest/browser' {
 }
 
 export const host = commands;
+
+export async function readClipboard() {
+  await host.porcelainAllowClipboardRead();
+  return navigator.clipboard.readText();
+}
 
 export function replaceEditorContent(
   editor: { selector: string },
