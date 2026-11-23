@@ -1,4 +1,5 @@
 import type OpenAI from 'openai';
+import type { ResponseUsage } from 'openai/resources/responses/responses';
 import { Schema } from 'effect';
 
 export const summaryModel = 'gpt-6.1-terra';
@@ -23,6 +24,19 @@ export function dollars(
   );
 }
 
+export function summaryDollars(usage: ResponseUsage): number {
+  const cached = usage.input_tokens_details.cached_tokens;
+  const written = usage.input_tokens_details.cache_write_tokens ?? 0;
+  const uncached = usage.input_tokens - cached - written;
+  const longContext = usage.input_tokens > 272_000;
+  const input = uncached + 0.05 * cached + 1.25 * written;
+  return (
+    (input * (longContext ? 2 : 1) +
+      usage.output_tokens * (longContext ? 7.5 : 5)) /
+    1_000_000
+  );
+}
+
 export function strictJsonSchema<A>(
   schema: Schema.Codec<A, unknown>,
 ): Record<string, unknown> {
@@ -37,6 +51,7 @@ export async function structuredAnswer<A>(
     schema: Schema.Codec<A, unknown>;
     instructions: string;
     input: string;
+    onUsage?: (usage: ResponseUsage | undefined) => void;
   },
 ): Promise<A> {
   const response = await client.responses.create({
@@ -52,6 +67,7 @@ export async function structuredAnswer<A>(
       },
     },
   });
+  request.onUsage?.(response.usage);
   return Schema.decodeUnknownSync(Schema.fromJsonString(request.schema))(
     response.output_text,
   );
