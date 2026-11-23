@@ -283,16 +283,23 @@ export function DiffPagePart({
   part,
   state,
   onOpen,
+  openLabel = 'Open file',
 }: {
   file: DiffPageFile;
   part: DiffPageRow['kind'];
   state: DiffPageState;
   onOpen: () => void;
+  openLabel?: 'Open file' | 'Open diff';
 }) {
   return part === 'heading' ? (
     <DiffPageHeading file={file} state={state} onOpen={onOpen} />
   ) : (
-    <DiffPageContent path={file.path} state={state} onOpen={onOpen} />
+    <DiffPageContent
+      path={file.path}
+      state={state}
+      onOpen={onOpen}
+      openLabel={openLabel}
+    />
   );
 }
 
@@ -333,10 +340,12 @@ function DiffPageContent({
   path,
   state,
   onOpen,
+  openLabel,
 }: {
   path: string;
   state: DiffPageState;
   onOpen: () => void;
+  openLabel: 'Open file' | 'Open diff';
 }) {
   const { preferences } = usePreferences();
   switch (state.kind) {
@@ -352,20 +361,16 @@ function DiffPageContent({
         </Box>
       );
     case 'notice':
-      return (
-        <Item
-          size="compact"
-          title="Open file"
-          description={state.title}
-          onPress={onOpen}
-        />
-      );
     case 'large':
       return (
         <Item
           size="compact"
-          title="Open file"
-          description={`Large diff · ${state.lines.toLocaleString()} lines`}
+          title={openLabel}
+          description={
+            state.kind === 'notice'
+              ? state.title
+              : `Large diff · ${state.lines.toLocaleString()} lines`
+          }
           onPress={onOpen}
         />
       );

@@ -18,7 +18,7 @@ api:
 
 # access.remote-computers
 
-Settings → Computers lists This computer first, then saved computers. The list has no search. Its guidance says Connect to your computers to review their projects and worktrees, accurately in both browser and desktop shells. Each row shows name and status, current/latest version and an eligible update offer. Add computer keeps the paste-link flow: run porcelain pair on the other computer, paste the full link and click Add.
+Settings → Computers lists This computer first, then saved computers. The list has no search. Each row shows name and status, current/latest version and an eligible update offer. Add computer keeps the paste-link flow: run porcelain pair on the other computer, paste the full link and click Add.
 
 ## How to get to it (user POV)
 
