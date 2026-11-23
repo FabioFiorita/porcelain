@@ -1,5 +1,5 @@
 import { Schema } from 'effect';
-import { readHealthResponseSchema } from '@porcelain/contracts/access';
+import { readServerHealth } from '../../verify-core/health.ts';
 import { appendFileSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { IsolatedServer } from '@porcelain/server/kit/isolated-server';
@@ -23,13 +23,10 @@ const manifestSchema = Schema.Struct({
 });
 
 export async function start(): Promise<string> {
-  const started = performance.now();
   refuseMissing([...sandboxProblems(), memoryProblem()]);
   const instance = await registry.launch({}, READY_LIMIT_MS);
-  const durationMs = Math.round(performance.now() - started);
-  const written = await registry.evidence(instance).json('start', {
+  await registry.evidence(instance).json('start', {
     command: ['start'],
-    durationMs,
     instance: {
       id: instance.id,
       address: instance.detail.address,
@@ -38,7 +35,6 @@ export async function start(): Promise<string> {
       repository: instance.detail.repository,
     },
   });
-  process.stderr.write(`started in ${durationMs} ms; evidence: ${written}\n`);
   const path = instance.connectionPath;
   if (path === undefined)
     throw new Error('The server published no connection metadata');
@@ -47,6 +43,7 @@ export async function start(): Promise<string> {
       JSON.parse(readFileSync(path, 'utf8')),
     ),
     path,
+    instance.readyMs,
   );
 }
 
@@ -79,17 +76,7 @@ export function serve(folder: string): Promise<void> {
     const manifest = Schema.decodeUnknownSync(manifestSchema)(
       JSON.parse(readFileSync(server.manifestPath, 'utf8')),
     );
-    const health = await fetch(`${server.address}/api/health`);
-    if (
-      health.status !== 200 ||
-      !health.headers.get('content-type')?.includes('application/json')
-    )
-      throw new Error(
-        'The disposable health route did not answer JSON with status 200',
-      );
-    const { environmentId } = Schema.decodeUnknownSync(
-      readHealthResponseSchema,
-    )(await health.json());
+    const { environmentId } = await readServerHealth(server.address);
     return {
       address: server.address,
       manifestPath: server.manifestPath,

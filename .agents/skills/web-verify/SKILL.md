@@ -33,7 +33,7 @@ $C remote start --instance <id>
 $C remote pairing-link --instance <id>
 ```
 
-Save browser actions and resulting URL/title, snapshots, screenshots, console and HTTP status/content-type readbacks in the card's evidence directory. Use trace/CDP tools for performance. Distinguish setup, interactions and independent server readbacks. The CLI redacts its fixture evidence; sanitize browser artifacts separately, especially pairing fragments and credentials.
+Follow the [shared evidence reference](../verify-core/evidence.md). Use trace/CDP tools for web timings and retain relevant console and HTTP diagnostics.
 
 ## Sweep the standard states
 

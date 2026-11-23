@@ -53,7 +53,7 @@ The lifecycle owns its temporary workspace, including the staged app, profile an
 
 Read `features/README.md`, then the feature map. Use Computer Use for the actual macOS folder sheet. Picker regression tests substitute answers to prove bridge behavior; report them separately from observing a real sheet.
 
-Save screenshots and journey observations in the card's evidence directory. Scrub pairing codes, credentials and inherited environment values before retaining or attaching evidence. `status --instance <id>` reads passive CDP targets and captured identity/staleness. Keep one instance per surface while iterating; stop/start after source changes. A map-only edit needs no restart.
+Follow the [shared evidence reference](../verify-core/evidence.md). `status --instance <id>` reads passive CDP targets and captured identity/staleness. Keep one instance per surface while iterating; stop/start after source changes. A map-only edit needs no restart.
 
 ## Linux and macOS boundaries
 

@@ -57,6 +57,10 @@ export function buildIdentity(root: string) {
   }
 }
 
-export function connectionCard(connection: Connection, path: string): string {
-  return `instance ${connection.instanceId}\nserver ${connection.serverUrl}\nweb ${connection.webUrl}\nwebsocket ${connection.webSocketUrl}\nconnection ${path}\npair ${connection.pairing.command}\nevidence ${connection.evidenceDirectory}\nstop ${connection.stopCommand}\n`;
+export function connectionCard(
+  connection: Connection,
+  path: string,
+  readyMs: number,
+): string {
+  return `instance ${connection.instanceId}\nserver ${connection.serverUrl}\nweb ${connection.webUrl}\nwebsocket ${connection.webSocketUrl}\nconnection ${path}\nready ${readyMs} ms\npair ${connection.pairing.command}\nevidence ${connection.evidenceDirectory}\nstop ${connection.stopCommand}\n`;
 }

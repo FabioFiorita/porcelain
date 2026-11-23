@@ -62,12 +62,6 @@ async function serve(folder: string) {
     opened.electron.on('close', () => {
       if (!life.stopping()) life.stop('Porcelain Dev exited');
     });
-    await life
-      .evidence()
-      .note(
-        '000-start.txt',
-        connectionCard(opened.card, join(folder, 'connection.json')),
-      );
     return opened.card;
   });
 }
@@ -88,7 +82,7 @@ async function main(args: readonly string[]): Promise<string> {
     const instance = await registry.launch({}, 10 * 60_000);
     if (instance.connectionPath === undefined)
       throw new Error('The desktop published no connection file');
-    return `${connectionCard(instance.detail, instance.connectionPath)}app ${instance.detail.app.productName} (${instance.detail.app.osName}, unpackaged)\nrenderer ${instance.detail.rendererUrl}\nrenderer CDP ${instance.detail.rendererCdpEndpoint}\nlifecycle ${instance.detail.electron.lifecycleEntryPoint}\n`;
+    return `${connectionCard(instance.detail, instance.connectionPath, instance.readyMs)}app ${instance.detail.app.productName} (${instance.detail.app.osName}, unpackaged)\nrenderer ${instance.detail.rendererUrl}\nrenderer CDP ${instance.detail.rendererCdpEndpoint}\nlifecycle ${instance.detail.electron.lifecycleEntryPoint}\n`;
   }
   if (command === 'doctor') {
     const problems = desktopProblems();

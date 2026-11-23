@@ -1,5 +1,5 @@
 import { Schema } from 'effect';
-import { readHealthResponseSchema } from '@porcelain/contracts/access';
+import { readServerHealth } from '../../verify-core/health.ts';
 import { spawn } from 'node:child_process';
 import {
   appendFileSync,
@@ -174,17 +174,7 @@ export function serve(folder: string): Promise<void> {
     });
     await reachable(`${origin}/src/main.tsx`, Date.now() + readyTimeoutMs);
     serveRemote(folder, life.id, build, life);
-    const health = await fetch(`${server.address}/api/health`);
-    if (
-      health.status !== 200 ||
-      !health.headers.get('content-type')?.includes('application/json')
-    )
-      throw new Error(
-        'The disposable health route did not answer JSON with status 200',
-      );
-    const { environmentId } = Schema.decodeUnknownSync(
-      readHealthResponseSchema,
-    )(await health.json());
+    const { environmentId } = await readServerHealth(server.address);
     const ids = await server.sampleIds();
     const manifest = Schema.decodeUnknownSync(
       Schema.Struct({
@@ -224,11 +214,7 @@ export async function start(
       ? undefined
       : 'Vite is missing: run pnpm install --frozen-lockfile',
   ]);
-  const started = performance.now();
   const instance = await registry.launch(options, readyTimeoutMs * 2);
-  process.stderr.write(
-    `started in ${Math.round(performance.now() - started)} ms\n`,
-  );
   if (instance.connectionPath === undefined)
     throw new Error('The web launcher published no connection metadata');
   return connectionCard(
@@ -236,5 +222,6 @@ export async function start(
       JSON.parse(readFileSync(instance.connectionPath, 'utf8')),
     ),
     instance.connectionPath,
+    instance.readyMs,
   );
 }

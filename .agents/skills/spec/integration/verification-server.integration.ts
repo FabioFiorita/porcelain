@@ -100,7 +100,7 @@ test('a server card exposes private connections and deterministic operations ret
   const evidence = await evidenceOf(instance.evidence);
 
   expect(instance.run.code).toBe(0);
-  expect(instance.run.stdout.trim().split('\n')).toHaveLength(8);
+  expect(instance.run.stdout.trim().split('\n')).toHaveLength(9);
   expect(Object.keys(connection).toSorted()).toStrictEqual(
     [
       'instanceId',
@@ -189,6 +189,13 @@ test('a server card exposes private connections and deterministic operations ret
   expect(repeated.code).toBe(0);
   expect(repeated.stdout).toContain('already stopped');
   expect(alive(instance.pid)).toBe(false);
+  const readiness = record(
+    JSON.parse(await readFile(join(instance.evidence, 'ready.json'), 'utf8')),
+  );
+  expect(readiness.readyMs).toBeGreaterThan(0);
+  expect(instance.run.stdout).toContain(
+    `ready ${String(readiness.readyMs)} ms\n`,
+  );
   expect(evidence.numbered).toStrictEqual([
     '001-start.json',
     '002-ids.json',
