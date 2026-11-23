@@ -74,49 +74,56 @@ const readEvidence = (
     ),
   );
 
-it('reads evidence from the captured repository even when the current linked repository has the same pull number and head', async () => {
-  const reads: Array<{
-    owner: string;
-    repo: string;
-    number: number;
-    account: string;
-  }> = [];
-  const readerLayer = Layer.succeed(GitHubReader, {
-    ...githubReader,
-    accounts: () => Effect.succeed(['fixture', 'second']),
-    canRead: ({ owner, repo, account }) =>
-      Effect.succeed(
-        owner === 'captured' && repo === 'original' && account === 'second',
-      ),
-    read: (input) => {
-      reads.push(input);
-      return githubReader.read(input).pipe(
-        Effect.map((pr) => ({
-          ...pr,
-          title: `${input.owner}/${input.repo}`,
-          bodyHTML: undefined,
-        })),
-      );
-    },
-  });
-  const captured = {
-    ...target,
-    repository: { owner: 'captured', repo: 'original' },
-  };
-  const evidence = await Effect.runPromise(
-    readEvidence(
-      async () => {
-        throw new Error('Unexpected image request');
+it.each(['unreadable', 'rate-limited'] as const)(
+  'reads evidence from the captured repository when the other repository has the same head and the first account is %s',
+  async (firstAccount) => {
+    const reads: Array<{
+      owner: string;
+      repo: string;
+      number: number;
+      account: string;
+    }> = [];
+    const readerLayer = Layer.succeed(GitHubReader, {
+      ...githubReader,
+      accounts: () => Effect.succeed(['fixture', 'second']),
+      canRead: ({ owner, repo, account }) =>
+        account === 'fixture' && firstAccount === 'rate-limited'
+          ? Effect.fail(new GitHubReadError({ reason: 'rate-limited' }))
+          : Effect.succeed(
+              owner === 'captured' &&
+                repo === 'original' &&
+                account === 'second',
+            ),
+      read: (input) => {
+        reads.push(input);
+        return githubReader.read(input).pipe(
+          Effect.map((pr) => ({
+            ...pr,
+            title: `${input.owner}/${input.repo}`,
+            bodyHTML: undefined,
+          })),
+        );
       },
-      captured,
-      readerLayer,
-    ),
-  );
-  expect(evidence.title).toBe('captured/original');
-  expect(reads).toEqual([
-    { owner: 'captured', repo: 'original', number: 702, account: 'second' },
-  ]);
-});
+    });
+    const captured = {
+      ...target,
+      repository: { owner: 'captured', repo: 'original' },
+    };
+    const evidence = await Effect.runPromise(
+      readEvidence(
+        async () => {
+          throw new Error('Unexpected image request');
+        },
+        captured,
+        readerLayer,
+      ),
+    );
+    expect(evidence.title).toBe('captured/original');
+    expect(reads).toEqual([
+      { owner: 'captured', repo: 'original', number: 702, account: 'second' },
+    ]);
+  },
+);
 
 it('attaches PR evidence with a matching captured head', async () => {
   const requested: string[] = [];
