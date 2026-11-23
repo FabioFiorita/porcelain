@@ -3,14 +3,12 @@ import type { ReactNode } from 'react';
 export function SettingsHeading({
   section,
   title,
-  lead,
   status,
   action,
   children,
 }: {
   section: string;
   title: ReactNode;
-  lead: ReactNode;
   status?: ReactNode;
   action?: ReactNode;
   children?: ReactNode;
@@ -28,9 +26,6 @@ export function SettingsHeading({
         </h1>
         {action}
       </div>
-      <p className="mt-3 max-w-160 text-base tracking-lead text-foreground-2">
-        {lead}
-      </p>
       {children}
     </div>
   );

@@ -35,7 +35,7 @@ General saves Theme, Long lines and one document default for Markdown and HTML f
 
 Preconditions: [surface baseline](README.md).
 
-1. Open General. Expect section headings Appearance (Theme), Code and Documents, Scroll before Wrap, selected choices announced, and These preferences are saved on this device. at the end. On tablets verify landscape and portrait: controls stay bounded.
+1. Open General. Expect section headings Appearance (Theme), Code and Documents, Scroll before Wrap long lines, selected choices announced, and These preferences are saved on this device. at the end. On tablets verify landscape and portrait: controls stay bounded.
 2. Select Dark, Light, then System; inspect content and native navigation. Choose Scroll and Documents Source. Open Markdown and HTML from Worktrees → worktree → Files and expect Source; code files always open as source. Cold-launch/reopen: choices persist; independently read the owned app's porcelain-preferences.db.
 3. Back to Settings → Computers preserves paired state/Add computer. Close Settings and confirm you return to the same Worktrees screen.
 4. Seed a legacy preference record with only Markdown Source, then only HTML Source: both migrate to Documents Source. Select Rendered and cold-launch; it stays Rendered and the saved record contains only documentsDefault.

@@ -191,9 +191,8 @@ function WriterForm({
                   </Select>
                   {field.state.value !== 'default' && !selected && (
                     <p role="status" className="text-ui text-muted-foreground">
-                      This model is unavailable. Install its CLI and sign in, or
-                      select an available model. Runs will fail clearly while it
-                      is unavailable.
+                      Install the model’s CLI and sign in, or choose another
+                      model.
                     </p>
                   )}
                 </div>

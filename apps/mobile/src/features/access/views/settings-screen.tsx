@@ -91,7 +91,6 @@ export function SettingsScreen({
             <Item
               testID="settings-keyboard-shortcuts"
               title="Keyboard Shortcuts"
-              description="Move through lists and documents faster"
               leading={<Icon name="keyboard" tone="muted" />}
               trailing={<Icon name="chevron" tone="muted" />}
               onPress={onOpenShortcuts}

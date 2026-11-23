@@ -143,8 +143,8 @@ function TrustInstructions({
             </Text>
           ) : null}
           <Text variant="caption" tone="muted">
-            Touch and hold the device ID to copy. After allowing updates, check
-            again.
+            {trust.deviceId ? 'Touch and hold to copy the device ID. ' : ''}
+            Check again after allowing updates.
           </Text>
           <Button
             variant="plain"

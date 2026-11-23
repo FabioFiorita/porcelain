@@ -104,7 +104,7 @@ export function ComputerSettings({
       <SettingsHeading
         section="Computers"
         title={environment.name}
-        lead="Manage connections and device access."
+
         status={
           <>
             <span
@@ -192,12 +192,7 @@ export function ComputerSettings({
         <DevicesSettings connection={connection} />
         {!desktopShell && (
           <FieldSet>
-            <FieldLegend variant="label">
-              <span className="flex items-center gap-2">
-                <span>This browser</span>
-                <Badge variant="outline">Shown in a browser tab</Badge>
-              </span>
-            </FieldLegend>
+            <FieldLegend variant="label">This browser</FieldLegend>
             <ItemGroup>
               <Item>
                 <ItemContent>

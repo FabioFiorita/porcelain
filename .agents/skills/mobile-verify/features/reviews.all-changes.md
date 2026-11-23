@@ -7,7 +7,7 @@ selectors:
   - 'spinner'
   - "Couldn't load diff"
   - 'Large diff'
-  - 'Open the file to see this change.'
+  - 'Open file'
   - 'No changes'
   - 'Review unavailable'
 tests:

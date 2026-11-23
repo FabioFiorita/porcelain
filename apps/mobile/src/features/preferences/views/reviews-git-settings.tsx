@@ -62,9 +62,8 @@ function ComputerReviewGitSettings({
       {view.kind === 'unconfigured' ? (
         <Box gap={3}>
           <Text variant="secondary">
-            Every device connected to {computer} uses the same Reviews & Git
-            settings. These are the ones this app used before; check the archive
-            deletions below, then use them for {computer}.
+            Review the archive deletion options before applying this app’s
+            previous settings to {computer}.
           </Text>
           {untrusted ? (
             <Text variant="secondary" tone="muted">
@@ -123,7 +122,6 @@ function ComputerReviewGitSettings({
         <GroupHeader variant="section" label="Git" />
         <PreferenceChoice
           label="Pull strategy"
-          description={`Used when pulling changes on ${computer}.`}
           value={settings?.pullStrategy}
           options={[
             { value: 'merge', label: 'Merge', id: 'pull-merge' },

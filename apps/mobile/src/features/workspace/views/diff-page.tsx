@@ -355,8 +355,8 @@ function DiffPageContent({
       return (
         <Item
           size="compact"
-          title={state.title}
-          description="Open the file to see this change."
+          title="Open file"
+          description={state.title}
           onPress={onOpen}
         />
       );
@@ -364,8 +364,8 @@ function DiffPageContent({
       return (
         <Item
           size="compact"
-          title={`Large diff · ${state.lines.toLocaleString()} lines`}
-          description="Open the file to read it."
+          title="Open file"
+          description={`Large diff · ${state.lines.toLocaleString()} lines`}
           onPress={onOpen}
         />
       );

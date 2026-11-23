@@ -2,12 +2,7 @@ import { PendingButton } from '@/shared/views/pending-button';
 import { AsyncResult } from 'effect/reactivity';
 import { Link } from '@tanstack/react-router';
 import { Cause, Option } from 'effect';
-import {
-  ChevronRightIcon,
-  CircleIcon,
-  GlobeIcon,
-  KeyRoundIcon,
-} from 'lucide-react';
+import { ChevronRightIcon, CircleIcon, KeyRoundIcon } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import {
   connectionErrorMessage,
@@ -172,16 +167,7 @@ export function RemoteComputers({
   const appBusy = appUpdateProgress(useAppUpdateState()) !== undefined;
   return (
     <>
-      <SettingsHeading
-        section="Settings"
-        title="Computers"
-        lead="Manage your paired computers."
-      >
-        <p className="mt-3.5 flex max-w-160 items-start gap-2 text-ui leading-5 text-muted-foreground">
-          <GlobeIcon aria-hidden className="mt-0.75 size-3.5 shrink-0" />
-          Connect to your computers to review their projects and worktrees.
-        </p>
-      </SettingsHeading>
+      <SettingsHeading section="Settings" title="Computers" />
       {unreadable !== undefined && (
         <Alert variant="destructive">
           <KeyRoundIcon />

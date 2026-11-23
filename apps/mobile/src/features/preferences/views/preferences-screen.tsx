@@ -29,11 +29,10 @@ export function PreferencesScreen() {
             <GroupHeader variant="section" label="Code" />
             <PreferenceChoice<boolean>
               label="Long lines"
-              description="Wrap keeps every line visible without scrolling."
               value={preferences.lineOverflow === 'wrap'}
               options={[
                 { value: false, label: 'Scroll', id: 'lines-scroll' },
-                { value: true, label: 'Wrap', id: 'lines-wrap' },
+                { value: true, label: 'Wrap long lines', id: 'lines-wrap' },
               ]}
               disabled={disabled}
               onChange={(wrapLongLines) =>
