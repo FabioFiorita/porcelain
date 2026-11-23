@@ -10,7 +10,6 @@ import { ErrorState } from '../../../components/ui/error-state';
 import { Icon } from '../../../components/ui/icon';
 import { Item } from '../../../components/ui/item';
 import { Separator } from '../../../components/ui/separator';
-import { Spinner } from '../../../components/ui/spinner';
 import {
   useServiceUpdates,
   useUpdatesIndicator,
@@ -34,7 +33,7 @@ export function ComputerUpdatesSummary() {
         <Item
           title="Check for updates"
           leading={<Icon name="refresh" tone="muted" />}
-          trailing={next.kind === 'reading' ? <Spinner inline /> : undefined}
+          pending={next.kind === 'reading'}
           disabled={running || checking}
           onPress={check}
         />

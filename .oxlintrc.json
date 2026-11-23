@@ -40,6 +40,7 @@
       }
     ],
     "shadcn/no-raw-colors": "error",
+    "porcelain/pending-control-owner": "error",
     "porcelain/mobile-native-ui": "error",
     "porcelain/mobile-system-chrome": "error",
     "porcelain/client-platform-through-ports": "error",

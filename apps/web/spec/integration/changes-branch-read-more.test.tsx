@@ -49,11 +49,14 @@ test('reading more of a long branch keeps its diffs during loading and after a n
     )
     .toBeVisible();
 
+  const readMore = workspace.getByRole('button', {
+    name: 'Read 2 more of 27',
+    exact: true,
+  });
   gate.arm();
-  await workspace
-    .getByRole('button', { name: 'Read 2 more of 27', exact: true })
-    .click();
+  await readMore.click();
   await gate.requested;
+  await expect.element(readMore).toHaveAttribute('aria-busy', 'true');
   await expect
     .element(
       workspace

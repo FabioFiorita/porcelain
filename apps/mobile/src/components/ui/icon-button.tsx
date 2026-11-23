@@ -24,13 +24,11 @@ export function IconButton({
       size={size === 'sm' ? 'iconSm' : 'icon'}
       pending={pending}
     >
-      {pending ? null : (
-        <Icon
-          name={icon}
-          tone={glyphTones[variant]}
-          size={size === 'sm' ? 'control' : 'glyph'}
-        />
-      )}
+      <Icon
+        name={icon}
+        tone={glyphTones[variant]}
+        size={size === 'sm' ? 'control' : 'glyph'}
+      />
     </ButtonSurface>
   );
 }

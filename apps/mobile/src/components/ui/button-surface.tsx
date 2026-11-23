@@ -1,10 +1,6 @@
 import type { ReactNode } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  View,
-  type PressableProps,
-} from 'react-native';
+import { Pressable, View, type PressableProps } from 'react-native';
+import { PendingContent } from './pending-content';
 import { hitTarget } from './hit-target';
 import { usePressRipple } from './press-ripple';
 const variants = {
@@ -102,14 +98,12 @@ export function ButtonSurface({
             .filter(Boolean)
             .join(' ')}
         >
-          {pending ? (
-            <ActivityIndicator
-              accessible={false}
-              size="small"
-              colorClassName={indicatorTones[variant]}
-            />
-          ) : null}
-          {children}
+          <PendingContent
+            pending={pending}
+            colorClassName={indicatorTones[variant]}
+          >
+            {children}
+          </PendingContent>
         </View>
       )}
     </Pressable>

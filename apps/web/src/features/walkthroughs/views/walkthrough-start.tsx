@@ -1,3 +1,4 @@
+import { PendingButton } from '@/shared/views/pending-button';
 import { useWorkspaceWriteBlock } from '@/shared/workspace/connection';
 import { useAtomRefresh, useAtomValue } from '@effect/atom-react';
 import { Link } from '@tanstack/react-router';
@@ -8,7 +9,6 @@ import { readWalkthroughWriterSettings } from '@porcelain/client/projects';
 import { walkthroughWriterStatus } from '@porcelain/client/projects/rules';
 import { refLabel } from '@porcelain/client/history/rules';
 import { Button, buttonVariants } from '@/components/ui/button';
-import { Spinner } from '@/components/ui/spinner';
 import {
   useInventory,
   walkthroughSettingsDialog,
@@ -51,15 +51,14 @@ export function WalkthroughStart({
   const failed = AsyncResult.isFailure(result);
   const noWriters = settings?.models.length === 0;
   const checkAgain = (
-    <Button
+    <PendingButton
+      pending={result.waiting}
       variant="outline"
       size="sm"
-      disabled={result.waiting}
       onClick={refresh}
     >
-      {result.waiting && <Spinner aria-hidden="true" />}
       Check writers again
-    </Button>
+    </PendingButton>
   );
   let note: string | undefined = writer
     ? `Since ${base ? refLabel(base) : 'the default branch'} · ${writer.label}`

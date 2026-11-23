@@ -1,6 +1,6 @@
+import { PendingButton } from '@/shared/views/pending-button';
 import { AlertDialog as AlertDialogPrimitive } from '@base-ui/react/alert-dialog';
 import {
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -8,7 +8,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Spinner } from '@/components/ui/spinner';
 import { useRemoveProject } from '../commands/manage-project';
 import { removeProjectDialog } from '../overlays';
 import { projectPath } from '@porcelain/client/projects/rules';
@@ -72,14 +71,15 @@ function RemoveProjectContent({
       <ProjectCommandProblem unavailable={unavailable} result={result} />
       <AlertDialogFooter>
         <AlertDialogCancel disabled={result.waiting}>Cancel</AlertDialogCancel>
-        <AlertDialogAction
+        <PendingButton
+          data-slot="alert-dialog-action"
+          pending={result.waiting}
           variant="destructive"
           disabled={result.waiting || unavailable !== undefined}
           onClick={() => void remove.submit(project.id)}
         >
-          {result.waiting && <Spinner />}
-          {result.waiting ? 'Removing…' : 'Remove from Porcelain'}
-        </AlertDialogAction>
+          Remove from Porcelain
+        </PendingButton>
       </AlertDialogFooter>
     </>
   );

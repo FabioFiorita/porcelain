@@ -1,3 +1,4 @@
+import { PendingButton } from '@/shared/views/pending-button';
 import { AsyncResult } from 'effect/reactivity';
 import { Link } from '@tanstack/react-router';
 import { Cause, Option } from 'effect';
@@ -18,7 +19,6 @@ import {
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Spinner } from '@/components/ui/spinner';
 import { FieldLegend, FieldSet } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { TruncatedText } from '@/shared/views/truncated-text';
@@ -213,7 +213,8 @@ export function RemoteComputers({
             <span className="tabular-nums">{remotes.length + 1}</span>
           </h2>
           <div className="flex flex-wrap justify-end gap-2">
-            <Button
+            <PendingButton
+              pending={asked !== 'no' && checking}
               size="sm"
               variant="outline"
               disabled={batch.running || checking || appBusy}
@@ -222,9 +223,8 @@ export function RemoteComputers({
                 retry();
               }}
             >
-              {asked !== 'no' && checking && <Spinner aria-hidden="true" />}
               Check for updates
-            </Button>
+            </PendingButton>
             <Button
               size="sm"
               disabled={batch.running || count === 0}

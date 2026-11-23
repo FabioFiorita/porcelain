@@ -25,7 +25,6 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
-import { Spinner } from '@/components/ui/spinner';
 import { Switch } from '@/components/ui/switch';
 import { copyText } from '@/shared/workspace/copy';
 import { submitForm } from '@/shared/lib/submit-form';
@@ -67,12 +66,7 @@ function RouteStatus({
   const label = routeStatusLabel(name, route);
   if (label === null) return null;
   if (status.kind === 'off' || status.kind === 'starting')
-    return (
-      <Badge variant="outline">
-        <Spinner />
-        {label}
-      </Badge>
-    );
+    return <Badge variant="outline">{label}</Badge>;
   if (status.kind === 'paused') return <Badge variant="outline">{label}</Badge>;
   if (status.kind === 'failed')
     return <Badge variant="destructive">{label}</Badge>;

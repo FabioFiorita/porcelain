@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { classify, nodeGlobalRoles } from './policy.ts';
 import {
   webRules,
+  importedFrom,
   browserSpecNoMocks,
   browserSpecNoSkips,
 } from './web-rules.mjs';
@@ -1612,6 +1613,78 @@ export default {
     ...webRules,
     'web-journey-no-waits': { create: browserWaits },
     ...mobileRules,
+    'pending-control-owner': {
+      create(context) {
+        const path = repositoryPath(context);
+        const web = path.startsWith('apps/web/src/');
+        const mobile = path.startsWith('apps/mobile/src/');
+        if (!web && !mobile) return {};
+        if (
+          path === 'apps/web/src/shared/views/pending-button.tsx' ||
+          path === 'apps/web/src/shared/views/state-notice.tsx' ||
+          path === 'apps/mobile/src/components/ui/pending-content.tsx'
+        )
+          return {};
+        const message =
+          'Use the shared pending state, because raw indicators in controls can move the label and omit the accessible busy state.';
+        const local = (source) =>
+          (source.startsWith('@/')
+            ? `apps/web/src/${source.slice(2)}`
+            : posix.join(posix.dirname(path), source)
+          ).replace(/\.tsx?$/, '');
+        if (web) {
+          const checkImport = (node) => {
+            const source = staticString(node.source, context);
+            if (
+              source &&
+              local(source) === 'apps/web/src/components/ui/spinner'
+            )
+              context.report({ node, message });
+          };
+          return {
+            ImportDeclaration: checkImport,
+            ExportNamedDeclaration: checkImport,
+            ExportAllDeclaration: checkImport,
+            ImportExpression: checkImport,
+          };
+        }
+        const program = context.sourceCode.ast;
+        const spinner = importedFrom(
+          program,
+          (source) => local(source) === 'apps/mobile/src/components/ui/spinner',
+        );
+        const native = importedFrom(
+          program,
+          (source) => source === 'react-native',
+        );
+        const controls = importedFrom(program, (source) =>
+          /^apps\/mobile\/src\/components\/ui\/(?:button|button-surface|icon-button|item)$/.test(
+            local(source),
+          ),
+        );
+        return {
+          JSXOpeningElement(node) {
+            const name = node.name;
+            if (
+              name.type !== 'JSXIdentifier' ||
+              (spinner.locals.get(name.name) !== 'Spinner' &&
+                native.locals.get(name.name) !== 'ActivityIndicator')
+            )
+              return;
+            if (
+              context.sourceCode.getAncestors(node).some((ancestor) => {
+                const parent = ancestor.openingElement?.name;
+                return (
+                  parent?.type === 'JSXIdentifier' &&
+                  controls.locals.has(parent.name)
+                );
+              })
+            )
+              context.report({ node, message });
+          },
+        };
+      },
+    },
     'worktree-admission-owner': {
       create(context) {
         const path = repositoryPath(context);

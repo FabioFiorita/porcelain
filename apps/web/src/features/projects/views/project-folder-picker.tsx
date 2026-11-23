@@ -1,3 +1,4 @@
+import { PendingButton } from '@/shared/views/pending-button';
 import { TruncatedText } from '@/shared/views/truncated-text';
 import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
@@ -10,8 +11,6 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
-import { Button } from '@/components/ui/button';
-import { Spinner } from '@/components/ui/spinner';
 import { useProjectFolder } from '../queries/project-locations';
 import { projectFolder } from '../store';
 import { useAtomSet, useAtomValue } from '@effect/atom-react';
@@ -96,7 +95,8 @@ export function ProjectFolderPicker({
             ? 'Every worktree appears in the sidebar.'
             : 'Pick a folder that is a Git repository.'}
         </p>
-        <Button
+        <PendingButton
+          pending={disabled}
           size="sm"
           disabled={
             disabled ||
@@ -108,7 +108,6 @@ export function ProjectFolderPicker({
             if (current) onOpen(current.path);
           }}
         >
-          {disabled && <Spinner />}
           <TruncatedText
             className="max-w-36"
             text={
@@ -116,7 +115,7 @@ export function ProjectFolderPicker({
               `Open ${current?.path.split('/').filter(Boolean).at(-1) ?? 'folder'}`
             }
           />
-        </Button>
+        </PendingButton>
       </div>
     </section>
   );
