@@ -252,7 +252,7 @@ export async function startProblems(
       ).catch(() => '');
       if (ready !== '1')
         problems.push(
-          `Android emulator ${serial} is unavailable or still booting. Boot it in Android Studio or T3 and retry.`,
+          `Android emulator ${serial} is unavailable or still booting. Boot it (Android Studio's Device Manager or emulator -avd <name>) and retry.`,
         );
     }
     return [

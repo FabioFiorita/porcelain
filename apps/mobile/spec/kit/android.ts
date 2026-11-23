@@ -27,7 +27,7 @@ export async function claimAndroid(serial: string | undefined, owner: string) {
     (await adb(serial, 'shell', 'getprop', 'sys.boot_completed')) !== '1'
   )
     throw new Error(
-      `Android emulator ${serial} is not ready. Boot it in Android Studio or T3, then retry with its adb serial.`,
+      `Android emulator ${serial} is not ready. Boot it (Android Studio's Device Manager or emulator -avd <name>), then retry with its adb serial.`,
     );
   const abi = await adb(serial, 'shell', 'getprop', 'ro.product.cpu.abi');
   const expected = androidDevelopmentAbi();

@@ -48,7 +48,7 @@ const cases = [
 ] as const;
 
 it.each(
-  ['codex', 'claude', 't3'].flatMap((name) =>
+  ['codex', 'claude', 'agent'].flatMap((name) =>
     cases.map((row) => ({ name, ...row })),
   ),
 )('$name: $state', async ({ name, directory, expected }) => {
