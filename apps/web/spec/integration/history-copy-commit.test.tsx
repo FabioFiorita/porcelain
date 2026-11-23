@@ -10,7 +10,6 @@ test("copying a commit's id and message from its History row and its document", 
   await expect
     .poll(async () => (await server.commits()).commits[0]?.subject)
     .toBe(subject);
-  const oid = (await server.commits()).commits[0]?.oid ?? '';
   const copied = (label: string) =>
     workspace.getByText(`Copied ${label}`, { exact: true }).last();
 
@@ -24,7 +23,13 @@ test("copying a commit's id and message from its History row and its document", 
     .getByRole('menuitem', { name: 'Copy commit id', exact: true })
     .click();
   await expect.element(copied('commit id')).toBeVisible();
-  await expect.element(workspace.getByText(oid, { exact: true })).toBeVisible();
+  await expect
+    .element(
+      workspace
+        .getByRole('region', { name: 'Notifications', exact: true })
+        .filter({ hasText: 'Copied commit id' }),
+    )
+    .toMatchTextContent(/^Copied commit id$/);
 
   await row.click({ button: 'right' });
   await workspace
@@ -39,9 +44,7 @@ test("copying a commit's id and message from its History row and its document", 
   await workspace
     .getByRole('button', { name: 'Copy message', exact: true })
     .click();
-  await expect
-    .element(workspace.getByText(subject, { exact: true }).last())
-    .toBeVisible();
+  await expect.element(copied('commit message')).toBeVisible();
   await workspace
     .getByRole('button', { name: 'Copy hash', exact: true })
     .click();

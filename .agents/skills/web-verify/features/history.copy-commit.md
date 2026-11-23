@@ -34,7 +34,7 @@ git -C "$REPO" commit -am "Explain the change to review"
 git -C "$REPO" rev-parse HEAD
 ```
 
-Keep the 40-character id the second line prints; it is what the toasts must show.
+Keep the 40-character id the second line prints for the clipboard comparison.
 
 1. Click button `Review`
    Expect: dialog "Worktree review".
@@ -43,17 +43,17 @@ Keep the 40-character id the second line prints; it is what the toasts must show
 3. Right-click button `/^Explain the change to review/`
    Expect: a menu with menuitems "Copy commit id" and "Copy message".
 4. Click menuitem `Copy commit id`
-   Expect: in region "Notifications", a toast titled "Copied commit id" whose description is the full id from the setup.
+   Expect: in region "Notifications", a title-only toast reading "Copied commit id". Read the clipboard and compare it with the full id from setup.
 5. Right-click button `/^Explain the change to review/`
    Expect: the menu again.
 6. Click menuitem `Copy message`
-   Expect: a toast titled "Copied commit message" with the description "Explain the change to review".
+   Expect: a title-only toast reading "Copied commit message". Read the clipboard and compare it with "Explain the change to review".
 7. Click button `/^Explain the change to review/`
    Expect: the sheet closes; heading "Explain the change to review"; title "<7-character id> — repository"; toolbar buttons "Copy hash" and "Copy message".
 8. Click button `Copy message`
-   Expect: a new toast "Copied commit message" with "Explain the change to review".
+   Expect: a new title-only toast reading "Copied commit message". Check the clipboard holds the commit message again.
 9. Click button `Copy hash`
-   Expect: a new toast "Copied commit id" with the full id.
+   Expect: a new title-only toast reading "Copied commit id". Check the clipboard holds the full id again.
 
 ### Observable proof
 

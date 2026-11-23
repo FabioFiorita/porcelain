@@ -22,7 +22,9 @@ export function NotificationViewport({ title }: { title: string | undefined }) {
     </View>
   );
   return process.env.EXPO_OS === 'ios' ? (
-    <FullWindowOverlay>{view}</FullWindowOverlay>
+    <FullWindowOverlay unstable_accessibilityContainerViewIsModal={false}>
+      {view}
+    </FullWindowOverlay>
   ) : (
     view
   );
