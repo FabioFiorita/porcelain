@@ -44,8 +44,7 @@ export function ChangesPageScreen({
   workspaceKey?: string | undefined;
   comparison: ReviewComparison;
 }) {
-  return profileMobileScreen(
-    'all-changes',
+  const screen = (
     <Screen layout="fixed">
       <WorkspaceGate
         expectedWorkspace={workspaceKey ?? ''}
@@ -60,8 +59,9 @@ export function ChangesPageScreen({
           />
         )}
       </WorkspaceGate>
-    </Screen>,
+    </Screen>
   );
+  return walkthrough ? screen : profileMobileScreen('all-changes', screen);
 }
 
 type ChangesReading = {
@@ -183,7 +183,11 @@ function ChangesReader({
         subtitle={summary.subtitle}
         actions={reading?.actions ?? []}
         files={files}
-        onFirstHeadingLayout={mobileLayout('all-changes-first-heading')}
+        onFirstHeadingLayout={
+          walkthrough || reading
+            ? undefined
+            : mobileLayout('all-changes-first-heading')
+        }
         header={() =>
           reading?.header ?? (
             <Box divider="bottom" paddingX={4} paddingY={3}>
