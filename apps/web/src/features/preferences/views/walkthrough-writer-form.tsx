@@ -295,11 +295,6 @@ function WriterForm({
           </AlertDescription>
         </Alert>
       )}
-      {AsyncResult.isSuccess(result) && !result.waiting && (
-        <p role="status" className="text-ui text-muted-foreground">
-          Saved on this computer.
-        </p>
-      )}
       <form.Subscribe
         selector={(state) => ({
           writer: state.values.writer,

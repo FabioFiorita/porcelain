@@ -1,7 +1,7 @@
 import type { ComponentType, ReactNode } from 'react';
 
 import { useState } from 'react';
-import { toast } from '@/components/ui/toast';
+import { notify } from '@/shared/views/notify';
 import { DiscardButton } from '@/features/git-actions/index';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { type ChangeScope } from '@/shared/workspace/search';
@@ -150,7 +150,7 @@ function LayersView({
   const changeByPath = new Map(changes.map((item) => [item.path, item]));
   const changeMarks = worktreeChangeMarks(list.changes);
   const reviewed = useToggleReviewed(scope, context, (notice) =>
-    toast.add(notice),
+    notify(notice),
   );
   const [discard, setDiscard] = useState<{
     path: string;

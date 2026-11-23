@@ -1,34 +1,8 @@
-type CopyNotice = {
-  title: string;
-  description?: string;
-  type: 'success' | 'error';
-};
-type CopyListener = (notice: CopyNotice) => void;
+import { notifyCopy, type CopyTarget } from '@/shared/views/notify';
 
-const listeners = new Set<CopyListener>();
-
-export function onCopyNotice(listener: CopyListener): () => void {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
-}
-
-function announce(notice: CopyNotice) {
-  for (const listener of [...listeners]) listener(notice);
-}
-
-export function copyText(text: string, label: string, describe = true) {
-  const done = () =>
-    announce({
-      title: `Copied ${label}`,
-      ...(describe ? { description: text } : {}),
-      type: 'success',
-    });
-  const failed = () =>
-    announce({
-      title: `Could not copy ${label}`,
-      ...(describe ? { description: text } : {}),
-      type: 'error',
-    });
+export function copyText(text: string, target: CopyTarget) {
+  const done = () => notifyCopy(target, true);
+  const failed = () => notifyCopy(target, false);
 
   if (
     window.isSecureContext &&

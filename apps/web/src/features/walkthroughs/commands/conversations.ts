@@ -48,7 +48,7 @@ export function usePostActions(
   const failed = (error: unknown) => setNotice(conversationFailure(error));
   const copy = () =>
     void commands.brief.run(message?.id).then((text) => {
-      if (text) copyText(text, 'brief', false);
+      if (text) copyText(text, 'brief');
     }, failed);
   const save = (saved: boolean) => {
     if (message)
@@ -61,7 +61,7 @@ export function usePostActions(
       : commands.postSaved.run(undefined);
     void pending.then((result) => {
       const outcome = postOutcome(result);
-      if (outcome.kind === 'brief') copyText(outcome.text, 'brief', false);
+      if (outcome.kind === 'brief') copyText(outcome.text, 'brief');
       if (outcome.kind === 'still-saved')
         setNotice({
           text: `Still saved: ${outcome.messages.map((item) => item.text).join('; ')}. These comments belong to a different repository.`,

@@ -57,7 +57,7 @@ Keep the 40-character id the second line prints; it is what the toasts must show
 
 ### Observable proof
 
-Compare clipboard text with Git, alongside Copied… toast. Failure shows Could not copy commit id/message; a toast alone does not establish exact contents.
+Compare clipboard text with Git. The Copied… toast shows the title only. Failure shows Could not copy commit id/message; a toast alone does not establish exact contents.
 
 Automated coverage: `history-copy-commit.test.tsx`.
 

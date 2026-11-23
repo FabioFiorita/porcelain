@@ -32,7 +32,6 @@ import {
 import {
   Popover,
   PopoverContent,
-  PopoverDescription,
   PopoverHeader,
   PopoverTitle,
   PopoverTrigger,
@@ -42,7 +41,7 @@ import {
   TooltipTrigger,
   TooltipContent,
 } from '@/components/ui/tooltip';
-import { toast } from '@/components/ui/toast';
+import { notify } from '@/shared/views/notify';
 import { useReviewGitSettings } from '@/features/preferences/index';
 import {
   reviewGitPullStrategy,
@@ -119,6 +118,15 @@ export function GitButton({
     null,
   );
   const writeBlock = useWorkspaceWriteBlock(context);
+  const showNotice = ({ title, description, type }: GitNotice) =>
+    notify({
+      title,
+      description:
+        description === undefined ? undefined : (
+          <GitActionMessage text={description} />
+        ),
+      type,
+    });
   const menu = useGitMenu(scope, context, {
     details,
     enableDetails: () => setDetailsEnabled(true),
@@ -130,20 +138,15 @@ export function GitButton({
             pullBlock ??
             'Changes & Git settings for this computer are unavailable.',
         },
-    notify: ({ title, description, type }) =>
-      toast.add({
-        title,
-        description:
-          description === undefined ? undefined : (
-            <GitActionMessage text={description} />
-          ),
-        type,
-      }),
+    notify: showNotice,
     onProgress: (open) => {
       if (open) setResult(null);
       setProgressOpen(open);
     },
-    onResult: setResult,
+    onResult: (notice) => {
+      setResult(notice.type === 'error' ? notice : null);
+      if (notice.type !== 'error') showNotice(notice);
+    },
     refreshLook,
     onLooked: setOpenedStatus,
   });
@@ -249,14 +252,9 @@ export function GitButton({
               {result && !running ? (
                 <PopoverHeader>
                   <PopoverTitle>{result.title}</PopoverTitle>
-                  {result.description !== undefined &&
-                    (result.type === 'error' ? (
-                      <GitActionError text={result.description} />
-                    ) : (
-                      <PopoverDescription>
-                        <GitActionMessage text={result.description} />
-                      </PopoverDescription>
-                    ))}
+                  {result.description !== undefined && (
+                    <GitActionError text={result.description} />
+                  )}
                 </PopoverHeader>
               ) : (
                 <>

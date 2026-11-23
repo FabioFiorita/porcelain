@@ -1,3 +1,5 @@
+import { platformApiLevel } from 'expo-device';
+import { AccessibilityInfo } from 'react-native';
 import { Effect } from 'effect';
 import { AsyncResult, Atom } from 'effect/reactivity';
 import { router } from 'expo-router';
@@ -90,3 +92,22 @@ export const notificationsSync = Atom.make((get) => {
   fetchToken();
   synchronize();
 });
+
+const copyTitles = {
+  brief: 'Copied brief',
+  'worktree path': 'Copied worktree path',
+};
+
+export const notificationNotice = Atom.make<string | null>(null);
+
+export const notify = Atom.fn(
+  (event: { kind: 'copy'; target: keyof typeof copyTitles }, get) =>
+    Effect.gen(function* () {
+      if ((platformApiLevel ?? 0) >= 33) return;
+      const title = copyTitles[event.target];
+      get.set(notificationNotice, title);
+      AccessibilityInfo.announceForAccessibility(title);
+      yield* Effect.sleep('5 seconds');
+      get.set(notificationNotice, null);
+    }),
+).pipe(Atom.keepAlive);
