@@ -8,9 +8,25 @@ import { withState } from './review-verdict.ts';
 
 const head = 'a'.repeat(40);
 const repository = 'owner/repo';
+const reviewScript = new URL('./review.ts', import.meta.url);
+const skipWait = `import { registerHooks } from 'node:module';
+registerHooks({
+  resolve(specifier, context, next) {
+    if (specifier === 'node:timers/promises' && context.parentURL === ${JSON.stringify(reviewScript.href)}) {
+      return next('data:text/javascript,export async function setTimeout() {}', context);
+    }
+    return next(specifier, context);
+  },
+});`;
 
 function landing(
-  scenario: 'blocked-once' | 'held-after-refusal' | 'forbidden',
+  scenario:
+    | 'blocked-once'
+    | 'held-after-refusal'
+    | 'merged-after-refusal'
+    | 'pushed-after-refusal'
+    | 'always-blocked'
+    | 'forbidden',
 ) {
   const directory = mkdtempSync(join(temporaryRoot, 'porcelain-landing-'));
   const events = join(directory, 'events.json');
@@ -32,9 +48,11 @@ const scenario = ${JSON.stringify(scenario)};
 const head = ${JSON.stringify(head)};
 if (args[0] === 'pr' && args[1] === 'view') {
   reply({
-    number: 42, title: 'Change a feature', body: '', state: 'OPEN',
+    number: 42, title: 'Change a feature', body: '',
+    state: blocked && scenario === 'merged-after-refusal' ? 'MERGED' : 'OPEN',
     isDraft: false, baseRefName: 'main', baseRefOid: 'b'.repeat(40),
-    headRefOid: head, headRefName: 'feature', changedFiles: 1,
+    headRefOid: blocked && scenario === 'pushed-after-refusal' ? 'c'.repeat(40) : head,
+    headRefName: 'feature', changedFiles: 1,
     author: { login: 'owner' }, isCrossRepository: false,
     labels: blocked && scenario === 'held-after-refusal' ? [{ name: 'hold' }] : [],
   });
@@ -54,7 +72,7 @@ if (args[0] === 'pr' && args[1] === 'view') {
     record('forbidden');
     console.error('GraphQL: Resource not accessible by personal access token');
     process.exitCode = 1;
-  } else if (blocked) {
+  } else if (blocked && scenario !== 'always-blocked') {
     record('merged');
   } else {
     record('blocked');
@@ -70,7 +88,11 @@ if (args[0] === 'pr' && args[1] === 'view') {
     );
     const result = spawnSync(
       process.execPath,
-      [fileURLToPath(new URL('./review.ts', import.meta.url))],
+      [
+        '--import',
+        `data:text/javascript,${encodeURIComponent(skipWait)}`,
+        fileURLToPath(reviewScript),
+      ],
       {
         encoding: 'utf8',
         timeout: 8000,
@@ -86,37 +108,84 @@ if (args[0] === 'pr' && args[1] === 'view') {
       },
     );
     if (result.error) throw result.error;
-    expect(result.status, result.stderr).toBe(0);
-    return { events: readFileSync(events, 'utf8'), output: result.stdout };
+    return {
+      status: result.status,
+      events: JSON.parse(readFileSync(events, 'utf8')) as unknown,
+      output: result.stdout,
+    };
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
 }
 
 describe('landing after a verdict', () => {
+  const passingVerdict = ['Agent verdict: pending', 'Agent verdict: success'];
+
   it('merges the same head when GitHub clears its initial policy block', () => {
     const result = landing('blocked-once');
-    expect(result.events).toBe(
-      '["Agent verdict: pending","Agent verdict: success","blocked","merged"]',
-    );
+    expect(result.status).toBe(0);
+    expect(result.events).toEqual([...passingVerdict, 'blocked', 'merged']);
     expect(result.output).toContain('### #42: merged');
   });
 
   it('stops when the pull request is held during the wait', () => {
     const result = landing('held-after-refusal');
-    expect(result.events).toBe(
-      '["Agent verdict: pending","Agent verdict: success","blocked","Agent verdict: failure"]',
+    expect(result.status).toBe(0);
+    expect(result.events).toEqual([
+      ...passingVerdict,
+      'blocked',
+      'Agent verdict: success',
+    ]);
+    expect(result.output).toContain(
+      '### #42: Ready, but the hold label keeps it from merging',
     );
+  });
+
+  it('leaves the verdict green when the same PR merges during the wait', () => {
+    const result = landing('merged-after-refusal');
+    expect(result.status).toBe(0);
+    expect(result.events).toEqual([...passingVerdict, 'blocked']);
+    expect(result.output).toContain('### #42: merged');
+  });
+
+  it('stops landing when a new head is pushed during the wait', () => {
+    const result = landing('pushed-after-refusal');
+    expect(result.status).toBe(0);
+    expect(result.events).toEqual([
+      ...passingVerdict,
+      'blocked',
+      'Agent verdict: failure',
+    ]);
     expect(result.output).toContain(
       'The pull request changed before it could merge',
     );
   });
 
+  it('reports a failed verdict once the policy block exhausts the retry budget', () => {
+    const result = landing('always-blocked');
+    expect(result.status).toBe(1);
+    expect(result.events).toEqual([
+      ...passingVerdict,
+      'blocked',
+      'blocked',
+      'blocked',
+      'blocked',
+      'blocked',
+      'Agent verdict: failure',
+    ]);
+    expect(result.output).toContain(
+      '### #42: Merge still blocked after retries:',
+    );
+  });
+
   it('reports a permissions failure without trying again', () => {
     const result = landing('forbidden');
-    expect(result.events).toBe(
-      '["Agent verdict: pending","Agent verdict: success","forbidden","Agent verdict: failure"]',
-    );
+    expect(result.status).toBe(0);
+    expect(result.events).toEqual([
+      ...passingVerdict,
+      'forbidden',
+      'Agent verdict: failure',
+    ]);
     expect(result.output).toContain(
       'Resource not accessible by personal access token',
     );

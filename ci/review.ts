@@ -487,15 +487,50 @@ try {
       step: nextStep(assessment, now),
     };
   };
-  const unchanged = (latest: PullRequestView) =>
+  const sameTarget = (latest: PullRequestView) =>
     latest.headRefOid === view.headRefOid &&
-    latest.baseRefName === view.baseRefName &&
+    latest.baseRefName === view.baseRefName;
+  const unchanged = (latest: PullRequestView) =>
+    sameTarget(latest) &&
     (!promotion || latest.baseRefOid === view.baseRefOid) &&
     latest.state === 'OPEN' &&
     !latest.isDraft &&
     latest.labels.some((label) => label.name === labels.review) === requested &&
     (markedReviewedHead === undefined ||
       latest.labels.some((label) => label.name === labels.reviewed));
+  const land = async () => {
+    let mergeError = merge(repository, view);
+    for (const delay of mergeRetryDelaysMs) {
+      if (!mergeError?.endsWith(`${mergeBlockedMessage}.`)) break;
+      console.log(`GitHub blocked the merge. Checking again in ${delay} ms.`);
+      await sleep(delay);
+      const candidate = readView(repository, number);
+      if (sameTarget(candidate) && candidate.state === 'MERGED')
+        return 'merged';
+      if (!unchanged(candidate)) {
+        const reason = 'The pull request changed before it could merge';
+        report('failure', reason);
+        return reason;
+      }
+      const { step } = judge(
+        candidate.body,
+        new Set(candidate.labels.map((label) => label.name)),
+      );
+      if (!step.merge) {
+        report(step.status, step.description);
+        return step.description;
+      }
+      mergeError = merge(repository, view);
+    }
+    if (!mergeError) return 'merged';
+    const stillBlocked = mergeError.endsWith(`${mergeBlockedMessage}.`);
+    const reason = stillBlocked
+      ? `Merge still blocked after retries: ${mergeError}`
+      : `Merging failed: ${mergeError}`;
+    report('failure', reason);
+    if (stillBlocked) process.exitCode = 1;
+    return reason;
+  };
   const before = readView(repository, number);
   const first = unchanged(before)
     ? judge(before.body, new Set(before.labels.map((label) => label.name)))
@@ -530,36 +565,7 @@ try {
     report('failure', 'The pull request changed before this verdict');
   } else {
     report(settled.status, settled.description);
-    outcome = settled.description;
-    if (settled.merge) {
-      let mergeError = merge(repository, view);
-      for (const delay of mergeRetryDelaysMs) {
-        if (!mergeError?.endsWith(`${mergeBlockedMessage}.`)) break;
-        console.log(`GitHub blocked the merge. Checking again in ${delay} ms.`);
-        await sleep(delay);
-        const candidate = readView(repository, number);
-        if (
-          !unchanged(candidate) ||
-          !judge(
-            candidate.body,
-            new Set(candidate.labels.map((label) => label.name)),
-          ).step.merge
-        ) {
-          mergeError = 'The pull request changed before it could merge';
-          break;
-        }
-        mergeError = merge(repository, view);
-      }
-      if (mergeError?.endsWith(`${mergeBlockedMessage}.`)) {
-        outcome = `merge still blocked after retries: ${mergeError}`;
-        process.exitCode = 1;
-      } else if (mergeError) {
-        outcome = `merge failed: ${mergeError}`;
-        report('failure', `Merging failed: ${mergeError}`);
-      } else {
-        outcome = 'merged';
-      }
-    }
+    outcome = settled.merge ? await land() : settled.description;
   }
 } catch (error) {
   outcome = error instanceof Error ? error.message : String(error);
