@@ -18,7 +18,7 @@ Create a phone and a tablet profile once in Android Studio's Device Manager, usi
 
 Use the phone for shared phone journeys and a proper tablet profile for shared tablet journeys. Enlarging the phone window or changing screenshot dimensions is insufficient: `expo-device` must classify the device as `DeviceType.TABLET`. The shared `ListDetail` component then uses its measured content width: at least 700dp shows a 340dp list beside detail, while a narrower content area stacks. Screen pixels alone do not establish the content width because density, insets and native chrome reduce the available space.
 
-Drive both orientations with the [Worktree map](../features/projects.worktree.md). Confirm the landscape side-by-side layout and the portrait worktree drawer, including selection and Back. Refresh driver references after rotation and restore the original orientation. Report iPad tab sidebars, sheets and other Apple-specific behavior from an iOS run.
+Choose a tablet with at least 700 dp of measured content width in both orientations. Drive both orientations with the [Worktree map](../features/projects.worktree.md). Confirm the landscape side-by-side layout and the portrait worktree drawer, including selection and Back. Refresh driver references after rotation and restore the original orientation. Report iPad tab sidebars, sheets and other Apple-specific behavior from an iOS run.
 
 ### Check graphics on headless hosts
 
