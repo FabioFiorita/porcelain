@@ -425,6 +425,50 @@ test('doctor and start refuse a failed process query before creating an instance
   expect(running(home)).toStrictEqual([]);
 });
 
+test.for(['note', 'capture'])(
+  'a failed startup stops the supervisor even if the %s fails',
+  async (mode, { onTestFinished }) => {
+    const fixture = await sessionFixture(onTestFinished);
+    const home = resolve(
+      instanceFile(fixture.root, 'server', 'abc12345'),
+      '../../..',
+    );
+    const instances = join(home, 'instances');
+    const bin = join(fixture.root, 'ps-shim');
+    await mkdir(bin);
+    await writeFile(
+      join(bin, 'ps'),
+      `#!/bin/sh
+if [ "$1" = -p ] && [ "$2" != "$PPID" ] && [ ! -f "${bin}/refused" ]; then
+  touch "${bin}/refused"
+  echo 'fixture refused supervisor capture' >&2
+  exit 2
+fi
+exec /bin/ps "$@"
+`,
+      { mode: 0o700 },
+    );
+    const instanceIds = () => readdir(instances).catch(() => []);
+    onTestFinished(async () => {
+      for (const id of await instanceIds()) await fixture.command('stop', id);
+      expect(running(instances)).toStrictEqual([]);
+      await rm(home, { recursive: true, force: true });
+    });
+
+    const start = await fixture.command('start', mode);
+
+    expect(start.code).toBe(1);
+    expect(start.stderr).toContain('did not start');
+    expect(start.stderr).toContain(
+      mode === 'note'
+        ? 'supervisor did not become ready'
+        : 'fixture refused supervisor capture',
+    );
+    expect(running(instances)).toStrictEqual([]);
+    expect(await instanceIds()).toStrictEqual([]);
+  },
+);
+
 test('failed startup cleans a captured detached child even when the supervisor dies before readiness', async ({
   onTestFinished,
 }) => {

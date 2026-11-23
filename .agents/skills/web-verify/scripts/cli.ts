@@ -1,3 +1,4 @@
+import { processCaptureProblem } from '../../verify-core/processes.ts';
 import { pairingLink } from '@porcelain/contracts/access';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
@@ -57,7 +58,11 @@ async function doctor(): Promise<string> {
     'Optional drivers (not required for startup): harness browser, project Playwright MCP, pnpm exec playwright cli',
     ...optionalDrivers(),
   ];
-  const live = (sandbox.length === 0 ? registry.list() : [])
+  const live = (
+    sandbox.length === 0 || processCaptureProblem() === undefined
+      ? registry.list()
+      : []
+  )
     .filter((entry) => entry.alive)
     .map(
       ({ instance }) =>

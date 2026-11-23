@@ -386,20 +386,29 @@ export class Registry<Detail> {
       const redactor = new Redactor([]);
       const recorder = new Evidence(evidence, redactor, this.surface.format);
       const failed = join(evidence, 'start-failed.txt');
-      if (!existsSync(failed))
-        await recorder.note(
-          'start-failed.txt',
-          `${error instanceof Error ? error.message : String(error)}\n`,
-        );
-      await this.cleanupFailedLaunch(
-        folder,
-        recorder,
-        redactor,
-        supervisor?.pid,
-        captured,
+      let reason = redactor.text(
+        error instanceof Error ? error.message : String(error),
       );
+      try {
+        if (existsSync(failed))
+          reason = (await readFile(failed, 'utf8')).split('\n')[0] ?? reason;
+        else await recorder.note('start-failed.txt', `${reason}\n`);
+      } catch {
+        reason += '; the startup failure note could not be retained';
+      }
+      try {
+        await this.cleanupFailedLaunch(
+          folder,
+          recorder,
+          redactor,
+          supervisor?.pid,
+          captured,
+        );
+      } catch (error) {
+        reason += `; cleanup evidence could not be retained: ${redactor.text(String(error))}`;
+      }
       throw new Refusal(
-        `instance ${id} did not start: ${(await readFile(failed, 'utf8')).split('\n')[0]}; evidence: ${evidence}`,
+        `instance ${id} did not start: ${reason}; evidence: ${evidence}`,
       );
     }
   }
@@ -414,30 +423,20 @@ export class Registry<Detail> {
     let result: StopResult;
     try {
       let owned = this.owned(folder);
-      if (owned.length === 0 && captured !== undefined) {
-        owned = [captured, ...captureGroup(captured)];
-        const file = join(folder, 'processes.json');
-        try {
-          await writeFile(file, JSON.stringify(owned), {
-            mode: 0o600,
-            flag: 'wx',
-          });
-        } catch (error) {
-          if (
-            !(
-              error instanceof Error &&
-              'code' in error &&
-              error.code === 'EEXIST'
-            )
-          )
-            throw error;
-          owned = this.owned(folder);
-        }
+      if (owned.length === 0 && pid !== undefined) {
+        const identity = captured ?? captureProcess(pid);
+        if (identity?.command.includes(this.marker(folder)))
+          owned = [identity, ...captureGroup(identity)];
       }
       result =
         pid === undefined
           ? { complete: true, report: ['no supervisor was spawned'] }
           : await this.finish(pid, folder, owned);
+      if (!result.complete && owned.length > 0)
+        await writeFile(join(folder, 'processes.json'), JSON.stringify(owned), {
+          mode: 0o600,
+          flag: 'wx',
+        }).catch(() => undefined);
     } catch (error) {
       result = {
         complete: false,
@@ -747,10 +746,12 @@ export class Registry<Detail> {
       } else this.save(instance);
       await rm(join(folder, 'pending.json'));
     } catch (error) {
-      await evidence().note(
-        'start-failed.txt',
-        `${error instanceof Error ? (error.stack ?? error.message) : String(error)}\n`,
-      );
+      await evidence()
+        .note(
+          'start-failed.txt',
+          `${error instanceof Error ? (error.stack ?? error.message) : String(error)}\n`,
+        )
+        .catch(() => undefined);
       stop('start failed');
       return;
     }

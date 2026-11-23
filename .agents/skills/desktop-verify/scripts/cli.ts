@@ -1,3 +1,4 @@
+import { processCaptureProblem } from '../../verify-core/processes.ts';
 import { Schema } from 'effect';
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
@@ -94,7 +95,10 @@ async function main(args: readonly string[]): Promise<string> {
     const problems = desktopProblems();
     if (problems.length > 0) process.exitCode = 1;
     return `Startup dependencies:\n${problems.length > 0 ? problems.map((problem) => `FAIL ${problem}`).join('\n') : `ready: Node ${process.versions.node}, Electron, Git, ps, pnpm and display`}\nOptional drivers:\nrenderer: CDP browser tools or Computer Use\nmain/bridge: in-process Playwright Electron\nmacOS only: Keychain, menus/sheets, window transitions\nlive instances: ${
-      (problems.length === 0 ? registry.list() : [])
+      (problems.length === 0 || processCaptureProblem() === undefined
+        ? registry.list()
+        : []
+      )
         .filter((entry) => entry.alive)
         .map((entry) => entry.instance.id)
         .join(', ') || 'none'
