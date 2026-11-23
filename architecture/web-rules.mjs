@@ -1584,7 +1584,7 @@ export function browserSpecNoMocks(context) {
         context.report({ node, message });
     },
     ImportDeclaration(node) {
-      if (!['vite-plus/test', 'vitest'].includes(sourceOf(node))) return;
+      if (sourceOf(node) !== 'vite-plus/test') return;
       for (const specifier of node.specifiers)
         if (
           specifier.type !== 'ImportSpecifier' ||

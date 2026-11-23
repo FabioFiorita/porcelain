@@ -2831,6 +2831,31 @@ export default {
         };
       },
     },
+    'no-direct-vitest-imports': {
+      create(context) {
+        const check = (node) => {
+          const source = staticString(node, context);
+          if (source === 'vitest' || source?.startsWith('vitest/'))
+            context.report({
+              node,
+              message:
+                'Use vite-plus/test or its matching subpath, because the test rules recognize the Vite+ test API.',
+            });
+        };
+        return {
+          ...moduleVisitors((node) => check(node.source)),
+          TSImportType: (node) => check(node.source),
+          TSExternalModuleReference: (node) => check(node.expression),
+          CallExpression(node) {
+            if (
+              node.callee.type === 'Identifier' &&
+              node.callee.name === 'require'
+            )
+              check(node.arguments[0]);
+          },
+        };
+      },
+    },
     'spec-no-clock': {
       create(context) {
         if (!timedTest(context)) return {};
@@ -2972,7 +2997,7 @@ export default {
               });
           },
           ImportExpression(node) {
-            if (['vite-plus/test', 'vitest'].includes(moduleSource(node)))
+            if (moduleSource(node) === 'vite-plus/test')
               context.report({
                 node,
                 message:
@@ -2980,8 +3005,7 @@ export default {
               });
           },
           ImportDeclaration(node) {
-            if (!['vite-plus/test', 'vitest'].includes(moduleSource(node)))
-              return;
+            if (moduleSource(node) !== 'vite-plus/test') return;
             for (const specifier of node.specifiers)
               if (
                 specifier.type === 'ImportNamespaceSpecifier' ||

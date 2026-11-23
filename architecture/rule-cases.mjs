@@ -2470,13 +2470,72 @@ export const saveBoth = Atom.writable(
     'apps/server/src/git/fixture.spec.ts',
     'apps/web/spec/integration/probe.test.tsx',
   ].map((path) => ({
-    rule: 'spec-no-mocking',
+    rule: 'no-direct-vitest-imports',
     path,
     valid:
       "import { expect } from 'vite-plus/test'; expect(read()).toBe('ready');",
     invalid: "import { vi as mocking } from 'vitest'; mocking.fn();",
     errors: 1,
   })),
+  {
+    rule: 'no-direct-vitest-imports',
+    path: 'apps/server/src/git/fixture.spec.ts',
+    valid:
+      "import { expect, it } from 'vite-plus/test'; it('reads the data', () => expect(read()).toBe('ready'));",
+    invalid:
+      "import { expect, it } from 'vitest'; if (enabled) { it('reads the data', () => expect(read()).toBe('ready')); }",
+    errors: 1,
+  },
+  {
+    rule: 'spec-asserts',
+    path: 'apps/server/src/git/fixture.spec.ts',
+    valid:
+      "import { expect, it } from 'vite-plus/test'; it('reads the data', () => expect(read()).toBe('ready'));",
+    invalid:
+      "import { expect, it } from 'vite-plus/test'; if (enabled) { it('reads the data', () => expect(read()).toBe('ready')); }",
+    errors: 1,
+  },
+  {
+    rule: 'no-direct-vitest-imports',
+    path: 'apps/server/spec/kit/clock.ts',
+    valid:
+      "import { vi as timers } from 'vite-plus/test'; timers.useFakeTimers(); Date.now(); timers.useRealTimers();",
+    invalid:
+      "import { vi as timers } from 'vitest'; timers.useFakeTimers(); Date.now(); timers.useRealTimers();",
+    errors: 1,
+  },
+  {
+    rule: 'spec-no-clock',
+    path: 'apps/server/spec/kit/clock.ts',
+    valid:
+      "import { vi as timers } from 'vite-plus/test'; timers.useFakeTimers(); Date.now(); timers.useRealTimers();",
+    invalid:
+      "import { vi as timers } from 'vite-plus/test'; timers.useFakeTimers(); timers.useRealTimers(); Date.now();",
+    errors: 1,
+  },
+  {
+    rule: 'no-direct-vitest-imports',
+    path: 'apps/web/src/features/files/test-api.ts',
+    valid: "export { commands } from 'vite-plus/test/browser';",
+    invalid: "export { commands } from 'vitest/browser';",
+    errors: 1,
+  },
+  {
+    rule: 'no-direct-vitest-imports',
+    path: 'apps/web/src/features/files/test-api.ts',
+    valid: "const runner = await import('vite-plus/test');",
+    invalid: 'const runner = await import(`vitest`);',
+    errors: 1,
+  },
+  {
+    rule: 'no-direct-vitest-imports',
+    path: 'apps/server/spec/kit/setup.ts',
+    valid:
+      "declare module 'vitest' { interface ProvidedContext { serverBuild: string; } }",
+    invalid:
+      "type Context = import('vitest').ProvidedContext; import legacy = require('vitest'); const runner = require('vitest');",
+    errors: 3,
+  },
   {
     rule: 'spec-no-mocking',
     path: 'apps/web/spec/integration/sample.test.tsx',
@@ -6297,6 +6356,10 @@ export const guardrailCases = [
   },
   {
     rule: 'ci-affected-selection',
+    files: {
+      'apps/web/spec/integration/changes-branch-base.test.tsx': 'export {};',
+      'apps/web/spec/integration/access-remote-access.test.tsx': 'export {};',
+    },
     cases: [
       {
         name: 'new architecture file selects rules',
@@ -6414,8 +6477,18 @@ export const guardrailCases = [
         path,
         selected: [],
       })),
-      {
-        name: 'root Vite configuration selects every runtime gate',
+      ...[
+        {
+          name: 'root Vite configuration selects every runtime gate and the preferred integration smoke',
+          integration: ['spec/integration/changes-branch-base.test.tsx'],
+        },
+        {
+          name: 'root Vite configuration selects an unchanged integration spec after deleting the preferred smoke',
+          remove: ['apps/web/spec/integration/changes-branch-base.test.tsx'],
+          integration: ['spec/integration/access-remote-access.test.tsx'],
+        },
+      ].map((fixture) => ({
+        ...fixture,
         rules: true,
         path: 'vite.config.ts',
         selected: [
@@ -6426,7 +6499,7 @@ export const guardrailCases = [
           'storage',
           'package',
         ],
-      },
+      })),
     ],
   },
   {

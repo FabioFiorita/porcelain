@@ -64,6 +64,7 @@ export default {
       'porcelain/use-case-imports': 'error',
       'porcelain/no-schema-parse-in-typed-code': 'error',
       'porcelain/operation-class-shape': 'error',
+      'porcelain/no-direct-vitest-imports': 'error',
       'porcelain/spec-no-mocking': 'error',
       'porcelain/spec-no-skips': 'error',
       'porcelain/spec-one-case-per-behaviour': 'error',

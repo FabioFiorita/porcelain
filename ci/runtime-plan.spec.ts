@@ -23,7 +23,13 @@ it('runs touched browser specs, a separate smoke and storage checks on main', ()
 });
 
 it('runs every runtime job with a browser integration smoke for root Vite configuration changes', () => {
-  expect(runtimePlan(false, ['vite.config.ts'], ['vite.config.ts'])).toEqual({
+  expect(
+    runtimePlan(
+      false,
+      ['vite.config.ts'],
+      ['apps/web/spec/integration/changes-branch-base.test.tsx'],
+    ),
+  ).toEqual({
     server: true,
     'web-integration': true,
     'web-e2e': true,
@@ -33,6 +39,25 @@ it('runs every runtime job with a browser integration smoke for root Vite config
     shards: [1],
     integration: ['spec/integration/changes-branch-base.test.tsx'],
     e2e: ['spec/e2e/access-pairing.e2e.ts'],
+  });
+});
+
+it('uses an unchanged browser integration spec when the preferred smoke was deleted', () => {
+  expect(
+    runtimePlan(
+      false,
+      [
+        'vite.config.ts',
+        'apps/web/spec/integration/changes-branch-base.test.tsx',
+      ],
+      [
+        'apps/web/spec/integration/helper.test.ts',
+        'apps/web/spec/integration/walkthroughs-page.test.tsx',
+      ],
+    ),
+  ).toMatchObject({
+    'web-integration': true,
+    integration: ['spec/integration/walkthroughs-page.test.tsx'],
   });
 });
 

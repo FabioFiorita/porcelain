@@ -221,6 +221,7 @@ function ciSelectionFixture(entry) {
       writeFiles(root, {
         [path]: readFileSync(join(repository, path), 'utf8'),
       });
+    writeFiles(root, entry.files);
     for (const fixture of entry.cases)
       if (fixture.source) writeFiles(root, { [fixture.path]: fixture.source });
     run('git', ['init', '--quiet']);
@@ -252,7 +253,8 @@ function ciSelectionFixture(entry) {
       const original = path && readFileSync(path, 'utf8');
       if (path) {
         writeFileSync(path, original + '\n');
-        run('git', ['add', '--', fixture.path]);
+        for (const removed of fixture.remove ?? []) rmSync(join(root, removed));
+        run('git', ['add', '--', fixture.path, ...(fixture.remove ?? [])]);
         run('git', [
           '-c',
           'user.name=CI fixture',
@@ -311,6 +313,12 @@ function ciSelectionFixture(entry) {
         return output === `${gate}=true`;
       });
       deepStrictEqual(selected, fixture.selected, fixture.name);
+      if (fixture.integration)
+        strictEqual(
+          outputs.find((line) => line.startsWith('integration=')),
+          `integration=${JSON.stringify(fixture.integration)}`,
+          `${fixture.name}: integration spec output`,
+        );
       if (path) run('git', ['reset', '--hard', '--quiet', base]);
       process.stdout.write(`PASS ci-affected-selection: ${fixture.name}\n`);
     }
