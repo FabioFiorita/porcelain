@@ -15,7 +15,6 @@ import {
   ReadEnvironmentService,
   ReadEnvironmentLabelService,
 } from '@porcelain/access/services';
-import { ReadTextFilesService } from '@porcelain/files/services';
 import { InventoryScan } from '../ports/inventory-scan.ts';
 import { EventPublisher } from '../ports/event-publisher.ts';
 import { LaneKeys } from '../runtime/lane-keys.ts';
@@ -36,7 +35,6 @@ import {
   CollectAbsentWorktreesOptions,
 } from '@porcelain/projects/ports';
 import {
-  FindWorktreeAtPathService,
   BrowseProjectFoldersService,
   CheckProjectService,
   CollectAbsentWorktreesService,
@@ -70,7 +68,6 @@ import { WorktreeAccess } from '../runtime/worktree-access.ts';
 import { BrowseProjectFoldersUseCase } from '../use-cases/projects/browse-project-folders.ts';
 import { CheckWorktreeUseCase } from '../use-cases/projects/check-worktree.ts';
 import { CollectAbsentWorktreesUseCase } from '../use-cases/projects/collect-absent-worktrees.ts';
-import { FindWorktreeByPathUseCase } from '../use-cases/projects/find-worktree-by-path.ts';
 import { ListFilePreferencesUseCase } from '../use-cases/projects/list-file-preferences.ts';
 import { ReadInventoryUseCasePort } from '../ports/read-inventory-use-case-port.ts';
 import { ReadInventoryUseCase } from '../use-cases/projects/read-inventory.ts';
@@ -142,7 +139,6 @@ export function composeProjects(
     Layer.succeed(CheckWorktreeService, shared.checkWorktreeService),
     Layer.succeed(CheckRefreshedWorktreeService, shared.checkRefreshedWorktree),
     Layer.succeed(WorktreeConsistencyProbe, shared.confirmWorktree),
-    Layer.succeed(ReadTextFilesService, shared.readTextFilesService),
     Layer.succeed(ReadEnvironmentService, shared.readEnvironment),
     Layer.succeed(ReadEnvironmentLabelService, shared.readEnvironmentLabel),
     Layer.succeed(IdSource, ids),
@@ -166,7 +162,6 @@ export function composeProjects(
     RecordWorktreeCatalogService.layer,
     ReadWorktreeActivityService.layer,
     RecordWorktreeActivityService.layer,
-    FindWorktreeAtPathService.layer,
     InspectProjectRepositoryService.layer,
     ReadRepositoryOriginService.layer,
     RegisterProjectService.layer,
@@ -197,7 +192,6 @@ export function composeProjects(
   ).pipe(Layer.provideMerge(admission));
   const layer4 = Layer.mergeAll(
     CheckWorktreeUseCase.layer,
-    FindWorktreeByPathUseCase.layer,
     RemoveProjectUseCase.layer,
   ).pipe(Layer.provideMerge(application));
   const layer5 = Layer.mergeAll(
@@ -224,7 +218,6 @@ export function composeProjects(
     return yield* Effect.gen(function* () {
       const useCases = {
         readInventory: yield* ReadInventoryUseCase,
-        findWorktreeByPath: yield* FindWorktreeByPathUseCase,
         scanInventory: yield* InventoryScanCoordinator,
         checkWorktree: yield* CheckWorktreeUseCase,
         registerProject: yield* RegisterProjectUseCase,

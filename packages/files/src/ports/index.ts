@@ -6,8 +6,6 @@ export { IgnoredEntriesReader } from './ignored-entries-reader.ts';
 export { WorktreePathsReader } from './worktree-paths-reader.ts';
 export { EditFileOptions } from './edit-file-options.ts';
 export { ListDirectoryOptions } from './list-directory-options.ts';
-export { ReadBinaryFilesOptions } from './read-binary-files-options.ts';
 export { ReadFileAssetOptions } from './read-file-asset-options.ts';
 export { ReadPreviewAssetsOptions } from './read-preview-assets-options.ts';
 export { ReadTextFileOptions } from './read-text-file-options.ts';
-export { ReadTextFilesOptions } from './read-text-files-options.ts';

@@ -13,5 +13,3 @@ export {
   ReadTextFileService,
   type ReadTextFileFailure,
 } from './read-text-file-service.ts';
-export { ReadTextFilesService } from './read-text-files-service.ts';
-export { ReadBinaryFilesService } from './read-binary-files-service.ts';
