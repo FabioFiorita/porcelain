@@ -1,4 +1,6 @@
-import { Effect, FileSystem, Option } from 'effect';
+import { Effect, FileSystem, Option, Path, type Clock } from 'effect';
+import type { Limits } from '../config/limits.ts';
+import { acquireDirectoryLock } from './directory-lock.ts';
 import { DataDirectoryInsecureError } from './errors/data-directory-insecure-error.ts';
 
 export const prepareDataDirectory = Effect.fn('prepareDataDirectory')(
@@ -24,5 +26,24 @@ export const prepareDataDirectory = Effect.fn('prepareDataDirectory')(
         ),
       );
     return directory;
+  },
+);
+
+export const acquireDataDirectoryLock = Effect.fn('acquireDataDirectoryLock')(
+  function* (
+    directory: string,
+    limits: Limits['locks'],
+    clock: Clock.Clock,
+    held: () => Error,
+  ) {
+    const path = yield* Path.Path;
+    return yield* acquireDirectoryLock({
+      path: path.join(directory, 'server.lock'),
+      waitMs: limits.startupWaitMs,
+      pollMs: limits.pollMs,
+      staleTakeovers: limits.staleTakeovers,
+      clock,
+      held,
+    });
   },
 );

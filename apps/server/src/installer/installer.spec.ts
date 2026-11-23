@@ -25,6 +25,7 @@ import { dirname, join } from 'node:path';
 import { afterEach, beforeEach, expect, it } from 'vitest';
 import type { OwnerProbe } from '../ports/owner-probe.ts';
 import { acquireDirectoryLock } from '../runtime/directory-lock.ts';
+import { DataDirectoryOwnedError } from '../runtime/errors/data-directory-owned-error.ts';
 import { Installer, InstallerOptions } from './installer.ts';
 
 const packageName = '@fabiofiorita/porcelain';
@@ -38,6 +39,7 @@ let rejectCandidate: boolean;
 let mutateDatabase: boolean;
 let rejectRetention: boolean;
 let rejectStart: boolean;
+let rejectStatus: boolean;
 let commands: string[];
 let searchPath: string;
 
@@ -165,10 +167,13 @@ const command = Effect.fn('Test.installerCommand')(
         return ok();
       }
       if (args.includes('show')) return ok(`${service?.pid ?? 0}\n`);
-      if (args.includes('is-active'))
+      if (args.includes('is-active')) {
+        if (rejectStatus)
+          return { code: 1, stdout: '', stderr: 'systemd status unavailable' };
         return service === undefined
           ? { code: 3, stdout: 'inactive\n', stderr: '' }
           : ok('active\n');
+      }
       if (args.includes('is-enabled')) return ok('enabled\n');
       return ok();
     }),
@@ -279,7 +284,7 @@ beforeEach(() => {
   root = join(home, '.local/share/porcelain/service');
   data = join(home, 'data');
   source = join(home, 'package');
-  mkdirSync(data);
+  mkdirSync(data, { mode: 0o700 });
   mkdirSync(source);
   writeDatabase(database(), 'database before update');
   writeFileSync(
@@ -291,6 +296,7 @@ beforeEach(() => {
   mutateDatabase = false;
   rejectRetention = false;
   rejectStart = false;
+  rejectStatus = false;
   commands = [];
   searchPath = '/usr/bin';
 });
@@ -469,6 +475,98 @@ it.each(['restore-previous', 'restart-current', 'finish-update'] as const)(
     );
   },
 );
+
+async function interruptedRollback() {
+  await install();
+  await stopService();
+  const backup = join(root, 'saved-database');
+  mkdirSync(backup);
+  writeDatabase(join(backup, 'inventory.sqlite'), 'saved database');
+  writeDatabase(database(), 'interrupted database');
+  const journal = join(root, 'update.json');
+  writeFileSync(
+    journal,
+    JSON.stringify({
+      installed: { version: '1.0.0' },
+      backup,
+      target: '2.0.0',
+    }),
+  );
+  return journal;
+}
+
+it.each(['stopped', 'status unavailable'] as const)(
+  'preserves the database and recovery journal while another server owns the data directory and systemd reports %s',
+  async (status) => {
+    const journal = await interruptedRollback();
+    const before = readFileSync(journal, 'utf8');
+    rejectStatus = status === 'status unavailable';
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        yield* acquireDirectoryLock({
+          path: join(data, 'server.lock'),
+          waitMs: 0,
+          pollMs: 1,
+          staleTakeovers: 1,
+          clock: yield* Clock.Clock,
+          held: () => new DataDirectoryOwnedError(data),
+        });
+        yield* Effect.promise(async () => {
+          const result = execute({ action: 'recover' });
+          await expect(result).rejects.toThrow(
+            'owned by a running Porcelain server',
+          );
+          expect(readDatabase(database())).toBe('interrupted database');
+          expect(readFileSync(journal, 'utf8')).toBe(before);
+          expect(service).toBeUndefined();
+        });
+      }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
+    );
+    expect(await execute({ action: 'recover' })).toMatchObject({
+      result: { recovered: true },
+    });
+    expect(readDatabase(database())).toBe('saved database');
+  },
+);
+
+it('preserves writes after rollback restarts the service and cleanup fails', async () => {
+  const journal = await interruptedRollback();
+  const staging = join(root, 'runtime.next');
+  writeRuntime(staging, '2.0.0');
+  const files = await Effect.runPromise(
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      return {
+        ...fs,
+        remove: (path: string, options?: Parameters<typeof fs.remove>[1]) =>
+          path === staging
+            ? fs.remove(join(root, 'missing-cleanup-target'))
+            : fs.remove(path, options),
+      };
+    }).pipe(Effect.provide(NodeServices.layer)),
+  );
+  await expect(
+    execute({ action: 'recover' }, '2.0.0', source, files),
+  ).rejects.toThrow('missing-cleanup-target');
+  expect(existsSync(journal)).toBe(true);
+  expect(readDatabase(database())).toBe('saved database');
+  const pid = service?.pid;
+  expect(pid).toBeGreaterThan(0);
+  const db = new DatabaseSync(database());
+  try {
+    db.prepare('UPDATE saved SET value = ?').run('written after rollback');
+  } finally {
+    db.close();
+  }
+  expect(await execute({ action: 'recover' })).toMatchObject({
+    result: { recovered: true },
+  });
+  expect(readDatabase(database())).toBe('written after rollback');
+  expect(service?.pid).toBe(pid);
+  expect(existsSync(journal)).toBe(false);
+  expect(existsSync(staging)).toBe(false);
+  expect(record('update-record.json')).toMatchObject({ stage: 'failed' });
+});
 
 it('restarts an interrupted healthy service even when backup retention fails', async () => {
   await install();
