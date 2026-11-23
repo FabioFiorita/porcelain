@@ -33,6 +33,8 @@ Before calling a change done, check each of these and say which applied:
 - **The way back:** a way in needs a way out and a way to see it.
 - **Connections:** local, local network and remote environments behave differently.
 
+For visible web, desktop, and mobile changes, use the [UI review checklist](.agents/skills/ui-review/SKILL.md).
+
 ## Libraries
 
 Each job has one library. Rules already hold Zustand's ban, the shadcn pins, routing, forms, hotkeys and Expo UI chrome; these choices have no check:
