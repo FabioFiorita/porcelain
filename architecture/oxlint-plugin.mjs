@@ -2972,7 +2972,7 @@ export default {
               });
           },
           ImportExpression(node) {
-            if (moduleSource(node) === 'vite-plus/test')
+            if (['vite-plus/test', 'vitest'].includes(moduleSource(node)))
               context.report({
                 node,
                 message:
@@ -2980,7 +2980,8 @@ export default {
               });
           },
           ImportDeclaration(node) {
-            if (node.source.value !== 'vite-plus/test') return;
+            if (!['vite-plus/test', 'vitest'].includes(moduleSource(node)))
+              return;
             for (const specifier of node.specifiers)
               if (
                 specifier.type === 'ImportNamespaceSpecifier' ||

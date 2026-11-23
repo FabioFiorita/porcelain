@@ -22,6 +22,20 @@ it('runs touched browser specs, a separate smoke and storage checks on main', ()
   });
 });
 
+it('runs every runtime job with a browser integration smoke for root Vite configuration changes', () => {
+  expect(runtimePlan(false, ['vite.config.ts'], ['vite.config.ts'])).toEqual({
+    server: true,
+    'web-integration': true,
+    'web-e2e': true,
+    desktop: true,
+    storage: true,
+    package: true,
+    shards: [1],
+    integration: ['spec/integration/changes-branch-base.test.tsx'],
+    e2e: ['spec/e2e/access-pairing.e2e.ts'],
+  });
+});
+
 it('requires every runtime suite on promotion even when only documentation changed', () => {
   expect(runtimePlan(true, ['README.md'], ['README.md'])).toMatchObject({
     server: true,

@@ -1,7 +1,8 @@
 import { Schema } from 'effect';
+import { minimatch } from 'minimatch';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { globSync, readFileSync } from 'node:fs';
-import { dirname, join, matchesGlob } from 'node:path';
+import { dirname, join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { parse } from 'yaml';
 
@@ -18,11 +19,9 @@ const staticTasks = [
   'features:check',
   'build:marketing',
 ];
-const runtimeTasks = ['test:integration', 'test:e2e', 'build', 'db:check'];
 const suites = {
   static: staticTasks,
   unit: ['test'],
-  runtime: [...runtimeTasks, 'build:package'],
 };
 
 type Suite = keyof typeof suites;
@@ -54,7 +53,7 @@ const git = (args: string[], cwd: string) =>
     maxBuffer: 16 * 1024 ** 2,
   });
 const matches = (path: string, patterns: readonly string[]) =>
-  patterns.some((pattern) => matchesGlob(path, pattern));
+  patterns.some((pattern) => minimatch(path, pattern, { dot: true }));
 const verification = '.agents/skills';
 const web = 'apps/web';
 const testFile = /\.(?:spec|test|e2e|integration)\.tsx?$/;
@@ -142,19 +141,6 @@ function rootInput(task: string, path: string): boolean {
         'packages/{client,contracts,theme}/src/**',
         'apps/web/public/icon-512.png',
       ]);
-    case 'build:package':
-      return (
-        matches(path, [
-          'apps/{server,web}/**',
-          'packages/**',
-          'scripts/{build-package,server}.ts',
-          'scripts/check-package.sh',
-          '.github/workflows/**',
-          'tsconfig.json',
-        ]) &&
-        !path.startsWith('apps/web/spec/') &&
-        !(path.startsWith('apps/web/') && testFile.test(path))
-      );
     default:
       return true;
   }
@@ -169,34 +155,17 @@ function packageInput(
   if (task === 'typecheck' && path === 'tsconfig.json') return true;
   if (task === 'test' && path === 'vitest.config.ts') return true;
   if (
-    task === 'test:integration' &&
-    folder !== web &&
-    path === 'vitest.integration.config.ts'
-  )
-    return true;
-  if (
     folder === 'apps/desktop' &&
-    ((task === 'test' && matches(path, ['scripts/desktop-*.ts'])) ||
-      (['test', 'test:e2e'].includes(task) &&
-        path === 'scripts/collect-desktop-crashes.sh'))
+    task === 'test' &&
+    matches(path, [
+      'scripts/desktop-*.ts',
+      'scripts/collect-desktop-crashes.sh',
+    ])
   )
     return true;
   if (folder === verification && path.startsWith('apps/web/spec/kit/'))
     return true;
-  if (!path.startsWith(`${folder}/`)) return false;
-
-  const local = path.slice(folder.length + 1);
-  if (folder === web) {
-    if (task === 'build')
-      return !local.startsWith('spec/') && !testFile.test(local);
-    if (task === 'test:integration' || task === 'test:e2e') {
-      const otherSuite = task === 'test:integration' ? 'e2e' : 'integration';
-      return (
-        !local.startsWith(`spec/${otherSuite}/`) && !/\.spec\.tsx?$/.test(local)
-      );
-    }
-  }
-  return true;
+  return path.startsWith(`${folder}/`);
 }
 
 export function checkPlan(
@@ -247,7 +216,7 @@ export function checkPlan(
         .filter((workspace) => {
           if (workspace.scripts[task] === undefined) return false;
           if (workspace.folder === '.') {
-            if (suite === 'unit' || runtimeTasks.includes(task)) return false;
+            if (suite === 'unit') return false;
             return (
               all ||
               sharedContract ||
@@ -260,14 +229,7 @@ export function checkPlan(
             changed?.some((path) => packageInput(task, workspace, path))
           )
             return true;
-          if (workspace.dependencies.some((name) => affected.has(name)))
-            return true;
-          return (
-            ((workspace.folder === 'apps/desktop' && task === 'test:e2e') ||
-              (workspace.folder === verification &&
-                task === 'test:integration')) &&
-            affected.has('@porcelain/web')
-          );
+          return workspace.dependencies.some((name) => affected.has(name));
         })
         .map(({ folder, name }) => ({
           name,
@@ -307,10 +269,8 @@ if (import.meta.main) {
       head: { type: 'string' },
     },
   });
-  if (suite !== 'static' && suite !== 'unit' && suite !== 'runtime')
-    throw new Error(
-      'Usage: node ci/check-plan.ts static|unit|runtime [--ci] [--list]',
-    );
+  if (suite !== 'static' && suite !== 'unit')
+    throw new Error('Usage: node ci/check-plan.ts static|unit [--ci] [--list]');
   const root = process.cwd();
   const base =
     values.base ??

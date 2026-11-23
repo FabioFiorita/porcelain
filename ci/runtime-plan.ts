@@ -11,20 +11,30 @@ export function runtimePlan(
       .map((path) => path.slice('apps/web/'.length));
   const integration = specs(/^apps\/web\/spec\/integration\/.+\.test\.tsx?$/);
   const e2e = specs(/^apps\/web\/spec\/e2e\/.+\.e2e\.ts$/);
+  const toolchain = changed.includes('vite.config.ts');
+  const allRuntime = release || toolchain;
   const web = changed.some((path) =>
     /^(?:apps\/(?:web|server)\/|packages\/|pnpm-lock\.yaml$)/.test(path),
   );
   const smoke = 'spec/e2e/access-pairing.e2e.ts';
   return {
-    server: release,
-    'web-integration': release || integration.length > 0,
-    'web-e2e': release || web,
-    desktop: release,
+    server: allRuntime,
+    'web-integration': allRuntime || integration.length > 0,
+    'web-e2e': allRuntime || web,
+    desktop: allRuntime,
     storage:
-      release || changed.some((path) => path.startsWith('packages/storage/')),
-    package: release,
+      allRuntime ||
+      changed.some((path) => path.startsWith('packages/storage/')),
+    package: allRuntime,
     shards: release ? [1, 2, 3, 4] : [1],
-    integration,
+    integration: [
+      ...new Set([
+        ...integration,
+        ...(toolchain && !release
+          ? ['spec/integration/changes-branch-base.test.tsx']
+          : []),
+      ]),
+    ],
     e2e: [
       ...new Set([
         ...e2e,

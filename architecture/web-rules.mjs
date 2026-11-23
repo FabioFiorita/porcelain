@@ -1584,13 +1584,15 @@ export function browserSpecNoMocks(context) {
         context.report({ node, message });
     },
     ImportDeclaration(node) {
-      if (sourceOf(node) !== 'vite-plus/test') return;
+      if (!['vite-plus/test', 'vitest'].includes(sourceOf(node))) return;
       for (const specifier of node.specifiers)
         if (
           specifier.type !== 'ImportSpecifier' ||
-          (specifier.imported.type === 'Identifier'
-            ? specifier.imported.name
-            : specifier.imported.value) === 'vi'
+          ['vi', 'vitest'].includes(
+            specifier.imported.type === 'Identifier'
+              ? specifier.imported.name
+              : specifier.imported.value,
+          )
         )
           context.report({ node: specifier, message });
     },

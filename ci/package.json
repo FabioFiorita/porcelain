@@ -11,6 +11,7 @@
     "openai": "7.51.0"
   },
   "devDependencies": {
-    "@porcelain/kernel": "workspace:*"
+    "@porcelain/kernel": "workspace:*",
+    "minimatch": "10.2.6"
   }
 }

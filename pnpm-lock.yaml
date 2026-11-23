@@ -652,6 +652,9 @@ importers:
       '@porcelain/kernel':
         specifier: workspace:*
         version: link:../packages/kernel
+      minimatch:
+        specifier: 10.2.6
+        version: 10.2.6
 
   packages/access:
     dependencies:

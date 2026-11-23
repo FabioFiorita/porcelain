@@ -1,4 +1,9 @@
-import { deepStrictEqual, strictEqual, throws } from 'node:assert/strict';
+import {
+  deepStrictEqual,
+  match,
+  strictEqual,
+  throws,
+} from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import {
   mkdirSync,
@@ -234,10 +239,17 @@ function ciSelectionFixture(entry) {
     ]);
     const base = run('git', ['rev-parse', 'HEAD']).trim();
     const planner = join(repository, 'ci/check-plan.ts');
+    const runtimePlanner = 'ci/runtime-plan.ts';
+    const workflow = parse(
+      readFileSync(join(root, '.github/workflows/ci.yml'), 'utf8'),
+    );
+    match(
+      workflow.jobs.affected.steps.find(({ id }) => id === 'affected').run,
+      /^node ci\/runtime-plan\.ts >> "\$GITHUB_OUTPUT"$/m,
+    );
     for (const fixture of entry.cases) {
       const path = fixture.path && join(root, fixture.path);
       const original = path && readFileSync(path, 'utf8');
-      let head = base;
       if (path) {
         writeFileSync(path, original + '\n');
         run('git', ['add', '--', fixture.path]);
@@ -253,21 +265,14 @@ function ciSelectionFixture(entry) {
           '-m',
           fixture.name,
         ]);
-        head = run('git', ['rev-parse', 'HEAD']).trim();
       }
       const plan = (suite) =>
         JSON.parse(
-          run(process.execPath, [
-            planner,
-            suite,
-            '--list',
-            '--base',
-            base,
-            '--head',
-            head,
-          ]),
+          run(process.execPath, [planner, suite, '--ci', '--list'], {
+            DIFF_BASE: base,
+            RELEASE_LANE: String(fixture.release ?? false),
+          }),
         );
-      const tasks = new Set(plan('runtime'));
       if (fixture.unitProjects)
         deepStrictEqual(
           plan('unit').map((id) => id.split('#')[0]),
@@ -279,23 +284,32 @@ function ciSelectionFixture(entry) {
         fixture.rules ?? false,
         `${fixture.name}: test:rules affected selection`,
       );
+      const outputs = run(
+        process.execPath,
+        [join(repository, runtimePlanner)],
+        {
+          DIFF_BASE: base,
+          RELEASE_LANE: String(fixture.release ?? false),
+        },
+      )
+        .trim()
+        .split('\n');
       const selected = [
-        [
-          'server',
-          [
-            '@porcelain/server#test:integration',
-            '@porcelain/client#test:integration',
-            '@porcelain/verification#test:integration',
-          ],
-        ],
-        ['web-integration', ['@porcelain/web#test:integration']],
-        ['web-e2e', ['@porcelain/web#test:e2e']],
-        ['desktop', ['@porcelain/desktop#test:e2e']],
-        ['storage', ['@porcelain/storage#db:check']],
-        ['package', ['//#build:package']],
-      ]
-        .filter(([, ids]) => ids.some((id) => tasks.has(id)))
-        .map(([gate]) => gate);
+        'server',
+        'web-integration',
+        'web-e2e',
+        'desktop',
+        'storage',
+        'package',
+      ].filter((gate) => {
+        const output = outputs.find((line) => line.startsWith(`${gate}=`));
+        strictEqual(
+          output === `${gate}=true` || output === `${gate}=false`,
+          true,
+          `${fixture.name}: ${gate} must be a boolean output`,
+        );
+        return output === `${gate}=true`;
+      });
       deepStrictEqual(selected, fixture.selected, fixture.name);
       if (path) run('git', ['reset', '--hard', '--quiet', base]);
       process.stdout.write(`PASS ci-affected-selection: ${fixture.name}\n`);
