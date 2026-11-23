@@ -1,4 +1,4 @@
-export { githubRepository } from './github-account.ts';
+export { githubAccountCandidates, githubRepository } from './github-account.ts';
 export {
   mapPullRequestSummary,
   mapPullRequest,

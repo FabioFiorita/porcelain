@@ -34,22 +34,29 @@ export class QueueWalkthroughUseCase extends Context.Service<
       return {
         execute: Effect.fn('QueueWalkthroughUseCase.execute')(
           function* (input) {
-            const accepted = yield* access.write(input.worktreeId, (worktree) =>
-              service.execute({
-                ...input,
-                base: input.base,
-                writer: input.writer,
-                pullRequestNumber: input.pullRequestNumber,
-                projectId: worktree.projectId,
-                worktreePath: worktree.path,
-              }),
+            return yield* access.transaction(
+              input.worktreeId,
+              (worktree) =>
+                service.execute({
+                  ...input,
+                  base: input.base,
+                  writer: input.writer,
+                  pullRequestNumber: input.pullRequestNumber,
+                  projectId: worktree.projectId,
+                  worktreePath: worktree.path,
+                }),
+              (accept) => accept(),
+              (accepted) =>
+                queue.execute(accepted.id).pipe(
+                  Effect.ensuring(
+                    events.worktreeChanged({
+                      worktreeId: input.worktreeId,
+                      change: 'walkthrough',
+                    }),
+                  ),
+                ),
+              { requireAvailableProject: true },
             );
-            yield* queue.execute(accepted.id);
-            yield* events.worktreeChanged({
-              worktreeId: input.worktreeId,
-              change: 'walkthrough',
-            });
-            return accepted;
           },
         ),
       };

@@ -132,7 +132,7 @@ export function composeWalkthroughs(
     cliWalkthroughWriterLayer({
       processGroup: context.settings.limits.agents.processGroup,
     }).pipe(Layer.provide(modelReader)),
-    githubEvidenceReaderLayer(context.settings.limits.git).pipe(
+    githubEvidenceReaderLayer.pipe(
       Layer.provide(
         Layer.mergeAll(
           githubReader(context.settings.limits.git),

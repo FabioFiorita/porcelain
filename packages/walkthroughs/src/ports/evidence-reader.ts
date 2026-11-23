@@ -1,13 +1,16 @@
 import { Context, type Effect } from 'effect';
 import type {
   WalkthroughEvidence,
-  WalkthroughJob,
+  WalkthroughRun,
 } from '../models/walkthrough.ts';
 import type { WalkthroughFailedError } from '../errors/walkthrough-failed-error.ts';
 export interface EvidenceReader {
-  readonly read: (
-    job: WalkthroughJob,
-  ) => Effect.Effect<WalkthroughEvidence, WalkthroughFailedError>;
+  readonly read: (target: {
+    projectId: string;
+    headOid: string;
+    number: number;
+    repository: NonNullable<WalkthroughRun['pullRequestRepository']>;
+  }) => Effect.Effect<WalkthroughEvidence, WalkthroughFailedError>;
 }
 export const EvidenceReader = Context.Service<
   '@porcelain/walkthroughs/EvidenceReader',
