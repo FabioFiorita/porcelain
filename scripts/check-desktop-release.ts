@@ -1,4 +1,4 @@
-import { execFileSync, spawn } from 'node:child_process';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline';
@@ -38,15 +38,27 @@ try {
       stdio: 'inherit',
     },
   );
+  const env = {
+    ...process.env,
+    HOME: home,
+    PORCELAIN_CODING_TOOL_DIRECTORY: 'none',
+  };
+  const keychain = spawnSync(
+    '/usr/bin/security',
+    ['default-keychain', '-d', 'user'],
+    {
+      env,
+      encoding: 'utf8',
+    },
+  );
+  console.log(
+    `Default Keychain from the app environment (${keychain.status}): ${(keychain.stdout + keychain.stderr).trim()}`,
+  );
   const app = spawn(
     join(bundle, 'Contents', 'MacOS', 'Porcelain'),
     ['--data-directory', profile, '--project-home', projects],
     {
-      env: {
-        ...process.env,
-        HOME: home,
-        PORCELAIN_CODING_TOOL_DIRECTORY: 'none',
-      },
+      env,
       stdio: ['ignore', 'inherit', 'pipe'],
     },
   );

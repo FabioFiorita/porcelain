@@ -87,17 +87,47 @@ jobs:
           scutil <<< 'show State:/Users/ConsoleUser' || true
           /usr/bin/xattr -l "$IMAGE"
           /usr/sbin/spctl --assess --type open --context context:primary-signature --verbose "$IMAGE"
+          security error -25307
+          security default-keychain -d user || true
       - name: Launch the signed app from the mounted image
         if: always() && steps.image.outcome == 'success'
         env:
           IMAGE: ${{ runner.temp }}/signed-image/Porcelain-${{ needs.version.outputs.version }}-arm64.dmg
         run: node scripts/check-desktop-release.ts "$IMAGE"
-      - name: Launch the same signed app after copying from the image
+      - name: Launch the same signed app with a disposable default Keychain
         if: always() && steps.image.outcome == 'success'
         env:
           IMAGE: ${{ runner.temp }}/signed-image/Porcelain-${{ needs.version.outputs.version }}-arm64.dmg
-          PORCELAIN_REHEARSAL_COPY: 'true'
-        run: node scripts/check-desktop-release.ts "$IMAGE"
+        run: |
+          set -euo pipefail
+          existing_default=$(security default-keychain -d user 2>/dev/null | sed -n 's/^[[:space:]]*"\(.*\)"$/\1/p') || true
+          existing_list=$(security list-keychains -d user)
+          keychain="$RUNNER_TEMP/porcelain-smoke.keychain-db"
+          password=$(openssl rand -hex 24)
+          cleanup() {
+            if [[ -n "$existing_default" ]]; then
+              security default-keychain -d user -s "$existing_default" || true
+            else
+              security default-keychain -d user -s || true
+            fi
+            existing=()
+            while IFS= read -r path; do
+              if [[ -n "$path" ]]; then existing+=("$path"); fi
+            done < <(sed -n 's/^[[:space:]]*"\(.*\)"$/\1/p' <<< "$existing_list")
+            if [[ -n "$existing_list" ]]; then
+              security list-keychains -d user -s "${existing[@]}" || true
+            else
+              security list-keychains -d user -s || true
+            fi
+            security delete-keychain "$keychain" || true
+          }
+          trap cleanup EXIT
+          security create-keychain -p "$password" "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          security list-keychains -d user -s "$keychain"
+          security default-keychain -d user -s "$keychain"
+          security default-keychain -d user
+          node scripts/check-desktop-release.ts "$IMAGE"
       - name: Record system launch and code-signing diagnostics
         if: always() && steps.image.outcome == 'success'
         run: |
