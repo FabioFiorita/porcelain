@@ -285,7 +285,6 @@ function TimelineDocument({
             <TruncatedText text={path} />
           </span>
         }
-        subtitle="Commits that changed this file"
       />
       <FileTimeline
         scope={scope}

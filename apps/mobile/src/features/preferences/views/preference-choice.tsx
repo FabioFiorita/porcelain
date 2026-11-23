@@ -13,7 +13,7 @@ export function PreferenceChoice<T extends string | boolean>({
   onChange,
 }: {
   label: string;
-  description: string;
+  description?: string;
   value: T | undefined;
   options: readonly { value: T; label: string; id: string }[];
   disabled: boolean;
@@ -21,7 +21,7 @@ export function PreferenceChoice<T extends string | boolean>({
 }) {
   return (
     <Card>
-      <Item title={label} description={description}>
+      <Item title={label} {...(description ? { description } : {})}>
         <Box className="flex-row flex-wrap" gap={2} paddingTop={2}>
           {options.map((option) => (
             <Button

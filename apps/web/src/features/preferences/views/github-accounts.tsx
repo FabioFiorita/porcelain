@@ -43,9 +43,8 @@ export function GitHubAccounts({ connection }: { connection: Connection }) {
         GitHub account for pull requests
       </FieldLegend>
       <FieldDescription>
-        Porcelain finds a signed-in account that can read each project’s
-        repository. Choose one to keep using it. Saved on this computer, for
-        every device.
+        By default, Porcelain uses a signed-in account with access to the
+        repository. Your choice applies to every device using this computer.
       </FieldDescription>
       <ItemGroup>
         {projects?.map((project) => (

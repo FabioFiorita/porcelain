@@ -128,12 +128,17 @@ test('global Settings titles name Porcelain across sections and restore the work
   await app.navigate('/settings/computers');
   await expect
     .element(
-      app.page.getByText(
-        'Connect to your computers to review their projects and worktrees.',
-        { exact: true },
-      ),
+      app.page.getByRole('heading', {
+        name: 'Settings. Computers',
+        exact: true,
+      }),
     )
     .toBeVisible();
+  await expect
+    .element(
+      app.page.getByText('Manage your paired computers.', { exact: true }),
+    )
+    .not.toBeInTheDocument();
   await app.navigate('/');
   await expect.poll(() => app.title()).toMatch(/^Review — /);
 });
