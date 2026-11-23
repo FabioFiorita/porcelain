@@ -4,6 +4,7 @@ import {
   TooltipContent,
 } from '@/components/ui/tooltip';
 import type { ReactNode } from 'react';
+import { PendingSpinner } from '@/shared/views/state-notice';
 import {
   settingsUpdateAvailable,
   settingsUpdateTrust,
@@ -64,6 +65,7 @@ export function SettingsUpdateRow({
   if (pending || progress)
     action = (
       <p role="status" className="flex items-center gap-2 text-xs leading-4">
+        <PendingSpinner className="text-current" />
         {progress ?? (entry?.status === 'queued' ? 'Queued' : 'Updating…')}
       </p>
     );

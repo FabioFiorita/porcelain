@@ -1,4 +1,5 @@
 import { TruncatedText } from '@/shared/views/truncated-text';
+import { PendingSpinner } from '@/shared/views/state-notice';
 import {
   Tooltip,
   TooltipTrigger,
@@ -66,7 +67,12 @@ function RouteStatus({
   const label = routeStatusLabel(name, route);
   if (label === null) return null;
   if (status.kind === 'off' || status.kind === 'starting')
-    return <Badge variant="outline">{label}</Badge>;
+    return (
+      <Badge variant="outline">
+        <PendingSpinner className="text-current [&>svg]:size-2.5" />
+        {label}
+      </Badge>
+    );
   if (status.kind === 'paused') return <Badge variant="outline">{label}</Badge>;
   if (status.kind === 'failed')
     return <Badge variant="destructive">{label}</Badge>;

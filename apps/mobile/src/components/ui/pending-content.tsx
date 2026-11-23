@@ -4,15 +4,19 @@ import { ActivityIndicator, View } from 'react-native';
 export function PendingContent({
   pending,
   colorClassName = 'accent-foreground',
+  className = '',
   children,
 }: {
   pending: boolean;
   colorClassName?: string;
+  className?: string;
   children: ReactNode;
 }) {
   return (
     <View className="relative min-w-0 shrink flex-row items-center justify-center">
-      <View className={pending ? 'min-w-0 shrink opacity-0' : 'min-w-0 shrink'}>
+      <View
+        className={`min-w-0 shrink flex-row items-center ${className} ${pending ? 'opacity-0' : ''}`}
+      >
         {children}
       </View>
       {pending ? (
