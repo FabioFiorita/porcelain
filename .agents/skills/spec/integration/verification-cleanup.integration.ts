@@ -440,8 +440,13 @@ test.for(['note', 'capture'])(
       join(bin, 'ps'),
       `#!/bin/sh
 if [ "$1" = -p ] && [ "$2" != "$PPID" ] && [ ! -f "${bin}/refused" ]; then
-  touch "${bin}/refused"
+  echo "$2" > "${bin}/refused"
   echo 'fixture refused supervisor capture' >&2
+  exit 2
+fi
+if [ "$1" = -A ] && [ ! -f "${bin}/group-refused" ]; then
+  touch "${bin}/group-refused"
+  echo 'fixture refused the first process group scan' >&2
   exit 2
 fi
 exec /bin/ps "$@"
@@ -451,6 +456,18 @@ exec /bin/ps "$@"
     const instanceIds = () => readdir(instances).catch(() => []);
     onTestFinished(async () => {
       for (const id of await instanceIds()) await fixture.command('stop', id);
+      const pid = Number(
+        await readFile(join(bin, 'refused'), 'utf8').catch(() => ''),
+      );
+      if (
+        pid > 0 &&
+        running(instances).some((line) =>
+          line.trimStart().startsWith(`${pid} `),
+        )
+      ) {
+        process.kill(pid, 'SIGTERM');
+        await settled(() => running(instances).length === 0);
+      }
       expect(running(instances)).toStrictEqual([]);
       await rm(home, { recursive: true, force: true });
     });
@@ -464,6 +481,8 @@ exec /bin/ps "$@"
         ? 'supervisor did not become ready'
         : 'fixture refused supervisor capture',
     );
+    if (mode === 'capture')
+      expect(existsSync(join(bin, 'group-refused'))).toBe(true);
     expect(running(instances)).toStrictEqual([]);
     expect(await instanceIds()).toStrictEqual([]);
   },

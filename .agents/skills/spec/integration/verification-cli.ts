@@ -191,6 +191,10 @@ const registry = new Registry({
 });
 const command = process.argv[2];
 if (command === 'serve') {
+  if (process.env.PORCELAIN_TEST_HOLD_SUPERVISOR === '1') {
+    setInterval(() => {}, 1000);
+    await new Promise(() => {});
+  }
   await registry.serve(process.argv[3], async (life) => {
     const keepAlive = setInterval(() => {}, 1000);
     life.onStop(() => clearInterval(keepAlive));
@@ -213,7 +217,10 @@ if (command === 'serve') {
   });
 } else if (command === 'start') {
   const mode = process.argv[3];
-  if (mode === 'capture') process.env.PATH = ${JSON.stringify(join(copy, 'ps-shim'))} + ':' + process.env.PATH;
+  if (mode === 'capture') {
+    process.env.PATH = ${JSON.stringify(join(copy, 'ps-shim'))} + ':' + process.env.PATH;
+    process.env.PORCELAIN_TEST_HOLD_SUPERVISOR = '1';
+  }
   const instance = await registry.launch({
     failure: mode === 'failure',
     blockFailureNote: mode === 'note',

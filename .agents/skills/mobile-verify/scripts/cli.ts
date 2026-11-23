@@ -1,4 +1,3 @@
-import { processCaptureProblem } from '../../verify-core/processes.ts';
 import { IsolatedServer } from '@porcelain/server/kit/isolated-server';
 import { issuePairingLink } from '@porcelain/mobile/kit/environment';
 import { emulatorAddress } from '@porcelain/mobile/kit/android';
@@ -61,19 +60,14 @@ async function doctor(
     )
   ).filter((problem) => problem !== undefined);
   if (problems.length > 0) process.exitCode = 1;
-  const live = (
-    problems.length === 0 || processCaptureProblem() === undefined
-      ? registry.list()
-      : []
-  ).filter((entry) => entry.alive);
   return [
     `node ${process.versions.node}`,
     ...(problems.length > 0
       ? problems.map((problem) => `FAIL ${problem}`)
       : ['ok startup dependencies and matching native build']),
-    ...live.map(
-      ({ instance }) =>
-        `instance ${instance.id}: ${instance.detail.simulator}; connection ${instance.connectionPath}`,
+    registry.doctorInstances(
+      ({ id, detail, connectionPath }) =>
+        `${id}: ${detail.simulator}; connection ${connectionPath}`,
     ),
     'driver: agent-device CLI (required for setup and the journey); no MCP registration needed',
     '',

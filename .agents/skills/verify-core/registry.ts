@@ -276,6 +276,20 @@ export class Registry<Detail> {
         return [{ instance, alive }];
       });
   }
+  doctorInstances(
+    describe: (instance: Instance<Detail>) => string = (instance) =>
+      instance.id,
+  ): string {
+    try {
+      const live = this.list()
+        .filter((entry) => entry.alive)
+        .map(({ instance }) => describe(instance));
+      return `live instances: ${live.join(', ') || 'none'}`;
+    } catch {
+      process.exitCode = 1;
+      return 'live instances: unavailable';
+    }
+  }
   alive(instance: Instance<Detail>): boolean {
     return this.list().some(
       (entry) => entry.instance.id === instance.id && entry.alive,
@@ -420,13 +434,22 @@ export class Registry<Detail> {
     captured: ProcessIdentity | undefined,
   ): Promise<void> {
     if (this.stopOutcome(recorder.folder)?.complete === true) return;
+    const report: string[] = [];
     let result: StopResult;
     try {
       let owned = this.owned(folder);
       if (owned.length === 0 && pid !== undefined) {
         const identity = captured ?? captureProcess(pid);
-        if (identity?.command.includes(this.marker(folder)))
-          owned = [identity, ...captureGroup(identity)];
+        if (identity?.command.includes(this.marker(folder))) {
+          owned = [identity];
+          try {
+            owned = [identity, ...captureGroup(identity)];
+          } catch (error) {
+            report.push(
+              `could not capture the supervisor's process group: ${String(error)}`,
+            );
+          }
+        }
       }
       result =
         pid === undefined
@@ -443,7 +466,10 @@ export class Registry<Detail> {
         report: [`startup cleanup could not be confirmed: ${String(error)}`],
       };
     }
-    const outcome = await this.retainStop(recorder, redactor, result);
+    const outcome = await this.retainStop(recorder, redactor, {
+      complete: result.complete,
+      report: [...report, ...result.report],
+    });
     if (outcome.complete) await rm(folder, { recursive: true, force: true });
   }
   async staleness(instance: Instance<Detail>): Promise<string | undefined> {
