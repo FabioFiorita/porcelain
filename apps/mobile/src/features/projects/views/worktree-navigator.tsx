@@ -24,6 +24,10 @@ import {
   type NavigatorFilterSection,
 } from '@porcelain/client/projects/rules';
 import { remoteConnectionState } from '../../../shared/application/store';
+import {
+  mobileLayout,
+  startMobileNavigation,
+} from '../../../shared/application/mobile-timing';
 import { useListCursor } from '../../../shared/application/key-commands';
 import type { SearchBarCommands } from 'react-native-screens';
 import { IconButton } from '../../../components/ui/icon-button';
@@ -98,6 +102,7 @@ export function WorktreeNavigator({
   };
   const open = (entry: NavigatorEntry) => {
     if (entry.kind === 'worktree' && entry.available && entry.worktreeId) {
+      startMobileNavigation('changes');
       picker.onWorktree(
         entry.environmentId,
         entry.projectId,
@@ -266,6 +271,11 @@ export function WorktreeNavigator({
                           key={entry.key}
                           gap={1}
                           collapsable={false}
+                          onLayout={
+                            entry.key === visibleEntries[0]?.key
+                              ? mobileLayout('worktrees-first-row')
+                              : undefined
+                          }
                           {...(cursor.highlighted === entry.key
                             ? { ref: reveal.row }
                             : {})}
