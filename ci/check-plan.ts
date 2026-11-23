@@ -117,6 +117,8 @@ function rootInput(task: string, path: string): boolean {
           'packages/{access,changes,files,git-actions,projects,reviews}/src/errors/**',
           'packages/{contracts,agents,kernel}/src/**',
           'packages/process/**',
+          'packages/storage/spec/kit/{native-database,repository-queries}.ts',
+          'packages/storage/scripts/native-migration-history.ts',
           'packages/git/src/shared/errors/**',
           'packages/effects/src/worktree-lease.ts',
           'packages/projects/src/models/**',
@@ -220,6 +222,7 @@ export function checkPlan(
             return (
               all ||
               sharedContract ||
+              (task === 'test:rules' && affected.has('@porcelain/storage')) ||
               changed?.some((path) => rootInput(task, path))
             );
           }

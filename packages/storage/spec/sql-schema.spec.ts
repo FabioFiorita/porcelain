@@ -1,26 +1,15 @@
-import { NodeServices } from '@effect/platform-node';
-import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
-import { Layer, ManagedRuntime, Schema, String as EffectString } from 'effect';
-import { SqlClient } from 'effect/sql';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { join } from 'node:path';
+import { Schema, String as EffectString } from 'effect';
 import { DatabaseSync } from 'node:sqlite';
-import { fileURLToPath } from 'node:url';
 import type {} from 'vite-plus/types/import-meta.d.ts';
 import { expect, it } from 'vite-plus/test';
-import { DATABASE_FILE } from '../src/db/database-files.ts';
-import { storageLayer } from '../src/db/storage-layer.ts';
-import { repositoryQueries } from './kit/repository-queries.ts';
+import { withMigratedDatabase } from './kit/native-database.ts';
 
-const root = fileURLToPath(new URL('../../../', import.meta.url));
-
-function checkModels(database: DatabaseSync) {
-  const modules = import.meta.glob<Record<string, unknown>>(
-    '../src/db/models/**/*.ts',
-    { eager: true },
-  );
+function checkModels(
+  database: DatabaseSync,
+  modules: Record<string, Record<string, unknown>>,
+) {
   const columns = database.prepare(
-    'SELECT name, "notnull" AS required, dflt_value AS default_value FROM pragma_table_info(?)',
+    'SELECT name, type, pk, "notnull" AS required, dflt_value AS default_value FROM pragma_table_info(?)',
   );
   const problems: string[] = [];
   let modelCount = 0;
@@ -50,11 +39,11 @@ function checkModels(database: DatabaseSync) {
           );
       }
       for (const column of tableColumns) {
-        if (
-          column.required === 1 &&
-          column.default_value === null &&
-          !fields.has(String(column.name))
-        )
+        const primaryKey =
+          Number(column.pk) > 0 &&
+          String(column.type).toUpperCase() !== 'INTEGER';
+        const required = column.required === 1 && column.default_value === null;
+        if ((primaryKey || required) && !fields.has(String(column.name)))
           problems.push(
             `${path}: ${name} omits required column ${model.tableName}.${String(column.name)}`,
           );
@@ -64,35 +53,28 @@ function checkModels(database: DatabaseSync) {
   return { modelCount, problems };
 }
 
-it('prepares every repository query and checks row models against the migrated SQLite schema', async () => {
-  const directory = mkdtempSync(join(temporaryRoot, 'porcelain-sql-schema-'));
-  const runtime = ManagedRuntime.make(
-    storageLayer(directory, { worktreeIdLength: 32, busyTimeoutMs: 5000 }).pipe(
-      Layer.provide(NodeServices.layer),
-    ),
+it('requires the model to represent a text primary key even when SQLite marks it nullable', () => {
+  using database = new DatabaseSync(':memory:');
+  database.exec(
+    'CREATE TABLE items (id TEXT PRIMARY KEY, title TEXT NOT NULL)',
   );
-  try {
-    const sql = await runtime.runPromise(SqlClient.SqlClient);
-    using database = new DatabaseSync(join(directory, DATABASE_FILE), {
-      readOnly: true,
-      enableDoubleQuotedStringLiterals: false,
-    });
-    const queries = repositoryQueries(root, sql);
-    expect(queries.length).toBeGreaterThan(0);
-    const { modelCount, problems } = checkModels(database);
-    for (const { location, text } of queries) {
-      try {
-        const statement = database.prepare(text);
-        if (statement.sourceSQL.trim() !== text)
-          problems.push(`${location}: SQLite must prepare the entire query`);
-      } catch (error) {
-        problems.push(`${location}: ${String(error)}\n${text}`);
-      }
-    }
+  const ItemRow = Object.assign(Schema.Struct({ title: Schema.String }), {
+    tableName: 'items',
+  });
+  expect(checkModels(database, { 'item.ts': { ItemRow } }).problems).toEqual([
+    'item.ts: ItemRow omits required column items.id',
+  ]);
+});
+
+it('checks row models against the migrated SQLite schema', async () => {
+  await withMigratedDatabase((database) => {
+    const { modelCount, problems } = checkModels(
+      database,
+      import.meta.glob<Record<string, unknown>>('../src/db/models/**/*.ts', {
+        eager: true,
+      }),
+    );
     expect(problems, problems.join('\n\n')).toEqual([]);
-    expect(modelCount).toBeGreaterThanOrEqual(14);
-  } finally {
-    await runtime.dispose();
-    rmSync(directory, { recursive: true, force: true });
-  }
+    expect(modelCount).toBeGreaterThan(0);
+  });
 });

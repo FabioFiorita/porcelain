@@ -39,7 +39,9 @@ import knip from './knip.ts';
 import config from '../vite.config.ts';
 import { reactCompilerProblems } from '../scripts/react-compiler.ts';
 import { nativeMigrationHistoryProblems } from '../packages/storage/scripts/native-migration-history.ts';
-import { repositoryQueries } from '../packages/storage/spec/kit/repository-queries.ts';
+import { withMigratedDatabase } from '../packages/storage/spec/kit/native-database.ts';
+import { prepareRepositoryQueries } from '../packages/storage/spec/kit/repository-queries.ts';
+import { repositoryQueries } from './repository-queries.ts';
 
 function fixtureRoot(prefix) {
   return realpathSync(mkdtempSync(join(tmpdir(), prefix)));
@@ -150,6 +152,23 @@ function repositoryQueryFixture(source) {
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+}
+
+async function checkMigratedRepositoryQueries() {
+  const root = fileURLToPath(new URL('../', import.meta.url));
+  await withMigratedDatabase((database, sql) => {
+    const queries = repositoryQueries(root, sql);
+    strictEqual(
+      queries.length > 0,
+      true,
+      'The guard must find repository queries',
+    );
+    const problems = prepareRepositoryQueries(database, queries);
+    deepStrictEqual(problems, [], problems.join('\n\n'));
+    process.stdout.write(
+      `PASS repository-sql: prepared ${queries.length} queries against migrated SQLite\n`,
+    );
+  });
 }
 
 function typeFixture(files) {
@@ -586,6 +605,7 @@ export async function runGuardrailCases(named = []) {
         );
         process.stdout.write(`PASS repository-sql: ${fixture.name}\n`);
       }
+      await checkMigratedRepositoryQueries();
     } else if (entry.rule === 'native-migration-history') {
       for (const fixture of entry.cases) {
         deepStrictEqual(

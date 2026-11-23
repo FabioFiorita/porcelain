@@ -28,7 +28,7 @@ import {
   descendants,
   readTypeScriptProjects,
   sourceLocation,
-} from '../packages/kernel/spec/kit/typescript-project.ts';
+} from './typescript-project.ts';
 
 export type TypeFinding = { rule: ArchRule; from: string; to: string };
 
