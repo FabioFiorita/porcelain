@@ -15,6 +15,7 @@ export function PendingContent({
   return (
     <View className="relative min-w-0 shrink flex-row items-center justify-center">
       <View
+        collapsable={false}
         className={`min-w-0 shrink flex-row items-center ${className} ${pending ? 'opacity-0' : ''}`}
       >
         {children}
