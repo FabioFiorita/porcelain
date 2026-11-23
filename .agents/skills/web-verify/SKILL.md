@@ -9,13 +9,13 @@ From the repository root, `C=.agents/skills/web-verify/scripts/cli`. Run `$C` fo
 
 ## Prepare and connect
 
-1. Run `$C doctor`, then `$C start`.
+1. Run `$C doctor`, then `$C start --browser-fixture` for a paired journey. Use `$C start` for an unpaired journey.
 2. Read the card: instance ID, server/web/WebSocket URLs, private `connection.json`, pairing-link command, evidence directory and stop command. The connection file adds build identity, fixture IDs/paths, required origins, owner socket, credential-file paths, initial route, web mode and status/log/remote-start commands.
-3. Open the web URL in a fresh browser context. For a paired journey, run the card's pairing-link command and navigate to its fresh link. Each link works once and its fragment is consumed. For an unpaired journey, open `/` without minting a link.
+3. Open the card's `browser fixture` URL in a fresh browser context. It pairs only with that disposable server and works once. Keep the URL private, including its fragment. For a new browser context, use the card's pairing-link command to mint a new URL. For an unpaired journey, open the web URL from plain startup.
 
 A new tab can share credentials with an existing tab. Use an isolated browser context/profile for disposable verification and preserve the browser driver's ownership controls. The caller selects its available driver; this skill keeps the same startup, pairing, fixture and evidence lifecycle.
 
-A restarted instance reuses its worktree-derived web port while free, but needs new pairing. For a developer walkthrough, use Vite's development-only “Pair this browser” button on the not-paired page; it obtains a one-time link from the owner socket.
+A restarted instance reuses its worktree-derived web port while free. Open the new instance’s fixture URL to pair again.
 
 `start --walkthrough-sample` prepares a feature branch with committed files and a ready synthetic Walkthrough. `pnpm dev:walkthrough` starts this same sample; plain `pnpm dev` uses it too.
 

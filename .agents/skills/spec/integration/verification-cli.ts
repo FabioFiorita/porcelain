@@ -66,9 +66,13 @@ export function instanceFile(
 
 export async function started(
   onTestFinished: Finished,
-  { root = repositoryRoot, path = SERVER_CLI } = {},
+  {
+    root = repositoryRoot,
+    path = SERVER_CLI,
+    startArgs = [],
+  }: { root?: string; path?: string; startArgs?: readonly string[] } = {},
 ) {
-  const run = await cli(root, path, 'start');
+  const run = await cli(root, path, 'start', ...startArgs);
   expect(run.code, run.stderr).toBe(0);
   const [, id = ''] = /^instance (\S+)\n/.exec(run.stdout) ?? [];
   const [, evidence = ''] = /\nevidence (\S+)\n/.exec(run.stdout) ?? [];

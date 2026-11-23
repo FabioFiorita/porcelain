@@ -24,8 +24,8 @@ import { start, serve, vite, remoteRequest, remoteFailed } from './start.ts';
 const remoteReadyMs = 90 * 1000;
 const remotePollMs = 200;
 const usage = `Usage: .agents/skills/web-verify/scripts/cli <command> [--instance <id>]
-  start [--desktop] [--coding-tool] [--walkthrough-sample] [--git-interruption]
-                          start a disposable server and Vite; print the connection card
+  start [--browser-fixture] [--desktop] [--coding-tool] [--walkthrough-sample] [--git-interruption]
+                          start a disposable server and Vite; print the card and optional one-time browser fixture URL
   doctor                  check startup dependencies; list optional browser drivers
   status                  inspect captured ownership, build staleness and connection metadata
   logs                    print redacted server and Vite output
@@ -45,7 +45,7 @@ const usage = `Usage: .agents/skills/web-verify/scripts/cli <command> [--instanc
   remote start            start a second disposable computer
   remote pairing-link [--trusted]
                           mint a link for that computer; server accepts --remote
-Drive the browser with your own tools. Startup neither opens nor pairs a browser.
+Drive the browser with your own tools. Open the browser fixture URL in a fresh browser context.
 `;
 async function doctor(): Promise<string> {
   const sandbox = sandboxProblems();
@@ -93,6 +93,24 @@ async function remoteStart(instance: WebInstance): Promise<string> {
     `the second computer did not start within ${remoteReadyMs / 1000} s; read supervisor.log`,
   );
 }
+async function browserFixtureLink(
+  instance: WebInstance,
+  args: readonly string[],
+): Promise<string> {
+  const recorder = registry.redactor(instance).recorder();
+  const grant = await issuedLink(
+    instance.detail.manifest,
+    'Verification browser',
+    false,
+    recorder,
+  );
+  const link = `${instance.detail.web}${pairingLink({ addresses: [''], code: grant.code, environmentId: grant.environmentId })}`;
+  await registry
+    .evidence(instance)
+    .json('pairing-link', { command: args, output: link }, recorder);
+  return link;
+}
+
 type ServerSideValues = {
   remote: boolean;
   trusted: boolean;
@@ -104,6 +122,8 @@ async function serverSide(
   values: ServerSideValues,
   args: readonly string[],
 ): Promise<string | undefined> {
+  if (name === 'pairing-link')
+    return `${await browserFixtureLink(instance, args)}\n`;
   const manifest = () =>
     values.remote ? remoteOf(instance).manifest : instance.detail.manifest;
   const recorder = registry.redactor(instance).recorder();
@@ -118,16 +138,6 @@ async function serverSide(
       `server-${rest[0] ?? ''}`,
       await serverRead(manifest(), rest, recorder),
     );
-  if (name === 'pairing-link') {
-    const grant = await issuedLink(
-      instance.detail.manifest,
-      'Verification browser',
-      false,
-      recorder,
-    );
-    const link = `${instance.detail.web}${pairingLink({ addresses: [''], code: grant.code, environmentId: grant.environmentId })}`;
-    return record('pairing-link', `${link}\n`);
-  }
   if (name === 'remote' && rest[0] === 'start')
     return record('remote-start', await remoteStart(instance));
   if (name === 'remote' && rest[0] === 'pairing-link') {
@@ -152,6 +162,7 @@ async function command(args: readonly string[]): Promise<string> {
     options: {
       instance: { type: 'string' },
       ...serverOptions,
+      'browser-fixture': { type: 'boolean', default: false },
       desktop: { type: 'boolean', default: false },
       'coding-tool': { type: 'boolean', default: false },
       'walkthrough-sample': { type: 'boolean', default: false },
@@ -170,13 +181,25 @@ async function command(args: readonly string[]): Promise<string> {
     await serve(rest[0]);
     return '';
   }
-  if (name === 'start')
-    return start({
+  if (name === 'start') {
+    const { instance, card } = await start({
       desktop: values.desktop,
       codingTool: values['coding-tool'],
       walkthroughSample: values['walkthrough-sample'],
       gitInterruption: values['git-interruption'],
     });
+    if (!values['browser-fixture']) return card;
+    try {
+      return `${card}browser fixture ${await browserFixtureLink(instance, args)}\n`;
+    } catch (error) {
+      const stopped = await registry.stopById(instance.id);
+      if (!stopped.complete)
+        throw new Refusal(
+          `Could not prepare the browser fixture. Stop incomplete for ${instance.id}; evidence: ${instance.evidence}`,
+        );
+      throw error;
+    }
+  }
   if (name === 'doctor') return doctor();
   if (
     name === undefined ||
