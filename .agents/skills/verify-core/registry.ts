@@ -340,7 +340,8 @@ export class Registry<Detail> {
   async launch(
     options: unknown,
     readyWithinMs: number,
-  ): Promise<Instance<Detail>> {
+  ): Promise<Instance<Detail> & { readyMs: number }> {
+    const started = performance.now();
     const processProblem = processCaptureProblem();
     if (processProblem !== undefined) throw new Refusal(processProblem);
     const id = randomBytes(4).toString('hex');
@@ -395,7 +396,13 @@ export class Registry<Detail> {
           );
         await sleep(startPollMs);
       }
-      return this.read(file);
+      const instance = this.read(file);
+      const readyMs = Math.round(performance.now() - started);
+      await this.evidence(instance).note(
+        'ready.json',
+        `${JSON.stringify({ readyMs })}\n`,
+      );
+      return { ...instance, readyMs };
     } catch (error) {
       const redactor = new Redactor([]);
       const recorder = new Evidence(evidence, redactor, this.surface.format);

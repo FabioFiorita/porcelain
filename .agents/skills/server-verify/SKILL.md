@@ -69,7 +69,7 @@ Use Git and the filesystem directly in `fixtures.repositoryPath`.
 
 ## Evidence and cleanup
 
-The CLI records numbered, redacted fixture operations plus server and supervisor logs. Save your own sanitized HTTP status/content-type/body readbacks and WebSocket frames in `evidenceDirectory`. Direct driver calls do not automatically produce CLI records. Report the evidence path and observable result, not only a driver's success.
+The CLI records numbered, redacted fixture operations plus server and supervisor logs. Save your own sanitized HTTP status/content-type/body readbacks and WebSocket frames in `evidenceDirectory`. Direct driver calls do not automatically produce CLI records. Follow the [shared evidence reference](../verify-core/evidence.md) for readbacks, timings and gaps.
 
 `status` passively reports captured supervisor ownership, stale build metadata and connection path; it does not prove HTTP health. `logs` reads redacted server logs even after source edits. Keep one instance per surface while iterating. Fixture actions refuse a stale build; stop/start after server, contract or CLI edits. A map-only edit needs no restart.
 

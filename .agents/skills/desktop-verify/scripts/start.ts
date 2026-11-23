@@ -1,5 +1,5 @@
 import { Schema } from 'effect';
-import { readHealthResponseSchema } from '@porcelain/contracts/access';
+import { readServerHealth } from '../../verify-core/health.ts';
 import { launchOptions, sampleRepository } from '@porcelain/desktop/kit/launch';
 import { electronExecutable, stageDesktop } from '@porcelain/desktop/kit/stage';
 import { ownerStatus } from '@porcelain/server/kit/owner';
@@ -199,15 +199,7 @@ export async function startDesktop(input: {
       );
     const server = await ownerStatus(join(profilePath, 'server'));
     input.own?.(server.pid);
-    const health = await fetch(`${server.address}/api/health`);
-    if (
-      health.status !== 200 ||
-      !health.headers.get('content-type')?.includes('application/json')
-    )
-      throw new Error('Desktop health did not answer JSON 200');
-    const { environmentId } = Schema.decodeUnknownSync(
-      readHealthResponseSchema,
-    )(await health.json());
+    const { environmentId } = await readServerHealth(server.address);
     const cli = join(
       repositoryRoot,
       '.agents/skills/desktop-verify/scripts/cli',
