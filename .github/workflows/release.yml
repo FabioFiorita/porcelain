@@ -127,7 +127,7 @@ jobs:
         run: security delete-keychain "$RUNNER_TEMP/release.keychain-db" || true
 
   release:
-    needs: [version, mac, package]
+    needs: [version, mac]
     if: ${{ needs.version.outputs.publish == 'true' }}
     runs-on: ubuntu-latest
     permissions:
@@ -158,32 +158,6 @@ jobs:
               --generate-notes
           fi
 
-  package:
-    needs: version
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v7
-      - uses: pnpm/setup@v3
-        with:
-          runtime: node@26.13.0
-          cache: true
-          require-lockfile: true
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm build:package
-      - name: Run the packed package before publishing
-        id: package
-        env:
-          PACKAGE_TARBALL_DIRECTORY: ${{ runner.temp }}/checked-package
-          VERSION: ${{ needs.version.outputs.version }}
-        run: bash scripts/check-package.sh
-      - uses: actions/upload-artifact@v7
-        with:
-          name: npm-package
-          path: ${{ steps.package.outputs.tarball }}
-          if-no-files-found: error
-          retention-days: 14
-
   npm:
     needs: [version, release]
     if: ${{ needs.version.outputs.publish == 'true' }}
@@ -193,10 +167,14 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/download-artifact@v7
+      - uses: actions/checkout@v7
+      - uses: pnpm/setup@v3
         with:
-          name: npm-package
-          path: ${{ runner.temp }}/checked-package
+          runtime: node@26.13.0
+          cache: true
+          require-lockfile: true
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build:package
       - uses: actions/setup-node@v7
         with:
           node-version: 26.13.0
@@ -205,6 +183,12 @@ jobs:
           set -euo pipefail
           npm install --global npm@11.21.0
           npm --version
+      - name: Run the packed package before publishing
+        id: package
+        env:
+          PACKAGE_TARBALL_DIRECTORY: ${{ runner.temp }}/checked-package
+          VERSION: ${{ needs.version.outputs.version }}
+        run: bash scripts/check-package.sh
       - name: Publish with npm trusted publishing
         env:
           VERSION: ${{ needs.version.outputs.version }}
@@ -213,10 +197,7 @@ jobs:
           if npm view --prefer-online "@fabiofiorita/porcelain@$VERSION" version > /dev/null 2>&1; then
             echo "@fabiofiorita/porcelain@$VERSION is already published; continuing to verification."
           else
-            shopt -s nullglob
-            tarballs=("$RUNNER_TEMP/checked-package/"*.tgz)
-            test "${#tarballs[@]}" = 1
-            npm publish "${tarballs[0]}" --provenance --access public
+            npm publish "${{ steps.package.outputs.tarball }}" --provenance --access public
           fi
 
   npm-check:
