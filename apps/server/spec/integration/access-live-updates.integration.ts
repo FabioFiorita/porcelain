@@ -16,29 +16,11 @@ import {
 import { gitPath, read, worktreePath } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
 import { liveNotices } from '../kit/live-notices.ts';
-import {
-  list,
-  record,
-  text,
-  type Session,
-  type HttpResponse,
-} from '../kit/session.ts';
+import { list, record, text, type Session } from '../kit/session.ts';
 
-async function mutationBeforeDeadline(operation: Promise<HttpResponse>) {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  try {
-    return await Promise.race([
-      operation,
-      new Promise<never>((_resolve, reject) => {
-        timer = setTimeout(
-          () => reject(new Error('Live publication stalled a product writer')),
-          2000,
-        );
-      }),
-    ]);
-  } finally {
-    clearTimeout(timer);
-  }
+async function nextRpcFrame(socket: WebSocket) {
+  const message: unknown[] = await once(socket, 'message');
+  return record(JSON.parse(String(message[0])));
 }
 
 const worktreeNotice = (session: Session, change: string) => ({
@@ -430,9 +412,13 @@ test.for([
       autoPong: true,
     });
     stalled.on('error', () => undefined);
+    const closed = new Promise<void>((resolve) =>
+      stalled.once('close', () => resolve()),
+    );
     try {
       await once(stalled, 'open');
-      if (mode === 'unacknowledged notices')
+      if (mode === 'unacknowledged notices') {
+        const firstNotice = nextRpcFrame(stalled);
         stalled.send(
           JSON.stringify({
             _tag: 'Request',
@@ -442,22 +428,16 @@ test.for([
             headers: [],
           }),
         );
-      const followed = new Promise<void>((resolveFollow) => {
-        const receive = (data: WebSocket.RawData) => {
-          const frame = record(
-            JSON.parse(
-              new TextDecoder().decode(
-                Array.isArray(data) ? Buffer.concat(data) : data,
-              ),
-            ),
-          );
-          if (frame._tag === 'Exit' && frame.requestId === '2') {
-            stalled.off('message', receive);
-            resolveFollow();
-          }
-        };
-        stalled.on('message', receive);
-      });
+        const readyNotice: unknown = expect.arrayContaining([
+          { type: 'ready' },
+        ]);
+        expect(await firstNotice).toMatchObject({
+          _tag: 'Chunk',
+          requestId: '1',
+          values: readyNotice,
+        });
+      }
+      const followed = nextRpcFrame(stalled);
       stalled.send(
         JSON.stringify({
           _tag: 'Request',
@@ -476,7 +456,11 @@ test.for([
           headers: [],
         }),
       );
-      await followed;
+      expect(await followed).toMatchObject({
+        _tag: 'Exit',
+        requestId: '2',
+        exit: { _tag: 'Success' },
+      });
       const path = `lagging-viewer-${mode}.md`;
       await session.writeFile(path, 'A durable change.\n');
       const response = await session.send({
@@ -509,20 +493,25 @@ test.for([
           receipt: { requestId, state: 'succeeded' },
         });
       for (let index = 0; index < 600; index += 1) {
-        const updated = await mutationBeforeDeadline(
-          session.send({
-            method: 'PATCH',
-            path: `/api/projects/${session.projectId}`,
-            body: { name: `${mode} ${index % 2 === 0 ? 'A' : 'B'}` },
-          }),
-        );
+        const name = `${mode} ${index % 2 === 0 ? 'A' : 'B'}`;
+        const updated = await session.send({
+          method: 'PATCH',
+          path: `/api/projects/${session.projectId}`,
+          body: { name },
+        });
         expect(updated.status).toBe(200);
+        expect(updated.body).toStrictEqual({ id: session.projectId, name });
         for (const connection of healthy)
           expect(await connection.next(inventoryNotice)).toStrictEqual({
             type: 'inventory',
           });
+        if (index === 0)
+          expect(
+            stalled.readyState,
+            'the peer is still stalled and connected',
+          ).toBe(WebSocket.OPEN);
       }
-      await expect.poll(() => stalled.readyState).toBe(WebSocket.CLOSED);
+      await closed;
       const recovered = await watching(session);
       try {
         const projects = list(record(await inventory(session)).projects).map(
@@ -553,11 +542,8 @@ test.for([
         await recovered.close();
       }
     } finally {
-      if (stalled.readyState !== WebSocket.CLOSED) {
-        const closed = once(stalled, 'close');
-        stalled.terminate();
-        await closed;
-      }
+      stalled.terminate();
+      await closed;
       for (const connection of healthy) await connection.close();
     }
   },
