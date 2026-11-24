@@ -921,6 +921,64 @@ const nativeLaneCases = [
 ];
 
 export default [
+  ...[
+    [
+      'ci/explain-failure.ts',
+      'const pulls = `repos/${repository}/pulls`; gh(["api", `${pulls}?state=open&head=${head}`]);',
+    ],
+    [
+      'ci/explain-failure.ts',
+      'const commit = `repos/${repository}/commits/${sha}`; gh(["api", `${commit}/pulls`]);',
+    ],
+    [
+      'ci/explain-failure.ts',
+      'const options = ["-f", `head=${head}`] as const; gh(["api", pulls, ...options]);',
+    ],
+    [
+      'scripts/pulls.ts',
+      'execFileSync("gh", ["pr", "list", "--head", branch]);',
+    ],
+    ['scripts/pulls.ts', 'spawnSync("gh", ["pr", "list", "-H", branch]);'],
+    [
+      'scripts/pulls.ts',
+      'execSync("gh api repos/owner/repo/pulls --method GET -f head=main");',
+    ],
+  ].map(([path, invalid]) => ({
+    rule: 'ci-pull-request-resolver',
+    path,
+    valid:
+      'const args = ["api", pulls, "-f", "state=open"]; execFileSync("gh", args);',
+    invalid,
+    errors: 1,
+  })),
+
+  {
+    rule: 'ci-pull-request-resolver',
+    path: 'ci/explain-failure.ts',
+    valid:
+      "import { resolveWorkflowPullRequest } from './github.ts'; resolveWorkflowPullRequest(repository, head);",
+    invalid: 'gh(["api", `repos/${repository}/commits/${headSha}/pulls`]);',
+    errors: 1,
+  },
+  {
+    rule: 'ci-pull-request-resolver',
+    path: 'ci/review.ts',
+    validPath: 'ci/github.ts',
+    valid:
+      'function resolveWorkflowPullRequest(repository, head) { return pages(Pulls, `repos/${repository}/pulls?state=open&head=${head}`); }',
+    invalid: 'pages(Pulls, base + "/pulls?state=open&" + "head=" + head);',
+    errors: 1,
+  },
+  {
+    rule: 'ci-pull-request-resolver',
+    path: 'ci/review.ts',
+    validPath: 'ci/review.spec.ts',
+    valid: 'const endpoint = "pulls?head=owner:branch";',
+    invalid:
+      'fetch("https://api.github.com/repos/owner/repo/pulls?head=owner:branch");',
+    errors: 1,
+  },
+
   {
     rule: 'pending-control-owner',
     path: 'apps/web/src/features/history/views/file-timeline.tsx',
@@ -5834,6 +5892,15 @@ const styleConfigCases = [
     details: [toolOutput === '{}' ? '{}' : 'SyntaxError'],
   })),
   { name: 'canonical configs and empty source', status: 0, rules: [] },
+  {
+    name: 'shell scripts use the CI pull request resolver',
+    files: {
+      'scripts/resolve-pull.sh': 'gh pr list --head main\n',
+    },
+    status: 1,
+    rules: [],
+    findings: ['porcelain(ci-pull-request-resolver)'],
+  },
   ...[
     ['events-after-lane', 'warning', 1],
     ['use-case-input-is-contract', 'warning', 1],
@@ -6455,6 +6522,7 @@ export const guardrailCases = [
         name: 'unchanged selects nothing',
         selected: [],
         unitProjects: [],
+        rules: false,
         shards: [1],
       },
       {
@@ -6550,6 +6618,13 @@ export const guardrailCases = [
             ? ['package']
             : [],
       })),
+      {
+        name: 'duplicate policy edits select rule fixtures',
+        path: 'architecture/duplicate-policy.ts',
+        source: 'export {};',
+        rules: true,
+        selected: [],
+      },
       ...[
         {
           name: 'root Vite configuration selects every runtime gate and the preferred integration smoke',
@@ -7191,6 +7266,32 @@ Effect.runPromise(Effect.provideService(read, WorktreeRead, { assert: () => unde
     selector,
     valid,
     invalid,
+  })),
+  {
+    rule: 'duplicate-ceiling',
+    ceilings: { server: 2, tooling: 1 },
+    source: duplicateFixtureSource,
+  },
+  ...[
+    ['ci/copy.ts', 'architecture/copy-again.ts'],
+    ['scripts/copy.ts', '.agents/skills/new-verifier/scripts/copy-again.ts'],
+    ['architecture/copy.mjs', 'scripts/copy-again.mjs'],
+    ['packages/new-domain/spec/kit/copy.ts', 'scripts/copy-again.ts'],
+    ['.agents/skills/verify-core/copy.ts', 'scripts/copy-again.ts'],
+    ['apps/server/spec/kit/copy.ts', 'apps/web/spec/kit/copy-again.ts'],
+    ['ci/copy.ts', 'ci/copy-again.spec.ts'],
+  ].map(([first, second]) => ({
+    rule: 'duplicate-code',
+    scope: 'tooling',
+    rejected: !second.endsWith('.spec.ts'),
+    first,
+    second,
+    valid: 'export const label = "Unique";',
+    invalid: first.endsWith('.mjs')
+      ? duplicateFixtureSource
+          .replace(': readonly string[]', '')
+          .replace(': string', '')
+      : duplicateFixtureSource,
   })),
   {
     rule: 'duplicate-code',

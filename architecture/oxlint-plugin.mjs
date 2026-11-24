@@ -1,3 +1,9 @@
+import {
+  githubHeadLookupArgs,
+  githubHeadLookupCommand,
+  githubHeadLookupEndpoint,
+  githubHeadLookupMessage,
+} from './github-head-lookup.ts';
 import { replacesGlobal } from './spec-globals.mjs';
 import { existsSync, readFileSync } from 'node:fs';
 import { builtinModules } from 'node:module';
@@ -241,33 +247,64 @@ function repositoryPath(context) {
     : path;
 }
 
-function staticString(node, context, depth = 0) {
+function constantInitializer(node, context) {
+  if (node?.type !== 'Identifier') return undefined;
+  const definition = findVariable(context.sourceCode.getScope(node), node.name)
+    ?.defs[0];
+  return definition?.node.type === 'VariableDeclarator' &&
+    definition.parent?.kind === 'const'
+    ? definition.node.init
+    : undefined;
+}
+
+function staticString(node, context, depth = 0, placeholder) {
   if (!node || depth > 8) return undefined;
+  const read = (child) =>
+    staticString(child, context, depth + 1, placeholder) ?? placeholder;
   if (
     node.type === 'TSAsExpression' ||
     node.type === 'TSSatisfiesExpression' ||
     node.type === 'TSNonNullExpression' ||
     node.type === 'ParenthesizedExpression'
   )
-    return staticString(node.expression, context, depth + 1);
+    return read(node.expression);
   if (node.type === 'Literal')
     return typeof node.value === 'string' ? node.value : undefined;
-  if (node.type === 'TemplateLiteral')
-    return node.expressions.length === 0
-      ? node.quasis.map((quasi) => quasi.value.cooked ?? '').join('')
-      : undefined;
+  if (node.type === 'TemplateLiteral') {
+    if (node.expressions.length > 0 && placeholder === undefined)
+      return undefined;
+    return node.quasis
+      .map((quasi, index) => {
+        const expression = node.expressions[index];
+        return (
+          (quasi.value.cooked ?? '') + (expression ? read(expression) : '')
+        );
+      })
+      .join('');
+  }
   if (node.type === 'BinaryExpression' && node.operator === '+') {
-    const left = staticString(node.left, context, depth + 1);
-    const right = staticString(node.right, context, depth + 1);
+    const left = read(node.left);
+    const right = read(node.right);
     return left === undefined || right === undefined ? undefined : left + right;
   }
-  if (node.type !== 'Identifier') return undefined;
-  const definition = findVariable(context.sourceCode.getScope(node), node.name)
-    ?.defs[0];
-  return definition?.node.type === 'VariableDeclarator' &&
-    definition.parent?.kind === 'const'
-    ? staticString(definition.node.init, context, depth + 1)
-    : undefined;
+  return read(constantInitializer(node, context));
+}
+
+function gitHubArguments(node, context, depth = 0) {
+  if (!node || depth > 8) return [];
+  if (node.type === 'ArrayExpression')
+    return node.elements.flatMap((element) =>
+      element?.type === 'SpreadElement'
+        ? gitHubArguments(element.argument, context, depth + 1)
+        : [staticString(element, context, 0, 'value') ?? 'value'],
+    );
+  if (node.type === 'TSAsExpression' || node.type === 'TSSatisfiesExpression')
+    return gitHubArguments(node.expression, context, depth + 1);
+  return gitHubArguments(
+    constantInitializer(node, context),
+    context,
+    depth + 1,
+  );
 }
 
 function propertyName(node, context) {
@@ -1521,6 +1558,59 @@ function primitiveValue(node) {
 export default {
   meta: { name: 'porcelain' },
   rules: {
+    'ci-pull-request-resolver': {
+      create(context) {
+        const path = repositoryPath(context);
+        if (!/^(?:ci|scripts)\//.test(path) || isSpec(context)) return {};
+        const report = (node) => {
+          if (
+            path === 'ci/github.ts' &&
+            context.sourceCode
+              .getAncestors(node)
+              .some(
+                (ancestor) =>
+                  ancestor.type === 'FunctionDeclaration' &&
+                  ancestor.id?.name === 'resolveWorkflowPullRequest',
+              )
+          )
+            return;
+          context.report({
+            node,
+            message: githubHeadLookupMessage,
+          });
+        };
+        const check = (node) => {
+          if (
+            node.parent?.type === 'BinaryExpression' &&
+            node.parent.operator === '+'
+          )
+            return;
+          const endpoint = staticString(node, context, 0, 'value') ?? '';
+          if (
+            githubHeadLookupEndpoint(endpoint) ||
+            githubHeadLookupCommand(endpoint)
+          )
+            report(node);
+        };
+        return {
+          Literal: check,
+          TemplateLiteral: check,
+          BinaryExpression(node) {
+            if (node.operator === '+') check(node);
+          },
+          CallExpression(node) {
+            const [first, second] = node.arguments;
+            const wrapped =
+              node.callee.type === 'Identifier' && node.callee.name === 'gh';
+            const args = wrapped ? first : second;
+            if (!wrapped && staticString(first, context) !== 'gh') return;
+            if (githubHeadLookupArgs(gitHubArguments(args, context)))
+              report(node);
+          },
+        };
+      },
+    },
+
     'hermes-array-methods': {
       create(context) {
         if (

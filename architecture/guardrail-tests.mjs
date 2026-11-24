@@ -31,9 +31,13 @@ import { runtimePlan } from '../ci/runtime-plan.ts';
 import { domainPackages } from './policy.ts';
 import { typeRuleFindings } from './type-rules.ts';
 import {
+  clonesChangedSince,
+  duplicateComparison,
   duplicateScope,
+  raisedDuplicateCeiling,
   scanDuplicates,
   serverDuplicateScope,
+  toolingDuplicateScope,
 } from './duplicate-policy.ts';
 import { selectorAppears } from './feature-selectors.ts';
 import { guardrailCases } from './rule-cases.mjs';
@@ -228,13 +232,15 @@ function featureMapFixture(entry, files) {
 function duplicateFixture(entry, source) {
   const root = fixtureRoot('porcelain-clone-rule-');
   try {
-    const scope = {
-      ...(entry.scope === 'server' ? serverDuplicateScope() : duplicateScope()),
-      ceiling: 0,
+    writeFiles(root, { [entry.first]: source, [entry.second]: source });
+    const scopes = {
+      server: serverDuplicateScope,
+      client: duplicateScope,
+      tooling: toolingDuplicateScope,
     };
+    const scope = { ...scopes[entry.scope ?? 'client'](root), ceiling: 0 };
     for (const folder of scope.sources)
       mkdirSync(join(root, folder), { recursive: true });
-    writeFiles(root, { [entry.first]: source, [entry.second]: source });
     const report = scanDuplicates(root, scope);
     return {
       rejected: report.exceeded,
@@ -718,6 +724,73 @@ function ciActionPinProblems(workflow) {
   return problems;
 }
 
+function duplicateRatchetFixture(entry) {
+  const root = fixtureRoot('porcelain-clone-baseline-');
+  const git = (...args) => {
+    const result = spawnSync('git', args, { cwd: root, encoding: 'utf8' });
+    if (result.error) throw result.error;
+    strictEqual(result.status, 0, result.stderr);
+    return result.stdout.trim();
+  };
+  try {
+    writeFiles(root, {
+      'architecture/duplicate-ceilings.json': JSON.stringify(entry.ceilings),
+      'ci/one.ts': entry.source,
+      'ci/two.ts': entry.source,
+    });
+    git('init', '-q');
+    git('add', '.');
+    git(
+      '-c',
+      'user.name=Duplicate fixture',
+      '-c',
+      'user.email=duplicate@example.invalid',
+      '-c',
+      'commit.gpgsign=false',
+      'commit',
+      '-qm',
+      'Record duplicate baseline',
+    );
+    const comparison = duplicateComparison(root, git('rev-parse', 'HEAD'));
+    deepStrictEqual(comparison.ceilings, entry.ceilings);
+    for (const [name, ceiling] of Object.entries(entry.ceilings)) {
+      strictEqual(
+        raisedDuplicateCeiling({ name, ceiling }, comparison),
+        undefined,
+      );
+      strictEqual(
+        raisedDuplicateCeiling({ name, ceiling: ceiling - 1 }, comparison),
+        undefined,
+      );
+      strictEqual(
+        raisedDuplicateCeiling({ name, ceiling: ceiling + 1 }, comparison),
+        ceiling,
+      );
+    }
+    const scope = { ...toolingDuplicateScope(root), ceiling: 1 };
+    const before = scanDuplicates(root, scope);
+    strictEqual(before.exceeded, false);
+    deepStrictEqual(
+      clonesChangedSince(root, comparison.base, before.duplicates),
+      [],
+    );
+    writeFiles(root, { 'ci/three.ts': entry.source });
+    git('add', 'ci/three.ts');
+    const after = scanDuplicates(root, scope);
+    strictEqual(after.exceeded, true);
+    const added = clonesChangedSince(root, comparison.base, after.duplicates);
+    strictEqual(added.length, 1);
+    strictEqual(
+      [added[0].firstFile, added[0].secondFile].some(
+        ({ name }) => relative(root, name) === 'ci/three.ts',
+      ),
+      true,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+
 export async function runGuardrailCases(named = []) {
   const cases = guardrailCases.filter(
     (entry) => named.length === 0 || named.includes(entry.rule),
@@ -1045,6 +1118,8 @@ ${runBrowser.run
         false,
         entry.selector,
       );
+    } else if (entry.rule === 'duplicate-ceiling') {
+      duplicateRatchetFixture(entry);
     } else if (entry.rule === 'duplicate-code') {
       deepStrictEqual(duplicateFixture(entry, entry.valid), {
         rejected: false,

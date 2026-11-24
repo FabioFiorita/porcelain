@@ -190,6 +190,8 @@ export function checkPlan(
         'pnpm-{workspace,lock}.yaml',
         'vite.config.ts',
         'ci/check-plan.ts',
+        'architecture/duplicate-policy.ts',
+        'architecture/duplicate-ceilings.json',
         '.github/workflows/ci.yml',
       ]),
     );
