@@ -115,6 +115,19 @@ function walkthroughContent(files: readonly string[], outcome: string) {
       onlyInTranscript: [],
       stillUnclear: [],
     };
+  const groups =
+    outcome === 'grouped'
+      ? [files.slice(0, 2), ...files.slice(2).map((path) => [path])]
+      : files.map((path) => [path]);
+  const maxStops = 8;
+  const stops =
+    groups.length <= maxStops
+      ? groups
+      : [
+          ...groups.slice(0, maxStops - 2),
+          groups.slice(maxStops - 2, -1).flat(),
+          ...groups.slice(-1),
+        ];
   return {
     outcome: 'needs_you',
     title: 'Teach the sample to explain itself',
@@ -127,10 +140,7 @@ function walkthroughContent(files: readonly string[], outcome: string) {
       { change: 'added', what: 'Glossary', note: 'Terms live in one place.' },
       { change: 'added', what: 'Changelog', note: 'Kept by hand for now.' },
     ],
-    stops: (outcome === 'grouped'
-      ? [files.slice(0, 2), ...files.slice(2).map((path) => [path])]
-      : files.map((path) => [path])
-    ).map((paths, index) => ({
+    stops: stops.map((paths, index) => ({
       title: `Step about \`${paths[0]}\``,
       explanation: 'A file changed here, and this explains why it did.',
       blocks: [
