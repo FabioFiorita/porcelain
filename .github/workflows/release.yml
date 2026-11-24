@@ -126,6 +126,82 @@ jobs:
         if: always()
         run: security delete-keychain "$RUNNER_TEMP/release.keychain-db" || true
 
+  verify-desktop:
+    needs: version
+    runs-on: macos-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/setup@v3
+        with:
+          runtime: node@26.13.0
+          cache: true
+          require-lockfile: true
+      - run: pnpm install --frozen-lockfile
+      - name: Verify the desktop renderer stderr contract
+        run: pnpm --filter @porcelain/desktop test:e2e renderer-readiness.e2e.ts --project portable
+      - name: Probe the unmodified desktop verifier
+        id: stock-verifier
+        continue-on-error: true
+        timeout-minutes: 5
+        run: |
+          cat > scripts/verify-dev-mac.ts <<'TS'
+          import { mkdtemp, readFile } from 'node:fs/promises';
+          import { join } from 'node:path';
+          import type { DesktopBridge } from '@porcelain/contracts/desktop';
+          import { startDesktop } from '../.agents/skills/desktop-verify/scripts/start.ts';
+
+          declare const porcelainDesktop: DesktopBridge;
+
+          const evidenceDirectory = await mkdtemp('/tmp/porcelain-verify-evidence-');
+          console.log(`Desktop verification evidence: ${evidenceDirectory}`);
+          try {
+            const instance = await startDesktop({ id: '827f1eed', evidenceDirectory });
+            try {
+              const page = await instance.electron.firstWindow();
+              await page.getByRole('button', { name: 'Open project' }).waitFor({ timeout: 10_000 });
+              const available = await instance.electron.evaluate(({ safeStorage }) =>
+                safeStorage.isEncryptionAvailable(),
+              );
+              console.log(`Porcelain Dev temporary HOME encryption available: ${available}`);
+              const fixture = JSON.stringify([{ name: 'Disposable Keychain probe', credential: 'fixture-only-secret' }]);
+              const result = await page.evaluate(async (value) => {
+                await porcelainDesktop.credentials.write(value);
+                const loaded = await porcelainDesktop.credentials.read();
+                return loaded.status === 'saved' && loaded.value === value;
+              }, fixture);
+              const encrypted = await readFile(instance.card.credentialFiles.remoteEncrypted);
+              console.log(`Porcelain Dev encrypted credential round-trip: ${result && !encrypted.includes('fixture-only-secret')}`);
+              const electronLog = await readFile(join(evidenceDirectory, 'electron.log'), 'utf8');
+              console.log(electronLog.split('\n').filter((line) => line.startsWith('Porcelain:')).join('\n'));
+              if (!available || !result || encrypted.includes('fixture-only-secret'))
+                throw new Error('Porcelain Dev did not preserve encrypted credentials with its temporary HOME');
+            } finally {
+              await instance.stop();
+            }
+          } catch (error) {
+            console.error(error);
+            const diagnostic = await readFile(join(evidenceDirectory, 'electron.log'), 'utf8').catch(() => '');
+            console.error(diagnostic.split('\n').filter((line) => /Porcelain|Keychain|keychain/.test(line)).join('\n'));
+            process.exitCode = 1;
+          }
+          TS
+          node scripts/verify-dev-mac.ts
+      - name: Compare the verifier with a disposable default Keychain
+        if: steps.stock-verifier.outcome == 'failure'
+        timeout-minutes: 5
+        run: |
+          python3 - <<'PYCODE'
+          from pathlib import Path
+          p = Path('.agents/skills/desktop-verify/scripts/start.ts')
+          text = p.read_text()
+          site = "    const launchOptionsFile = join(workspace, 'electron-launch.json');"
+          assert text.count(site) == 1
+          text = "import { prepareDisposableMacKeychain } from '@porcelain/desktop/kit/disposable-mac-keychain';\n" + text
+          p.write_text(text.replace(site, "    prepareDisposableMacKeychain(home, options.env);\n" + site))
+          PYCODE
+          node scripts/verify-dev-mac.ts
+
   release:
     needs: [version, mac]
     if: ${{ needs.version.outputs.publish == 'true' }}
