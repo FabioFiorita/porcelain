@@ -37,7 +37,11 @@ import {
   type ReviewChangeItem,
   type ReviewScope,
 } from '@porcelain/client/changes/rules';
-import { CodeDocument, type CodeHeaderControls } from './code-document';
+import {
+  CodeDocument,
+  type CodeHeaderControls,
+  type ListedComparison,
+} from './code-document';
 import { ReservedCode } from './reserved-code';
 import { fileReviewControl, ReviewedControl } from './reviewed-control';
 import { type ConnectionContext } from '@/shared/workspace/connection';
@@ -222,11 +226,12 @@ export function ReviewCodeDocument({
     }),
   );
   const rendered = new Map(entries.map((entry) => [entry.id, entry.path]));
+  const omittedPaths = new Set(unrenderable.map(({ item }) => item.path));
   const listed = items.flatMap((item) =>
-    item.comparisons.flatMap((change) => {
+    item.comparisons.flatMap((change): ListedComparison[] => {
       const id = changeId(change);
       const path = rendered.get(id);
-      if (path !== undefined) return [{ id, path }];
+      if (path !== undefined) return [{ id, path, state: 'code' }];
       const waiting =
         change.scope === 'untracked'
           ? untracked.pending && textOf(change.path) === undefined
@@ -234,14 +239,16 @@ export function ReviewCodeDocument({
             change.supported &&
             diffs.pending &&
             patchOf(change) === undefined;
-      return waiting
-        ? [
-            {
-              id,
-              path:
-                change.scope === 'untracked' ? item.path : changePath(change),
-            },
-          ]
+      if (waiting)
+        return [
+          {
+            id,
+            path: change.scope === 'untracked' ? item.path : changePath(change),
+            state: 'pending',
+          },
+        ];
+      return omittedPaths.has(item.path)
+        ? [{ id, path: item.path, state: 'omitted' }]
         : [];
     }),
   );
@@ -272,12 +279,7 @@ export function ReviewCodeDocument({
                 changes={unrenderable}
                 column={column}
                 onTarget={(path, target) => {
-                  if (
-                    !target ||
-                    controls.awaiting !== path ||
-                    renderedPaths.has(path)
-                  )
-                    return;
+                  if (!target || controls.awaiting !== path) return;
                   controls.landed(path);
                   target.focus({ preventScroll: true });
                   target.scrollIntoView({ block: 'start' });

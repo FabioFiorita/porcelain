@@ -71,7 +71,7 @@ import { type ConnectionContext } from '@/shared/workspace/connection';
 type Props = {
   onReview?: (entry: CodeEntry) => void;
   entries: readonly CodeEntry[];
-  listed?: readonly { id: string; path: string }[];
+  listed?: readonly ListedComparison[];
   paths?: readonly string[];
   scope: ReviewScope;
   context: ConnectionContext;
@@ -95,6 +95,12 @@ type Props = {
   readingColumn?: boolean;
   framed?: boolean;
 };
+export type ListedComparison = {
+  id: string;
+  path: string;
+  state: 'code' | 'pending' | 'omitted';
+};
+type PendingJump = { path: string; id?: string | undefined };
 export type CodeHeaderControls = {
   collapse: ReactNode;
   current: string | undefined;
@@ -160,10 +166,14 @@ function CodeSurface({
   const { preferences } = usePreferences();
   const specsApart = useSpecsApart(gitContext.connection);
   const entries = decision ? given : groupSpecPaths(given, specsApart);
-  const listed =
+  const ordered: readonly ListedComparison[] =
+    givenListed ??
+    entries.map((entry) => ({ id: entry.id, path: entry.path, state: 'code' }));
+  const comparisons =
     givenListed === undefined || decision
-      ? (givenListed ?? entries)
-      : groupSpecPaths(givenListed, specsApart);
+      ? ordered
+      : groupSpecPaths(ordered, specsApart);
+  const listed = comparisons.filter((entry) => entry.state !== 'omitted');
   const folds = useCodeFolds(interaction.worktreeId, interaction.entry);
   const scrollOwner = JSON.stringify([
     gitContext.connection.environmentId,
@@ -191,18 +201,31 @@ function CodeSurface({
   };
   const discard = discardSelection(selection?.range);
   const [focusedId, focus] = useState(() => viewer.focused());
-  const [awaitedPath, awaitPath] = useState<string>();
+  const [awaited, awaitJump] = useState<PendingJump>();
   if (
-    awaitedPath !== undefined &&
+    awaited !== undefined &&
     (!interaction.active ||
       !(
-        paths?.includes(awaitedPath) ||
-        listed.some((entry) => entry.path === awaitedPath)
+        paths?.includes(awaited.path) ||
+        comparisons.some((entry) => entry.path === awaited.path)
       ))
   )
-    awaitPath(undefined);
+    awaitJump(undefined);
+  const landing = awaited && interaction.active ? landOn(awaited) : undefined;
+  function landOn(jump: PendingJump) {
+    const exact = comparisons.find((entry) => entry.id === jump.id);
+    if (exact?.state === 'code' || exact?.state === 'pending') return exact;
+    const forPath = comparisons.filter((entry) => entry.path === jump.path);
+    const first = forPath[0];
+    if (first?.state !== 'omitted') return first;
+    return (
+      forPath.find((entry) => entry.state === 'pending') ??
+      forPath.find((entry) => entry.state === 'code') ??
+      first
+    );
+  }
   const setFocusedId = (id: CodeEntry['id'] | undefined) => {
-    awaitPath(undefined);
+    awaitJump(undefined);
     focus(id);
     viewer.rememberFocus(id);
   };
@@ -235,10 +258,10 @@ function CodeSurface({
     setFocusedId(entry.id);
     if (entries.some((shown) => shown.id === entry.id))
       viewer.scrollTo({ type: 'item', id: entry.id, align: 'start' });
-    else awaitPath(entry.path);
+    else awaitJump({ path: entry.path, id: entry.id });
   };
   const keepView = () => {
-    if (awaitedPath !== undefined) awaitPath(undefined);
+    if (awaited !== undefined) awaitJump(undefined);
   };
   const byId = new Map(entries.map((entry) => [entry.id, entry]));
   const items: CodeViewItem<never>[] = entries.map((entry) => ({
@@ -355,18 +378,19 @@ function CodeSurface({
         current: listed[focused]?.path,
         counts: lineCounts(entries),
         open: (path) => {
-          const index = listed.findIndex((entry) => entry.path === path);
-          const entry = listed[index];
-          if (!entry) {
-            awaitPath(path);
-            return;
+          const entry = listed.find((candidate) => candidate.path === path);
+          if (entry) {
+            folds.setCollapsed([entry.id], false);
+            setFocusedId(entry.id);
           }
-          folds.setCollapsed([entry.id], false);
-          focusEntry(index);
+          const first = landOn({ path });
+          if (first?.state === 'code')
+            viewer.scrollTo({ type: 'item', id: first.id, align: 'start' });
+          else awaitJump({ path });
         },
-        awaiting: interaction.active ? awaitedPath : undefined,
+        awaiting: landing?.state === 'omitted' ? landing.path : undefined,
         landed: (path) => {
-          if (awaitedPath === path) awaitPath(undefined);
+          if (awaited?.path === path) awaitJump(undefined);
         },
       }));
 
@@ -477,9 +501,9 @@ function CodeSurface({
                   : 0,
               );
               const arrived =
-                awaitedPath === undefined || !interaction.active
-                  ? undefined
-                  : entries.find((entry) => entry.path === awaitedPath);
+                landing?.state === 'code'
+                  ? entries.find((entry) => entry.id === landing.id)
+                  : undefined;
               if (arrived) {
                 handle.scrollTo({
                   type: 'item',
