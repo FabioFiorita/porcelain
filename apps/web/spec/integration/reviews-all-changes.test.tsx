@@ -157,6 +157,45 @@ test('All changes keeps file shortcuts without redundant header arrows', async (
   await expect.poll(currentRows).toEqual(['zz-notes.md+2−0']);
 });
 
+test('All changes moves to the previous listed file while its diff is still loading', async ({
+  repo,
+  render,
+  fetchGate,
+  reviewLayout,
+}) => {
+  await repo.write('zz-notes.md', 'First note\nSecond note\n');
+  const held = fetchGate.holdNextChangeDiff();
+  held.arm();
+  try {
+    const workspace = await render.workspace();
+    await held.requested;
+    await reviewLayout.openAllChanges();
+    const table = workspace.getByRole('region', {
+      name: '2 uncommitted changes',
+      exact: true,
+    });
+    const currentRows = () => reviewLayout.currentChangeRows(table);
+    await expect.poll(currentRows).toEqual(['README.md']);
+    await table
+      .getByRole('button', { name: 'zz-notes.md +2 −0', exact: true })
+      .click();
+    await expect.poll(currentRows).toEqual(['zz-notes.md+2−0']);
+    await userEvent.keyboard('K');
+    await expect.poll(currentRows).toEqual(['README.md']);
+    held.release();
+    await expect
+      .element(
+        workspace
+          .getByRole('region', { name: 'Code content', exact: true })
+          .getByText('A change to review.', { exact: true }),
+      )
+      .toBeInTheDocument();
+    await expect.poll(currentRows).toEqual(['README.md+2−0']);
+  } finally {
+    held.release();
+  }
+});
+
 test('All changes reopens a collapsed file from its table', async ({
   workspace,
   repo,
