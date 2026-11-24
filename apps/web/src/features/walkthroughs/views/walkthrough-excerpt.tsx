@@ -20,7 +20,7 @@ import {
   PIERRE_THEME,
 } from '@/shared/lib/pierre';
 import { PendingSpinner } from '@/shared/views/state-notice';
-import type { WalkthroughStop } from '@porcelain/client/walkthroughs/rules';
+import type { WalkthroughExcerpt as Excerpt } from '@porcelain/client/walkthroughs/rules';
 import { capturedExcerpt } from '../adapters/captured-excerpt';
 import { useCapturedWalkthroughPatch } from '../queries/walkthrough';
 import { RichText } from './rich-text';
@@ -29,7 +29,7 @@ type ExcerptProps = {
   document: DocumentProps;
   runId: string;
   step: number;
-  excerpt: WalkthroughStop['excerpts'][number];
+  excerpt: Excerpt;
 };
 
 function CapturedLines({ document, runId, step, excerpt }: ExcerptProps) {
@@ -38,6 +38,7 @@ function CapturedLines({ document, runId, step, excerpt }: ExcerptProps) {
     document.context,
     runId,
     step,
+    excerpt.position,
   );
   const { dark } = useTheme();
   if (AsyncResult.isInitial(result))
@@ -99,18 +100,20 @@ function CapturedLines({ document, runId, step, excerpt }: ExcerptProps) {
 export function WalkthroughExcerpt(props: ExcerptProps) {
   const [open, setOpen] = useState(false);
   const { excerpt } = props;
-  const range =
-    excerpt.start === excerpt.end
-      ? `line ${excerpt.start}`
-      : `lines ${excerpt.start}–${excerpt.end}`;
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger
-        render={<Button className="self-start" size="sm" variant="outline" />}
-      >
-        <ArrowDownRightIcon />
-        See the lines
-      </DialogTrigger>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <DialogTrigger
+          render={<Button size="sm" variant="outline" />}
+          aria-description={`${excerpt.path} · ${excerpt.lines}`}
+        >
+          <ArrowDownRightIcon />
+          See the lines
+        </DialogTrigger>
+        <span className="min-w-0 font-mono text-caption text-muted-foreground wrap-anywhere">
+          {excerpt.path} · {excerpt.lines}
+        </span>
+      </div>
       <DialogContent
         className="max-h-[calc(100dvh-2rem)] overflow-auto sm:max-w-2xl"
         showCloseButton={false}
@@ -127,7 +130,7 @@ export function WalkthroughExcerpt(props: ExcerptProps) {
           <DialogTitle>Captured diff</DialogTitle>
           <DialogDescription>
             <span className="font-mono break-all">
-              {excerpt.path} · {excerpt.side === 'old' ? 'Old' : 'New'} {range}
+              {excerpt.path} · {excerpt.lines}
             </span>
           </DialogDescription>
           {excerpt.caption && (

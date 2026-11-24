@@ -1,4 +1,5 @@
 import { walkthroughConversationsFixture } from '../kit/walkthrough-conversations.ts';
+import { walkthroughBlocksFixture } from '../kit/walkthrough-blocks.ts';
 import type { IncomingMessage } from 'node:http';
 import { join, resolve } from 'node:path';
 import { temporaryServerBuild } from '@porcelain/server/kit/sandbox';
@@ -241,7 +242,12 @@ const porcelainWalkthroughConversations: BrowserCommand<
   return '';
 };
 
+const porcelainWalkthroughBlocks: BrowserCommand<[], string> = async (
+  context,
+) => walkthroughBlocksFixture(world(context));
+
 export const hostCommands = {
+  porcelainWalkthroughBlocks,
   porcelainWalkthroughConversations,
   porcelainCollectGarbage,
   porcelainAllowClipboardRead,

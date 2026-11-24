@@ -2,75 +2,19 @@ import type {
   StartWalkthroughRequest,
   readWalkthroughResponseSchema,
   walkthroughContentSchema,
-  WalkthroughBlock,
 } from '@porcelain/contracts/walkthroughs';
 import type { ReadChangesResponse } from '@porcelain/contracts/changes';
+import { readStop, stepCitedPaths, type WalkthroughStop } from './blocks.ts';
 
 export type WalkthroughRead = typeof readWalkthroughResponseSchema.Type;
 export type WalkthroughRun = NonNullable<WalkthroughRead['walkthrough']>;
 type BlockContent = typeof walkthroughContentSchema.Type;
-type Excerpt = Extract<WalkthroughBlock, { kind: 'diff_excerpt' }>;
-type Screenshots = Extract<WalkthroughBlock, { kind: 'before_after' }>;
-type Callout = Extract<WalkthroughBlock, { kind: 'callout' }>;
-export type WalkthroughEvidence = Screenshots['before'];
-export type WalkthroughStop = {
-  readonly title: string;
-  readonly explanation: string;
-  readonly callouts: readonly {
-    readonly attention: Callout['attention'];
-    readonly comparison: readonly string[];
-  }[];
-  readonly checks: readonly { readonly label: string; readonly text: string }[];
-  readonly excerpts: readonly Omit<
-    Excerpt,
-    'kind' | 'headOid' | 'contentTreeOid'
-  >[];
-  readonly evidence: readonly WalkthroughEvidence[];
-  readonly files: Extract<
-    WalkthroughBlock,
-    { kind: 'files' }
-  >['files'][number][];
-};
 export type WalkthroughContent = Omit<BlockContent, 'stops' | 'version'> & {
   readonly stops: readonly WalkthroughStop[];
 };
 
 function readBlockContent(content: BlockContent): WalkthroughContent {
-  const stops = content.stops.map(({ blocks, ...stop }) => {
-    const callouts = blocks
-      .filter((block) => block.kind === 'callout')
-      .map(({ attention, comparison }) => ({
-        attention,
-        comparison:
-          comparison?.rows.map(
-            ([left, right]) =>
-              `${comparison.columns[0]}: ${left} · ${comparison.columns[1]}: ${right}`,
-          ) ?? [],
-      }));
-    const checks = blocks
-      .filter((block) => block.kind === 'checks')
-      .map((block) => ({
-        label: `From CI at ${block.headOid.slice(0, 7)}`,
-        text: [
-          block.state,
-          ...block.results.map(({ name, status }) => `${name}: ${status}`),
-          ...(block.checksTruncated ? ['More checks on the pull request'] : []),
-        ].join(' · '),
-      }));
-    return {
-      ...stop,
-      callouts,
-      checks,
-      excerpts: blocks.filter((block) => block.kind === 'diff_excerpt'),
-      files: blocks.flatMap((block) =>
-        block.kind === 'files' ? block.files : [],
-      ),
-      evidence: blocks.flatMap((block) =>
-        block.kind === 'before_after' ? [block.before, block.after] : [],
-      ),
-    };
-  });
-  return { ...content, stops };
+  return { ...content, stops: content.stops.map(readStop) };
 }
 export type WalkthroughFailure = Extract<
   WalkthroughRun['state'],
@@ -144,10 +88,7 @@ export function stopPaths(
   stop: WalkthroughStop,
   renames: readonly ChangedFile[] = [],
 ): readonly string[] {
-  const cited = [
-    ...stop.excerpts.map((excerpt) => excerpt.path),
-    ...stop.files.map((file) => file.path),
-  ];
+  const cited = stepCitedPaths(stop);
   const renamed = renames.flatMap((file) =>
     file.oldPath !== undefined && cited.includes(file.oldPath)
       ? [file.path]

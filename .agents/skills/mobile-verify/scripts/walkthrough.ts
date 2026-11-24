@@ -1,19 +1,20 @@
 import { Schema } from 'effect';
 import { readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { deflateSync } from 'node:zlib';
 import {
   ServerHandle,
   type Recorder,
 } from '@porcelain/server/kit/isolated-server';
 import { scriptedWalkthroughs } from '@porcelain/server/kit/walkthrough-fixture';
-import type { ReadWalkthroughResult } from '@porcelain/contracts/walkthroughs';
+import {
+  fixtureCheckResults,
+  fixtureScreenshot,
+} from '@porcelain/server/kit/fixture-screenshot';
 import { Usage } from '../../verify-core/cli.ts';
 
-type Content = Extract<
-  ReadWalkthroughResult['state'],
-  { status: 'ready' }
->['content'];
+type Content = Parameters<
+  Awaited<ReturnType<typeof scriptedWalkthroughs>>['write']
+>[0];
 
 const SHORT_ANSWER =
   'Keep the retry beside its owner. The `local` boundary is deliberate.';
@@ -23,54 +24,6 @@ const LONG_ANSWER = [
   'The `local` boundary is deliberate: it keeps the decision where the behavior lives, and it is cheap to move later if a second owner ever needs the same policy.',
 ].join(' ');
 
-const table = Array.from({ length: 256 }, (_, n) => {
-  let c = n;
-  for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
-  return c >>> 0;
-});
-
-function crc(bytes: Uint8Array) {
-  let c = 0xffffffff;
-  for (const byte of bytes) c = (table[(c ^ byte) & 0xff] ?? 0) ^ (c >>> 8);
-  return (c ^ 0xffffffff) >>> 0;
-}
-
-function chunk(type: string, data: Uint8Array) {
-  const body = Buffer.concat([Buffer.from(type, 'latin1'), data]);
-  const out = Buffer.alloc(body.length + 8);
-  out.writeUInt32BE(data.length, 0);
-  body.copy(out, 4);
-  out.writeUInt32BE(crc(body), body.length + 4);
-  return out;
-}
-
-function screenshot(accent: readonly [number, number, number]) {
-  const width = 360;
-  const height = 640;
-  const rows = Buffer.alloc((width * 3 + 1) * height);
-  for (let y = 0; y < height; y++) {
-    const row = y * (width * 3 + 1);
-    for (let x = 0; x < width; x++) {
-      const card = y > 120 && y < 300 && x > 24 && x < width - 24;
-      const bar = y < 64;
-      const [r, g, b] = bar ? accent : card ? [236, 238, 242] : [250, 250, 250];
-      rows.set([r, g, b], row + 1 + x * 3);
-    }
-  }
-  const header = Buffer.alloc(13);
-  header.writeUInt32BE(width, 0);
-  header.writeUInt32BE(height, 4);
-  header.set([8, 2, 0, 0, 0], 8);
-  return Uint8Array.from(
-    Buffer.concat([
-      Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
-      chunk('IHDR', header),
-      chunk('IDAT', deflateSync(rows)),
-      chunk('IEND', new Uint8Array()),
-    ]),
-  );
-}
-
 const stop = (
   title: string,
   path: string,
@@ -79,7 +32,6 @@ const stop = (
   title,
   explanation: 'Keep the behavior close to its owner, so a reader finds it.',
   blocks: [
-    { kind: 'files', files: [{ path, note: 'Owns the behavior' }] },
     ...(call
       ? [
           {
@@ -89,9 +41,25 @@ const stop = (
               question: 'Keep retries local to their owner?',
               note: 'Either choice ships; only the owner can pick the boundary.',
             },
+            comparison: {
+              columns: ['Keep it local', 'Share a helper'],
+              rows: [
+                ['The owner sees the timing', 'Every caller gets one timing'],
+                ['Moves later if needed', 'Harder to fail fast'],
+              ],
+            },
+          },
+          {
+            kind: 'diff_excerpt' as const,
+            path,
+            side: 'new' as const,
+            start: 1,
+            end: 1,
+            caption: 'The owner decides when to try again.',
           },
         ]
       : []),
+    { kind: 'files', files: [{ path, note: 'Owns the behavior' }] },
   ],
 });
 
@@ -168,19 +136,28 @@ export async function walkthroughCommand(
   });
   if (run.state.status !== 'ready')
     throw new Error('The sample walkthrough did not finish.');
-  await writer.attachEvidence(run.id, 2, [
+  await writer.attachEvidence(
+    run.id,
+    2,
+    [
+      {
+        id: 'sample-screen-1',
+        mediaType: 'image/png',
+        caption: 'The retry setting on its owner',
+        bytes: fixtureScreenshot([37, 99, 235]),
+      },
+      {
+        id: 'sample-screen-2',
+        mediaType: 'image/png',
+        caption: 'The failure message after three tries',
+        bytes: fixtureScreenshot([220, 38, 38]),
+      },
+    ],
     {
-      id: 'sample-screen-1',
-      mediaType: 'image/png',
-      caption: 'The retry setting on its owner',
-      bytes: screenshot([37, 99, 235]),
+      state: 'FAILURE',
+      checksTruncated: false,
+      results: fixtureCheckResults,
     },
-    {
-      id: 'sample-screen-2',
-      mediaType: 'image/png',
-      caption: 'The failure message after three tries',
-      bytes: screenshot([220, 38, 38]),
-    },
-  ]);
-  return `wrote walkthrough ${run.id} for pull request #423 with two screenshots on step 2\n`;
+  );
+  return `wrote walkthrough ${run.id} for pull request #423 with checks and two screenshots on step 2\n`;
 }

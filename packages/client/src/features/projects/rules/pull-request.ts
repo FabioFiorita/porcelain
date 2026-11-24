@@ -46,6 +46,73 @@ const failedConclusions = new Set([
   'STALE',
 ]);
 
+const runningStatuses = new Set([
+  'QUEUED',
+  'IN_PROGRESS',
+  'PENDING',
+  'EXPECTED',
+  'WAITING',
+  'REQUESTED',
+]);
+function checkResultTone(result: string): PullChecksTone {
+  if (result === 'SUCCESS') return 'passed';
+  if (failedConclusions.has(result)) return 'failed';
+  if (runningStatuses.has(result)) return 'running';
+  return 'none';
+}
+
+const TONE_WORDS: Record<PullChecksTone, string | undefined> = {
+  passed: 'Passed',
+  failed: 'Failed',
+  running: 'Running',
+  none: undefined,
+};
+
+function recordedOutcome(result: string) {
+  if (result === 'SUCCESS') return 'Passed';
+  if (result === 'FAILURE' || result === 'ERROR') return 'Failed';
+  if (result === 'IN_PROGRESS') return 'Running';
+  const words = result.toLowerCase().replaceAll('_', ' ');
+  return `${words.charAt(0).toUpperCase()}${words.slice(1)}`;
+}
+
+export type RecordedCheck = {
+  readonly name: string;
+  readonly tone: PullChecksTone;
+  readonly label: string;
+  readonly detail: string | undefined;
+};
+
+export function recordedChecks(checks: {
+  readonly headOid: string;
+  readonly state: string;
+  readonly checksTruncated: boolean;
+  readonly results: readonly {
+    readonly name: string;
+    readonly status: string;
+  }[];
+}): { label: string; more: boolean; results: readonly RecordedCheck[] } {
+  const rollup = pullRequestRollup(checks.state);
+  const commit = checks.headOid.slice(0, 7);
+  return {
+    label:
+      rollup.tone === 'none'
+        ? `Checks at ${commit}`
+        : `${rollup.label} at ${commit}`,
+    more: checks.checksTruncated,
+    results: checks.results.map(({ name, status }) => {
+      const tone = checkResultTone(status);
+      const label = recordedOutcome(status);
+      return {
+        name,
+        tone,
+        label,
+        detail: label === TONE_WORDS[tone] ? undefined : label,
+      };
+    }),
+  };
+}
+
 function checkOutcome(check: PullCheck): Exclude<PullChecksTone, 'none'> {
   if (check.status !== 'COMPLETED' || check.conclusion === 'EXPECTED')
     return 'running';

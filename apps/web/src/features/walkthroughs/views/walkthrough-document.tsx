@@ -43,8 +43,7 @@ import {
   PostSaved,
 } from './walkthrough-conversation';
 import { WalkthroughStatus } from './walkthrough-status';
-import { WalkthroughProof } from './walkthrough-evidence';
-import { WalkthroughExcerpt } from './walkthrough-excerpt';
+import { ComparisonTable, StepBlocks } from './walkthrough-blocks';
 import { WalkthroughStart } from './walkthrough-start';
 import { useWalkthroughWriter } from '../queries/writer';
 import { WalkthroughWriterNotice } from './walkthrough-writer-notice';
@@ -222,11 +221,7 @@ function Calls({
           <p className="text-prose text-foreground-2">
             <RichText text={attention.note} />
           </p>
-          {comparison.map((row, index) => (
-            <p key={index} className="text-prose text-foreground-2">
-              {row}
-            </p>
-          ))}
+          {comparison && <ComparisonTable comparison={comparison} />}
           {callIndex === 0 && conversation?.({ kind: 'call', step })}
         </article>
       ))}
@@ -248,7 +243,6 @@ function Step({
   branch,
   eager,
   conversation,
-  excerpt,
 }: {
   stop: WalkthroughStop;
   step: number;
@@ -258,7 +252,6 @@ function Step({
   branch: ComparedBranch | undefined;
   eager: boolean;
   conversation: Conversation | undefined;
-  excerpt: WalkthroughStop['excerpts'][number] | undefined;
 }) {
   return (
     <li
@@ -283,30 +276,7 @@ function Step({
       <p className="text-prose text-foreground-2">
         <RichText text={stop.explanation} />
       </p>
-      {stop.checks.map(({ label, text }, index) => (
-        <aside key={index} className="rounded-md border p-3">
-          <p className="font-mono text-caption text-muted-foreground">
-            {label}
-          </p>
-          <p className="text-prose text-foreground-2">{text}</p>
-        </aside>
-      ))}
-      {excerpt && (
-        <WalkthroughExcerpt
-          document={props}
-          runId={run.id}
-          step={step}
-          excerpt={excerpt}
-        />
-      )}
-      {stop.evidence.length > 0 && (
-        <WalkthroughProof
-          scope={props.scope}
-          context={props.context}
-          run={run}
-          items={stop.evidence}
-        />
-      )}
+      <StepBlocks blocks={stop.blocks} step={step} run={run} document={props} />
       {code && (
         <ReviewCode
           document={props}
@@ -352,10 +322,6 @@ function Written({
     | undefined;
 }) {
   const owner = { ...props, run };
-  const excerptStep =
-    content.stops.find(
-      (stop) => stop.callouts.length > 0 && stop.excerpts.length > 0,
-    ) ?? content.stops.find((stop) => stop.excerpts.length > 0);
   const conversation: Conversation = ({ kind, step }) => {
     const title = content.stops[step - 1]!.title;
     return (
@@ -433,7 +399,6 @@ function Written({
             branch={code.branch}
             eager={code.eager.steps[index] ?? true}
             conversation={conversation}
-            excerpt={stop === excerptStep ? stop.excerpts[0] : undefined}
           />
         ))}
       </ol>

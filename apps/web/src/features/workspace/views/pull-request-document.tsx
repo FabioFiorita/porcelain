@@ -8,11 +8,8 @@ import { File } from '@pierre/diffs/react';
 import {
   ArrowLeftIcon,
   ArrowUpRightIcon,
-  CircleCheckIcon,
-  CircleXIcon,
   FileCodeIcon,
   GitPullRequestIcon,
-  LoaderCircleIcon,
   LockKeyholeIcon,
   SettingsIcon,
 } from 'lucide-react';
@@ -50,7 +47,12 @@ import {
 } from '@/shared/views/state-notice';
 import { TruncatedText } from '@/shared/views/truncated-text';
 import type { ConnectionContext } from '@/shared/workspace/connection';
-import { ChecksStatus, Dot, PullStatePill } from './pull-request-parts';
+import {
+  CheckResultIcon,
+  ChecksStatus,
+  Dot,
+  PullStatePill,
+} from './pull-request-parts';
 
 type PullRequest = Extract<
   PullRequestRead,
@@ -508,16 +510,6 @@ function PullRequestTimelineItem({
   );
 }
 
-const checkDisplay = {
-  passed: { Icon: CircleCheckIcon, label: 'Passed', color: 'text-add-fg' },
-  failed: { Icon: CircleXIcon, label: 'Failed', color: 'text-del-fg' },
-  running: {
-    Icon: LoaderCircleIcon,
-    label: 'Running',
-    color: 'text-muted-foreground',
-  },
-};
-
 function PullRequestChecks({ pull }: { pull: PullRequest }) {
   const checks = pullRequestChecks(
     pull.checks,
@@ -549,18 +541,12 @@ function PullRequestChecks({ pull }: { pull: PullRequest }) {
             {pull.checks.map((check, index) => {
               const tone = pullCheckTone(check);
               const duration = pullCheckDuration(check.durationMs);
-              const display = checkDisplay[tone];
-              const Icon = display.Icon;
               return (
                 <li
                   key={`${check.name}:${index}`}
                   className="flex h-7 min-w-0 items-center gap-2 text-ui leading-4.5"
                 >
-                  <Icon
-                    role="img"
-                    aria-label={display.label}
-                    className={cn('size-3.5 shrink-0', display.color)}
-                  />
+                  <CheckResultIcon tone={tone} />
                   <TruncatedText text={check.name} className="min-w-0 flex-1" />
                   {duration && (
                     <span className="shrink-0 text-xs leading-4 text-muted-foreground tabular-nums">

@@ -13,6 +13,7 @@ import type {
 
 declare module 'vitest/browser' {
   interface BrowserCommands {
+    porcelainWalkthroughBlocks: () => Promise<string>;
     porcelainWalkthroughConversations: (
       action:
         | 'pr'

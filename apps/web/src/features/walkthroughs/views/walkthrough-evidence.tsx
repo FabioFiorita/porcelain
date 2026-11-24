@@ -4,6 +4,7 @@ import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
 import type {
   WalkthroughEvidence,
   WalkthroughRun,
+  WalkthroughScreenshot,
 } from '@porcelain/client/walkthroughs/rules';
 import type { ReviewScope } from '@porcelain/client/changes/rules';
 import type { ConnectionContext } from '@/shared/workspace/connection';
@@ -18,7 +19,7 @@ type EvidenceProps = {
   scope: ReviewScope;
   context: ConnectionContext;
   run: WalkthroughRun;
-  items: readonly WalkthroughEvidence[];
+  items: readonly WalkthroughScreenshot[];
 };
 
 function EvidenceImage({
@@ -82,9 +83,9 @@ export function WalkthroughProof({
       <div className="-mx-5 flex gap-3 overflow-x-auto px-5 pb-1 @3xl:-mx-0 @3xl:px-0">
         {items.map((item, index) => (
           <button
-            key={item.assetId}
+            key={index}
             type="button"
-            aria-label={`Enlarge screenshot ${index + 1}`}
+            aria-label={item.enlarge}
             onClick={() => setOpen(index)}
             className="group flex w-34 shrink-0 flex-col gap-1.5 text-left"
           >
@@ -96,6 +97,7 @@ export function WalkthroughProof({
               className="h-56 w-full rounded-lg border object-cover object-top transition-opacity group-hover:opacity-85"
             />
             <span className="line-clamp-3 text-caption leading-4 text-muted-foreground">
+              <span className="font-medium text-foreground">{item.label}</span>{' '}
               <RichText text={item.shows} />
             </span>
           </button>
@@ -108,7 +110,13 @@ export function WalkthroughProof({
         }}
       >
         <DialogContent className="max-h-[92vh] overflow-auto sm:max-w-[min(92vw,52rem)]">
-          <DialogTitle>{shown && <RichText text={shown.shows} />}</DialogTitle>
+          <DialogTitle>
+            {shown && (
+              <>
+                {shown.label} · <RichText text={shown.shows} />
+              </>
+            )}
+          </DialogTitle>
           {shown && (
             <EvidenceImage
               scope={scope}
