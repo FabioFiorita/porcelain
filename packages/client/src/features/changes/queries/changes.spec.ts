@@ -327,7 +327,6 @@ function windowInput() {
   return {
     scope,
     statusToken: snapshot.statusToken,
-    read: 1,
     expectedFiles,
     selections: expectedFiles.map(({ path }) => ({
       scope: 'unstaged' as const,
@@ -634,18 +633,6 @@ it('unmounting a diff window cancels each in-flight batch without disconnecting 
   expect(subject.connection.isClosed()).toBe(false);
 });
 
-function staleDiffAnswer() {
-  return Response.json(
-    {
-      statusCode: 409,
-      error: 'Conflict',
-      message: 'Refresh status and retry inspection',
-      code: 'worktree_changed',
-    },
-    { status: 409 },
-  );
-}
-
 it('a failed stale-diff recovery finishes once per observation and remains independent across connections', async () => {
   const recoveries = [0, 0];
   const settleRecovery = async (index: number) => {
@@ -653,7 +640,18 @@ it('a failed stale-diff recovery finishes once per observation and remains indep
     const pendingReached = Promise.withResolvers<void>();
     const inspection = Promise.withResolvers<Response>();
     const subject = fixture((path) => {
-      if (path.endsWith('/diffs')) return Promise.resolve(staleDiffAnswer());
+      if (path.endsWith('/diffs'))
+        return Promise.resolve(
+          Response.json(
+            {
+              statusCode: 409,
+              error: 'Conflict',
+              message: 'Refresh status and retry inspection',
+              code: 'worktree_changed',
+            },
+            { status: 409 },
+          ),
+        );
       recoveries[index] = (recoveries[index] ?? 0) + 1;
       return inspection.promise;
     });
@@ -661,7 +659,6 @@ it('a failed stale-diff recovery finishes once per observation and remains indep
       connection: subject.connection,
       scope,
       statusToken: snapshot.statusToken,
-      read: 1,
       expectedFiles: diffInput.expectedFiles,
       selections: diffInput.selections,
     });
@@ -772,212 +769,3 @@ async function inspectAgain(subject: ReturnType<typeof fixture>) {
   subject.registry.set(command, undefined);
   return { state, stop, command };
 }
-
-function staleRecovery(answer: () => Promise<Response>) {
-  let refreshes = 0;
-  const subject = fixture((path) => {
-    if (path.endsWith('/diffs')) return Promise.resolve(staleDiffAnswer());
-    refreshes += 1;
-    return answer();
-  });
-  const windowAt = (read: number, files: readonly string[] = ['README.md']) =>
-    readChangeDiffWindow({
-      connection: subject.connection,
-      scope,
-      statusToken: snapshot.statusToken,
-      read,
-      expectedFiles: files.map((path) => ({
-        path,
-        fingerprint: 'c'.repeat(64),
-      })),
-      selections: files.map((path) => ({
-        scope: 'unstaged' as const,
-        oldPath: path,
-        newPath: path,
-      })),
-    });
-  const stops: Array<() => void> = [];
-  const pending = new Map<string, boolean>();
-  const watch = (
-    name: string,
-    window: ReturnType<typeof readChangeDiffWindow>,
-    until: (state: { pending: boolean; attempted: boolean }) => boolean,
-  ) =>
-    new Promise<void>((resolve) => {
-      stops.push(
-        subject.registry.subscribe(
-          window,
-          ({ recovery }) => {
-            const state = Option.getOrUndefined(AsyncResult.value(recovery));
-            pending.set(name, state?.pending ?? false);
-            if (state && until(state)) resolve();
-          },
-          { immediate: true },
-        ),
-      );
-    });
-  return {
-    subject,
-    windowAt,
-    watch,
-    refreshes: () => refreshes,
-    pendingTogether: (names: readonly string[]) =>
-      names.every((name) => pending.get(name) === true),
-    stop: () => {
-      for (const stop of stops) stop();
-    },
-  };
-}
-
-const heldRefresh = () => new Promise<Response>(() => {});
-
-it('many diff windows from one stale Changes read share a single refresh', async () => {
-  const recovery = staleRecovery(heldRefresh);
-  try {
-    await Promise.all(
-      Array.from({ length: 17 }, (_, index) =>
-        recovery.watch(
-          `window-${index}`,
-          recovery.windowAt(1, [`file-${index}.md`]),
-          (state) => state.pending,
-        ),
-      ),
-    );
-  } finally {
-    recovery.stop();
-  }
-  expect(recovery.refreshes()).toBe(1);
-});
-
-it('two diff windows from one Changes read with different files share a single refresh', async () => {
-  const recovery = staleRecovery(heldRefresh);
-  try {
-    await Promise.all([
-      recovery.watch(
-        'first',
-        recovery.windowAt(1, ['a.md']),
-        (state) => state.pending,
-      ),
-      recovery.watch(
-        'second',
-        recovery.windowAt(1, ['a.md', 'b.md']),
-        (state) => state.pending,
-      ),
-    ]);
-  } finally {
-    recovery.stop();
-  }
-  expect(recovery.refreshes()).toBe(1);
-});
-
-it('two diff windows from different Changes reads start one refresh between them and stay pending together', async () => {
-  const recovery = staleRecovery(heldRefresh);
-  try {
-    await Promise.all([
-      recovery.watch('older', recovery.windowAt(1), (state) => state.pending),
-      recovery.watch('newer', recovery.windowAt(2), (state) => state.pending),
-    ]);
-    expect(recovery.pendingTogether(['older', 'newer'])).toBe(true);
-  } finally {
-    recovery.stop();
-  }
-  expect(recovery.refreshes()).toBe(1);
-});
-
-it('a stale diff from a later Changes read refreshes again even when the worktree looks exactly as it did before', async () => {
-  const recovery = staleRecovery(() =>
-    Promise.resolve(Response.json(snapshot)),
-  );
-  const changes = readChanges({
-    connection: recovery.subject.connection,
-    scope,
-  });
-  const stopChanges = recovery.subject.registry.mount(changes);
-  try {
-    const first = (
-      await Effect.runPromise(
-        AtomRegistry.getResult(recovery.subject.registry, changes, {
-          suspendOnWaiting: true,
-        }),
-      )
-    ).read;
-    await recovery.watch(
-      'first',
-      recovery.windowAt(first),
-      (state) => state.attempted && !state.pending,
-    );
-    recovery.subject.registry.refresh(changes);
-    const later = await Effect.runPromise(
-      AtomRegistry.getResult(recovery.subject.registry, changes, {
-        suspendOnWaiting: true,
-      }),
-    );
-    expect(later.statusToken).toBe(snapshot.statusToken);
-    await recovery.watch(
-      'later',
-      recovery.windowAt(later.read),
-      (state) => state.attempted && !state.pending,
-    );
-  } finally {
-    recovery.stop();
-    stopChanges();
-  }
-  expect(recovery.refreshes()).toBe(4);
-});
-
-it('a diff answered "worktree changed" while the worktree settles back loads after one Changes refresh and stops refreshing', async () => {
-  let changesReads = 0;
-  let diffReads = 0;
-  const subject = fixture((path) => {
-    if (path.endsWith('/diffs')) {
-      diffReads += 1;
-      return Promise.resolve(
-        diffReads === 1 ? staleDiffAnswer() : Response.json(diffSnapshot),
-      );
-    }
-    changesReads += 1;
-    return changesReads > 4
-      ? new Promise<Response>(() => {})
-      : Promise.resolve(Response.json(snapshot));
-  });
-  const loaded = Promise.withResolvers<void>();
-  let following: number | undefined;
-  let stopWindow = () => {};
-  const follow = (read: number) => {
-    if (read === following) return;
-    following = read;
-    stopWindow();
-    stopWindow = subject.registry.subscribe(
-      readChangeDiffWindow({
-        connection: subject.connection,
-        scope,
-        statusToken: snapshot.statusToken,
-        read,
-        expectedFiles: diffInput.expectedFiles,
-        selections: diffInput.selections,
-      }),
-      ({ result }) => {
-        if (AsyncResult.isSuccess(result)) loaded.resolve();
-      },
-      { immediate: true },
-    );
-  };
-  const stopChanges = subject.registry.subscribe(
-    readChanges({ connection: subject.connection, scope }),
-    (result) => {
-      const answer = Option.getOrUndefined(AsyncResult.value(result));
-      if (answer) follow(answer.read);
-    },
-    { immediate: true },
-  );
-  try {
-    await loaded.promise;
-    expect({ changesReads, diffReads }).toEqual({
-      changesReads: 2,
-      diffReads: 2,
-    });
-  } finally {
-    stopWindow();
-    stopChanges();
-  }
-});

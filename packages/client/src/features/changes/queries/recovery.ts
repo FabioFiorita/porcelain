@@ -14,32 +14,27 @@ import type {
   RuntimeConnection,
   WorktreeScope,
 } from '../../../shared/api/connection.ts';
-import {
-  ChangedDiffRecovery,
-  recoveryKey,
-  recoveryRuntime,
-  worktreeRecovery,
-} from '../store/recovery.ts';
+import { ChangedDiffRecovery, recoveryRuntime } from '../store/recovery.ts';
 
 const readDiffRecovery = Atom.family(
   ({
     connection,
     scope,
-    read,
+    statusToken,
   }: {
     connection: RuntimeConnection;
     scope: WorktreeScope;
-    read: number;
+    statusToken: string;
   }) =>
     recoveryRuntime(connection).atom(
       Stream.unwrap(
         Effect.map(ChangedDiffRecovery, (recovery) => recovery.changes),
       ).pipe(
         Stream.map((state) => {
-          const worktree = worktreeRecovery(state, recoveryKey(scope));
+          const key = JSON.stringify([scope.projectId, scope.worktreeId]);
           return {
-            pending: worktree.refreshing,
-            attempted: read <= worktree.refreshedThrough,
+            pending: state.pending[key] === statusToken,
+            attempted: state.attempted[key] === statusToken,
           };
         }),
       ),
@@ -51,11 +46,10 @@ export const readChangeDiffWindow = Atom.family(
     connection: RuntimeConnection;
     scope: WorktreeScope;
     statusToken: string;
-    read: number;
     expectedFiles: readonly ExpectedFile[];
     selections: readonly ChangeSelection[];
   }) => {
-    const { connection, scope, statusToken, read } = selection;
+    const { connection, scope, statusToken } = selection;
     const queries = diffBatches(
       selection.expectedFiles,
       selection.selections,
@@ -64,7 +58,6 @@ export const readChangeDiffWindow = Atom.family(
       readChangeDiffs({
         connection,
         scope,
-        read,
         input: {
           expectedStatusToken: statusToken,
           expectedFiles: batch.expectedFiles,
@@ -79,18 +72,17 @@ export const readChangeDiffWindow = Atom.family(
       (get) => {
         get.mount(recover);
         const results = get(batches);
-        const recovery = get(readDiffRecovery({ connection, scope, read }));
+        const recovery = get(readDiffRecovery(selection));
         if (
           AsyncResult.isSuccess(recovery) &&
           !recovery.value.attempted &&
-          !recovery.value.pending &&
           results.some(
             (result) =>
               AsyncResult.isFailure(result) &&
               isStaleChangeObservation(Cause.squash(result.cause)),
           )
         ) {
-          get.set(recover, read);
+          get.set(recover, statusToken);
         }
         return {
           result: get(window),

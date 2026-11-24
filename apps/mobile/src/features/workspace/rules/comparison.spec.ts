@@ -26,7 +26,6 @@ const worktree: ReviewSnapshot = {
     environmentId: 'env',
     worktreeId: 'tree',
     statusToken: 'look',
-    read: 1,
     headOid: 'head',
     inProgress: undefined,
     mergeHeadOid: undefined,

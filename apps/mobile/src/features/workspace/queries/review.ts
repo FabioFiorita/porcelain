@@ -220,7 +220,6 @@ function chunkDiffs(
     readChangeDiffWindow({
       ...input,
       statusToken: snapshot.value.answer.statusToken,
-      read: snapshot.value.answer.read,
       expectedFiles: [
         ...new Map(
           diffs.map(({ entry, read }) => [

@@ -5,11 +5,6 @@ import { requestApi } from '../../../shared/api/client.ts';
 import { clientRuntime } from '../../../shared/api/runtime.ts';
 import { retainRead, worktreeRead } from '../../../shared/api/worktree-read.ts';
 import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
-import {
-  ChangedDiffRecovery,
-  recoveryKey,
-  recoveryRuntime,
-} from '../store/recovery.ts';
 
 export const readChangesSnapshot = Effect.fn('Changes.readSnapshot')(
   function* ({ connection, scope }: WorktreeSelection) {
@@ -25,22 +20,13 @@ export const readChangesSnapshot = Effect.fn('Changes.readSnapshot')(
   },
 );
 
-const readStampedChanges = Effect.fn('Changes.readStamped')(function* (
-  selection: WorktreeSelection,
-) {
-  const answer = yield* readChangesSnapshot(selection);
-  const recovery = yield* ChangedDiffRecovery;
-  const read = yield* recovery.stamp(recoveryKey(selection.scope));
-  return { ...answer, read };
-});
-
 export const readChanges = Atom.family((selection: WorktreeSelection) =>
   worktreeRead(
     selection.connection,
     selection.scope,
     ['changes'],
-    readStampedChanges(selection),
-    recoveryRuntime(selection.connection),
+    readChangesSnapshot(selection),
+    clientRuntime(selection.connection),
   ).pipe(retainRead),
 );
 
