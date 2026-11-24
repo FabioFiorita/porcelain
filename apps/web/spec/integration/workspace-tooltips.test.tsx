@@ -34,3 +34,21 @@ test('opening a document tab’s context menu closes its tooltip', async ({
     )
     .toBeVisible();
 });
+
+test('a tooltip stays open while the pointer rests on it', async ({
+  render,
+}) => {
+  const app = await render.route('/');
+  await app.page
+    .getByRole('tab', { name: 'Review', exact: true })
+    .first()
+    .hover();
+  const tooltip = app.page
+    .getByRole('tooltip')
+    .filter({ hasText: "The branch's review" });
+  await expect.element(tooltip).toBeVisible();
+  await tooltip.hover();
+  await expect.element(tooltip).toBeVisible();
+  await app.page.getByRole('button', { name: 'Commit', exact: true }).hover();
+  await expect.element(tooltip).not.toBeInTheDocument();
+});
