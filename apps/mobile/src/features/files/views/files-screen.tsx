@@ -51,6 +51,7 @@ import { TopBarActions } from '../../../shared/application/top-bar';
 import { ListDetail } from '../../../components/ui/list-detail';
 import type { TopBarAction } from '../../../components/ui/top-bar-items';
 import type { ListDetailMode } from '../../../shared/rules/list-detail';
+import { useWritesBlocked } from '../../access';
 
 export function FilesScreen({
   mode,
@@ -131,6 +132,7 @@ function FilesNavigationView({ selected, mode, search }: FilesNavigationProps) {
   } = useFileNavigation(selected.key);
   const router = useRouter();
   const trash = useEditFile(selected.connection, selected.scope);
+  const blocked = useWritesBlocked(selected.connection.environmentId);
   const openAction = (action: FileAction) =>
     router.navigate({
       pathname: '/file-action',
@@ -217,11 +219,13 @@ function FilesNavigationView({ selected, mode, search }: FilesNavigationProps) {
     choices: [
       {
         label: 'New file',
+        disabled: blocked,
         onPress: () =>
           openAction({ kind: 'create', entryKind: 'file', folder: '' }),
       },
       {
         label: 'New folder',
+        disabled: blocked,
         onPress: () =>
           openAction({ kind: 'create', entryKind: 'directory', folder: '' }),
       },
@@ -261,7 +265,9 @@ function FilesNavigationView({ selected, mode, search }: FilesNavigationProps) {
       id,
       label,
       destructive: id === 'trash',
-      disabled: (id === 'pin' || id === 'hide') && preferencePending,
+      disabled:
+        ((id === 'pin' || id === 'hide') && preferencePending) ||
+        (blocked && id !== 'open' && id !== 'timeline'),
       onPress: () => {
         switch (id) {
           case 'new-file':

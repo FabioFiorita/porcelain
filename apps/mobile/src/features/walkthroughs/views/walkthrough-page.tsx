@@ -51,6 +51,7 @@ import {
 } from './walkthrough-conversation';
 import { WalkthroughStatus } from './walkthrough-status';
 import { WalkthroughProof } from './walkthrough-evidence';
+import { useWritesBlocked } from '../../access';
 
 type Phase = ReturnType<typeof walkthroughPhase>;
 
@@ -351,6 +352,7 @@ function Written({
   updateFailure,
   onUpdate,
   writer,
+  blocked,
 }: {
   workspace: Workspace;
   run: WalkthroughRun;
@@ -362,6 +364,7 @@ function Written({
   updateFailure: UpdateFailure | undefined;
   onUpdate: () => void;
   writer: WriterCheck;
+  blocked: boolean;
 }) {
   const router = useRouter();
   const owner = { workspace, run };
@@ -387,6 +390,7 @@ function Written({
         failure={updateFailure}
         onUpdate={onUpdate}
         writeBlock={writer.status?.block}
+        updateDisabled={blocked}
         writerNotice={
           <WriterNotice
             writer={writer}
@@ -536,11 +540,13 @@ function Unwritten({
   waiting,
   onWrite,
   writer,
+  blocked,
 }: {
   workspace: Workspace;
   waiting: boolean;
   onWrite: () => void;
   writer: WriterCheck;
+  blocked: boolean;
 }) {
   return (
     <Column workspace={workspace}>
@@ -557,7 +563,10 @@ function Unwritten({
             label="Write walkthrough"
             pending={waiting}
             disabled={
-              !writer.status || writer.noWriters || Boolean(writer.status.block)
+              !writer.status ||
+              writer.noWriters ||
+              Boolean(writer.status.block) ||
+              blocked
             }
             onPress={onWrite}
           />
@@ -593,6 +602,7 @@ function Failed({
   waiting,
   onRetry,
   writer,
+  blocked,
 }: {
   workspace: Workspace;
   run: WalkthroughRun | undefined;
@@ -600,6 +610,7 @@ function Failed({
   waiting: boolean;
   onRetry: () => void;
   writer: WriterCheck;
+  blocked: boolean;
 }) {
   const copy = failureCopy(failure, run);
   return (
@@ -619,7 +630,7 @@ function Failed({
           <Button
             label="Try again"
             pending={waiting}
-            disabled={Boolean(writer.status?.block)}
+            disabled={Boolean(writer.status?.block) || blocked}
             onPress={onRetry}
           />
         </Box>
@@ -636,6 +647,7 @@ export function WalkthroughPage({
   phase: Phase;
 }) {
   const writer = useWriterCheck(workspace);
+  const blocked = useWritesBlocked(workspace.connection.environmentId);
   const write = useStartWalkthrough(
     workspace,
     observedPhase.kind !== 'unwritten' ? observedPhase.run : undefined,
@@ -651,6 +663,7 @@ export function WalkthroughPage({
         waiting={write.waiting}
         onRetry={write.start}
         writer={writer}
+        blocked={blocked}
       />
     );
   switch (phase.kind) {
@@ -661,6 +674,7 @@ export function WalkthroughPage({
           waiting={write.waiting}
           onWrite={write.start}
           writer={writer}
+          blocked={blocked}
         />
       );
     case 'writing':
@@ -674,6 +688,7 @@ export function WalkthroughPage({
           waiting={write.waiting}
           onRetry={write.start}
           writer={writer}
+          blocked={blocked}
         />
       );
     case 'ready': {
@@ -694,6 +709,7 @@ export function WalkthroughPage({
           updateFailure={failure}
           onUpdate={write.start}
           writer={writer}
+          blocked={blocked}
         />
       );
     }

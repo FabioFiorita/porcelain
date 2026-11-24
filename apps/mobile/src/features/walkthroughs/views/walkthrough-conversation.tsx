@@ -35,6 +35,7 @@ import {
   type ConversationOwner,
 } from '../queries/conversations';
 import { walkthroughAsking } from '../store';
+import { useWritesBlocked } from '../../access';
 
 type Props = { owner: ConversationOwner };
 
@@ -75,6 +76,7 @@ function PostActions({
 }) {
   const actions = usePostActions(owner, message);
   const { notice, waiting } = actions;
+  const blocked = useWritesBlocked(owner.workspace.connection.environmentId);
   const copy = () => {
     Keyboard.dismiss();
     actions.copy();
@@ -112,7 +114,7 @@ function PostActions({
             label="Undo"
             variant="plain"
             size="sm"
-            disabled={waiting}
+            disabled={waiting || blocked}
             onPress={() => save(false)}
           />
         </Box>
@@ -124,6 +126,7 @@ function PostActions({
             variant={message ? 'tonal' : 'filled'}
             size="sm"
             pending={waiting}
+            disabled={pullRequest !== undefined && blocked}
             onPress={pullRequest === undefined ? copy : post}
           />
           {message ? (
@@ -131,7 +134,7 @@ function PostActions({
               label="Save for later"
               variant="plain"
               size="sm"
-              disabled={waiting}
+              disabled={waiting || blocked}
               onPress={() => save(true)}
             />
           ) : null}
@@ -175,6 +178,7 @@ function AgentReply({
   const [open, setOpen] = useState(false);
   const [clipped, setClipped] = useState(false);
   const { failure, waiting, retry } = useAnswerRetry(owner);
+  const blocked = useWritesBlocked(owner.workspace.connection.environmentId);
   const state = message.state;
   return (
     <Message author="Walkthrough agent">
@@ -199,7 +203,7 @@ function AgentReply({
       {state.status === 'failed' ? (
         <LinkButton
           label="Try again"
-          disabled={waiting}
+          disabled={waiting || blocked}
           onPress={() => retry(message.replyTo)}
         />
       ) : null}
@@ -253,15 +257,18 @@ function Composer({
     title,
     placement,
   );
+  const blocked = useWritesBlocked(owner.workspace.connection.environmentId);
   return (
     <MessageComposer
       value={text}
       placeholder={placeholder}
       sending={waiting}
+      disabled={blocked}
       error={failure}
       onChangeText={change}
       scroller={scroller}
       onSend={() => {
+        if (blocked) return;
         Keyboard.dismiss();
         send();
       }}

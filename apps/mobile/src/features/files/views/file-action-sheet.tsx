@@ -10,6 +10,7 @@ import { ErrorState } from '../../../components/ui/error-state';
 import { Sheet } from '../../../components/ui/sheet';
 import { WorkspaceGate, type Workspace } from '../../projects';
 import { useEditFile, type FileAction } from '../commands/edit-file';
+import { useWritesBlocked } from '../../access';
 
 export function fileFormAction(params: {
   kind?: string;
@@ -77,6 +78,7 @@ function ActionForm({
   const edit = useEditFile(selected.connection, selected.scope);
   const [attempted, setAttempted] = useState(false);
   const pending = attempted && edit.result.waiting;
+  const blocked = useWritesBlocked(selected.connection.environmentId);
   return (
     <>
       <Field
@@ -106,7 +108,7 @@ function ActionForm({
         testID="file-action-submit"
         label={action.kind === 'move' ? 'Rename' : 'Create'}
         pending={pending}
-        disabled={!value.trim()}
+        disabled={!value.trim() || blocked}
         onPress={() => {
           setAttempted(true);
           edit.submit(action, value, onClose, onCreated);

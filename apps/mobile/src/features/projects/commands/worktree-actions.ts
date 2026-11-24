@@ -18,6 +18,7 @@ import {
   selectionState,
 } from '../../../shared/application/store';
 import { worktreeActionSelected } from '../rules/worktree-action-selection';
+import { useWriteAllowed } from '../../access';
 
 type Selection = {
   connection: EnvironmentConnection;
@@ -79,6 +80,7 @@ export function useDeleteWorktree(selection: Selection) {
   const [result, run] = useAtom(deleteCommand(selection), {
     mode: 'promiseExit',
   });
+  const allowed = useWriteAllowed(selection.connection.environmentId);
   return {
     result,
     preview: (
@@ -95,6 +97,7 @@ export function useDeleteWorktree(selection: Selection) {
       onFailure: () => void,
     ) => {
       const perform = () => {
+        if (!allowed()) return;
         void run(request).then((exit) => {
           if (Exit.isSuccess(exit) && exit.value.deleted)
             onDone(exit.value.plan);
@@ -114,6 +117,7 @@ export function useSwitchWorktreeBranch(selection: Selection) {
     mode: 'promiseExit',
   });
   const { unresolved } = useAtomRef(readWorktreeBranchSwitch(selection));
+  const allowed = useWriteAllowed(selection.connection.environmentId);
   return {
     result,
     recovered,
@@ -121,6 +125,7 @@ export function useSwitchWorktreeBranch(selection: Selection) {
     pending: result.waiting || recovered.waiting,
     submit: (ref: string | undefined, onDone: () => void) => {
       const perform = () => {
+        if (!allowed()) return;
         let request;
         if (unresolved) request = recover(undefined);
         else if (ref) request = run(ref);

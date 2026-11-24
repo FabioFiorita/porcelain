@@ -7,6 +7,7 @@ import {
 import type { WalkthroughRun } from '@porcelain/client/walkthroughs/rules';
 import type { Workspace } from '../../projects/index';
 import { walkthroughSelection } from '../queries/walkthrough';
+import { useWriteAllowed } from '../../access';
 
 export function useStartWalkthrough(
   workspace: Workspace,
@@ -22,9 +23,16 @@ export function useStartWalkthrough(
       projectId: workspace.scope.projectId,
     }),
   );
-  return walkthroughStartBinding([result, start], {
+  const allowed = useWriteAllowed(workspace.connection.environmentId);
+  const binding = walkthroughStartBinding([result, start], {
     pulls,
     branch: workspace.worktree.branch ?? undefined,
     displayedRun,
   });
+  return {
+    ...binding,
+    start: () => {
+      if (allowed()) binding.start();
+    },
+  };
 }

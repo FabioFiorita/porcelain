@@ -18,6 +18,7 @@ import { TestClock } from 'effect/testing';
 import { ENVIRONMENT_PROTOCOL } from '@porcelain/contracts/shared';
 import {
   readingConnection,
+  remoteWriteGuard,
   readRemoteEnvironment,
   readRemoteStatus,
   readRemoteConnectionStatus,
@@ -660,4 +661,18 @@ it('shows Reconnecting on the reading screen only after the computer stays away 
     interrupted: false,
     repair: true,
   });
+});
+
+it('runs a write only while the computer answers, whichever control starts it', () => {
+  const status = Atom.make<RemoteStatus>({ kind: 'reconnecting' });
+  const registry = registryFixture();
+  const guard = remoteWriteGuard(status);
+  const writes: string[] = [];
+  registry.set(guard, () => writes.push('trash'));
+  registry.set(status, { kind: 'needs-pairing' });
+  registry.set(guard, () => writes.push('retry'));
+  expect(writes).toEqual([]);
+  registry.set(status, { kind: 'online', name: 'Computer' });
+  registry.set(guard, () => writes.push('archive'));
+  expect(writes).toEqual(['archive']);
 });

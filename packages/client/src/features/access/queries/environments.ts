@@ -19,6 +19,7 @@ import {
   readingConnectionNotice,
   remoteStatus,
   remoteWorktreeInterrupted,
+  remoteWritesAvailable,
   sameRemoteConnection,
   type Remote,
   type ConnectionRoute,
@@ -281,4 +282,17 @@ export const readingConnection = Atom.family(
         ? notice
         : undefined;
     }),
+);
+
+export const remoteWritable = Atom.family((status: Atom.Atom<RemoteStatus>) =>
+  status.pipe(Atom.map(remoteWritesAvailable)),
+);
+
+export const remoteWriteGuard = Atom.family((status: Atom.Atom<RemoteStatus>) =>
+  Atom.writable(
+    () => undefined,
+    (ctx, write: () => void) => {
+      if (remoteWritesAvailable(ctx.get(status))) write();
+    },
+  ),
 );

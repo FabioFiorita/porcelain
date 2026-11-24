@@ -7,6 +7,7 @@ import { Icon } from '../../../components/ui/icon';
 import { Spinner } from '../../../components/ui/spinner';
 import { Text } from '../../../components/ui/text';
 import { useReadingConnectionNotice } from '../queries/environments';
+import { useEnvironments } from '../store';
 import { usePairComputerAgain } from '../pairing-sheet';
 
 export function ReadingConnection({ remote }: { remote: Remote }) {
@@ -47,4 +48,15 @@ function FocusedReadingConnection({ remote }: { remote: Remote }) {
       </Box>
     </FloatingBar>
   );
+}
+
+export function ComputerConnectionNotice({
+  environmentId,
+}: {
+  environmentId: string | undefined;
+}) {
+  const remote = useEnvironments().find(
+    (environment) => environment.environmentId === environmentId,
+  );
+  return remote ? <ReadingConnection remote={remote} /> : null;
 }
