@@ -76,18 +76,19 @@ export function CommitForm(
   const commitBlocked =
     commitModeBlocker !== null && commitModeBlocker !== undefined;
   const modes = [
-    { value: 'single', label: 'Single commit', usable: !commitBlocked },
+    { value: 'single', label: 'Single commit', available: !commitBlocked },
     {
       value: 'amend',
       label: 'Amend last',
-      usable: amendModeBlocker === null || amendModeBlocker === undefined,
+      available: amendModeBlocker === null || amendModeBlocker === undefined,
     },
     {
       value: 'groups',
       label: 'Use groups',
-      usable: !commitBlocked && Boolean(model) && commitPaths.length > 0,
+      available: !commitBlocked && Boolean(model),
+      ready: commitPaths.length > 0,
     },
-  ].filter((entry) => entry.usable || entry.value === mode);
+  ].filter((entry) => entry.available || entry.value === mode);
   return (
     <form
       className="flex min-w-0 flex-col gap-4"
@@ -125,7 +126,7 @@ export function CommitForm(
                 key={entry.value}
                 value={entry.value}
                 className="flex-1"
-                disabled={working || !entry.usable}
+                disabled={working || !entry.available || entry.ready === false}
               >
                 {entry.label}
               </TabsTrigger>
