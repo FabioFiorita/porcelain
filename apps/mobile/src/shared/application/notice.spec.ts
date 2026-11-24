@@ -47,6 +47,11 @@ test('a replaced notice does not dismiss the notice that replaced it', async () 
   send({ kind: 'copy', target: 'brief' });
   await expect.poll(() => shown.length).toBe(2);
   expect(visible()).toBe('Copied brief');
+  elapse(0);
+  await expect(
+    expect.poll(visible, { timeout: 200, interval: 20 }).toBeNull(),
+  ).rejects.toThrow();
+  expect(visible()).toBe('Copied brief');
   elapse(1);
   await expect.poll(visible).toBeNull();
   expect(announced).toEqual(['Fetched', 'Copied brief']);

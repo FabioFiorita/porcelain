@@ -3,7 +3,11 @@ import { expect, it } from 'vite-plus/test';
 import type { RunGitActionResponse } from '@porcelain/contracts/git-actions';
 import { operationStoreFixture } from '../../../../spec/kit/operation-store.ts';
 import { operationKey } from '../store/operations.ts';
-import { networkMenuFeedback, networkSuccesses } from './network-menu.ts';
+import {
+  networkMenuFeedback,
+  networkSuccesses,
+  watchNetworkSuccesses,
+} from './network-menu.ts';
 
 const scope = {
   projectId: '11111111-1111-4111-8111-111111111111',
@@ -19,14 +23,14 @@ const receipt: RunGitActionResponse = {
   acceptedAt: '2026-11-10T10:00:00.000Z',
 };
 
-async function pendingPull() {
+async function pendingPull(id = requestId) {
   const { store } = operationStoreFixture();
   await Effect.runPromise(
     store.set(operationKey(scope, 'pull'), {
       ...scope,
-      requestId,
+      requestId: id,
       request: {
-        requestId,
+        requestId: id,
         input: {
           action: 'pull',
           remoteName: 'origin',
@@ -42,7 +46,7 @@ async function pendingPull() {
       },
     }),
   );
-  await Effect.runPromise(store.accept(receipt));
+  await Effect.runPromise(store.accept({ ...receipt, requestId: id }));
   return store;
 }
 
@@ -215,9 +219,11 @@ it('reports a Pull success once, when its request turns terminal, whichever path
   const success = { ...receipt, state: 'succeeded' as const, progress: [] };
   await Effect.runPromise(store.accept(success));
   const done = store.state.value;
-  expect(networkSuccesses(pending, done, scope)).toEqual(['pull']);
+  expect(networkSuccesses(pending, done)).toEqual([
+    { action: 'pull', requestId },
+  ]);
   await Effect.runPromise(store.accept(success));
-  expect(networkSuccesses(done, store.state.value, scope)).toEqual([]);
+  expect(networkSuccesses(done, store.state.value)).toEqual([]);
 });
 
 it('reports nothing for a failed Pull or a success already terminal when first seen', async () => {
@@ -226,7 +232,7 @@ it('reports nothing for a failed Pull or a success already terminal when first s
   await Effect.runPromise(
     store.accept({ ...receipt, state: 'rejected', progress: [] }),
   );
-  expect(networkSuccesses(pending, store.state.value, scope)).toEqual([]);
+  expect(networkSuccesses(pending, store.state.value)).toEqual([]);
   const { store: restored } = operationStoreFixture();
   const empty = restored.state.value;
   await Effect.runPromise(
@@ -235,5 +241,43 @@ it('reports nothing for a failed Pull or a success already terminal when first s
       receipt: { ...receipt, state: 'succeeded', progress: [] },
     }),
   );
-  expect(networkSuccesses(empty, restored.state.value, scope)).toEqual([]);
+  expect(networkSuccesses(empty, restored.state.value)).toEqual([]);
+});
+
+it('announces each Fetch or Pull success once for every paired computer, whichever screen is open', async () => {
+  const first = await pendingPull();
+  const listeners = new Set<() => void>();
+  const connections = {
+    value: [{ operations: { state: first.state } }],
+    subscribe: (changed: () => void) => {
+      listeners.add(changed);
+      return () => listeners.delete(changed);
+    },
+    set(next: typeof this.value) {
+      this.value = next;
+      for (const changed of listeners) changed();
+    },
+  };
+  const announced: string[] = [];
+  const stop = watchNetworkSuccesses(connections, (action) =>
+    announced.push(action),
+  );
+  try {
+    const success = { ...receipt, state: 'succeeded' as const, progress: [] };
+    await Effect.runPromise(first.accept(success));
+    await Effect.runPromise(first.accept(success));
+    expect(announced).toEqual(['pull']);
+    const otherRequest = '33333333-3333-4333-8333-333333333333';
+    const second = await pendingPull(otherRequest);
+    connections.set([
+      { operations: { state: first.state } },
+      { operations: { state: second.state } },
+    ]);
+    await Effect.runPromise(
+      second.accept({ ...success, requestId: otherRequest }),
+    );
+    expect(announced).toEqual(['pull', 'pull']);
+  } finally {
+    stop();
+  }
 });
