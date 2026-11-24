@@ -79,7 +79,7 @@ function CapturedLines({
   return (
     <Card>
       <DiffView
-        lines={parsed.lines}
+        lines={parsed.lines.filter((line) => line.kind !== undefined)}
         language={sourceLanguage(excerpt.path)}
         fit
       />
