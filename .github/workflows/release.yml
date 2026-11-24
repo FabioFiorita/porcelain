@@ -159,7 +159,7 @@ jobs:
             const instance = await startDesktop({ id: '827f1eed', evidenceDirectory });
             try {
               const page = await instance.electron.firstWindow();
-              await page.getByRole('button', { name: 'Open project' }).waitFor({ timeout: 10_000 });
+              await page.getByTestId('navigator').getByRole('button', { name: 'Open project' }).waitFor({ timeout: 10_000 });
               const available = await instance.electron.evaluate(({ safeStorage }) =>
                 safeStorage.isEncryptionAvailable(),
               );
