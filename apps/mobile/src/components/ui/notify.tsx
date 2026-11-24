@@ -4,15 +4,15 @@ import { FullWindowOverlay } from 'react-native-screens';
 import { Text } from './text';
 
 export function NotificationViewport({ title }: { title: string | undefined }) {
-  const { top } = useSafeAreaInsets();
+  const { bottom } = useSafeAreaInsets();
   if (!title) return null;
   const view = (
     <View
       pointerEvents="none"
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
-      style={{ top }}
-      className="absolute inset-x-0 z-50 items-center px-4 pt-2"
+      style={{ bottom: bottom + 16 }}
+      className="absolute inset-x-0 z-50 items-center px-4"
     >
       <View className="max-w-md rounded-xl border border-border bg-popover px-4 py-3 shadow-md">
         <Text variant="secondary" weight="semibold">
