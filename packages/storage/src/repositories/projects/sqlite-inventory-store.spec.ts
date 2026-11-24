@@ -101,7 +101,7 @@ async function seed(
   );
 
   await Effect.runPromise(
-    (await session.runPromise(GitActionReceiptStore)).insert(
+    (await session.runPromise(GitActionReceiptStore)).accept(
       receipt(projectId, worktreeId),
     ),
   );

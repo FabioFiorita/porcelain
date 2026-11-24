@@ -47,6 +47,7 @@ function diagnosticFixture(entry) {
     for (const path of [
       'scripts/architecture.ts',
       'architecture/type-rules.ts',
+      'architecture/typescript-project.ts',
       'architecture/policy.ts',
       'architecture/dependency-cruiser.cjs',
       'scripts/style.ts',

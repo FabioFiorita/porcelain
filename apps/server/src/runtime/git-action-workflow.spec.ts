@@ -38,7 +38,7 @@ const fixture = Effect.fn(function* () {
       read: ({ requestId }) =>
         Effect.succeed(requestId === receipt.requestId ? receipt : undefined),
       running: () => Effect.succeed([receipt]),
-      insert: unavailable,
+      accept: unavailable,
       save: unavailable,
       claimExecution: unavailable,
       latestInterrupted: unavailable,

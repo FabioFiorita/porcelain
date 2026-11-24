@@ -92,16 +92,25 @@ export const sqliteGitActionReceiptStoreLayer = Layer.effect(
       finished: Effect.fn('GitActionReceiptStore.finished')(function* () {
         return yield* finished(undefined).pipe(Effect.orDie);
       }),
-      insert: Effect.fn('GitActionReceiptStore.insert')(function* (
-        input: Parameters<GitActionReceiptStore['insert']>[0],
+      accept: Effect.fn('GitActionReceiptStore.accept')(function* (
+        input: GitActionReceipt,
       ) {
         return yield* Effect.gen(function* () {
           const row = yield* Schema.encodeEffect(GitActionReceiptRow.insert)(
             receiptRow(input),
           );
-          yield* sql`INSERT INTO git_action_receipts ${sql.insert(row)}`;
+          const inserted =
+            yield* sql`INSERT INTO git_action_receipts ${sql.insert(row)} ON CONFLICT(request_id) DO NOTHING RETURNING request_id`;
+          if (inserted.length === 0) {
+            const existing = yield* read({ requestId: input.requestId });
+            return {
+              kind: 'existing' as const,
+              receipt: receiptFromRow(Option.getOrThrow(existing)),
+            };
+          }
           yield* sql`INSERT INTO porcelain_git_action_execution_v1 (request_id, phase) VALUES (${input.requestId}, 'queued')`;
-        }).pipe(sql.withTransaction, Effect.asVoid, Effect.orDie);
+          return { kind: 'inserted' as const };
+        }).pipe(sql.withTransaction, Effect.orDie);
       }),
       claimExecution: Effect.fn('GitActionReceiptStore.claimExecution')(
         function* (

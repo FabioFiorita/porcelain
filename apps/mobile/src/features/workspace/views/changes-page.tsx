@@ -5,6 +5,10 @@ import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { readTextFile } from '@porcelain/client/files';
 import type { ReviewComparison } from '../../../shared/rules/review-comparison';
+import {
+  mobileLayout,
+  profileMobileScreen,
+} from '../../../shared/application/mobile-timing';
 import { Box } from '../../../components/ui/box';
 import { Spinner } from '../../../components/ui/spinner';
 import { Empty } from '../../../components/ui/empty';
@@ -40,7 +44,7 @@ export function ChangesPageScreen({
   workspaceKey?: string | undefined;
   comparison: ReviewComparison;
 }) {
-  return (
+  const screen = (
     <Screen layout="fixed">
       <WorkspaceGate
         expectedWorkspace={workspaceKey ?? ''}
@@ -57,6 +61,7 @@ export function ChangesPageScreen({
       </WorkspaceGate>
     </Screen>
   );
+  return walkthrough ? screen : profileMobileScreen('all-changes', screen);
 }
 
 type ChangesReading = {
@@ -178,6 +183,11 @@ function ChangesReader({
         subtitle={summary.subtitle}
         actions={reading?.actions ?? []}
         files={files}
+        onFirstHeadingLayout={
+          walkthrough || reading
+            ? undefined
+            : mobileLayout('all-changes-first-heading')
+        }
         header={() =>
           reading?.header ?? (
             <Box divider="bottom" paddingX={4} paddingY={3}>
