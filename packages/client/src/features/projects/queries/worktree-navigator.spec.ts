@@ -264,6 +264,41 @@ it('keeps loading visible for a computer without saved rows beside another compu
   }
 });
 
+it('reads status only for worktrees matching a pull request search', async () => {
+  const { registry, connection, paths } = recordedNavigator();
+  const list = readWorktreeNavigator([connection]);
+  registry.set(worktreeNavigatorState, {
+    ...registry.get(worktreeNavigatorState),
+    query: '42',
+  });
+  const stop = registry.mount(list);
+  try {
+    await expect
+      .poll(() => registry.get(list).projects[0]?.entries[0]?.changes.state)
+      .toBe('available');
+    expect(
+      registry.get(list).projects[0]?.entries.map((entry) => entry.name),
+    ).toEqual(['topic']);
+    expect(paths.filter((path) => path.endsWith('/git/status'))).toEqual([
+      `/api/worktrees/${topicId}/git/status`,
+    ]);
+    registry.set(worktreeNavigatorState, {
+      ...registry.get(worktreeNavigatorState),
+      query: '',
+    });
+    await expectNavigatorNames(registry, list, ['main', 'topic']);
+    await expect
+      .poll(() => registry.get(list).projects[0]?.entries[0]?.changes.state)
+      .toBe('available');
+    expect(paths.filter((path) => path.endsWith('/git/status'))).toEqual([
+      `/api/worktrees/${topicId}/git/status`,
+      `/api/worktrees/${mainId}/git/status`,
+    ]);
+  } finally {
+    stop();
+  }
+});
+
 it('keeps colliding projects distinct and mounts no hidden-project details or GitHub payloads, including refresh', async () => {
   const reads: { environmentId: string; path: string }[] = [];
   const subjects = [environmentId, secondEnvironmentId].map((identity) =>
@@ -438,11 +473,15 @@ it('loads checks after useful cards without computing diff summaries or reading 
         pullRequest: { checks: { state: 'available', result: 'running' } },
       });
     const refresh = refreshWorktreeNavigator([subject.connection]);
+    const refreshStart = reads.length;
     subject.registry.set(refresh, undefined);
     await readClientAtom(subject.registry, refresh);
     await expect
       .poll(() => reads.filter((path) => path.endsWith('/checks')).length)
       .toBe(2);
+    expect(
+      reads.slice(refreshStart).filter((path) => path.endsWith('/git/status')),
+    ).toEqual([`/api/worktrees/${topicId}/git/status`]);
     expect(reads.filter((path) => path.endsWith('/summary'))).toEqual([]);
   } finally {
     stop();

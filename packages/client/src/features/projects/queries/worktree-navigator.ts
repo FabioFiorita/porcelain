@@ -90,10 +90,19 @@ const readProjectEntries = Atom.family(
     }).pipe(Atom.setIdleTTL(0)),
 );
 
+export const readMatchingProjectEntries = Atom.family(
+  (input: { connection: RuntimeConnection; projectId: string }) =>
+    Atom.readable((get) => {
+      const { query } = get(worktreeNavigatorState);
+      const entries = get(readProjectEntries(input));
+      return entries.filter((entry) => navigatorEntryMatches(entry, query));
+    }).pipe(Atom.setIdleTTL(0)),
+);
+
 const readNavigatorProject = Atom.family(
   (input: { connection: RuntimeConnection; projectId: string }) =>
     Atom.readable((get) => {
-      const entries = get(readProjectEntries(input)).map((source) => {
+      const entries = get(readMatchingProjectEntries(input)).map((source) => {
         const entry: NavigatorEntry = { ...source };
         if (entry.available && entry.worktreeId) {
           const status = get(
@@ -252,13 +261,13 @@ function navigator(
         connection: source.connection,
         projectId: source.project.id,
       };
-      const entries = get(readNavigatorProject(input))
-        .filter((entry) => navigatorEntryMatches(entry, query))
-        .map((entry): NavigatorEntry => ({
+      const entries = get(readNavigatorProject(input)).map(
+        (entry): NavigatorEntry => ({
           ...entry,
           pullRequest: { ...entry.pullRequest },
           changes: { ...entry.changes },
-        }));
+        }),
+      );
       for (const entry of entries) {
         if (entry.pullRequest.state === 'available') {
           const result = get(
