@@ -309,7 +309,7 @@ jobs:
         migrations,
         desktop-e2e,
       ]
-    if: ${{ always() }}
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - name: Require every selected check to succeed
