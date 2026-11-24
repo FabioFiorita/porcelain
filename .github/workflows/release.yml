@@ -61,7 +61,6 @@ jobs:
 
   mac:
     needs: version
-    if: needs.version.outputs.publish == 'true'
     runs-on: macos-latest
     timeout-minutes: 60
     steps:
@@ -113,7 +112,24 @@ jobs:
       - name: Launch Porcelain from its signed disk image
         env:
           VERSION: ${{ needs.version.outputs.version }}
-        run: node scripts/check-desktop-release.ts "dist/desktop/Porcelain-$VERSION-arm64.dmg"
+        run: |
+          set -euo pipefail
+          account_home=$(node -p "require('node:os').userInfo().homedir")
+          read_keychains() {
+            local command
+            for command in default-keychain list-keychains; do
+              if HOME="$account_home" LC_ALL=C /usr/bin/security "$command" -d user 2>&1; then
+                echo "status=0"
+              else
+                echo "status=$?"
+              fi
+            done
+          }
+          before=$(read_keychains)
+          node scripts/check-desktop-release.ts "dist/desktop/Porcelain-$VERSION-arm64.dmg"
+          after=$(read_keychains)
+          test "$before" = "$after"
+          echo "Real HOME Keychain preferences match before and after the signed launch."
       - uses: actions/upload-artifact@v7
         with:
           name: mac
@@ -145,6 +161,9 @@ jobs:
         timeout-minutes: 5
         run: |
           cat > scripts/verify-dev-mac.ts <<'TS'
+          import { deepStrictEqual } from 'node:assert/strict';
+          import { spawnSync } from 'node:child_process';
+          import { userInfo } from 'node:os';
           import { mkdtemp, readFile } from 'node:fs/promises';
           import { join } from 'node:path';
           import type { DesktopBridge } from '@porcelain/contracts/desktop';
@@ -152,11 +171,24 @@ jobs:
 
           declare const porcelainDesktop: DesktopBridge;
 
+          const account = { ...process.env, HOME: userInfo().homedir, LC_ALL: 'C' };
+          const readKeychains = () => ['default-keychain', 'list-keychains'].map((command) => {
+            const { status, stdout, stderr } = spawnSync('/usr/bin/security', [command, '-d', 'user'], {
+              env: account, encoding: 'utf8',
+            });
+            return { status, stdout, stderr };
+          });
+          const originalKeychains = readKeychains();
+          const verifyKeychains = (phase: string) => {
+            deepStrictEqual(readKeychains(), originalKeychains);
+            console.log(`Real HOME Keychain preferences match ${phase}.`);
+          };
           const evidenceDirectory = await mkdtemp('/tmp/porcelain-verify-evidence-');
           console.log(`Desktop verification evidence: ${evidenceDirectory}`);
           try {
             const instance = await startDesktop({ id: '827f1eed', evidenceDirectory });
             try {
+              verifyKeychains('after setup');
               const page = await instance.electron.firstWindow();
               await page.getByTestId('navigator').getByRole('button', { name: 'Open project' }).waitFor({ timeout: 10_000 });
               const available = await instance.electron.evaluate(({ safeStorage }) =>
@@ -177,6 +209,7 @@ jobs:
                 throw new Error('Porcelain Dev did not preserve encrypted credentials with its temporary HOME');
             } finally {
               await instance.stop();
+              verifyKeychains('after teardown');
             }
           } catch (error) {
             console.error(error);
