@@ -5,6 +5,7 @@ import {
   type WalkthroughStatusInput,
 } from '@porcelain/client/walkthroughs/rules';
 import { Button } from '@/components/ui/button';
+import type { ReactNode } from 'react';
 
 export function WalkthroughStatus({
   run,
@@ -14,15 +15,12 @@ export function WalkthroughStatus({
   failure,
   onUpdate,
   writeBlock,
-  writerNote,
+  writerNotice,
 }: WalkthroughStatusInput & {
   writeBlock?: string | undefined;
-  writerNote?: string | undefined;
+  writerNotice?: ReactNode;
 }) {
   const progress = walkthroughProgress(run, requesting);
-  const note = writerNote && (
-    <p className="text-caption text-muted-foreground">{writerNote}</p>
-  );
   if (
     run.state.status === 'ready' &&
     !progress.active &&
@@ -51,7 +49,7 @@ export function WalkthroughStatus({
             </>
           )}
         </p>
-        {note}
+        {writerNotice}
         {onUpdate && (
           <Button
             size="sm"
@@ -87,7 +85,7 @@ export function WalkthroughStatus({
           </Button>
         )}
       </div>
-      {!progress.active && note}
+      {!progress.active && writerNotice}
       {run.state.status === 'ready' && (
         <p className="text-caption text-muted-foreground">
           Last written{' '}

@@ -1,4 +1,7 @@
-import { walkthroughWriterAvailability } from '@porcelain/walkthroughs/rules';
+import {
+  unsupportedWalkthroughEffortMessage,
+  walkthroughWriterAvailability,
+} from '@porcelain/walkthroughs/rules';
 import { randomUUID } from 'node:crypto';
 import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -69,7 +72,7 @@ export const cliWalkthroughWriterLayer = (options: {
         if (availability.kind === 'unsupported-effort')
           return yield* failure(
             'other',
-            `${availability.model.label} doesn't support ${writer.effort} effort. Choose a supported effort in walkthrough settings.`,
+            `${unsupportedWalkthroughEffortMessage(availability.model.label, writer.effort)} Choose a supported effort in walkthrough settings.`,
           );
       });
       return WalkthroughWriter.of({

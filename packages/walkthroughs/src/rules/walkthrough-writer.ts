@@ -8,6 +8,13 @@ export const builtInWalkthroughWriter: WalkthroughWriterChoice = {
   effort: 'high',
 };
 
+export function unsupportedWalkthroughEffortMessage(
+  label: string,
+  effort: string,
+) {
+  return `${label} doesn't support ${effort} effort.`;
+}
+
 export function walkthroughWriterAvailability(
   writer: WalkthroughWriterChoice,
   models: readonly WalkthroughModel[],

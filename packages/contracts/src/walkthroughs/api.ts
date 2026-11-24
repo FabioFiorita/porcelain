@@ -104,6 +104,7 @@ export const readWalkthroughResponseSchema = Schema.Struct({
 });
 const walkthroughWriterSettingsQuerySchema = Schema.Struct({
   projectId: Schema.optional(Schema.String),
+  refresh: Schema.optional(Schema.Literal('true')),
 });
 export type WalkthroughWriterSettingsQuery =
   typeof walkthroughWriterSettingsQuerySchema.Type;

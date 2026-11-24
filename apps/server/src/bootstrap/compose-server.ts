@@ -158,6 +158,9 @@ function serverResources(
     metadata,
     persistence,
     NodeServices.layer,
+    installedWalkthroughModelReaderLayer(input.settings.limits.agents).pipe(
+      Layer.provide(NodeServices.layer),
+    ),
     NodeHttpClient.layerFetch,
     logging,
     inMemoryWorktreeCatalogStoreLayer,
@@ -272,14 +275,7 @@ function serverResources(
           routeListenerRunner,
           tunnelProbe: Context.get(remoteContext, TunnelProbe),
         });
-        const walkthroughModels = Context.get(
-          yield* Layer.build(
-            installedWalkthroughModelReaderLayer(
-              context.settings.limits.agents,
-            ),
-          ).pipe(Effect.provide(NodeServices.layer)),
-          WalkthroughModelReader,
-        );
+        const walkthroughModels = yield* WalkthroughModelReader;
         const projects = yield* composeProjects(context, {
           walkthroughModels,
           stores,

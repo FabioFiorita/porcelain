@@ -277,10 +277,40 @@ test('reports a saved project effort as unsupported when the installed catalog d
   expect(
     await read(session, {
       method: 'GET',
-      path: `/api/walkthrough-settings?projectId=${session.projectId}`,
+      path: `/api/walkthrough-settings?projectId=${session.projectId}&refresh=true`,
     }),
   ).toMatchObject({
     writer,
+    availability: 'unsupported-effort',
+  });
+});
+
+test('reuses a recent writer catalog and refreshes it on request', async ({
+  session,
+  server,
+}) => {
+  await setFixtureCodexEffort(session, server.manifestPath, true);
+  const writer = { ...fixtureWriter, effort: 'high' };
+  await read(session, {
+    method: 'PUT',
+    path: `/api/projects/${session.projectId}/walkthrough-settings`,
+    body: { mode: 'manual', writer },
+  });
+  const path = `/api/walkthrough-settings?projectId=${session.projectId}`;
+  const lookup = (requestPath: string) =>
+    read(session, {
+      method: 'GET',
+      path: requestPath,
+    });
+  expect(await lookup(`${path}&refresh=true`)).toMatchObject({
+    availability: 'ready',
+  });
+  await setFixtureCodexEffort(session, server.manifestPath, false);
+  expect(await lookup(path)).toMatchObject({ availability: 'ready' });
+  expect(await lookup(`${path}&refresh=true`)).toMatchObject({
+    availability: 'unsupported-effort',
+  });
+  expect(await lookup(path)).toMatchObject({
     availability: 'unsupported-effort',
   });
 });

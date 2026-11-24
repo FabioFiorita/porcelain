@@ -1,6 +1,7 @@
 import * as Schema from 'effect/Schema';
 import {
   writerSchema,
+  unsupportedWalkthroughEffortMessage,
   type WalkthroughWriterSettings,
 } from '@porcelain/contracts/walkthroughs';
 
@@ -10,10 +11,7 @@ export const selectedWalkthroughWriter = (key: string, effort: string) => {
 };
 
 export type { WalkthroughWriterSettings as WriterSettings } from '@porcelain/contracts/walkthroughs';
-
-export function unsupportedEffortNote(label: string, effort: string) {
-  return `${label} doesn't support ${effort} effort.`;
-}
+export { unsupportedWalkthroughEffortMessage };
 
 export function walkthroughWriterStatus(settings: WalkthroughWriterSettings) {
   const { writer, availability } = settings;
@@ -25,9 +23,25 @@ export function walkthroughWriterStatus(settings: WalkthroughWriterSettings) {
   const label = `${provider} / ${model?.label ?? writer.model} · ${writer.effort}`;
   let block: string | undefined;
   if (availability === 'unsupported-effort')
-    block = unsupportedEffortNote(model?.label ?? writer.model, writer.effort);
+    block = unsupportedWalkthroughEffortMessage(
+      model?.label ?? writer.model,
+      writer.effort,
+    );
   else if (availability === 'missing-model') block = `${label} is unavailable.`;
   return { availability, label, block };
+}
+
+export function walkthroughWriterNotice(
+  check: {
+    failed: boolean;
+    status: ReturnType<typeof walkthroughWriterStatus> | undefined;
+  },
+  existingMessage?: string,
+) {
+  const message = check.failed
+    ? 'Could not check writers on the connected computer.'
+    : check.status?.block;
+  return message && !existingMessage?.includes(message) ? message : undefined;
 }
 
 export function canSaveWalkthroughWriter(input: {

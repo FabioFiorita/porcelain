@@ -49,7 +49,11 @@ export type {
   WorktreeCleanupRequest,
 } from '@porcelain/contracts/projects';
 
-export { readWalkthroughWriterSettings } from './queries/walkthrough-writer.ts';
+export {
+  readWalkthroughWriterSettings,
+  recheckWalkthroughWriterSettings,
+  walkthroughWriterCheck,
+} from './queries/walkthrough-writer.ts';
 export { saveDefaultWalkthroughWriter } from './commands/projects.ts';
 
 export {

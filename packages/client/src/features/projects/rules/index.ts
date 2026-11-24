@@ -47,7 +47,8 @@ export {
 export {
   selectedWalkthroughWriter,
   walkthroughWriterStatus,
-  unsupportedEffortNote,
+  unsupportedWalkthroughEffortMessage,
+  walkthroughWriterNotice,
   type WriterSettings,
 } from './walkthrough-writer.ts';
 

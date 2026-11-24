@@ -293,6 +293,33 @@ export function createFetchGate(filePath: string) {
         (url, init) =>
           (init?.method ?? 'GET') === 'GET' && url.pathname.endsWith('/review'),
       ),
+    holdNextWriterSettings: () =>
+      holdNextFetch(
+        (url, init) =>
+          (init?.method ?? 'GET') === 'GET' &&
+          url.pathname.endsWith('/walkthrough-settings'),
+      ),
+    failWriterSettings() {
+      const original = window.fetch;
+      let refusing = true;
+      window.fetch = (input, init) =>
+        refusing &&
+        (init?.method ?? 'GET') === 'GET' &&
+        requestUrl(input).pathname.endsWith('/walkthrough-settings')
+          ? Promise.resolve(
+              Response.json(
+                { message: 'Writer check unavailable' },
+                { status: 503 },
+              ),
+            )
+          : original(input, init);
+      restores.push(() => {
+        window.fetch = original;
+      });
+      return () => {
+        refusing = false;
+      };
+    },
     holdNextReviewGitSettings: () =>
       holdNextFetch(
         (url, init) =>

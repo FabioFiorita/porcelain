@@ -18,8 +18,11 @@ export class ReadWalkthroughWriterSettingsUseCase extends Context.Service<
       const service = yield* ReadWalkthroughWriterSettingsService;
       return {
         execute: Effect.fn('ReadWalkthroughWriterSettingsUseCase.execute')(
-          function* ({ projectId }) {
-            const result = yield* service.execute(projectId);
+          function* ({ projectId, refresh }) {
+            const result = yield* service.execute({
+              projectId,
+              refresh: refresh === 'true',
+            });
             return result;
           },
         ),

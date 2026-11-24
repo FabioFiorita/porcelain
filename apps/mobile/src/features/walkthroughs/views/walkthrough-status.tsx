@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Progress } from '../../../components/ui/progress';
 import {
   walkthroughProgress,
@@ -17,7 +17,12 @@ export function WalkthroughStatus({
   freshness,
   failure,
   onUpdate,
-}: WalkthroughStatusInput) {
+  writeBlock,
+  writerNotice,
+}: WalkthroughStatusInput & {
+  writeBlock?: string | undefined;
+  writerNotice?: ReactNode;
+}) {
   const [open, setOpen] = useState(false);
   const progress = walkthroughProgress(run, requesting);
   return (
@@ -65,11 +70,13 @@ export function WalkthroughStatus({
             ` ${failure.failure.message}`}
         </Text>
       )}
+      {!progress.active && writerNotice}
       {!progress.active && onUpdate && (
         <Button
           label={failure ? 'Try again' : 'Update walkthrough'}
           variant="tonal"
           size="sm"
+          disabled={Boolean(writeBlock)}
           onPress={onUpdate}
         />
       )}

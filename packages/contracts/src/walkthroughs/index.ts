@@ -16,6 +16,7 @@ export {
 } from './api.ts';
 
 export { writerSchema } from '@porcelain/walkthroughs/models';
+export { unsupportedWalkthroughEffortMessage } from '@porcelain/walkthroughs/rules';
 export {
   walkthroughConversationsResponseSchema,
   type WalkthroughConversationsResponse,

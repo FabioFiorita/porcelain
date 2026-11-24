@@ -253,5 +253,73 @@ test.for([
     await expect
       .element(page.getByText(unsupportedNote, { exact: true }))
       .toBeVisible();
+    await page
+      .getByRole('button', {
+        name: 'Project walkthrough settings',
+        exact: true,
+      })
+      .click();
+    await expect
+      .element(
+        page.getByRole('dialog', {
+          name: `Walkthroughs for ${project.name}`,
+          exact: true,
+        }),
+      )
+      .toBeVisible();
   },
 );
+
+test.for([
+  ['pr', 'Update walkthrough'],
+  ['failed-update', 'Try again'],
+] as const)(
+  'keeps the %s action available while the writer check is held',
+  async ([scenario, button], { render, fetchGate }) => {
+    await conversationFixture(scenario);
+    const held = fetchGate.holdNextWriterSettings();
+    held.arm();
+    try {
+      const { page } = await render.route('/');
+      await held.requested;
+      await expect
+        .element(page.getByRole('button', { name: button, exact: true }))
+        .toBeEnabled();
+    } finally {
+      held.release();
+    }
+  },
+);
+
+test('a failed writer check leaves Update usable and can be checked again', async ({
+  render,
+  fetchGate,
+}) => {
+  await conversationFixture('pr');
+  const restore = fetchGate.failWriterSettings();
+  try {
+    const { page } = await render.route('/');
+    const note = page.getByText(
+      'Could not check writers on the connected computer.',
+      {
+        exact: true,
+      },
+    );
+    await expect.element(note).toBeVisible();
+    await expect
+      .element(
+        page.getByRole('button', { name: 'Update walkthrough', exact: true }),
+      )
+      .toBeEnabled();
+    const check = page.getByRole('button', {
+      name: 'Check writers again',
+      exact: true,
+    });
+    restore();
+    await check.click();
+    await expect.element(note).not.toBeInTheDocument();
+    await expect.element(check).not.toBeInTheDocument();
+  } finally {
+    restore();
+  }
+});

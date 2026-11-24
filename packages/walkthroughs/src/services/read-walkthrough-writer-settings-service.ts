@@ -9,7 +9,10 @@ import {
 export class ReadWalkthroughWriterSettingsService extends Context.Service<
   ReadWalkthroughWriterSettingsService,
   {
-    readonly execute: (projectId: string | undefined) => Effect.Effect<{
+    readonly execute: (input: {
+      projectId: string | undefined;
+      refresh: boolean;
+    }) => Effect.Effect<{
       writer: WalkthroughWriterChoice;
       models: readonly WalkthroughModel[];
       availability: ReturnType<typeof walkthroughWriterAvailability>['kind'];
@@ -21,14 +24,17 @@ export class ReadWalkthroughWriterSettingsService extends Context.Service<
     Effect.gen(function* () {
       const resolve = yield* ResolveWalkthroughWriterService;
       const reader = yield* WalkthroughModelReader;
+      const [readCatalog, invalidateCatalog] =
+        yield* Effect.cachedInvalidateWithTTL(reader.read(), '15 seconds');
       return {
         execute: Effect.fn('ReadWalkthroughWriterSettingsService.execute')(
-          function* (projectId) {
+          function* ({ projectId, refresh }) {
             const writer = yield* resolve.execute({
               projectId,
               writer: undefined,
             });
-            const models = yield* reader.read();
+            if (refresh) yield* invalidateCatalog;
+            const models = yield* readCatalog;
             return {
               writer,
               models,

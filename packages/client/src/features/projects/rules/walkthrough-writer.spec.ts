@@ -1,6 +1,7 @@
 import { expect, it } from 'vite-plus/test';
 import {
   canSaveWalkthroughWriter,
+  walkthroughWriterNotice,
   walkthroughWriterStatus,
   type WriterSettings,
 } from './walkthrough-writer.ts';
@@ -60,6 +61,25 @@ it('keeps a legacy settings response usable without inferring the writer status'
       writer: settings.writer,
       models: settings.models,
     }).block,
+  ).toBeUndefined();
+});
+
+it('shows the effort reason once when the run already reported it', () => {
+  const check = {
+    failed: false,
+    status: walkthroughWriterStatus({
+      ...settings,
+      availability: 'unsupported-effort',
+    }),
+  };
+  expect(walkthroughWriterNotice(check)).toBe(
+    "Opus 5.5 doesn't support high effort.",
+  );
+  expect(
+    walkthroughWriterNotice(
+      check,
+      "Opus 5.5 doesn't support high effort. Choose a supported effort in walkthrough settings.",
+    ),
   ).toBeUndefined();
 });
 
