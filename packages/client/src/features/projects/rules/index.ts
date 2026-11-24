@@ -53,3 +53,4 @@ export {
 export { canSaveWalkthroughWriter } from './walkthrough-writer.ts';
 
 export * from './pull-request.ts';
+export { savedWorktreeRows } from './worktree-snapshot.ts';
