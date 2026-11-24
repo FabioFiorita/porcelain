@@ -31,7 +31,14 @@ function landing(
     | 'ready-with-active-ci'
     | 'ci-starts-before-retry'
     | 'fork-ci-active'
-    | 'workflow-ci-completed',
+    | 'other-pr-ci-active'
+    | 'deleted-fork'
+    | 'workflow-ci-completed'
+    | 'workflow-ci-overlap'
+    | 'workflow-ci-cancelled'
+    | 'workflow-ci-failed'
+    | 'workflow-failed-check-green'
+    | 'workflow-old-cancel-latest-green',
 ) {
   const directory = mkdtempSync(join(temporaryRoot, 'porcelain-landing-'));
   const events = join(directory, 'events.json');
@@ -59,24 +66,43 @@ if (args[0] === 'pr' && args[1] === 'view') {
     state: blocked && scenario === 'merged-after-refusal' ? 'MERGED' : 'OPEN',
     isDraft: false, baseRefName: 'main', baseRefOid: 'b'.repeat(40),
     headRefOid: blocked && scenario === 'pushed-after-refusal' ? 'c'.repeat(40) : head,
-    headRefName: 'feature', headRepository: { nameWithOwner: 'owner/repo' }, changedFiles: 1,
-    author: { login: 'owner' }, isCrossRepository: false,
+    headRefName: 'feature', headRepository: scenario === 'deleted-fork' ? null : { nameWithOwner: 'owner/repo' }, changedFiles: 1,
+    author: { login: 'owner' }, isCrossRepository: scenario === 'deleted-fork',
     labels: blocked && scenario === 'held-after-refusal' ? [{ name: 'hold' }] : [],
   });
 } else if (args.at(-1) === 'repos/owner/repo/pulls?state=open&head=owner%3Afeature') {
   reply([[{ number: 42, head: { sha: head }, base: { ref: 'main' } }]]);
 } else if (args.at(-1) === 'repos/owner/repo/actions/workflows/ci.yml/runs?event=pull_request&head_sha=' + head + '&branch=feature') {
-  const active = ['label-with-active-ci', 'ready-with-active-ci', 'fork-ci-active', 'workflow-ci-completed'].includes(scenario)
+  if (scenario === 'deleted-fork') throw new Error('A deleted fork has no CI lookup.');
+  const active = ['label-with-active-ci', 'ready-with-active-ci', 'fork-ci-active', 'other-pr-ci-active', 'workflow-ci-overlap'].includes(scenario)
     || (scenario === 'ci-starts-before-retry' && blocked);
-  const current = {
+  const activeRun = {
+    id: 3, run_attempt: 1, run_started_at: null, created_at: '2026-11-24T01:30:56Z',
     status: scenario === 'ready-with-active-ci' ? 'queued' : 'in_progress',
+    conclusion: null,
     head_repository: { full_name: scenario === 'fork-ci-active' ? 'fork/repo' : 'owner/repo' },
-    pull_requests: [],
+    pull_requests: scenario === 'other-pr-ci-active' ? [{ number: 43 }] : [],
   };
+  const completed = (id, conclusion) => ({
+    id, run_attempt: scenario === 'workflow-ci-cancelled' ? 2 : 1,
+    run_started_at: '2026-11-24T01:' + (id === 1 ? '10' : '20') + ':00Z',
+    created_at: '2026-11-24T01:00:00Z',
+    status: 'completed', conclusion, head_repository: { full_name: 'owner/repo' },
+    pull_requests: [{ number: 42 }],
+  });
   reply([{ workflow_runs: [
-    { status: 'completed', head_repository: { full_name: 'owner/repo' }, pull_requests: [{ number: 42 }] },
-    ...(active ? [current] : []),
+    completed(1, ['workflow-ci-cancelled', 'workflow-old-cancel-latest-green'].includes(scenario) ? 'cancelled' : 'success'),
+    ...(scenario === 'workflow-ci-failed' ? [completed(2, 'failure')] : []),
+    ...(scenario === 'workflow-failed-check-green' ? [completed(2, 'failure')] : []),
+    ...(scenario === 'workflow-old-cancel-latest-green' ? [completed(2, 'success')] : []),
+    ...(active ? [activeRun] : []),
   ] }]);
+} else if (args.at(-1) === 'repos/owner/repo/actions/runs/1/attempts/1/jobs') {
+  reply([{ jobs: [{ name: 'checks', conclusion: 'success' }] }]);
+} else if (args.at(-1) === 'repos/owner/repo/actions/runs/1/attempts/2/jobs') {
+  reply([{ jobs: [] }]);
+} else if (args.at(-1) === 'repos/owner/repo/actions/runs/2/attempts/1/jobs') {
+  reply([{ jobs: [{ name: 'checks', conclusion: scenario === 'workflow-ci-failed' ? 'failure' : 'success' }] }]);
 } else if (args.at(-1) === 'repos/owner/repo/issues/42/comments') {
   reply([[{ id: 1, user: { type: 'Bot' }, body: ${JSON.stringify(withState(undefined, { decision: { sha: head, needsOwner: false } }))} }]]);
 } else if (args.at(-1) === 'repos/owner/repo/pulls/42/files') {
@@ -122,7 +148,7 @@ if (args[0] === 'pr' && args[1] === 'view') {
         env: {
           PATH: directory,
           GITHUB_REPOSITORY: repository,
-          ...(scenario === 'workflow-ci-completed' ? {} : { PR_NUMBER: '42' }),
+          ...(scenario.startsWith('workflow-') ? {} : { PR_NUMBER: '42' }),
           HEAD_OWNER: 'owner',
           HEAD_BRANCH: 'feature',
           ...(scenario === 'ready-with-active-ci'
@@ -132,10 +158,12 @@ if (args[0] === 'pr' && args[1] === 'view') {
             'label-with-active-ci',
             'ci-starts-before-retry',
             'fork-ci-active',
+            'other-pr-ci-active',
+            'deleted-fork',
           ].includes(scenario)
             ? { TRIGGER_ACTION: 'labeled', TRIGGER_LABEL: 'approved' }
             : {}),
-          ...(scenario === 'workflow-ci-completed'
+          ...(scenario.startsWith('workflow-')
             ? { TRIGGER_ACTION: 'completed' }
             : {}),
           HEAD_SHA: head,
@@ -188,6 +216,56 @@ describe('landing after a verdict', () => {
 
   it('does not defer a label-triggered merge for a different repository on the same commit', () => {
     const result = landing('fork-ci-active');
+    expect(result.status).toBe(0);
+    expect(result.events).toEqual([...passingVerdict, 'blocked', 'merged']);
+    expect(result.output).toContain('### #42: merged');
+  });
+
+  it('ignores active CI tied to another PR on the same branch and commit', () => {
+    const result = landing('other-pr-ci-active');
+    expect(result.status).toBe(0);
+    expect(result.events).toEqual([...passingVerdict, 'blocked', 'merged']);
+    expect(result.output).toContain('### #42: merged');
+  });
+
+  it('reports a deleted fork without looking up CI or attempting a merge', () => {
+    const result = landing('deleted-fork');
+    expect(result.status).toBe(0);
+    expect(result.events).toEqual(['Agent verdict: failure']);
+    expect(result.output).toContain(
+      '### #42: The head repository is unavailable',
+    );
+  });
+
+  it('leaves the verdict pending when a completed-CI event overlaps fresh CI', () => {
+    const result = landing('workflow-ci-overlap');
+    expect(result.status).toBe(0);
+    expect(result.events).toEqual(['Agent verdict: pending']);
+    expect(result.output).toContain('### #42: Waiting for CI');
+  });
+
+  it.each([
+    { scenario: 'workflow-ci-cancelled' as const, note: 'CI was cancelled' },
+    { scenario: 'workflow-ci-failed' as const, note: 'CI failed' },
+  ])(
+    'replaces the pending verdict when $note despite an older green check',
+    ({ scenario, note }) => {
+      const result = landing(scenario);
+      expect(result.status).toBe(0);
+      expect(result.events).toEqual(['Agent verdict: failure']);
+      expect(result.output).toContain(`### #42: ${note}`);
+    },
+  );
+
+  it('uses the latest green check when an older cancellation arrives late', () => {
+    const result = landing('workflow-old-cancel-latest-green');
+    expect(result.status).toBe(0);
+    expect(result.events).toEqual([...passingVerdict, 'blocked', 'merged']);
+    expect(result.output).toContain('### #42: merged');
+  });
+
+  it('can land when the required job passed in a failed workflow', () => {
+    const result = landing('workflow-failed-check-green');
     expect(result.status).toBe(0);
     expect(result.events).toEqual([...passingVerdict, 'blocked', 'merged']);
     expect(result.output).toContain('### #42: merged');

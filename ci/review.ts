@@ -20,14 +20,14 @@ import {
 } from './review-verdict.ts';
 import {
   changeLabels,
-  checkPassed,
   findComment,
   gh,
   isAncestor,
   labeledOnHead,
   pages,
-  pullRequestCiInProgress,
+  pullRequestCiRuns,
   required,
+  requiredCiJobPassed,
   resolveWorkflowPullRequest,
   setStatus,
   upsertComment,
@@ -328,29 +328,30 @@ const report = (
     url: runUrl,
   });
 };
-const pullRequestEvent = ['labeled', 'unlabeled', 'ready_for_review'].includes(
-  process.env.TRIGGER_ACTION ?? '',
-);
-const waitingForCi = () =>
-  pullRequestEvent &&
-  view.headRepository !== null &&
-  pullRequestCiInProgress(repository, {
+const reportCiBlock = () => {
+  const stop = (state: 'pending' | 'failure', description: string) => {
+    report(state, description);
+    return description;
+  };
+  if (view.headRepository === null)
+    return stop('failure', 'The head repository is unavailable');
+
+  const { active, latest } = pullRequestCiRuns(repository, {
     number,
     sha: view.headRefOid,
     branch: view.headRefName,
     headRepository: view.headRepository.nameWithOwner,
   });
-const reportWaitingForCi = () => {
-  const description = 'Waiting for CI';
-  report('pending', description);
-  return description;
+  if (active) return stop('pending', 'Waiting for CI');
+  if (latest && requiredCiJobPassed(repository, latest, ciCheck)) return;
+  if (latest?.conclusion === 'cancelled')
+    return stop('failure', 'CI was cancelled');
+  if (latest?.conclusion === 'failure') return stop('failure', 'CI failed');
+  return stop('failure', `The required CI job ${ciCheck} did not pass`);
 };
-if (waitingForCi()) {
-  writeSummary(number, reportWaitingForCi());
-  process.exit(0);
-}
-if (!checkPassed(repository, view.headRefOid, ciCheck)) {
-  console.log(`Skipping #${number}: CI has not passed on its head yet`);
+const initialCiBlock = reportCiBlock();
+if (initialCiBlock) {
+  writeSummary(number, initialCiBlock);
   process.exit(0);
 }
 
@@ -499,7 +500,8 @@ try {
     let mergeError = merge(repository, view);
     for (const delay of mergeRetryDelaysMs) {
       if (!mergeError?.endsWith(`${mergeBlockedMessage}.`)) break;
-      if (waitingForCi()) return reportWaitingForCi();
+      const ciBlock = reportCiBlock();
+      if (ciBlock) return ciBlock;
       console.log(`GitHub blocked the merge. Checking again in ${delay} ms.`);
       await sleep(delay);
       const candidate = readView(repository, number);
@@ -522,7 +524,10 @@ try {
     }
     if (!mergeError) return 'merged';
     const stillBlocked = mergeError.endsWith(`${mergeBlockedMessage}.`);
-    if (stillBlocked && waitingForCi()) return reportWaitingForCi();
+    if (stillBlocked) {
+      const ciBlock = reportCiBlock();
+      if (ciBlock) return ciBlock;
+    }
     const reason = stillBlocked
       ? `Merge still blocked after retries: ${mergeError}`
       : `Merging failed: ${mergeError}`;

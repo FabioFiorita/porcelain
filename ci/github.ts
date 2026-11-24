@@ -146,30 +146,37 @@ export function isCurrentTrustedPullRequest(
   );
 }
 
-const CheckRuns = Schema.Struct({
-  check_runs: Schema.Array(
+const CiJobs = Schema.Struct({
+  jobs: Schema.Array(
     Schema.Struct({
       name: Schema.String,
-      status: Schema.String,
       conclusion: Schema.NullOr(Schema.String),
     }),
   ),
 });
 
-export function checkPassed(
+export function requiredCiJobPassed(
   repository: string,
-  sha: string,
+  run: { id: number; run_attempt: number },
   name: string,
 ): boolean {
-  return pages(CheckRuns, `repos/${repository}/commits/${sha}/check-runs`)
-    .flatMap((page) => page.check_runs)
-    .some((run) => run.name === name && run.conclusion === 'success');
+  return pages(
+    CiJobs,
+    `repos/${repository}/actions/runs/${run.id}/attempts/${run.run_attempt}/jobs`,
+  )
+    .flatMap((page) => page.jobs)
+    .some((job) => job.name === name && job.conclusion === 'success');
 }
 
 const CiRuns = Schema.Struct({
   workflow_runs: Schema.Array(
     Schema.Struct({
+      id: Schema.Int,
+      run_attempt: Schema.Int,
+      run_started_at: Schema.NullOr(Schema.String),
+      created_at: Schema.String,
       status: Schema.String,
+      conclusion: Schema.NullOr(Schema.String),
       head_repository: Schema.NullOr(
         Schema.Struct({ full_name: Schema.String }),
       ),
@@ -178,28 +185,34 @@ const CiRuns = Schema.Struct({
   ),
 });
 
-export function pullRequestCiInProgress(
+export function pullRequestCiRuns(
   repository: string,
   pull: { number: number; sha: string; branch: string; headRepository: string },
-): boolean {
+) {
   const query = new URLSearchParams({
     event: 'pull_request',
     head_sha: pull.sha,
     branch: pull.branch,
   });
-  return pages(
+  const matching = pages(
     CiRuns,
     `repos/${repository}/actions/workflows/ci.yml/runs?${query.toString()}`,
   )
     .flatMap((page) => page.workflow_runs)
-    .some(
+    .filter(
       (run) =>
-        run.status !== 'completed' &&
         run.head_repository?.full_name.toLowerCase() ===
           pull.headRepository.toLowerCase() &&
         (run.pull_requests.length === 0 ||
           run.pull_requests.some(({ number }) => number === pull.number)),
     );
+  const latest = matching.sort(
+    (left, right) =>
+      (right.run_started_at ?? right.created_at).localeCompare(
+        left.run_started_at ?? left.created_at,
+      ) || right.id - left.id,
+  )[0];
+  return { active: matching.some((run) => run.status !== 'completed'), latest };
 }
 
 export function isAncestor(
