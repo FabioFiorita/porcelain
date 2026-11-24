@@ -2,6 +2,7 @@ import {
   useAtom,
   useAtomRef,
   useAtomRefresh,
+  useAtomMount,
   useAtomSet,
   useAtomValue,
 } from '@effect/atom-react';
@@ -11,6 +12,7 @@ import {
   type NetworkMenuAttempt,
   networkMenuFeedback,
   networkMenuNotice,
+  networkSuccesses,
   readGitActionCommands,
   recoverGitAction,
   recoverNetworkAction,
@@ -28,10 +30,26 @@ import {
   reviewGitSettingsBlock,
 } from '@porcelain/client/preferences/rules';
 import { Cause, Effect, Option } from 'effect';
-import { AsyncResult } from 'effect/reactivity';
+import { AsyncResult, Atom } from 'effect/reactivity';
 import type { Workspace } from '../../projects';
+import { notify as notifyCommand } from '../../../shared/application/notify';
 
 const NOT_READY = 'Git actions are not ready yet. Try again.';
+
+const networkSuccessNotices = Atom.family(
+  ({ connection, scope }: Pick<Workspace, 'connection' | 'scope'>) =>
+    Atom.make((get) => {
+      let previous = connection.operations.state.value;
+      get.addFinalizer(
+        connection.operations.state.subscribe(() => {
+          const next = connection.operations.state.value;
+          for (const action of networkSuccesses(previous, next, scope))
+            get.set(notifyCommand, { kind: 'git', action });
+          previous = next;
+        }),
+      );
+    }),
+);
 
 export function useGitMenu(selection: Pick<Workspace, 'connection' | 'scope'>) {
   const { connection, scope } = selection;
@@ -57,6 +75,7 @@ export function useGitMenu(selection: Pick<Workspace, 'connection' | 'scope'>) {
   const feedback = networkMenuFeedback(operations, scope, notice);
   const running = feedback.running;
   const runners = { fetch: fetchCommands, pull: pullCommands };
+  useAtomMount(networkSuccessNotices({ connection, scope }));
   const remember = (
     attempt: NetworkMenuAttempt,
     notice: Parameters<GitMenuControls['onResult']>[0],

@@ -1,0 +1,53 @@
+import { Deferred, Effect } from 'effect';
+import { AtomRegistry } from 'effect/reactivity';
+import { expect, test } from 'vite-plus/test';
+import { notificationNotice, notifier, type NotifyEvent } from './notice';
+
+function harness(platformShowsCopy: boolean) {
+  const announced: string[] = [];
+  const shown: Deferred.Deferred<void>[] = [];
+  const notify = notifier({
+    platformShowsCopy,
+    announce: (title) => announced.push(title),
+    shownFor: () =>
+      Effect.gen(function* () {
+        const elapsed = yield* Deferred.make<void>();
+        shown.push(elapsed);
+        yield* Deferred.await(elapsed);
+      }),
+  });
+  const registry = AtomRegistry.make();
+  registry.mount(notify);
+  return {
+    announced,
+    shown,
+    send: (event: NotifyEvent) => registry.set(notify, event),
+    elapse: (index: number) =>
+      Effect.runSync(Deferred.succeed(shown[index]!, undefined)),
+    visible: () => registry.get(notificationNotice),
+  };
+}
+
+test('a copy the platform confirms leaves the current notice to dismiss on time', async () => {
+  const { send, elapse, visible, shown, announced } = harness(true);
+  send({ kind: 'git', action: 'fetch' });
+  await expect.poll(() => shown.length).toBe(1);
+  expect(visible()).toBe('Fetched');
+  send({ kind: 'copy', target: 'brief' });
+  expect(visible()).toBe('Fetched');
+  elapse(0);
+  await expect.poll(visible).toBeNull();
+  expect(announced).toEqual(['Fetched']);
+});
+
+test('a replaced notice does not dismiss the notice that replaced it', async () => {
+  const { send, elapse, visible, shown, announced } = harness(false);
+  send({ kind: 'git', action: 'fetch' });
+  await expect.poll(() => shown.length).toBe(1);
+  send({ kind: 'copy', target: 'brief' });
+  await expect.poll(() => shown.length).toBe(2);
+  expect(visible()).toBe('Copied brief');
+  elapse(1);
+  await expect.poll(visible).toBeNull();
+  expect(announced).toEqual(['Fetched', 'Copied brief']);
+});

@@ -229,7 +229,7 @@ function ChangedFiles({
         <Card>
           <Item
             title="All changes"
-            description={`${files.length} ${files.length === 1 ? 'file' : 'files'} on one page`}
+            description={`${files.length} ${files.length === 1 ? 'file' : 'files'}`}
             leading={<Icon name="code" tone="muted" />}
             trailing={<Icon name="chevron" tone="muted" />}
             testID="review-all-changes"

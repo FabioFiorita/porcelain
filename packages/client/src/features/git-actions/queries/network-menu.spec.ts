@@ -3,7 +3,7 @@ import { expect, it } from 'vite-plus/test';
 import type { RunGitActionResponse } from '@porcelain/contracts/git-actions';
 import { operationStoreFixture } from '../../../../spec/kit/operation-store.ts';
 import { operationKey } from '../store/operations.ts';
-import { networkMenuFeedback } from './network-menu.ts';
+import { networkMenuFeedback, networkSuccesses } from './network-menu.ts';
 
 const scope = {
   projectId: '11111111-1111-4111-8111-111111111111',
@@ -207,4 +207,33 @@ it('keeps Check outcome success authoritative when the original Pull later rejec
     type: 'success',
   });
   expect(history.retryAction).toBeUndefined();
+});
+
+it('reports a Pull success once, when its request turns terminal, whichever path delivers it', async () => {
+  const store = await pendingPull();
+  const pending = store.state.value;
+  const success = { ...receipt, state: 'succeeded' as const, progress: [] };
+  await Effect.runPromise(store.accept(success));
+  const done = store.state.value;
+  expect(networkSuccesses(pending, done, scope)).toEqual(['pull']);
+  await Effect.runPromise(store.accept(success));
+  expect(networkSuccesses(done, store.state.value, scope)).toEqual([]);
+});
+
+it('reports nothing for a failed Pull or a success already terminal when first seen', async () => {
+  const store = await pendingPull();
+  const pending = store.state.value;
+  await Effect.runPromise(
+    store.accept({ ...receipt, state: 'rejected', progress: [] }),
+  );
+  expect(networkSuccesses(pending, store.state.value, scope)).toEqual([]);
+  const { store: restored } = operationStoreFixture();
+  const empty = restored.state.value;
+  await Effect.runPromise(
+    restored.set(operationKey(scope, 'pull'), {
+      ...pending.operations.get(operationKey(scope, 'pull'))!,
+      receipt: { ...receipt, state: 'succeeded', progress: [] },
+    }),
+  );
+  expect(networkSuccesses(empty, restored.state.value, scope)).toEqual([]);
 });

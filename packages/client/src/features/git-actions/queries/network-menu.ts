@@ -85,3 +85,24 @@ export function networkMenuFeedback(
         : undefined,
   };
 }
+
+const succeeded = (receipt: Operation['receipt']) =>
+  receipt?.state === 'succeeded' || receipt?.state === 'no-change';
+
+export function networkSuccesses(
+  previous: OperationState,
+  next: OperationState,
+  scope: GitScope,
+): ('fetch' | 'pull')[] {
+  return (['fetch', 'pull'] as const).filter((action) => {
+    const key = operationKey(scope, action);
+    const now = next.operations.get(key);
+    const before = previous.operations.get(key);
+    return (
+      now !== undefined &&
+      succeeded(now.receipt) &&
+      before?.requestId === now.requestId &&
+      !(before.receipt && isTerminal(before.receipt))
+    );
+  });
+}

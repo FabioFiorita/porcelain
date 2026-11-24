@@ -13,7 +13,7 @@ import {
   postOutcome,
   type DeveloperMessage,
 } from '@porcelain/client/walkthroughs/rules';
-import { showClipboardNotice } from '../../../shared/application/clipboard-notice';
+import { notify as notifyCommand } from '../../../shared/application/notify';
 import { copyToClipboard } from '../../../shared/adapters/clipboard';
 import {
   conversationSelection,
@@ -34,7 +34,7 @@ export function usePostActions(
   message: DeveloperMessage | undefined,
 ) {
   const commands = commandsOf(owner);
-  const notify = useAtomSet(showClipboardNotice);
+  const notify = useAtomSet(notifyCommand);
   const postOne = useBound(commands.postMessage);
   const postSaved = useBound(commands.postSavedMessages);
   const saving = useBound(commands.saveMessage);
@@ -43,7 +43,7 @@ export function usePostActions(
   const fail = (error: unknown) => setNotice(conversationFailure(error));
   const toClipboard = (text: string) =>
     copyToClipboard(text).then(
-      () => notify('brief'),
+      () => notify({ kind: 'copy', target: 'brief' }),
       () => setNotice({ text: 'Could not copy the brief.', copy: false }),
     );
   return {

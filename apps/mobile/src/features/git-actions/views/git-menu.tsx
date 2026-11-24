@@ -77,16 +77,6 @@ export function GitMenu({
           }}
         />
       ) : null}
-      {menu.result && menu.result.type !== 'error' ? (
-        <Box gap={1}>
-          <Text variant="secondary" weight="medium">
-            {menu.result.title}
-          </Text>
-          <Text variant="caption" tone="muted">
-            {menu.result.description}
-          </Text>
-        </Box>
-      ) : null}
     </>
   );
 }
