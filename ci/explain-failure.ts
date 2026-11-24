@@ -7,7 +7,6 @@ import {
   failureExcerpt,
   hasExplanation,
   unavailableExplanationComment,
-  type FailedJob,
 } from './failure-explanation.ts';
 import {
   findComment,
@@ -64,7 +63,7 @@ async function jobLog(
   repository: string,
   token: string,
   id: number,
-): Promise<string> {
+): Promise<{ excerpt: string; available: boolean }> {
   try {
     const response = await fetch(
       `https://api.github.com/repos/${repository}/actions/jobs/${id}/logs`,
@@ -75,13 +74,22 @@ async function jobLog(
         },
       },
     );
-    return response.ok
-      ? await response.text()
-      : `The log was unavailable: GitHub answered ${response.status}.`;
+    if (!response.ok)
+      return {
+        excerpt: `The log was unavailable: GitHub answered ${response.status}.`,
+        available: false,
+      };
+    const excerpt = failureExcerpt(await response.text());
+    return excerpt.trim()
+      ? { excerpt, available: true }
+      : { excerpt: 'The log was empty.', available: false };
   } catch (error) {
     console.error(`Could not download the log for job ${id}.`);
     logCause(error);
-    return 'The log was unavailable: download failed.';
+    return {
+      excerpt: 'The log was unavailable: download failed.',
+      available: false,
+    };
   }
 }
 
@@ -130,16 +138,18 @@ async function explain(): Promise<string> {
 
     failure = 'OPENAI_API_KEY is missing.';
     const apiKey = required('OPENAI_API_KEY');
-    const jobs: FailedJob[] = await Promise.all(
+    const jobs = await Promise.all(
       failed.slice(0, maxFailedJobs).map(async (job) => ({
         name: job.name,
         url: job.html_url,
         steps: job.steps
           .filter((step) => isFailure(step.conclusion))
           .map((step) => step.name),
-        excerpt: failureExcerpt(await jobLog(repository, token, job.id)),
+        ...(await jobLog(repository, token, job.id)),
       })),
     );
+    if (!jobs.some((job) => job.available))
+      return 'All selected failed-job logs were unavailable.';
     failure =
       'Could not recheck the pull request before requesting an explanation.';
     if (!isEligible()) return 'The pull request changed before explanation.';
@@ -155,7 +165,7 @@ async function explain(): Promise<string> {
       upsertComment(repository, pull.number, failureCommentMarker, body);
       return true;
     };
-    const client = new OpenAI({ apiKey, maxRetries: 1 });
+    const client = new OpenAI({ apiKey, maxRetries: 1, timeout: 180_000 });
     const explanation = await structuredAnswer(client, {
       name: 'failure_explanation',
       schema: Explanation,

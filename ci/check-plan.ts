@@ -109,6 +109,7 @@ function rootInput(task: string, path: string): boolean {
         matches(path, [
           'architecture/**',
           'ci/**',
+          '.github/workflows/agent-review.yml',
           'scripts/{style,architecture,feature-maps,feature-api-routes,react-compiler}.ts',
           '**/tsconfig*.json',
           'apps/mobile/babel.config.js',

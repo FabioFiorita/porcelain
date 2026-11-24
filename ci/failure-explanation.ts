@@ -16,7 +16,7 @@ export const Explanation = Schema.Struct({
 });
 export type Explanation = typeof Explanation.Type;
 
-export type FailedJob = {
+type FailedJob = {
   name: string;
   url: string;
   steps: readonly string[];

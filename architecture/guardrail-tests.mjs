@@ -1,5 +1,6 @@
 import {
   deepStrictEqual,
+  doesNotMatch,
   match,
   strictEqual,
   throws,
@@ -275,6 +276,7 @@ function ciSelectionFixture(entry) {
       'ci/check-plan.ts',
       'vite.config.ts',
       '.github/workflows/ci.yml',
+      '.github/workflows/agent-review.yml',
       ...manifests,
     ])
       writeFiles(root, {
@@ -641,6 +643,19 @@ export async function runGuardrailCases(named = []) {
       process.stdout.write('PASS ci-action-pins: actual ci.yml\n');
     } else if (entry.rule === 'ci-affected-selection') {
       ciSelectionFixture(entry);
+    } else if (entry.rule === 'ci-landing-completion') {
+      const workflow = parse(
+        readFileSync(
+          new URL('../.github/workflows/agent-review.yml', import.meta.url),
+          'utf8',
+        ),
+      );
+      deepStrictEqual(workflow.on.workflow_run, entry.workflowRun);
+      doesNotMatch(
+        workflow.jobs.review.if,
+        /\bworkflow_run\s*\.\s*conclusion\b/,
+        'The landing job must reconcile every conclusion of pull request CI.',
+      );
     } else if (entry.rule === 'ci-required-checks') {
       const workflow = parse(
         readFileSync(

@@ -19,8 +19,7 @@ jobs:
   review:
     if: >-
       (github.event_name == 'workflow_run' &&
-        github.event.workflow_run.event == 'pull_request' &&
-        github.event.workflow_run.conclusion == 'success') ||
+        github.event.workflow_run.event == 'pull_request') ||
       (github.event_name == 'pull_request_target' && github.event.action == 'labeled' &&
         contains(fromJSON('["agent-review", "approved", "reviewed", "decision", "hold"]'), github.event.label.name)) ||
       (github.event_name == 'pull_request_target' && github.event.action == 'unlabeled' &&

@@ -6532,6 +6532,7 @@ export const guardrailCases = [
       ...[
         'package.json',
         '.github/workflows/ci.yml',
+        '.github/workflows/agent-review.yml',
         'ci/check-plan.ts',
         'pnpm-workspace.yaml',
       ].map((path) => ({
@@ -6564,6 +6565,10 @@ export const guardrailCases = [
         ],
       })),
     ],
+  },
+  {
+    rule: 'ci-landing-completion',
+    workflowRun: { workflows: ['CI'], types: ['completed'] },
   },
   {
     rule: 'ci-required-checks',
