@@ -922,6 +922,33 @@ const nativeLaneCases = [
 
 export default [
   {
+    rule: 'ci-pull-request-resolver',
+    path: 'ci/explain-failure.ts',
+    valid:
+      "import { resolveWorkflowPullRequest } from './github.ts'; resolveWorkflowPullRequest(repository, head);",
+    invalid: 'gh(["api", `repos/${repository}/commits/${headSha}/pulls`]);',
+    errors: 1,
+  },
+  {
+    rule: 'ci-pull-request-resolver',
+    path: 'ci/review.ts',
+    validPath: 'ci/github.ts',
+    valid:
+      'function resolveWorkflowPullRequest(repository, head) { return pages(Pulls, `repos/${repository}/pulls?state=open&head=${head}`); }',
+    invalid: 'pages(Pulls, base + "/pulls?state=open&" + "head=" + head);',
+    errors: 1,
+  },
+  {
+    rule: 'ci-pull-request-resolver',
+    path: 'ci/review.ts',
+    validPath: 'ci/review.spec.ts',
+    valid: 'const endpoint = "pulls?head=owner:branch";',
+    invalid:
+      'fetch("https://api.github.com/repos/owner/repo/pulls?head=owner:branch");',
+    errors: 1,
+  },
+
+  {
     rule: 'pending-control-owner',
     path: 'apps/web/src/features/history/views/file-timeline.tsx',
     valid: "import { PendingButton } from '@/shared/views/pending-button';",
@@ -6403,6 +6430,20 @@ export const guardrailCases = [
         selected: [],
         rules: true,
       },
+      {
+        name: 'disposable app scripts select the tooling ceiling check',
+        path: '.agents/skills/new-verifier/scripts/ci-fixture.mjs',
+        source: 'export {};',
+        selected: [],
+        rules: true,
+      },
+      {
+        name: 'package spec helpers select the tooling ceiling check',
+        path: 'packages/client/spec/kit/ci-fixture.spec.ts',
+        source: 'export {};',
+        selected: ['web-e2e'],
+        rules: true,
+      },
       ...['repository-queries', 'typescript-project'].map((name) => ({
         name: `${name} selects rules`,
         path: `architecture/${name}.ts`,
@@ -6455,6 +6496,7 @@ export const guardrailCases = [
         name: 'unchanged selects nothing',
         selected: [],
         unitProjects: [],
+        rules: false,
         shards: [1],
       },
       {
@@ -6473,6 +6515,7 @@ export const guardrailCases = [
       },
       {
         name: 'desktop test helpers select their unit project',
+        rules: true,
         path: 'scripts/desktop-ci-fixture.spec.ts',
         source: 'export const fixture = true;',
         selected: [],
@@ -6480,6 +6523,7 @@ export const guardrailCases = [
       },
       {
         name: 'crash collector selects its desktop unit project',
+        rules: true,
         path: 'scripts/collect-desktop-crashes.sh',
         source: 'true',
         selected: [],
@@ -7178,6 +7222,24 @@ Effect.runPromise(Effect.provideService(read, WorktreeRead, { assert: () => unde
     selector,
     valid,
     invalid,
+  })),
+  { rule: 'tooling-duplicate-ceiling' },
+  ...[
+    ['ci/copy.ts', 'architecture/copy-again.ts'],
+    ['scripts/copy.ts', '.agents/skills/new-verifier/scripts/copy-again.ts'],
+    ['architecture/copy.mjs', 'scripts/copy-again.mjs'],
+    ['packages/new-domain/spec/kit/copy.ts', 'scripts/copy-again.ts'],
+  ].map(([first, second]) => ({
+    rule: 'duplicate-code',
+    scope: 'tooling',
+    first,
+    second,
+    valid: 'export const label = "Unique";',
+    invalid: first.endsWith('.mjs')
+      ? duplicateFixtureSource
+          .replace(': readonly string[]', '')
+          .replace(': string', '')
+      : duplicateFixtureSource,
   })),
   {
     rule: 'duplicate-code',

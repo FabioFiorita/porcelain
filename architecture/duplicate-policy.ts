@@ -1,6 +1,6 @@
 import { Schema } from 'effect';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { globSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -62,6 +62,25 @@ export function serverDuplicateScope() {
     why: 'Share server behavior at its source and keep independent contracts and platform boundaries explicit.',
   };
 }
+export const toolingDuplicateDirectories = [
+  'ci',
+  'architecture',
+  'scripts',
+  '.agents/skills/*/scripts',
+  'packages/*/spec/kit',
+] as const;
+
+export function toolingDuplicateScope(from: string) {
+  return {
+    name: 'tooling',
+    sources: globSync([...toolingDuplicateDirectories], { cwd: from }).sort(),
+    metric: 'clones' as const,
+    ceiling: 15,
+    formats: 'typescript,tsx,javascript,bash',
+    formatNames: 'bash:cli',
+    why: 'Keep CI, architecture and verification helpers in one owner so their behavior cannot drift.',
+  };
+}
 export function scanDuplicates(
   from: string,
   scope: {
@@ -69,6 +88,8 @@ export function scanDuplicates(
     metric: 'clones' | 'duplicatedLines';
     ceiling: number;
     ignored?: readonly string[];
+    formats?: string;
+    formatNames?: string;
   },
 ) {
   const scratch = mkdtempSync(join(tmpdir(), 'porcelain-duplicates-'));
@@ -77,7 +98,8 @@ export function scanDuplicates(
       join(root, 'node_modules/.bin/jscpd'),
       [
         '--format',
-        'typescript,tsx',
+        scope.formats ?? 'typescript,tsx',
+        ...(scope.formatNames ? ['--formats-names', scope.formatNames] : []),
         '--min-tokens',
         '50',
         '--min-lines',
@@ -88,6 +110,7 @@ export function scanDuplicates(
         [
           '**/apps/web/src/components/ui/**',
           '**/routeTree.gen.ts',
+          '**/node_modules/**',
           ...(scope.ignored ?? []),
         ].join(','),
         '--absolute',

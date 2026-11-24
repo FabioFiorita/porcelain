@@ -270,6 +270,14 @@ function staticString(node, context, depth = 0) {
     : undefined;
 }
 
+function endpointText(node, context) {
+  if (node.type === 'TemplateLiteral')
+    return node.quasis.map((quasi) => quasi.value.cooked ?? '').join('value');
+  if (node.type === 'BinaryExpression' && node.operator === '+')
+    return endpointText(node.left, context) + endpointText(node.right, context);
+  return staticString(node, context) ?? 'value';
+}
+
 function propertyName(node, context) {
   if (node.computed) return staticString(node.property ?? node.key, context);
   const key = node.property ?? node.key;
@@ -1521,6 +1529,49 @@ function primitiveValue(node) {
 export default {
   meta: { name: 'porcelain' },
   rules: {
+    'ci-pull-request-resolver': {
+      create(context) {
+        const path = repositoryPath(context);
+        if (!path.startsWith('ci/') || isSpec(context)) return {};
+        const check = (node) => {
+          if (
+            node.parent?.type === 'BinaryExpression' &&
+            node.parent.operator === '+'
+          )
+            return;
+          if (
+            path === 'ci/github.ts' &&
+            context.sourceCode
+              .getAncestors(node)
+              .some(
+                (ancestor) =>
+                  ancestor.type === 'FunctionDeclaration' &&
+                  ancestor.id?.name === 'resolveWorkflowPullRequest',
+              )
+          )
+            return;
+          const endpoint = endpointText(node, context);
+          if (
+            /(?:^|\/)commits\/[^/?]+\/pulls(?:[?#]|$)|(?:^|\/)pulls\?(?:[^&#]*&)*head=/.test(
+              endpoint,
+            )
+          )
+            context.report({
+              node,
+              message:
+                'Use resolveWorkflowPullRequest from ci/github.ts, because CI must bind a pull request to the workflow head repository, branch, commit and expected base.',
+            });
+        };
+        return {
+          Literal: check,
+          TemplateLiteral: check,
+          BinaryExpression(node) {
+            if (node.operator === '+') check(node);
+          },
+        };
+      },
+    },
+
     'hermes-array-methods': {
       create(context) {
         if (

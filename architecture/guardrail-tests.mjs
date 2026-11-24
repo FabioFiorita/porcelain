@@ -30,6 +30,7 @@ import {
   duplicateScope,
   scanDuplicates,
   serverDuplicateScope,
+  toolingDuplicateScope,
 } from './duplicate-policy.ts';
 import { selectorAppears } from './feature-selectors.ts';
 import { guardrailCases } from './rule-cases.mjs';
@@ -224,13 +225,15 @@ function featureMapFixture(entry, files) {
 function duplicateFixture(entry, source) {
   const root = fixtureRoot('porcelain-clone-rule-');
   try {
-    const scope = {
-      ...(entry.scope === 'server' ? serverDuplicateScope() : duplicateScope()),
-      ceiling: 0,
+    writeFiles(root, { [entry.first]: source, [entry.second]: source });
+    const scopes = {
+      server: serverDuplicateScope,
+      client: duplicateScope,
+      tooling: toolingDuplicateScope,
     };
+    const scope = { ...scopes[entry.scope ?? 'client'](root), ceiling: 0 };
     for (const folder of scope.sources)
       mkdirSync(join(root, folder), { recursive: true });
-    writeFiles(root, { [entry.first]: source, [entry.second]: source });
     const report = scanDuplicates(root, scope);
     return {
       rejected: report.exceeded,
@@ -342,11 +345,12 @@ function ciSelectionFixture(entry) {
           fixture.unitProjects,
           `${fixture.name}: affected unit projects`,
         );
-      strictEqual(
-        plan('static').includes('//#test:rules'),
-        fixture.rules ?? false,
-        `${fixture.name}: test:rules affected selection`,
-      );
+      if (fixture.rules !== undefined)
+        strictEqual(
+          plan('static').includes('//#test:rules'),
+          fixture.rules,
+          `${fixture.name}: test:rules affected selection`,
+        );
       const outputs = run(
         process.execPath,
         [join(repository, runtimePlanner)],
@@ -917,6 +921,15 @@ ${runBrowser.run
         selectorAppears(entry.invalid, entry.selector),
         false,
         entry.selector,
+      );
+    } else if (entry.rule === 'tooling-duplicate-ceiling') {
+      const root = fileURLToPath(new URL('../', import.meta.url));
+      const scope = toolingDuplicateScope(root);
+      const { count } = scanDuplicates(root, scope);
+      strictEqual(
+        count,
+        scope.ceiling,
+        'Keep the tooling copy limit at the measured count; lower the limit when a copy is removed so it cannot return.',
       );
     } else if (entry.rule === 'duplicate-code') {
       deepStrictEqual(duplicateFixture(entry, entry.valid), {

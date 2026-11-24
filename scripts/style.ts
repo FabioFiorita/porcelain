@@ -15,6 +15,7 @@ import {
   duplicateScope,
   scanDuplicates,
   serverDuplicateScope,
+  toolingDuplicateScope,
 } from '../architecture/duplicate-policy.ts';
 
 export async function checkStyle(
@@ -479,8 +480,9 @@ export async function checkStyle(
     code: string;
     message: string;
   };
-  function duplicateFindings(): Finding[] {
-    const scope = target === 'web' ? duplicateScope() : serverDuplicateScope();
+  function duplicateFindings(
+    scope: ReturnType<typeof duplicateScope>,
+  ): Finding[] {
     const report = scanDuplicates(process.cwd(), scope);
     const total = report.statistics.total;
     const unit = 'clones';
@@ -546,7 +548,11 @@ export async function checkStyle(
       code: `${diagnostic.severity} ${diagnostic.code ?? ''}`,
       message: diagnostic.message,
     }));
-    const reported = [...linted, ...duplicateFindings()];
+    const duplicateScopes =
+      target === 'web'
+        ? [duplicateScope()]
+        : [serverDuplicateScope(), toolingDuplicateScope(process.cwd())];
+    const reported = [...linted, ...duplicateScopes.flatMap(duplicateFindings)];
     for (const finding of reported)
       process.stdout.write(
         `${finding.file}:${finding.line}:${finding.column}: ${finding.code}: ${finding.message}\n`,
