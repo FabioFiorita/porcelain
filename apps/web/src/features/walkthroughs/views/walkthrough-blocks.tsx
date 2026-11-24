@@ -60,9 +60,9 @@ function CheckList({ block }: { block: Checks }) {
           >
             <CheckResultIcon tone={result.tone} label={result.label} />
             <TruncatedText text={result.name} className="min-w-0 flex-1" />
-            {result.tone === 'none' && (
+            {result.detail && (
               <span className="shrink-0 text-caption text-muted-foreground">
-                {result.label}
+                {result.detail}
               </span>
             )}
           </li>

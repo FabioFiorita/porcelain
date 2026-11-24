@@ -112,6 +112,7 @@ test('files open the file, checks list their results, and screenshots come as a 
     ['Unit tests', 'Passed'],
     ['Browser tests', 'Failed'],
     ['Lint', 'Running'],
+    ['Docs', 'Skipped'],
   ] as const)
     await expect
       .element(
@@ -121,6 +122,14 @@ test('files open the file, checks list their results, and screenshots come as a 
           .getByRole('img', { name: result, exact: true }),
       )
       .toBeVisible();
+  await expect
+    .element(
+      checks
+        .getByRole('listitem')
+        .filter({ hasText: 'Docs' })
+        .getByText('Skipped', { exact: true }),
+    )
+    .toBeVisible();
   await expect
     .element(
       checks.getByText('More checks on the pull request', { exact: true }),

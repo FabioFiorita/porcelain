@@ -2,7 +2,10 @@ import { join } from 'node:path';
 import { Schema } from 'effect';
 import { readWalkthroughResponseSchema } from '@porcelain/contracts/walkthroughs';
 import { mkdir } from 'node:fs/promises';
-import { fixtureScreenshot } from '@porcelain/server/kit/fixture-screenshot';
+import {
+  fixtureCheckResults,
+  fixtureScreenshot,
+} from '@porcelain/server/kit/fixture-screenshot';
 import { scriptedWalkthroughs } from '@porcelain/server/kit/walkthrough-fixture';
 import { worktreeSession } from './walkthrough-conversations.ts';
 import type { World } from './world.ts';
@@ -131,11 +134,7 @@ export async function walkthroughBlocksFixture(world: World): Promise<string> {
     {
       state: 'FAILURE',
       checksTruncated: true,
-      results: [
-        { name: 'Unit tests', status: 'SUCCESS' },
-        { name: 'Browser tests', status: 'FAILURE' },
-        { name: 'Lint', status: 'IN_PROGRESS' },
-      ],
+      results: fixtureCheckResults,
     },
   );
   return run.headOid;

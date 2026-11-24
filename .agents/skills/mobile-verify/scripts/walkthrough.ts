@@ -6,7 +6,10 @@ import {
   type Recorder,
 } from '@porcelain/server/kit/isolated-server';
 import { scriptedWalkthroughs } from '@porcelain/server/kit/walkthrough-fixture';
-import { fixtureScreenshot } from '@porcelain/server/kit/fixture-screenshot';
+import {
+  fixtureCheckResults,
+  fixtureScreenshot,
+} from '@porcelain/server/kit/fixture-screenshot';
 import { Usage } from '../../verify-core/cli.ts';
 
 type Content = Parameters<
@@ -153,11 +156,7 @@ export async function walkthroughCommand(
     {
       state: 'FAILURE',
       checksTruncated: false,
-      results: [
-        { name: 'Unit tests', status: 'SUCCESS' },
-        { name: 'Browser tests', status: 'FAILURE' },
-        { name: 'Lint', status: 'IN_PROGRESS' },
-      ],
+      results: fixtureCheckResults,
     },
   );
   return `wrote walkthrough ${run.id} for pull request #423 with checks and two screenshots on step 2\n`;

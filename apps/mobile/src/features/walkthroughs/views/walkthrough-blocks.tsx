@@ -25,10 +25,8 @@ import { sourceLanguage } from '../../../shared/rules/highlight-code';
 import { DiffView } from '../../documents/index';
 import type { Workspace } from '../../projects/index';
 import { reviewParams } from '../../workspace/index';
-import {
-  useCapturedExcerpt,
-  useWalkthroughFiles,
-} from '../queries/walkthrough';
+import { fileComparison } from '../rules/file-comparison';
+import { useBranchFileList, useCapturedExcerpt } from '../queries/walkthrough';
 import { WalkthroughProof } from './walkthrough-evidence';
 
 type Files = Extract<StepBlock, { kind: 'files' }>;
@@ -124,41 +122,60 @@ function FileList({
   block: Files;
 }) {
   const router = useRouter();
-  const { branch } = useWalkthroughFiles(workspace);
+  const branch = useBranchFileList(workspace);
+  const { worktree } = useWalkthroughFiles(workspace);
   return (
-    <Card>
-      {block.files.map((file, index) => {
-        const { title, subtitle } = documentHeading(file.path);
-        return (
-          <Box key={file.path}>
-            {index > 0 ? <Separator /> : null}
-            <Item
-              size="compact"
-              title={title}
-              titleNumberOfLines={1}
-              description={file.note}
-              descriptionNumberOfLines={2}
-              accessibilityLabel={`${subtitle ? `${subtitle}/` : ''}${title}: ${file.note}`}
-              leading={<Icon name="file" tone="muted" size="small" />}
-              onPress={() =>
-                router.push({
-                  pathname: '/review-file',
-                  params: {
-                    ...reviewParams(
-                      workspace.key,
-                      branch.some((committed) => committed.path === file.path)
-                        ? { kind: 'branch' }
-                        : { kind: 'worktree' },
-                    ),
-                    path: file.path,
-                  },
-                })
-              }
-            />
-          </Box>
-        );
-      })}
-    </Card>
+    <Box gap={2}>
+      <Card>
+        {block.files.map((file, index) => {
+          const { title, subtitle } = documentHeading(file.path);
+          const comparison = fileComparison(
+            {
+              branch: branch.files,
+              branchFailed: branch.failed,
+              worktree,
+            },
+            file.path,
+          );
+          return (
+            <Box key={file.path}>
+              {index > 0 ? <Separator /> : null}
+              <Item
+                size="compact"
+                title={title}
+                titleNumberOfLines={1}
+                description={file.note}
+                descriptionNumberOfLines={2}
+                accessibilityLabel={`${subtitle ? `${subtitle}/` : ''}${title}: ${file.note}`}
+                leading={<Icon name="file" tone="muted" size="small" />}
+                pending={comparison === undefined && !branch.failed}
+                disabled={comparison === undefined}
+                onPress={() => {
+                  if (comparison)
+                    router.push({
+                      pathname: '/review-file',
+                      params: {
+                        ...reviewParams(workspace.key, comparison),
+                        path: file.path,
+                      },
+                    });
+                }}
+              />
+            </Box>
+          );
+        })}
+      </Card>
+      {branch.files === undefined && branch.failed ? (
+        <ErrorState
+          message="The changed files could not be read."
+          retry={{
+            label: 'Read the changes again',
+            onPress: branch.retry,
+            pending: branch.waiting,
+          }}
+        />
+      ) : null}
+    </Box>
   );
 }
 
@@ -166,7 +183,7 @@ const RESULT_ICONS = {
   passed: { name: 'check', tone: 'add' },
   failed: { name: 'close', tone: 'del' },
   running: { name: 'refresh', tone: 'muted' },
-  none: { name: 'info', tone: 'muted' },
+  none: { name: 'neutral', tone: 'muted' },
 } as const;
 
 function CheckRow({ result }: { result: RecordedCheck }) {
@@ -184,9 +201,9 @@ function CheckRow({ result }: { result: RecordedCheck }) {
           {result.name}
         </Text>
       </Box>
-      {result.tone === 'none' ? (
+      {result.detail ? (
         <Text variant="caption" tone="muted">
-          {result.label}
+          {result.detail}
         </Text>
       ) : null}
     </Box>

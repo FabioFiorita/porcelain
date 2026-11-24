@@ -54,30 +54,33 @@ const runningStatuses = new Set([
   'WAITING',
   'REQUESTED',
 ]);
-const passedConclusions = new Set([
-  'SUCCESS',
-  'NEUTRAL',
-  'SKIPPED',
-  'COMPLETED',
-]);
-
 function checkResultTone(result: string): PullChecksTone {
+  if (result === 'SUCCESS') return 'passed';
   if (failedConclusions.has(result)) return 'failed';
   if (runningStatuses.has(result)) return 'running';
-  return passedConclusions.has(result) ? 'passed' : 'none';
+  return 'none';
 }
 
-const RESULT_LABELS: Record<PullChecksTone, string | undefined> = {
+const TONE_WORDS: Record<PullChecksTone, string | undefined> = {
   passed: 'Passed',
   failed: 'Failed',
   running: 'Running',
   none: undefined,
 };
 
+function recordedOutcome(result: string) {
+  if (result === 'SUCCESS') return 'Passed';
+  if (result === 'FAILURE' || result === 'ERROR') return 'Failed';
+  if (result === 'IN_PROGRESS') return 'Running';
+  const words = result.toLowerCase().replaceAll('_', ' ');
+  return `${words.charAt(0).toUpperCase()}${words.slice(1)}`;
+}
+
 export type RecordedCheck = {
   readonly name: string;
   readonly tone: PullChecksTone;
   readonly label: string;
+  readonly detail: string | undefined;
 };
 
 export function recordedChecks(checks: {
@@ -99,7 +102,13 @@ export function recordedChecks(checks: {
     more: checks.checksTruncated,
     results: checks.results.map(({ name, status }) => {
       const tone = checkResultTone(status);
-      return { name, tone, label: RESULT_LABELS[tone] ?? status };
+      const label = recordedOutcome(status);
+      return {
+        name,
+        tone,
+        label,
+        detail: label === TONE_WORDS[tone] ? undefined : label,
+      };
     }),
   };
 }

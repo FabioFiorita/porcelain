@@ -119,6 +119,20 @@ describe('readStop', () => {
     ]);
   });
 
+  it('keeps a checks block with no listed results when GitHub had more', () => {
+    expect(step([checks('PENDING', [], true)]).blocks).toEqual([
+      {
+        kind: 'checks',
+        checks: {
+          headOid: 'abcdef1234567',
+          state: 'PENDING',
+          checksTruncated: true,
+          results: [],
+        },
+      },
+    ]);
+  });
+
   it('shows nothing for a step without evidence', () => {
     expect(step([checks('SUCCESS', []), { kind: 'files', files: [] }])).toEqual(
       {

@@ -47,3 +47,10 @@ export function fixtureScreenshot(accent: readonly [number, number, number]) {
     ]),
   );
 }
+
+export const fixtureCheckResults = [
+  { name: 'Unit tests', status: 'SUCCESS' },
+  { name: 'Browser tests', status: 'FAILURE' },
+  { name: 'Lint', status: 'IN_PROGRESS' },
+  { name: 'Docs', status: 'SKIPPED' },
+] as const;

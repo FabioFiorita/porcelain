@@ -48,6 +48,7 @@ const symbols = {
   reviewWaiting: { ios: 'text.badge.checkmark', android: 'rate_review' },
   reviewDone: { ios: 'checkmark.circle', android: 'task_alt' },
   reviewReading: { ios: 'hourglass', android: 'hourglass_empty' },
+  neutral: { ios: 'minus.circle', android: 'do_not_disturb_on' },
 } satisfies Record<string, SymbolViewProps['name']>;
 const tones = {
   default: 'accent-foreground',

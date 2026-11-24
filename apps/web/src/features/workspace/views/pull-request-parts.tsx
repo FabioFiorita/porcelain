@@ -1,7 +1,7 @@
 import {
   CheckIcon,
   CircleCheckIcon,
-  CircleDashedIcon,
+  CircleMinusIcon,
   CircleXIcon,
   GitMergeIcon,
   GitPullRequestClosedIcon,
@@ -89,7 +89,7 @@ const resultIcons: Record<
     color: 'text-muted-foreground',
   },
   none: {
-    Icon: CircleDashedIcon,
+    Icon: CircleMinusIcon,
     label: 'Unknown',
     color: 'text-muted-foreground',
   },
