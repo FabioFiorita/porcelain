@@ -1,5 +1,45 @@
+import { spawnSync } from 'node:child_process';
 import { describe, expect, it } from 'vite-plus/test';
 import { explanationComment, failureExcerpt } from './failure-explanation.ts';
+import { dollars, summaryModel } from './openai.ts';
+
+it.each([
+  { input: 2_000, cached: 400, written: 200, cost: 0.00217 },
+  { input: 273_000, cached: 0, written: 0, cost: 0.54675 },
+])('estimates the response cost for $input input tokens', (usage) => {
+  expect(
+    dollars(summaryModel, {
+      input: usage.input,
+      cached: usage.cached,
+      written: usage.written,
+      output: 100,
+    }),
+  ).toBeCloseTo(usage.cost, 9);
+});
+
+it('reports the known total when another cost is unavailable', () => {
+  const module = new URL('./openai.ts', import.meta.url);
+  const result = spawnSync(
+    process.execPath,
+    [
+      '--input-type=module',
+      '--eval',
+      `
+    import { jobCosts } from ${JSON.stringify(module.href)};
+    const costs = jobCosts();
+    costs.record('Decision', 0.0012);
+    costs.record('Reviewer', undefined);
+    costs.summarize('### Fixture costs');
+    `,
+    ],
+    { encoding: 'utf8', env: {}, timeout: 4_000 },
+  );
+  if (result.error) throw result.error;
+  expect(result.status, result.stderr).toBe(0);
+  expect(result.stdout).toContain(
+    '### Fixture costs\n- Decision: $0.001200 USD\n- Reviewer: unavailable\n- Estimated total: $0.001200 USD (some costs unknown)',
+  );
+});
 
 describe('failureExcerpt', () => {
   it('keeps an early assertion from a long log along with its end, without timestamps or colors', () => {
@@ -30,6 +70,7 @@ describe('explanationComment', () => {
       {
         url: 'https://github.com/owner/repo/actions/runs/1',
         headSha: 'cce70c472bb6a4c66beac1b4582d6c9cd7de7051',
+        omittedJobs: 0,
         jobs: [
           {
             name: 'web-integration (4)',
