@@ -15,6 +15,7 @@ const fixture = clientFixtures(environmentId);
 const CHANGES_LIMIT = 24;
 const DIFFS_LIMIT = 64;
 const WRITES_LIMIT = 500;
+const settled = { timeout: 2_000 };
 
 const decodeRequest = Schema.decodeUnknownSync(
   Schema.Struct({
@@ -32,11 +33,32 @@ const decodeRequest = Schema.decodeUnknownSync(
   }),
 );
 type DiffRequest = ReturnType<typeof decodeRequest>;
-type Snapshot = { statusToken: string };
+type Snapshot = { statusToken: string; fingerprint?: string };
+type Answer = 'stale' | 'ok';
 
 function bodyText(body: RequestInit['body']) {
   if (typeof body === 'string') return body;
   return body instanceof Uint8Array ? new TextDecoder().decode(body) : '';
+}
+
+function fileChange(path: string, fingerprint: string) {
+  return {
+    path,
+    fingerprint: fingerprint.repeat(64),
+    comparisons: [
+      {
+        scope: 'unstaged',
+        kind: 'modified',
+        oldPath: path,
+        newPath: path,
+        oldMode: '100644',
+        newMode: '100644',
+        oldOid: null,
+        newOid: null,
+        supported: true,
+      },
+    ],
+  };
 }
 
 function staleAnswer() {
@@ -64,10 +86,13 @@ function diffAnswer(request: DiffRequest) {
 }
 
 function worktree(script: {
-  changes: (read: number) => Snapshot;
-  diff: (request: DiffRequest, attempt: number) => 'stale' | 'ok';
+  paths?: readonly string[];
+  changes: (read: number) => Snapshot | Promise<Snapshot>;
+  diff: (request: DiffRequest, attempt: number) => Answer | Promise<Answer>;
 }) {
   const counts = { changes: 0, diffs: 0 };
+  const log: string[] = [];
+  const listed = script.paths ?? ['README.md'];
   const attempts = new Map<string, number>();
   const stops = new Set<() => void>();
   const stopAll = () => {
@@ -82,10 +107,9 @@ function worktree(script: {
       const request = decodeRequest(JSON.parse(key));
       const attempt = (attempts.get(key) ?? 0) + 1;
       attempts.set(key, attempt);
-      return Promise.resolve(
-        script.diff(request, attempt) === 'stale'
-          ? staleAnswer()
-          : diffAnswer(request),
+      log.push(`diffs ${request.expectedFiles[0]?.path ?? ''}`);
+      return Promise.resolve(script.diff(request, attempt)).then((answer) =>
+        answer === 'stale' ? staleAnswer() : diffAnswer(request),
       );
     }
     counts.changes += 1;
@@ -93,7 +117,8 @@ function worktree(script: {
       stopAll();
       return new Promise<Response>(() => {});
     }
-    return Promise.resolve(
+    log.push(`changes ${counts.changes}`);
+    return Promise.resolve(script.changes(counts.changes)).then((snapshot) =>
       Response.json({
         environmentId,
         worktreeId: scope.worktreeId,
@@ -101,8 +126,10 @@ function worktree(script: {
         inProgress: null,
         mergeHeadOid: null,
         branch: null,
-        changes: [],
-        ...script.changes(counts.changes),
+        statusToken: snapshot.statusToken,
+        changes: listed.map((path) =>
+          fileChange(path, snapshot.fingerprint ?? 'c'),
+        ),
       }),
     );
   });
@@ -194,6 +221,10 @@ function worktree(script: {
     return {
       window: () => current,
       read: () => following,
+      loadsAt: (read: number) =>
+        expect
+          .poll(() => [following, current?.latest()?.loaded], settled)
+          .toEqual([read, true]),
     };
   };
   const takeReads = async (count: number) => {
@@ -205,6 +236,7 @@ function worktree(script: {
   };
   return {
     counts,
+    log,
     runaway: () => runaway,
     mount,
     follow,
@@ -214,10 +246,9 @@ function worktree(script: {
   };
 }
 
-const settled = { timeout: 2_000 };
-
-async function staleOnceAfterOneRead() {
+async function staleOnceAfterOneRead(paths: readonly string[]) {
   const server = worktree({
+    paths,
     changes: () => ({ statusToken: token('a') }),
     diff: (_, attempt) => (attempt === 1 ? 'stale' : 'ok'),
   });
@@ -225,10 +256,14 @@ async function staleOnceAfterOneRead() {
   return server;
 }
 
-it('two windows at different reads that both fail stale each load after one shared refresh', async () => {
+it('two windows at different reads that both fail stale recover with one shared refresh and no superseded replay', async () => {
+  const tokens = ['a', 'b', 'b'];
   const server = worktree({
-    changes: () => ({ statusToken: token('c') }),
-    diff: (_, attempt) => (attempt === 1 ? 'stale' : 'ok'),
+    changes: (read) => ({ statusToken: token(tokens[read - 1] ?? 'b') }),
+    diff: (request, attempt) =>
+      request.expectedStatusToken === token('a') || attempt === 1
+        ? 'stale'
+        : 'ok',
   });
   await server.takeReads(2);
   const older = server.mount({
@@ -242,9 +277,43 @@ it('two windows at different reads that both fail stale each load after one shar
     paths: ['README.md'],
   });
   await expect
-    .poll(() => [older.latest()?.loaded, newer.latest()?.loaded], settled)
+    .poll(() => [older.latest()?.pending, newer.latest()?.loaded], settled)
     .toEqual([true, true]);
-  expect(server.counts).toEqual({ changes: 3, diffs: 4 });
+  const current = server.mount({
+    statusToken: token('b'),
+    read: 3,
+    paths: ['README.md'],
+  });
+  expect(current.latest()?.loaded).toBe(true);
+  expect(server.counts).toEqual({ changes: 3, diffs: 3 });
+  expect(older.seen.some((state) => state.failed && !state.pending)).toBe(
+    false,
+  );
+  expect(server.runaway()).toBe(false);
+});
+
+it('a window still on the snapshot before an edit waits for the edited one instead of resending its request', async () => {
+  const before = 'c'.repeat(64);
+  const server = worktree({
+    changes: (read) => ({
+      statusToken: token('a'),
+      fingerprint: read === 1 ? 'c' : 'd',
+    }),
+    diff: (request) =>
+      request.expectedFiles[0]?.fingerprint === before ? 'stale' : 'ok',
+  });
+  await server.takeReads(1);
+  const held = server.mount({
+    statusToken: token('a'),
+    read: 1,
+    paths: ['README.md'],
+  });
+  const view = server.follow(['README.md'], (read) => (read === 1 ? 'c' : 'd'));
+  await view.loadsAt(2);
+  server.readAgain();
+  await view.loadsAt(3);
+  expect(server.counts).toEqual({ changes: 3, diffs: 2 });
+  expect(held.latest()).toEqual({ loaded: false, failed: true, pending: true });
   expect(server.runaway()).toBe(false);
 });
 
@@ -258,13 +327,9 @@ it('a status token that comes back with the same files after another read still 
         : 'ok',
   });
   const view = server.follow(['README.md']);
-  await expect
-    .poll(() => [view.read(), view.window()?.latest()?.loaded], settled)
-    .toEqual([2, true]);
+  await view.loadsAt(2);
   server.readAgain();
-  await expect
-    .poll(() => [view.read(), view.window()?.latest()?.loaded], settled)
-    .toEqual([4, true]);
+  await view.loadsAt(4);
   expect(server.counts).toEqual({ changes: 4, diffs: 4 });
   expect(server.runaway()).toBe(false);
 });
@@ -279,7 +344,10 @@ it('stage, unstage, then an edit read under the first token still recovers its s
     { letter: 'a', fingerprint: 'd' },
   ];
   const server = worktree({
-    changes: (read) => ({ statusToken: token(steps[read - 1]?.letter ?? 'a') }),
+    changes: (read) => ({
+      statusToken: token(steps[read - 1]?.letter ?? 'a'),
+      fingerprint: steps[read - 1]?.fingerprint ?? 'd',
+    }),
     diff: (request, attempt) =>
       request.expectedStatusToken === token('a') && attempt === 1
         ? 'stale'
@@ -289,26 +357,22 @@ it('stage, unstage, then an edit read under the first token still recovers its s
     ['README.md'],
     (read) => steps[read - 1]?.fingerprint ?? 'd',
   );
-  const state = () => [view.read(), view.window()?.latest()?.loaded];
-  await expect.poll(state, settled).toEqual([2, true]);
+  await view.loadsAt(2);
   server.readAgain();
-  await expect.poll(state, settled).toEqual([3, true]);
+  await view.loadsAt(3);
   server.readAgain();
-  await expect.poll(state, settled).toEqual([4, true]);
+  await view.loadsAt(4);
   server.readAgain();
-  await expect.poll(state, settled).toEqual([6, true]);
+  await view.loadsAt(6);
   expect(server.counts).toEqual({ changes: 6, diffs: 6 });
   expect(server.runaway()).toBe(false);
 });
 
 it('many windows of one stale read share a single Changes refresh, and each retries its own diff', async () => {
-  const server = await staleOnceAfterOneRead();
-  const windows = Array.from({ length: 17 }, (_, index) =>
-    server.mount({
-      statusToken: token('a'),
-      read: 1,
-      paths: [`file-${index}.md`],
-    }),
+  const paths = Array.from({ length: 17 }, (_, index) => `file-${index}.md`);
+  const server = await staleOnceAfterOneRead(paths);
+  const windows = paths.map((path) =>
+    server.mount({ statusToken: token('a'), read: 1, paths: [path] }),
   );
   await expect
     .poll(() => windows.every((window) => window.latest()?.loaded), settled)
@@ -318,7 +382,7 @@ it('many windows of one stale read share a single Changes refresh, and each retr
 });
 
 it('windows reading different files of one snapshot share a single refresh', async () => {
-  const server = await staleOnceAfterOneRead();
+  const server = await staleOnceAfterOneRead(['a.md', 'b.md']);
   const one = server.mount({
     statusToken: token('a'),
     read: 1,
@@ -401,4 +465,61 @@ it('a window with no diff to read never shows as pending during another windowâ€
     .poll(() => stale.seen.some((state) => state.pending), settled)
     .toBe(true);
   expect(empty.seen.some((state) => state.pending)).toBe(false);
+});
+
+it('a slow automatic retry keeps the window pending until the server answers', async () => {
+  const retried = Promise.withResolvers<Answer>();
+  const server = worktree({
+    changes: () => ({ statusToken: token('a') }),
+    diff: (_, attempt) => (attempt === 1 ? 'stale' : retried.promise),
+  });
+  await server.takeReads(1);
+  const window = server.mount({
+    statusToken: token('a'),
+    read: 1,
+    paths: ['README.md'],
+  });
+  const settledOnFailure = () =>
+    window.seen.some((state) => state.failed && !state.pending);
+  await expect
+    .poll(() => server.counts, settled)
+    .toEqual({ changes: 2, diffs: 2 });
+  expect(settledOnFailure()).toBe(false);
+  retried.resolve('ok');
+  await expect.poll(() => window.latest()?.loaded, settled).toBe(true);
+  expect(settledOnFailure()).toBe(false);
+  expect(server.runaway()).toBe(false);
+});
+
+it('a recovery resends only the stale batch of a window, and only after its refresh answers', async () => {
+  const paths = Array.from(
+    { length: 201 },
+    (_, index) => `f-${String(index).padStart(3, '0')}.md`,
+  );
+  const refresh = Promise.withResolvers<Snapshot>();
+  const server = worktree({
+    paths,
+    changes: (read) =>
+      read === 2 ? refresh.promise : { statusToken: token('a') },
+    diff: (request, attempt) =>
+      request.expectedFiles.some((file) => file.path === 'f-200.md') &&
+      attempt === 1
+        ? 'stale'
+        : 'ok',
+  });
+  await server.takeReads(1);
+  const window = server.mount({ statusToken: token('a'), read: 1, paths });
+  await expect.poll(() => server.counts.changes, settled).toBe(2);
+  server.log.push('released');
+  refresh.resolve({ statusToken: token('a') });
+  await expect.poll(() => window.latest()?.loaded, settled).toBe(true);
+  expect(server.log).toEqual([
+    'changes 1',
+    'diffs f-000.md',
+    'diffs f-200.md',
+    'changes 2',
+    'released',
+    'diffs f-200.md',
+  ]);
+  expect(server.runaway()).toBe(false);
 });

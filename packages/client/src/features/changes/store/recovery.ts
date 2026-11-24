@@ -7,10 +7,13 @@ import type {
 import { clientRuntime } from '../../../shared/api/runtime.ts';
 import {
   beginRecovery,
+  claimRetry,
   type DiffRecovery,
   finishRecovery,
   idleDiffRecovery,
-  markRetried,
+  type RecoverySnapshot,
+  type RetryTicket,
+  settleRetry,
   stampRead,
 } from '../rules/diff-recovery.ts';
 
@@ -28,14 +31,23 @@ export class ChangedDiffRecovery extends Context.Service<
   ChangedDiffRecovery,
   {
     readonly changes: Stream.Stream<RecoveryState>;
-    readonly stamp: (key: string) => Effect.Effect<number>;
+    readonly stamp: (
+      key: string,
+      snapshot: RecoverySnapshot,
+    ) => Effect.Effect<number>;
     readonly begin: (key: string, read: number) => Effect.Effect<boolean>;
     readonly produced: (key: string) => Effect.Effect<void>;
     readonly finish: (key: string) => Effect.Effect<void>;
     readonly retry: (
       key: string,
+      ticket: RetryTicket,
       batches: readonly string[],
     ) => Effect.Effect<readonly string[]>;
+    readonly settle: (
+      key: string,
+      ticket: RetryTicket,
+      batch: string,
+    ) => Effect.Effect<void>;
   }
 >()('@porcelain/client/ChangedDiffRecovery') {
   static readonly layer = Layer.effect(
@@ -53,11 +65,12 @@ export class ChangedDiffRecovery extends Context.Service<
         });
       return {
         changes: SubscriptionRef.changes(state),
-        stamp: Effect.fn('ChangedDiffRecovery.stamp')((key: string) =>
-          SubscriptionRef.modify(state, (current) => {
-            const next = stampRead(worktreeRecovery(current, key));
-            return [next.latestRead, { ...current, [key]: next }] as const;
-          }),
+        stamp: Effect.fn('ChangedDiffRecovery.stamp')(
+          (key: string, snapshot: RecoverySnapshot) =>
+            SubscriptionRef.modify(state, (current) => {
+              const next = stampRead(worktreeRecovery(current, key), snapshot);
+              return [next.latestRead, { ...current, [key]: next }] as const;
+            }),
         ),
         begin: Effect.fn('ChangedDiffRecovery.begin')(
           (key: string, read: number) =>
@@ -81,16 +94,21 @@ export class ChangedDiffRecovery extends Context.Service<
           update(key, finishRecovery),
         ),
         retry: Effect.fn('ChangedDiffRecovery.retry')(
-          (key: string, batches: readonly string[]) =>
+          (key: string, ticket: RetryTicket, batches: readonly string[]) =>
             SubscriptionRef.modify(state, (current) => {
-              const { recovery, marked } = markRetried(
+              const { recovery, marked } = claimRetry(
                 worktreeRecovery(current, key),
+                ticket,
                 batches,
               );
               return marked.length === 0
                 ? ([marked, current] as const)
                 : ([marked, { ...current, [key]: recovery }] as const);
             }),
+        ),
+        settle: Effect.fn('ChangedDiffRecovery.settle')(
+          (key: string, ticket: RetryTicket, batch: string) =>
+            update(key, (recovery) => settleRetry(recovery, ticket, batch)),
         ),
       };
     }),

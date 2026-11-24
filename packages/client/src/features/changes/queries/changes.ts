@@ -30,7 +30,12 @@ const readStampedChanges = Effect.fn('Changes.readStamped')(function* (
 ) {
   const answer = yield* readChangesSnapshot(selection);
   const recovery = yield* ChangedDiffRecovery;
-  const read = yield* recovery.stamp(recoveryKey(selection.scope));
+  const read = yield* recovery.stamp(recoveryKey(selection.scope), {
+    statusToken: answer.statusToken,
+    fingerprints: new Map(
+      answer.changes.map((change) => [change.path, change.fingerprint]),
+    ),
+  });
   return { ...answer, read };
 });
 

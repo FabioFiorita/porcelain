@@ -1,55 +1,120 @@
+import type { ExpectedFile } from './changes.ts';
+
+export type RecoverySnapshot = {
+  readonly statusToken: string;
+  readonly fingerprints: ReadonlyMap<string, string | undefined>;
+};
+
 export type DiffRecovery = {
   readonly latestRead: number;
+  readonly snapshot: RecoverySnapshot;
+  readonly generation: number;
   readonly running: boolean;
   readonly coveredThrough: number;
   readonly produced: readonly number[];
   readonly retried: readonly string[];
+  readonly inFlight: readonly string[];
+};
+
+export type StaleBatch = {
+  readonly key: string;
+  readonly statusToken: string;
+  readonly expectedFiles: readonly ExpectedFile[];
+  readonly waiting: boolean;
+};
+
+export type RetryTicket = {
+  readonly generation: number;
+  readonly read: number;
 };
 
 export type DiffRecoveryStep =
   | { readonly kind: 'idle' }
   | { readonly kind: 'wait' }
   | { readonly kind: 'recover' }
-  | { readonly kind: 'retry'; readonly batches: readonly string[] }
+  | {
+      readonly kind: 'retry';
+      readonly batches: readonly string[];
+      readonly ticket: RetryTicket;
+    }
+  | { readonly kind: 'superseded' }
   | { readonly kind: 'given-up' };
 
 export const idleDiffRecovery: DiffRecovery = {
   latestRead: 0,
+  snapshot: { statusToken: '', fingerprints: new Map() },
+  generation: 0,
   running: false,
   coveredThrough: 0,
   produced: [],
   retried: [],
+  inFlight: [],
 };
 
 function recoveryCovers(recovery: DiffRecovery, read: number) {
   return read <= recovery.coveredThrough || recovery.produced.includes(read);
 }
 
+function matchesSnapshot(snapshot: RecoverySnapshot, batch: StaleBatch) {
+  return (
+    batch.statusToken === snapshot.statusToken &&
+    batch.expectedFiles.every(
+      (file) =>
+        snapshot.fingerprints.has(file.path) &&
+        snapshot.fingerprints.get(file.path) === file.fingerprint,
+    )
+  );
+}
+
 export function diffRecoveryStep(
   recovery: DiffRecovery,
   read: number,
-  staleBatches: readonly string[],
+  stale: readonly StaleBatch[],
 ): DiffRecoveryStep {
-  if (staleBatches.length === 0) return { kind: 'idle' };
-  if (recovery.running) return { kind: 'wait' };
+  if (stale.length === 0) return { kind: 'idle' };
+  if (
+    recovery.running ||
+    stale.some(
+      (batch) => batch.waiting || recovery.inFlight.includes(batch.key),
+    )
+  )
+    return { kind: 'wait' };
   if (!recoveryCovers(recovery, read)) return { kind: 'recover' };
-  const batches = staleBatches.filter(
-    (batch) => !recovery.retried.includes(batch),
-  );
-  return batches.length > 0 ? { kind: 'retry', batches } : { kind: 'given-up' };
+  const current =
+    read < recovery.latestRead
+      ? stale.filter((batch) => matchesSnapshot(recovery.snapshot, batch))
+      : stale;
+  const batches = current
+    .map((batch) => batch.key)
+    .filter((key) => !recovery.retried.includes(key));
+  if (batches.length > 0)
+    return {
+      kind: 'retry',
+      batches,
+      ticket: { generation: recovery.generation, read: recovery.latestRead },
+    };
+  return current.length < stale.length
+    ? { kind: 'superseded' }
+    : { kind: 'given-up' };
 }
 
 export function recoveryPending(step: DiffRecoveryStep) {
-  return (
-    step.kind === 'wait' || step.kind === 'recover' || step.kind === 'retry'
-  );
+  return step.kind !== 'idle' && step.kind !== 'given-up';
 }
 
-export function stampRead(recovery: DiffRecovery): DiffRecovery {
+export function stampRead(
+  recovery: DiffRecovery,
+  snapshot: RecoverySnapshot,
+): DiffRecovery {
   const read = recovery.latestRead + 1;
-  return recovery.running
-    ? { ...recovery, latestRead: read, produced: [...recovery.produced, read] }
-    : { ...recovery, latestRead: read };
+  return {
+    ...recovery,
+    latestRead: read,
+    snapshot,
+    produced: recovery.running
+      ? [...recovery.produced, read]
+      : recovery.produced,
+  };
 }
 
 export function beginRecovery(
@@ -59,10 +124,12 @@ export function beginRecovery(
   if (recovery.running || recoveryCovers(recovery, read)) return undefined;
   return {
     ...recovery,
+    generation: recovery.generation + 1,
     running: true,
     coveredThrough: Math.max(recovery.latestRead, read),
     produced: [],
     retried: [],
+    inFlight: [],
   };
 }
 
@@ -70,15 +137,39 @@ export function finishRecovery(recovery: DiffRecovery): DiffRecovery {
   return recovery.running ? { ...recovery, running: false } : recovery;
 }
 
-export function markRetried(
+export function claimRetry(
   recovery: DiffRecovery,
+  ticket: RetryTicket,
   batches: readonly string[],
 ): { readonly recovery: DiffRecovery; readonly marked: readonly string[] } {
-  const marked = batches.filter((batch) => !recovery.retried.includes(batch));
+  const marked =
+    recovery.running ||
+    recovery.generation !== ticket.generation ||
+    recovery.latestRead !== ticket.read
+      ? []
+      : batches.filter((batch) => !recovery.retried.includes(batch));
   return marked.length === 0
     ? { recovery, marked }
     : {
-        recovery: { ...recovery, retried: [...recovery.retried, ...marked] },
+        recovery: {
+          ...recovery,
+          retried: [...recovery.retried, ...marked],
+          inFlight: [...recovery.inFlight, ...marked],
+        },
         marked,
       };
+}
+
+export function settleRetry(
+  recovery: DiffRecovery,
+  ticket: RetryTicket,
+  batch: string,
+): DiffRecovery {
+  return recovery.generation === ticket.generation &&
+    recovery.inFlight.includes(batch)
+    ? {
+        ...recovery,
+        inFlight: recovery.inFlight.filter((key) => key !== batch),
+      }
+    : recovery;
 }
