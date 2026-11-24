@@ -1,11 +1,12 @@
 import { Atom } from 'effect/reactivity';
 import type { WorktreeSelection } from '../../../shared/api/connection.ts';
+import type { WalkthroughRun } from '../rules/walkthrough.ts';
 
 export type WalkthroughDraftPlacement = 'call' | 'step';
 
 export type WalkthroughDraft = {
   text: string;
-  failure: string | undefined;
+  failure: { runId: string; message: string } | undefined;
   sending: boolean;
 };
 
@@ -25,6 +26,7 @@ export function walkthroughDraft(
     connection: Pick<WorktreeSelection['connection'], 'environmentId'>;
     scope: WorktreeSelection['scope'];
   },
+  run: Pick<WalkthroughRun, 'id' | 'branch'>,
   title: string,
   placement: WalkthroughDraftPlacement,
 ) {
@@ -33,6 +35,7 @@ export function walkthroughDraft(
       connection.environmentId,
       scope.projectId,
       scope.worktreeId,
+      run.branch === undefined ? ['run', run.id] : ['branch', run.branch],
       title,
       placement,
     ]),

@@ -98,8 +98,8 @@ export function useAsk(
 ) {
   const selection = conversationSelection(owner);
   return walkthroughDraftBinding(
-    useAtom(walkthroughDraft(selection, title, placement)),
+    useAtom(walkthroughDraft(selection, owner.run, title, placement)),
     useBound(walkthroughConversationCommands(selection).addMessage),
-    title,
+    { runId: selection.runId, title },
   );
 }

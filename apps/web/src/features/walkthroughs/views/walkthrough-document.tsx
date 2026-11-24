@@ -332,7 +332,7 @@ function Written({
     | { failure: WalkthroughFailure; writer: WalkthroughRun['writer'] }
     | undefined;
 }) {
-  const owner = { ...props, runId: run.id };
+  const owner = { ...props, run };
   const excerptStep =
     content.stops.find((stop) => stop.attention && stop.excerpts.length > 0) ??
     content.stops.find((stop) => stop.excerpts.length > 0);

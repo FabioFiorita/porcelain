@@ -11,15 +11,16 @@ export function walkthroughDraftBinding(
     waiting: boolean;
     run: (request: AddWalkthroughMessageRequest) => Promise<unknown>;
   },
-  title: string,
+  { runId, title }: { runId: string; title: string },
 ) {
   const text = draft.text.trim();
   const waiting = draft.sending || command.waiting;
   return {
     text: draft.text,
-    failure: draft.failure,
+    failure: draft.failure?.runId === runId ? draft.failure.message : undefined,
     waiting,
-    change: (text: string) => update((current) => ({ ...current, text })),
+    change: (text: string) =>
+      update((current) => ({ ...current, text, failure: undefined })),
     send: () => {
       if (!text || waiting) return;
       update((current) => ({ ...current, failure: undefined, sending: true }));
@@ -33,7 +34,10 @@ export function walkthroughDraftBinding(
         (error: unknown) =>
           update((current) => ({
             ...current,
-            failure: conversationFailure(error).text,
+            failure:
+              current.text === draft.text
+                ? { runId, message: conversationFailure(error).text }
+                : undefined,
             sending: false,
           })),
       );

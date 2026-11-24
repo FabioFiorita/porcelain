@@ -361,10 +361,16 @@ test('switching branches shows the displayed walkthrough conversations and never
   await expect
     .element(page.getByText('Only branch B', { exact: true }))
     .not.toBeInTheDocument();
+  const composer = page.getByRole('textbox', {
+    name: 'Decide, or ask about this',
+    exact: true,
+  });
+  await composer.fill(question);
   await repo.switch('conversation-branch-b');
   await expect
     .element(page.getByRole('heading', { name: /^Decisions on branch B/ }))
     .toBeVisible();
+  await expect.element(composer).toHaveValue('');
   await expect
     .element(page.getByText('Only branch B', { exact: true }).first())
     .toBeVisible();
@@ -376,6 +382,13 @@ test('switching branches shows the displayed walkthrough conversations and never
       page.getByRole('button', { name: 'Post together on #424', exact: true }),
     )
     .toBeVisible();
+  await repo.switch('main');
+  await expect
+    .element(
+      page.getByRole('heading', { name: /^Keep retries beside their owner/ }),
+    )
+    .toBeVisible();
+  await expect.element(composer).toHaveValue(question);
 });
 
 const question = 'What happens with duplicate titles?';
@@ -458,7 +471,13 @@ test('keeps a step draft when a new walkthrough retains its title', async ({
   const step = page
     .getByRole('textbox', { name: 'Ask about this step', exact: true })
     .last();
+  const error = page.getByText('Finished walkthrough or step not found', {
+    exact: true,
+  });
   await step.fill(question);
+  await conversationFixture('reject-send');
+  await userEvent.keyboard('{Enter}');
+  await expect.element(error).toBeVisible();
   await repo.write(
     'walkthrough-fixture.txt',
     'The revised conversation fixture.\n',
@@ -471,6 +490,7 @@ test('keeps a step draft when a new walkthrough retains its title', async ({
     .element(page.getByRole('heading', { name: /^The revised retry guidance/ }))
     .toBeVisible();
   await expect.element(step).toHaveValue(question);
+  await expect.element(error).not.toBeInTheDocument();
 });
 
 test('keeps a send error with its draft after switching worktrees', async ({
@@ -501,7 +521,8 @@ test('keeps a send error with its draft after switching worktrees', async ({
   await sidebar.getByRole('button', { name: /Main worktree/ }).click();
   await expect.element(step).toHaveValue(question);
   await expect.element(error).toBeVisible();
-  await step.click();
+  await step.fill('Can you explain the retry schedule?');
+  await expect.element(error).not.toBeInTheDocument();
   await userEvent.keyboard('{Enter}');
   await expect.element(step).toHaveValue('');
   await expect.element(error).not.toBeInTheDocument();

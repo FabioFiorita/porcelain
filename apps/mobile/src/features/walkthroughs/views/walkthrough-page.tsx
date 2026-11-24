@@ -308,7 +308,7 @@ function Written({
   onUpdate: () => void;
 }) {
   const router = useRouter();
-  const owner = { workspace, runId: run.id };
+  const owner = { workspace, run };
   const saved = useSavedSummary(owner) !== undefined;
   const seeChange = () =>
     router.push({

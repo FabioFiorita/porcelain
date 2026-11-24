@@ -104,8 +104,8 @@ export function useSendMessage(
 ) {
   const selection = conversationSelection(owner);
   return walkthroughDraftBinding(
-    useAtom(walkthroughDraft(selection, title, placement)),
+    useAtom(walkthroughDraft(selection, owner.run, title, placement)),
     useCommand(walkthroughConversationCommands(selection).addMessage),
-    title,
+    { runId: selection.runId, title },
   );
 }
