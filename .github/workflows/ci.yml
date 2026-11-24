@@ -166,9 +166,9 @@ jobs:
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
       - run: bwrap --ro-bind / / --dev /dev --proc /proc --unshare-pid --unshare-ipc --unshare-net --new-session --die-with-parent -- true
       - run: pnpm exec playwright install --only-shell chromium
-      - if: github.base_ref == 'release'
+      - if: github.base_ref == 'release' || strategy.job-total > 1
         run: pnpm --filter @porcelain/web test:integration --shard=${{ matrix.shard }}/${{ strategy.job-total }}
-      - if: github.base_ref != 'release'
+      - if: github.base_ref != 'release' && strategy.job-total == 1
         env:
           SPECS: ${{ needs.affected.outputs.integration }}
         run: |

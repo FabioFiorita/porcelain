@@ -269,10 +269,8 @@ async function checkCiInputs(entry) {
   const options = await extractDepcruiseOptions(
     join(repository, 'architecture/dependency-cruiser.cjs'),
   );
-  const trace = async (command, owner) => {
-    match(command, /^node \S+$/, `${owner} declares a single Node entry file`);
-    const path = command.slice('node '.length);
-    const { output } = await cruise([path], options);
+  const trace = async (roots, owner, graphOptions = options) => {
+    const { output } = await cruise(roots, graphOptions);
     const modules = output.modules.filter(
       ({ source, coreModule }) =>
         !coreModule && !source.split('/').includes('node_modules'),
@@ -291,7 +289,7 @@ async function checkCiInputs(entry) {
     const paths = modules
       .filter(({ couldNotResolve }) => !couldNotResolve)
       .map(({ source }) => source);
-    for (const expected of [path, ...(entry.requiredImports[owner] ?? [])])
+    for (const expected of [...roots, ...(entry.requiredImports[owner] ?? [])])
       strictEqual(
         paths.includes(expected),
         true,
@@ -299,13 +297,17 @@ async function checkCiInputs(entry) {
       );
     return paths;
   };
+  const traceCommand = (command, owner) => {
+    match(command, /^node \S+$/, `${owner} declares a single Node entry file`);
+    return trace([command.slice('node '.length)], owner);
+  };
 
   for (const task of Object.keys(nodeTaskInputs)) {
     const selectsTask = (path) =>
       checkPlan('static', [path], repository).some(
         ({ task: name }) => name === task,
       );
-    const paths = await trace(manifest.scripts[task], task);
+    const paths = await traceCommand(manifest.scripts[task], task);
     const setting = `${task} in ci/check-plan.ts`;
     if (task === entry.negative.task) {
       strictEqual(paths.includes(entry.negative.path), true);
@@ -343,7 +345,7 @@ async function checkCiInputs(entry) {
     }
     const packageScript = /^pnpm (?:run )?([\w:-]+)$/.exec(command)?.[1];
     if (packageScript) {
-      for (const path of await trace(
+      for (const path of await traceCommand(
         manifest.scripts[packageScript],
         `package job's ${packageScript}`,
       ))
@@ -375,6 +377,41 @@ async function checkCiInputs(entry) {
     (path) => runtimePlan(false, [path], []).package,
     'package job in ci/runtime-plan.ts',
   );
+
+  const productSource = /^(?:apps|packages)\/[^/]+\/src\//;
+  const runtimeOptions = {
+    ...options,
+    doNotFollow: { path: `node_modules|${productSource.source}` },
+  };
+  const browserSpecs = globSync('apps/web/spec/integration/*.test.tsx');
+  for (const [suite, { roots, files }] of Object.entries(entry.runtimeSuites)) {
+    const entries = roots.flatMap((pattern) => {
+      const paths = globSync(pattern);
+      strictEqual(paths.length > 0, true, `${suite} harness entry: ${pattern}`);
+      return paths;
+    });
+    const traced = await trace(entries, suite, runtimeOptions);
+    const paths = [
+      ...traced.filter((path) => !productSource.test(path)),
+      ...globSync(files),
+    ];
+    requireSelectedInputs(
+      paths,
+      (path) => runtimePlan(false, [path], browserSpecs)[suite],
+      `${suite} harness in ci/runtime-plan.ts`,
+    );
+    requireSelectedInputs(
+      paths,
+      (path) =>
+        checkPlan('static', [path], repository).some(
+          ({ task }) => task === 'test:rules',
+        ),
+      `${suite} harness guard in ci/check-plan.ts`,
+    );
+    process.stdout.write(
+      `PASS ${suite} harness: ${new Set(paths).size} inputs\n`,
+    );
+  }
 }
 
 function ciSelectionFixture(entry) {
@@ -510,6 +547,12 @@ function ciSelectionFixture(entry) {
           outputs.find((line) => line.startsWith('shards=')),
           `shards=${JSON.stringify(fixture.shards)}`,
           `${fixture.name}: web E2E shard output`,
+        );
+      if (fixture.browserShards)
+        strictEqual(
+          outputs.find((line) => line.startsWith('browser-shards=')),
+          `browser-shards=${JSON.stringify(fixture.browserShards)}`,
+          `${fixture.name}: browser integration shard output`,
         );
       if (fixture.integration)
         strictEqual(
@@ -918,9 +961,17 @@ export async function runGuardrailCases(named = []) {
         integration.strategy.matrix.shard,
         entry.webIntegrationShards,
       );
+      const sharded = integration.steps.find((step) =>
+        step.run?.includes('--shard='),
+      );
+      strictEqual(sharded?.run, entry.webIntegrationCommand);
       strictEqual(
-        integration.steps.find((step) => step.run?.includes('--shard='))?.run,
-        entry.webIntegrationCommand,
+        sharded?.if,
+        "github.base_ref == 'release' || strategy.job-total > 1",
+      );
+      strictEqual(
+        integration.steps.find((step) => step.env?.SPECS)?.if,
+        "github.base_ref != 'release' && strategy.job-total == 1",
       );
       const browser = workflow.jobs['web-e2e'];
       strictEqual(browser.strategy.matrix.shard, entry.webE2eShardPlan);

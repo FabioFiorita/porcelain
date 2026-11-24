@@ -5,6 +5,7 @@ import { globSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { parse } from 'yaml';
+import { runtimeHarnessInput } from './runtime-plan.ts';
 
 const staticTasks = [
   'typecheck',
@@ -138,8 +139,9 @@ function rootInput(task: string, path: string): boolean {
   switch (task) {
     case 'test:rules':
       return (
-        matches(path, nodeTaskInputs[task]) &&
-        (!path.startsWith('packages/') || !testFile.test(path))
+        runtimeHarnessInput(path) ||
+        (matches(path, nodeTaskInputs[task]) &&
+          (!path.startsWith('packages/') || !testFile.test(path)))
       );
     case 'mobile:react-compiler':
       return matches(path, nodeTaskInputs[task]);

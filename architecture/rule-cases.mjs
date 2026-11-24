@@ -6574,7 +6574,9 @@ export const guardrailCases = [
         name: `${path} selects rules`,
         path,
         source: 'fixture',
-        selected: ['web-e2e', 'storage'],
+        selected: path.endsWith('.sql')
+          ? ['server', 'web-integration', 'web-e2e', 'desktop', 'storage']
+          : ['web-e2e', 'storage'],
         rules: true,
       })),
       {
@@ -6657,25 +6659,46 @@ export const guardrailCases = [
         path: 'apps/web/spec/integration/ci-fixture.test.tsx',
         source: 'export const fixture = true;',
         selected: ['web-integration', 'web-e2e'],
+        rules: true,
+        browserShards: [1],
       },
       {
         name: 'web journey spec selects only web journeys',
         path: 'apps/web/spec/e2e/ci-fixture.e2e.ts',
         source: 'export const fixture = true;',
         selected: ['web-e2e'],
+        rules: true,
       },
       {
-        name: 'web test helper selects the web smoke',
+        name: 'web test helper selects browser suites',
         path: 'apps/web/spec/kit/navigator.ts',
         source: 'export const fixture = true;',
-        selected: ['web-e2e'],
+        selected: ['web-integration', 'web-e2e'],
+        rules: true,
       },
       ...['world', 'review-fixture', 'protocol'].map((name) => ({
-        name: `exported ${name} fixture selects the web smoke`,
+        name: `exported ${name} fixture selects its runtime suites`,
         path: `apps/web/spec/kit/${name}.ts`,
         source: 'export const fixture = true;',
-        selected: ['web-e2e'],
+        selected:
+          name === 'review-fixture'
+            ? ['web-integration', 'web-e2e']
+            : ['server', 'web-integration', 'web-e2e'],
+        rules: true,
       })),
+      {
+        name: 'sandbox fake tool selects both integration harnesses and shards all browser specs',
+        path: 'apps/server/spec/kit/coding-tool.ts',
+        source: 'export {};',
+        selected: ['server', 'web-integration', 'web-e2e'],
+        rules: true,
+        browserShards: [1, 2, 3, 4, 5, 6],
+        integration: [
+          'spec/integration/access-remote-access.test.tsx',
+          'spec/integration/changes-branch-base.test.tsx',
+          'spec/integration/ci-fixture.test.tsx',
+        ],
+      },
       {
         name: 'contract source selects the web smoke',
         rules: true,
@@ -6740,6 +6763,54 @@ export const guardrailCases = [
     rule: 'ci-task-inputs',
     requiredImports: {
       'test:rules': ['packages/changes/src/models/index.ts'],
+      'web-integration': ['apps/server/spec/kit/coding-tool.ts'],
+      server: ['apps/server/spec/kit/coding-tool.ts'],
+      'web-e2e': ['apps/server/spec/kit/coding-tool.ts'],
+    },
+    runtimeSuites: {
+      'web-integration': {
+        roots: [
+          'apps/web/vitest.config.ts',
+          'apps/web/spec/integration/*.test.tsx',
+          'apps/server/spec/kit/sandboxed-server.ts',
+        ],
+        files: ['packages/storage/drizzle/**/*.sql'],
+      },
+      server: {
+        roots: [
+          'vitest.integration.config.ts',
+          'apps/server/spec/kit/global-setup.ts',
+          'packages/client/spec/kit/global-setup.ts',
+          'apps/server/spec/integration/*.integration.ts',
+          'packages/client/spec/integration/*.integration.ts',
+          '.agents/skills/spec/integration/*.integration.ts',
+          'apps/server/spec/kit/sandboxed-server.ts',
+        ],
+        files: [
+          'packages/storage/drizzle/**/*.sql',
+          '.agents/skills/*/scripts/cli',
+          '.agents/skills/*/scripts/**/*.mjs',
+        ],
+      },
+      'web-e2e': {
+        roots: [
+          'apps/web/playwright.config.ts',
+          'apps/web/vite.config.ts',
+          'apps/web/spec/e2e/global-setup.ts',
+          'apps/web/spec/e2e/**/*.e2e.ts',
+          'apps/server/spec/kit/sandboxed-server.ts',
+        ],
+        files: ['packages/storage/drizzle/**/*.sql'],
+      },
+      desktop: {
+        roots: [
+          'apps/desktop/playwright.config.ts',
+          'apps/desktop/spec/e2e/global-setup.ts',
+          'apps/desktop/spec/e2e/**/*.e2e.ts',
+          'apps/web/vite.config.ts',
+        ],
+        files: ['packages/storage/drizzle/**/*.sql'],
+      },
     },
     negative: {
       task: 'test:rules',
