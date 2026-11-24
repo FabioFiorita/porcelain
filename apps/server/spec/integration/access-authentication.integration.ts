@@ -15,7 +15,7 @@ const unpairedRoutes = new Set([
   'POST /api/pair',
 ]);
 
-const PAIRED_ROUTES = 73;
+const PAIRED_ROUTES = 71;
 
 const methods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as const;
 
@@ -102,8 +102,6 @@ test.for<{ credential: string; auth: NonNullable<HttpRequest['auth']> }>([
         'PUT /api/walkthrough-settings',
         'GET /api/review-git-settings',
         'PATCH /api/review-git-settings',
-        'PUT /api/push-registration',
-        'DELETE /api/push-registration',
       ]),
     );
 

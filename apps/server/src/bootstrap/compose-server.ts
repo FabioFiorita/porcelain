@@ -1,3 +1,5 @@
+import { WalkthroughModelReader } from '@porcelain/walkthroughs/ports';
+import { installedWalkthroughModelReaderLayer } from '@porcelain/agents/walkthrough-writing';
 import { ghPullRequestReaderLayer } from '../adapters/reviews/gh-pull-request-reader.ts';
 import { IdSource } from '@porcelain/kernel/ports';
 import { DeviceConnectionStore } from '../ports/device-connection-store.ts';
@@ -156,6 +158,9 @@ function serverResources(
     metadata,
     persistence,
     NodeServices.layer,
+    installedWalkthroughModelReaderLayer(input.settings.limits.agents).pipe(
+      Layer.provide(NodeServices.layer),
+    ),
     NodeHttpClient.layerFetch,
     logging,
     inMemoryWorktreeCatalogStoreLayer,
@@ -270,7 +275,9 @@ function serverResources(
           routeListenerRunner,
           tunnelProbe: Context.get(remoteContext, TunnelProbe),
         });
+        const walkthroughModels = yield* WalkthroughModelReader;
         const projects = yield* composeProjects(context, {
+          walkthroughModels,
           stores,
           shared,
           worktreeId,
@@ -354,6 +361,7 @@ function serverResources(
           context,
           shared,
           stores,
+          walkthroughModels,
           checkWorktree,
           projects.readInventory,
           reviews.listProjectPullRequests,

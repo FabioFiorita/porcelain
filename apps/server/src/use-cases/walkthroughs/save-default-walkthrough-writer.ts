@@ -1,3 +1,4 @@
+import type { UnsupportedWalkthroughEffortError } from '@porcelain/walkthroughs/errors';
 import { Context, Effect, Layer } from 'effect';
 import type { SaveDefaultWalkthroughWriterRequest } from '@porcelain/contracts/walkthroughs';
 import { SaveDefaultWalkthroughWriterService } from '@porcelain/walkthroughs/services';
@@ -9,7 +10,10 @@ export class SaveDefaultWalkthroughWriterUseCase extends Context.Service<
   {
     readonly execute: (
       input: SaveDefaultWalkthroughWriterRequest,
-    ) => Effect.Effect<SaveDefaultWalkthroughWriterRequest>;
+    ) => Effect.Effect<
+      SaveDefaultWalkthroughWriterRequest,
+      UnsupportedWalkthroughEffortError
+    >;
   }
 >()('@porcelain/server/SaveDefaultWalkthroughWriterUseCase') {
   static readonly layer = Layer.effect(

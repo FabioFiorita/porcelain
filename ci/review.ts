@@ -26,7 +26,9 @@ import {
   isAncestor,
   labeledOnHead,
   pages,
+  pullRequestCiRuns,
   required,
+  requiredCiJobPassed,
   resolveWorkflowPullRequest,
   setStatus,
   upsertComment,
@@ -47,6 +49,9 @@ const PullRequestView = Schema.Struct({
   baseRefOid: Schema.String,
   headRefOid: Schema.String,
   headRefName: Schema.String,
+  headRepository: Schema.NullOr(
+    Schema.Struct({ nameWithOwner: Schema.String }),
+  ),
   changedFiles: Schema.Int,
   author: Schema.NullOr(Schema.Struct({ login: Schema.String })),
   isCrossRepository: Schema.Boolean,
@@ -204,7 +209,7 @@ function readView(repository: string, number: number): PullRequestView {
       '--repo',
       repository,
       '--json',
-      'number,title,body,state,isDraft,baseRefName,baseRefOid,headRefOid,headRefName,changedFiles,author,isCrossRepository,labels',
+      'number,title,body,state,isDraft,baseRefName,baseRefOid,headRefOid,headRefName,headRepository,changedFiles,author,isCrossRepository,labels',
     ]),
   );
 }
@@ -305,9 +310,7 @@ const skip =
         ? 'it is a draft'
         : headSha && view.headRefOid !== headSha
           ? 'a newer commit will be judged when its CI passes'
-          : !checkPassed(repository, view.headRefOid, ciCheck)
-            ? 'CI has not passed on its head yet'
-            : undefined;
+          : undefined;
 if (skip) {
   console.log(`Skipping #${number}: ${skip}`);
   process.exit(0);
@@ -326,6 +329,37 @@ const report = (
     url: runUrl,
   });
 };
+const reportCiBlock = () => {
+  const stop = (state: 'pending' | 'failure', description: string) => {
+    report(state, description);
+    return description;
+  };
+  if (view.headRepository === null)
+    return stop('failure', 'The head repository is unavailable');
+
+  const { active, latest } = pullRequestCiRuns(repository, {
+    number,
+    sha: view.headRefOid,
+    branch: view.headRefName,
+    headRepository: view.headRepository.nameWithOwner,
+  });
+  if (active) return stop('pending', 'Waiting for CI');
+  if (!latest)
+    return checkPassed(repository, view.headRefOid, ciCheck)
+      ? undefined
+      : 'CI has not passed on its head yet';
+  if (requiredCiJobPassed(repository, latest, ciCheck)) return;
+  if (latest.conclusion === 'cancelled')
+    return stop('failure', 'CI was cancelled');
+  if (latest.conclusion === 'failure') return stop('failure', 'CI failed');
+  return stop('failure', `The required CI job ${ciCheck} did not pass`);
+};
+const initialCiBlock = reportCiBlock();
+if (initialCiBlock) {
+  writeSummary(number, initialCiBlock);
+  process.exit(0);
+}
+
 let failed = false;
 let summarized = false;
 const fail = (reason: string) => {
@@ -471,6 +505,8 @@ try {
     let mergeError = merge(repository, view);
     for (const delay of mergeRetryDelaysMs) {
       if (!mergeError?.endsWith(`${mergeBlockedMessage}.`)) break;
+      const ciBlock = reportCiBlock();
+      if (ciBlock) return ciBlock;
       console.log(`GitHub blocked the merge. Checking again in ${delay} ms.`);
       await sleep(delay);
       const candidate = readView(repository, number);
@@ -493,6 +529,10 @@ try {
     }
     if (!mergeError) return 'merged';
     const stillBlocked = mergeError.endsWith(`${mergeBlockedMessage}.`);
+    if (stillBlocked) {
+      const ciBlock = reportCiBlock();
+      if (ciBlock) return ciBlock;
+    }
     const reason = stillBlocked
       ? `Merge still blocked after retries: ${mergeError}`
       : `Merging failed: ${mergeError}`;

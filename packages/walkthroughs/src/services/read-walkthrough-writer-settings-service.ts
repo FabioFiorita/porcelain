@@ -1,6 +1,6 @@
-import { builtInWalkthroughWriter } from '../rules/walkthrough-writer.ts';
+import { walkthroughWriterAvailability } from '../rules/walkthrough-writer.ts';
 import { Context, Effect, Layer } from 'effect';
-import { WalkthroughInventoryReader } from '../ports/walkthrough-inventory-reader.ts';
+import { ResolveWalkthroughWriterService } from './resolve-walkthrough-writer-service.ts';
 import { WalkthroughModelReader } from '../ports/walkthrough-model-reader.ts';
 import {
   type WalkthroughModel,
@@ -9,24 +9,36 @@ import {
 export class ReadWalkthroughWriterSettingsService extends Context.Service<
   ReadWalkthroughWriterSettingsService,
   {
-    readonly execute: () => Effect.Effect<{
+    readonly execute: (input: {
+      projectId: string | undefined;
+      refresh: boolean;
+    }) => Effect.Effect<{
       writer: WalkthroughWriterChoice;
       models: readonly WalkthroughModel[];
+      availability: ReturnType<typeof walkthroughWriterAvailability>['kind'];
     }>;
   }
 >()('@porcelain/walkthroughs/ReadWalkthroughWriterSettingsService') {
   static readonly layer = Layer.effect(
     ReadWalkthroughWriterSettingsService,
     Effect.gen(function* () {
-      const store = yield* WalkthroughInventoryReader;
-      const models = yield* WalkthroughModelReader;
+      const resolve = yield* ResolveWalkthroughWriterService;
+      const reader = yield* WalkthroughModelReader;
+      const [readCatalog, invalidateCatalog] =
+        yield* Effect.cachedInvalidateWithTTL(reader.read(), '15 seconds');
       return {
         execute: Effect.fn('ReadWalkthroughWriterSettingsService.execute')(
-          function* () {
+          function* ({ projectId, refresh }) {
+            const writer = yield* resolve.execute({
+              projectId,
+              writer: undefined,
+            });
+            if (refresh) yield* invalidateCatalog;
+            const models = yield* readCatalog;
             return {
-              writer:
-                (yield* store.readDefaultWriter()) ?? builtInWalkthroughWriter,
-              models: yield* models.read(),
+              writer,
+              models,
+              availability: walkthroughWriterAvailability(writer, models).kind,
             };
           },
         ),

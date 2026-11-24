@@ -4,6 +4,7 @@ selectors:
   - 'Forget computer'
   - 'No computers paired.'
 tests:
+  - packages/client/src/features/projects/commands/selection.spec.ts
   - packages/client/src/features/projects/store/worktree-snapshot.spec.ts
 api: []
 ---
@@ -24,7 +25,7 @@ Preconditions: [surface baseline](README.md).
 2. Cold-launch: that computer, workspace selection and saved Worktrees remain absent. Independently confirm its device registration still exists on the server.
 3. With two disposable computers, forget one and confirm the other reconnects. Exercise a removal error: show its row error; unreadable saved storage or a pending removal disables Forget.
 
-Automated coverage: `worktree-snapshot.spec.ts` covers deleting saved Worktrees and discarding late writes after Forget. Retain the live action and readback evidence.
+Automated coverage: `selection.spec.ts` invokes Forget through workspace cleanup and checks that the selected computer's saved Worktrees are deleted while another computer's rows remain. `worktree-snapshot.spec.ts` checks that storage discards late writes after Forget. Retain the live action and readback evidence.
 
 ## Gotchas
 

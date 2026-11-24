@@ -26,6 +26,9 @@ declare module 'vitest/browser' {
         | 'changed-pr'
         | 'running-update'
         | 'failed-update'
+        | 'reject-send'
+        | 'other-worktree'
+        | 'revision'
         | 'two-branches',
     ) => Promise<string>;
     porcelainCollectGarbage: () => Promise<void>;
@@ -49,6 +52,7 @@ declare module 'vitest/browser' {
       step: ProjectHomeStep,
       server: ServerName,
     ) => Promise<string>;
+    porcelainCodexEffort: (supportsHigh: boolean) => Promise<void>;
     porcelainCodingTool: () => Promise<CodingToolReplies>;
   }
 }

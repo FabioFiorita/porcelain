@@ -177,6 +177,11 @@ const porcelainProjectHome: BrowserCommand<
   string
 > = (context, step, server) => world(context).projectHome(step, server);
 
+const porcelainCodexEffort: BrowserCommand<[boolean], void> = (
+  context,
+  supportsHigh,
+) => world(context).codexEffort(supportsHigh);
+
 const porcelainCodingTool: BrowserCommand<[], CodingToolReplies> = (context) =>
   world(context).codingTool();
 
@@ -211,11 +216,30 @@ const porcelainWalkthroughConversations: BrowserCommand<
     | 'changed-pr'
     | 'running-update'
     | 'failed-update'
+    | 'reject-send'
+    | 'other-worktree'
+    | 'revision'
     | 'two-branches',
   ],
   string
-> = (context, action) =>
-  walkthroughConversationsFixture(world(context), action);
+> = async (context, action) => {
+  if (action !== 'reject-send')
+    return walkthroughConversationsFixture(world(context), action);
+  await context.context.route(
+    '**/api/worktrees/*/walkthrough/*/conversations/messages',
+    (route) =>
+      route.fulfill({
+        status: 404,
+        json: {
+          statusCode: 404,
+          error: 'Not Found',
+          message: 'Finished walkthrough or step not found',
+        },
+      }),
+    { times: 1 },
+  );
+  return '';
+};
 
 export const hostCommands = {
   porcelainWalkthroughConversations,
@@ -231,4 +255,5 @@ export const hostCommands = {
   porcelainHits,
   porcelainProjectHome,
   porcelainCodingTool,
+  porcelainCodexEffort,
 };

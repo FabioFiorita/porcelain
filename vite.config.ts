@@ -58,6 +58,7 @@ export default {
       'porcelain/writable-reads-what-it-sets': 'error',
       'porcelain/client-owns-shared-logic': 'error',
       'porcelain/worktree-admission-owner': 'error',
+      'porcelain/ci-pull-request-resolver': 'error',
       'porcelain/models-are-types': 'error',
       'porcelain/bootstrap-constructs-only': 'error',
       'porcelain/no-null-in-domain': 'error',

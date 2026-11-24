@@ -27,8 +27,6 @@ import { RenameEnvironmentUseCase } from '../use-cases/access/rename-environment
 import { SetEnvironmentIconUseCase } from '../use-cases/access/set-environment-icon.ts';
 import { ReadReviewGitSettingsUseCase } from '../use-cases/access/read-review-git-settings.ts';
 import { SaveReviewGitSettingsUseCase } from '../use-cases/access/save-review-git-settings.ts';
-import { SetPushRegistrationUseCase } from '../use-cases/access/set-push-registration.ts';
-import { ClearPushRegistrationUseCase } from '../use-cases/access/clear-push-registration.ts';
 import { ReadServiceUpdateUseCase } from '../use-cases/access/read-service-update.ts';
 import { StartServiceUpdateUseCase } from '../use-cases/access/start-service-update.ts';
 import { ClearBrowserSessionUseCase } from '../use-cases/access/clear-browser-session.ts';
@@ -91,8 +89,6 @@ export function composeAccess(
     SetEnvironmentIconUseCase.layer,
     ReadReviewGitSettingsUseCase.layer,
     SaveReviewGitSettingsUseCase.layer,
-    SetPushRegistrationUseCase.layer,
-    ClearPushRegistrationUseCase.layer,
     ReadRemoteAccessUseCase.layer,
     SetRemoteAccessUseCase.layer,
     OpenRemoteRoutesUseCase.layer,
@@ -130,8 +126,6 @@ export function composeAccess(
         setEnvironmentIcon: yield* SetEnvironmentIconUseCase,
         readReviewGitSettings: yield* ReadReviewGitSettingsUseCase,
         saveReviewGitSettings: yield* SaveReviewGitSettingsUseCase,
-        setPushRegistration: yield* SetPushRegistrationUseCase,
-        clearPushRegistration: yield* ClearPushRegistrationUseCase,
         readRemoteAccess: yield* ReadRemoteAccessUseCase,
         setRemoteAccess: yield* SetRemoteAccessUseCase,
         openRemoteRoutes: yield* OpenRemoteRoutesUseCase,

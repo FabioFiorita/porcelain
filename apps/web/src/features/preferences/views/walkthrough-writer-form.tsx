@@ -1,11 +1,12 @@
 import { PendingButton } from '@/shared/views/pending-button';
-import { useAtomRefresh, useAtomValue } from '@effect/atom-react';
+import { useAtom, useAtomValue } from '@effect/atom-react';
 import { useForm } from '@tanstack/react-form';
 import { AsyncResult } from 'effect/reactivity';
 import { Option } from 'effect';
 import type { WriterSettings } from '@porcelain/client/projects/rules';
 import {
   readWalkthroughWriterSettings,
+  recheckWalkthroughWriterSettings,
   saveDefaultWalkthroughWriter,
   saveWalkthroughSettings,
 } from '@porcelain/client/projects';
@@ -13,6 +14,7 @@ import {
   selectedWalkthroughWriter,
   canSaveWalkthroughWriter,
   walkthroughWriterStatus,
+  unsupportedWalkthroughEffortMessage,
   type Project,
 } from '@porcelain/client/projects/rules';
 import type { Connection } from '@/shared/workspace/connection';
@@ -20,7 +22,6 @@ import { useCommand } from '@/shared/lib/use-command';
 import { useWalkthroughWriterSave } from '../commands/walkthrough-writer';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Cause } from 'effect';
-import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import {
   Select,
@@ -44,9 +45,10 @@ export function WalkthroughWriterForm({
   unavailable?: string | undefined;
   onSaved?: (() => void) | undefined;
 }) {
-  const atom = readWalkthroughWriterSettings(connection);
-  const result = useAtomValue(atom);
-  const refresh = useAtomRefresh(atom);
+  const result = useAtomValue(readWalkthroughWriterSettings(connection));
+  const [recheck, run] = useAtom(recheckWalkthroughWriterSettings(connection));
+  const refresh = () => run(undefined);
+  const checking = result.waiting || recheck.waiting;
   const settings = Option.getOrUndefined(AsyncResult.value(result));
   if (AsyncResult.isFailure(result))
     return (
@@ -55,14 +57,19 @@ export function WalkthroughWriterForm({
         className="flex items-center gap-2 text-ui text-muted-foreground"
       >
         Could not read walkthrough models.
-        <Button size="xs" variant="outline" onClick={refresh}>
+        <PendingButton
+          size="xs"
+          variant="outline"
+          pending={checking}
+          onClick={refresh}
+        >
           Try again
-        </Button>
+        </PendingButton>
       </p>
     );
   if (!settings) return <PendingSpinner label="Reading walkthrough models" />;
   if (settings.models.length === 0 && !project)
-    return <NoWalkthroughWriters checking={result.waiting} onCheck={refresh} />;
+    return <NoWalkthroughWriters checking={checking} onCheck={refresh} />;
   return (
     <WriterForm
       connection={connection}
@@ -70,7 +77,7 @@ export function WalkthroughWriterForm({
       unavailable={unavailable}
       onSaved={onSaved}
       settings={settings}
-      checking={result.waiting}
+      checking={checking}
       onCheck={refresh}
     />
   );
@@ -101,26 +108,36 @@ function WriterForm({
   const current = project
     ? project.walkthroughSettings?.writer
     : settings.writer;
-  const defaultLabel = walkthroughWriterStatus(settings).label;
+  const defaultStatus = walkthroughWriterStatus(settings);
   const result: AsyncResult.AsyncResult<unknown, unknown> = project
     ? projectResult
     : defaultResult;
   const submit = useWalkthroughWriterSave(saveProject, saveDefault, onSaved);
+  const canSave = (writer: string, effort: string) =>
+    canSaveWalkthroughWriter({
+      writer,
+      effort,
+      current,
+      project: project !== undefined,
+      models: settings.models,
+    });
   const form = useForm({
     defaultValues: {
       writer: current ? `${current.provider}:${current.model}` : 'default',
       effort: current?.effort ?? settings.writer.effort,
       mode: project?.walkthroughSettings?.mode ?? 'manual',
     },
-    onSubmit: ({ value }) =>
-      submit({
+    onSubmit: ({ value }) => {
+      if (!canSave(value.writer, value.effort)) return;
+      return submit({
         project,
         writer:
           value.writer === 'default'
             ? undefined
             : selectedWalkthroughWriter(value.writer, value.effort),
         mode: value.mode,
-      }),
+      });
+    },
   });
   return (
     <form
@@ -141,7 +158,7 @@ function WriterForm({
               if (selected)
                 label = `${selected.provider === 'claude' ? 'Claude' : 'Codex'} / ${selected.label}`;
               if (field.state.value === 'default')
-                label = `Use the default · ${defaultLabel}`;
+                label = `Use the default · ${defaultStatus.label}`;
               return (
                 <div className="grid gap-2">
                   <Label htmlFor="walkthrough-writer">Writer</Label>
@@ -170,7 +187,7 @@ function WriterForm({
                     <SelectContent>
                       {project && (
                         <SelectItem value="default">
-                          Use the default · {defaultLabel}
+                          Use the default · {defaultStatus.label}
                         </SelectItem>
                       )}
                       {!selected && field.state.value !== 'default' && (
@@ -206,43 +223,62 @@ function WriterForm({
               );
               return (
                 <form.Field name="effort">
-                  {(field) => (
-                    <div className="grid gap-2">
-                      <Label htmlFor="walkthrough-effort">Effort</Label>
-                      <Select
-                        value={
-                          writer === 'default'
-                            ? settings.writer.effort
-                            : field.state.value
-                        }
-                        disabled={
-                          writer === 'default' || !model || result.waiting
-                        }
-                        onValueChange={(value) => {
-                          if (value !== null) field.handleChange(value);
-                        }}
-                      >
-                        <SelectTrigger
-                          id="walkthrough-effort"
-                          aria-label="Walkthrough effort"
-                          className="w-full"
+                  {(field) => {
+                    const effort =
+                      writer === 'default'
+                        ? settings.writer.effort
+                        : field.state.value;
+                    let note: string | undefined;
+                    if (writer === 'default') {
+                      if (defaultStatus.availability === 'unsupported-effort')
+                        note = defaultStatus.block;
+                    } else if (model && !canSave(writer, effort)) {
+                      note = unsupportedWalkthroughEffortMessage(
+                        model.label,
+                        effort,
+                      );
+                    }
+                    return (
+                      <div className="grid gap-2">
+                        <Label htmlFor="walkthrough-effort">Effort</Label>
+                        <Select
+                          value={effort}
+                          disabled={
+                            writer === 'default' || !model || result.waiting
+                          }
+                          onValueChange={(value) => {
+                            if (value !== null) field.handleChange(value);
+                          }}
                         >
-                          <SelectValue>
-                            {writer === 'default'
-                              ? settings.writer.effort
-                              : field.state.value}
-                          </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {model?.efforts.map((effort) => (
-                            <SelectItem key={effort} value={effort}>
-                              {effort}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
+                          <SelectTrigger
+                            id="walkthrough-effort"
+                            aria-label="Walkthrough effort"
+                            aria-describedby={
+                              note ? 'walkthrough-effort-note' : undefined
+                            }
+                            className="w-full"
+                          >
+                            <SelectValue>{effort}</SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                            {model?.efforts.map((effort) => (
+                              <SelectItem key={effort} value={effort}>
+                                {effort}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {note && (
+                          <p
+                            id="walkthrough-effort-note"
+                            className="text-ui text-muted-foreground"
+                          >
+                            {note}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  }}
                 </form.Field>
               );
             }}
@@ -307,13 +343,7 @@ function WriterForm({
             disabled={
               result.waiting ||
               unavailable !== undefined ||
-              !canSaveWalkthroughWriter({
-                writer,
-                effort,
-                current,
-                project: project !== undefined,
-                models: settings.models,
-              })
+              !canSave(writer, effort)
             }
           >
             Save

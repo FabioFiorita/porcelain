@@ -79,7 +79,7 @@ function fixture<A, E>(
   );
 }
 
-it('stores display rows in Worktrees order without paths or credentials', async () => {
+it('stores Worktrees labels in order without checkout paths or credentials', async () => {
   const { saved, record } = await fixture((records) =>
     Effect.gen(function* () {
       const access = yield* AccessStore;
@@ -106,12 +106,24 @@ it('stores display rows in Worktrees order without paths or credentials', async 
         projectName: 'App',
         worktreeId: mainId,
         title: 'main',
+        checkout: {
+          name: 'main',
+          branch: 'main',
+          main: true,
+          detached: false,
+        },
       },
       {
         projectId,
         projectName: 'App',
         worktreeId: topicId,
         title: 'topic',
+        checkout: {
+          name: 'topic',
+          branch: 'topic',
+          main: false,
+          detached: false,
+        },
       },
     ],
   });

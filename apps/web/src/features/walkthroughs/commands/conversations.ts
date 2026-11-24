@@ -10,6 +10,9 @@ import { type Atom } from 'effect/reactivity';
 import {
   walkthroughCommandBinding,
   walkthroughConversationCommands,
+  walkthroughDraft,
+  walkthroughDraftBinding,
+  type WalkthroughDraftPlacement,
 } from '@porcelain/client/walkthroughs';
 import {
   conversationSelection,
@@ -25,7 +28,6 @@ function useConversationCommands(props: ConversationScope) {
     conversationSelection(props),
   );
   return {
-    add: useCommand(commands.addMessage),
     retry: useCommand(commands.retryAnswer),
     save: useCommand(commands.saveMessage),
     post: useCommand(commands.postMessage),
@@ -95,22 +97,15 @@ export function useRetryAnswer(owner: ConversationScope, messageId: string) {
   };
 }
 
-export function useSendMessage(owner: ConversationScope) {
-  const [failure, setFailure] = useState<string>();
-  const commands = useConversationCommands(owner);
-  return {
-    failure,
-    waiting: commands.add.waiting,
-    send: (
-      payload: Parameters<typeof commands.add.run>[0],
-      done: () => void,
-    ) => {
-      setFailure(undefined);
-      void commands.add
-        .run(payload)
-        .then(done, (error: unknown) =>
-          setFailure(conversationFailure(error).text),
-        );
-    },
-  };
+export function useSendMessage(
+  owner: ConversationScope,
+  title: string,
+  placement: WalkthroughDraftPlacement,
+) {
+  const selection = conversationSelection(owner);
+  return walkthroughDraftBinding(
+    useAtom(walkthroughDraft(selection, owner.run, title, placement)),
+    useCommand(walkthroughConversationCommands(selection).addMessage),
+    { runId: selection.runId, title },
+  );
 }

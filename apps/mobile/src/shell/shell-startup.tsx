@@ -7,11 +7,9 @@ import {
   keyCommandSync,
 } from '../shared/application/key-commands';
 import { useAppKeyCommands } from './app-key-commands';
-import { notificationsSync } from '../features/notifications';
 
 export function ShellStartup() {
   useAtomMount(shellStartup);
-  useAtomMount(notificationsSync);
   useAtomMount(keyCommandSync);
   useAtomMount(keyCommandRouting);
   useAppKeyCommands();

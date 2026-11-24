@@ -1,3 +1,13 @@
+import { useAtom, useAtomValue } from '@effect/atom-react';
+import {
+  readWalkthroughWriterSettings,
+  recheckWalkthroughWriterSettings,
+  walkthroughWriterCheck,
+} from '@porcelain/client/projects';
+import {
+  canRecheckWalkthroughWriters,
+  walkthroughWriterNotice,
+} from '@porcelain/client/projects/rules';
 import { useState, type ComponentRef, type ReactNode } from 'react';
 import { ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -48,6 +58,50 @@ type UpdateFailure = {
   failure: WalkthroughFailure;
   writer: WalkthroughRun['writer'];
 };
+
+function useWriterCheck(workspace: Workspace) {
+  const { connection } = workspace;
+  const { projectId } = workspace.scope;
+  const result = useAtomValue(
+    readWalkthroughWriterSettings(connection, projectId),
+  );
+  const [recheck, run] = useAtom(recheckWalkthroughWriterSettings(connection));
+  return {
+    ...walkthroughWriterCheck(result),
+    checking: result.waiting || recheck.waiting,
+    refresh: () => run(undefined),
+  };
+}
+
+type WriterCheck = ReturnType<typeof useWriterCheck>;
+
+function WriterNotice({
+  writer,
+  existingMessage,
+  signedOut,
+}: {
+  writer: WriterCheck;
+  existingMessage?: string | undefined;
+  signedOut?: boolean | undefined;
+}) {
+  const check = canRecheckWalkthroughWriters(writer, signedOut);
+  const message = walkthroughWriterNotice(writer, existingMessage);
+  if (!message && !check) return null;
+  return (
+    <Box gap={2} className="items-start">
+      {message && <Text tone="muted">{message}</Text>}
+      {check && (
+        <Button
+          label="Check writers again"
+          size="sm"
+          variant="tonal"
+          pending={writer.checking}
+          onPress={writer.refresh}
+        />
+      )}
+    </Box>
+  );
+}
 
 const GROWTH_TONES = {
   added: 'add',
@@ -296,6 +350,7 @@ function Written({
   reused,
   updateFailure,
   onUpdate,
+  writer,
 }: {
   workspace: Workspace;
   run: WalkthroughRun;
@@ -306,9 +361,10 @@ function Written({
   reused: boolean;
   updateFailure: UpdateFailure | undefined;
   onUpdate: () => void;
+  writer: WriterCheck;
 }) {
   const router = useRouter();
-  const owner = { workspace, runId: run.id };
+  const owner = { workspace, run };
   const saved = useSavedSummary(owner) !== undefined;
   const seeChange = () =>
     router.push({
@@ -330,6 +386,14 @@ function Written({
         freshness={freshness}
         failure={updateFailure}
         onUpdate={onUpdate}
+        writeBlock={writer.status?.block}
+        writerNotice={
+          <WriterNotice
+            writer={writer}
+            existingMessage={updateFailure?.failure.message}
+            signedOut={updateFailure?.failure.kind === 'signed_out'}
+          />
+        }
       />
     </Box>
   );
@@ -471,10 +535,12 @@ function Unwritten({
   workspace,
   waiting,
   onWrite,
+  writer,
 }: {
   workspace: Workspace;
   waiting: boolean;
   onWrite: () => void;
+  writer: WriterCheck;
 }) {
   return (
     <Column workspace={workspace}>
@@ -483,9 +549,16 @@ function Unwritten({
           <Text variant="largeTitle" weight="semibold">
             No walkthrough yet.
           </Text>
+          {!writer.status && !writer.failed && (
+            <Text tone="muted">Checking Walkthrough writer…</Text>
+          )}
+          <WriterNotice writer={writer} />
           <Button
             label="Write walkthrough"
             pending={waiting}
+            disabled={
+              !writer.status || writer.noWriters || Boolean(writer.status.block)
+            }
             onPress={onWrite}
           />
         </Box>
@@ -519,12 +592,14 @@ function Failed({
   failure,
   waiting,
   onRetry,
+  writer,
 }: {
   workspace: Workspace;
   run: WalkthroughRun | undefined;
   failure: WalkthroughFailure;
   waiting: boolean;
   onRetry: () => void;
+  writer: WriterCheck;
 }) {
   const copy = failureCopy(failure, run);
   return (
@@ -536,7 +611,17 @@ function Failed({
             {copy.title}
           </Text>
           {copy.message ? <Text tone="muted">{copy.message}</Text> : null}
-          <Button label="Try again" pending={waiting} onPress={onRetry} />
+          <WriterNotice
+            writer={writer}
+            existingMessage={copy.message}
+            signedOut={failure.kind === 'signed_out'}
+          />
+          <Button
+            label="Try again"
+            pending={waiting}
+            disabled={Boolean(writer.status?.block)}
+            onPress={onRetry}
+          />
         </Box>
       )}
     </Column>
@@ -550,6 +635,7 @@ export function WalkthroughPage({
   workspace: Workspace;
   phase: Phase;
 }) {
+  const writer = useWriterCheck(workspace);
   const write = useStartWalkthrough(
     workspace,
     observedPhase.kind !== 'unwritten' ? observedPhase.run : undefined,
@@ -564,6 +650,7 @@ export function WalkthroughPage({
         failure={startFailure.failure}
         waiting={write.waiting}
         onRetry={write.start}
+        writer={writer}
       />
     );
   switch (phase.kind) {
@@ -573,6 +660,7 @@ export function WalkthroughPage({
           workspace={workspace}
           waiting={write.waiting}
           onWrite={write.start}
+          writer={writer}
         />
       );
     case 'writing':
@@ -585,6 +673,7 @@ export function WalkthroughPage({
           failure={phase.failure}
           waiting={write.waiting}
           onRetry={write.start}
+          writer={writer}
         />
       );
     case 'ready': {
@@ -604,6 +693,7 @@ export function WalkthroughPage({
           }
           updateFailure={failure}
           onUpdate={write.start}
+          writer={writer}
         />
       );
     }

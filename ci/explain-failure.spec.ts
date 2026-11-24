@@ -25,9 +25,10 @@ function runFailureExplanation(
     retarget?: 'before-request' | 'after-request';
     existing?: string;
     noKey?: boolean;
-    missingLog?: number;
+    missingLogs?: number[];
+    emptyLog?: number;
     jobsError?: boolean;
-    response?: 'error' | 'malformed' | 'incomplete';
+    response?: 'error' | 'malformed' | 'incomplete' | 'timeout';
     retryStatus?: 429 | 503;
     retryExhausted?: boolean;
     releaseNotes?: boolean;
@@ -114,18 +115,32 @@ if (endpoint === 'repos/owner/repo/pulls?state=open&head=' + encodeURIComponent(
     const fetchFixture = `
 import { appendFileSync, readFileSync } from 'node:fs';
 const options = JSON.parse(process.env.FIXTURE_OPTIONS);
+if (options.response === 'timeout') {
+  const schedule = globalThis.setTimeout;
+  globalThis.setTimeout = (callback, timeout, ...args) => {
+    if (timeout < 180_000) return schedule(callback, timeout, ...args);
+    appendFileSync(process.env.FIXTURE_EVENTS, 'API timeout: ' + timeout + '\\n');
+    return schedule(callback, 1, ...args);
+  };
+}
 globalThis.fetch = async (request, init) => {
   const url = new URL(request instanceof Request ? request.url : request);
   if (url.hostname === 'api.github.com') {
     const job = url.pathname.split('/').at(-2);
     appendFileSync(process.env.FIXTURE_EVENTS, job + '\\n');
-    if (Number(job) === options.missingLog) return new Response('Not found', { status: 404 });
+    if (options.missingLogs?.includes(Number(job))) return new Response('Not found', { status: 404 });
+    if (Number(job) === options.emptyLog) return new Response('  ');
     return new Response('FAIL: assertion before readiness');
   }
   if (url.hostname !== 'api.openai.com' || url.pathname !== '/v1/responses')
     throw new Error('Unexpected API request: ' + url);
   const retry = readFileSync(process.env.FIXTURE_REQUESTS, 'utf8').length > 0;
   appendFileSync(process.env.FIXTURE_REQUESTS, init.body + '\\n');
+  if (options.response === 'timeout') {
+    return new Promise((_, reject) => {
+      init.signal.addEventListener('abort', () => reject(init.signal.reason), { once: true });
+    });
+  }
   if (options.response === 'error')
     return Response.json({ error: { message: 'fixture API error' } }, { status: 400 });
   if (options.retryStatus && (!retry || options.retryExhausted))
@@ -275,7 +290,7 @@ describe('failed workflow cost and reporting', () => {
   });
 
   it('explains the remaining jobs when one log is missing', () => {
-    const result = runFailureExplanation({ missingLog: 3 });
+    const result = runFailureExplanation({ missingLogs: [3] });
     expect(result.status, result.error).toBe(0);
     expect(result.requests).toHaveLength(1);
     const input = JSON.stringify(result.requests[0]);
@@ -283,6 +298,24 @@ describe('failed workflow cost and reporting', () => {
     expect(input).toContain('FAIL: assertion before readiness');
     expect(result.comment).toContain('An assertion failed.');
   });
+
+  it.each([
+    { missingLogs: [3, 4, 5, 6] },
+    { missingLogs: [3, 4, 5], emptyLog: 6 },
+  ])(
+    'makes no model request when every selected log is unavailable ($missingLogs)',
+    (options) => {
+      const result = runFailureExplanation(options);
+      expect(result.status, result.error).toBe(0);
+      expect(result.events).toEqual(['branch lookup', '3', '4', '5', '6']);
+      expect(result.requests).toEqual([]);
+      expect(result.comment).toBe('');
+      expect(result.summary).toContain(
+        'All selected failed-job logs were unavailable.',
+      );
+      expect(result.summary).toContain('$0.000000 USD');
+    },
+  );
 
   it('spends nothing on another run of a head that already has an explanation', () => {
     const first = runFailureExplanation();
@@ -367,6 +400,19 @@ describe('failed workflow cost and reporting', () => {
     expect(result.requests).toHaveLength(2);
     expect(result.summary).toContain('Responses API call failed');
     expect(result.error).toMatch(/OpenAI HTTP 503:.*fixture transient error/);
+  });
+
+  it('aborts each API attempt at three minutes and reports an exhausted timeout', () => {
+    const result = runFailureExplanation({ response: 'timeout' });
+    expect(result.status).toBe(1);
+    expect(result.events.slice(-2)).toEqual([
+      'API timeout: 180000',
+      'API timeout: 180000',
+    ]);
+    expect(result.requests).toHaveLength(2);
+    expect(result.summary).toContain('Responses API call failed');
+    expect(result.error).toContain('Request timed out');
+    expect(result.comment).toBe('');
   });
 
   it('reports the release notes model’s cost from the same usage', () => {

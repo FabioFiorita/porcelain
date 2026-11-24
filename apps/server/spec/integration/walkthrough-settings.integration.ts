@@ -1,3 +1,4 @@
+import { setFixtureCodexEffort } from '../kit/walkthrough-fixture.ts';
 import { record } from '../kit/session.ts';
 import { walkthroughWriterSettingsSchema } from '@porcelain/contracts/walkthroughs';
 import { expect } from 'vite-plus/test';
@@ -220,5 +221,96 @@ test('records an unavailable selected model as a clear failed run without substi
           'The walkthrough model codex/removed-model is unavailable. Install the CLI and sign in, or choose another model in walkthrough settings.',
       },
     },
+  });
+});
+
+const fixtureWriter = {
+  provider: 'codex',
+  model: 'fixture-model',
+  effort: 'medium',
+} as const;
+
+test.for(['default', 'project'] as const)(
+  'rejects unsupported effort in the %s writer settings without changing the saved writer',
+  async (target, { session, server }) => {
+    await setFixtureCodexEffort(session, server.manifestPath, false);
+    const path =
+      target === 'default'
+        ? '/api/walkthrough-settings'
+        : `/api/projects/${session.projectId}/walkthrough-settings`;
+    const settings = (
+      writer: Omit<typeof fixtureWriter, 'effort'> & { effort: string },
+    ) => (target === 'default' ? writer : { mode: 'manual', writer });
+    await read(session, { method: 'PUT', path, body: settings(fixtureWriter) });
+    const rejected = await session.send({
+      method: 'PUT',
+      path,
+      body: settings({ ...fixtureWriter, effort: 'high' }),
+    });
+    expect(rejected.status).toBe(422);
+    expect(rejected.body).toMatchObject({
+      message: "Fixture model doesn't support high effort.",
+    });
+    const selected = target === 'default' ? undefined : session.projectId;
+    const search = selected === undefined ? '' : `?projectId=${selected}`;
+    expect(
+      await read(session, {
+        method: 'GET',
+        path: `/api/walkthrough-settings${search}`,
+      }),
+    ).toMatchObject({ writer: fixtureWriter });
+  },
+);
+
+test('reports a saved project effort as unsupported when the installed catalog drops it', async ({
+  session,
+  server,
+}) => {
+  await setFixtureCodexEffort(session, server.manifestPath, true);
+  const writer = { ...fixtureWriter, effort: 'high' };
+  await read(session, {
+    method: 'PUT',
+    path: `/api/projects/${session.projectId}/walkthrough-settings`,
+    body: { mode: 'manual', writer },
+  });
+  await setFixtureCodexEffort(session, server.manifestPath, false);
+  expect(
+    await read(session, {
+      method: 'GET',
+      path: `/api/walkthrough-settings?projectId=${session.projectId}&refresh=true`,
+    }),
+  ).toMatchObject({
+    writer,
+    availability: 'unsupported-effort',
+  });
+});
+
+test('reuses a recent writer catalog and refreshes it on request', async ({
+  session,
+  server,
+}) => {
+  await setFixtureCodexEffort(session, server.manifestPath, true);
+  const writer = { ...fixtureWriter, effort: 'high' };
+  await read(session, {
+    method: 'PUT',
+    path: `/api/projects/${session.projectId}/walkthrough-settings`,
+    body: { mode: 'manual', writer },
+  });
+  const path = `/api/walkthrough-settings?projectId=${session.projectId}`;
+  const lookup = (requestPath: string) =>
+    read(session, {
+      method: 'GET',
+      path: requestPath,
+    });
+  expect(await lookup(`${path}&refresh=true`)).toMatchObject({
+    availability: 'ready',
+  });
+  await setFixtureCodexEffort(session, server.manifestPath, false);
+  expect(await lookup(path)).toMatchObject({ availability: 'ready' });
+  expect(await lookup(`${path}&refresh=true`)).toMatchObject({
+    availability: 'unsupported-effort',
+  });
+  expect(await lookup(path)).toMatchObject({
+    availability: 'unsupported-effort',
   });
 });

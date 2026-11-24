@@ -10,3 +10,8 @@ export {
   readWalkthroughAsset,
 } from './queries/walkthrough.ts';
 export { readingOf } from './queries/reading.ts';
+export { walkthroughDraftBinding } from './commands/draft-binding.ts';
+export {
+  walkthroughDraft,
+  type WalkthroughDraftPlacement,
+} from './store/draft.ts';

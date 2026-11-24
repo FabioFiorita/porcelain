@@ -8,6 +8,7 @@ import {
   walkthroughFreshnessSchema,
 } from '@porcelain/walkthroughs/models';
 import {
+  UnsupportedWalkthroughEffortError,
   WalkthroughFailedError,
   WalkthroughAssetNotFoundError,
   WalkthroughMessageNotFoundError,
@@ -101,12 +102,28 @@ export const readWalkthroughResponseSchema = Schema.Struct({
   freshness: walkthroughFreshnessSchema,
   capturedPatch: Schema.optional(Schema.String),
 });
+const walkthroughWriterSettingsQuerySchema = Schema.Struct({
+  projectId: Schema.optional(Schema.String),
+  refresh: Schema.optional(Schema.Literal('true')),
+});
+export type WalkthroughWriterSettingsQuery =
+  typeof walkthroughWriterSettingsQuerySchema.Type;
 export const walkthroughWriterSettingsSchema = Schema.Struct({
   writer: writerSchema,
   models: Schema.Array(walkthroughModelSchema),
+  availability: Schema.optional(
+    Schema.Literals(['ready', 'missing-model', 'unsupported-effort']),
+  ),
 });
 export type WalkthroughWriterSettings =
   typeof walkthroughWriterSettingsSchema.Type;
+export function isUnsupportedWalkthroughEffortFailure(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    error.name === UnsupportedWalkthroughEffortError.name
+  );
+}
+
 export type SaveDefaultWalkthroughWriterRequest = typeof writerSchema.Type;
 const postWalkthroughFailures = [
   ...worktreeFailures,
@@ -126,12 +143,25 @@ export class WalkthroughsApi extends porcelainApi.add(
       HttpApiEndpoint.get(
         'readWalkthroughWriterSettings',
         '/api/walkthrough-settings',
-        { disableCodecs: true, success: walkthroughWriterSettingsSchema },
+        {
+          disableCodecs: true,
+          query: walkthroughWriterSettingsQuerySchema.fields,
+          success: walkthroughWriterSettingsSchema,
+        },
       ),
       HttpApiEndpoint.put(
         'saveDefaultWalkthroughWriter',
         '/api/walkthrough-settings',
-        { disableCodecs: true, payload: writerSchema, success: writerSchema },
+        {
+          disableCodecs: true,
+          payload: writerSchema,
+          success: writerSchema,
+          error: httpFailure(
+            UnsupportedWalkthroughEffortError,
+            'UnprocessableEntity',
+            { message: { fromError: true } },
+          ),
+        },
       ),
       HttpApiEndpoint.post(
         'startWalkthrough',

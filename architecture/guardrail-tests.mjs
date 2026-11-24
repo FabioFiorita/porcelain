@@ -1,5 +1,6 @@
 import {
   deepStrictEqual,
+  doesNotMatch,
   match,
   strictEqual,
   throws,
@@ -23,12 +24,20 @@ import { fileURLToPath } from 'node:url';
 import { parse } from 'yaml';
 import { Effect } from 'effect';
 import { Statement } from 'effect/sql';
+import { cruise } from 'dependency-cruiser';
+import extractDepcruiseOptions from 'dependency-cruiser/config-utl/extract-depcruise-options';
+import { checkPlan, nodeTaskInputs } from '../ci/check-plan.ts';
+import { runtimePlan } from '../ci/runtime-plan.ts';
 import { domainPackages } from './policy.ts';
 import { typeRuleFindings } from './type-rules.ts';
 import {
+  clonesChangedSince,
+  duplicateComparison,
   duplicateScope,
+  raisedDuplicateCeiling,
   scanDuplicates,
   serverDuplicateScope,
+  toolingDuplicateScope,
 } from './duplicate-policy.ts';
 import { selectorAppears } from './feature-selectors.ts';
 import { guardrailCases } from './rule-cases.mjs';
@@ -223,13 +232,15 @@ function featureMapFixture(entry, files) {
 function duplicateFixture(entry, source) {
   const root = fixtureRoot('porcelain-clone-rule-');
   try {
-    const scope = {
-      ...(entry.scope === 'server' ? serverDuplicateScope() : duplicateScope()),
-      ceiling: 0,
+    writeFiles(root, { [entry.first]: source, [entry.second]: source });
+    const scopes = {
+      server: serverDuplicateScope,
+      client: duplicateScope,
+      tooling: toolingDuplicateScope,
     };
+    const scope = { ...scopes[entry.scope ?? 'client'](root), ceiling: 0 };
     for (const folder of scope.sources)
       mkdirSync(join(root, folder), { recursive: true });
-    writeFiles(root, { [entry.first]: source, [entry.second]: source });
     const report = scanDuplicates(root, scope);
     return {
       rejected: report.exceeded,
@@ -243,6 +254,127 @@ function duplicateFixture(entry, source) {
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+}
+
+function requireSelectedInputs(paths, select, setting) {
+  const omitted = paths.filter((path) => !select(path));
+  deepStrictEqual(omitted, [], `Add these paths to the ${setting} input list`);
+}
+
+async function checkCiInputs(entry) {
+  const repository = fileURLToPath(new URL('../', import.meta.url));
+  const manifest = JSON.parse(
+    readFileSync(join(repository, 'package.json'), 'utf8'),
+  );
+  const options = await extractDepcruiseOptions(
+    join(repository, 'architecture/dependency-cruiser.cjs'),
+  );
+  const trace = async (command, owner) => {
+    match(command, /^node \S+$/, `${owner} declares a single Node entry file`);
+    const path = command.slice('node '.length);
+    const { output } = await cruise([path], options);
+    const modules = output.modules.filter(
+      ({ source, coreModule }) =>
+        !coreModule && !source.split('/').includes('node_modules'),
+    );
+    const unresolved = modules
+      .flatMap(({ dependencies }) => dependencies)
+      .filter(
+        ({ couldNotResolve, module }) =>
+          couldNotResolve && /^(?:\.|@porcelain\/)/.test(module),
+      );
+    deepStrictEqual(
+      unresolved.map(({ module }) => module),
+      [],
+      `${owner} has unresolved repository imports`,
+    );
+    const paths = modules
+      .filter(({ couldNotResolve }) => !couldNotResolve)
+      .map(({ source }) => source);
+    for (const expected of [path, ...(entry.requiredImports[owner] ?? [])])
+      strictEqual(
+        paths.includes(expected),
+        true,
+        `Trace of ${owner} must include ${expected}; check dependency-cruiser exclusions`,
+      );
+    return paths;
+  };
+
+  for (const task of Object.keys(nodeTaskInputs)) {
+    const selectsTask = (path) =>
+      checkPlan('static', [path], repository).some(
+        ({ task: name }) => name === task,
+      );
+    const paths = await trace(manifest.scripts[task], task);
+    const setting = `${task} in ci/check-plan.ts`;
+    if (task === entry.negative.task) {
+      strictEqual(paths.includes(entry.negative.path), true);
+      throws(
+        () =>
+          requireSelectedInputs(
+            paths,
+            (path) => path !== entry.negative.path && selectsTask(path),
+            setting,
+          ),
+        (error) =>
+          error.message.includes(setting) &&
+          error.actual?.includes(entry.negative.path),
+      );
+    }
+    requireSelectedInputs(paths, selectsTask, setting);
+  }
+
+  const workflow = parse(
+    readFileSync(join(repository, '.github/workflows/ci.yml'), 'utf8'),
+  );
+  const packageCommands = workflow.jobs.package.steps.flatMap(
+    ({ run }) => run?.trim().split('\n') ?? [],
+  );
+  const inputs = new Set();
+  for (const command of packageCommands) {
+    if (command === 'pnpm install --frozen-lockfile') {
+      for (const path of [
+        'package.json',
+        'pnpm-lock.yaml',
+        'pnpm-workspace.yaml',
+      ])
+        inputs.add(path);
+      continue;
+    }
+    const packageScript = /^pnpm (?:run )?([\w:-]+)$/.exec(command)?.[1];
+    if (packageScript) {
+      for (const path of await trace(
+        manifest.scripts[packageScript],
+        `package job's ${packageScript}`,
+      ))
+        inputs.add(path);
+      continue;
+    }
+    const shell = /\bbash\s+(?:\.\/)?(scripts\/[\w/.-]+\.sh)(?=\s|$)/.exec(
+      command,
+    )?.[1];
+    strictEqual(
+      typeof shell,
+      'string',
+      `Trace this package job command in the CI input guard: ${command}`,
+    );
+    inputs.add(shell);
+  }
+  strictEqual(
+    inputs.has('scripts/build-package.ts'),
+    true,
+    'Trace the package build entry through package.json',
+  );
+  strictEqual(
+    inputs.has('scripts/check-package.sh'),
+    true,
+    'Trace the installed-package check through the workflow',
+  );
+  requireSelectedInputs(
+    [...inputs],
+    (path) => runtimePlan(false, [path], []).package,
+    'package job in ci/runtime-plan.ts',
+  );
 }
 
 function ciSelectionFixture(entry) {
@@ -275,6 +407,7 @@ function ciSelectionFixture(entry) {
       'ci/check-plan.ts',
       'vite.config.ts',
       '.github/workflows/ci.yml',
+      '.github/workflows/agent-review.yml',
       ...manifests,
     ])
       writeFiles(root, {
@@ -372,6 +505,12 @@ function ciSelectionFixture(entry) {
         return output === `${gate}=true`;
       });
       deepStrictEqual(selected, fixture.selected, fixture.name);
+      if (fixture.shards)
+        strictEqual(
+          outputs.find((line) => line.startsWith('shards=')),
+          `shards=${JSON.stringify(fixture.shards)}`,
+          `${fixture.name}: web E2E shard output`,
+        );
       if (fixture.integration)
         strictEqual(
           outputs.find((line) => line.startsWith('integration=')),
@@ -585,6 +724,73 @@ function ciActionPinProblems(workflow) {
   return problems;
 }
 
+function duplicateRatchetFixture(entry) {
+  const root = fixtureRoot('porcelain-clone-baseline-');
+  const git = (...args) => {
+    const result = spawnSync('git', args, { cwd: root, encoding: 'utf8' });
+    if (result.error) throw result.error;
+    strictEqual(result.status, 0, result.stderr);
+    return result.stdout.trim();
+  };
+  try {
+    writeFiles(root, {
+      'architecture/duplicate-ceilings.json': JSON.stringify(entry.ceilings),
+      'ci/one.ts': entry.source,
+      'ci/two.ts': entry.source,
+    });
+    git('init', '-q');
+    git('add', '.');
+    git(
+      '-c',
+      'user.name=Duplicate fixture',
+      '-c',
+      'user.email=duplicate@example.invalid',
+      '-c',
+      'commit.gpgsign=false',
+      'commit',
+      '-qm',
+      'Record duplicate baseline',
+    );
+    const comparison = duplicateComparison(root, git('rev-parse', 'HEAD'));
+    deepStrictEqual(comparison.ceilings, entry.ceilings);
+    for (const [name, ceiling] of Object.entries(entry.ceilings)) {
+      strictEqual(
+        raisedDuplicateCeiling({ name, ceiling }, comparison),
+        undefined,
+      );
+      strictEqual(
+        raisedDuplicateCeiling({ name, ceiling: ceiling - 1 }, comparison),
+        undefined,
+      );
+      strictEqual(
+        raisedDuplicateCeiling({ name, ceiling: ceiling + 1 }, comparison),
+        ceiling,
+      );
+    }
+    const scope = { ...toolingDuplicateScope(root), ceiling: 1 };
+    const before = scanDuplicates(root, scope);
+    strictEqual(before.exceeded, false);
+    deepStrictEqual(
+      clonesChangedSince(root, comparison.base, before.duplicates),
+      [],
+    );
+    writeFiles(root, { 'ci/three.ts': entry.source });
+    git('add', 'ci/three.ts');
+    const after = scanDuplicates(root, scope);
+    strictEqual(after.exceeded, true);
+    const added = clonesChangedSince(root, comparison.base, after.duplicates);
+    strictEqual(added.length, 1);
+    strictEqual(
+      [added[0].firstFile, added[0].secondFile].some(
+        ({ name }) => relative(root, name) === 'ci/three.ts',
+      ),
+      true,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+
 export async function runGuardrailCases(named = []) {
   const cases = guardrailCases.filter(
     (entry) => named.length === 0 || named.includes(entry.rule),
@@ -641,6 +847,21 @@ export async function runGuardrailCases(named = []) {
       process.stdout.write('PASS ci-action-pins: actual ci.yml\n');
     } else if (entry.rule === 'ci-affected-selection') {
       ciSelectionFixture(entry);
+    } else if (entry.rule === 'ci-task-inputs') {
+      await checkCiInputs(entry);
+    } else if (entry.rule === 'ci-landing-completion') {
+      const workflow = parse(
+        readFileSync(
+          new URL('../.github/workflows/agent-review.yml', import.meta.url),
+          'utf8',
+        ),
+      );
+      deepStrictEqual(workflow.on.workflow_run, entry.workflowRun);
+      doesNotMatch(
+        workflow.jobs.review.if,
+        /\bworkflow_run\s*\.\s*conclusion\b/,
+        'The landing job must reconcile every conclusion of pull request CI.',
+      );
     } else if (entry.rule === 'ci-required-checks') {
       const workflow = parse(
         readFileSync(
@@ -725,7 +946,9 @@ export async function runGuardrailCases(named = []) {
   printf '%s\\n' "$*"
   [[ "$1" != "$REJECT" ]]
 }
-${runBrowser.run.replace('${{ matrix.shard }}', '"$SHARD"')}`;
+${runBrowser.run
+  .replace('${{ matrix.shard }}', '"$SHARD"')
+  .replace('${{ strategy.job-total }}', '"$JOB_TOTAL"')}`;
         const result = spawnSync(
           'bash',
           ['-e', '-o', 'pipefail', '-c', shell],
@@ -734,6 +957,7 @@ ${runBrowser.run.replace('${{ matrix.shard }}', '"$SHARD"')}`;
             env: {
               ...process.env,
               SHARD: fixture.shard,
+              JOB_TOTAL: fixture.jobTotal ?? '1',
               SPECS: JSON.stringify(fixture.specs),
               REJECT: fixture.reject ?? '',
             },
@@ -894,6 +1118,8 @@ ${runBrowser.run.replace('${{ matrix.shard }}', '"$SHARD"')}`;
         false,
         entry.selector,
       );
+    } else if (entry.rule === 'duplicate-ceiling') {
+      duplicateRatchetFixture(entry);
     } else if (entry.rule === 'duplicate-code') {
       deepStrictEqual(duplicateFixture(entry, entry.valid), {
         rejected: false,

@@ -4,13 +4,16 @@ import type { Atom } from 'effect/reactivity';
 import {
   walkthroughCommandBinding,
   walkthroughConversationCommands,
+  walkthroughDraft,
+  walkthroughDraftBinding,
+  type WalkthroughDraftPlacement,
 } from '@porcelain/client/walkthroughs';
 import {
   conversationFailure,
   postOutcome,
   type DeveloperMessage,
 } from '@porcelain/client/walkthroughs/rules';
-import { notify as notifyCommand } from '../../notifications';
+import { showClipboardNotice } from '../../../shared/application/clipboard-notice';
 import { copyToClipboard } from '../../../shared/adapters/clipboard';
 import {
   conversationSelection,
@@ -31,7 +34,7 @@ export function usePostActions(
   message: DeveloperMessage | undefined,
 ) {
   const commands = commandsOf(owner);
-  const notify = useAtomSet(notifyCommand);
+  const notify = useAtomSet(showClipboardNotice);
   const postOne = useBound(commands.postMessage);
   const postSaved = useBound(commands.postSavedMessages);
   const saving = useBound(commands.saveMessage);
@@ -40,7 +43,7 @@ export function usePostActions(
   const fail = (error: unknown) => setNotice(conversationFailure(error));
   const toClipboard = (text: string) =>
     copyToClipboard(text).then(
-      () => notify({ kind: 'copy', target: 'brief' }),
+      () => notify('brief'),
       () => setNotice({ text: 'Could not copy the brief.', copy: false }),
     );
   return {
@@ -88,18 +91,15 @@ export function useAnswerRetry(owner: ConversationOwner) {
   };
 }
 
-export function useAsk(owner: ConversationOwner, title: string) {
-  const add = useBound(commandsOf(owner).addMessage);
-  const [failure, setFailure] = useState<string>();
-  return {
-    failure,
-    waiting: add.waiting,
-    ask: (text: string, sent: () => void) => {
-      setFailure(undefined);
-      add
-        .run({ anchor: { kind: 'stop', title }, text })
-        .then(sent)
-        .catch((error: unknown) => setFailure(conversationFailure(error).text));
-    },
-  };
+export function useAsk(
+  owner: ConversationOwner,
+  title: string,
+  placement: WalkthroughDraftPlacement,
+) {
+  const selection = conversationSelection(owner);
+  return walkthroughDraftBinding(
+    useAtom(walkthroughDraft(selection, owner.run, title, placement)),
+    useBound(walkthroughConversationCommands(selection).addMessage),
+    { runId: selection.runId, title },
+  );
 }

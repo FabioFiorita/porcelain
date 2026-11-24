@@ -47,10 +47,12 @@ export {
 export {
   selectedWalkthroughWriter,
   walkthroughWriterStatus,
+  unsupportedWalkthroughEffortMessage,
+  walkthroughWriterNotice,
+  canRecheckWalkthroughWriters,
   type WriterSettings,
 } from './walkthrough-writer.ts';
 
 export { canSaveWalkthroughWriter } from './walkthrough-writer.ts';
 
 export * from './pull-request.ts';
-export { savedWorktreeRows } from './worktree-snapshot.ts';

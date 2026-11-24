@@ -1,5 +1,5 @@
 import { DatabaseSync } from 'node:sqlite';
-import { readFile, rename, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { Effect, Schema } from 'effect';
 import { NodeServices } from '@effect/platform-node';
@@ -121,6 +121,42 @@ function storedJob(directory: string, runId: string): WalkthroughJob {
   } finally {
     database.close();
   }
+}
+
+export async function setFixtureCodexEffort(
+  session: Session,
+  manifestPath: string,
+  supportsHigh: boolean,
+) {
+  const manifest = record(JSON.parse(await readFile(manifestPath, 'utf8')));
+  const codex = join(
+    session.projectHome,
+    session.fixture.folders.home,
+    '.codex',
+  );
+  await mkdir(codex, { recursive: true });
+  await writeFile(
+    join(codex, 'models_cache.json'),
+    JSON.stringify({
+      models: [
+        {
+          slug: 'fixture-model',
+          display_name: 'Fixture model',
+          visibility: 'list',
+          default_reasoning_level: 'medium',
+          supported_reasoning_levels: supportsHigh
+            ? [{ effort: 'medium' }, { effort: 'high' }]
+            : [{ effort: 'medium' }],
+        },
+      ],
+    }),
+  );
+  const bin = text(manifest.bin);
+  await writeFile(
+    join(bin, 'codex'),
+    '#!/bin/sh\n[ "$1" = login ] && [ "$2" = status ]\n',
+    { mode: 0o755 },
+  );
 }
 
 export async function scriptedWalkthroughs(

@@ -102,41 +102,47 @@ function affectsDependents(path: string, workspace: Workspace): boolean {
   );
 }
 
+export const nodeTaskInputs = {
+  'test:rules': [
+    'architecture/**',
+    'ci/**',
+    '.github/workflows/agent-review.yml',
+    'scripts/{style,architecture,feature-maps,feature-api-routes,react-compiler}.ts',
+    '**/tsconfig*.json',
+    'apps/mobile/babel.config.js',
+    'apps/server/spec/kit/route-coverage.ts',
+    'apps/server/src/{ports,runtime}/**',
+    'packages/{access,changes,files,git-actions,projects,reviews}/src/errors/**',
+    'packages/{contracts,agents,kernel}/src/**',
+    'packages/process/**',
+    'packages/storage/spec/kit/{native-database,repository-queries}.ts',
+    'packages/storage/scripts/native-migration-history.ts',
+    'packages/git/src/shared/errors/**',
+    'packages/effects/src/worktree-lease.ts',
+    'packages/{changes,projects}/src/models/**',
+    'packages/reviews/src/{models,ports,rules,services}/**',
+    'packages/client/src/features/{access,projects}/store.ts',
+    'packages/client/src/features/{access,git-actions}/store/**',
+    'packages/client/src/features/{access,git-actions,live,projects}/ports/**',
+    'packages/client/src/features/{access/rules,persistence}/**',
+    'packages/client/src/shared/api/**',
+  ],
+  'mobile:react-compiler': [
+    'apps/mobile/src/**',
+    'apps/mobile/babel.config.js',
+    'scripts/react-compiler.ts',
+  ],
+} as const;
+
 function rootInput(task: string, path: string): boolean {
   switch (task) {
     case 'test:rules':
       return (
-        matches(path, [
-          'architecture/**',
-          'ci/**',
-          'scripts/{style,architecture,feature-maps,feature-api-routes,react-compiler}.ts',
-          '**/tsconfig*.json',
-          'apps/mobile/babel.config.js',
-          'apps/server/spec/kit/route-coverage.ts',
-          'apps/server/src/{ports,runtime}/**',
-          'packages/{access,changes,files,git-actions,projects,reviews}/src/errors/**',
-          'packages/{contracts,agents,kernel}/src/**',
-          'packages/process/**',
-          'packages/storage/spec/kit/{native-database,repository-queries}.ts',
-          'packages/storage/scripts/native-migration-history.ts',
-          'packages/git/src/shared/errors/**',
-          'packages/effects/src/worktree-lease.ts',
-          'packages/projects/src/models/**',
-          'packages/reviews/src/{models,ports,rules,services}/**',
-          'packages/client/src/features/{access,projects}/store.ts',
-          'packages/client/src/features/{access,git-actions}/store/**',
-          'packages/client/src/features/{access,git-actions,live,projects}/ports/**',
-          'packages/client/src/features/{access/rules,persistence}/**',
-          'packages/client/src/shared/api/**',
-        ]) &&
+        matches(path, nodeTaskInputs[task]) &&
         (!path.startsWith('packages/') || !testFile.test(path))
       );
     case 'mobile:react-compiler':
-      return matches(path, [
-        'apps/mobile/src/**',
-        'apps/mobile/babel.config.js',
-        'scripts/react-compiler.ts',
-      ]);
+      return matches(path, nodeTaskInputs[task]);
     case 'build:marketing':
       return matches(path, [
         'apps/marketing/**',
@@ -184,6 +190,8 @@ export function checkPlan(
         'pnpm-{workspace,lock}.yaml',
         'vite.config.ts',
         'ci/check-plan.ts',
+        'architecture/duplicate-policy.ts',
+        'architecture/duplicate-ceilings.json',
         '.github/workflows/ci.yml',
       ]),
     );

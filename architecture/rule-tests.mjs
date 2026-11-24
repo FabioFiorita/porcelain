@@ -52,6 +52,8 @@ function diagnosticFixture(entry) {
       'architecture/dependency-cruiser.cjs',
       'scripts/style.ts',
       'architecture/duplicate-policy.ts',
+      'architecture/duplicate-ceilings.json',
+      'architecture/github-head-lookup.ts',
       'architecture/shadcn-pins.ts',
     ]) {
       mkdirSync(dirname(join(directory, path)), { recursive: true });
