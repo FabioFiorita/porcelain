@@ -108,7 +108,14 @@ export function WalkthroughSteps({
           <GroupLabel>Not in the walkthrough yet</GroupLabel>
           {grouped.outside.map((file) => {
             const { title, subtitle } = documentHeading(file.path);
-            const comparison = fileComparison(branchList.files, file.path);
+            const comparison = fileComparison(
+              {
+                branch: branchList.files,
+                branchFailed: branchList.failed,
+                worktree,
+              },
+              file.path,
+            );
             return (
               <Item
                 key={file.path}
