@@ -187,7 +187,9 @@ function CodeSurface({
   };
   const discard = discardSelection(selection?.range);
   const [focusedId, focus] = useState(() => viewer.focused());
+  const [awaitedId, awaitEntry] = useState<CodeEntry['id']>();
   const setFocusedId = (id: CodeEntry['id'] | undefined) => {
+    awaitEntry(undefined);
     focus(id);
     viewer.rememberFocus(id);
   };
@@ -220,6 +222,10 @@ function CodeSurface({
     setFocusedId(entry.id);
     if (entries.some((shown) => shown.id === entry.id))
       viewer.scrollTo({ type: 'item', id: entry.id, align: 'start' });
+    else awaitEntry(entry.id);
+  };
+  const keepView = () => {
+    if (awaitedId !== undefined) awaitEntry(undefined);
   };
   const byId = new Map(entries.map((entry) => [entry.id, entry]));
   const items: CodeViewItem<never>[] = entries.map((entry) => ({
@@ -347,6 +353,12 @@ function CodeSurface({
     <div
       role="region"
       aria-label="Code content"
+      onWheel={keepView}
+      onTouchMove={keepView}
+      onPointerDown={keepView}
+      onKeyDown={(event) => {
+        if (SCROLL_KEYS.has(event.key)) keepView();
+      }}
       className={cn(
         '@container/code relative flex min-h-0 flex-1 flex-col',
         (decision || column || compactThreads || framed) && 'decision-code',
@@ -443,6 +455,17 @@ function CodeSurface({
                       DEFAULT_VIRTUAL_FILE_METRICS.diffHeaderHeight)
                   : 0,
               );
+              if (
+                awaitedId !== undefined &&
+                entries.some((entry) => entry.id === awaitedId)
+              ) {
+                handle.scrollTo({
+                  type: 'item',
+                  id: awaitedId,
+                  align: 'start',
+                });
+                awaitEntry(undefined);
+              }
               const requested = interaction.fileTarget;
               const requestedEntry = requested
                 ? entries.find((entry) => entry.path === requested.path)
@@ -580,6 +603,16 @@ function CodeSurface({
     </div>
   );
 }
+
+const SCROLL_KEYS = new Set([
+  'ArrowUp',
+  'ArrowDown',
+  'PageUp',
+  'PageDown',
+  'Home',
+  'End',
+  ' ',
+]);
 
 const COLUMN_GUTTERS =
   'px-[max(--spacing(4),calc((100%-var(--container-reading))/2))] @2xl/pane:px-[max(--spacing(7),calc((100%-var(--container-reading))/2))]';

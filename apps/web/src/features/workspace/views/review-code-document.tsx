@@ -268,9 +268,9 @@ export function ReviewCodeDocument({
               ...controls,
               open: (path) => {
                 setPendingOmittedPath(undefined);
-                if (!renderedPaths.has(path)) {
-                  setPendingOmittedPath(path);
-                } else controls.open(path);
+                if (listed.some((entry) => entry.path === path)) {
+                  controls.open(path);
+                } else setPendingOmittedPath(path);
               },
             })}
             {failed && (
