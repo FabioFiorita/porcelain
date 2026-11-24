@@ -91,6 +91,7 @@ function RenameProjectContent({
                 name={field.name}
                 value={field.state.value}
                 autoFocus
+                data-autofocus=""
                 aria-invalid={
                   field.state.meta.isTouched && !field.state.meta.isValid
                 }

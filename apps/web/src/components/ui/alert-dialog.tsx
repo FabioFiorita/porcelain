@@ -12,6 +12,7 @@ import {
 } from '@ui-sdk/react/alert-dialog';
 import { cn } from 'cn';
 import { Button } from '@/components/ui/button';
+import { focusMarkedField } from '@/components/ui/dialog';
 
 type RootProps = Omit<
   React.ComponentProps<typeof AlertDialogRoot>,
@@ -77,6 +78,7 @@ function AlertDialogOverlay({
 function AlertDialogContent({
   className,
   size = 'default',
+  onFocus,
   ...props
 }: React.ComponentProps<typeof AlertDialogContentPrimitive> & {
   size?: 'default' | 'sm';
@@ -85,6 +87,10 @@ function AlertDialogContent({
     <>
       <AlertDialogOverlay />
       <AlertDialogContentPrimitive
+        onFocus={(event) => {
+          onFocus?.(event);
+          focusMarkedField(event);
+        }}
         data-slot="alert-dialog-content"
         data-size={size}
         className={cn(

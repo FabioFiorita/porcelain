@@ -11,6 +11,7 @@ import {
 import { cn } from 'cn';
 
 import { Button } from '@/components/ui/button';
+import { focusMarkedField } from '@/components/ui/dialog';
 import { XIcon } from 'lucide-react';
 
 function Sheet(props: React.ComponentProps<typeof SheetRoot>) {
@@ -61,11 +62,7 @@ function SheetContent({
         data-side={side}
         onFocus={(event) => {
           onFocus?.(event);
-          const content = event.currentTarget;
-          if (content.hasAttribute('data-focused')) return;
-          content.setAttribute('data-focused', '');
-          const field = content.querySelector<HTMLElement>('[data-autofocus]');
-          if (field && field !== event.target) field.focus();
+          focusMarkedField(event);
         }}
         className={cn(
           'fixed m-0 data-closed:pointer-events-none flex max-h-none max-w-none flex-col backdrop:bg-transparent data-[side=right]:left-auto data-[side=left]:right-auto data-[side=bottom]:top-auto data-[side=top]:bottom-auto bg-popover bg-clip-padding text-xs/relaxed text-popover-foreground shadow-lg transition duration-200 ease-in-out data-ending-style:opacity-0 data-starting-style:opacity-0 data-[side=bottom]:inset-x-0 data-[side=bottom]:bottom-0 data-[side=bottom]:h-auto data-[side=bottom]:border-t data-[side=bottom]:data-ending-style:translate-y-[2.5rem] data-[side=bottom]:data-starting-style:translate-y-[2.5rem] data-[side=left]:inset-y-0 data-[side=left]:left-0 data-[side=left]:h-full data-[side=left]:w-3/4 data-[side=left]:border-r data-[side=left]:data-ending-style:translate-x-[-2.5rem] data-[side=left]:data-starting-style:translate-x-[-2.5rem] data-[side=right]:inset-y-0 data-[side=right]:right-0 data-[side=right]:h-full data-[side=right]:w-3/4 data-[side=right]:border-l data-[side=right]:data-ending-style:translate-x-[2.5rem] data-[side=right]:data-starting-style:translate-x-[2.5rem] data-[side=top]:inset-x-0 data-[side=top]:top-0 data-[side=top]:h-auto data-[side=top]:border-b data-[side=top]:data-ending-style:translate-y-[-2.5rem] data-[side=top]:data-starting-style:translate-y-[-2.5rem] data-[side=left]:sm:max-w-sm data-[side=right]:sm:max-w-sm',

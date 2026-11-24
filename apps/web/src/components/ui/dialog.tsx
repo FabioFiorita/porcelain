@@ -15,6 +15,14 @@ import { cn } from 'cn';
 import { Button } from '@/components/ui/button';
 import { XIcon } from 'lucide-react';
 
+function focusMarkedField(event: React.FocusEvent<HTMLElement>) {
+  const content = event.currentTarget;
+  if (content.hasAttribute('data-focused')) return;
+  content.setAttribute('data-focused', '');
+  const field = content.querySelector<HTMLElement>('[data-autofocus]');
+  if (field && field !== event.target) field.focus();
+}
+
 type RootProps = Omit<
   React.ComponentProps<typeof DialogRoot>,
   'children' | 'controller'
@@ -82,6 +90,7 @@ function DialogContent({
   className,
   children,
   showCloseButton = true,
+  onFocus,
   ...props
 }: Omit<React.ComponentProps<typeof DialogContentPrimitive>, 'children'> & {
   showCloseButton?: boolean;
@@ -91,6 +100,10 @@ function DialogContent({
     <>
       <DialogOverlay />
       <DialogContentPrimitive
+        onFocus={(event) => {
+          onFocus?.(event);
+          focusMarkedField(event);
+        }}
         data-slot="dialog-content"
         className={cn(
           'fixed top-1/2 left-1/2 m-0 data-closed:pointer-events-none grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-xs/relaxed text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none backdrop:bg-transparent sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95',
@@ -187,6 +200,7 @@ function DialogDescription({
 
 export {
   createDialogController,
+  focusMarkedField,
   Dialog,
   DialogClose,
   DialogContent,

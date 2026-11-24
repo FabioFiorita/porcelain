@@ -319,6 +319,7 @@ function CommitFiles({
           </p>
         )}
         <Textarea
+          data-autofocus=""
           ref={(message) => {
             if (message) onMessage?.(message);
           }}
