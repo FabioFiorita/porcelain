@@ -2,48 +2,84 @@ import { Effect } from 'effect';
 import { expect, it } from 'vite-plus/test';
 import { ChangedDiffRecovery } from './recovery.ts';
 
-const run = <A>(work: Effect.Effect<A, never, ChangedDiffRecovery>) =>
-  Effect.runSync(work.pipe(Effect.provide(ChangedDiffRecovery.layer)));
-
-it('starts one refresh at a time, and a refresh covers every Changes read received before it started', () => {
-  const result = run(
+it('attempts recovery only once for an observation, even after it finishes', () => {
+  const result = Effect.runSync(
     Effect.gen(function* () {
       const recovery = yield* ChangedDiffRecovery;
-      const first = yield* recovery.stamp('worktree');
-      const second = yield* recovery.stamp('worktree');
-      const started = yield* recovery.begin('worktree', first);
-      const whilePending = yield* recovery.begin('worktree', second);
-      yield* recovery.finish('worktree');
-      const covered = yield* recovery.begin('worktree', second);
-      const later = yield* recovery.stamp('worktree');
-      const fromLater = yield* recovery.begin('worktree', later);
+      const first = yield* recovery.begin('worktree/path', 'observation-1');
+      const duplicate = yield* recovery.begin('worktree/path', 'observation-1');
+      yield* recovery.finish('worktree/path', 'observation-1');
+      const repeated = yield* recovery.begin('worktree/path', 'observation-1');
       return {
-        reads: [first, second, later],
-        started,
-        whilePending,
-        covered,
-        fromLater,
+        first,
+        duplicate,
+        repeated,
+        pending: (yield* recovery.state).pending,
       };
-    }),
+    }).pipe(Effect.provide(ChangedDiffRecovery.layer)),
   );
   expect(result).toEqual({
-    reads: [1, 2, 3],
-    started: true,
-    whilePending: false,
-    covered: false,
-    fromLater: true,
+    first: true,
+    duplicate: false,
+    repeated: false,
+    pending: {},
   });
 });
 
-it('counts Changes reads and refreshes for each worktree on its own', () => {
-  const result = run(
+it.each([
+  {
+    firstPath: 'worktree/path',
+    firstObservation: 'observation-1',
+    nextPath: 'worktree/path',
+    nextObservation: 'observation-2',
+    pending: { 'worktree/path': ['observation-2'] },
+  },
+  {
+    firstPath: 'first/path',
+    firstObservation: 'observation',
+    nextPath: 'second/path',
+    nextObservation: 'observation',
+    pending: { 'second/path': ['observation'] },
+  },
+])(
+  'finishing $firstPath at $firstObservation retains $nextPath at $nextObservation',
+  ({ firstPath, firstObservation, nextPath, nextObservation, pending }) => {
+    const result = Effect.runSync(
+      Effect.gen(function* () {
+        const recovery = yield* ChangedDiffRecovery;
+        yield* recovery.begin(firstPath, firstObservation);
+        const accepted = yield* recovery.begin(nextPath, nextObservation);
+        yield* recovery.finish(firstPath, firstObservation);
+        return { accepted, pending: (yield* recovery.state).pending };
+      }).pipe(Effect.provide(ChangedDiffRecovery.layer)),
+    );
+    expect(result).toEqual({ accepted: true, pending });
+  },
+);
+
+it('does not attempt an observation again after another observation of the same worktree began', () => {
+  const result = Effect.runSync(
     Effect.gen(function* () {
       const recovery = yield* ChangedDiffRecovery;
-      const first = yield* recovery.stamp('first');
-      yield* recovery.begin('first', first);
-      const other = yield* recovery.stamp('second');
-      return { other, started: yield* recovery.begin('second', other) };
-    }),
+      yield* recovery.begin('worktree/path', 'observation-1');
+      yield* recovery.begin('worktree/path', 'observation-2');
+      return yield* recovery.begin('worktree/path', 'observation-1');
+    }).pipe(Effect.provide(ChangedDiffRecovery.layer)),
   );
-  expect(result).toEqual({ other: 1, started: true });
+  expect(result).toBe(false);
+});
+
+it('remembers only the recent observations of a worktree, so the oldest can be attempted again', () => {
+  const result = Effect.runSync(
+    Effect.gen(function* () {
+      const recovery = yield* ChangedDiffRecovery;
+      for (let index = 0; index <= 16; index += 1)
+        yield* recovery.begin('worktree/path', `observation-${index}`);
+      return {
+        oldest: yield* recovery.begin('worktree/path', 'observation-0'),
+        recent: yield* recovery.begin('worktree/path', 'observation-16'),
+      };
+    }).pipe(Effect.provide(ChangedDiffRecovery.layer)),
+  );
+  expect(result).toEqual({ oldest: true, recent: false });
 });

@@ -93,7 +93,6 @@ export function ReviewCodeDocument({
     scope,
     connection,
     statusToken,
-    items[0]?.read ?? 0,
     items.flatMap((item) =>
       item.comparisons.some(
         (change) => change.scope === 'staged' || change.scope === 'unstaged',

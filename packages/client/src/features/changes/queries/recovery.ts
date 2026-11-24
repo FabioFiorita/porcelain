@@ -14,32 +14,37 @@ import type {
   RuntimeConnection,
   WorktreeScope,
 } from '../../../shared/api/connection.ts';
-import {
-  ChangedDiffRecovery,
-  recoveryKey,
-  recoveryRuntime,
-  worktreeRecovery,
-} from '../store/recovery.ts';
+import { ChangedDiffRecovery, recoveryRuntime } from '../store/recovery.ts';
+
+function observationOf(
+  statusToken: string,
+  expectedFiles: readonly ExpectedFile[],
+) {
+  return JSON.stringify([
+    statusToken,
+    expectedFiles.map((file) => [file.path, file.fingerprint]),
+  ]);
+}
 
 const readDiffRecovery = Atom.family(
   ({
     connection,
     scope,
-    read,
+    observation,
   }: {
     connection: RuntimeConnection;
     scope: WorktreeScope;
-    read: number;
+    observation: string;
   }) =>
     recoveryRuntime(connection).atom(
       Stream.unwrap(
         Effect.map(ChangedDiffRecovery, (recovery) => recovery.changes),
       ).pipe(
         Stream.map((state) => {
-          const worktree = worktreeRecovery(state, recoveryKey(scope));
+          const key = JSON.stringify([scope.projectId, scope.worktreeId]);
           return {
-            pending: worktree.refreshing,
-            attempted: read <= worktree.refreshedThrough,
+            pending: state.pending[key]?.includes(observation) ?? false,
+            attempted: state.attempted[key]?.includes(observation) ?? false,
           };
         }),
       ),
@@ -51,11 +56,10 @@ export const readChangeDiffWindow = Atom.family(
     connection: RuntimeConnection;
     scope: WorktreeScope;
     statusToken: string;
-    read: number;
     expectedFiles: readonly ExpectedFile[];
     selections: readonly ChangeSelection[];
   }) => {
-    const { connection, scope, statusToken, read } = selection;
+    const { connection, scope, statusToken } = selection;
     const queries = diffBatches(
       selection.expectedFiles,
       selection.selections,
@@ -74,22 +78,24 @@ export const readChangeDiffWindow = Atom.family(
     const batches = readDiffBatches(queries);
     const window = readCompleteDiffWindow(queries);
     const recover = readCurrentDiffObservation({ connection, scope });
+    const observation = observationOf(statusToken, selection.expectedFiles);
     return Atom.readable(
       (get) => {
         get.mount(recover);
         const results = get(batches);
-        const recovery = get(readDiffRecovery({ connection, scope, read }));
+        const recovery = get(
+          readDiffRecovery({ connection, scope, observation }),
+        );
         if (
           AsyncResult.isSuccess(recovery) &&
           !recovery.value.attempted &&
-          !recovery.value.pending &&
           results.some(
             (result) =>
               AsyncResult.isFailure(result) &&
               isStaleChangeObservation(Cause.squash(result.cause)),
           )
         ) {
-          get.set(recover, read);
+          get.set(recover, observation);
         }
         return {
           result: get(window),
