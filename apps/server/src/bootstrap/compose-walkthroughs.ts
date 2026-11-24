@@ -34,6 +34,7 @@ import {
 } from '@porcelain/walkthroughs/services';
 import {
   WalkthroughStore,
+  WalkthroughModelReader,
   WalkthroughInventoryReader,
 } from '@porcelain/walkthroughs/ports';
 import {
@@ -52,10 +53,7 @@ import { LaneKeys } from '../runtime/lane-keys.ts';
 import { WorktreeAccess } from '../runtime/worktree-access.ts';
 import { EventPublisher } from '../ports/event-publisher.ts';
 import { WalkthroughWorkflow } from '../runtime/walkthrough-workflow.ts';
-import {
-  cliWalkthroughWriterLayer,
-  installedWalkthroughModelReaderLayer,
-} from '@porcelain/agents/walkthrough-writing';
+import { cliWalkthroughWriterLayer } from '@porcelain/agents/walkthrough-writing';
 import { filesystemTranscriptReaderLayer } from '../adapters/walkthroughs/filesystem-transcript-reader.ts';
 import { githubEvidenceReaderLayer } from '../adapters/walkthroughs/github-evidence-reader.ts';
 import { StartWalkthroughUseCase } from '../use-cases/walkthroughs/start-walkthrough.ts';
@@ -77,15 +75,14 @@ export function composeWalkthroughs(
   context: ComposeContext,
   shared: Shared,
   stores: Stores,
+  walkthroughModels: WalkthroughModelReader,
   checkWorktree: CheckWorktreeUseCasePort,
   inventory: Context.Service.Shape<typeof ReadInventoryUseCase>,
   pulls: Context.Service.Shape<typeof ListProjectPullRequestsUseCase>,
   githubReader: typeof ghPullRequestReaderLayer,
   resolveProjectGitHub: ResolveProjectGitHubUseCasePort,
 ) {
-  const modelReader = installedWalkthroughModelReaderLayer(
-    context.settings.limits.agents,
-  );
+  const modelReader = Layer.succeed(WalkthroughModelReader, walkthroughModels);
   const ports = Layer.mergeAll(
     modelReader,
     ReadRepositoryOriginService.layer.pipe(
@@ -146,22 +143,19 @@ export function composeWalkthroughs(
     SaveDefaultWalkthroughWriterService.layer,
     BeginWalkthroughService.layer,
     WriteWalkthroughService.layer,
-    StartWalkthroughService.layer.pipe(
-      Layer.provide(ResolveWalkthroughWriterService.layer),
-    ),
+    StartWalkthroughService.layer,
     ReadWalkthroughAssetService.layer,
     ListWalkthroughConversationsService.layer,
     AddWalkthroughMessageService.layer,
     RetryWalkthroughAnswerService.layer,
     SaveWalkthroughMessageService.layer,
-    AnswerWalkthroughMessageService.layer.pipe(
-      Layer.provide(ResolveWalkthroughWriterService.layer),
-    ),
+    AnswerWalkthroughMessageService.layer,
     PostWalkthroughMessagesService.layer.pipe(
       Layer.provideMerge(PlanWalkthroughPostService.layer),
     ),
     Layer.effect(AnnounceWalkthroughUseCasePort, AnnounceWalkthroughUseCase),
   ).pipe(
+    Layer.provide(ResolveWalkthroughWriterService.layer),
     Layer.provideMerge(ReadWalkthroughService.layer),
     Layer.provideMerge(ReadWalkthroughTargetService.layer),
     Layer.provideMerge(ports),

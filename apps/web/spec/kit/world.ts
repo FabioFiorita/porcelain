@@ -15,6 +15,7 @@ import {
   read,
   waysInChange,
 } from '@porcelain/server/kit/requests';
+import { setFixtureCodexEffort } from '@porcelain/server/kit/walkthrough-fixture';
 import type { Session } from '@porcelain/server/kit/session';
 import type {
   CodingToolReplies,
@@ -277,6 +278,14 @@ export class World {
       await home.git('init', '--initial-branch', 'main', path);
     else await mkdir(path);
     return path;
+  }
+
+  async codexEffort(supportsHigh: boolean): Promise<void> {
+    await setFixtureCodexEffort(
+      await this.session(),
+      this.server.manifestPath,
+      supportsHigh,
+    );
   }
 
   async codingTool(): Promise<CodingToolReplies> {

@@ -11,10 +11,12 @@ export {
 export {
   walkthroughWriterSettingsSchema,
   type WalkthroughWriterSettings,
+  type WalkthroughWriterSettingsQuery,
   type SaveDefaultWalkthroughWriterRequest,
 } from './api.ts';
 
 export { writerSchema } from '@porcelain/walkthroughs/models';
+export { unsupportedWalkthroughEffortMessage } from '@porcelain/walkthroughs/rules';
 export {
   walkthroughConversationsResponseSchema,
   type WalkthroughConversationsResponse,

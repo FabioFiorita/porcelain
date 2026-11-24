@@ -52,6 +52,7 @@ declare module 'vitest/browser' {
       step: ProjectHomeStep,
       server: ServerName,
     ) => Promise<string>;
+    porcelainCodexEffort: (supportsHigh: boolean) => Promise<void>;
     porcelainCodingTool: () => Promise<CodingToolReplies>;
   }
 }

@@ -177,6 +177,11 @@ const porcelainProjectHome: BrowserCommand<
   string
 > = (context, step, server) => world(context).projectHome(step, server);
 
+const porcelainCodexEffort: BrowserCommand<[boolean], void> = (
+  context,
+  supportsHigh,
+) => world(context).codexEffort(supportsHigh);
+
 const porcelainCodingTool: BrowserCommand<[], CodingToolReplies> = (context) =>
   world(context).codingTool();
 
@@ -250,4 +255,5 @@ export const hostCommands = {
   porcelainHits,
   porcelainProjectHome,
   porcelainCodingTool,
+  porcelainCodexEffort,
 };

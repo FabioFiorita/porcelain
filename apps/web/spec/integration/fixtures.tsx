@@ -412,6 +412,8 @@ export const test = base
   )
   .extend('codingTool', ({ world: _world }) => ({
     install: () => host.porcelainCodingTool(),
+    codexEffort: (supportsHigh: boolean) =>
+      host.porcelainCodexEffort(supportsHigh),
   }))
   .extend('render', async ({ world: _world }, { onCleanup }) => {
     let unmount: (() => Promise<void>) | undefined;

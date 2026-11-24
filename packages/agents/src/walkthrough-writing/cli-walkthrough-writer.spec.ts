@@ -635,7 +635,7 @@ it('refuses a model-specific effort that the CLI catalogue does not offer', asyn
     failure: {
       kind: 'other',
       message:
-        'The walkthrough model gpt-5.5 does not support ultra effort. Choose a supported effort in walkthrough settings.',
+        "Codex doesn't support ultra effort. Choose a supported effort in walkthrough settings.",
     },
   });
   expect(await readdir(test.folder)).not.toContain('invoked');

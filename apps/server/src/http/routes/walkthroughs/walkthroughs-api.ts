@@ -54,8 +54,8 @@ export function walkthroughsRoutes(useCases: {
     'walkthroughs',
     (handlers) =>
       handlers
-        .handle('readWalkthroughWriterSettings', () =>
-          useCases.writerSettings.execute(),
+        .handle('readWalkthroughWriterSettings', ({ query }) =>
+          useCases.writerSettings.execute(query),
         )
         .handle('saveDefaultWalkthroughWriter', ({ payload }) =>
           useCases.saveDefaultWriter.execute(payload),
