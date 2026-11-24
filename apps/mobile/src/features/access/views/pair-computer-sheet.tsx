@@ -3,9 +3,11 @@ import { usePairingSheetLink } from '../pairing-sheet';
 import { PairEnvironmentForm } from './pair-environment-form';
 
 export function PairComputerSheet({
+  environmentId,
   onClose,
   onScan,
 }: {
+  environmentId?: string | undefined;
   onClose: () => void;
   onScan: () => void;
 }) {
@@ -14,6 +16,7 @@ export function PairComputerSheet({
     <Sheet title="Pair a computer">
       <PairEnvironmentForm
         layout="sheet"
+        {...(environmentId ? { environmentId } : {})}
         link={link}
         onLinkChange={setLink}
         onClose={onClose}

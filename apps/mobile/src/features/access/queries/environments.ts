@@ -5,14 +5,12 @@ import { Atom } from 'effect/reactivity';
 import { useIsFocused } from 'expo-router';
 import {
   readRemoteConnectionStatus,
-  remoteWorkspaceNotice,
+  readingConnection,
   revalidateRemoteStatus,
 } from '@porcelain/client/access';
-import {
-  readingConnectionNotice,
-  type ReadingConnectionNotice,
-  type Remote,
-  type RemoteStatus,
+import type {
+  ReadingConnectionNotice,
+  Remote,
 } from '@porcelain/client/access/rules';
 import { accessPlatform } from '../../../shared/adapters/access-platform';
 
@@ -41,15 +39,6 @@ export function useEnvironmentStatus(remote: Remote) {
   };
 }
 
-const readingNotice = Atom.family((status: Atom.Atom<RemoteStatus>) =>
-  Atom.readable((get) => {
-    const notice = readingConnectionNotice(get(status));
-    return notice && (!notice.interrupted || get(remoteWorkspaceNotice(status)))
-      ? notice
-      : undefined;
-  }),
-);
-
 const readingAnnouncement = Atom.family(
   (notice: Atom.Atom<ReadingConnectionNotice | undefined>) =>
     Atom.make((get) => {
@@ -65,7 +54,7 @@ const readingAnnouncement = Atom.family(
 
 export function useReadingConnectionNotice(remote: Remote) {
   const { atom } = useEnvironmentStatus(remote);
-  const notice = readingNotice(atom);
+  const notice = readingConnection(atom);
   useAtomMount(readingAnnouncement(notice));
   return useAtomValue(notice);
 }

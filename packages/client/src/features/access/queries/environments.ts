@@ -16,6 +16,7 @@ import {
 import type { AccessPlatformValue } from '../ports/access-platform.ts';
 import {
   connectionRoutes,
+  readingConnectionNotice,
   remoteStatus,
   remoteWorktreeInterrupted,
   sameRemoteConnection,
@@ -263,4 +264,15 @@ export const remoteWorkspaceNotice = Atom.family(
       Atom.map((result) => AsyncResult.getOrElse(result, () => false)),
       Atom.setIdleTTL(0),
     ),
+);
+
+export const readingConnection = Atom.family(
+  (status: Atom.Atom<RemoteStatus>) =>
+    Atom.readable((get) => {
+      const notice = readingConnectionNotice(get(status));
+      return notice &&
+        (!notice.interrupted || get(remoteWorkspaceNotice(status)))
+        ? notice
+        : undefined;
+    }),
 );

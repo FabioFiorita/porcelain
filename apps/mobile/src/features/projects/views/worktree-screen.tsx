@@ -16,7 +16,8 @@ import { Text } from '../../../components/ui/text';
 import { remoteConnectionState } from '../../../shared/application/store';
 import { useScreenKeyCommands } from '../../../shared/application/key-commands';
 import type { ListDetailMode } from '../../../shared/rules/list-detail';
-import { workspaceKey, type Workspace } from '../commands/workspace-connection';
+import type { Workspace } from '../commands/workspace-connection';
+import { workspaceKey } from '../rules/workspace-key';
 import {
   openingWorktreeSection,
   shownWorktreeSection,

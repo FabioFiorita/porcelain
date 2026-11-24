@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router';
+import { useIsFocused, useRouter } from 'expo-router';
 import type { Remote } from '@porcelain/client/access/rules';
 import { Box } from '../../../components/ui/box';
 import { Button } from '../../../components/ui/button';
@@ -9,6 +9,10 @@ import { Text } from '../../../components/ui/text';
 import { useReadingConnectionNotice } from '../queries/environments';
 
 export function ReadingConnection({ remote }: { remote: Remote }) {
+  return useIsFocused() ? <FocusedReadingConnection remote={remote} /> : null;
+}
+
+function FocusedReadingConnection({ remote }: { remote: Remote }) {
   const notice = useReadingConnectionNotice(remote);
   const router = useRouter();
   if (!notice) return null;
@@ -21,7 +25,15 @@ export function ReadingConnection({ remote }: { remote: Remote }) {
           <Button
             label="Pair again"
             size="sm"
-            onPress={() => router.push('/pair-computer', { withAnchor: true })}
+            onPress={() =>
+              router.push(
+                {
+                  pathname: '/pair-computer',
+                  params: { environment: remote.environmentId },
+                },
+                { withAnchor: true },
+              )
+            }
           />
         ) : undefined
       }

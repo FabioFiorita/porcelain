@@ -8,7 +8,6 @@ export {
   remoteStatusText,
   remoteStatusNote,
   remoteWorktreeInterrupted,
-  readingConnectionNotice,
   type ReadingConnectionNotice,
   parseRemotes,
   serializeRemotes,
