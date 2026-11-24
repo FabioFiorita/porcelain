@@ -6545,7 +6545,10 @@ export const guardrailCases = [
         name: `${path} selects rule fixtures`,
         rules: true,
         path,
-        selected: [],
+        selected:
+          path === 'package.json' || path === 'pnpm-workspace.yaml'
+            ? ['package']
+            : [],
       })),
       ...[
         {
@@ -6571,6 +6574,16 @@ export const guardrailCases = [
         ],
       })),
     ],
+  },
+  {
+    rule: 'ci-task-inputs',
+    requiredImports: {
+      'test:rules': ['packages/changes/src/models/index.ts'],
+    },
+    negative: {
+      task: 'test:rules',
+      path: 'packages/changes/src/models/index.ts',
+    },
   },
   {
     rule: 'ci-landing-completion',

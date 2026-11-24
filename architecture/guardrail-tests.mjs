@@ -24,6 +24,10 @@ import { fileURLToPath } from 'node:url';
 import { parse } from 'yaml';
 import { Effect } from 'effect';
 import { Statement } from 'effect/sql';
+import { cruise } from 'dependency-cruiser';
+import extractDepcruiseOptions from 'dependency-cruiser/config-utl/extract-depcruise-options';
+import { checkPlan, nodeTaskInputs } from '../ci/check-plan.ts';
+import { runtimePlan } from '../ci/runtime-plan.ts';
 import { domainPackages } from './policy.ts';
 import { typeRuleFindings } from './type-rules.ts';
 import {
@@ -244,6 +248,127 @@ function duplicateFixture(entry, source) {
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+}
+
+function requireSelectedInputs(paths, select, setting) {
+  const omitted = paths.filter((path) => !select(path));
+  deepStrictEqual(omitted, [], `Add these paths to the ${setting} input list`);
+}
+
+async function checkCiInputs(entry) {
+  const repository = fileURLToPath(new URL('../', import.meta.url));
+  const manifest = JSON.parse(
+    readFileSync(join(repository, 'package.json'), 'utf8'),
+  );
+  const options = await extractDepcruiseOptions(
+    join(repository, 'architecture/dependency-cruiser.cjs'),
+  );
+  const trace = async (command, owner) => {
+    match(command, /^node \S+$/, `${owner} declares a single Node entry file`);
+    const path = command.slice('node '.length);
+    const { output } = await cruise([path], options);
+    const modules = output.modules.filter(
+      ({ source, coreModule }) =>
+        !coreModule && !source.split('/').includes('node_modules'),
+    );
+    const unresolved = modules
+      .flatMap(({ dependencies }) => dependencies)
+      .filter(
+        ({ couldNotResolve, module }) =>
+          couldNotResolve && /^(?:\.|@porcelain\/)/.test(module),
+      );
+    deepStrictEqual(
+      unresolved.map(({ module }) => module),
+      [],
+      `${owner} has unresolved repository imports`,
+    );
+    const paths = modules
+      .filter(({ couldNotResolve }) => !couldNotResolve)
+      .map(({ source }) => source);
+    for (const expected of [path, ...(entry.requiredImports[owner] ?? [])])
+      strictEqual(
+        paths.includes(expected),
+        true,
+        `Trace of ${owner} must include ${expected}; check dependency-cruiser exclusions`,
+      );
+    return paths;
+  };
+
+  for (const task of Object.keys(nodeTaskInputs)) {
+    const selectsTask = (path) =>
+      checkPlan('static', [path], repository).some(
+        ({ task: name }) => name === task,
+      );
+    const paths = await trace(manifest.scripts[task], task);
+    const setting = `${task} in ci/check-plan.ts`;
+    if (task === entry.negative.task) {
+      strictEqual(paths.includes(entry.negative.path), true);
+      throws(
+        () =>
+          requireSelectedInputs(
+            paths,
+            (path) => path !== entry.negative.path && selectsTask(path),
+            setting,
+          ),
+        (error) =>
+          error.message.includes(setting) &&
+          error.actual?.includes(entry.negative.path),
+      );
+    }
+    requireSelectedInputs(paths, selectsTask, setting);
+  }
+
+  const workflow = parse(
+    readFileSync(join(repository, '.github/workflows/ci.yml'), 'utf8'),
+  );
+  const packageCommands = workflow.jobs.package.steps.flatMap(
+    ({ run }) => run?.trim().split('\n') ?? [],
+  );
+  const inputs = new Set();
+  for (const command of packageCommands) {
+    if (command === 'pnpm install --frozen-lockfile') {
+      for (const path of [
+        'package.json',
+        'pnpm-lock.yaml',
+        'pnpm-workspace.yaml',
+      ])
+        inputs.add(path);
+      continue;
+    }
+    const packageScript = /^pnpm (?:run )?([\w:-]+)$/.exec(command)?.[1];
+    if (packageScript) {
+      for (const path of await trace(
+        manifest.scripts[packageScript],
+        `package job's ${packageScript}`,
+      ))
+        inputs.add(path);
+      continue;
+    }
+    const shell = /\bbash\s+(?:\.\/)?(scripts\/[\w/.-]+\.sh)(?=\s|$)/.exec(
+      command,
+    )?.[1];
+    strictEqual(
+      typeof shell,
+      'string',
+      `Trace this package job command in the CI input guard: ${command}`,
+    );
+    inputs.add(shell);
+  }
+  strictEqual(
+    inputs.has('scripts/build-package.ts'),
+    true,
+    'Trace the package build entry through package.json',
+  );
+  strictEqual(
+    inputs.has('scripts/check-package.sh'),
+    true,
+    'Trace the installed-package check through the workflow',
+  );
+  requireSelectedInputs(
+    [...inputs],
+    (path) => runtimePlan(false, [path], []).package,
+    'package job in ci/runtime-plan.ts',
+  );
 }
 
 function ciSelectionFixture(entry) {
@@ -649,6 +774,8 @@ export async function runGuardrailCases(named = []) {
       process.stdout.write('PASS ci-action-pins: actual ci.yml\n');
     } else if (entry.rule === 'ci-affected-selection') {
       ciSelectionFixture(entry);
+    } else if (entry.rule === 'ci-task-inputs') {
+      await checkCiInputs(entry);
     } else if (entry.rule === 'ci-landing-completion') {
       const workflow = parse(
         readFileSync(
