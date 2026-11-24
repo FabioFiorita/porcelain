@@ -1,6 +1,7 @@
 import {
   navigatorCardChangesLabel,
   navigatorChecksLabel,
+  navigatorRowTitle,
   type NavigatorEntry,
 } from '@porcelain/client/projects/rules';
 
@@ -13,9 +14,7 @@ export function worktreeChecksLabel(
 }
 
 export function worktreeRow(entry: NavigatorEntry) {
-  const title =
-    entry.displayTitle ??
-    (entry.detached ? entry.name : entry.branch || entry.name);
+  const title = navigatorRowTitle(entry);
   const branch = entry.displayTitle === undefined ? '' : entry.branch;
   const changes =
     entry.kind === 'worktree' ? navigatorCardChangesLabel(entry.changes) : '';

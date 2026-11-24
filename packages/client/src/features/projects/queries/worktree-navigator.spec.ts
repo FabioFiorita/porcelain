@@ -1,6 +1,6 @@
 import type { Transport } from '../../../shared/api/transport.ts';
 import { expect, it } from 'vite-plus/test';
-import { AsyncResult, type AtomRegistry } from 'effect/reactivity';
+import { AsyncResult, Atom, type AtomRegistry } from 'effect/reactivity';
 import {
   clientFixtures,
   idleClientAtoms,
@@ -10,7 +10,11 @@ import { refreshWorktreeNavigator } from '../commands/worktree-navigator.ts';
 import { emptyNavigatorFilter } from '../rules/worktree-navigator.ts';
 import { worktreeNavigatorState } from '../store/worktree-navigator.ts';
 import { readGitStatus } from '../../changes/queries/changes.ts';
-import { readWorktreeNavigator } from './worktree-navigator.ts';
+import { projectWorktreeSnapshot } from '../rules/worktree-snapshot.ts';
+import {
+  readWorktreeNavigator,
+  readWorktreeNavigatorWithSnapshots,
+} from './worktree-navigator.ts';
 import { readProjectPullRequests } from './pull-requests.ts';
 
 const create = clientFixtures();
@@ -164,6 +168,52 @@ function expectNavigatorNames(
     )
     .toEqual(names);
 }
+
+it('keeps project groups and scope choices when saved rows give way to live rows', async () => {
+  const opened = Promise.withResolvers<Response>();
+  const subject = create(
+    (path) =>
+      path.startsWith('/api/inventory')
+        ? opened.promise.then((response) => response.clone())
+        : navigatorResponse(path),
+    undefined,
+    1000,
+    environmentId,
+  );
+  const snapshot = projectWorktreeSnapshot(inventory(), '["phone"]', 5);
+  const list = readWorktreeNavigatorWithSnapshots({
+    connections: [subject.connection],
+    snapshots: Atom.make([{ environmentId, snapshot }]),
+  });
+  const stop = subject.registry.mount(list);
+  try {
+    await expectNavigatorNames(subject.registry, list, ['main', 'topic']);
+    const saved = subject.registry.get(list);
+    expect(saved.projects[0]).toMatchObject({ key: projectKey, saved: true });
+    expect(saved.projects[0]?.entries.map((row) => row.available)).toEqual([
+      false,
+      false,
+    ]);
+    const before = saved.projects[0]?.entries.map((row) => row.key);
+    expect(saved.filters.map(({ items }) => items.map(({ id }) => id))).toEqual(
+      [[environmentId], [projectKey]],
+    );
+    opened.resolve(Response.json(inventory()));
+    await expect
+      .poll(() =>
+        subject.registry
+          .get(list)
+          .projects[0]?.entries.map((row) => row.available),
+      )
+      .toEqual([true, true]);
+    const live = subject.registry.get(list);
+    expect(live.filters).toEqual(saved.filters);
+    expect(live.projects[0]?.entries.map((row) => row.key)).toEqual(before);
+    expect(live.projects[0]?.saved).toBeUndefined();
+  } finally {
+    stop();
+  }
+});
 
 it('keeps colliding projects distinct and mounts no hidden-project details or GitHub payloads, including refresh', async () => {
   const reads: { environmentId: string; path: string }[] = [];

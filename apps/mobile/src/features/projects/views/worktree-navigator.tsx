@@ -15,18 +15,17 @@ import { useScrollReveal } from '../../../components/ui/scroll-reveal';
 import { Stack, useRouter } from 'expo-router';
 import { useAtomRef, useAtomValue, useAtomSet } from '@effect/atom-react';
 import {
-  readWorktreeNavigator,
+  readWorktreeNavigatorWithSnapshots,
   refreshWorktreeNavigator,
 } from '@porcelain/client/projects';
 import {
   navigatorEntrySelected,
-  savedWorktreeRows,
   type NavigatorEntry,
   type NavigatorFilterSection,
 } from '@porcelain/client/projects/rules';
 import { remoteConnectionState } from '../../../shared/application/store';
 import {
-  mobileLayout,
+  mobileWorktreeLayout,
   startMobileNavigation,
 } from '../../../shared/application/mobile-timing';
 import { useListCursor } from '../../../shared/application/key-commands';
@@ -80,22 +79,19 @@ export function WorktreeNavigator({
   const remotes = useAtomRef(remoteConnectionState);
   const connections = remotes.map((entry) => entry.connection);
   const { loading, projects, allProjects, filters } = useAtomValue(
-    readWorktreeNavigator(connections),
+    readWorktreeNavigatorWithSnapshots({
+      connections,
+      snapshots: savedWorktrees(remotes),
+    }),
   );
   const retry = useAtomSet(refreshWorktreeNavigator(connections));
   const clipboard = useCopyPath();
   const router = useRouter();
-  const { query, setQuery, filter, setFilter, setExpanded } =
-    useWorktreeNavigator();
+  const { setQuery, filter, setFilter, setExpanded } = useWorktreeNavigator();
   const openPullRequest = useOpenPullRequest();
   const openComputers = useOpenComputers();
   const paired = useEnvironments();
   const storage = useEnvironmentStorageStatus();
-  const snapshots = useAtomValue(savedWorktrees(remotes));
-  const saved = snapshots.flatMap(({ environmentId, snapshot }) => {
-    const rows = savedWorktreeRows(snapshot, environmentId, query, filter);
-    return rows.length ? [{ environmentId, snapshot, rows }] : [];
-  });
   const selection = checkout;
   const openActions = (entry: NavigatorEntry) => {
     if (entry.worktreeId)
@@ -124,10 +120,13 @@ export function WorktreeNavigator({
   }));
   const searchBar = searchBarRef ?? ownSearchBar;
   const visibleEntries = projects.flatMap((project) =>
-    project.expanded
+    project.expanded && !project.saved
       ? project.entries.filter((entry) => entry.kind === 'worktree')
       : [],
   );
+  const firstSaved = projects.find(
+    (project) => project.saved && project.entries.length,
+  )?.entries[0]?.key;
   const reveal = useScrollReveal();
   const cursor = useListCursor({
     hidden,
@@ -185,51 +184,28 @@ export function WorktreeNavigator({
         accessibilityLabel="Worktrees by project"
         contentContainerClassName="gap-2.5 px-4 pb-6"
       >
-        {snapshots.length === 0 || allProjects.length > 0 ? (
-          <Box className="flex-row items-center" gap={2}>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerClassName="items-center gap-2"
-              keyboardShouldPersistTaps="handled"
-            >
-              {filters.map((section) => (
-                <NavigatorScopePicker
-                  key={section.key}
-                  section={section}
-                  label={scopeLabel(section)}
-                  onChange={(next) =>
-                    setFilter({ ...filter, [section.key]: next })
-                  }
-                />
-              ))}
-            </ScrollView>
-          </Box>
-        ) : null}
-        {initializing || loading ? <Spinner /> : null}
-        {saved.map(({ environmentId, snapshot, rows }, index) => (
-          <Box key={environmentId} gap={2}>
-            <Text variant="secondary" weight="semibold">
-              {snapshot.computerName}
-            </Text>
-            <Text variant="caption" tone="muted">
-              Saved worktrees · Reconnecting
-            </Text>
-            {rows.map((row, rowIndex) => (
-              <Item
-                key={row.worktreeId}
-                title={row.title}
-                description={row.projectName}
-                size="compact"
-                onLayout={
-                  index === 0 && rowIndex === 0
-                    ? mobileLayout('worktrees-first-row')
-                    : undefined
+        <Box className="flex-row items-center" gap={2}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerClassName="items-center gap-2"
+            keyboardShouldPersistTaps="handled"
+          >
+            {filters.map((section) => (
+              <NavigatorScopePicker
+                key={section.key}
+                section={section}
+                label={scopeLabel(section)}
+                onChange={(next) =>
+                  setFilter({ ...filter, [section.key]: next })
                 }
               />
             ))}
-          </Box>
-        ))}
+          </ScrollView>
+        </Box>
+        {allProjects.length === 0 && (initializing || loading) ? (
+          <Spinner />
+        ) : null}
         {projects.map((project) => {
           const connection = remotes.find(
             (remote) =>
@@ -270,12 +246,21 @@ export function WorktreeNavigator({
                     </Box>
                   )}
                 </Box>
-                <ProjectActions
-                  connection={project.connection}
-                  project={project.project}
-                  environmentName={project.environmentName}
-                  onCopy={clipboard.copy}
-                />
+                {project.saved ? (
+                  <IconButton
+                    icon="more"
+                    disabled
+                    onPress={() => undefined}
+                    accessibilityLabel={`Project actions: ${project.project.name} · ${project.environmentName}`}
+                  />
+                ) : (
+                  <ProjectActions
+                    connection={project.connection}
+                    project={project.project}
+                    environmentName={project.environmentName}
+                    onCopy={clipboard.copy}
+                  />
+                )}
                 <IconButton
                   icon={project.expanded ? 'down' : 'chevron'}
                   size="sm"
@@ -299,16 +284,21 @@ export function WorktreeNavigator({
                       const failed =
                         checks?.state === 'available' &&
                         checks.result === 'failed';
+                      const first = project.saved
+                        ? firstSaved
+                        : visibleEntries[0]?.key;
+                      const timing =
+                        entry.key === first
+                          ? mobileWorktreeLayout(project.saved === true)
+                          : undefined;
                       return (
                         <Box
-                          key={entry.key}
+                          key={
+                            timing ? `${entry.key}/${timing.name}` : entry.key
+                          }
                           gap={1}
                           collapsable={false}
-                          onLayout={
-                            entry.key === visibleEntries[0]?.key
-                              ? mobileLayout('worktrees-first-row')
-                              : undefined
-                          }
+                          onLayout={timing?.onLayout}
                           {...(cursor.highlighted === entry.key
                             ? { ref: reveal.row }
                             : {})}
@@ -374,7 +364,7 @@ export function WorktreeNavigator({
                               cursor.claim();
                               open(entry);
                             }}
-                            {...(entry.kind === 'worktree' &&
+                            {...(!project.saved &&
                             entry.worktreeId &&
                             connection
                               ? {
@@ -407,7 +397,6 @@ export function WorktreeNavigator({
         {!initializing &&
         !loading &&
         picker.messages.length === 0 &&
-        saved.length === 0 &&
         projects.length === 0 ? (
           <Empty title="No matching worktrees" />
         ) : null}

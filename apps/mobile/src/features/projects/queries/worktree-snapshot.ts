@@ -1,10 +1,7 @@
 import { Option, Stream } from 'effect';
 import { AsyncResult, Atom } from 'effect/reactivity';
 import type { RemoteConnection } from '@porcelain/client/access';
-import {
-  readInventory,
-  readWorktreeSnapshot,
-} from '@porcelain/client/projects';
+import { readWorktreeSnapshot } from '@porcelain/client/projects';
 import { clientRuntime } from '../../../shared/application/store';
 
 const computerSnapshot = Atom.family((computer: RemoteConnection) =>
@@ -20,8 +17,7 @@ export const savedWorktrees = Atom.family(
         const snapshot = Option.getOrUndefined(
           AsyncResult.value(get(computerSnapshot(computer))),
         );
-        const live = AsyncResult.value(get(readInventory(computer.connection)));
-        return snapshot && Option.isNone(live)
+        return snapshot
           ? [{ environmentId: computer.remote.environmentId, snapshot }]
           : [];
       }),

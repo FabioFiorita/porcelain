@@ -8,7 +8,7 @@ import {
   ManagedRuntime,
 } from 'effect';
 import { Atom, AtomRegistry } from 'effect/reactivity';
-import { afterEach, expect, it } from 'vite-plus/test';
+import { afterEach, expect, expectTypeOf, it } from 'vite-plus/test';
 import {
   AccessPlatform,
   AccessStore,
@@ -23,6 +23,8 @@ import { ProjectSelectionCommands } from './selection.ts';
 import {
   ProjectSelectionStorage,
   ProjectSelectionStore,
+  WorktreeSnapshotStorage,
+  WorktreeSnapshots,
   workspaceSelectionCleanupLayer,
   type ProjectSelectionSnapshot,
 } from '@porcelain/client/projects';
@@ -59,6 +61,7 @@ function fixture(
     },
   };
   const writes: string[] = [];
+  const savedWorktrees = new Map<string, string>();
   const ports = Layer.merge(
     Layer.succeed(EnvironmentStorage, {
       read: () =>
@@ -102,7 +105,24 @@ function fixture(
     EnvironmentMutations.layer,
     FileDrafts.layer,
   ).pipe(Layer.provide(ports));
-  const cleanup = workspaceSelectionCleanupLayer.pipe(Layer.provide(stores));
+  const snapshots = WorktreeSnapshots.layer.pipe(
+    Layer.provide(stores),
+    Layer.provide(
+      Layer.succeed(WorktreeSnapshotStorage, {
+        read: (key) => Effect.sync(() => savedWorktrees.get(key) ?? null),
+        write: (key, value) =>
+          Effect.sync(() => {
+            savedWorktrees.set(key, value);
+          }),
+        remove: (key) =>
+          Effect.sync(() => {
+            savedWorktrees.delete(key);
+          }),
+      }),
+    ),
+  );
+  const services = Layer.merge(stores, snapshots);
+  const cleanup = workspaceSelectionCleanupLayer.pipe(Layer.provide(services));
   const platform = Layer.succeed(AccessPlatform, {
     name: () => 'Test device',
     send: () => Promise.reject(new Error('Selection must not use HTTP.')),
@@ -110,7 +130,7 @@ function fixture(
   const application = Layer.merge(
     EnvironmentCommands.layer,
     ProjectSelectionCommands.layer,
-  ).pipe(Layer.provideMerge(Layer.mergeAll(stores, cleanup, platform)));
+  ).pipe(Layer.provideMerge(Layer.mergeAll(services, cleanup, platform)));
   const runtime = ManagedRuntime.make(application);
   runtimes.push(runtime);
   const access = runtime.runSync(AccessStore);
@@ -127,12 +147,37 @@ function fixture(
     commands,
     drafts,
     writes,
+    savedWorktrees,
     saved: () => ({
       environments: savedEnvironments,
       selection: savedSelection,
     }),
   };
 }
+
+it('deletes only the forgotten computer’s saved Worktrees through workspace cleanup', async () => {
+  expectTypeOf<
+    Layer.Services<typeof workspaceSelectionCleanupLayer>
+  >().toEqualTypeOf<ProjectSelectionStore | WorktreeSnapshots>();
+  const f = fixture();
+  await f.runtime.runPromise(f.environments.read());
+  await f.runtime.runPromise(f.commands.execute({ kind: 'read' }));
+  const snapshots = f.runtime.runSync(WorktreeSnapshots);
+  for (const environmentId of ['first', 'second']) {
+    await f.runtime.runPromise(
+      snapshots.write(environmentId, {
+        version: 1,
+        pairing: JSON.stringify([`${environmentId}-device`]),
+        confirmedAt: 10,
+        computerName: environmentId,
+        rows: [],
+      }),
+    );
+  }
+  expect([...f.savedWorktrees.keys()]).toEqual(['first', 'second']);
+  await f.runtime.runPromise(f.environments.forget('first'));
+  expect([...f.savedWorktrees.keys()]).toEqual(['second']);
+});
 
 it('waits for saved environments before restoring and pruning remembered workspaces', async () => {
   const reading = Promise.withResolvers<void>();

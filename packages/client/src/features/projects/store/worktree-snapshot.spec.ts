@@ -79,7 +79,7 @@ function fixture<A, E>(
   );
 }
 
-it('stores display rows in Worktrees order without paths or credentials', async () => {
+it('stores Worktrees display and search metadata in order without credentials', async () => {
   const { saved, record } = await fixture((records) =>
     Effect.gen(function* () {
       const access = yield* AccessStore;
@@ -106,16 +106,30 @@ it('stores display rows in Worktrees order without paths or credentials', async 
         projectName: 'App',
         worktreeId: mainId,
         title: 'main',
+        checkout: {
+          name: 'main',
+          branch: 'main',
+          path: '/private/checkout/main',
+          main: true,
+          detached: false,
+        },
       },
       {
         projectId,
         projectName: 'App',
         worktreeId: topicId,
         title: 'topic',
+        checkout: {
+          name: 'topic',
+          branch: 'topic',
+          path: '/private/checkout/topic',
+          main: false,
+          detached: false,
+        },
       },
     ],
   });
-  expect(record).not.toMatch(/private|fixture-credential/);
+  expect(record).not.toContain('fixture-credential');
 });
 
 it('drops corrupt data and blocks old writes after re-pairing or forgetting', async () => {

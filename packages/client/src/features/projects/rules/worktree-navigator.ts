@@ -1,4 +1,5 @@
 import type { EnvironmentIcon } from '@porcelain/contracts/access';
+import { worktreeLabel, type Project } from './inventory.ts';
 export type NavigatorFilter = {
   projects: readonly string[] | undefined;
   environments: readonly string[] | undefined;
@@ -128,9 +129,54 @@ export function navigatorDisplayTitle(worktree: {
   return title && title !== worktree.branch ? title : undefined;
 }
 export function navigatorRowTitle(
-  entry: Pick<NavigatorEntry, 'displayTitle' | 'name'>,
+  entry: Pick<NavigatorEntry, 'displayTitle' | 'name'> &
+    Partial<Pick<NavigatorEntry, 'branch' | 'detached'>>,
 ) {
-  return entry.displayTitle ?? entry.name;
+  return (
+    entry.displayTitle ??
+    (entry.detached ? entry.name : entry.branch || entry.name)
+  );
+}
+export function navigatorInventoryEntries(
+  project: Project,
+  environmentId: string,
+  environmentName: string,
+): NavigatorEntry[] {
+  return project.worktrees
+    .map((worktree): NavigatorEntry => {
+      const displayTitle = navigatorDisplayTitle(worktree);
+      return {
+        key: `${environmentId}/${project.id}/${worktree.id}`,
+        kind: 'worktree',
+        environmentId: environmentId,
+        environmentName,
+        projectId: project.id,
+        projectName: project.name,
+        worktreeId: worktree.id,
+        path: worktree.path,
+        name:
+          worktree.branch ??
+          worktree.path.split('/').filter(Boolean).at(-1) ??
+          worktree.path,
+        displayTitle,
+        branch: worktreeLabel(worktree.branch),
+        main: worktree.main,
+        ...(worktree.headCommittedAt
+          ? { headCommittedAt: worktree.headCommittedAt }
+          : {}),
+        ...(worktree.uncommittedChangedAt
+          ? { uncommittedChangedAt: worktree.uncommittedChangedAt }
+          : {}),
+        detached: !worktree.branch,
+        available: project.available && worktree.available,
+        pullRequest: { state: 'loading' },
+        changes: {
+          state:
+            project.available && worktree.available ? 'loading' : 'unavailable',
+        },
+      };
+    })
+    .sort(navigatorWorktreeOrder);
 }
 export type NavigatorTrailing =
   | { kind: 'pull-request'; number: number; text: string }
