@@ -93,3 +93,85 @@ test.for([1280, 414])(
     }
   },
 );
+
+test('the base picker lists the best fuzzy matches first', async ({
+  render,
+  repo,
+}) => {
+  await browserPage.viewport(1280, 896);
+  try {
+    for (const name of [
+      'chore/merge-main',
+      'docs/readme-main',
+      'feat/search-ranking',
+      'feature/note-search',
+      'feature/notes-archive',
+      'fix/search-empty',
+      'mainline-sync',
+      'release/main-2026',
+      'spike/menu-a11y',
+    ])
+      await repo.branch(name);
+    const app = await render.route('/');
+    const page = app.page;
+    await page
+      .getByRole('navigation', { name: 'Side panel', exact: true })
+      .getByRole('button', { name: 'Changes', exact: true })
+      .click();
+    await page
+      .getByRole('complementary', { name: 'Review sidebar', exact: true })
+      .getByRole('tab', { name: 'Branch', exact: true })
+      .click();
+    await page
+      .getByRole('complementary', { name: 'Review sidebar', exact: true })
+      .getByRole('button', { name: /^Compare against / })
+      .click();
+    const search = page.getByRole('combobox', {
+      name: 'Find a base branch',
+      exact: true,
+    });
+    const options = page
+      .getByRole('listbox', { name: 'Base branches', exact: true })
+      .getByRole('option');
+    const listed = () =>
+      options.elements().map((option) => option.textContent?.trim());
+    for (const [query, order] of [
+      [
+        'sea',
+        [
+          'fix/search-empty',
+          'feat/search-ranking',
+          'feature/note-search',
+          'spike/menu-a11y',
+          'docs/readme-main',
+          'release/main-2026',
+        ],
+      ],
+      [
+        'fsr',
+        [
+          'feat/search-ranking',
+          'feature/note-search',
+          'fix/search-empty',
+          'feature/notes-archive',
+        ],
+      ],
+      [
+        'mn',
+        [
+          'chore/merge-main',
+          'maindefault',
+          'mainline-sync',
+          'release/main-2026',
+          'spike/menu-a11y',
+          'docs/readme-main',
+        ],
+      ],
+    ] as const) {
+      await search.fill(query);
+      await expect.poll(listed).toEqual(order);
+    }
+  } finally {
+    await browserPage.viewport(414, 896);
+  }
+});

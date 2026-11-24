@@ -32,4 +32,3 @@ export * from './review.ts';
 export * from './spec-paths.ts';
 export * from './counted.ts';
 export * from './sidebar-actions.ts';
-export { branchSearchGroups, branchSearchMatches } from './branch-search.ts';
