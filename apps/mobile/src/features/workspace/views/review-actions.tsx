@@ -10,7 +10,7 @@ import { unavailableReviewText } from '@porcelain/client/changes/rules';
 import { reviewErrorMessage } from '@porcelain/client/changes/rules';
 import { Text } from '../../../components/ui/text';
 import type { Workspace } from '../../projects/index';
-import { useWritesBlocked } from '../../access';
+import { useWriteAllowed, useWritesBlocked } from '../../access';
 import {
   reviewRange,
   type ReviewFile,
@@ -31,6 +31,7 @@ export function useReviewedAction(
   const [unmark, remove] = useAtom(commands.remove);
   const pending = mark.waiting || unmark.waiting;
   const blocked = useWritesBlocked(workspace.connection.environmentId);
+  const allowed = useWriteAllowed(workspace.connection.environmentId);
   const error = reviewedCommandFailure(mark, unmark);
   const { fingerprint } = file;
   return {
@@ -45,7 +46,7 @@ export function useReviewedAction(
               : 'markReviewed',
           disabled: pending || blocked,
           onPress: () => {
-            if (pending || blocked) return;
+            if (pending || !allowed()) return;
             if (file.reviewStatus === 'reviewed') remove(file.path);
             else set({ path: file.path, fingerprint });
           },

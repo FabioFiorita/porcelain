@@ -287,3 +287,12 @@ export const readingConnection = Atom.family(
 export const remoteWritable = Atom.family((status: Atom.Atom<RemoteStatus>) =>
   status.pipe(Atom.map(remoteWritesAvailable)),
 );
+
+export const remoteWriteGuard = Atom.family((status: Atom.Atom<RemoteStatus>) =>
+  Atom.writable(
+    () => undefined,
+    (ctx, write: () => void) => {
+      if (remoteWritesAvailable(ctx.get(status))) write();
+    },
+  ),
+);

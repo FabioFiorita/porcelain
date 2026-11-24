@@ -6,6 +6,7 @@ import { ProjectSelectionCommands } from '@porcelain/client/projects';
 import type { ArchivePullRequestRequest } from '@porcelain/contracts/projects';
 import type { RuntimeConnection } from '@porcelain/client/transport';
 import { clientRuntime } from '../../../shared/application/store';
+import { useWriteAllowed } from '../../access';
 const command = Atom.family(
   (input: {
     connection: RuntimeConnection;
@@ -35,10 +36,12 @@ export function useArchivePullRequest(input: {
   mainWorktreeId: string;
 }) {
   const [result, run] = useAtom(command(input), { mode: 'promise' });
+  const allowed = useWriteAllowed(input.connection.environmentId);
   const submit = async (
     payload: ArchivePullRequestRequest,
     onArchived?: () => void,
   ) => {
+    if (!allowed()) return undefined;
     let answer;
     try {
       answer = await run(payload);

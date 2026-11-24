@@ -20,6 +20,7 @@ import {
   type ConversationOwner,
 } from '../queries/conversations';
 import { stillSavedNotice, type PostNotice } from '../rules/post-notice';
+import { useWriteAllowed } from '../../access';
 
 function useBound<I, A, E>(command: Atom.AtomResultFn<I, A, E>) {
   return walkthroughCommandBinding(useAtom(command, { mode: 'promiseExit' }));
@@ -40,6 +41,7 @@ export function usePostActions(
   const saving = useBound(commands.saveMessage);
   const brief = useBound(commands.readBrief);
   const [notice, setNotice] = useState<PostNotice>();
+  const allowed = useWriteAllowed(owner.workspace.connection.environmentId);
   const fail = (error: unknown) => setNotice(conversationFailure(error));
   const toClipboard = (text: string) =>
     copyToClipboard(text).then(
@@ -58,10 +60,12 @@ export function usePostActions(
         .catch(fail);
     },
     save: (saved: boolean) => {
+      if (!allowed()) return;
       setNotice(undefined);
       if (message) saving.run({ messageId: message.id, saved }).catch(fail);
     },
     post: () => {
+      if (!allowed()) return;
       setNotice(undefined);
       (message ? postOne.run(message.id) : postSaved.run(undefined))
         .then((answer) => {
@@ -79,10 +83,12 @@ export function usePostActions(
 export function useAnswerRetry(owner: ConversationOwner) {
   const retry = useBound(commandsOf(owner).retryAnswer);
   const [failure, setFailure] = useState<string>();
+  const allowed = useWriteAllowed(owner.workspace.connection.environmentId);
   return {
     failure,
     waiting: retry.waiting,
     retry: (messageId: string) => {
+      if (!allowed()) return;
       setFailure(undefined);
       retry
         .run(messageId)
@@ -97,9 +103,16 @@ export function useAsk(
   placement: WalkthroughDraftPlacement,
 ) {
   const selection = conversationSelection(owner);
-  return walkthroughDraftBinding(
+  const allowed = useWriteAllowed(owner.workspace.connection.environmentId);
+  const binding = walkthroughDraftBinding(
     useAtom(walkthroughDraft(selection, owner.run, title, placement)),
     useBound(walkthroughConversationCommands(selection).addMessage),
     { runId: selection.runId, title },
   );
+  return {
+    ...binding,
+    send: () => {
+      if (allowed()) binding.send();
+    },
+  };
 }
