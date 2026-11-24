@@ -13,7 +13,9 @@ import { Text } from '../../../components/ui/text';
 import { documentHeading } from '../../../shared/rules/document-heading';
 import type { Workspace } from '../../projects/index';
 import { reviewParams } from '../../workspace/index';
-import { useWalkthroughFiles } from '../queries/walkthrough';
+import { ErrorState } from '../../../components/ui/error-state';
+import { fileComparison } from '../rules/file-comparison';
+import { useBranchFileList, useWalkthroughFiles } from '../queries/walkthrough';
 
 const BRANCH = { kind: 'branch' } as const;
 
@@ -36,6 +38,7 @@ export function WalkthroughSteps({
 }) {
   const router = useRouter();
   const { branch, worktree } = useWalkthroughFiles(workspace);
+  const branchList = useBranchFileList(workspace);
   const files = [
     ...new Map(
       [...branch, ...worktree].map((file) => [file.path, file]),
@@ -105,6 +108,7 @@ export function WalkthroughSteps({
           <GroupLabel>Not in the walkthrough yet</GroupLabel>
           {grouped.outside.map((file) => {
             const { title, subtitle } = documentHeading(file.path);
+            const comparison = fileComparison(branchList.files, file.path);
             return (
               <Item
                 key={file.path}
@@ -113,23 +117,33 @@ export function WalkthroughSteps({
                 titleNumberOfLines={1}
                 {...(subtitle ? { description: subtitle } : {})}
                 descriptionNumberOfLines={1}
-                onPress={() =>
-                  router.push({
-                    pathname: '/review-file',
-                    params: {
-                      ...reviewParams(
-                        workspace.key,
-                        branch.some((committed) => committed.path === file.path)
-                          ? BRANCH
-                          : { kind: 'worktree' },
-                      ),
-                      path: file.path,
-                    },
-                  })
-                }
+                pending={comparison === undefined && !branchList.failed}
+                disabled={comparison === undefined}
+                onPress={() => {
+                  if (comparison)
+                    router.push({
+                      pathname: '/review-file',
+                      params: {
+                        ...reviewParams(workspace.key, comparison),
+                        path: file.path,
+                      },
+                    });
+                }}
               />
             );
           })}
+          {branchList.files === undefined && branchList.failed ? (
+            <Box paddingX={4}>
+              <ErrorState
+                message="The changed files could not be read."
+                retry={{
+                  label: 'Read the changes again',
+                  onPress: branchList.retry,
+                  pending: branchList.waiting,
+                }}
+              />
+            </Box>
+          ) : null}
         </>
       ) : null}
     </ScrollView>

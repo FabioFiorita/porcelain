@@ -87,3 +87,14 @@ export function useWalkthroughAsset(input: {
     refresh: useAtomRefresh(readWalkthroughAsset(asset)),
   };
 }
+
+export function useBranchFileList(workspace: Selection) {
+  const atom = readBranchChanges(walkthroughSelection(workspace));
+  const result = useAtomValue(atom);
+  return {
+    files: Option.getOrUndefined(AsyncResult.value(result))?.files,
+    failed: AsyncResult.isFailure(result),
+    waiting: result.waiting,
+    retry: useAtomRefresh(atom),
+  };
+}
