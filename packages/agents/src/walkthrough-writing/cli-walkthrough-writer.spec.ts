@@ -34,6 +34,16 @@ const run: WalkthroughJob['run'] = {
   createdAt: '2026-11-09T00:00:00Z',
   state: { status: 'queued' },
 };
+const MCP_CONFIGURATION = String.raw`
+function configuredWalkthroughMcp(override) {
+  const url = /porcelain_walkthrough=\{enabled=true,url="([^"]+)"/.exec(override ?? '')?.[1];
+  return url === undefined ? [] : [{
+    name: 'porcelain_walkthrough',
+    enabled: true,
+    transport: {type: 'streamable_http', url, bearer_token_env_var: 'PORCELAIN_WALKTHROUGH_MCP_TOKEN'},
+  }];
+}
+`;
 async function fixture(
   script: string,
   onTestFinished: (callback: () => Promise<void>) => void,
@@ -41,7 +51,11 @@ async function fixture(
 ) {
   const folder = await mkdtemp(join(temporaryRoot, 'walkthrough-cli-'));
   const command = join(folder, 'writer');
-  await writeFile(command, '#!/usr/bin/env node\n' + script, { mode: 0o700 });
+  await writeFile(
+    command,
+    '#!/usr/bin/env node\n' + MCP_CONFIGURATION + script,
+    { mode: 0o700 },
+  );
   const runtime = ManagedRuntime.make(
     cliWalkthroughWriterLayer({
       processGroup,
@@ -130,6 +144,7 @@ async function fixture(
                   : 'writer-session',
             },
             content: {
+              version: 1,
               outcome: 'nothing',
               title: 'A small change',
               summary: 'Before and after.',
@@ -152,7 +167,7 @@ it('keeps Claude sessions across temporary homes without executing developer she
   onTestFinished,
 }) => {
   const test = await fixture(
-    `const fs = require('fs'); const cp = require('child_process'); const path = require('path'); const args = process.argv.slice(2); fs.readFileSync(0, 'utf8'); const home = process.env.HOME; const session = path.join(process.env.CLAUDE_CONFIG_DIR || path.join(home, '.claude'), 'session'); const resuming = args.includes('--resume'); if (resuming && fs.readFileSync(session, 'utf8') !== 'saved session') process.exit(2); fs.writeFileSync(session, 'saved session'); for (const shell of process.platform === 'darwin' ? ['/bin/bash', '/bin/zsh'] : ['/bin/bash']) cp.execFileSync(shell, ['-lc', '[ ! -f "$HOME/.zshrc" ] || . "$HOME/.zshrc"']); console.log(JSON.stringify({structured_output: resuming ? {outcome:'nothing',title:'A small change',summary:'Done',growth:[],stops:[],onlyInTranscript:[],stillUnclear:[],checks:null} : {understood:'First',could_not_tell:[]}}));`,
+    `const fs = require('fs'); const cp = require('child_process'); const path = require('path'); const args = process.argv.slice(2); fs.readFileSync(0, 'utf8'); const home = process.env.HOME; const session = path.join(process.env.CLAUDE_CONFIG_DIR || path.join(home, '.claude'), 'session'); const resuming = args.includes('--resume'); if (resuming && fs.readFileSync(session, 'utf8') !== 'saved session') process.exit(2); fs.writeFileSync(session, 'saved session'); for (const shell of process.platform === 'darwin' ? ['/bin/bash', '/bin/zsh'] : ['/bin/bash']) cp.execFileSync(shell, ['-lc', '[ ! -f "$HOME/.zshrc" ] || . "$HOME/.zshrc"']); console.log(JSON.stringify({structured_output: resuming ? {outcome:'nothing',title:'A small change',summary:'Done',growth:[],stops:[],onlyInTranscript:[],stillUnclear:[]} : {understood:'First',could_not_tell:[]}}));`,
     onTestFinished,
   );
   const home = join(test.folder, 'developer');
@@ -201,7 +216,7 @@ it('uses two passes in the same read-only session, disables hooks and pins both 
   onTestFinished,
 }) => {
   const test = await fixture(
-    `const fs = require('fs'); const args = process.argv.slice(2); const prompt = fs.readFileSync(0, 'utf8'); const pass = args.includes('--resume'); fs.appendFileSync('calls', JSON.stringify({args, prompt, cwd: process.cwd(), gitConfigGlobal: process.env.GIT_CONFIG_GLOBAL})+'\\n'); console.log(JSON.stringify({session_id: args[args.indexOf(pass ? '--resume' : '--session-id') + 1], total_cost_usd: 0.25, structured_output: pass ? {outcome:'nothing',title:'A small change',summary:'Done',growth:[],stops:[],onlyInTranscript:[],stillUnclear:[],checks:null} : {understood:'First',could_not_tell:[]}}));`,
+    `const fs = require('fs'); const args = process.argv.slice(2); const prompt = fs.readFileSync(0, 'utf8'); const pass = args.includes('--resume'); fs.appendFileSync('calls', JSON.stringify({args, prompt, cwd: process.cwd(), gitConfigGlobal: process.env.GIT_CONFIG_GLOBAL})+'\\n'); console.log(JSON.stringify({session_id: args[args.indexOf(pass ? '--resume' : '--session-id') + 1], total_cost_usd: 0.25, structured_output: pass ? {outcome:'nothing',title:'A small change',summary:'Done',growth:[],stops:[],onlyInTranscript:[],stillUnclear:[]} : {understood:'First',could_not_tell:[]}}));`,
     onTestFinished,
   );
   const result = await test.result({
@@ -328,7 +343,7 @@ it('uses only the Codex final answer despite progress messages and resumes its r
   onTestFinished,
 }) => {
   const test = await fixture(
-    `const fs = require('fs'); const args = process.argv.slice(2); if(args[0]==='mcp'){console.log('[]');process.exit(0)} fs.readFileSync(0, 'utf8'); const pass = args.includes('resume'); fs.appendFileSync('calls', JSON.stringify(args)+'\\n'); console.log(JSON.stringify({type:'thread.started', thread_id:'codex-session'})); console.log(JSON.stringify({type:'item.completed', item:{type:'agent_message',text:'I will inspect the pinned diff.'}})); const answer = JSON.stringify(pass ? {outcome:'nothing',title:'A small change',summary:'Done',growth:[],stops:[],onlyInTranscript:[],stillUnclear:[],checks:null} : {understood:'First',could_not_tell:[]}); if(args.includes('--output-last-message')) fs.writeFileSync(args[args.indexOf('--output-last-message')+1],answer); console.log(JSON.stringify({type:'item.completed', item:{type:'agent_message',text:'The walkthrough is complete.'}}));`,
+    `const fs = require('fs'); const args = process.argv.slice(2); if(args[0]==='mcp'){console.log(JSON.stringify(configuredWalkthroughMcp(args.find(arg=>arg.startsWith('mcp_servers=')))));process.exit(0)} fs.readFileSync(0, 'utf8'); const pass = args.includes('resume'); fs.appendFileSync('calls', JSON.stringify(args)+'\\n'); console.log(JSON.stringify({type:'thread.started', thread_id:'codex-session'})); console.log(JSON.stringify({type:'item.completed', item:{type:'agent_message',text:'I will inspect the pinned diff.'}})); const answer = JSON.stringify(pass ? {outcome:'nothing',title:'A small change',summary:'Done',growth:[],stops:[],onlyInTranscript:[],stillUnclear:[]} : {understood:'First',could_not_tell:[]}); if(args.includes('--output-last-message')) fs.writeFileSync(args[args.indexOf('--output-last-message')+1],answer); console.log(JSON.stringify({type:'item.completed', item:{type:'agent_message',text:'The walkthrough is complete.'}}));`,
     onTestFinished,
   );
   const result = await test.result({
@@ -372,7 +387,7 @@ it.each([
   'carries only a valid Codex credential store into both isolated passes: $configured',
   async ({ configured, expected }) => {
     const test = await fixture(
-      `const fs=require('fs');const args=process.argv.slice(2);fs.readFileSync(0,'utf8');if(args[0]==='mcp'){console.log('[]');process.exit(0)}fs.appendFileSync('calls',JSON.stringify({args})+'\\n');const answer=args.includes('resume')?{outcome:'nothing',title:'A small change',summary:'Done',growth:[],stops:[],onlyInTranscript:[],stillUnclear:[],checks:null}:{understood:'First',could_not_tell:[]};fs.writeFileSync(args[args.indexOf('--output-last-message')+1],JSON.stringify(answer));console.log(JSON.stringify({type:'thread.started',thread_id:'codex-session'}));`,
+      `const fs=require('fs');const args=process.argv.slice(2);fs.readFileSync(0,'utf8');if(args[0]==='mcp'){console.log(JSON.stringify(configuredWalkthroughMcp(args.find(arg=>arg.startsWith('mcp_servers=')))));process.exit(0)}fs.appendFileSync('calls',JSON.stringify({args})+'\\n');const answer=args.includes('resume')?{outcome:'nothing',title:'A small change',summary:'Done',growth:[],stops:[],onlyInTranscript:[],stillUnclear:[]}:{understood:'First',could_not_tell:[]};fs.writeFileSync(args[args.indexOf('--output-last-message')+1],JSON.stringify(answer));console.log(JSON.stringify({type:'thread.started',thread_id:'codex-session'}));`,
       onTestFinished,
     );
     const previous = process.env.CODEX_HOME;
@@ -436,7 +451,28 @@ it('disables every effective Codex MCP server on each pass, including system and
   onTestFinished,
 }) => {
   const test = await fixture(
-    `const fs=require('fs'); const args=process.argv.slice(2); const prompt=fs.readFileSync(0,'utf8'); fs.appendFileSync('calls',JSON.stringify({args,prompt})+'\\n'); if(args[0]==='mcp'){const override=args.find(arg=>arg.startsWith('mcp_servers='));let names;if(override){names=JSON.parse(fs.readFileSync('names','utf8'))}else{const second=fs.existsSync('listed');fs.writeFileSync('listed','yes');names=['user-inherited',second?'managed.layer':'system-inherited'];fs.writeFileSync('names',JSON.stringify(names))}const expected='mcp_servers={'+names.map(name=>JSON.stringify(name)+'={enabled=false,'+(names.indexOf(name)===0?'command="fixture-mcp"':'url="https://fixture.invalid/mcp"')+'}').join(',')+'}';console.log(JSON.stringify(names.map((name,index)=>({name,enabled:override!==expected,transport:index===0?{type:'stdio',command:'fixture-mcp'}:{type:'streamable_http',url:'https://fixture.invalid/mcp'}}))));process.exit(0)} const pass=args.includes('resume');const expected='mcp_servers={"user-inherited"={enabled=false,command="fixture-mcp"},'+JSON.stringify(pass?'managed.layer':'system-inherited')+'={enabled=false,url="https://fixture.invalid/mcp"}}';if(!args.includes(expected)){process.stderr.write('Inherited MCP servers remain enabled');process.exit(1)} const answer=JSON.stringify(pass ? {outcome:'nothing',title:'A small change',summary:'Done',growth:[],stops:[],onlyInTranscript:[],stillUnclear:[],checks:null} : {understood:'First',could_not_tell:[]});fs.writeFileSync(args[args.indexOf('--output-last-message')+1],answer);console.log(JSON.stringify({type:'thread.started',thread_id:'codex-session'}));`,
+    `const fs = require('fs');
+const args = process.argv.slice(2);
+const prompt = fs.readFileSync(0, 'utf8');
+fs.appendFileSync('calls', JSON.stringify({args, prompt})+'\\n');
+const override = args.find(arg => arg.startsWith('mcp_servers='));
+if (args[0] === 'mcp') {
+  const phase = Number(fs.existsSync('first-passed'));
+  const names = ['user-inherited', phase === 0 ? 'system-inherited' : 'managed.layer'];
+  const inherited = names.map((name, index) => {
+    const transport = index === 0 ? {type:'stdio', command:'fixture-mcp'} : {type:'streamable_http', url:'https://fixture.invalid/mcp'};
+    const enabled = !override?.includes(JSON.stringify(name)+'={enabled=false');
+    return {name, enabled, transport};
+  });
+  console.log(JSON.stringify([...inherited, ...configuredWalkthroughMcp(override)]));
+  process.exit(0);
+}
+if (!args.includes('resume')) fs.writeFileSync('first-passed', '');
+const answer = args.includes('resume')
+  ? {outcome:'nothing',title:'A small change',summary:'Done',growth:[],stops:[],onlyInTranscript:[],stillUnclear:[]}
+  : {understood:'First',could_not_tell:[]};
+fs.writeFileSync(args[args.indexOf('--output-last-message')+1], JSON.stringify(answer));
+console.log(JSON.stringify({type:'thread.started',thread_id:'codex-session'}));`,
     onTestFinished,
   );
   expect(
@@ -516,11 +552,99 @@ it('disables every effective Codex MCP server on each pass, including system and
         'skill_mcp_dependency_install',
       ],
       servers: [
-        'mcp_servers={"user-inherited"={enabled=false,command="fixture-mcp"},"managed.layer"={enabled=false,url="https://fixture.invalid/mcp"}}',
+        expect.stringMatching(
+          /^mcp_servers=\{"user-inherited"=\{enabled=false,command="fixture-mcp"\},"managed.layer"=\{enabled=false,url="https:\/\/fixture.invalid\/mcp"\},porcelain_walkthrough=\{enabled=true,url="http:\/\/127.0.0.1:\d+\/mcp",bearer_token_env_var="PORCELAIN_WALKTHROUGH_MCP_TOKEN",required=true\}\}$/,
+        ),
       ],
     },
   ]);
 });
+it('places only blocks issued by the run-scoped MCP catalog', async ({
+  onTestFinished,
+}) => {
+  const test = await fixture(
+    `const fs = require('node:fs');
+const assert = require('node:assert/strict');
+const args = process.argv.slice(2);
+fs.readFileSync(0, 'utf8');
+const servers = configuredWalkthroughMcp(args.find(arg => arg.startsWith('mcp_servers=')));
+if (args[0] === 'mcp') {
+  console.log(JSON.stringify(servers));
+  process.exit(0);
+}
+async function write() {
+  let answer = {understood:'First',could_not_tell:[]};
+  const [server] = servers;
+  if (server !== undefined) {
+    const url = server.transport.url;
+    fs.writeFileSync('mcp-url', url);
+    const headers = {
+      'authorization': 'Bearer '+process.env.PORCELAIN_WALKTHROUGH_MCP_TOKEN,
+      'content-type': 'application/json',
+      'accept': 'application/json, text/event-stream',
+    };
+    let id = 1;
+    const rpc = async (method, params, authorized = true) => {
+      const response = await fetch(url, {
+        method:'POST',
+        headers: authorized ? headers : {...headers, authorization:'Bearer unrelated'},
+        body:JSON.stringify({jsonrpc:'2.0', id:id++, method, params}),
+      });
+      if (!response.ok) return {status: response.status};
+      const session = response.headers.get('mcp-session-id');
+      if (session) headers['mcp-session-id'] = session;
+      return await response.json();
+    };
+    const initialize = {protocolVersion:'2025-06-18',capabilities:{},clientInfo:{name:'fixture',version:'1'}};
+    assert.equal((await rpc('initialize', initialize, false)).status, 401);
+    assert.equal((await rpc('initialize', initialize)).result.protocolVersion, '2025-06-18');
+    headers['mcp-protocol-version'] = '2025-06-18';
+    const listed = await rpc('tools/list', {});
+    assert.deepEqual(listed.result.tools.map(tool => tool.name).sort(), [
+      'before_after','callout','checks','diff_excerpt','files',
+    ]);
+    const refused = await rpc('tools/call', {name:'checks',arguments:{headOid:42}});
+    assert.equal(refused.result.isError, true);
+    const called = await rpc('tools/call', {name:'files',arguments:{files:[{path:'notes.md',note:'Owns the explanation'}]}});
+    const {blockId} = JSON.parse(called.result.content[0].text);
+    answer = {
+      outcome:'worth_knowing', title:'A small change', summary:'Done', growth:[],
+      onlyInTranscript:[], stillUnclear:[],
+      stops:[{title:'The notes',explanation:'Why they exist.',blockIds:['invented',blockId,blockId]}],
+    };
+  }
+  fs.writeFileSync(args[args.indexOf('--output-last-message')+1], JSON.stringify(answer));
+  console.log(JSON.stringify({type:'thread.started',thread_id:'codex-session'}));
+}
+write().catch(error => { console.error(error); process.exitCode = 1; });`,
+    onTestFinished,
+  );
+  expect(
+    await test.result({ provider: 'codex', model: 'gpt-5.5', effort: 'high' }),
+  ).toMatchObject({
+    _tag: 'Success',
+    success: {
+      content: {
+        version: 1,
+        stops: [
+          {
+            title: 'The notes',
+            explanation: 'Why they exist.',
+            blocks: [
+              {
+                kind: 'files',
+                files: [{ path: 'notes.md', note: 'Owns the explanation' }],
+              },
+            ],
+          },
+        ],
+      },
+    },
+  });
+  const url = await readFile(join(test.folder, 'mcp-url'), 'utf8');
+  await expect(fetch(url)).rejects.toThrow();
+});
+
 it.each([
   {
     name: 'failed command',
@@ -566,7 +690,7 @@ it('does not run a configured Codex notify command outside the worktree on eithe
   );
   onTestFinished(() => rm(notifications, { recursive: true, force: true }));
   const test = await fixture(
-    `const fs=require('fs');const args=process.argv.slice(2);fs.readFileSync(0,'utf8');if(args[0]==='mcp'){console.log('[]');process.exit(0)}const notify=JSON.parse(fs.readFileSync('config.toml','utf8').slice('notify = '.length));if(!args.includes('notify=[]')&&!args.includes('--ignore-user-config'))require('child_process').execFileSync(notify[0],notify.slice(1));const answer=args.includes('resume')?{outcome:'nothing',title:'A small change',summary:'Done',growth:[],stops:[],onlyInTranscript:[],stillUnclear:[],checks:null}:{understood:'First',could_not_tell:[]};fs.writeFileSync(args[args.indexOf('--output-last-message')+1],JSON.stringify(answer));console.log(JSON.stringify({type:'thread.started',thread_id:'codex-session'}));`,
+    `const fs=require('fs');const args=process.argv.slice(2);fs.readFileSync(0,'utf8');if(args[0]==='mcp'){console.log(JSON.stringify(configuredWalkthroughMcp(args.find(arg=>arg.startsWith('mcp_servers=')))));process.exit(0)}const notify=JSON.parse(fs.readFileSync('config.toml','utf8').slice('notify = '.length));if(!args.includes('notify=[]')&&!args.includes('--ignore-user-config'))require('child_process').execFileSync(notify[0],notify.slice(1));const answer=args.includes('resume')?{outcome:'nothing',title:'A small change',summary:'Done',growth:[],stops:[],onlyInTranscript:[],stillUnclear:[]}:{understood:'First',could_not_tell:[]};fs.writeFileSync(args[args.indexOf('--output-last-message')+1],JSON.stringify(answer));console.log(JSON.stringify({type:'thread.started',thread_id:'codex-session'}));`,
     onTestFinished,
   );
   await writeFile(
@@ -810,7 +934,7 @@ it.each([
   ],
 ])('keeps a safe request rejection for a Codex %s', async (_name, script) => {
   const test = await fixture(
-    `const args=process.argv.slice(2); if(args[0]==='mcp'){console.log('[]');process.exit(0)} ${script}`,
+    `const args=process.argv.slice(2); if(args[0]==='mcp'){console.log(JSON.stringify(configuredWalkthroughMcp(args.find(arg=>arg.startsWith('mcp_servers=')))));process.exit(0)} ${script}`,
     onTestFinished,
   );
   const result = await test.result({
@@ -841,7 +965,7 @@ it('accepts a completed Codex turn after a recoverable reconnect error', async (
     { type: 'turn.completed', usage: { input_tokens: 10, output_tokens: 3 } },
   ];
   const test = await fixture(
-    `const fs=require('fs');const args=process.argv.slice(2);if(args[0]==='mcp'){console.log('[]');process.exit(0)}fs.readFileSync(0,'utf8');fs.writeFileSync(args[args.indexOf('--output-last-message')+1],'Recovered answer.');for(const event of ${JSON.stringify(events)})console.log(JSON.stringify(event));`,
+    `const fs=require('fs');const args=process.argv.slice(2);if(args[0]==='mcp'){console.log(JSON.stringify(configuredWalkthroughMcp(args.find(arg=>arg.startsWith('mcp_servers=')))));process.exit(0)}fs.readFileSync(0,'utf8');fs.writeFileSync(args[args.indexOf('--output-last-message')+1],'Recovered answer.');for(const event of ${JSON.stringify(events)})console.log(JSON.stringify(event));`,
     onTestFinished,
   );
   expect(
@@ -869,7 +993,7 @@ it('classifies the last Codex error when reconnecting ends in a failed turn', as
     },
   ];
   const test = await fixture(
-    `const args=process.argv.slice(2);if(args[0]==='mcp'){console.log('[]');process.exit(0)}for(const event of ${JSON.stringify(events)})console.log(JSON.stringify(event));`,
+    `const args=process.argv.slice(2);if(args[0]==='mcp'){console.log(JSON.stringify(configuredWalkthroughMcp(args.find(arg=>arg.startsWith('mcp_servers=')))));process.exit(0)}for(const event of ${JSON.stringify(events)})console.log(JSON.stringify(event));`,
     onTestFinished,
   );
   expect(
@@ -890,7 +1014,7 @@ it('uses the last Codex error on a nonzero exit instead of an earlier rejection'
     { type: 'turn.failed', error: { message: 'invalid_request_error' } },
   ];
   const test = await fixture(
-    `const args=process.argv.slice(2);if(args[0]==='mcp'){console.log('[]');process.exit(0)}for(const event of ${JSON.stringify(events)})console.log(JSON.stringify(event));process.exitCode=1;`,
+    `const args=process.argv.slice(2);if(args[0]==='mcp'){console.log(JSON.stringify(configuredWalkthroughMcp(args.find(arg=>arg.startsWith('mcp_servers=')))));process.exit(0)}for(const event of ${JSON.stringify(events)})console.log(JSON.stringify(event));process.exitCode=1;`,
     onTestFinished,
   );
   expect(

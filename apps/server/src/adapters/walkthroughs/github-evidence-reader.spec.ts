@@ -229,7 +229,24 @@ it('reads matching images and checks but never fetches images at another commit 
           commit: {
             statusCheckRollup: {
               state: 'SUCCESS',
-              contexts: { nodes: [], pageInfo: { hasNextPage: false } },
+              contexts: {
+                nodes: [
+                  {
+                    __typename: 'CheckRun',
+                    name: 'Tests',
+                    status: 'COMPLETED',
+                    conclusion: 'SUCCESS',
+                    detailsUrl: null,
+                  },
+                  {
+                    __typename: 'StatusContext',
+                    context: 'Package',
+                    state: 'SUCCESS',
+                    targetUrl: null,
+                  },
+                ],
+                pageInfo: { hasNextPage: false },
+              },
             },
           },
         },
@@ -278,7 +295,13 @@ it('reads matching images and checks but never fetches images at another commit 
       ),
     );
   const matching = await read();
-  expect(matching.checks).toBe('SUCCESS: ');
+  expect(matching.checks).toEqual({
+    state: 'SUCCESS',
+    results: [
+      { name: 'Tests', status: 'SUCCESS' },
+      { name: 'Package', status: 'SUCCESS' },
+    ],
+  });
   expect(matching.assets[0]?.bytes).toEqual(Buffer.from([137, 80, 78, 71]));
   expect(fetched).toEqual([
     'https://github.com/user-attachments/assets/fixture',

@@ -1,6 +1,7 @@
 import { Context, type Effect } from 'effect';
 import type {
   WalkthroughContent,
+  WalkthroughDraft,
   WalkthroughEvidence,
   WalkthroughJob,
   WalkthroughRun,
@@ -15,7 +16,7 @@ export interface WalkthroughWriter {
     },
   ) => Effect.Effect<
     {
-      readonly content: WalkthroughContent;
+      readonly content: WalkthroughDraft;
       readonly sessionId: string;
       readonly durationMs: number;
       readonly costUsd: number | undefined;

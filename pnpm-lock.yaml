@@ -663,6 +663,9 @@ importers:
 
   packages/agents:
     dependencies:
+      '@effect/platform-node':
+        specifier: 4.1.2
+        version: 4.1.2(effect@4.1.2)(redis@6.3.0(@opentelemetry/api@1.9.1))
       '@porcelain/contracts':
         specifier: workspace:*
         version: link:../contracts
@@ -676,9 +679,6 @@ importers:
         specifier: 4.1.2
         version: 4.1.2
     devDependencies:
-      '@effect/platform-node':
-        specifier: 4.1.2
-        version: 4.1.2(effect@4.1.2)(redis@6.3.0(@opentelemetry/api@1.9.1))
       '@porcelain/kernel':
         specifier: workspace:*
         version: link:../kernel

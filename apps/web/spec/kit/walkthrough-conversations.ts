@@ -6,7 +6,7 @@ import { serverReaders } from './readers.ts';
 import { readFile, writeFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { ReadWalkthroughResult as WalkthroughRun } from '@porcelain/contracts/walkthroughs';
-type WalkthroughContent = Extract<
+type WalkthroughDraft = Extract<
   WalkthroughRun['state'],
   { status: 'ready' }
 >['content'];
@@ -91,25 +91,30 @@ export async function walkthroughConversationsFixture(
   const stop = (
     title: string,
     call: boolean,
-  ): WalkthroughContent['stops'][number] => ({
+  ): WalkthroughDraft['stops'][number] => ({
     title,
     explanation: 'Keep the behavior close to its owner.',
-    excerpts: [],
-    evidence: [],
-    files: call
-      ? [{ path: 'walkthrough-fixture.txt', note: 'Owns the behavior' }]
-      : [],
-    ...(call
-      ? {
-          attention: {
-            kind: 'product',
-            question: 'Keep retries local?',
-            note: 'The owner chooses the boundary.',
+    blocks: call
+      ? [
+          {
+            kind: 'files',
+            files: [
+              { path: 'walkthrough-fixture.txt', note: 'Owns the behavior' },
+            ],
           },
-        }
-      : {}),
+          {
+            kind: 'callout',
+            attention: {
+              kind: 'product',
+              question: 'Keep retries local?',
+              note: 'The owner chooses the boundary.',
+            },
+          },
+        ]
+      : [],
   });
-  const content: WalkthroughContent = {
+  const content: WalkthroughDraft = {
+    version: 1,
     outcome: 'needs_you',
     title: 'Keep retries beside their owner',
     summary: 'Two decisions to discuss.',

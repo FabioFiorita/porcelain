@@ -70,6 +70,7 @@ const job = (
       writtenAt: '2026-11-09T00:00:00.000Z',
       durationMs: 1,
       content: {
+        version: 1 as const,
         outcome: 'worth_knowing',
         title: 'Walkthrough',
         summary: 'Summary.',
@@ -78,11 +79,17 @@ const job = (
           {
             title: 'Keep the retry local',
             explanation: 'Why.',
-            excerpts: [
-              { path: 'src/a.ts', side: 'new', start: 1, end: 3, caption: 'a' },
+            blocks: [
+              {
+                kind: 'diff_excerpt',
+                headOid: 'head',
+                path: 'src/a.ts',
+                side: 'new',
+                start: 1,
+                end: 3,
+                caption: 'a',
+              },
             ],
-            evidence: [],
-            files: [],
           },
         ],
         onlyInTranscript: [],

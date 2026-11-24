@@ -9,7 +9,7 @@ import {
   walkthroughJobSchema,
   type EvidenceAsset,
   type StoredWalkthroughMessage,
-  type WalkthroughContent,
+  type WalkthroughDraft,
   type WalkthroughJob,
 } from '@porcelain/walkthroughs/models';
 import {
@@ -290,6 +290,9 @@ else if (endpoint) {
       const state = job.run.state;
       if (state.status !== 'ready')
         throw new Error('Evidence attaches only to a ready walkthrough.');
+      const [before, after] = assets;
+      if (before === undefined || after === undefined)
+        throw new Error('The fixture needs before and after assets.');
       const live = await followWorktree(session);
       try {
         seedStoredWalkthroughs(directory, {
@@ -306,10 +309,20 @@ else if (endpoint) {
                       index === step - 1
                         ? {
                             ...stop,
-                            evidence: assets.map((asset) => ({
-                              assetId: asset.id,
-                              shows: asset.caption,
-                            })),
+                            blocks: [
+                              ...stop.blocks,
+                              {
+                                kind: 'before_after',
+                                before: {
+                                  assetId: before.id,
+                                  shows: before.caption,
+                                },
+                                after: {
+                                  assetId: after.id,
+                                  shows: after.caption,
+                                },
+                              },
+                            ],
                           }
                         : stop,
                     ),
@@ -336,20 +349,10 @@ else if (endpoint) {
       }
     },
     write: async (
-      content: WalkthroughContent,
+      content: WalkthroughDraft,
       input: { base: string; pullRequestNumber?: number },
     ) => {
-      await writeFile(
-        contentPath,
-        JSON.stringify({
-          ...content,
-          checks: content.checks ?? null,
-          stops: content.stops.map((stop) => ({
-            ...stop,
-            attention: stop.attention ?? null,
-          })),
-        }),
-      );
+      await writeFile(contentPath, JSON.stringify(content));
       const live = await followWorktree(session);
       try {
         const accepted = await read(session, {

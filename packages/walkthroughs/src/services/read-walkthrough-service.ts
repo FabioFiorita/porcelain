@@ -16,6 +16,7 @@ export class ReadWalkthroughService extends Context.Service<
       worktreeId: string;
       excerptRunId?: string | undefined;
       excerptStep?: number | undefined;
+      excerptBlock?: number | undefined;
     }) => Effect.Effect<
       {
         walkthrough: WalkthroughRun | undefined;
@@ -63,7 +64,7 @@ export class ReadWalkthroughService extends Context.Service<
             job !== undefined &&
             job.run.id === input.excerptRunId &&
             input.excerptStep !== undefined
-              ? capturedExcerpt(job, input.excerptStep)
+              ? capturedExcerpt(job, input.excerptStep, input.excerptBlock)
               : undefined;
           return {
             walkthrough,

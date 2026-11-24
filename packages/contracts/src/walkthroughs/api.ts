@@ -33,28 +33,7 @@ import {
   walkthroughConversationParamsSchema,
 } from './conversations.ts';
 import { httpFailure } from '../shared/http-failure.ts';
-export const walkthroughContentSchema = Schema.Struct({
-  ...domainContentSchema.fields,
-  checks: nullableAsUndefined(Schema.String),
-  stops: Schema.Array(
-    Schema.Struct({
-      ...domainContentSchema.fields.stops.value.fields,
-      attention: nullableAsUndefined(
-        Schema.Struct({
-          kind: Schema.Literals([
-            'tradeoff',
-            'contract',
-            'product',
-            'risk',
-            'accessibility',
-          ]),
-          note: Schema.String,
-          question: Schema.String,
-        }),
-      ),
-    }),
-  ),
-});
+export const walkthroughContentSchema = domainContentSchema;
 const readySchema = Schema.Struct({
   status: Schema.Literal('ready'),
   content: walkthroughContentSchema,
@@ -92,6 +71,9 @@ const startWalkthroughRequestSchema = Schema.Struct({
 const readWalkthroughQuerySchema = Schema.Struct({
   excerptRunId: Schema.optional(Schema.String),
   excerptStep: Schema.optional(
+    Schema.NumberFromString.check(Schema.isInt(), Schema.isGreaterThan(0)),
+  ),
+  excerptBlock: Schema.optional(
     Schema.NumberFromString.check(Schema.isInt(), Schema.isGreaterThan(0)),
   ),
 });

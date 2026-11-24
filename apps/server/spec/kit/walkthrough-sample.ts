@@ -75,6 +75,7 @@ export async function seedWalkthroughSample(
             writtenAt: now,
             durationMs: 0,
             content: {
+              version: 1 as const,
               outcome: 'needs_you',
               title: 'Find notes by title',
               summary:
@@ -96,35 +97,54 @@ export async function seedWalkthroughSample(
                   title: 'Choose the empty search behavior',
                   explanation:
                     'Search matches a title when it contains the query. An empty query currently returns every note.',
-                  attention: {
-                    kind: 'product',
-                    question: 'Should an empty search show every note?',
-                    note: 'Showing all notes makes browsing easy; showing none keeps the first view quiet.',
-                  },
-                  excerpts: [
+                  blocks: [
                     {
+                      kind: 'callout',
+                      attention: {
+                        kind: 'product',
+                        question: 'Should an empty search show every note?',
+                        note: 'Showing all notes makes browsing easy; showing none keeps the first view quiet.',
+                      },
+                      comparison: {
+                        columns: ['Show all notes', 'Show no notes'],
+                        rows: [
+                          [
+                            'Browsing works immediately',
+                            'The first view stays quiet',
+                          ],
+                        ],
+                      },
+                    },
+                    {
+                      kind: 'diff_excerpt',
+                      headOid: await git('HEAD'),
                       path: 'src/search.ts',
                       side: 'new',
                       start: 2,
                       end: 2,
                       caption: 'An empty string matches every title.',
                     },
-                  ],
-                  evidence: [],
-                  files: [
-                    { path: 'README.md', note: 'Introduces the sample.' },
+                    {
+                      kind: 'files',
+                      files: [
+                        { path: 'README.md', note: 'Introduces the sample.' },
+                      ],
+                    },
                   ],
                 },
                 {
                   title: 'Describe the result count',
                   explanation:
                     'The result label lives separately from matching so presentation can change without changing which notes appear.',
-                  excerpts: [],
-                  evidence: [],
-                  files: [
+                  blocks: [
                     {
-                      path: 'src/results.ts',
-                      note: 'Formats the number of matching notes.',
+                      kind: 'files',
+                      files: [
+                        {
+                          path: 'src/results.ts',
+                          note: 'Formats the number of matching notes.',
+                        },
+                      ],
                     },
                   ],
                 },

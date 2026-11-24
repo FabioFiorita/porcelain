@@ -1,132 +1,245 @@
 import { expect, it } from 'vite-plus/test';
-import type { WalkthroughContent, DiffFile } from '../models/walkthrough.ts';
+import type { WalkthroughBlockRequest } from '../models/blocks.ts';
+import type {
+  WalkthroughDraft,
+  WalkthroughEvidence,
+  WalkthroughJob,
+} from '../models/walkthrough.ts';
+import { capturedExcerpt } from './captured-excerpt.ts';
 import { qualifyWalkthrough } from './qualify-walkthrough.ts';
-const files: DiffFile[] = [
-  {
-    path: 'owner.ts',
-    oldPath: 'before.ts',
-    hunks: [{ oldStart: 2, oldEnd: 6, newStart: 5, newEnd: 10 }],
+
+const job: WalkthroughJob = {
+  worktreePath: '/repo',
+  patch: [
+    'diff --git a/before.ts b/owner.ts',
+    'similarity index 75%',
+    'rename from before.ts',
+    'rename to owner.ts',
+    '--- a/before.ts',
+    '+++ b/owner.ts',
+    '@@ -1,3 +1,3 @@',
+    ' context',
+    '-old',
+    '+new',
+    ' tail',
+    '',
+  ].join('\n'),
+  files: [
+    {
+      path: 'owner.ts',
+      oldPath: 'before.ts',
+      hunks: [{ oldStart: 1, oldEnd: 3, newStart: 1, newEnd: 3 }],
+    },
+    { path: 'support.ts', hunks: [] },
+  ],
+  run: {
+    id: 'fixture',
+    projectId: 'project',
+    worktreeId: 'tree',
+    baseOid: 'base',
+    baseRef: 'main',
+    headOid: 'head',
+    contentTreeOid: 'tree',
+    includesUncommitted: true,
+    writer: { provider: 'codex', model: 'model', effort: 'medium' },
+    createdAt: 'today',
+    state: { status: 'running' },
   },
-  { path: 'support.ts', oldPath: undefined, hunks: [] },
-];
-const content: WalkthroughContent = {
-  outcome: 'worth_knowing',
+};
+
+const evidence: WalkthroughEvidence = {
+  title: 'A renamed file',
+  body: '',
+  assets: ['before', 'after'].map((id) => ({
+    id,
+    bytes: new Uint8Array([137, 80, 78, 71]),
+    mediaType: 'image/png',
+    caption: 'Existing image',
+  })),
+  checks: { state: 'SUCCESS', results: [{ name: 'Test', status: 'SUCCESS' }] },
+};
+const oldExcerpt = {
+  kind: 'diff_excerpt',
+  path: 'before.ts',
+  side: 'old',
+  start: 2,
+  end: 2,
+  caption: 'Previous value',
+} as const;
+const images = {
+  kind: 'before_after',
+  before: { assetId: 'before', shows: 'Previous behavior' },
+  after: { assetId: 'after', shows: 'Current behavior' },
+} as const;
+const stop = (title: string, ...blocks: WalkthroughBlockRequest[]) => ({
+  title,
+  explanation: 'What the captured change does.',
+  blocks,
+});
+const content: WalkthroughDraft = {
+  version: 1,
+  outcome: 'needs_you',
   title: 'The change',
   summary: 'A new owner.',
   growth: [],
-  stops: [
-    {
-      title: 'One owner',
-      explanation: 'Owns it.',
-      attention: undefined,
-      excerpts: [
-        { path: 'owner.ts', side: 'new', start: 5, end: 8, caption: 'Valid' },
-        {
-          path: 'owner.ts',
-          side: 'new',
-          start: 9,
-          end: 12,
-          caption: 'Outside',
-        },
-        { path: 'other.ts', side: 'new', start: 5, end: 6, caption: 'Unknown' },
-      ],
-      files: [{ path: 'other.ts', note: 'Unknown' }],
-      evidence: [{ assetId: 'missing', shows: 'Invented' }],
-    },
-  ],
+  stops: [],
   onlyInTranscript: [],
   stillUnclear: ['Unknown'],
-  checks: undefined,
 };
-it('drops excerpts outside one real diff hunk, unmodified paths and unavailable evidence, and claims remaining files', () => {
-  const result = qualifyWalkthrough(content, files, []);
-  expect(result.stops[0]?.excerpts).toEqual([
-    { path: 'owner.ts', side: 'new', start: 5, end: 8, caption: 'Valid' },
-  ]);
-  expect(result.stops[0]?.files).toEqual([]);
-  expect(result.stops[0]?.evidence).toEqual([]);
-  expect(result.stops[1]).toEqual({
-    title: 'Everything else',
-    explanation: 'These changed files complete the change.',
-    attention: undefined,
-    excerpts: [],
-    evidence: [],
-    files: [{ path: 'support.ts', note: 'Supporting change' }],
-  });
-});
-it('requires no coverage and hides unanswered questions for nothing', () => {
-  const result = qualifyWalkthrough(
-    { ...content, outcome: 'nothing' },
-    files,
-    [],
-  );
-  expect(result.stops).toEqual([]);
-  expect(result.stillUnclear).toEqual([]);
-});
-it('keeps old-side excerpts on renames and gives each file one stop', () => {
-  const stop = {
-    ...content.stops[0]!,
-    excerpts: [
-      {
-        path: 'before.ts',
-        side: 'old' as const,
-        start: 2,
-        end: 4,
-        caption: 'Before',
-      },
-    ],
-    files: [],
-  };
-  const result = qualifyWalkthrough(
-    { ...content, stops: [stop, stop] },
-    files,
-    [],
-  );
-  expect(result.stops[0]?.excerpts).toEqual([
-    { path: 'before.ts', side: 'old', start: 2, end: 4, caption: 'Before' },
-  ]);
-  expect(result.stops[1]?.excerpts).toEqual([]);
-});
-it('merges the leftover files into a writer-supplied Everything else stop', () => {
-  const owned = { ...content.stops[0]!, excerpts: [], files: [] };
+
+it('keeps captured lines and real PR evidence, and drops blocks that cite unavailable data', () => {
   const result = qualifyWalkthrough(
     {
       ...content,
       stops: [
-        { ...owned, title: 'One owner' },
-        {
-          ...owned,
-          title: 'Everything else',
-          files: [{ path: 'owner.ts', note: 'Writer note' }],
-        },
+        stop(
+          'One owner',
+          { ...oldExcerpt, start: 4, end: 5 },
+          oldExcerpt,
+          { ...oldExcerpt, path: 'owner.ts' },
+          { kind: 'files', files: [{ path: 'unknown.ts', note: 'Invented' }] },
+          { ...images, before: { assetId: 'unknown', shows: 'Invented' } },
+          { ...images, after: images.before },
+          images,
+          { kind: 'checks', headOid: 'another-head' },
+          { kind: 'checks', headOid: 'head' },
+          {
+            kind: 'callout',
+            attention: {
+              kind: 'risk',
+              note: 'Affects existing readers',
+              question: 'Keep both names?',
+            },
+            comparison: {
+              columns: ['Keep', 'Replace'],
+              rows: [['Two names', 'One name']],
+            },
+          },
+        ),
+        stop('Same file twice', oldExcerpt),
       ],
     },
-    files,
-    [],
+    job,
+    evidence,
   );
-  expect(result.stops.map((stop) => stop.title)).toEqual([
-    'One owner',
-    'Everything else',
+  expect(result.outcome).toBe('needs_you');
+  expect(result.stops[0]?.blocks).toEqual([
+    { ...oldExcerpt, headOid: 'head' },
+    images,
+    {
+      kind: 'checks',
+      headOid: 'head',
+      state: 'SUCCESS',
+      results: [{ name: 'Test', status: 'SUCCESS' }],
+    },
+    {
+      kind: 'callout',
+      attention: {
+        kind: 'risk',
+        note: 'Affects existing readers',
+        question: 'Keep both names?',
+      },
+      comparison: {
+        columns: ['Keep', 'Replace'],
+        rows: [['Two names', 'One name']],
+      },
+    },
   ]);
-  expect(result.stops[1]?.files).toEqual([
-    { path: 'owner.ts', note: 'Writer note' },
-    { path: 'support.ts', note: 'Supporting change' },
-  ]);
+  expect(result.stops[1]?.blocks).toEqual([]);
+  expect(result.stops[2]).toEqual({
+    title: 'Everything else',
+    explanation: 'These changed files complete the change.',
+    blocks: [
+      {
+        kind: 'files',
+        files: [{ path: 'support.ts', note: 'Supporting change' }],
+      },
+    ],
+  });
+  const ready: WalkthroughJob = {
+    ...job,
+    run: {
+      ...job.run,
+      state: {
+        status: 'ready',
+        content: result,
+        writtenAt: 'today',
+        durationMs: 1,
+      },
+    },
+  };
+  expect(capturedExcerpt(ready, 1, 1)).toContain(
+    '@@ -1,3 +1,3 @@\n context\n-old\n+new',
+  );
+  expect(capturedExcerpt(ready, 1, 2)).toBeUndefined();
 });
-it('numbers repeated stop titles in order and never lands on a title the writer already used', () => {
-  const owned = { ...content.stops[0]!, excerpts: [], files: [] };
+
+it('leaves a step readable with no evidence when the patch and PR cannot confirm it', () => {
   const result = qualifyWalkthrough(
     {
       ...content,
-      stops: ['Same', 'Same', 'Same (2)', 'Same'].map((title) => ({
-        ...owned,
-        title,
-      })),
+      stops: [
+        stop('One owner', oldExcerpt, images, {
+          kind: 'checks',
+          headOid: 'head',
+        }),
+      ],
     },
-    [],
-    [],
+    { ...job, patch: '' },
+    { ...evidence, unavailable: 'head_mismatch' },
   );
-  expect(result.stops.map((stop) => stop.title)).toEqual([
+  expect(result.outcome).toBe('worth_knowing');
+  expect(result.stops[0]).toEqual(stop('One owner'));
+});
+
+it('requires no coverage and hides unanswered questions for nothing', () => {
+  const result = qualifyWalkthrough(
+    { ...content, outcome: 'nothing', stops: [stop('One owner')] },
+    job,
+    evidence,
+  );
+  expect(result.stops).toEqual([]);
+  expect(result.stillUnclear).toEqual([]);
+});
+
+it('merges leftover files into a writer-supplied Everything else stop', () => {
+  const result = qualifyWalkthrough(
+    {
+      ...content,
+      stops: [
+        stop('One owner'),
+        stop('Everything else', {
+          kind: 'files',
+          files: [{ path: 'owner.ts', note: 'Writer note' }],
+        }),
+      ],
+    },
+    job,
+    evidence,
+  );
+  expect(result.stops.map((item) => item.title)).toEqual([
+    'One owner',
+    'Everything else',
+  ]);
+  expect(result.stops[1]?.blocks).toEqual([
+    { kind: 'files', files: [{ path: 'owner.ts', note: 'Writer note' }] },
+    {
+      kind: 'files',
+      files: [{ path: 'support.ts', note: 'Supporting change' }],
+    },
+  ]);
+});
+
+it('numbers repeated stop titles without taking another step title', () => {
+  const result = qualifyWalkthrough(
+    {
+      ...content,
+      stops: ['Same', 'Same', 'Same (2)', 'Same'].map((title) => stop(title)),
+    },
+    { ...job, files: [] },
+    evidence,
+  );
+  expect(result.stops.map((item) => item.title)).toEqual([
     'Same',
     'Same (3)',
     'Same (2)',

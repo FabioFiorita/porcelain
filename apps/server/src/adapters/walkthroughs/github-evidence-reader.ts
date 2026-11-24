@@ -88,7 +88,17 @@ export const githubEvidenceReaderLayer = Layer.effect(
             return withoutEvidence('head_mismatch');
           const rollup = pr.commits.nodes[0]?.commit.statusCheckRollup;
           const checks = rollup
-            ? `${rollup.state}: ${rollup.contexts.nodes.map((check) => (check.__typename === 'CheckRun' ? `${check.name}: ${check.conclusion ?? check.status}` : `${check.context}: ${check.state}`)).join('; ')}`
+            ? {
+                state: rollup.state,
+                results: rollup.contexts.nodes.map((check) =>
+                  check.__typename === 'CheckRun'
+                    ? {
+                        name: check.name,
+                        status: check.conclusion ?? check.status,
+                      }
+                    : { name: check.context, status: check.state },
+                ),
+              }
             : undefined;
           const assets: EvidenceAsset[] = [];
           for (const url of githubImageUrls(pr.bodyHTML ?? '')) {

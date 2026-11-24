@@ -125,8 +125,12 @@ function briefItem(
     stopTitle: stored.stopTitle,
     paths: [
       ...new Set([
-        ...(stop?.excerpts ?? []).map((excerpt) => excerpt.path),
-        ...(stop?.files ?? []).map((file) => file.path),
+        ...(stop?.blocks ?? []).flatMap((block) => {
+          if (block.kind === 'diff_excerpt') return [block.path];
+          if (block.kind === 'files')
+            return block.files.map((file) => file.path);
+          return [];
+        }),
       ]),
     ],
     answer:

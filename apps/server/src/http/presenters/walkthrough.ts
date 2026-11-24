@@ -12,14 +12,6 @@ export function presentWalkthrough(run: ReadWalkthroughResult) {
     state: {
       ...run.state,
       costUsd: run.state.costUsd,
-      content: {
-        ...run.state.content,
-        checks: run.state.content.checks,
-        stops: run.state.content.stops.map((stop) => ({
-          ...stop,
-          attention: stop.attention,
-        })),
-      },
     },
   };
 }

@@ -29,3 +29,10 @@ export {
   type WalkthroughConversationsResult,
   type WalkthroughPostResult,
 } from './conversations.ts';
+
+export {
+  walkthroughBlockSchema,
+  walkthroughBlockRequestSchema,
+  type WalkthroughBlock,
+  type WalkthroughBlockRequest,
+} from '@porcelain/walkthroughs/models';

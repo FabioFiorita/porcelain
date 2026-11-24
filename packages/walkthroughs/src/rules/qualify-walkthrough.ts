@@ -1,4 +1,14 @@
-import type { DiffFile, WalkthroughContent } from '../models/walkthrough.ts';
+import type {
+  WalkthroughBlock,
+  WalkthroughBlockRequest,
+} from '../models/blocks.ts';
+import type {
+  WalkthroughContent,
+  WalkthroughDraft,
+  WalkthroughEvidence,
+  WalkthroughJob,
+} from '../models/walkthrough.ts';
+import { capturedDiffHunk } from './captured-excerpt.ts';
 
 const LEFTOVER_TITLE = 'Everything else';
 
@@ -20,100 +30,117 @@ function withUniqueTitles<Stop extends { readonly title: string }>(
   });
 }
 
+function qualifyBlock(
+  block: WalkthroughBlockRequest,
+  job: WalkthroughJob,
+  evidence: WalkthroughEvidence,
+  claimed: ReadonlySet<string>,
+): { block: WalkthroughBlock; paths: readonly string[] } | undefined {
+  switch (block.kind) {
+    case 'diff_excerpt': {
+      const file = job.files.find(
+        (item) =>
+          (block.side === 'old' ? (item.oldPath ?? item.path) : item.path) ===
+          block.path,
+      );
+      if (
+        file === undefined ||
+        claimed.has(file.path) ||
+        !capturedDiffHunk(job.patch, block)
+      )
+        return undefined;
+      return {
+        block: { ...block, headOid: job.run.headOid },
+        paths: [file.path],
+      };
+    }
+    case 'before_after':
+      if (
+        evidence.unavailable !== undefined ||
+        block.before.assetId === block.after.assetId ||
+        ![block.before, block.after].every((image) =>
+          evidence.assets.some((asset) => asset.id === image.assetId),
+        )
+      )
+        return undefined;
+      return { block, paths: [] };
+    case 'files': {
+      const [first, ...rest] = block.files.filter(
+        ({ path }) =>
+          !claimed.has(path) && job.files.some((file) => file.path === path),
+      );
+      if (first === undefined) return undefined;
+      return {
+        block: { ...block, files: [first, ...rest] },
+        paths: [first.path, ...rest.map((file) => file.path)],
+      };
+    }
+    case 'checks':
+      if (
+        block.headOid !== job.run.headOid ||
+        evidence.unavailable !== undefined ||
+        evidence.checks === undefined
+      )
+        return undefined;
+      return { block: { ...block, ...evidence.checks }, paths: [] };
+    case 'callout': {
+      const { attention, comparison } = block;
+      if (
+        !attention.question.trim() ||
+        !attention.note.trim() ||
+        (comparison !== undefined &&
+          (comparison.columns.length !== 2 ||
+            comparison.rows.length === 0 ||
+            comparison.rows.length > 6 ||
+            comparison.rows.some((row) => row.length !== 2)))
+      )
+        return undefined;
+      return { block, paths: [] };
+    }
+  }
+}
+
 export function qualifyWalkthrough(
-  content: WalkthroughContent,
-  files: readonly DiffFile[],
-  assets: readonly string[],
+  content: WalkthroughDraft,
+  job: WalkthroughJob,
+  evidence: WalkthroughEvidence,
 ): WalkthroughContent {
   if (content.outcome === 'nothing')
     return { ...content, stops: [], stillUnclear: [] };
   const claimed = new Set<string>();
   const stops = content.stops.map((stop) => {
-    const excerpts = stop.excerpts
-      .filter((excerpt) => {
-        const file = files.find(
-          (item) =>
-            (excerpt.side === 'old'
-              ? (item.oldPath ?? item.path)
-              : item.path) === excerpt.path,
-        );
-        return (
-          file !== undefined &&
-          excerpt.start > 0 &&
-          excerpt.end >= excerpt.start &&
-          file.hunks.some(
-            (hunk) =>
-              excerpt.start >=
-                (excerpt.side === 'old' ? hunk.oldStart : hunk.newStart) &&
-              excerpt.end <=
-                (excerpt.side === 'old' ? hunk.oldEnd : hunk.newEnd),
-          )
-        );
-      })
-      .filter((excerpt) => {
-        const file = files.find(
-          (item) =>
-            (excerpt.side === 'old'
-              ? (item.oldPath ?? item.path)
-              : item.path) === excerpt.path,
-        );
-        return file !== undefined && !claimed.has(file.path);
-      });
-    const paths = new Set(
-      excerpts.map(
-        (excerpt) =>
-          files.find(
-            (item) =>
-              (excerpt.side === 'old'
-                ? (item.oldPath ?? item.path)
-                : item.path) === excerpt.path,
-          )?.path,
-      ),
-    );
-    const owned = stop.files.filter(
-      (file) =>
-        files.some((item) => item.path === file.path) &&
-        !claimed.has(file.path) &&
-        !paths.has(file.path),
-    );
-    for (const path of paths) if (path !== undefined) claimed.add(path);
-    for (const file of owned) claimed.add(file.path);
-    return {
-      ...stop,
-      excerpts,
-      files: owned,
-      evidence: stop.evidence.filter((item) => assets.includes(item.assetId)),
-    };
+    const qualified = stop.blocks.flatMap((block) => {
+      const match = qualifyBlock(block, job, evidence, claimed);
+      return match === undefined ? [] : [match];
+    });
+    for (const item of qualified)
+      for (const path of item.paths) claimed.add(path);
+    return { ...stop, blocks: qualified.map((item) => item.block) };
   });
-  const remaining = files.filter((file) => !claimed.has(file.path));
-  const leftovers = remaining.map((file) => ({
-    path: file.path,
-    note: 'Supporting change',
-  }));
-  const existing = stops.findIndex((stop) => stop.title === LEFTOVER_TITLE);
-  const covered =
-    leftovers.length === 0
-      ? stops
-      : existing === -1
-        ? [
-            ...stops,
-            {
-              title: LEFTOVER_TITLE,
-              explanation: 'These changed files complete the change.',
-              attention: undefined,
-              excerpts: [],
-              evidence: [],
-              files: leftovers,
-            },
-          ]
-        : stops.map((stop, index) =>
-            index === existing
-              ? { ...stop, files: [...stop.files, ...leftovers] }
-              : stop,
-          );
+  const [first, ...rest] = job.files
+    .filter((file) => !claimed.has(file.path))
+    .map((file) => ({ path: file.path, note: 'Supporting change' }));
+  if (first !== undefined) {
+    const block: WalkthroughBlock = { kind: 'files', files: [first, ...rest] };
+    const leftover = stops.find((stop) => stop.title === LEFTOVER_TITLE);
+    if (leftover) leftover.blocks.push(block);
+    else
+      stops.push({
+        title: LEFTOVER_TITLE,
+        explanation: 'These changed files complete the change.',
+        blocks: [block],
+      });
+  }
   return {
     ...content,
-    stops: withUniqueTitles(covered),
+    outcome:
+      content.outcome === 'needs_you' &&
+      !stops.some((stop) =>
+        stop.blocks.some((block) => block.kind === 'callout'),
+      )
+        ? 'worth_knowing'
+        : content.outcome,
+    stops: withUniqueTitles(stops),
     stillUnclear: content.stillUnclear.slice(0, 8),
   };
 }

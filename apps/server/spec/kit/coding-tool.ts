@@ -114,7 +114,6 @@ function walkthroughContent(files: readonly string[], outcome: string) {
       stops: [],
       onlyInTranscript: [],
       stillUnclear: [],
-      checks: null,
     };
   return {
     outcome: 'needs_you',
@@ -134,18 +133,24 @@ function walkthroughContent(files: readonly string[], outcome: string) {
     ).map((paths, index) => ({
       title: `Step about \`${paths[0]}\``,
       explanation: 'A file changed here, and this explains why it did.',
-      attention:
-        index === 0
-          ? {
-              kind: 'product',
-              note: 'Either choice ships; only the owner can pick.',
-              question: 'Should `notes` stay in the sample?',
-            }
-          : null,
-      excerpts:
-        outcome.startsWith('line-excerpt') && paths[0] === 'renamed notes.txt'
+      blocks: [
+        ...(index === 0
           ? [
               {
+                kind: 'callout',
+                attention: {
+                  kind: 'product',
+                  note: 'Either choice ships; only the owner can pick.',
+                  question: 'Should `notes` stay in the sample?',
+                },
+              },
+            ]
+          : []),
+        ...(outcome.startsWith('line-excerpt') &&
+        paths[0] === 'renamed notes.txt'
+          ? [
+              {
+                kind: 'diff_excerpt',
                 path:
                   outcome === 'line-excerpt-old'
                     ? 'original notes.txt'
@@ -166,9 +171,12 @@ function walkthroughContent(files: readonly string[], outcome: string) {
                 caption: 'The local search rule',
               },
             ]
-          : [],
-      evidence: [],
-      files: paths.map((path) => ({ path, note: 'Changed' })),
+          : []),
+        {
+          kind: 'files',
+          files: paths.map((path) => ({ path, note: 'Changed' })),
+        },
+      ],
     })),
     onlyInTranscript: [
       { point: 'Why notes exist.', answer: 'The owner asked for them.' },
@@ -176,7 +184,6 @@ function walkthroughContent(files: readonly string[], outcome: string) {
       { point: 'Why now.', answer: 'A release needs them.' },
     ],
     stillUnclear: ['Whether the notes should move.', 'Who updates them.'],
-    checks: null,
   };
 }
 

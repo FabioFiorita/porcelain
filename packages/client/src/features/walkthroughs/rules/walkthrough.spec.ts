@@ -67,7 +67,6 @@ const content = (
   stops: [],
   onlyInTranscript: [],
   stillUnclear: [],
-  checks: undefined,
   ...over,
 });
 
@@ -178,7 +177,12 @@ describe('walkthroughTabTitle', () => {
         read(
           run({
             status: 'ready',
-            content: content({ title: 'Add `notes` to the sample.' }),
+            content: {
+              ...content(),
+              title: 'Add `notes` to the sample.',
+              version: 1,
+              stops: [],
+            },
             writtenAt: '2026-11-09T00:00:01.000Z',
             durationMs: 1,
             costUsd: undefined,
@@ -284,7 +288,7 @@ describe('walkthroughPhase', () => {
         read(
           run({
             status: 'ready',
-            content: content(),
+            content: { ...content(), version: 1, stops: [] },
             writtenAt: '2026-11-09T00:00:01.000Z',
             durationMs: 1,
             costUsd: undefined,
@@ -306,7 +310,7 @@ describe('firstDocument', () => {
     { status: 'failed', failure: { kind: 'other', message: 'Stopped' } },
     {
       status: 'ready',
-      content: content(),
+      content: { ...content(), version: 1, stops: [] },
       writtenAt: '2026-11-10T00:00:00Z',
       durationMs: 1,
       costUsd: undefined,
@@ -472,7 +476,32 @@ it.each([
 ] as const)('keeps ready steps while the newer attempt is $status', (state) => {
   const ready = run({
     status: 'ready',
-    content: content({ stops: [stop()] }),
+    content: {
+      ...content(),
+      version: 1,
+      stops: [
+        {
+          title: 'A step',
+          explanation: 'Why it exists.',
+          blocks: [
+            {
+              kind: 'checks',
+              state: 'SUCCESS',
+              headOid: 'head',
+              results: [{ name: 'Test', status: 'SUCCESS' }],
+            },
+            {
+              kind: 'callout',
+              attention,
+              comparison: {
+                columns: ['Keep', 'Replace'],
+                rows: [['Two names', 'One name']],
+              },
+            },
+          ],
+        },
+      ],
+    },
     writtenAt: 'today',
     durationMs: 1,
     costUsd: undefined,
@@ -485,7 +514,20 @@ it.each([
   expect(phase).toMatchObject({
     kind: 'ready',
     run: { id: 'run', headOid: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' },
-    content: { stops: [{ title: 'A step' }] },
+    content: {
+      stops: [
+        {
+          title: 'A step',
+          explanation:
+            'Why it exists.\n\nChecks: SUCCESS · Test: SUCCESS\n\nKeep: Two names · Replace: One name',
+          attention: {
+            kind: 'product',
+            note: 'It matters.',
+            question: 'Keep it?',
+          },
+        },
+      ],
+    },
     freshness: 'changed',
     attempt: { id: 'newer' },
   });
@@ -591,7 +633,7 @@ describe('walkthrough page rules', () => {
   it('keeps the ready page while an update runs, and blames the failed attempt’s writer', () => {
     const ready = run({
       status: 'ready',
-      content: content(),
+      content: { ...content(), version: 1, stops: [] },
       writtenAt: '2026-11-09T00:00:01.000Z',
       durationMs: 1,
       costUsd: undefined,
@@ -853,7 +895,7 @@ describe('walkthrough update status', () => {
   const saved = () => ({
     ...run({
       status: 'ready',
-      content: content(),
+      content: { ...content(), version: 1, stops: [] },
       writtenAt: '2026-11-12T12:00:00Z',
       durationMs: 1,
       costUsd: undefined,

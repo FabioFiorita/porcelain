@@ -37,13 +37,20 @@ test('writes without evidence at another PR commit and attaches checks after pus
     gh,
     matching.replace('headRefOid:head', "headRefOid:'another-commit'"),
   );
+  const headOid = (await session.git('rev-parse', 'HEAD')).trim();
   const content = {
+    version: 1 as const,
     outcome: 'worth_knowing' as const,
     title: 'Local change',
     summary: 'Explain local work.',
-    checks: 'SUCCESS: ',
     growth: [],
-    stops: [],
+    stops: [
+      {
+        title: 'Check the change',
+        explanation: 'Read the recorded checks.',
+        blocks: [{ kind: 'checks', headOid }],
+      },
+    ] as const,
     onlyInTranscript: [],
     stillUnclear: [],
   };
@@ -56,7 +63,7 @@ test('writes without evidence at another PR commit and attaches checks after pus
     pullRequestRepository: { owner: 'fixture', repo: 'project' },
   });
   expect(
-    behind.state.status === 'ready' && behind.state.content.checks,
+    behind.state.status === 'ready' && behind.state.content.stops[0]?.blocks[0],
   ).toBeUndefined();
   const database = new DatabaseSync(
     join(session.dataDirectory, 'inventory.sqlite'),
@@ -76,9 +83,15 @@ test('writes without evidence at another PR commit and attaches checks after pus
   const updated = await writer.write(content, input);
   expect(updated.id).not.toBe(behind.id);
   expect(updated.evidenceUnavailable).toBeUndefined();
-  expect(updated.state.status === 'ready' && updated.state.content.checks).toBe(
-    'SUCCESS: ',
-  );
+  expect(
+    updated.state.status === 'ready' &&
+      updated.state.content.stops[0]?.blocks[0],
+  ).toEqual({
+    kind: 'checks',
+    headOid,
+    state: 'SUCCESS',
+    results: [],
+  });
   for (const [reason, script] of [
     [
       'github_unavailable',
@@ -92,7 +105,8 @@ test('writes without evidence at another PR commit and attaches checks after pus
     expect(unavailable.evidenceUnavailable).toBe(reason);
     expect(unavailable.state.status).toBe('ready');
     expect(
-      unavailable.state.status === 'ready' && unavailable.state.content.checks,
+      unavailable.state.status === 'ready' &&
+        unavailable.state.content.stops[0]?.blocks[0],
     ).toBeUndefined();
   }
 });

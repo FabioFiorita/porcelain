@@ -2,14 +2,63 @@ import type {
   StartWalkthroughRequest,
   readWalkthroughResponseSchema,
   walkthroughContentSchema,
+  WalkthroughBlock,
 } from '@porcelain/contracts/walkthroughs';
 import type { ReadChangesResponse } from '@porcelain/contracts/changes';
 
 export type WalkthroughRead = typeof readWalkthroughResponseSchema.Type;
 export type WalkthroughRun = NonNullable<WalkthroughRead['walkthrough']>;
-export type WalkthroughContent = typeof walkthroughContentSchema.Type;
-export type WalkthroughStop = WalkthroughContent['stops'][number];
-export type WalkthroughEvidence = WalkthroughStop['evidence'][number];
+type BlockContent = typeof walkthroughContentSchema.Type;
+type Excerpt = Extract<WalkthroughBlock, { kind: 'diff_excerpt' }>;
+type Screenshots = Extract<WalkthroughBlock, { kind: 'before_after' }>;
+type Callout = Extract<WalkthroughBlock, { kind: 'callout' }>;
+export type WalkthroughEvidence = Screenshots['before'];
+export type WalkthroughStop = {
+  readonly title: string;
+  readonly explanation: string;
+  readonly attention?: Callout['attention'] | undefined;
+  readonly excerpts: readonly Omit<Excerpt, 'kind' | 'headOid'>[];
+  readonly evidence: readonly WalkthroughEvidence[];
+  readonly files: Extract<
+    WalkthroughBlock,
+    { kind: 'files' }
+  >['files'][number][];
+};
+export type WalkthroughContent = Omit<BlockContent, 'stops' | 'version'> & {
+  readonly stops: readonly WalkthroughStop[];
+};
+
+function readBlockContent(content: BlockContent): WalkthroughContent {
+  const stops = content.stops.map(({ blocks, ...stop }) => {
+    const callouts = blocks.filter((block) => block.kind === 'callout');
+    const details = blocks.flatMap((block) => {
+      if (block.kind === 'checks')
+        return [
+          `Checks: ${[block.state, ...block.results.map(({ name, status }) => `${name}: ${status}`)].join(' · ')}`,
+        ];
+      if (block.kind === 'callout' && block.comparison !== undefined) {
+        const { columns, rows } = block.comparison;
+        return rows.map(
+          ([left, right]) => `${columns[0]}: ${left} · ${columns[1]}: ${right}`,
+        );
+      }
+      return [];
+    });
+    return {
+      ...stop,
+      explanation: [stop.explanation, ...details].join('\n\n'),
+      attention: callouts[0]?.attention,
+      excerpts: blocks.filter((block) => block.kind === 'diff_excerpt'),
+      files: blocks.flatMap((block) =>
+        block.kind === 'files' ? block.files : [],
+      ),
+      evidence: blocks.flatMap((block) =>
+        block.kind === 'before_after' ? [block.before, block.after] : [],
+      ),
+    };
+  });
+  return { ...content, stops };
+}
 export type WalkthroughFailure = Extract<
   WalkthroughRun['state'],
   { status: 'failed' }
@@ -41,7 +90,7 @@ export function walkthroughPhase(read: WalkthroughRead): WalkthroughPhase {
       return {
         kind: 'ready',
         run,
-        content: run.state.content,
+        content: readBlockContent(run.state.content),
         freshness: read.freshness,
         attempt: read.attempt,
       };

@@ -142,6 +142,7 @@ export const demoWalkthrough: NonNullable<
     durationMs: 0,
     costUsd: undefined,
     content: {
+      version: 1 as const,
       outcome: 'needs_you',
       title: 'A warmer welcome for every visitor',
       summary:
@@ -158,33 +159,39 @@ export const demoWalkthrough: NonNullable<
           title: 'Choose the fallback greeting',
           explanation:
             'Whitespace is removed before choosing the name. A blank value becomes “friend”, so every visitor receives a complete greeting.',
-          attention: {
-            kind: 'product',
-            note: 'The fallback is visible to visitors.',
-            question: 'Does “friend” fit the voice of the product?',
-          },
-          excerpts: [
+          blocks: [
             {
+              kind: 'callout',
+              attention: {
+                kind: 'product',
+                note: 'The fallback is visible to visitors.',
+                question: 'Does “friend” fit the voice of the product?',
+              },
+            },
+            {
+              kind: 'diff_excerpt',
+              headOid: demoHead,
               path: 'src/welcome.ts',
               side: 'new',
               start: 1,
               end: 4,
               caption: 'Trim the name before choosing the greeting.',
             },
-          ],
-          evidence: [],
-          files: [
-            { path: 'src/welcome.ts', note: 'The greeting and fallback.' },
             {
-              path: 'src/welcome.test.ts',
-              note: 'An example of the intended behavior.',
+              kind: 'files',
+              files: [
+                { path: 'src/welcome.ts', note: 'The greeting and fallback.' },
+                {
+                  path: 'src/welcome.test.ts',
+                  note: 'An example of the intended behavior.',
+                },
+              ],
             },
           ],
         },
       ],
       onlyInTranscript: [],
       stillUnclear: [],
-      checks: 'Demo content only. No checks were run for this sample.',
     },
   },
 };

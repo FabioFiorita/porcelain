@@ -109,17 +109,7 @@ export class WriteWalkthroughService extends Context.Service<
               'validating',
               'Checking the written walkthrough against captured files and evidence.',
             );
-            const content = qualifyWalkthrough(
-              {
-                ...result.content,
-                checks:
-                  evidence.unavailable === undefined
-                    ? result.content.checks
-                    : undefined,
-              },
-              job.files,
-              evidence.assets.map((asset) => asset.id),
-            );
+            const content = qualifyWalkthrough(result.content, job, evidence);
             run = {
               ...run,
               sessionId: result.sessionId,

@@ -45,6 +45,7 @@ it.each([false, true])(
             writtenAt: 'today',
             durationMs: 1000,
             content: {
+              version: 1 as const,
               outcome: 'worth_knowing',
               title: 'Keep ownership',
               summary: 'Read the working change',
