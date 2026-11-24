@@ -948,3 +948,89 @@ test('a jump to a file that was removed before it was read does not fire when th
     held.release();
   }
 });
+
+test('a file whose deletion is staged and whose new bytes are untracked waits for its staged diff before landing', async ({
+  repo,
+  render,
+  fetchGate,
+  reviewLayout,
+}) => {
+  await repo.write('shape.txt', 'A shape line that is staged for deletion\n');
+  await repo.commit('Add a shape');
+  await repo.remove('shape.txt');
+  await repo.stage('shape.txt');
+  await repo.write('shape.txt', 'SHAPE\u0000\u0001bytes');
+  await repo.write(
+    'a-long.md',
+    `${Array.from({ length: 80 }, (_, index) => `Note ${index + 1}`).join('\n')}\n`,
+  );
+  const held = fetchGate.holdNextChangeDiff('shape.txt');
+  held.arm();
+  try {
+    const workspace = await render.workspace();
+    await held.requested;
+    await reviewLayout.openAllChanges();
+    const omitted = workspace.getByRole('listitem', { name: /^shape\.txt: / });
+    await expect.element(omitted).toBeInTheDocument();
+    await workspace
+      .getByRole('region', { name: '2 uncommitted changes', exact: true })
+      .getByRole('button', { name: /^shape\.txt/ })
+      .click();
+    held.release();
+    await expect
+      .element(
+        workspace
+          .getByRole('region', { name: 'Code content', exact: true })
+          .getByText('A shape line that is staged for deletion', {
+            exact: true,
+          }),
+      )
+      .toBeInViewport();
+    await expect.element(omitted).not.toHaveFocus();
+  } finally {
+    held.release();
+  }
+});
+
+test('the next file shortcut onto a comparison still loading lands on that comparison', async ({
+  repo,
+  render,
+  fetchGate,
+  reviewLayout,
+}) => {
+  await repo.write('steps.txt', 'Base line\n');
+  await repo.commit('Add steps');
+  const staged = Array.from(
+    { length: 80 },
+    (_, index) => `Staged line ${index + 1}`,
+  ).join('\n');
+  await repo.write('steps.txt', `Base line\n${staged}\n`);
+  await repo.stage('steps.txt');
+  await repo.write('steps.txt', `Base line\n${staged}\nAn unstaged line\n`);
+  const held = fetchGate.holdNextChangeDiff('steps.txt');
+  held.arm();
+  try {
+    const workspace = await render.workspace();
+    await held.requested;
+    await reviewLayout.openAllChanges();
+    await expect
+      .element(
+        workspace.getByRole('region', {
+          name: '1 uncommitted change',
+          exact: true,
+        }),
+      )
+      .toBeVisible();
+    await userEvent.keyboard('J');
+    held.release();
+    await expect
+      .element(
+        workspace
+          .getByRole('region', { name: 'Code content', exact: true })
+          .getByText('An unstaged line', { exact: true }),
+      )
+      .toBeInViewport();
+  } finally {
+    held.release();
+  }
+});
