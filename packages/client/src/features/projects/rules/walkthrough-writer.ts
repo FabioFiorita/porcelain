@@ -31,16 +31,33 @@ export function walkthroughWriterStatus(settings: WalkthroughWriterSettings) {
   return { availability, label, block };
 }
 
+type WriterCheck = {
+  failed: boolean;
+  noWriters: boolean;
+  status: ReturnType<typeof walkthroughWriterStatus> | undefined;
+};
+
+export function canRecheckWalkthroughWriters(
+  check: WriterCheck,
+  signedOut = false,
+) {
+  return (
+    check.failed ||
+    check.noWriters ||
+    check.status?.availability === 'missing-model' ||
+    signedOut
+  );
+}
+
 export function walkthroughWriterNotice(
-  check: {
-    failed: boolean;
-    status: ReturnType<typeof walkthroughWriterStatus> | undefined;
-  },
+  check: WriterCheck,
   existingMessage?: string,
 ) {
-  const message = check.failed
-    ? 'Could not check writers on the connected computer.'
-    : check.status?.block;
+  let message = check.status?.block;
+  if (check.failed)
+    message = 'Could not check writers on the connected computer.';
+  else if (check.noWriters)
+    message = 'Sign in to Claude Code or Codex on the connected computer.';
   return message && !existingMessage?.includes(message) ? message : undefined;
 }
 

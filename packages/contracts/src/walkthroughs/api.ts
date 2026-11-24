@@ -117,6 +117,13 @@ export const walkthroughWriterSettingsSchema = Schema.Struct({
 });
 export type WalkthroughWriterSettings =
   typeof walkthroughWriterSettingsSchema.Type;
+export function isUnsupportedWalkthroughEffortFailure(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    error.name === UnsupportedWalkthroughEffortError.name
+  );
+}
+
 export type SaveDefaultWalkthroughWriterRequest = typeof writerSchema.Type;
 const postWalkthroughFailures = [
   ...worktreeFailures,

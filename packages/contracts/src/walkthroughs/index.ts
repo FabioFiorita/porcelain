@@ -10,6 +10,7 @@ export {
 
 export {
   walkthroughWriterSettingsSchema,
+  isUnsupportedWalkthroughEffortFailure,
   type WalkthroughWriterSettings,
   type WalkthroughWriterSettingsQuery,
   type SaveDefaultWalkthroughWriterRequest,

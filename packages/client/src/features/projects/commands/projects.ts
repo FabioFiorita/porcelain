@@ -1,4 +1,7 @@
-import type { SaveDefaultWalkthroughWriterRequest } from '@porcelain/contracts/walkthroughs';
+import {
+  isUnsupportedWalkthroughEffortFailure,
+  type SaveDefaultWalkthroughWriterRequest,
+} from '@porcelain/contracts/walkthroughs';
 import type {
   RegisterProjectRequest,
   WalkthroughSettings,
@@ -10,12 +13,17 @@ import { porcelainClient } from '../../../shared/api/client.ts';
 import { FileDrafts } from '../../files/store.ts';
 import { ConnectionError } from '../../../shared/api/connection-error.ts';
 import { InventoryState, inventoryRuntime } from '../store/inventory.ts';
+import { refreshWalkthroughWriterCatalog } from '../queries/walkthrough-writer.ts';
 
 function makeProjectCommands(connection: RuntimeConnection) {
   return Effect.gen(function* () {
     const client = yield* porcelainClient(connection);
     const inventory = yield* InventoryState;
     const drafts = yield* FileDrafts;
+    const recoverUnsupportedEffort = (error: unknown) =>
+      isUnsupportedWalkthroughEffortFailure(error)
+        ? refreshWalkthroughWriterCatalog(connection).pipe(Effect.ignore)
+        : Effect.void;
     return {
       register: (input: RegisterProjectRequest) =>
         inventory.confirm(
@@ -34,31 +42,37 @@ function makeProjectCommands(connection: RuntimeConnection) {
           }),
         ),
       saveDefaultWriter: (writer: SaveDefaultWalkthroughWriterRequest) =>
-        inventory.confirm(
-          client.request((api) =>
-            api.walkthroughs.saveDefaultWalkthroughWriter({ payload: writer }),
-          ),
-          (inventory) => inventory,
-        ),
+        inventory
+          .confirm(
+            client.request((api) =>
+              api.walkthroughs.saveDefaultWalkthroughWriter({
+                payload: writer,
+              }),
+            ),
+            (inventory) => inventory,
+          )
+          .pipe(Effect.tapError(recoverUnsupportedEffort)),
       saveWalkthroughSettings: (
         input: { projectId: string } & WalkthroughSettings,
       ) =>
-        inventory.confirm(
-          client.request((api) =>
-            api.projects.saveWalkthroughSettings({
-              params: { projectId: input.projectId },
-              payload: { mode: input.mode, writer: input.writer },
-            }),
-          ),
-          (inventory, walkthroughSettings) => ({
-            ...inventory,
-            projects: inventory.projects.map((project) =>
-              project.id === input.projectId
-                ? { ...project, walkthroughSettings }
-                : project,
+        inventory
+          .confirm(
+            client.request((api) =>
+              api.projects.saveWalkthroughSettings({
+                params: { projectId: input.projectId },
+                payload: { mode: input.mode, writer: input.writer },
+              }),
             ),
-          }),
-        ),
+            (inventory, walkthroughSettings) => ({
+              ...inventory,
+              projects: inventory.projects.map((project) =>
+                project.id === input.projectId
+                  ? { ...project, walkthroughSettings }
+                  : project,
+              ),
+            }),
+          )
+          .pipe(Effect.tapError(recoverUnsupportedEffort)),
       rename: (input: { projectId: string; name: string }) =>
         inventory.confirm(
           client.request((api) =>
