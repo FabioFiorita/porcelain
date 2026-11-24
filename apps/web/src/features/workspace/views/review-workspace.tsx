@@ -212,7 +212,13 @@ export function ReviewWorkspace({
         );
     setFileTarget(
       options?.path
-        ? { path: options.path, nonce: Date.now(), pane, key }
+        ? {
+            path: options.path,
+            entry: options.entry,
+            nonce: Date.now(),
+            pane,
+            key,
+          }
         : undefined,
     );
     if (options?.toSide) layout.openToSide(focusedPane, key);

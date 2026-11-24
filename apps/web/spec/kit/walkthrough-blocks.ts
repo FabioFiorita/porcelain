@@ -13,7 +13,13 @@ export async function walkthroughBlocksFixture(world: World): Promise<string> {
   await mkdir(join(session.repository, 'src'), { recursive: true });
   await session.writeFile('src/legacy.ts', 'export const legacy = true;\n');
   await session.writeFile('src/obsolete.ts', 'export const obsolete = true;\n');
-  await session.git('add', 'src/legacy.ts', 'src/obsolete.ts');
+  const kept = Array.from({ length: 80 }, (_, line) => `Kept ${line + 1}\n`);
+  const dropped = Array.from(
+    { length: 80 },
+    (_, line) => `Dropped ${line + 1}\n`,
+  );
+  await session.writeFile('src/drafts.ts', [...kept, ...dropped].join(''));
+  await session.git('add', 'src/legacy.ts', 'src/obsolete.ts', 'src/drafts.ts');
   await session.git('commit', '-m', 'Add the old helpers');
   await session.git('branch', 'walkthrough-blocks-base');
   await session.writeFile(
@@ -38,6 +44,11 @@ export async function walkthroughBlocksFixture(world: World): Promise<string> {
   );
   await session.git('commit', '-m', 'Search notes and count them');
   await rm(join(session.repository, 'src/obsolete.ts'));
+  await session.writeFile('src/drafts.ts', kept.join(''));
+  await session.git('add', 'src/drafts.ts');
+  await rm(join(session.repository, 'src/drafts.ts'));
+  await mkdir(join(session.repository, 'notes'), { recursive: true });
+  await session.writeFile('notes/scratch.md', 'A scratch note.\n');
   const writer = await scriptedWalkthroughs(
     session,
     world.server.manifestPath,
@@ -122,6 +133,8 @@ export async function walkthroughBlocksFixture(world: World): Promise<string> {
               files: [
                 { path: 'src/legacy.ts', note: 'Removed in the branch.' },
                 { path: 'src/obsolete.ts', note: 'Removed locally.' },
+                { path: 'src/drafts.ts', note: 'Trimmed, then removed.' },
+                { path: 'notes/scratch.md', note: 'A new note.' },
               ],
             },
           ],

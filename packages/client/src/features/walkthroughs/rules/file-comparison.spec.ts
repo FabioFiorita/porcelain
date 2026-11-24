@@ -1,15 +1,43 @@
 import { expect, it } from 'vite-plus/test';
 import { fileComparison, fileOpening } from './file-comparison.ts';
 
+const change = (
+  scope: 'staged' | 'unstaged',
+  kind: 'modified' | 'deleted',
+  path: string,
+) =>
+  ({
+    scope,
+    kind,
+    oldPath: path,
+    newPath: kind === 'deleted' ? undefined : path,
+    oldMode: '100644',
+    newMode: kind === 'deleted' ? '000000' : '100644',
+    oldOid: undefined,
+    newOid: undefined,
+    supported: true,
+  }) as const;
+
 const branch = [
   { path: 'src/owner.ts', status: 'modified' },
   { path: 'src/old.ts', status: 'deleted' },
   { path: 'src/draft.ts', status: 'added' },
 ];
+const draftDeletion = change('unstaged', 'deleted', 'src/draft.ts');
 const worktree = [
-  { path: 'notes.md', comparisons: [{ kind: 'modified' }] },
-  { path: 'src/draft.ts', comparisons: [{ kind: 'deleted' }] },
-];
+  {
+    path: 'notes.md',
+    comparisons: [change('unstaged', 'modified', 'notes.md')],
+  },
+  {
+    path: 'src/draft.ts',
+    comparisons: [change('staged', 'modified', 'src/draft.ts'), draftDeletion],
+  },
+  {
+    path: 'scratch.md',
+    comparisons: [{ scope: 'untracked', path: 'scratch.md' }],
+  },
+] as const;
 const read = { branch, branchFailed: false, worktree };
 
 it('opens a file on Branch when committed, on Uncommitted otherwise, and waits until the branch is read', () => {
@@ -26,26 +54,27 @@ it('opens a local change on Uncommitted when the branch cannot be read, and leav
   expect(fileComparison(failed, 'src/owner.ts')).toBeUndefined();
 });
 
-it('opens a deletion where it happened: a local deletion on Uncommitted, a committed one on Branch', () => {
-  expect(fileComparison(read, 'src/draft.ts')).toEqual({ kind: 'worktree' });
+it('opens a deletion on the comparison that holds it: the local one on Uncommitted, a committed one on Branch', () => {
+  expect(fileComparison(read, 'src/draft.ts')).toEqual({
+    kind: 'worktree',
+    change: draftDeletion,
+  });
+  expect(fileOpening(read, 'src/draft.ts')).toEqual({
+    kind: 'worktree',
+    change: draftDeletion,
+  });
   expect(fileComparison(read, 'src/old.ts')).toEqual({ kind: 'branch' });
-  expect(fileOpening(read, 'src/draft.ts')).toEqual({ kind: 'worktree' });
   expect(fileOpening(read, 'src/old.ts')).toEqual({ kind: 'branch' });
   expect(fileOpening(read, 'src/owner.ts')).toEqual({ kind: 'file' });
   expect(fileOpening(read, 'notes.md')).toEqual({ kind: 'file' });
 });
 
-it('opens a cited file only once the branch says whether it was deleted', () => {
-  expect(
-    fileOpening({ ...read, branch: undefined }, 'src/old.ts'),
-  ).toBeUndefined();
-  expect(
-    fileOpening(
-      { ...read, branch: undefined, branchFailed: true },
-      'src/old.ts',
-    ),
-  ).toEqual({ kind: 'file' });
-  expect(fileOpening({ ...read, branch: undefined }, 'src/draft.ts')).toEqual({
-    kind: 'worktree',
-  });
+it('waits for the branch only for files the working tree does not already know', () => {
+  const pending = { ...read, branch: undefined };
+  expect(fileOpening(pending, 'scratch.md')).toEqual({ kind: 'file' });
+  expect(fileOpening(pending, 'notes.md')).toEqual({ kind: 'file' });
+  expect(fileOpening(pending, 'src/old.ts')).toBeUndefined();
+  expect(fileOpening({ ...pending, branchFailed: true }, 'src/old.ts')).toEqual(
+    { kind: 'file' },
+  );
 });

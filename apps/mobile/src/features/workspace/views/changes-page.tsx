@@ -1,6 +1,5 @@
-import { useAtomRefresh, useAtomSet, useAtomValue } from '@effect/atom-react';
+import { useAtomRefresh, useAtomValue } from '@effect/atom-react';
 import type { ReactNode } from 'react';
-import { useRouter } from 'expo-router';
 import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { readTextFile } from '@porcelain/client/files';
@@ -29,8 +28,7 @@ import {
   sourceBody,
   type DiffPageState,
 } from '../rules/diff-page';
-import { reviewFileDocumentKey, reviewParams } from '../rules/navigation';
-import { chooseReviewFileScope } from '../store';
+import { useOpenReviewFile } from './open-review-file';
 import { DiffPage, DiffPagePart, type DiffPagePartProps } from './diff-page';
 import { ReviewReadState } from './read-state';
 
@@ -157,8 +155,7 @@ function ChangesReader({
   files: ComparedEntry[];
   summary: { subtitle: string; description: string };
 }) {
-  const router = useRouter();
-  const chooseScope = useAtomSet(chooseReviewFileScope);
+  const openReviewFile = useOpenReviewFile(workspace.key);
   return (
     <DiffPage
       page={JSON.stringify([
@@ -189,23 +186,13 @@ function ChangesReader({
       empty={
         reading ? <Empty {...reading.empty} /> : <Empty title="No changes" />
       }
-      onOpenFile={(file) => {
-        if (file.scope)
-          chooseScope({
-            owner: JSON.stringify([
-              workspace.key,
-              reviewFileDocumentKey(file.path, file.comparison),
-            ]),
-            scope: file.scope,
-          });
-        router.push({
-          pathname: '/review-file',
-          params: {
-            ...reviewParams(workspace.key, file.comparison),
-            path: file.path,
-          },
-        });
-      }}
+      onOpenFile={(file) =>
+        openReviewFile({
+          path: file.path,
+          comparison: file.comparison,
+          scope: file.scope,
+        })
+      }
       part={(props) => {
         const group = files.filter(
           (file) => file.comparison.kind === props.file.comparison.kind,

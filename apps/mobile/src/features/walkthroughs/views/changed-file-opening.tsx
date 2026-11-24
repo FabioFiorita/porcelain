@@ -1,12 +1,11 @@
-import { useRouter } from 'expo-router';
 import { fileComparison } from '@porcelain/client/walkthroughs/rules';
 import { ErrorState } from '../../../components/ui/error-state';
 import type { Workspace } from '../../projects/index';
-import { reviewParams } from '../../workspace/index';
+import { useOpenReviewFile } from '../../workspace/index';
 import { useBranchFileList, useWalkthroughFiles } from '../queries/walkthrough';
 
 export function useChangedFileOpening(workspace: Workspace) {
-  const router = useRouter();
+  const openReviewFile = useOpenReviewFile(workspace.key);
   const branch = useBranchFileList(workspace);
   const { worktree } = useWalkthroughFiles(workspace);
   return {
@@ -19,10 +18,13 @@ export function useChangedFileOpening(workspace: Workspace) {
         pending: comparison === undefined && !branch.failed,
         disabled: comparison === undefined,
         onPress: () => {
-          if (comparison)
-            router.push({
-              pathname: '/review-file',
-              params: { ...reviewParams(workspace.key, comparison), path },
+          if (comparison?.kind === 'branch')
+            openReviewFile({ path, comparison: { kind: 'branch' } });
+          else if (comparison)
+            openReviewFile({
+              path,
+              comparison: { kind: 'worktree' },
+              scope: comparison.change?.scope,
             });
         },
       };
