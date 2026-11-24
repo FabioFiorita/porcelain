@@ -68,3 +68,18 @@ it('does not attempt an observation again after another observation of the same 
   );
   expect(result).toBe(false);
 });
+
+it('remembers only the recent observations of a worktree, so the oldest can be attempted again', () => {
+  const result = Effect.runSync(
+    Effect.gen(function* () {
+      const recovery = yield* ChangedDiffRecovery;
+      for (let index = 0; index <= 16; index += 1)
+        yield* recovery.begin('worktree/path', `observation-${index}`);
+      return {
+        oldest: yield* recovery.begin('worktree/path', 'observation-0'),
+        recent: yield* recovery.begin('worktree/path', 'observation-16'),
+      };
+    }).pipe(Effect.provide(ChangedDiffRecovery.layer)),
+  );
+  expect(result).toEqual({ oldest: true, recent: false });
+});
