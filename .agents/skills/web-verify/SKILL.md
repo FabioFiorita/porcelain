@@ -33,6 +33,8 @@ $C remote start --instance <id>
 $C remote pairing-link --instance <id>
 ```
 
+Development builds expose UI SDK's agent bridge as `window.porcelainAgent`, created before the app renders. Production builds leave it out. `snapshot()` lists the page's components with refs, labels, values and allowed actions; `query({ text, within, kind })` finds components and list items; `act({ steps: [{ ref, action, args }] })` runs component actions, such as setting a select or tabs value or pressing a dialog button, and reports what changed. Use it from the browser driver's evaluate to read state or reach a control quickly. A journey still drives what a person does through the page and asserts what the page shows.
+
 Follow the [shared evidence reference](../verify-core/evidence.md). Use trace/CDP tools for web timings and retain relevant console and HTTP diagnostics.
 
 ## Sweep the standard states
