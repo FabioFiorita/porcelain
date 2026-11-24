@@ -7,26 +7,60 @@ import {
 } from '@ui-sdk/react/tooltip';
 import { cn } from 'cn';
 
+const SilenceTooltip = React.createContext<(silent: boolean) => void>(() => {});
+
 function Tooltip({
   delay = 400,
   type = 'description',
+  disabled = false,
   ...props
 }: React.ComponentProps<typeof TooltipRoot>) {
-  return <TooltipRoot delay={delay} type={type} {...props} />;
+  const [silent, setSilent] = React.useState(false);
+  return (
+    <SilenceTooltip value={setSilent}>
+      <TooltipRoot
+        delay={delay}
+        type={type}
+        disabled={disabled || silent}
+        {...props}
+        {...(silent ? { open: false } : {})}
+      />
+    </SilenceTooltip>
+  );
 }
 
 function TooltipTrigger({
   render,
+  onContextMenu,
+  onPointerLeave,
+  onKeyDown,
   ...props
 }: Omit<React.ComponentProps<typeof TooltipTriggerPrimitive>, 'render'> & {
   render?:
     | React.ComponentProps<typeof TooltipTriggerPrimitive>['render']
     | undefined;
 }) {
+  const silence = React.use(SilenceTooltip);
   return (
     <TooltipTriggerPrimitive
       data-slot="tooltip-trigger"
       {...(render === undefined ? {} : { render })}
+      onContextMenu={(event) => {
+        silence(true);
+        onContextMenu?.(event);
+      }}
+      onPointerLeave={(event) => {
+        silence(false);
+        onPointerLeave?.(event);
+      }}
+      onKeyDown={(event) => {
+        if (
+          event.key !== 'ContextMenu' &&
+          !(event.shiftKey && event.key === 'F10')
+        )
+          silence(false);
+        onKeyDown?.(event);
+      }}
       {...props}
     />
   );
