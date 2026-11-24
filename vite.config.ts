@@ -102,6 +102,7 @@ export default {
       'porcelain/web-store-owns-atoms': 'error',
       'porcelain/web-store-owns-storage': 'error',
       'porcelain/web-overlays-own-handles': 'error',
+      'porcelain/web-ui-library-owner': 'error',
       'porcelain/web-api-owns-request': 'error',
       'porcelain/web-transport-owner': 'error',
       'porcelain/web-timers-in-commands-and-store': 'error',

@@ -5108,10 +5108,38 @@ export function nextGeneration() { return ++generation; }
     path: 'apps/web/src/features/access/views/probe-view.tsx',
     valid:
       "import {pairingOverlay} from '../overlays'; export const openPairing = () => pairingOverlay.open();",
-    invalid: `import { Dialog } from '@base-ui/react/dialog';
+    invalid: `import { createDialogController } from '@/components/ui/dialog';
 
-export const probeHandle = Dialog.createHandle();
+export const probeController = createDialogController();
 `,
+    errors: 1,
+  },
+  {
+    rule: 'web-ui-library-owner',
+    path: 'apps/web/src/features/files/views/probe-view.tsx',
+    valid: "import { Dialog } from '@/components/ui/dialog';",
+    invalid: "import { Command } from 'cmdk';",
+    errors: 1,
+  },
+  {
+    rule: 'web-ui-library-owner',
+    path: 'apps/web/src/features/files/views/probe-view.tsx',
+    valid: "import { DropdownMenu } from '@/components/ui/dropdown-menu';",
+    invalid: "import { Menu } from '@ui-sdk/react/menu';",
+    errors: 1,
+  },
+  {
+    rule: 'web-ui-library-owner',
+    path: 'apps/desktop/src/renderer/probe-view.tsx',
+    valid: "import { Tooltip } from '@/components/ui/tooltip';",
+    invalid: "export { Menu } from '@base-ui-components/react/menu';",
+    errors: 1,
+  },
+  {
+    rule: 'web-ui-library-owner',
+    path: 'apps/web/src/components/ui/probe.tsx',
+    valid: "import { Menu } from '@ui-sdk/react/menu';",
+    invalid: "import { Dialog } from '@base-ui/react/dialog';",
     errors: 1,
   },
 
