@@ -55,6 +55,7 @@ const ready: WalkthroughJob = {
   files: [],
 };
 const content = {
+  version: 1 as const,
   outcome: 'worth_knowing' as const,
   title: 'Walkthrough',
   summary: 'Summary.',
@@ -63,9 +64,7 @@ const content = {
     {
       title: 'Keep the retry local',
       explanation: 'Why.',
-      excerpts: [],
-      evidence: [],
-      files: [],
+      blocks: [],
     },
   ],
   onlyInTranscript: [],

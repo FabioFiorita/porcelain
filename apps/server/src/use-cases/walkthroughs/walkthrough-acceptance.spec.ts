@@ -44,6 +44,7 @@ import { QueueWalkthroughUseCase } from './queue-walkthrough.ts';
 import { RetryWalkthroughAnswerUseCase } from './retry-walkthrough-answer.ts';
 
 const content: WalkthroughContent = {
+  version: 1 as const,
   outcome: 'worth_knowing',
   title: 'The captured change',
   summary: 'Summary.',

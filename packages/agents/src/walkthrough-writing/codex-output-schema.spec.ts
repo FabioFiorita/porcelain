@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vite-plus/test';
 import { Predicate, Schema } from 'effect';
-import { walkthroughContentSchema } from '@porcelain/contracts/walkthroughs';
-import { firstPassSchema } from './writing-prompts.ts';
+import { codexWritingSchema, firstPassSchema } from './writing-prompts.ts';
 import { codexOutputSchema } from './codex-output-schema.ts';
 
 const supported = new Set([
@@ -44,7 +43,7 @@ const strict = (node: unknown): void => {
 describe('Codex writer output formats', () => {
   it.each([
     ['first pass', firstPassSchema],
-    ['content', walkthroughContentSchema],
+    ['content', codexWritingSchema],
   ] as const)(
     '%s satisfies strict structured output at every level',
     (_name, schema) => {

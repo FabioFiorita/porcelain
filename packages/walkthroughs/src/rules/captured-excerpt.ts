@@ -1,18 +1,37 @@
 import { processFile } from '@pierre/diffs/utils/parsePatchFiles';
+import type { WalkthroughBlock } from '../models/blocks.ts';
 import type { WalkthroughJob } from '../models/walkthrough.ts';
 
 const MAX_CAPTURED_HUNK_LENGTH = 1_048_576;
 
-export function capturedExcerpt(job: WalkthroughJob, step: number) {
+export function capturedExcerpt(
+  job: WalkthroughJob,
+  step: number,
+  block?: number,
+) {
   if (job.run.state.status !== 'ready') return undefined;
-  const excerpt = job.run.state.content.stops[step - 1]?.excerpts[0];
-  if (!excerpt) return undefined;
+  const blocks = job.run.state.content.stops[step - 1]?.blocks;
+  const excerpt =
+    block === undefined
+      ? blocks?.find((item) => item.kind === 'diff_excerpt')
+      : blocks?.[block - 1];
+  if (excerpt?.kind !== 'diff_excerpt') return undefined;
+  return capturedDiffHunk(job.patch, excerpt);
+}
+
+export function capturedDiffHunk(
+  patch: string,
+  excerpt: Pick<
+    Extract<WalkthroughBlock, { kind: 'diff_excerpt' }>,
+    'path' | 'side' | 'start' | 'end'
+  >,
+) {
   const { path, side, start, end } = excerpt;
   if (start < 1 || end < start) return undefined;
   const matches: string[] = [];
   const options = { disableLineMatching: true, throwOnError: true };
   try {
-    for (const section of job.patch.split(/(?=^diff --git )/m)) {
+    for (const section of patch.split(/(?=^diff --git )/m)) {
       const [header, ...hunks] = section.split(/(?=^@@ )/m);
       if (!header || hunks.length === 0) continue;
       const identity = processFile(header, options);

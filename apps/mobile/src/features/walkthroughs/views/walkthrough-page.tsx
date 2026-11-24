@@ -314,31 +314,40 @@ function Calls({
   jump: Jump;
   scroller: KeyboardScroller;
 }) {
-  return walkthroughCalls(content).map(({ attention, step, stop }) => (
-    <Card key={step} gap={3} padding={4}>
-      <Box className="flex-row items-center justify-between" gap={3}>
-        <Text variant="caption" tone="muted">
-          {attentionLabel(attention)}
-        </Text>
-        <Button
-          label={`Step ${step}`}
-          variant="plain"
-          size="sm"
-          accessibilityLabel={`Go to step ${step}`}
-          className="-my-1.5 -mr-3.5"
-          onPress={() => jump(`step:${step}`)}
-        />
-      </Box>
-      <RichText text={attention.question} variant="headline" />
-      <RichText text={attention.note} variant="secondary" tone="muted" />
-      <WalkthroughConversation
-        owner={owner}
-        title={stop.title}
-        placement="call"
-        scroller={scroller}
-      />
-    </Card>
-  ));
+  return walkthroughCalls(content).map(
+    ({ attention, comparison, step, stop, callIndex }) => (
+      <Card key={`${step}:${callIndex}`} gap={3} padding={4}>
+        <Box className="flex-row items-center justify-between" gap={3}>
+          <Text variant="caption" tone="muted">
+            {attentionLabel(attention)}
+          </Text>
+          <Button
+            label={`Step ${step}`}
+            variant="plain"
+            size="sm"
+            accessibilityLabel={`Go to step ${step}`}
+            className="-my-1.5 -mr-3.5"
+            onPress={() => jump(`step:${step}`)}
+          />
+        </Box>
+        <RichText text={attention.question} variant="headline" />
+        <RichText text={attention.note} variant="secondary" tone="muted" />
+        {comparison.map((row, index) => (
+          <Text key={index} variant="secondary">
+            {row}
+          </Text>
+        ))}
+        {callIndex === 0 ? (
+          <WalkthroughConversation
+            owner={owner}
+            title={stop.title}
+            placement="call"
+            scroller={scroller}
+          />
+        ) : null}
+      </Card>
+    ),
+  );
 }
 
 function Written({
@@ -464,7 +473,7 @@ function Written({
                   <Text variant="mono" tone="muted">
                     Step {step}
                   </Text>
-                  {stop.attention ? (
+                  {stop.callouts.length > 0 ? (
                     <Button
                       label="Your call"
                       variant="plain"
@@ -477,6 +486,14 @@ function Written({
                 </Box>
                 <RichText text={stop.title} variant="headline" />
                 <RichText text={stop.explanation} />
+                {stop.checks.map(({ label, text }, index) => (
+                  <Card key={index} gap={1} padding={4}>
+                    <Text variant="caption" tone="muted">
+                      {label}
+                    </Text>
+                    <Text variant="secondary">{text}</Text>
+                  </Card>
+                ))}
                 {stop.evidence.length > 0 ? (
                   <WalkthroughProof
                     workspace={workspace}

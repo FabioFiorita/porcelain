@@ -78,18 +78,21 @@ const stop = (
 ): Content['stops'][number] => ({
   title,
   explanation: 'Keep the behavior close to its owner, so a reader finds it.',
-  excerpts: [],
-  evidence: [],
-  files: [{ path, note: 'Owns the behavior' }],
-  ...(call
-    ? {
-        attention: {
-          kind: 'product',
-          question: 'Keep retries local to their owner?',
-          note: 'Either choice ships; only the owner can pick the boundary.',
-        },
-      }
-    : {}),
+  blocks: [
+    { kind: 'files', files: [{ path, note: 'Owns the behavior' }] },
+    ...(call
+      ? [
+          {
+            kind: 'callout' as const,
+            attention: {
+              kind: 'product' as const,
+              question: 'Keep retries local to their owner?',
+              note: 'Either choice ships; only the owner can pick the boundary.',
+            },
+          },
+        ]
+      : []),
+  ],
 });
 
 export async function walkthroughCommand(
@@ -141,6 +144,7 @@ export async function walkthroughCommand(
   await session.git('add', 'retry-owner.txt', 'retry-notes.txt');
   await session.git('commit', '-m', 'Keep retries beside their owner');
   const content: Content = {
+    version: 1,
     outcome: 'needs_you',
     title: 'Keep retries beside their owner',
     summary:

@@ -35,9 +35,11 @@ test('the development walkthrough sample serves a ready page for the committed f
   expect(run.headOid).not.toBe(run.baseOid);
   expect(run.state.content.title).toBe('Find notes by title');
   expect(run.state.content.stops).toHaveLength(2);
-  expect(run.state.content.stops.filter((stop) => stop.attention)).toHaveLength(
-    1,
-  );
+  expect(
+    run.state.content.stops.filter((stop) =>
+      stop.blocks.some((block) => block.kind === 'callout'),
+    ),
+  ).toHaveLength(1);
   expect(run.state.content.growth.map((item) => item.what)).toEqual([
     'Title search',
     'Result label',

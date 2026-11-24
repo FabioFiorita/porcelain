@@ -302,7 +302,7 @@ it.each(['signed_out', 'other'] as const)(
     await writeFile(
       command,
       '#!/usr/bin/env node\n' +
-        `const fs = require('fs'); const args = process.argv.slice(2); fs.readFileSync(0, 'utf8'); const resumed = args.includes('--resume'); const session = args[args.indexOf(resumed ? '--resume' : '--session-id') + 1]; fs.appendFileSync('calls', resumed ? 'second\\n' : 'first\\n'); console.log(JSON.stringify({session_id:session,structured_output:resumed ? {outcome:'nothing',title:'A small change',summary:'The retry finished.',growth:[],stops:[],onlyInTranscript:[],stillUnclear:[],checks:null} : {understood:'A small change',could_not_tell:[]}}));`,
+        `const fs = require('fs'); const args = process.argv.slice(2); fs.readFileSync(0, 'utf8'); const resumed = args.includes('--resume'); const session = args[args.indexOf(resumed ? '--resume' : '--session-id') + 1]; fs.appendFileSync('calls', resumed ? 'second\\n' : 'first\\n'); console.log(JSON.stringify({session_id:session,structured_output:resumed ? {outcome:'nothing',title:'A small change',summary:'The retry finished.',growth:[],stops:[],onlyInTranscript:[],stillUnclear:[]} : {understood:'A small change',could_not_tell:[]}}));`,
       { mode: 0o700 },
     );
     const runtime = ManagedRuntime.make(

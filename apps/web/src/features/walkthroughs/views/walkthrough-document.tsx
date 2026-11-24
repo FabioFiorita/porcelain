@@ -201,9 +201,9 @@ function Calls({
   if (calls.length === 0) return null;
   return (
     <section id="your-calls" className="flex scroll-mt-6 flex-col gap-3">
-      {calls.map(({ attention, step }) => (
+      {calls.map(({ attention, comparison, step, callIndex }) => (
         <article
-          key={step}
+          key={`${step}:${callIndex}`}
           className="flex flex-col gap-3 rounded-xl border bg-card p-4 @3xl:p-5"
         >
           <div className="flex items-baseline justify-between gap-3 text-caption text-muted-foreground">
@@ -222,7 +222,12 @@ function Calls({
           <p className="text-prose text-foreground-2">
             <RichText text={attention.note} />
           </p>
-          {conversation?.({ kind: 'call', step })}
+          {comparison.map((row, index) => (
+            <p key={index} className="text-prose text-foreground-2">
+              {row}
+            </p>
+          ))}
+          {callIndex === 0 && conversation?.({ kind: 'call', step })}
         </article>
       ))}
     </section>
@@ -262,7 +267,7 @@ function Step({
     >
       <p className="whitespace-pre-line font-mono text-caption text-muted-foreground">
         Step {step}
-        {stop.attention && (
+        {stop.callouts.length > 0 && (
           <button
             type="button"
             className="ml-2 text-foreground hover:underline"
@@ -278,6 +283,14 @@ function Step({
       <p className="text-prose text-foreground-2">
         <RichText text={stop.explanation} />
       </p>
+      {stop.checks.map(({ label, text }, index) => (
+        <aside key={index} className="rounded-md border p-3">
+          <p className="font-mono text-caption text-muted-foreground">
+            {label}
+          </p>
+          <p className="text-prose text-foreground-2">{text}</p>
+        </aside>
+      ))}
       {excerpt && (
         <WalkthroughExcerpt
           document={props}
@@ -340,8 +353,9 @@ function Written({
 }) {
   const owner = { ...props, run };
   const excerptStep =
-    content.stops.find((stop) => stop.attention && stop.excerpts.length > 0) ??
-    content.stops.find((stop) => stop.excerpts.length > 0);
+    content.stops.find(
+      (stop) => stop.callouts.length > 0 && stop.excerpts.length > 0,
+    ) ?? content.stops.find((stop) => stop.excerpts.length > 0);
   const conversation: Conversation = ({ kind, step }) => {
     const title = content.stops[step - 1]!.title;
     return (

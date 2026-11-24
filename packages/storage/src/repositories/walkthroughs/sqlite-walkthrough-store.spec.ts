@@ -214,6 +214,7 @@ it('resolves every comment answer from request, project, changed default and bui
             writtenAt: '2026-11-09T00:00:00.000Z',
             durationMs: 1,
             content: {
+              version: 1 as const,
               outcome: 'worth_knowing',
               title: 'Fixture',
               summary: 'Fixture',
@@ -335,6 +336,7 @@ it.each(['queued', 'running', 'ready'] as const)(
         writtenAt: '2026-11-09T00:00:00.000Z',
         durationMs: 1,
         content: {
+          version: 1 as const,
           outcome: 'worth_knowing',
           title: 'First writer',
           summary: 'Summary',
