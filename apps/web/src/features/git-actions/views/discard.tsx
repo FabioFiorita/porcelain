@@ -82,9 +82,13 @@ export function DiscardButton({
     setOpenedStatus(status);
     setOpen(true);
   }
+  const [liveTrigger, setLiveTrigger] = useState<HTMLButtonElement | null>(
+    null,
+  );
   const trigger =
     shown && !hiddenTrigger ? (
       <Button
+        ref={setLiveTrigger}
         size={variant === 'button' ? 'sm' : 'xs'}
         disabled={Boolean(writeBlock)}
         aria-description={writeBlock}
@@ -106,7 +110,7 @@ export function DiscardButton({
     ) : null;
   const dialog = shown ? (
     <AlertDialog open={isOpen} onOpenChange={(next) => !busy && setOpen(next)}>
-      <AlertDialogContent>
+      <AlertDialogContent finalFocus={() => liveTrigger}>
         <AlertDialogHeader>
           <AlertDialogTitle>Discard {what}?</AlertDialogTitle>
           <AlertDialogDescription>
