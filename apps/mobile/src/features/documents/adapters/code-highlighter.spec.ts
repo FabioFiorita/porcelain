@@ -46,6 +46,25 @@ async function highlighter() {
   );
 }
 
+it('loads a language alias and embedded script grammar for the first requests', async () => {
+  const highlight = await highlighter();
+  const [script, embedded] = await Promise.all([
+    highlight('const ready = true;', 'TS', 'light', signal),
+    highlight(
+      '<script>\nconst ready = true;\n</script>',
+      'html',
+      'light',
+      signal,
+    ),
+  ]);
+  expect(script[0]?.find(({ text }) => text === 'const')?.color).toBeTypeOf(
+    'number',
+  );
+  expect(embedded[1]?.find(({ text }) => text === 'const')?.color).toBeTypeOf(
+    'number',
+  );
+});
+
 it('keeps multiline grammar state across batches and isolated between files', async () => {
   const highlight = await highlighter();
   const source = [
