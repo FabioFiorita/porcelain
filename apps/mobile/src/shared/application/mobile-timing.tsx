@@ -1,20 +1,15 @@
 import { Profiler, type ReactNode } from 'react';
 import { phoneTimingSupported } from './mobile-timing-device';
+import {
+  mobileTimingMarks,
+  type MobileTimingDestination,
+  type MobileTimingLandmark,
+} from '../rules/mobile-timing';
 
 const enabled =
   __DEV__ &&
   process.env.EXPO_PUBLIC_PORCELAIN_PERF === '1' &&
   phoneTimingSupported;
-
-const navigationLandmarks = {
-  changes: 'changes-first-file',
-  'all-changes': 'all-changes-first-heading',
-} as const;
-type Destination = keyof typeof navigationLandmarks;
-type Landmark =
-  | 'worktrees-first-row'
-  | (typeof navigationLandmarks)[Destination];
-const pending = new Set<Landmark>(['worktrees-first-row']);
 
 const clock = performance as Performance & {
   rnStartupTiming?: { startTime?: number | null };
@@ -38,23 +33,22 @@ function log(name: string) {
 }
 
 if (enabled) log(nativeStart === undefined ? 'clock-js' : 'clock-rn');
+const marks = enabled ? mobileTimingMarks(log) : undefined;
 
-export function mobileLayout(landmark: Landmark) {
-  if (!enabled) return undefined;
-  return () => {
-    if (!pending.delete(landmark)) return;
-    log(landmark);
-  };
+export function mobileLayout(landmark: MobileTimingLandmark) {
+  return marks?.layout(landmark);
 }
 
-export function startMobileNavigation(screen: Destination) {
-  if (!enabled) return;
-  pending.add(navigationLandmarks[screen]);
-  log(`${screen}-open`);
+export function mobileWorktreeLayout(saved: boolean) {
+  return marks?.worktreeLayout(saved);
+}
+
+export function startMobileNavigation(screen: MobileTimingDestination) {
+  marks?.open(screen);
 }
 
 export function profileMobileScreen(
-  screen: 'worktrees' | Destination,
+  screen: 'worktrees' | MobileTimingDestination,
   view: ReactNode,
 ) {
   return enabled ? (

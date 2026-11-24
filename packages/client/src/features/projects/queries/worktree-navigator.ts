@@ -10,13 +10,16 @@ import {
   navigatorEntryMatches,
   navigatorProjectVisible,
   navigatorFilterSections,
-  navigatorWorktreeOrder,
-  navigatorDisplayTitle,
+  navigatorInventoryEntries,
   type NavigatorEntry,
 } from '../rules/worktree-navigator.ts';
-import { worktreeLabel, type Project } from '../rules/inventory.ts';
+import type { Project } from '../rules/inventory.ts';
 import { worktreeNavigatorState } from '../store/worktree-navigator.ts';
 import { readInventory } from './inventory.ts';
+import {
+  savedWorktreeRows,
+  type WorktreeSnapshot,
+} from '../rules/worktree-snapshot.ts';
 import {
   environmentIcon,
   type EnvironmentIcon,
@@ -30,50 +33,11 @@ type NavigatorProject = {
   environmentIcon: EnvironmentIcon;
   expanded: boolean;
   entries: readonly NavigatorEntry[];
+  saved?: true;
 };
-type ProjectInput = {
-  connection: RuntimeConnection;
-  project: Project;
-  environmentName: string;
-};
-function inventoryEntries(input: ProjectInput): NavigatorEntry[] {
-  const { project, connection, environmentName } = input;
-  return project.worktrees
-    .map((worktree): NavigatorEntry => {
-      const displayTitle = navigatorDisplayTitle(worktree);
-      return {
-        key: `${connection.environmentId}/${project.id}/${worktree.id}`,
-        kind: 'worktree',
-        environmentId: connection.environmentId,
-        environmentName,
-        projectId: project.id,
-        projectName: project.name,
-        worktreeId: worktree.id,
-        path: worktree.path,
-        name:
-          worktree.branch ??
-          worktree.path.split('/').filter(Boolean).at(-1) ??
-          worktree.path,
-        displayTitle,
-        branch: worktreeLabel(worktree.branch),
-        main: worktree.main,
-        ...(worktree.headCommittedAt
-          ? { headCommittedAt: worktree.headCommittedAt }
-          : {}),
-        ...(worktree.uncommittedChangedAt
-          ? { uncommittedChangedAt: worktree.uncommittedChangedAt }
-          : {}),
-        detached: !worktree.branch,
-        available: project.available && worktree.available,
-        pullRequest: { state: 'loading' },
-        changes: {
-          state:
-            project.available && worktree.available ? 'loading' : 'unavailable',
-        },
-      };
-    })
-    .sort(navigatorWorktreeOrder);
-}
+type NavigatorSnapshots = Atom.Atom<
+  readonly { environmentId: string; snapshot: WorktreeSnapshot }[]
+>;
 const readProjectEntries = Atom.family(
   (input: { connection: RuntimeConnection; projectId: string }) =>
     Atom.readable((get) => {
@@ -85,11 +49,11 @@ const readProjectEntries = Atom.family(
         (project) => project.id === input.projectId,
       );
       if (!inventory || !savedProject) return [];
-      const entries = inventoryEntries({
-        ...input,
-        project: savedProject,
-        environmentName: inventory.environment.name,
-      });
+      const entries = navigatorInventoryEntries(
+        savedProject,
+        input.connection.environmentId,
+        inventory.environment.name,
+      );
       const result = get(readProjectPullRequests(input));
       const answer = Option.getOrUndefined(AsyncResult.value(result));
       const previous = Option.getOrUndefined(
@@ -184,21 +148,67 @@ function connectionInventories(
   };
 }
 
-function navigator(connections: readonly RuntimeConnection[]) {
+function savedProjects(
+  connection: RuntimeConnection,
+  snapshot: WorktreeSnapshot,
+  state: Atom.Type<typeof worktreeNavigatorState>,
+): NavigatorProject[] {
+  const environmentId = connection.environmentId;
+  const rows = savedWorktreeRows(
+    snapshot,
+    environmentId,
+    state.query,
+    state.filter,
+  );
+  return [
+    ...new Map(snapshot.rows.map((row) => [row.projectId, row.projectName])),
+  ].map(([id, name]) => {
+    const key = `${environmentId}/${id}`;
+    const expanded =
+      state.query.trim().length > 0 || state.expanded[key] !== false;
+    return {
+      key,
+      connection,
+      project: { id, name, available: false, worktrees: [] },
+      environmentName: snapshot.computerName,
+      environmentIcon: environmentIcon(snapshot),
+      expanded,
+      entries: expanded ? rows.filter((row) => row.projectId === id) : [],
+      saved: true,
+    };
+  });
+}
+
+function navigator(
+  connections: readonly RuntimeConnection[],
+  snapshots?: NavigatorSnapshots,
+) {
   return Atom.readable((get) => {
     const state = get(worktreeNavigatorState);
     const query = state.query;
     const all: NavigatorProject[] = [];
     const inventories = connectionInventories(get, connections);
-    for (const { connection, inventory } of inventories.reads) {
-      for (const project of inventory?.projects ?? []) {
+    const saved = snapshots ? get(snapshots) : [];
+    let loadingWithoutSavedRows = false;
+    for (const { connection, inventory, result } of inventories.reads) {
+      if (!inventory) {
+        const record = saved.find(
+          (entry) => entry.environmentId === connection.environmentId,
+        );
+        loadingWithoutSavedRows ||=
+          AsyncResult.isInitial(result) && !record?.snapshot.rows.length;
+        if (record)
+          all.push(...savedProjects(connection, record.snapshot, state));
+        continue;
+      }
+      for (const project of inventory.projects) {
         const key = `${connection.environmentId}/${project.id}`;
         all.push({
           key,
           connection,
           project,
-          environmentName: inventory!.environment.name,
-          environmentIcon: environmentIcon(inventory!.environment),
+          environmentName: inventory.environment.name,
+          environmentIcon: environmentIcon(inventory.environment),
           expanded: query.trim().length > 0 || state.expanded[key] !== false,
           entries: [],
         });
@@ -232,6 +242,10 @@ function navigator(connections: readonly RuntimeConnection[]) {
         continue;
       if (!source.expanded) {
         projects.push(source);
+        continue;
+      }
+      if (source.saved) {
+        if (source.entries.length || !query.trim()) projects.push(source);
         continue;
       }
       const input = {
@@ -278,6 +292,7 @@ function navigator(connections: readonly RuntimeConnection[]) {
       allProjects: all,
       filters,
       loading: inventories.loading,
+      loadingWithoutSavedRows,
       neverRead: inventories.neverRead,
     };
   });
@@ -285,4 +300,14 @@ function navigator(connections: readonly RuntimeConnection[]) {
 
 export const readWorktreeNavigator = Atom.family(
   (connections: readonly RuntimeConnection[]) => navigator(connections),
+);
+
+export const readWorktreeNavigatorWithSnapshots = Atom.family(
+  ({
+    connections,
+    snapshots,
+  }: {
+    connections: readonly RuntimeConnection[];
+    snapshots: NavigatorSnapshots;
+  }) => navigator(connections, snapshots),
 );

@@ -1,8 +1,9 @@
 import { Clock, Effect, Option, Stream } from 'effect';
-import { AsyncResult, AtomRegistry } from 'effect/reactivity';
+import { AsyncResult, Atom, AtomRegistry } from 'effect/reactivity';
+import type { RuntimeConnection } from '../../../shared/api/connection.ts';
 import { AccessPlatform } from '../../access/ports/access-platform.ts';
-import type { RemoteConnection } from '../../access/ports/connection-factory.ts';
-import type { RemoteStatus } from '../../access/rules/remotes.ts';
+import type { EnvironmentConnection } from '../../access/ports/connection-factory.ts';
+import type { Remote, RemoteStatus } from '../../access/rules/remotes.ts';
 import { readRemoteConnectionStatus } from '../../access/queries/environments.ts';
 import { projectWorktreeSnapshot } from '../rules/worktree-snapshot.ts';
 import {
@@ -20,7 +21,13 @@ function rejectsSnapshot(status: RemoteStatus) {
 }
 
 export const readWorktreeSnapshot = Effect.fn('WorktreeSnapshots.watch')(
-  function* ({ remote, connection }: RemoteConnection) {
+  function* ({
+    remote,
+    connection,
+  }: {
+    remote: Remote;
+    connection: RuntimeConnection & Pick<EnvironmentConnection, 'liveUpdates'>;
+  }) {
     const pairing = worktreeSnapshotPairing(remote);
     if (pairing === undefined) return Stream.make(undefined);
     const storage = yield* WorktreeSnapshots;
@@ -29,50 +36,51 @@ export const readWorktreeSnapshot = Effect.fn('WorktreeSnapshots.watch')(
     const inventory = readInventory(connection);
     const status = readRemoteConnectionStatus(platform, remote, connection);
     const environmentId = connection.environmentId;
-    let snapshot = yield* storage.read(environmentId, pairing);
+    const saved = Atom.make(yield* storage.read(environmentId, pairing)).pipe(
+      Atom.setIdleTTL(0),
+    );
+    const displayed = Atom.readable((get) => {
+      const result = get(inventory);
+      const snapshot = get(saved);
+      return {
+        result,
+        snapshot,
+        connectionStatus:
+          snapshot?.rows.length && Option.isNone(AsyncResult.value(result))
+            ? get(status)
+            : undefined,
+      };
+    }).pipe(Atom.setIdleTTL(0));
     let confirmed: Option.Option<
       Parameters<typeof projectWorktreeSnapshot>[0]
     > = Option.none();
-    let rejected = false;
-    const first =
-      Option.isSome(AsyncResult.value(registry.get(inventory))) ||
-      rejectsSnapshot(registry.get(status))
-        ? undefined
-        : snapshot;
-    return Stream.concat(
-      Stream.make(first),
-      Stream.zipLatestAll(
-        AtomRegistry.toStream(registry, inventory),
-        AtomRegistry.toStream(registry, status),
-      ).pipe(
-        Stream.mapEffect(([result, connectionStatus]) =>
-          Effect.gen(function* () {
-            if (rejectsSnapshot(connectionStatus)) {
-              if (!rejected) yield* storage.remove(environmentId, pairing);
-              rejected = true;
-              snapshot = undefined;
-              confirmed = Option.none();
-              return undefined;
+    return AtomRegistry.toStream(registry, displayed).pipe(
+      Stream.mapEffect(({ result, snapshot, connectionStatus }) =>
+        Effect.gen(function* () {
+          if (connectionStatus && rejectsSnapshot(connectionStatus)) {
+            registry.set(saved, undefined);
+            yield* storage.remove(environmentId, pairing);
+            confirmed = Option.none();
+            return undefined;
+          }
+          if (AsyncResult.isSuccess(result) && !result.waiting) {
+            if (Option.getOrUndefined(confirmed) !== result.value) {
+              confirmed = Option.some(result.value);
+              const next = projectWorktreeSnapshot(
+                result.value,
+                pairing,
+                yield* Clock.currentTimeMillis,
+              );
+              yield* storage.write(environmentId, next);
+              registry.set(saved, next);
             }
-            rejected = false;
-            if (AsyncResult.isSuccess(result) && !result.waiting) {
-              if (Option.getOrUndefined(confirmed) !== result.value) {
-                confirmed = Option.some(result.value);
-                snapshot = projectWorktreeSnapshot(
-                  result.value,
-                  pairing,
-                  yield* Clock.currentTimeMillis,
-                );
-                yield* storage.write(environmentId, snapshot);
-              }
-              return undefined;
-            }
-            return Option.isSome(AsyncResult.value(result))
-              ? undefined
-              : snapshot;
-          }),
-        ),
+          }
+          return Option.isSome(AsyncResult.value(result))
+            ? undefined
+            : snapshot;
+        }),
       ),
+      Stream.changes,
     );
   },
 );
