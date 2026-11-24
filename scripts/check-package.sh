@@ -5,13 +5,29 @@ package_directory="$PWD/dist-porcelain"
 tarball_directory="${PACKAGE_TARBALL_DIRECTORY:-$(mktemp -d)}"
 prefix=$(mktemp -d)
 server_pid=
+wait_for_server_exit() {
+  local deadline=$((SECONDS + $1))
+  while kill -0 "$server_pid" 2>/dev/null; do
+    (( SECONDS < deadline )) || return 1
+    sleep 0.25
+  done
+  wait "$server_pid" 2>/dev/null || true
+}
 cleanup() {
+  local status=$?
   if [[ -n "$server_pid" ]]; then
     kill "$server_pid" 2>/dev/null || true
-    wait "$server_pid" 2>/dev/null || true
+    if ! wait_for_server_exit 15; then
+      kill -KILL "$server_pid" 2>/dev/null || true
+      if ! wait_for_server_exit 5; then
+        echo "The packed Porcelain server did not exit after SIGKILL." >&2
+        if [[ "$status" == 0 ]]; then status=1; fi
+      fi
+    fi
   fi
   rm -rf "$prefix"
   if [[ -z "${PACKAGE_TARBALL_DIRECTORY:-}" ]]; then rm -rf "$tarball_directory"; fi
+  exit "$status"
 }
 trap cleanup EXIT
 mkdir -p "$tarball_directory"
@@ -27,6 +43,7 @@ output=$("$porcelain" --version)
 printf '%s\n' "$output"
 test "$output" = "porcelain v$VERSION"
 mkdir "$prefix/home" "$PORCELAIN_PROJECT_HOME"
+: > "$prefix/server.log"
 HOME="$prefix/home" "$porcelain" serve --host=127.0.0.1 --port=0 > "$prefix/server.log" 2>&1 &
 server_pid=$!
 address=

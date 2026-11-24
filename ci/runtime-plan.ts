@@ -39,7 +39,7 @@ export function runtimePlan(
     storage:
       allRuntime ||
       changed.some((path) => path.startsWith('packages/storage/')),
-    package: allRuntime,
+    package: allRuntime || changedPaths.has('scripts/check-package.sh'),
     shards: release ? [1, 2, 3, 4] : [1],
     'browser-shards': release ? [1, 2, 3, 4, 5, 6] : [1],
     integration: [...integration].map(relativeToWeb),

@@ -181,8 +181,11 @@ jobs:
           retention-days: 14
 
   npm:
-    needs: [version, release]
-    if: ${{ needs.version.outputs.publish == 'true' }}
+    needs: [version, package, release]
+    if: >-
+      ${{ !cancelled() && needs.version.result == 'success' && needs.package.result == 'success' &&
+        (needs.version.outputs.publish == 'false' ||
+          (needs.version.outputs.publish == 'true' && needs.release.result == 'success')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -201,19 +204,30 @@ jobs:
           set -euo pipefail
           npm install --global npm@11.21.0
           npm --version
-      - name: Publish with npm trusted publishing
+      - name: Publish or rehearse the checked npm tarball
         env:
+          PUBLISH: ${{ needs.version.outputs.publish }}
           VERSION: ${{ needs.version.outputs.version }}
         run: |
           set -euo pipefail
-          if npm view --prefer-online "@fabiofiorita/porcelain@$VERSION" version > /dev/null 2>&1; then
-            echo "@fabiofiorita/porcelain@$VERSION is already published; continuing to verification."
-          else
-            shopt -s nullglob
-            tarballs=("$RUNNER_TEMP/checked-package/"*.tgz)
-            test "${#tarballs[@]}" = 1
-            npm publish "${tarballs[0]}" --provenance --access public
+          shopt -s nullglob
+          tarballs=("$RUNNER_TEMP/checked-package/"*.tgz)
+          if [ "${#tarballs[@]}" != 1 ]; then
+            echo "Expected one checked npm tarball, found ${#tarballs[@]}." >&2
+            exit 1
           fi
+          case "$PUBLISH" in
+            true)
+              if npm view --prefer-online "@fabiofiorita/porcelain@$VERSION" version > /dev/null 2>&1; then
+                echo "@fabiofiorita/porcelain@$VERSION is already published; continuing to verification."
+                exit 0
+              fi
+              publish_mode=--provenance
+              ;;
+            false) publish_mode=--dry-run ;;
+            *) echo "Unknown npm publication mode: $PUBLISH" >&2; exit 1 ;;
+          esac
+          npm publish "${tarballs[0]}" --access public "$publish_mode"
 
   npm-check:
     needs: [version, npm]
