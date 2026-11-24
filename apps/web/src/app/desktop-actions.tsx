@@ -36,7 +36,7 @@ export function useOpenProjectOnThisComputer(
     }),
   );
   return () =>
-    pick ? pick() : openProjectDialog.openWithPayload({ remote: null });
+    pick ? pick() : void openProjectDialog.open({ payload: { remote: null } });
 }
 
 export function DesktopActions({

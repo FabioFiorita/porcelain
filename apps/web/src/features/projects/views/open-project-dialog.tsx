@@ -8,10 +8,10 @@ import { projectFolder } from '../store';
 import { useAtomSet } from '@effect/atom-react';
 import { Cause } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
-import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';
 import { FolderGit2Icon } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
+  Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
@@ -47,11 +47,11 @@ export function OpenProjectDialog({
     return entry && { connection: entry.connection, name: entry.remote.name };
   };
   return (
-    <DialogPrimitive.Root
-      handle={openProjectDialog}
+    <Dialog
+      controller={openProjectDialog}
       onOpenChangeComplete={resetProjectBrowser}
     >
-      {({ payload }) => {
+      {(payload) => {
         const target = payload && computer(payload.remote);
         return (
           payload &&
@@ -70,7 +70,7 @@ export function OpenProjectDialog({
           )
         );
       }}
-    </DialogPrimitive.Root>
+    </Dialog>
   );
 }
 

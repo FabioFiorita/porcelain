@@ -118,6 +118,12 @@ export function ReviewWorkspace({
 }: ReviewWorkspaceProps) {
   const { open: panelOpen, setOpen: setPanelOpen } = useReviewPanelOpen();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [sheetReturnsFocus, setSheetReturnsFocus] = useState(true);
+  const [sheetWasOpen, setSheetWasOpen] = useState(mobileOpen);
+  if (mobileOpen !== sheetWasOpen) {
+    setSheetWasOpen(mobileOpen);
+    if (mobileOpen) setSheetReturnsFocus(true);
+  }
   const desktop = useDesktopReview();
   const [docked, setDocked] = useState(desktop);
   if (docked !== desktop) {
@@ -210,6 +216,7 @@ export function ReviewWorkspace({
         : undefined,
     );
     if (options?.toSide) layout.openToSide(focusedPane, key);
+    setSheetReturnsFocus(false);
     setMobileOpen(false);
   };
   const setSurface = (next: Surface) => {
@@ -384,7 +391,17 @@ export function ReviewWorkspace({
         open={mobileOpen && !desktop}
         onOpenChange={setMobileOpen}
         onOpenChangeComplete={(open) => {
-          if (!open) layout.focusDestination();
+          if (open) return;
+          layout.focusDestination();
+          if (
+            !sheetReturnsFocus &&
+            !layout.hasDestinationFocus() &&
+            document.activeElement === document.body
+          )
+            (browseTrigger.element?.isConnected
+              ? browseTrigger.element
+              : mobileTrigger.element
+            )?.focus();
         }}
       >
         <SheetContent
@@ -392,16 +409,21 @@ export function ReviewWorkspace({
             mobileSheet.attach(element);
             if (element === null) layout.focusDestination();
           }}
-          finalFocus={() => {
-            if (layout.hasDestinationFocus()) return false;
-            const active = document.activeElement;
-            const stayed =
-              active === document.body || mobileSheet.element?.contains(active);
-            if (!stayed) return false;
-            return browseTrigger.element?.isConnected
-              ? browseTrigger.element
-              : mobileTrigger.element;
-          }}
+          finalFocus={
+            sheetReturnsFocus
+              ? () => {
+                  if (layout.hasDestinationFocus()) return null;
+                  const active = document.activeElement;
+                  const stayed =
+                    active === document.body ||
+                    mobileSheet.element?.contains(active);
+                  if (!stayed) return null;
+                  return browseTrigger.element?.isConnected
+                    ? browseTrigger.element
+                    : mobileTrigger.element;
+                }
+              : 'none'
+          }
           className="w-[min(90vw,22rem)]!"
           showCloseButton={false}
         >

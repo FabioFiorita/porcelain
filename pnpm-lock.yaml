@@ -130,6 +130,7 @@ packageExtensionsChecksum: sha256-4ROEX6iFbLbG9Lqq+wJj6dLUpHe0RF6NtOu4q++cqJ8=
 
 patchedDependencies:
   '@pierre/diffs@1.6.4': 7a37d94505526b01286480d4f1f5519799f536fae7c931f72a89aab2297148e7
+  '@ui-sdk/core@0.1.0-beta.14': 55bf999a4ddb9b2760d16ef3cafbcb81c742520d02da45d91d7df6ff57927106
   uniwind@1.12.1: 32fe31014189972f643c8f3af5a58f59ecd63c7cbc0b7f21e9de5aa24e515f14
 
 importers:
@@ -560,7 +561,7 @@ importers:
         version: 1.170.33(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@ui-sdk/react':
         specifier: 0.1.0-beta.14
-        version: 0.1.0-beta.14(@types/react@19.3.0)(@ui-sdk/core@0.1.0-beta.14)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        version: 0.1.0-beta.14(@types/react@19.3.0)(@ui-sdk/core@0.1.0-beta.14(patch_hash=55bf999a4ddb9b2760d16ef3cafbcb81c742520d02da45d91d7df6ff57927106))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       class-variance-authority:
         specifier: 0.7.1
         version: 0.7.1
@@ -11434,11 +11435,11 @@ snapshots:
   '@typescript/typescript-win32-x64@7.1.0-beta':
     optional: true
 
-  '@ui-sdk/core@0.1.0-beta.14': {}
+  '@ui-sdk/core@0.1.0-beta.14(patch_hash=55bf999a4ddb9b2760d16ef3cafbcb81c742520d02da45d91d7df6ff57927106)': {}
 
-  '@ui-sdk/react@0.1.0-beta.14(@types/react@19.3.0)(@ui-sdk/core@0.1.0-beta.14)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+  '@ui-sdk/react@0.1.0-beta.14(@types/react@19.3.0)(@ui-sdk/core@0.1.0-beta.14(patch_hash=55bf999a4ddb9b2760d16ef3cafbcb81c742520d02da45d91d7df6ff57927106))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
     dependencies:
-      '@ui-sdk/core': 0.1.0-beta.14
+      '@ui-sdk/core': 0.1.0-beta.14(patch_hash=55bf999a4ddb9b2760d16ef3cafbcb81c742520d02da45d91d7df6ff57927106)
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)
     optionalDependencies:

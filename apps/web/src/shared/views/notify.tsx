@@ -9,12 +9,31 @@ type Notice = {
   actionProps?: { children: string; onClick: () => void };
 };
 
-export function notify(notice: Notice): string {
-  return toast.add(notice);
+export function notify({
+  title,
+  description,
+  type,
+  timeout,
+  actionProps,
+}: Notice): string {
+  return toast({
+    title,
+    description,
+    type,
+    ...(timeout === undefined ? {} : { duration: timeout }),
+    ...(actionProps === undefined
+      ? {}
+      : {
+          action: {
+            label: actionProps.children,
+            onAction: actionProps.onClick,
+          },
+        }),
+  });
 }
 
 export function dismissNotice(id: string) {
-  toast.close(id);
+  toast.dismiss(id);
 }
 
 export type CopyTarget =

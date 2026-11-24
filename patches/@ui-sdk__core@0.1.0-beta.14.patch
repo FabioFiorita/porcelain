@@ -1,0 +1,22 @@
+diff --git a/dist/foundation/platform/announce.js b/dist/foundation/platform/announce.js
+index bd7558f73de73a701771aa20ae26bf4657bec83c..c0881e32663fe9463b3c9f160efe93d0597a39e3 100644
+--- a/dist/foundation/platform/announce.js
++++ b/dist/foundation/platform/announce.js
+@@ -15,7 +15,6 @@ function regionIn(doc, priority) {
+     return existing;
+   }
+   const region = doc.createElement("div");
+-  region.setAttribute("role", priority === "assertive" ? "alert" : "status");
+   region.setAttribute("aria-live", priority);
+   region.setAttribute("aria-atomic", "true");
+   region.setAttribute(
+@@ -52,6 +51,9 @@ function announce(text, {
+   clearTimeout(pending[priority]);
+   pending[priority] = setTimeout(() => {
+     region.textContent = text;
++    pending[priority] = setTimeout(() => {
++      region.textContent = "";
++    }, 500);
+   }, 100);
+ }
+ export {

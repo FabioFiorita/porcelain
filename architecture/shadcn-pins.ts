@@ -21,9 +21,16 @@ export function digest(text: string): string {
   return createHash('sha256').update(text).digest('hex');
 }
 const uiSdkFiles: ReadonlySet<string> = new Set([
+  'alert-dialog.tsx',
   'command.tsx',
   'context-menu.tsx',
+  'dialog.tsx',
   'dropdown-menu.tsx',
+  'popover.tsx',
+  'select.tsx',
+  'sheet.tsx',
+  'toast.tsx',
+  'tooltip.tsx',
 ]);
 function folderFiles(root: string): string[] {
   const folder = join(root, uiFolder);

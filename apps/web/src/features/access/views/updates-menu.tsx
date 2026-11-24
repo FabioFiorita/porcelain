@@ -77,7 +77,7 @@ export function UpdatesMenu({
         side="top"
         align="end"
         className="max-h-(--available-height) w-88 max-w-[calc(100vw-1rem)] overflow-y-auto"
-        finalFocus={visible ? true : () => fallbackFocus.element}
+        finalFocus={visible ? 'trigger' : () => fallbackFocus.element}
       >
         <PopoverTitle>{title}</PopoverTitle>
         {failures.length > 0 && (

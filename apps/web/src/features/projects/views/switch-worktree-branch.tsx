@@ -1,6 +1,5 @@
 import { PendingButton } from '@/shared/views/pending-button';
 import { useState } from 'react';
-import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';
 import { Cause, Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { CheckIcon, GitBranchIcon } from 'lucide-react';
@@ -11,6 +10,7 @@ import { useInventory } from '../queries/inventory';
 import { TruncatedText } from '@/shared/views/truncated-text';
 import { Button } from '@/components/ui/button';
 import {
+  Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -36,13 +36,13 @@ import { useSwitchWorktreeBranchAction } from '../commands/worktree-actions';
 
 export function SwitchWorktreeBranchDialog() {
   return (
-    <DialogPrimitive.Root handle={switchWorktreeBranchDialog}>
-      {({ payload }) =>
+    <Dialog controller={switchWorktreeBranchDialog}>
+      {(payload) =>
         payload && (
           <SwitchWorktreeBranchContent key={payload.requestId} {...payload} />
         )
       }
-    </DialogPrimitive.Root>
+    </Dialog>
   );
 }
 function SwitchWorktreeBranchContent({
@@ -96,7 +96,12 @@ function SwitchWorktreeBranchContent({
           are unavailable.
         </DialogDescription>
       </DialogHeader>
-      <Command filter={false} query={query} onQueryChange={setQuery}>
+      <Command
+        filter={false}
+        query={query}
+        onQueryChange={setQuery}
+        onEscape={() => switchWorktreeBranchDialog.close()}
+      >
         <CommandInput aria-label="Find a branch" placeholder="Find a branch" />
         <CommandList aria-label="Branches">
           {AsyncResult.isInitial(branches) && (

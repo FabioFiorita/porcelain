@@ -103,40 +103,52 @@ function branchSearchScore(name: string, query: string): number {
   );
 }
 
+function prefixes(query: string): string[] {
+  return Array.from(query, (_, index) => query.slice(0, index + 1));
+}
+
+function rankedByTyping<Entry>(
+  entries: readonly Entry[],
+  query: string,
+  score: (entry: Entry, typed: string) => number,
+): Entry[] {
+  return prefixes(query).reduce(
+    (order, typed) =>
+      order
+        .map((entry) => ({ entry, score: score(entry, typed) }))
+        .sort((left, right) => right.score - left.score)
+        .map(({ entry }) => entry),
+    [...entries],
+  );
+}
+
 export function branchSearchMatches<Entry>(
   entries: readonly Entry[],
   query: string,
   name: (entry: Entry) => string,
 ): Entry[] {
-  if (query === '') return [...entries];
-  return entries
-    .map((entry) => ({ entry, score: branchSearchScore(name(entry), query) }))
-    .filter(({ score }) => score > 0)
-    .sort((left, right) => right.score - left.score)
-    .map(({ entry }) => entry);
+  return rankedByTyping(entries, query, (entry, typed) =>
+    branchSearchScore(name(entry), typed),
+  ).filter(
+    (entry) => query === '' || branchSearchScore(name(entry), query) > 0,
+  );
 }
 
 export function branchSearchGroups<Entry extends { name: string }>(
   groups: readonly { heading: string; entries: readonly Entry[] }[],
   query: string,
 ): { heading: string; entries: Entry[] }[] {
-  return groups
-    .flatMap(({ heading, entries }) => {
-      const matches = branchSearchMatches(
-        entries,
-        query,
-        (entry) => entry.name,
-      );
-      const best = matches[0];
-      return best === undefined
-        ? []
-        : [
-            {
-              group: { heading, entries: matches },
-              score: branchSearchScore(best.name, query),
-            },
-          ];
-    })
-    .sort((left, right) => right.score - left.score)
-    .map(({ group }) => group);
+  const best = (entries: readonly Entry[], typed: string) =>
+    Math.max(
+      0,
+      ...entries.map((entry) => branchSearchScore(entry.name, typed)),
+    );
+  return rankedByTyping(groups, query, (group, typed) =>
+    best(group.entries, typed),
+  )
+    .map(({ heading, entries }) => ({
+      heading,
+      entries: branchSearchMatches(entries, query, (entry) => entry.name),
+    }))
+    .filter((group) => group.entries.length > 0);
 }

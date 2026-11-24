@@ -40,7 +40,7 @@ export function FilesQuickOpen(props: Props) {
   useQuickOpenShortcut(() => quickOpenOperations.toggle());
   return (
     <CommandDialog
-      handle={quickOpenDialog}
+      controller={quickOpenDialog}
       title="Find a file"
       description="Find a file by name, or enter a relative path to open it."
     >
@@ -72,9 +72,8 @@ function QuickOpen({ scope, connection, openFiles, onOpen, bindPopup }: Props) {
       ref={bindPopup}
       filter={false}
       query={query}
-      onQueryChange={(next, details) => {
-        if (details.reason !== 'escape-key') setQuery(next);
-      }}
+      onQueryChange={setQuery}
+      onEscape={() => quickOpenOperations.close()}
     >
       <CommandInput
         aria-label="Find a file by name"

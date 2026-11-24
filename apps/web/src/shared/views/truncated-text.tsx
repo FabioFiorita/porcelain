@@ -108,8 +108,7 @@ export function TruncatedText({
     };
     const hide = () => setOwnerOpen(false);
     const dismiss = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape' || !element.hasAttribute('data-popup-open'))
-        return;
+      if (event.key !== 'Escape' || !element.hasAttribute('data-open')) return;
       setOwnerOpen(false);
       setSelfOpen(false);
       if (!propagateEscape) event.stopPropagation();
@@ -175,13 +174,11 @@ export function TruncatedText({
   return (
     <Tooltip
       disabled={!disclosed}
-      disableHoverablePopup
+
       open={disclosed && (selfOpen || ownerOpen)}
-      onOpenChange={(open, details) => {
+      onOpenChange={(open) => {
         setSelfOpen(open);
         if (!open) setOwnerOpen(false);
-        if (propagateEscape && details.reason === 'escape-key')
-          details.allowPropagation();
       }}
     >
       <TooltipTrigger ref={attach} render={trigger}>

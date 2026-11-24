@@ -34,7 +34,7 @@ type MenuTarget = {
   pathsKey: string;
   filter: string;
   rename: () => void;
-  finalFocus: () => HTMLElement | false;
+  finalFocus: () => HTMLElement | null;
   close: (restoreFocus: boolean) => void;
 };
 
@@ -42,6 +42,7 @@ export function PierreFileTree(props: PierreFileTreeInput) {
   const input = fileTreeInputs(useId());
   const registry = useAtomValue(atomRegistry);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [restoreFocus, setRestoreFocus] = useState(true);
   const [menuTarget, setMenuTarget] = useState<MenuTarget | null>(null);
   const current =
     menuTarget?.pathsKey === props.paths.join('\0') &&
@@ -49,10 +50,19 @@ export function PierreFileTree(props: PierreFileTreeInput) {
   if (menuOpen && !current) setMenuOpen(false);
   const [attach] = useState(() => (host: HTMLDivElement | null) => {
     if (!host) return;
-    return mountTree(host, registry, input, setMenuTarget, setMenuOpen);
+    return mountTree(host, registry, input, setMenuTarget, (restore) => {
+      setRestoreFocus(restore);
+      setMenuOpen(false);
+    });
   });
   return (
-    <ContextMenu open={menuOpen && current} onOpenChange={setMenuOpen}>
+    <ContextMenu
+      open={menuOpen && current}
+      onOpenChange={(open) => {
+        if (open) setRestoreFocus(true);
+        setMenuOpen(open);
+      }}
+    >
       <ContextMenuTrigger
         render={<div className="flex min-h-0 flex-1 flex-col" />}
       >
@@ -82,7 +92,8 @@ export function PierreFileTree(props: PierreFileTreeInput) {
         props.renderMenu(
           menuTarget.item,
           {
-            finalFocus: current ? menuTarget.finalFocus : () => false,
+            finalFocus:
+              current && restoreFocus ? menuTarget.finalFocus : 'none',
             close: menuTarget.close,
           },
           menuTarget.rename,
@@ -96,7 +107,7 @@ function mountTree(
   registry: AtomRegistry.AtomRegistry,
   input: Atom.Writable<Option.Option<PierreFileTreeInput>>,
   setMenuTarget: (target: MenuTarget | null) => void,
-  setMenuOpen: (open: boolean) => void,
+  closeMenu: (restoreFocus: boolean) => void,
 ) {
   const read = () => Option.getOrThrow(registry.get(input));
   const place = fileTreePlaces(read().owner);
@@ -394,10 +405,10 @@ function mountTree(
       finalFocus: () =>
         focus.restore && row.isConnected && row.dataset.itemPath === path
           ? row
-          : false,
+          : null,
       close: (restoreFocus) => {
         focus.restore = restoreFocus;
-        setMenuOpen(false);
+        closeMenu(restoreFocus);
       },
       rename: () => read().onRequestRename(path),
       item: {

@@ -302,7 +302,7 @@ export function DocumentTabs({
       </div>
       {tabs.length > 1 && (
         <DropdownMenu>
-          <Tooltip disableHoverablePopup>
+          <Tooltip>
             <TooltipTrigger
               render={
                 <DropdownMenuTrigger
@@ -465,7 +465,7 @@ function DocumentTab({
               />
               {label}
               {!permanentTab(tabKey) && pinned && (
-                <Tooltip disableHoverablePopup>
+                <Tooltip>
                   <TooltipTrigger
                     render={
                       <Button
@@ -486,7 +486,7 @@ function DocumentTab({
                 </Tooltip>
               )}
               {!permanentTab(tabKey) && active && (
-                <Tooltip disableHoverablePopup>
+                <Tooltip>
                   <TooltipTrigger
                     render={
                       <Button

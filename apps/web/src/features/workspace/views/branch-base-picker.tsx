@@ -107,7 +107,12 @@ export function BranchBasePicker({
         <ChevronsUpDownIcon className="size-3.5 shrink-0 text-muted-foreground" />
       </PopoverTrigger>
       <PopoverContent align="start" className="w-72">
-        <Command filter={false} query={query} onQueryChange={setQuery}>
+        <Command
+          filter={false}
+          query={query}
+          onQueryChange={setQuery}
+          onEscape={() => setOpen(false)}
+        >
           <CommandInput
             aria-label="Find a base branch"
             placeholder="Find a branch"

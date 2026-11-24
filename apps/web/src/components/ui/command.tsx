@@ -23,10 +23,20 @@ import { SearchIcon, CheckIcon } from 'lucide-react';
 
 function Command({
   className,
+  onEscape,
+  onQueryChange,
   ...props
-}: React.ComponentProps<typeof CommandPrimitive>) {
+}: React.ComponentProps<typeof CommandPrimitive> & {
+  onEscape?: () => void;
+}) {
   return (
     <CommandPrimitive
+      onQueryChange={(query, details) => {
+        if (details.reason === 'escape-key' && onEscape) {
+          details.cancel();
+          onEscape();
+        } else onQueryChange?.(query, details);
+      }}
       data-slot="command"
       className={cn(
         'flex size-full flex-col overflow-hidden rounded-xl bg-popover p-1 text-popover-foreground',

@@ -1,6 +1,6 @@
 import { PendingButton } from '@/shared/views/pending-button';
-import { AlertDialog as AlertDialogPrimitive } from '@base-ui/react/alert-dialog';
 import {
+  AlertDialog,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -21,8 +21,8 @@ export function RemoveProjectDialog({
   connection: Connection;
 }) {
   return (
-    <AlertDialogPrimitive.Root handle={removeProjectDialog}>
-      {({ payload }) =>
+    <AlertDialog controller={removeProjectDialog}>
+      {(payload) =>
         payload && (
           <ProjectOwner remote={payload.remote} connection={connection}>
             {(owner) => (
@@ -37,7 +37,7 @@ export function RemoveProjectDialog({
           </ProjectOwner>
         )
       }
-    </AlertDialogPrimitive.Root>
+    </AlertDialog>
   );
 }
 

@@ -3,7 +3,6 @@ import { RegistryContext } from '@effect/atom-react';
 import type { AtomRegistry } from 'effect/reactivity';
 import { StrictMode, type ReactNode } from 'react';
 import { NotificationProvider } from '@/shared/views/notify';
-import { TooltipProvider } from '@/components/ui/tooltip';
 import { WorkspaceProvider } from '@/app/workspace-provider';
 
 export function AppProviders({
@@ -23,11 +22,9 @@ export function AppProviders({
             },
           }}
         >
-          <TooltipProvider delay={400}>
-            <WorkspaceProvider>
-              <NotificationProvider>{children}</NotificationProvider>
-            </WorkspaceProvider>
-          </TooltipProvider>
+          <WorkspaceProvider>
+            <NotificationProvider>{children}</NotificationProvider>
+          </WorkspaceProvider>
         </HotkeysProvider>
       </RegistryContext.Provider>
     </StrictMode>

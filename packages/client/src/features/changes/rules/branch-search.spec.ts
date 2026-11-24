@@ -34,8 +34,8 @@ it.each([
       'fix/search-empty',
       'spike/menu-a11y',
       'feature/notes-archive',
-      'docs/readme-main',
       'release/main-2026',
+      'docs/readme-main',
     ],
   ],
   [
@@ -59,7 +59,43 @@ it.each([
       'release/main-2026',
     ],
   ],
-])('ranks branches for “%s” best first', (query, ranked) => {
+  [
+    's',
+    [
+      'spike/menu-a11y',
+      'feature/note-search',
+      'mainline-sync',
+      'feat/search-ranking',
+      'fix/search-empty',
+      'docs/readme-main',
+      'feature/notes-archive',
+      'release/main-2026',
+    ],
+  ],
+  [
+    'se',
+    [
+      'feature/note-search',
+      'feat/search-ranking',
+      'fix/search-empty',
+      'release/main-2026',
+      'spike/menu-a11y',
+      'feature/notes-archive',
+      'docs/readme-main',
+    ],
+  ],
+  [
+    'main',
+    [
+      'main',
+      'mainline-sync',
+      'chore/merge-main',
+      'docs/readme-main',
+      'release/main-2026',
+    ],
+  ],
+  ['rel', ['release/main-2026']],
+])('lists branches for “%s” in the order typing it shows', (query, ranked) => {
   expect(branchSearchMatches(branches, query, (name) => name)).toEqual(ranked);
 });
 

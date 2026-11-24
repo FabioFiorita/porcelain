@@ -99,6 +99,7 @@ test.for([
       exact: true,
     });
     await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await expect.element(dialog).not.toBeInTheDocument();
     await expect.poll(() => repo.read(path)).toBe(`${text}\n`);
     await app.page
       .getByRole('button', {

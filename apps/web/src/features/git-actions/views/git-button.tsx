@@ -358,13 +358,7 @@ export function GitButton({
                     const reason =
                       blocker ?? gitActionReason(candidate.id, status);
                     return (
-                      <Tooltip
-                        key={candidate.id}
-                        onOpenChange={(_open, details) => {
-                          if (details.reason === 'escape-key')
-                            details.allowPropagation();
-                        }}
-                      >
+                      <Tooltip key={candidate.id}>
                         <TooltipTrigger render={<span className="block" />}>
                           <DropdownMenuItem
                             disabled={
@@ -415,13 +409,7 @@ export function GitButton({
                         ? `Restore discarded rename of ${item.path}`
                         : `Restore discarded hunk of ${item.path}`;
                     return (
-                      <Tooltip
-                        key={item.oid}
-                        onOpenChange={(_open, details) => {
-                          if (details.reason === 'escape-key')
-                            details.allowPropagation();
-                        }}
-                      >
+                      <Tooltip key={item.oid}>
                         <TooltipTrigger render={<span className="block" />}>
                           <DropdownMenuItem
                             onSelect={() => {
@@ -453,7 +441,7 @@ export function GitButton({
       {action !== null && action !== undefined ? (
         <Dialog
           open
-          disablePointerDismissal
+          closeOnOutsidePress={false}
           onOpenChange={(open) => {
             if (!open && !busy) setAction(null);
           }}

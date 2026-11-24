@@ -116,7 +116,7 @@ export type PierreFileTreeInput = {
   renderMenu: (
     item: ContextMenuItem,
     context: {
-      finalFocus: () => HTMLElement | false;
+      finalFocus: 'none' | (() => HTMLElement | null);
       close: (restoreFocus: boolean) => void;
     },
     rename: () => void,

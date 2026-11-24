@@ -65,11 +65,13 @@ export function NavigatorRowMenu({
               disabled={!entry.available || Boolean(writeBlock)}
               aria-description={writeBlock}
               onSelect={() =>
-                switchWorktreeBranchDialog.openWithPayload({
-                  entry,
-                  context,
-                  worktreeId,
-                  requestId: crypto.randomUUID(),
+                void switchWorktreeBranchDialog.open({
+                  payload: {
+                    entry,
+                    context,
+                    worktreeId,
+                    requestId: crypto.randomUUID(),
+                  },
                 })
               }
             >
@@ -84,11 +86,13 @@ export function NavigatorRowMenu({
               disabled={!entry.available || Boolean(writeBlock)}
               aria-description={writeBlock}
               onSelect={() =>
-                deleteWorktreeDialog.openWithPayload({
-                  entry,
-                  context,
-                  worktreeId,
-                  requestId: crypto.randomUUID(),
+                void deleteWorktreeDialog.open({
+                  payload: {
+                    entry,
+                    context,
+                    worktreeId,
+                    requestId: crypto.randomUUID(),
+                  },
                 })
               }
             >

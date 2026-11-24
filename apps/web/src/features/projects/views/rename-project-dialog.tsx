@@ -1,8 +1,8 @@
 import { PendingButton } from '@/shared/views/pending-button';
-import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';
 import { useForm } from '@tanstack/react-form';
 import { Button } from '@/components/ui/button';
 import {
+  Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -29,8 +29,8 @@ export function RenameProjectDialog({
   connection: Connection;
 }) {
   return (
-    <DialogPrimitive.Root handle={renameProjectDialog}>
-      {({ payload }) =>
+    <Dialog controller={renameProjectDialog}>
+      {(payload) =>
         payload && (
           <ProjectOwner remote={payload.remote} connection={connection}>
             {(owner) => (
@@ -45,7 +45,7 @@ export function RenameProjectDialog({
           </ProjectOwner>
         )
       }
-    </DialogPrimitive.Root>
+    </Dialog>
   );
 }
 

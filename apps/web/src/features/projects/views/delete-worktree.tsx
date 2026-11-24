@@ -3,7 +3,6 @@ import { PendingSpinner } from '@/shared/views/state-notice';
 import { useState } from 'react';
 import { Cause } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
-import { AlertDialog as AlertDialogPrimitive } from '@base-ui/react/alert-dialog';
 import {
   worktreeCleanupOptions,
   worktreeCleanupFields,
@@ -25,6 +24,7 @@ import { useReviewGitSettings } from '@/features/preferences';
 import { Switch } from '@/components/ui/switch';
 import { Field, FieldLabel } from '@/components/ui/field';
 import {
+  AlertDialog,
   AlertDialogContent,
   AlertDialogHeader,
   AlertDialogTitle,
@@ -37,13 +37,13 @@ import { useDeleteWorktreeAction } from '../commands/worktree-actions';
 
 export function DeleteWorktreeDialog() {
   return (
-    <AlertDialogPrimitive.Root handle={deleteWorktreeDialog}>
-      {({ payload }) =>
+    <AlertDialog controller={deleteWorktreeDialog}>
+      {(payload) =>
         payload && (
           <DeleteWorktreeContent key={payload.requestId} {...payload} />
         )
       }
-    </AlertDialogPrimitive.Root>
+    </AlertDialog>
   );
 }
 function DeleteWorktreeContent({

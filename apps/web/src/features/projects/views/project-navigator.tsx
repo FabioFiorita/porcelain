@@ -243,7 +243,7 @@ export function ProjectNavigator({
               setMenu({ pathname: location.pathname, open })
             }
           >
-            <Tooltip disableHoverablePopup>
+            <Tooltip>
               <TooltipTrigger
                 render={
                   <DropdownMenuTrigger
@@ -346,7 +346,7 @@ export function ProjectNavigator({
                     }
                     environmentName={source.environmentName}
                   />
-                  <Tooltip disableHoverablePopup>
+                  <Tooltip>
                     <TooltipTrigger
                       render={
                         <CollapsibleTrigger
@@ -378,17 +378,19 @@ export function ProjectNavigator({
                           variant="outline"
                           size="xs"
                           onClick={() =>
-                            openProjectDialog.openWithPayload({
-                              remote:
-                                source.connection.environmentId ===
-                                connection.environmentId
-                                  ? null
-                                  : source.connection.environmentId,
-                              project: source.project,
-                              ...(label === 'Reconnect' &&
-                              projectPath(source.project)
-                                ? { path: projectPath(source.project) }
-                                : {}),
+                            void openProjectDialog.open({
+                              payload: {
+                                remote:
+                                  source.connection.environmentId ===
+                                  connection.environmentId
+                                    ? null
+                                    : source.connection.environmentId,
+                                project: source.project,
+                                ...(label === 'Reconnect' &&
+                                projectPath(source.project)
+                                  ? { path: projectPath(source.project) }
+                                  : {}),
+                              },
                             })
                           }
                         >
@@ -582,7 +584,7 @@ export function ProjectNavigator({
           aria-label="Navigator controls"
           className="navigator-footer flex shrink-0 items-center gap-1 p-2"
         >
-          <Tooltip disableHoverablePopup>
+          <Tooltip>
             <TooltipTrigger
               render={
                 <Button
@@ -603,7 +605,7 @@ export function ProjectNavigator({
           </Tooltip>
           <div className="ml-auto flex shrink-0 items-center gap-1">
             <UpdatesMenu fallbackFocus={settingsButton} />
-            <Tooltip disableHoverablePopup>
+            <Tooltip>
               <TooltipTrigger
                 render={
                   <Button

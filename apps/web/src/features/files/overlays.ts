@@ -1,11 +1,10 @@
-import { Dialog } from '@base-ui/react/dialog';
+import { createDialogController } from '@/components/ui/dialog';
 
-export const quickOpenDialog = Dialog.createHandle();
+export const quickOpenDialog = createDialogController();
 
 export const quickOpenOperations = {
   toggle() {
-    if (quickOpenDialog.isOpen) quickOpenDialog.close();
-    else quickOpenDialog.open(null);
+    quickOpenDialog.toggle();
   },
   close() {
     quickOpenDialog.close();

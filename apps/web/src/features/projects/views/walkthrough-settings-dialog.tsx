@@ -1,5 +1,5 @@
-import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';
 import {
+  Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
@@ -15,8 +15,8 @@ export function WalkthroughSettingsDialog({
   connection: Connection;
 }) {
   return (
-    <DialogPrimitive.Root handle={walkthroughSettingsDialog}>
-      {({ payload }) =>
+    <Dialog controller={walkthroughSettingsDialog}>
+      {(payload) =>
         payload && (
           <ProjectOwner remote={payload.remote} connection={connection}>
             {(owner) => (
@@ -42,6 +42,6 @@ export function WalkthroughSettingsDialog({
           </ProjectOwner>
         )
       }
-    </DialogPrimitive.Root>
+    </Dialog>
   );
 }

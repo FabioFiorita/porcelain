@@ -28,7 +28,7 @@ export function OpenProjectMenu({
 }) {
   if (!remotes?.length)
     return (
-      <Tooltip disableHoverablePopup>
+      <Tooltip>
         <TooltipTrigger
           render={
             <SidebarGroupAction
@@ -45,7 +45,7 @@ export function OpenProjectMenu({
     );
   return (
     <DropdownMenu>
-      <Tooltip disableHoverablePopup>
+      <Tooltip>
         <TooltipTrigger
           render={
             <DropdownMenuTrigger
