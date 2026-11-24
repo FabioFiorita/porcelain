@@ -42,7 +42,7 @@ const workspace = mkdtempSync('/tmp/porcelain-release-');
 let mount: string | undefined;
 let mounted = false;
 let stop: (() => Promise<void>) | undefined;
-let failed = false;
+let failure: { error: unknown } | undefined;
 
 try {
   mount = mkdtempSync('/tmp/porcelain-image-');
@@ -106,32 +106,32 @@ try {
   ]);
   console.log('The mounted Porcelain app reached renderer readiness.');
 } catch (error) {
-  failed = true;
-  throw error;
-} finally {
-  const cleanupErrors: unknown[] = [];
-  try {
-    await stop?.();
-  } catch (error) {
-    cleanupErrors.push(error);
-  }
-  try {
-    if (mount) {
-      if (mounted) await detachDiskImage(mount);
-      if (existsSync(mount)) rmdirSync(mount);
-    }
-  } catch (error) {
-    cleanupErrors.push(error);
-  }
-  try {
-    rmSync(workspace, { recursive: true, force: true });
-  } catch (error) {
-    cleanupErrors.push(error);
-  }
-  if (cleanupErrors.length > 0) {
-    if (!failed)
-      throw new AggregateError(cleanupErrors, 'Desktop smoke cleanup failed');
-    for (const error of cleanupErrors)
-      console.error('Desktop smoke cleanup failed:', error);
-  }
+  failure = { error };
 }
+
+const cleanupErrors: unknown[] = [];
+try {
+  await stop?.();
+} catch (error) {
+  cleanupErrors.push(error);
+}
+try {
+  if (mount) {
+    if (mounted) await detachDiskImage(mount);
+    if (existsSync(mount)) rmdirSync(mount);
+  }
+} catch (error) {
+  cleanupErrors.push(error);
+}
+try {
+  rmSync(workspace, { recursive: true, force: true });
+} catch (error) {
+  cleanupErrors.push(error);
+}
+if (failure) {
+  for (const error of cleanupErrors)
+    console.error('Desktop smoke cleanup failed:', error);
+  throw failure.error;
+}
+if (cleanupErrors.length > 0)
+  throw new AggregateError(cleanupErrors, 'Desktop smoke cleanup failed');
