@@ -1,5 +1,5 @@
 import { useAtomRefresh, useAtomSet, useAtomValue } from '@effect/atom-react';
-import { useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { useRouter } from 'expo-router';
 import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
@@ -10,7 +10,6 @@ import {
   profileMobileScreen,
 } from '../../../shared/application/mobile-timing';
 import { Box } from '../../../components/ui/box';
-import { Spinner } from '../../../components/ui/spinner';
 import { Empty } from '../../../components/ui/empty';
 import { Screen } from '../../../components/ui/screen';
 import { Text } from '../../../components/ui/text';
@@ -161,103 +160,70 @@ function ChangesReader({
   const router = useRouter();
   const chooseScope = useAtomSet(chooseReviewFileScope);
   return (
-    <FirstDiffs
-      workspace={workspace}
-      comparison={comparison}
-      keys={diffChunk(
-        files
-          .filter((file) => file.comparison.kind === comparison.kind)
-          .map((file) => file.diffKey),
-        0,
-      )}
-    >
-      <DiffPage
-        page={JSON.stringify([
-          'changes',
-          workspace.key,
-          comparison,
-          ...(walkthrough ? ['walkthrough'] : []),
-          reading?.page ?? null,
-        ])}
-        title={reading?.title ?? 'All changes'}
-        subtitle={summary.subtitle}
-        actions={reading?.actions ?? []}
-        files={files}
-        onFirstHeadingLayout={
-          walkthrough || reading
-            ? undefined
-            : mobileLayout('all-changes-first-heading')
-        }
-        header={() =>
-          reading?.header ?? (
-            <Box divider="bottom" paddingX={4} paddingY={3}>
-              <Text variant="caption" tone="muted">
-                {summary.description}
-              </Text>
-            </Box>
-          )
-        }
-        empty={
-          reading ? <Empty {...reading.empty} /> : <Empty title="No changes" />
-        }
-        onOpenFile={(file) => {
-          if (file.scope)
-            chooseScope({
-              owner: JSON.stringify([
-                workspace.key,
-                reviewFileDocumentKey(file.path, file.comparison),
-              ]),
-              scope: file.scope,
-            });
-          router.push({
-            pathname: '/review-file',
-            params: {
-              ...reviewParams(workspace.key, file.comparison),
-              path: file.path,
-            },
+    <DiffPage
+      page={JSON.stringify([
+        'changes',
+        workspace.key,
+        comparison,
+        ...(walkthrough ? ['walkthrough'] : []),
+        reading?.page ?? null,
+      ])}
+      title={reading?.title ?? 'All changes'}
+      subtitle={summary.subtitle}
+      actions={reading?.actions ?? []}
+      files={files}
+      onFirstHeadingLayout={
+        walkthrough || reading
+          ? undefined
+          : mobileLayout('all-changes-first-heading')
+      }
+      header={() =>
+        reading?.header ?? (
+          <Box divider="bottom" paddingX={4} paddingY={3}>
+            <Text variant="caption" tone="muted">
+              {summary.description}
+            </Text>
+          </Box>
+        )
+      }
+      empty={
+        reading ? <Empty {...reading.empty} /> : <Empty title="No changes" />
+      }
+      onOpenFile={(file) => {
+        if (file.scope)
+          chooseScope({
+            owner: JSON.stringify([
+              workspace.key,
+              reviewFileDocumentKey(file.path, file.comparison),
+            ]),
+            scope: file.scope,
           });
-        }}
-        part={(props) => {
-          const group = files.filter(
-            (file) => file.comparison.kind === props.file.comparison.kind,
-          );
-          return (
-            <ChangePart
-              {...props}
-              workspace={workspace}
-              comparison={props.file.comparison}
-              keys={diffChunk(
-                group.map((file) => file.diffKey),
-                group.findIndex((file) => file.key === props.file.key),
-              )}
-            />
-          );
-        }}
-      />
-    </FirstDiffs>
+        router.push({
+          pathname: '/review-file',
+          params: {
+            ...reviewParams(workspace.key, file.comparison),
+            path: file.path,
+          },
+        });
+      }}
+      part={(props) => {
+        const group = files.filter(
+          (file) => file.comparison.kind === props.file.comparison.kind,
+        );
+        return (
+          <ChangePart
+            {...props}
+            workspace={workspace}
+            comparison={props.file.comparison}
+            keys={diffChunk(
+              group.map((file) => file.diffKey),
+              group.findIndex((file) => file.key === props.file.key),
+            )}
+          />
+        );
+      }}
+    />
   );
-}
-
-function FirstDiffs({
-  workspace,
-  comparison,
-  keys,
-  children,
-}: {
-  workspace: Workspace;
-  comparison: ReviewComparison;
-  keys: readonly string[];
-  children: ReactNode;
-}) {
-  const result = useAtomValue(changePageDiffs({ workspace, comparison, keys }));
-  const [opened, setOpened] = useState(false);
-  const settled =
-    keys.length === 0 ||
-    AsyncResult.isSuccess(result) ||
-    AsyncResult.isFailure(result);
-  if (settled && !opened) setOpened(true);
-  if (!settled && !opened) return <Spinner />;
-  return children;
 }
 
 type ChangePartProps = DiffPagePartProps<ComparedEntry> & {
