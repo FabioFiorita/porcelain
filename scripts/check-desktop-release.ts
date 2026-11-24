@@ -1,4 +1,5 @@
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline';
@@ -43,6 +44,28 @@ try {
     HOME: home,
     PORCELAIN_CODING_TOOL_DIRECTORY: 'none',
   };
+  if (process.env.PORCELAIN_REHEARSAL_SCOPED_KEYCHAIN === 'true') {
+    const directory = join(home, 'Library', 'Keychains');
+    mkdirSync(directory, { recursive: true });
+    mkdirSync(join(home, 'Library', 'Preferences'), { recursive: true });
+    const keychain = join(directory, 'porcelain-test.keychain-db');
+    const password = randomBytes(24).toString('hex');
+    for (const args of [
+      ['create-keychain', '-p', password, keychain],
+      ['unlock-keychain', '-p', password, keychain],
+      ['list-keychains', '-d', 'user', '-s', keychain],
+      ['default-keychain', '-d', 'user', '-s', keychain],
+    ]) {
+      const command = spawnSync('/usr/bin/security', args, {
+        env,
+        encoding: 'utf8',
+      });
+      if (command.status !== 0)
+        throw new Error(
+          `Scoped Keychain setup failed during ${args[0]}: ${command.stderr}`,
+        );
+    }
+  }
   const keychain = spawnSync(
     '/usr/bin/security',
     ['default-keychain', '-d', 'user'],
@@ -54,6 +77,11 @@ try {
   console.log(
     `Default Keychain from the app environment (${keychain.status}): ${(keychain.stdout + keychain.stderr).trim()}`,
   );
+  if (
+    process.env.PORCELAIN_REHEARSAL_SCOPED_KEYCHAIN === 'true' &&
+    keychain.status !== 0
+  )
+    throw new Error('The app environment still has no default Keychain');
   const app = spawn(
     join(bundle, 'Contents', 'MacOS', 'Porcelain'),
     ['--data-directory', profile, '--project-home', projects],
