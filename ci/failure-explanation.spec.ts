@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import { describe, expect, it } from 'vite-plus/test';
 import { explanationComment, failureExcerpt } from './failure-explanation.ts';
 import { dollars, summaryModel } from './openai.ts';
@@ -14,6 +15,30 @@ it.each([
       output: 100,
     }),
   ).toBeCloseTo(usage.cost, 9);
+});
+
+it('reports the known total when another cost is unavailable', () => {
+  const module = new URL('./openai.ts', import.meta.url);
+  const result = spawnSync(
+    process.execPath,
+    [
+      '--input-type=module',
+      '--eval',
+      `
+    import { jobCosts } from ${JSON.stringify(module.href)};
+    const costs = jobCosts();
+    costs.record('Decision', 0.0012);
+    costs.record('Reviewer', undefined);
+    costs.summarize('### Fixture costs');
+    `,
+    ],
+    { encoding: 'utf8', env: {}, timeout: 4_000 },
+  );
+  if (result.error) throw result.error;
+  expect(result.status, result.stderr).toBe(0);
+  expect(result.stdout).toContain(
+    '### Fixture costs\n- Decision: $0.001200 USD\n- Reviewer: unavailable\n- Estimated total: $0.001200 USD (some costs unknown)',
+  );
 });
 
 describe('failureExcerpt', () => {

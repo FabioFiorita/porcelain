@@ -63,15 +63,12 @@ export function jobCosts() {
       console.log(`${step} estimated cost — ${formatCost(amount)}`);
     },
     summarize(heading: string): void {
-      const total = costs.reduce<number | undefined>(
-        (sum, { amount }) =>
-          sum === undefined || amount === undefined ? undefined : sum + amount,
-        0,
-      );
+      const total = costs.reduce((sum, { amount }) => sum + (amount ?? 0), 0);
+      const unknown = costs.some(({ amount }) => amount === undefined);
       const summary = [
         heading,
         ...costs.map(({ step, amount }) => `- ${step}: ${formatCost(amount)}`),
-        `- Estimated total: ${formatCost(total)}`,
+        `- Estimated total: ${formatCost(total)}${unknown ? ' (some costs unknown)' : ''}`,
       ].join('\n');
       console.log(summary);
       const file = process.env.GITHUB_STEP_SUMMARY;
@@ -87,6 +84,12 @@ export function strictJsonSchema<A>(
     .schema;
 }
 
+export class InvalidStructuredResponse extends Error {
+  constructor(cause: unknown) {
+    super('Responses API returned an invalid structured response', { cause });
+  }
+}
+
 export async function structuredAnswer<A>(
   client: OpenAI,
   request: {
@@ -95,6 +98,7 @@ export async function structuredAnswer<A>(
     instructions: string;
     input: string;
     maxOutputTokens?: number;
+    reasoning?: OpenAI.Reasoning;
     onCost: (cost: number | undefined) => void;
   },
 ): Promise<A> {
@@ -106,6 +110,7 @@ export async function structuredAnswer<A>(
       ...(request.maxOutputTokens === undefined
         ? {}
         : { max_output_tokens: request.maxOutputTokens }),
+      ...(request.reasoning ? { reasoning: request.reasoning } : {}),
       text: {
         format: {
           type: 'json_schema',
@@ -130,13 +135,17 @@ export async function structuredAnswer<A>(
         })
       : undefined,
   );
+  if (response.status === 'incomplete')
+    throw new InvalidStructuredResponse(
+      new Error(
+        `Incomplete response: ${response.incomplete_details?.reason ?? 'reason unavailable'}`,
+      ),
+    );
   try {
     return Schema.decodeUnknownSync(Schema.fromJsonString(request.schema))(
       response.output_text,
     );
   } catch (error) {
-    throw new Error('Responses API returned an invalid structured response', {
-      cause: error,
-    });
+    throw new InvalidStructuredResponse(error);
   }
 }

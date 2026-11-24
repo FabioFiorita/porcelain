@@ -63,6 +63,10 @@ function explanationTitle(headSha: string): string {
   return `### CI Explainer: why CI failed on \`${headSha.slice(0, 12)}\``;
 }
 
+function commentHeading(headSha: string): readonly string[] {
+  return [failureCommentMarker, headMarker(headSha), explanationTitle(headSha)];
+}
+
 export function hasExplanation(
   body: string | undefined,
   headSha: string,
@@ -74,6 +78,15 @@ export function hasExplanation(
   );
 }
 
+export function unavailableExplanationComment(
+  run: Pick<FailedRun, 'url' | 'headSha'>,
+): string {
+  return [
+    ...commentHeading(run.headSha),
+    `Could not generate an explanation for [the failed run](${run.url}). See the explainer job log for details.`,
+  ].join('\n\n');
+}
+
 export function explanationComment(
   run: FailedRun,
   explanation: Explanation,
@@ -81,9 +94,7 @@ export function explanationComment(
 ): string {
   const jobUrls = new Map(run.jobs.map((job) => [job.name, job.url]));
   return [
-    failureCommentMarker,
-    headMarker(run.headSha),
-    explanationTitle(run.headSha),
+    ...commentHeading(run.headSha),
     `[The run](${run.url}), explained from its failed job logs. ${explanation.summary}`,
     ...(run.omittedJobs > 0
       ? [
