@@ -18,7 +18,6 @@ function SettingsLayout() {
       />
       <Stack.Screen name="general" options={{ title: 'General' }} />
       <Stack.Screen name="reviews-git" options={{ title: 'Reviews & Git' }} />
-      <Stack.Screen name="notifications" options={{ title: 'Notifications' }} />
       <Stack.Screen name="computers" options={{ title: 'Computers' }} />
       <Stack.Screen name="computer" options={{ title: 'Computer' }} />
       <Stack.Screen

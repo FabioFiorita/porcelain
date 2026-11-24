@@ -8,7 +8,6 @@ import {
   InvalidPairingAddressError,
   InvalidPairingError,
   DeviceViewerRequiredError,
-  PushRegistrationDeviceRequiredError,
   InvalidTailnetHostnameError,
   InvalidTunnelHostnameError,
   MissingTailnetHostnameError,
@@ -190,7 +189,6 @@ const rules: readonly StatusRule[] = [
   {
     errors: [
       DeviceViewerRequiredError,
-      PushRegistrationDeviceRequiredError,
       UntrustedDeviceError,
       WaysInPermissionRequiredError,
       SharingManagementRequiredError,

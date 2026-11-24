@@ -75,12 +75,12 @@ const answers = [
   {
     question: 'What about phone notifications?',
     answer:
-      'If you enable a notification switch and allow the system permission, the mobile app can register a push token with Expo. Expo stores that token to address the installation. Notification delivery is currently disabled: your computer clears registrations rather than sending notifications. Enabling the switch does not make delivery available today.',
+      'Porcelain sends no push notifications. The mobile app does not request notification permission or register a push token.',
   },
   {
     question: 'How long does Expo keep this?',
     answer:
-      'Expo retains update request records containing installation and update information. Its update documentation says launch-error text in raw request logs is deleted after three days. Expo also stores push tokens used by its notification service. Porcelain does not set those services’ retention periods. Their policies and processing details are linked below.',
+      'Expo retains update request records containing installation and update information. Its update documentation says launch-error text in raw request logs is deleted after three days. Porcelain does not set those services’ retention periods. Their policies and processing details are linked below.',
   },
   {
     question: 'How do I remove my data?',

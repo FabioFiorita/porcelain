@@ -23,7 +23,3 @@ export {
   reviewGitSettingsStoreContract,
   type ReviewGitSettingsStoreSubject,
 } from './review-git-settings-store-contract.ts';
-export {
-  pushRegistrationStoreContract,
-  type PushRegistrationStoreSubject,
-} from './push-registration-store-contract.ts';

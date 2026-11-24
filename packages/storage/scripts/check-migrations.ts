@@ -13,7 +13,6 @@ import { EnvironmentRow } from '../src/db/models/environment.ts';
 import { GitActionReceiptRow } from '../src/db/models/git-action-receipts.ts';
 import { InventoryProjectRow } from '../src/db/models/inventory-projects.ts';
 import { PairingGrantRow } from '../src/db/models/pairing-grants.ts';
-import { PushRegistrationRow } from '../src/db/models/push-registrations.ts';
 import { FilePreferenceRow } from '../src/db/models/project-file-preferences.ts';
 import { RemoteAccessRow } from '../src/db/models/remote-access.ts';
 import { ReviewGitSettingsRow } from '../src/db/models/review-git-settings.ts';
@@ -38,7 +37,6 @@ const models = [
   GitActionReceiptRow,
   InventoryProjectRow,
   PairingGrantRow,
-  PushRegistrationRow,
   FilePreferenceRow,
   RemoteAccessRow,
   ReviewGitSettingsRow,

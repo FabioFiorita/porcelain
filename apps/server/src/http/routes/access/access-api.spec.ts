@@ -66,8 +66,6 @@ async function fixture(owner = false) {
     setEnvironmentIcon: unused,
     readReviewGitSettings: unused,
     saveReviewGitSettings: unused,
-    setPushRegistration: unused,
-    clearPushRegistration: unused,
     revokeAccess: unused,
     setDeviceTrust: unused,
     setRemoteAccess: unused,
