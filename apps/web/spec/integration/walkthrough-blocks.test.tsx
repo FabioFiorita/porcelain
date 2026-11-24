@@ -178,3 +178,39 @@ test('files open the file, checks list their results, and screenshots come as a 
     .poll(() => decodeURIComponent(app.location()))
     .toContain('entry=file:src/results.ts');
 });
+
+test('a deleted file opens the comparison that shows its deletion', async ({
+  render,
+}) => {
+  await blocksFixture();
+  await browserPage.viewport(1280, 896);
+  const app = await render.route('/');
+  await ready(app.page);
+  await app.navigate(
+    `${app.location().split('?')[0]}?base=refs%2Fheads%2Fwalkthrough-blocks-base&entry=review`,
+  );
+  const page = await ready(app.page);
+  const files = stepItem(page, 'Retire the old helpers').getByRole('list', {
+    name: 'Files',
+    exact: true,
+  });
+  await files
+    .getByRole('button', {
+      name: 'src/legacy.ts Removed in the branch.',
+      exact: true,
+    })
+    .click();
+  await expect
+    .poll(() => decodeURIComponent(app.location()))
+    .toContain('entry=branch:src/legacy.ts');
+  await page.getByRole('tab', { name: 'Review', exact: true }).click();
+  await files
+    .getByRole('button', {
+      name: 'src/obsolete.ts Removed locally.',
+      exact: true,
+    })
+    .click();
+  await expect
+    .poll(() => decodeURIComponent(app.location()))
+    .toContain('entry=change:src/obsolete.ts');
+});

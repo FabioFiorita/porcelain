@@ -1,9 +1,9 @@
 import { useRouter } from 'expo-router';
+import { fileComparison } from '@porcelain/client/walkthroughs/rules';
 import { ErrorState } from '../../../components/ui/error-state';
 import type { Workspace } from '../../projects/index';
 import { reviewParams } from '../../workspace/index';
 import { useBranchFileList, useWalkthroughFiles } from '../queries/walkthrough';
-import { fileComparison } from '../rules/file-comparison';
 
 export function useChangedFileOpening(workspace: Workspace) {
   const router = useRouter();
