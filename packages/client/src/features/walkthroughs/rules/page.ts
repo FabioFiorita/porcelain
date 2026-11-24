@@ -5,8 +5,8 @@ import {
   type WalkthroughFailure,
   type WalkthroughContent,
   type WalkthroughRun,
-  type WalkthroughStop,
 } from './walkthrough.ts';
+import type { WalkthroughStop } from './blocks.ts';
 
 type Attention = WalkthroughStop['callouts'][number]['attention'];
 type Growth = WalkthroughContent['growth'][number];

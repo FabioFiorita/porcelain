@@ -50,7 +50,7 @@ import {
   useSavedSummary,
 } from './walkthrough-conversation';
 import { WalkthroughStatus } from './walkthrough-status';
-import { WalkthroughProof } from './walkthrough-evidence';
+import { ComparisonTable, StepBlocks } from './walkthrough-blocks';
 import { useWritesBlocked } from '../../access';
 
 type Phase = ReturnType<typeof walkthroughPhase>;
@@ -332,11 +332,7 @@ function Calls({
         </Box>
         <RichText text={attention.question} variant="headline" />
         <RichText text={attention.note} variant="secondary" tone="muted" />
-        {comparison.map((row, index) => (
-          <Text key={index} variant="secondary">
-            {row}
-          </Text>
-        ))}
+        {comparison ? <ComparisonTable comparison={comparison} /> : null}
         {callIndex === 0 ? (
           <WalkthroughConversation
             owner={owner}
@@ -486,22 +482,12 @@ function Written({
                 </Box>
                 <RichText text={stop.title} variant="headline" />
                 <RichText text={stop.explanation} />
-                {stop.checks.map(({ label, text }, index) => (
-                  <Card key={index} gap={1} padding={4}>
-                    <Text variant="caption" tone="muted">
-                      {label}
-                    </Text>
-                    <Text variant="secondary">{text}</Text>
-                  </Card>
-                ))}
-                {stop.evidence.length > 0 ? (
-                  <WalkthroughProof
-                    workspace={workspace}
-                    run={run}
-                    step={step}
-                    items={stop.evidence}
-                  />
-                ) : null}
+                <StepBlocks
+                  workspace={workspace}
+                  run={run}
+                  step={step}
+                  blocks={stop.blocks}
+                />
                 <WalkthroughConversation
                   owner={owner}
                   title={stop.title}

@@ -5,6 +5,7 @@ import { AsyncResult } from 'effect/reactivity';
 import type {
   WalkthroughEvidence,
   WalkthroughRun,
+  WalkthroughScreenshot,
 } from '@porcelain/client/walkthroughs/rules';
 import { Box } from '../../../components/ui/box';
 import { ErrorState } from '../../../components/ui/error-state';
@@ -57,11 +58,13 @@ export function WalkthroughProof({
   run,
   step,
   items,
+  first,
 }: {
   workspace: Workspace;
   run: WalkthroughRun;
   step: number;
-  items: readonly WalkthroughEvidence[];
+  items: readonly WalkthroughScreenshot[];
+  first: number;
 }) {
   const router = useRouter();
   return (
@@ -73,20 +76,20 @@ export function WalkthroughProof({
     >
       {items.map((item, index) => (
         <ImageTile
-          key={item.assetId}
-          accessibilityLabel={`Enlarge screenshot ${index + 1}`}
+          key={index}
+          accessibilityLabel={item.enlarge}
           image={
             <EvidenceImage
               workspace={workspace}
               runId={run.id}
               item={item}
-              label={`Screenshot ${index + 1}`}
+              label={`${item.label} screenshot`}
               tile
             />
           }
           caption={
             <RichText
-              text={item.shows}
+              text={`${item.label} · ${item.shows}`}
               variant="caption"
               tone="muted"
               lines={3}
@@ -99,7 +102,7 @@ export function WalkthroughProof({
                 workspace: workspace.key,
                 run: run.id,
                 step: String(step),
-                index: String(index),
+                index: String(first + index),
               },
             })
           }

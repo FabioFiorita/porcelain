@@ -1,4 +1,8 @@
 import { useState } from 'react';
+import {
+  stepScreenshots,
+  type WalkthroughStop,
+} from '@porcelain/client/walkthroughs/rules';
 import { Box } from '../../../components/ui/box';
 import { Empty } from '../../../components/ui/empty';
 import { IconButton } from '../../../components/ui/icon-button';
@@ -8,6 +12,9 @@ import { Text } from '../../../components/ui/text';
 import { WorkspaceGate, type Workspace } from '../../projects/index';
 import { useReadyWalkthrough } from '../queries/walkthrough';
 import { EvidenceImage } from './walkthrough-evidence';
+
+const stepScreenshotsAt = (stop: WalkthroughStop | undefined) =>
+  stop ? stepScreenshots(stop) : [];
 
 const unavailable = (
   <Empty title="The walkthrough changed since this screenshot opened." />
@@ -58,8 +65,8 @@ function ScreenshotReader({
   const ready = useReadyWalkthrough(workspace);
   const [shown, setShown] = useState(Number.isInteger(initial) ? initial : 0);
   const items =
-    ready?.run.id === run
-      ? (ready?.content.stops[step - 1]?.evidence ?? [])
+    ready && ready.run.id === run
+      ? stepScreenshotsAt(ready.content.stops[step - 1])
       : [];
   const item = items[shown];
   if (!ready || !item) return unavailable;
@@ -67,7 +74,10 @@ function ScreenshotReader({
     <Box className="flex-1" paddingX={4} paddingBottom={8} gap={3}>
       <Box className="flex-row items-center" gap={2}>
         <Box className="min-w-0 flex-1">
-          <RichText text={item.shows} variant="secondary" />
+          <RichText
+            text={`${item.label} · ${item.shows}`}
+            variant="secondary"
+          />
         </Box>
         {items.length > 1 ? (
           <Box className="flex-row items-center" gap={1}>
@@ -97,7 +107,7 @@ function ScreenshotReader({
           workspace={workspace}
           runId={ready.run.id}
           item={item}
-          label={`Screenshot ${shown + 1}`}
+          label={`${item.label} screenshot`}
         />
       </Box>
     </Box>

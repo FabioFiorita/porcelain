@@ -1,5 +1,8 @@
 import {
   CheckIcon,
+  CircleCheckIcon,
+  CircleDashedIcon,
+  CircleXIcon,
   GitMergeIcon,
   GitPullRequestClosedIcon,
   GitPullRequestDraftIcon,
@@ -71,6 +74,41 @@ export function ChecksStatus({
       {tone !== 'none' && checkIcons[tone]}
       {label}
     </span>
+  );
+}
+
+const resultIcons: Record<
+  PullChecksTone,
+  { Icon: LucideIcon; label: string; color: string }
+> = {
+  passed: { Icon: CircleCheckIcon, label: 'Passed', color: 'text-add-fg' },
+  failed: { Icon: CircleXIcon, label: 'Failed', color: 'text-del-fg' },
+  running: {
+    Icon: LoaderCircleIcon,
+    label: 'Running',
+    color: 'text-muted-foreground',
+  },
+  none: {
+    Icon: CircleDashedIcon,
+    label: 'Unknown',
+    color: 'text-muted-foreground',
+  },
+};
+
+export function CheckResultIcon({
+  tone,
+  label,
+}: {
+  tone: PullChecksTone;
+  label?: string | undefined;
+}) {
+  const { Icon, label: name, color } = resultIcons[tone];
+  return (
+    <Icon
+      role="img"
+      aria-label={label ?? name}
+      className={cn('size-3.5 shrink-0', color)}
+    />
   );
 }
 

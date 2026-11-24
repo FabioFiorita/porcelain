@@ -20,8 +20,8 @@ import {
   type WalkthroughContent,
   type WalkthroughRead,
   type WalkthroughRun,
-  type WalkthroughStop,
 } from './walkthrough.ts';
+import type { WalkthroughStop } from './blocks.ts';
 import { worktreeOpening } from './opening.ts';
 import { readingOf } from '../queries/reading.ts';
 import {
@@ -42,15 +42,34 @@ import {
 } from './progress.ts';
 import { AsyncResult } from 'effect/reactivity';
 
-const stop = (over: Partial<WalkthroughStop> = {}): WalkthroughStop => ({
+const excerpt = (path: string, side: 'new' | 'old' = 'new') => ({
+  path,
+  side,
+  start: 1,
+  end: 2,
+  caption: 'Lines',
+  position: 1,
+  lines: 'New lines 1–2',
+  span: { startLine: 1, endLine: 2 },
+});
+
+const stop = ({
+  callouts = [],
+  excerpts = [],
+  files = [],
+}: {
+  callouts?: WalkthroughStop['callouts'];
+  excerpts?: readonly ReturnType<typeof excerpt>[];
+  files?: readonly { path: string; note: string }[];
+} = {}): WalkthroughStop => ({
   title: 'A step',
   explanation: 'Why it exists.',
-  callouts: [],
-  checks: [],
-  excerpts: [],
-  evidence: [],
-  files: [],
-  ...over,
+  callouts,
+  blocks: [
+    ...excerpts.map((item) => ({ kind: 'excerpt' as const, excerpt: item })),
+    ...(files.length > 0 ? [{ kind: 'files' as const, files }] : []),
+  ],
+  unsupportedBlocksNotice: undefined,
 });
 
 const attention = {
@@ -70,14 +89,6 @@ const content = (
   onlyInTranscript: [],
   stillUnclear: [],
   ...over,
-});
-
-const excerpt = (path: string, side: 'new' | 'old' = 'new') => ({
-  path,
-  side,
-  start: 1,
-  end: 2,
-  caption: 'Lines',
 });
 
 const run = (state: WalkthroughRun['state']): WalkthroughRun => ({
@@ -109,7 +120,7 @@ describe('walkthroughVerdict', () => {
     expect(
       walkthroughVerdict(
         content({
-          stops: [stop({ callouts: [{ attention, comparison: [] }] })],
+          stops: [stop({ callouts: [{ attention, comparison: undefined }] })],
         }),
       ),
     ).toBe('One call is yours.');
@@ -117,9 +128,9 @@ describe('walkthroughVerdict', () => {
       walkthroughVerdict(
         content({
           stops: [
-            stop({ callouts: [{ attention, comparison: [] }] }),
+            stop({ callouts: [{ attention, comparison: undefined }] }),
             stop(),
-            stop({ callouts: [{ attention, comparison: [] }] }),
+            stop({ callouts: [{ attention, comparison: undefined }] }),
           ],
         }),
       ),
@@ -544,12 +555,7 @@ it.each([
         {
           title: 'A step',
           explanation: 'Why it exists.',
-          checks: [
-            {
-              label: 'From CI at abcdef1',
-              text: 'SUCCESS · Test: SUCCESS · More checks on the pull request',
-            },
-          ],
+          blocks: [{ kind: 'checks', checks: { headOid: 'abcdef12345' } }],
         },
       ],
     },
@@ -568,12 +574,18 @@ it.each([
     {
       question: 'Keep it?',
       note: 'It matters.',
-      comparison: ['Keep: Two names · Replace: One name'],
+      comparison: {
+        columns: ['Keep', 'Replace'],
+        rows: [['Two names', 'One name']],
+      },
     },
     {
       question: 'Keep the old path?',
       note: 'Old readers differ.',
-      comparison: ['Old: Compatible · New: Shorter'],
+      comparison: {
+        columns: ['Old', 'New'],
+        rows: [['Compatible', 'Shorter']],
+      },
     },
   ]);
 });

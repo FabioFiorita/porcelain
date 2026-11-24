@@ -13,6 +13,7 @@ import {
   pullRequestState,
   pullRequestStateLabel,
   pullReviewState,
+  recordedChecks,
 } from './pull-request.ts';
 
 const passed = { name: 'static', status: 'COMPLETED', conclusion: 'SUCCESS' };
@@ -252,4 +253,38 @@ it('nests inline comments under their review while retaining orphan and older-se
     { id: 'review', comments: ['inline'] },
   ]);
   expect(pullRequestConversation([])).toEqual([]);
+});
+
+it('names each recorded check result and the commit it ran on', () => {
+  const recorded = (
+    state: string,
+    results: readonly { name: string; status: string }[],
+  ) =>
+    recordedChecks({
+      headOid: 'abcdef1234567',
+      state,
+      checksTruncated: true,
+      results,
+    });
+  expect(
+    recorded('FAILURE', [
+      { name: 'Unit', status: 'SUCCESS' },
+      { name: 'Browser', status: 'TIMED_OUT' },
+      { name: 'Lint', status: 'IN_PROGRESS' },
+      { name: 'Docs', status: 'SKIPPED' },
+      { name: 'Future', status: 'SOMETHING_NEW' },
+    ]),
+  ).toEqual({
+    label: 'Checks failing at abcdef1',
+    more: true,
+    results: [
+      { name: 'Unit', tone: 'passed', label: 'Passed' },
+      { name: 'Browser', tone: 'failed', label: 'Failed' },
+      { name: 'Lint', tone: 'running', label: 'Running' },
+      { name: 'Docs', tone: 'passed', label: 'Passed' },
+      { name: 'Future', tone: 'none', label: 'SOMETHING_NEW' },
+    ],
+  });
+  expect(recorded('PENDING', []).label).toBe('Checks running at abcdef1');
+  expect(recorded('SOMETHING_NEW', []).label).toBe('Checks at abcdef1');
 });

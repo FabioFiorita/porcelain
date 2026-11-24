@@ -98,3 +98,16 @@ export function useBranchFileList(workspace: Selection) {
     retry: useAtomRefresh(atom),
   };
 }
+
+export function useCapturedExcerpt(input: {
+  workspace: Selection;
+  runId: string;
+  step: number;
+  block: number;
+}) {
+  const atom = readWalkthrough({
+    ...walkthroughSelection(input.workspace),
+    excerpt: { runId: input.runId, step: input.step, block: input.block },
+  });
+  return { result: useAtomValue(atom), retry: useAtomRefresh(atom) };
+}

@@ -12,6 +12,26 @@ type WalkthroughDraft = Extract<
 >['content'];
 import type { World } from './world.ts';
 
+type Worktrees = Awaited<
+  ReturnType<ReturnType<typeof serverReaders>['project']>
+>['worktrees'];
+
+export async function worktreeSession(
+  world: World,
+  pick: (worktrees: Worktrees) => Worktrees[number] | undefined,
+) {
+  const project = await serverReaders({
+    read: (request) => world.read({ ...request, server: 'this' }),
+    hits: () => world.hits('this'),
+  }).project();
+  const worktree = pick(project.worktrees);
+  if (!worktree) throw new Error('The walkthrough fixture needs a worktree.');
+  return world.server.session(world.recorder, {
+    projectId: project.id,
+    worktreeId: worktree.id,
+  });
+}
+
 export async function walkthroughConversationsFixture(
   world: World,
   action:
@@ -31,21 +51,11 @@ export async function walkthroughConversationsFixture(
     | 'two-branches',
 ): Promise<string> {
   const server = world.server;
-  const project = await serverReaders({
-    read: (request) => world.read({ ...request, server: 'this' }),
-    hits: () => world.hits('this'),
-  }).project();
-  const worktree =
+  const session = await worktreeSession(world, (worktrees) =>
     action === 'other-worktree'
-      ? project.worktrees.find(
-          ({ branch }) => branch === 'other-draft-worktree',
-        )
-      : project.worktrees[0];
-  if (!worktree) throw new Error('The conversation fixture needs a worktree.');
-  const session = server.session(world.recorder, {
-    projectId: project.id,
-    worktreeId: worktree.id,
-  });
+      ? worktrees.find(({ branch }) => branch === 'other-draft-worktree')
+      : worktrees[0],
+  );
   const failure = join(session.projectHome, 'conversation-failure');
   const calls = join(session.projectHome, 'conversation-posts');
   if (action === 'fail') {

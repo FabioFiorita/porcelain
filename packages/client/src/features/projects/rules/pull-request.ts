@@ -46,6 +46,64 @@ const failedConclusions = new Set([
   'STALE',
 ]);
 
+const runningStatuses = new Set([
+  'QUEUED',
+  'IN_PROGRESS',
+  'PENDING',
+  'EXPECTED',
+  'WAITING',
+  'REQUESTED',
+]);
+const passedConclusions = new Set([
+  'SUCCESS',
+  'NEUTRAL',
+  'SKIPPED',
+  'COMPLETED',
+]);
+
+function checkResultTone(result: string): PullChecksTone {
+  if (failedConclusions.has(result)) return 'failed';
+  if (runningStatuses.has(result)) return 'running';
+  return passedConclusions.has(result) ? 'passed' : 'none';
+}
+
+const RESULT_LABELS: Record<PullChecksTone, string | undefined> = {
+  passed: 'Passed',
+  failed: 'Failed',
+  running: 'Running',
+  none: undefined,
+};
+
+export type RecordedCheck = {
+  readonly name: string;
+  readonly tone: PullChecksTone;
+  readonly label: string;
+};
+
+export function recordedChecks(checks: {
+  readonly headOid: string;
+  readonly state: string;
+  readonly checksTruncated: boolean;
+  readonly results: readonly {
+    readonly name: string;
+    readonly status: string;
+  }[];
+}): { label: string; more: boolean; results: readonly RecordedCheck[] } {
+  const rollup = pullRequestRollup(checks.state);
+  const commit = checks.headOid.slice(0, 7);
+  return {
+    label:
+      rollup.tone === 'none'
+        ? `Checks at ${commit}`
+        : `${rollup.label} at ${commit}`,
+    more: checks.checksTruncated,
+    results: checks.results.map(({ name, status }) => {
+      const tone = checkResultTone(status);
+      return { name, tone, label: RESULT_LABELS[tone] ?? status };
+    }),
+  };
+}
+
 function checkOutcome(check: PullCheck): Exclude<PullChecksTone, 'none'> {
   if (check.status !== 'COMPLETED' || check.conclusion === 'EXPECTED')
     return 'running';
