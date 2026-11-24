@@ -13,6 +13,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
@@ -23,6 +24,7 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -50,7 +52,10 @@ internal fun CodeContent(lines: List<CodeLine>, options: CodeOptions, tokens: Re
   val codeFamily = rememberRendererFontFamily("Geist Mono")
   val sansFamily = FontFamily.Default
   val font = LocalTextStyle.current.merge(TextStyle(fontSize = tokens.codeSize.sp, fontFamily = codeFamily))
-  val gutterWidth = with(density) { measurer.measure("0".repeat(digits), font).size.width.toDp() } + tokens.inset.dp
+  val gutter = measurer.measure("0".repeat(digits), font).size
+  val gutterWidth = with(density) { gutter.width.toDp() } + tokens.inset.dp
+  val gutterHeight = with(density) { gutter.height.toDp() }
+  val gutterFont = font.copy(color = options.muted)
   val scrolling = if (options.wrap) Modifier else Modifier.horizontalScroll(rememberScrollState())
   BoxWithConstraints(Modifier.fillMaxSize().background(options.background)) {
     val viewportWidth = maxWidth
@@ -80,8 +85,10 @@ internal fun CodeContent(lines: List<CodeLine>, options: CodeOptions, tokens: Re
               .semantics { contentDescription = "${line.kind} ${side ?: "file"} line ${number ?: 0}: ${line.text}"; customActions = listOf(CustomAccessibilityAction("Select for review") { if (selectable && number != null) { choose(line, true); true } else false }, CustomAccessibilityAction("Extend review selection") { if (selectable && number != null) { choose(line, false); true } else false }) }
               .padding(horizontal = tokens.spacing.dp, vertical = tokens.inset.dp), horizontalArrangement = Arrangement.spacedBy(tokens.spacing.dp)) {
               if (options.lineNumbers) {
-                if (line.oldLine != null || line.kind in listOf("added", "removed")) Text(line.oldLine?.toString() ?: " ", Modifier.width(gutterWidth), color = options.muted, fontSize = tokens.codeSize.sp, fontFamily = codeFamily)
-                Text(line.newLine?.toString() ?: " ", Modifier.width(gutterWidth), color = options.muted, fontSize = tokens.codeSize.sp, fontFamily = codeFamily)
+                if (line.oldLine != null || line.kind in listOf("added", "removed")) {
+                  CodeLineNumber(line.oldLine, gutterWidth, gutterHeight, gutterFont, measurer)
+                }
+                CodeLineNumber(line.newLine, gutterWidth, gutterHeight, gutterFont, measurer)
               }
               if (line.kind in listOf("added", "removed")) Text(if (line.kind == "added") "+" else "−", color = options.muted, fontSize = tokens.codeSize.sp, fontFamily = codeFamily)
                 Text(buildAnnotatedString {
@@ -105,6 +112,24 @@ internal fun CodeContent(lines: List<CodeLine>, options: CodeOptions, tokens: Re
     }
   }
 }
+}
+
+@Composable
+private fun CodeLineNumber(number: Int?, width: Dp, height: Dp, style: TextStyle, measurer: TextMeasurer) {
+  val slot = Modifier.size(width, height)
+  if (number == null) {
+    Spacer(slot)
+    return
+  }
+  val label = AnnotatedString(number.toString())
+  Spacer(
+    slot
+      .semantics { text = label }
+      .drawWithCache {
+        val numberLayout = measurer.measure(label, style, constraints = Constraints.fixedWidth(size.width.toInt()))
+        onDrawBehind { drawText(numberLayout) }
+      },
+  )
 }
 
 // A page of diffs scrolls vertically itself, so a fitted surface composes every row and reports its height to its layout node.
