@@ -17,6 +17,7 @@ function Select<T = string>({
   value,
   onValueChange,
   onOpenChange,
+  reselect = false,
   ...props
 }: Omit<
   React.ComponentProps<typeof SelectRoot<T, false>>,
@@ -24,6 +25,7 @@ function Select<T = string>({
 > & {
   value: T | null;
   onValueChange?: (value: T) => void;
+  reselect?: boolean;
 }) {
   const [press] = React.useState(() => ({ changed: false }));
   return (
@@ -38,6 +40,7 @@ function Select<T = string>({
       onOpenChange={(open, details) => {
         if (open) press.changed = false;
         else if (
+          reselect &&
           details.reason === 'item-press' &&
           !press.changed &&
           value !== null

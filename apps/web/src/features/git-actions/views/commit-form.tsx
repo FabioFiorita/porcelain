@@ -368,6 +368,7 @@ function CommitGeneration({
           })) ?? []
         }
         value={model ?? null}
+        reselect
         disabled={!choices?.length || form.working || form.uncertain}
         onValueChange={form.setModel}
       >
