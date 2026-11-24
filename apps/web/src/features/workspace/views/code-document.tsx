@@ -156,11 +156,10 @@ function CodeSurface({
   const { preferences } = usePreferences();
   const specsApart = useSpecsApart(gitContext.connection);
   const entries = decision ? given : groupSpecPaths(given, specsApart);
-  const listed = givenListed
-    ? decision
-      ? givenListed
-      : groupSpecPaths(givenListed, specsApart)
-    : entries;
+  const listed =
+    givenListed === undefined || decision
+      ? (givenListed ?? entries)
+      : groupSpecPaths(givenListed, specsApart);
   const folds = useCodeFolds(interaction.worktreeId, interaction.entry);
   const scrollOwner = JSON.stringify([
     gitContext.connection.environmentId,
