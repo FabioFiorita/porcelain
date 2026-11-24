@@ -16,25 +16,15 @@ import type {
 } from '../../../shared/api/connection.ts';
 import { ChangedDiffRecovery, recoveryRuntime } from '../store/recovery.ts';
 
-function observationOf(
-  statusToken: string,
-  expectedFiles: readonly ExpectedFile[],
-) {
-  return JSON.stringify([
-    statusToken,
-    expectedFiles.map((file) => [file.path, file.fingerprint]),
-  ]);
-}
-
 const readDiffRecovery = Atom.family(
   ({
     connection,
     scope,
-    observation,
+    statusToken,
   }: {
     connection: RuntimeConnection;
     scope: WorktreeScope;
-    observation: string;
+    statusToken: string;
   }) =>
     recoveryRuntime(connection).atom(
       Stream.unwrap(
@@ -43,8 +33,8 @@ const readDiffRecovery = Atom.family(
         Stream.map((state) => {
           const key = JSON.stringify([scope.projectId, scope.worktreeId]);
           return {
-            pending: state.pending[key]?.includes(observation) ?? false,
-            attempted: state.attempted[key]?.includes(observation) ?? false,
+            pending: state.pending[key]?.includes(statusToken) ?? false,
+            attempted: state.attempted[key]?.includes(statusToken) ?? false,
           };
         }),
       ),
@@ -78,14 +68,11 @@ export const readChangeDiffWindow = Atom.family(
     const batches = readDiffBatches(queries);
     const window = readCompleteDiffWindow(queries);
     const recover = readCurrentDiffObservation({ connection, scope });
-    const observation = observationOf(statusToken, selection.expectedFiles);
     return Atom.readable(
       (get) => {
         get.mount(recover);
         const results = get(batches);
-        const recovery = get(
-          readDiffRecovery({ connection, scope, observation }),
-        );
+        const recovery = get(readDiffRecovery(selection));
         if (
           AsyncResult.isSuccess(recovery) &&
           !recovery.value.attempted &&
@@ -95,7 +82,7 @@ export const readChangeDiffWindow = Atom.family(
               isStaleChangeObservation(Cause.squash(result.cause)),
           )
         ) {
-          get.set(recover, observation);
+          get.set(recover, statusToken);
         }
         return {
           result: get(window),

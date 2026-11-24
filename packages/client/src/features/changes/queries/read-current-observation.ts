@@ -11,7 +11,7 @@ export const readCurrentDiffObservation = Atom.family(
   (selection: { connection: RuntimeConnection; scope: WorktreeScope }) =>
     recoveryRuntime(selection.connection).fn(
       Effect.fn('Changes.recoverDiffs')(function* (
-        observation: string,
+        statusToken: string,
         get: Atom.FnContext,
       ) {
         const recovery = yield* ChangedDiffRecovery;
@@ -19,12 +19,12 @@ export const readCurrentDiffObservation = Atom.family(
           selection.scope.projectId,
           selection.scope.worktreeId,
         ]);
-        if (!(yield* recovery.begin(key, observation))) return;
+        if (!(yield* recovery.begin(key, statusToken))) return;
         const query = readChanges(selection);
         get.refresh(query);
         return yield* Effect.ensuring(
           get.result(query, { suspendOnWaiting: true }),
-          recovery.finish(key, observation),
+          recovery.finish(key, statusToken),
         );
       }),
       { concurrent: true },
