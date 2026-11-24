@@ -1,4 +1,4 @@
-import { page as browserPage } from 'vite-plus/test/browser';
+import { page as browserPage, userEvent } from 'vite-plus/test/browser';
 import { expect, test } from './fixtures.tsx';
 
 test.for([1280, 414])(
@@ -171,6 +171,52 @@ test('the base picker lists the best fuzzy matches first', async ({
         await expect.element(options.nth(index)).toHaveAccessibleName(name);
       await expect.element(options.nth(order.length)).not.toBeInTheDocument();
     }
+  } finally {
+    await browserPage.viewport(414, 896);
+  }
+});
+
+test('a clipped base name still shows its tooltip on keyboard focus after the pointer hovered and left it', async ({
+  render,
+  repo,
+  reviewLayout,
+}) => {
+  await browserPage.viewport(1280, 896);
+  try {
+    const base = `release/${'long-base-branch-name-'.repeat(4)}end`;
+    await repo.branch(base);
+    const app = await render.route('/');
+    const page = app.page;
+    await page
+      .getByRole('navigation', { name: 'Side panel', exact: true })
+      .getByRole('button', { name: 'Changes', exact: true })
+      .click();
+    const sidebar = page.getByRole('complementary', {
+      name: 'Review sidebar',
+      exact: true,
+    });
+    await sidebar.getByRole('tab', { name: 'Branch', exact: true }).click();
+    await sidebar
+      .getByRole('button', { name: 'Compare against main', exact: true })
+      .click();
+    await page.getByRole('option', { name: base, exact: true }).click();
+    const compare = sidebar.getByRole('button', {
+      name: `Compare against ${base}`,
+      exact: true,
+    });
+    const tooltip = page
+      .getByRole('tooltip')
+      .filter({ hasText: `Against ${base}` });
+    await compare.hover();
+    await expect.element(tooltip).toBeVisible();
+    await sidebar.getByRole('tab', { name: 'Branch', exact: true }).hover();
+    await expect.element(tooltip).not.toBeInTheDocument();
+    reviewLayout.focus(
+      sidebar.getByRole('tab', { name: 'Branch', exact: true }),
+    );
+    await userEvent.keyboard('{Tab}');
+    await expect.element(compare).toHaveFocus();
+    await expect.element(tooltip).toBeVisible();
   } finally {
     await browserPage.viewport(414, 896);
   }

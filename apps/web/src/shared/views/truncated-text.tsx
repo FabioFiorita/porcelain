@@ -181,7 +181,11 @@ export function TruncatedText({
         if (!open) setOwnerOpen(false);
       }}
     >
-      <TooltipTrigger ref={attach} render={trigger}>
+      <TooltipTrigger
+        ref={attach}
+        render={trigger}
+        onPointerLeave={() => setSelfOpen(false)}
+      >
         {trigger.props.children}
       </TooltipTrigger>
       <TooltipContent role="tooltip" className="wrap-anywhere">

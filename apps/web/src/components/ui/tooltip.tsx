@@ -48,7 +48,9 @@ function Tooltip({
         type={type}
         disabled={disabled || silent}
         {...props}
-        {...(silent || (pointerAway && !hoverable) ? { open: false } : {})}
+        {...(silent || (pointerAway && !hoverable && props.open === undefined)
+          ? { open: false }
+          : {})}
       />
     </TooltipPointerContext>
   );
