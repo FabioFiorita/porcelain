@@ -34,6 +34,11 @@ const decodeRequest = Schema.decodeUnknownSync(
 type DiffRequest = ReturnType<typeof decodeRequest>;
 type Snapshot = { statusToken: string };
 
+function bodyText(body: RequestInit['body']) {
+  if (typeof body === 'string') return body;
+  return body instanceof Uint8Array ? new TextDecoder().decode(body) : '';
+}
+
 function staleAnswer() {
   return Response.json(
     {
@@ -73,7 +78,7 @@ function worktree(script: {
     if (path.endsWith('/changes/diffs')) {
       counts.diffs += 1;
       if (counts.diffs > DIFFS_LIMIT) return new Promise<Response>(() => {});
-      const key = typeof init?.body === 'string' ? init.body : '';
+      const key = bodyText(init?.body);
       const request = decodeRequest(JSON.parse(key));
       const attempt = (attempts.get(key) ?? 0) + 1;
       attempts.set(key, attempt);
