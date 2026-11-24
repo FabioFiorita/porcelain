@@ -273,6 +273,7 @@ function Composer({
                   size="icon-xs"
                   variant="default"
                   aria-label="Send"
+                  focusableWhenDisabled
                   disabled={!text.trim() || waiting || Boolean(writeBlock)}
                   aria-description={writeBlock}
 
