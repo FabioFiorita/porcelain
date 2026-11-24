@@ -304,14 +304,16 @@ test("marking a file reviewed tells a watching viewer the worktree's reviewed ma
 test('RPC rejects a malformed subscription before following it and the viewer can still read', async ({
   session,
 }) => {
+  const before = await read(session, {
+    method: 'POST',
+    path: '/api/inventory/refresh',
+  });
   const connection = await session.live();
   await connection.next((notice) => notice.type === 'ready');
   const rejected = await connection.invalidFollow({
     projects: ['not-a-uuid'],
     worktrees: [],
   });
-  const before = await inventory(session);
-
   const response = await session.send({
     method: 'GET',
     path: '/api/inventory',
