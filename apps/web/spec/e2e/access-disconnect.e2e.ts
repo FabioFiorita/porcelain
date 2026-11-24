@@ -2,7 +2,11 @@ import { closeSettings, openThisComputer } from '../kit/settings.ts';
 import { expect, test, type Page, type Repo } from './fixtures.ts';
 import { replaceEditorContent } from '../kit/editor.ts';
 
-async function refuseDisconnectWithDraft(page: Page, repo: Repo) {
+async function refuseDisconnectWithDraft(
+  page: Page,
+  repo: Repo,
+  holdLive: () => { release: () => void },
+) {
   const readme = repo.readme.path;
   await page.getByRole('button', { name: 'Review', exact: true }).click();
   await page.getByRole('tab', { name: 'Files', exact: true }).click();
@@ -13,11 +17,13 @@ async function refuseDisconnectWithDraft(page: Page, repo: Repo) {
   await page.getByRole('button', { name: 'Edit', exact: true }).click();
   const editor = page.getByRole('textbox', { name: readme, exact: true });
   await expect(editor).toBeVisible();
+  const notices = holdLive();
   await repo.write(readme, 'Changed on disk before the browser disconnects\n');
   await replaceEditorContent(editor, 'A draft the browser cannot save');
   await expect(
     page.getByText('Not saving: changed on disk', { exact: true }),
   ).toBeVisible();
+  notices.release();
   await expect(editor).toHaveText('A draft the browser cannot save');
   await page
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
@@ -37,6 +43,7 @@ test('disconnecting is refused while a file draft cannot be saved, and the file 
   pairedPage,
   repo,
   server,
+  app,
 }) => {
   const readme = repo.readme.path;
   const onDisk = 'Changed on disk before the browser disconnects\n';
@@ -51,11 +58,13 @@ test('disconnecting is refused while a file draft cannot be saved, and the file 
   await pairedPage.getByRole('button', { name: 'Edit', exact: true }).click();
   const editor = pairedPage.getByRole('textbox', { name: readme, exact: true });
   await expect(editor).toBeVisible();
+  const notices = app.holdLive();
   await repo.write(readme, onDisk);
   await replaceEditorContent(editor, 'A draft the browser cannot save');
   await expect(
     pairedPage.getByText('Not saving: changed on disk', { exact: true }),
   ).toBeVisible();
+  notices.release();
   await expect(editor).toHaveText('A draft the browser cannot save');
   await expect.poll(() => server.fileWriteCount()).toBe(1);
 
@@ -85,8 +94,9 @@ test('disconnecting this browser ends its session and shows how to pair it again
   pairedPage,
   repo,
   server,
+  app,
 }) => {
-  await refuseDisconnectWithDraft(pairedPage, repo);
+  await refuseDisconnectWithDraft(pairedPage, repo, app.holdLive);
   const settings = pairedPage.getByRole('dialog', {
     name: 'Settings',
     exact: true,

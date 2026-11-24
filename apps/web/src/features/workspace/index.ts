@@ -4,6 +4,7 @@ export * from './rules/documents';
 export * from './rules/tab-strip';
 
 export { SidebarDocumentRow } from './views/sidebar-section';
+export { CheckResultIcon } from './views/pull-request-parts';
 
 export { firstDocumentTitle, firstDocumentTitleOwner } from './store';
 

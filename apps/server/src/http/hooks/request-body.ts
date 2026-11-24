@@ -1,5 +1,6 @@
+import { decorateRequest } from '../decorate-request.ts';
 import { NodeHttpServerRequest, NodeStream } from '@effect/platform-node';
-import { ByteSize, Effect, Inspectable, Stream } from 'effect';
+import { ByteSize, Effect, Stream } from 'effect';
 import {
   HttpMethod,
   HttpIncomingMessage,
@@ -77,39 +78,15 @@ export const requestBody = HttpRouter.middleware((app) =>
     return yield* Effect.provideService(
       app,
       HttpServerRequest.HttpServerRequest,
-      bufferedRequest(request, prepared),
+      decorateRequest(request, () => ({
+        text: prepared.text,
+        json: prepared.json,
+        urlParamsBody: prepared.urlParamsBody,
+        arrayBuffer: prepared.arrayBuffer,
+        stream: prepared.stream,
+        multipart: prepared.multipart,
+        multipartStream: prepared.multipartStream,
+      })),
     );
   }),
 );
-
-function bufferedRequest(
-  request: HttpServerRequest.HttpServerRequest,
-  body: HttpServerRequest.HttpServerRequest,
-): HttpServerRequest.HttpServerRequest {
-  return HttpServerRequest.HttpServerRequest.of({
-    [HttpServerRequest.TypeId]: HttpServerRequest.TypeId,
-    [HttpIncomingMessage.TypeId]: HttpIncomingMessage.TypeId,
-    source: request.source,
-    url: request.url,
-    originalUrl: request.originalUrl,
-    method: request.method,
-    headers: request.headers,
-    cookies: request.cookies,
-    remoteAddress: request.remoteAddress,
-    peerAddress: request.peerAddress,
-    protocol: request.protocol,
-    upgrade: request.upgrade,
-    upgradeWith: (options) => request.upgradeWith(options),
-    text: body.text,
-    json: body.json,
-    urlParamsBody: body.urlParamsBody,
-    arrayBuffer: body.arrayBuffer,
-    stream: body.stream,
-    multipart: body.multipart,
-    multipartStream: body.multipartStream,
-    modify: (options) => bufferedRequest(request.modify(options), body),
-    toJSON: () => request.toJSON(),
-    toString: () => request.toString(),
-    [Inspectable.NodeInspectSymbol]: () => request.toJSON(),
-  });
-}

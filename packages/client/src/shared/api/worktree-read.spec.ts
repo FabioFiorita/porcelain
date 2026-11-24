@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { Cause, Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { idleClientAtoms } from '../../../spec/kit/client-fixture.ts';

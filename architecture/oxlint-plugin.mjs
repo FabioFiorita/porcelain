@@ -1,3 +1,9 @@
+import {
+  githubHeadLookupArgs,
+  githubHeadLookupCommand,
+  githubHeadLookupEndpoint,
+  githubHeadLookupMessage,
+} from './github-head-lookup.ts';
 import { replacesGlobal } from './spec-globals.mjs';
 import { existsSync, readFileSync } from 'node:fs';
 import { builtinModules } from 'node:module';
@@ -6,6 +12,7 @@ import { fileURLToPath } from 'node:url';
 import { classify, nodeGlobalRoles } from './policy.ts';
 import {
   webRules,
+  importedFrom,
   browserSpecNoMocks,
   browserSpecNoSkips,
 } from './web-rules.mjs';
@@ -240,33 +247,64 @@ function repositoryPath(context) {
     : path;
 }
 
-function staticString(node, context, depth = 0) {
+function constantInitializer(node, context) {
+  if (node?.type !== 'Identifier') return undefined;
+  const definition = findVariable(context.sourceCode.getScope(node), node.name)
+    ?.defs[0];
+  return definition?.node.type === 'VariableDeclarator' &&
+    definition.parent?.kind === 'const'
+    ? definition.node.init
+    : undefined;
+}
+
+function staticString(node, context, depth = 0, placeholder) {
   if (!node || depth > 8) return undefined;
+  const read = (child) =>
+    staticString(child, context, depth + 1, placeholder) ?? placeholder;
   if (
     node.type === 'TSAsExpression' ||
     node.type === 'TSSatisfiesExpression' ||
     node.type === 'TSNonNullExpression' ||
     node.type === 'ParenthesizedExpression'
   )
-    return staticString(node.expression, context, depth + 1);
+    return read(node.expression);
   if (node.type === 'Literal')
     return typeof node.value === 'string' ? node.value : undefined;
-  if (node.type === 'TemplateLiteral')
-    return node.expressions.length === 0
-      ? node.quasis.map((quasi) => quasi.value.cooked ?? '').join('')
-      : undefined;
+  if (node.type === 'TemplateLiteral') {
+    if (node.expressions.length > 0 && placeholder === undefined)
+      return undefined;
+    return node.quasis
+      .map((quasi, index) => {
+        const expression = node.expressions[index];
+        return (
+          (quasi.value.cooked ?? '') + (expression ? read(expression) : '')
+        );
+      })
+      .join('');
+  }
   if (node.type === 'BinaryExpression' && node.operator === '+') {
-    const left = staticString(node.left, context, depth + 1);
-    const right = staticString(node.right, context, depth + 1);
+    const left = read(node.left);
+    const right = read(node.right);
     return left === undefined || right === undefined ? undefined : left + right;
   }
-  if (node.type !== 'Identifier') return undefined;
-  const definition = findVariable(context.sourceCode.getScope(node), node.name)
-    ?.defs[0];
-  return definition?.node.type === 'VariableDeclarator' &&
-    definition.parent?.kind === 'const'
-    ? staticString(definition.node.init, context, depth + 1)
-    : undefined;
+  return read(constantInitializer(node, context));
+}
+
+function gitHubArguments(node, context, depth = 0) {
+  if (!node || depth > 8) return [];
+  if (node.type === 'ArrayExpression')
+    return node.elements.flatMap((element) =>
+      element?.type === 'SpreadElement'
+        ? gitHubArguments(element.argument, context, depth + 1)
+        : [staticString(element, context, 0, 'value') ?? 'value'],
+    );
+  if (node.type === 'TSAsExpression' || node.type === 'TSSatisfiesExpression')
+    return gitHubArguments(node.expression, context, depth + 1);
+  return gitHubArguments(
+    constantInitializer(node, context),
+    context,
+    depth + 1,
+  );
 }
 
 function propertyName(node, context) {
@@ -687,7 +725,7 @@ function timingPath(node, context) {
       return definition.node.type === 'ImportNamespaceSpecifier'
         ? 'effect-test'
         : `effect-test.${name}`;
-    if (source === 'vitest')
+    if (source === 'vite-plus/test')
       return definition.node.type === 'ImportNamespaceSpecifier'
         ? 'vitest'
         : `vitest.${name === 'vitest' ? 'vi' : name}`;
@@ -1206,7 +1244,7 @@ function caseCall(node, context) {
   return (
     definition.type === 'ImportBinding' &&
     [
-      'vitest',
+      'vite-plus/test',
       '@effect/vitest',
       '@playwright/test',
       'playwright/test',
@@ -1520,6 +1558,59 @@ function primitiveValue(node) {
 export default {
   meta: { name: 'porcelain' },
   rules: {
+    'ci-pull-request-resolver': {
+      create(context) {
+        const path = repositoryPath(context);
+        if (!/^(?:ci|scripts)\//.test(path) || isSpec(context)) return {};
+        const report = (node) => {
+          if (
+            path === 'ci/github.ts' &&
+            context.sourceCode
+              .getAncestors(node)
+              .some(
+                (ancestor) =>
+                  ancestor.type === 'FunctionDeclaration' &&
+                  ancestor.id?.name === 'resolveWorkflowPullRequest',
+              )
+          )
+            return;
+          context.report({
+            node,
+            message: githubHeadLookupMessage,
+          });
+        };
+        const check = (node) => {
+          if (
+            node.parent?.type === 'BinaryExpression' &&
+            node.parent.operator === '+'
+          )
+            return;
+          const endpoint = staticString(node, context, 0, 'value') ?? '';
+          if (
+            githubHeadLookupEndpoint(endpoint) ||
+            githubHeadLookupCommand(endpoint)
+          )
+            report(node);
+        };
+        return {
+          Literal: check,
+          TemplateLiteral: check,
+          BinaryExpression(node) {
+            if (node.operator === '+') check(node);
+          },
+          CallExpression(node) {
+            const [first, second] = node.arguments;
+            const wrapped =
+              node.callee.type === 'Identifier' && node.callee.name === 'gh';
+            const args = wrapped ? first : second;
+            if (!wrapped && staticString(first, context) !== 'gh') return;
+            if (githubHeadLookupArgs(gitHubArguments(args, context)))
+              report(node);
+          },
+        };
+      },
+    },
+
     'hermes-array-methods': {
       create(context) {
         if (
@@ -1612,6 +1703,137 @@ export default {
     ...webRules,
     'web-journey-no-waits': { create: browserWaits },
     ...mobileRules,
+    'pending-control-owner': {
+      create(context) {
+        const path = repositoryPath(context);
+        const web = path.startsWith('apps/web/src/');
+        const mobile = path.startsWith('apps/mobile/src/');
+        if (!web && !mobile) return {};
+        if (
+          path === 'apps/web/src/shared/views/pending-button.tsx' ||
+          path === 'apps/web/src/shared/views/state-notice.tsx' ||
+          path === 'apps/mobile/src/components/ui/pending-content.tsx'
+        )
+          return {};
+        const message =
+          'Use the shared pending state, because raw indicators in controls can move the label and omit the accessible busy state.';
+        const local = (source) =>
+          (source.startsWith('@/')
+            ? `apps/web/src/${source.slice(2)}`
+            : posix.join(posix.dirname(path), source)
+          ).replace(/\.tsx?$/, '');
+        if (web) {
+          const checkImport = (node) => {
+            const source = staticString(node.source, context);
+            if (
+              source &&
+              local(source) === 'apps/web/src/components/ui/spinner'
+            )
+              context.report({ node, message });
+          };
+          return {
+            ImportDeclaration: checkImport,
+            ExportNamedDeclaration: checkImport,
+            ExportAllDeclaration: checkImport,
+            ImportExpression: checkImport,
+          };
+        }
+        const program = context.sourceCode.ast;
+        const spinner = importedFrom(
+          program,
+          (source) => local(source) === 'apps/mobile/src/components/ui/spinner',
+        );
+        const native = importedFrom(
+          program,
+          (source) => source === 'react-native',
+        );
+        const controls = importedFrom(program, (source) =>
+          /^apps\/mobile\/src\/components\/ui\/(?:button|button-surface|icon-button|item)$/.test(
+            local(source),
+          ),
+        );
+        return {
+          JSXOpeningElement(node) {
+            const name = node.name;
+            if (
+              name.type !== 'JSXIdentifier' ||
+              (spinner.locals.get(name.name) !== 'Spinner' &&
+                native.locals.get(name.name) !== 'ActivityIndicator')
+            )
+              return;
+            if (
+              context.sourceCode.getAncestors(node).some((ancestor) => {
+                const parent = ancestor.openingElement?.name;
+                return (
+                  parent?.type === 'JSXIdentifier' &&
+                  controls.locals.has(parent.name)
+                );
+              })
+            )
+              context.report({ node, message });
+          },
+        };
+      },
+    },
+    'notification-owner': {
+      create(context) {
+        const path = repositoryPath(context);
+        const web = path.startsWith('apps/web/src/');
+        const mobile = path.startsWith('apps/mobile/src/');
+        if (!web && !mobile) return {};
+        if (
+          path === 'apps/web/src/shared/views/notify.tsx' ||
+          path === 'apps/web/src/components/ui/toast.tsx' ||
+          path === 'apps/mobile/src/components/ui/notify.tsx'
+        )
+          return {};
+
+        const message =
+          'Call the client notify API for transient confirmations, because one presenter controls what is shown and announced.';
+        const checkImport = (node) => {
+          const source = staticString(node.source, context);
+          if (!source) return;
+          const target = source.startsWith('@/')
+            ? `apps/web/src/${source.slice(2)}`
+            : posix.join(posix.dirname(path), source);
+          const rawWeb =
+            target.replace(/\.tsx?$/, '') ===
+              'apps/web/src/components/ui/toast' ||
+            /^(?:@ui-sdk\/react\/(?:toast|overlays)(?:\/|$)|sonner(?:\/|$))/.test(
+              source,
+            );
+          const rawMobile =
+            source === 'react-native' &&
+            node.specifiers?.some(
+              (specifier) => specifier.imported?.name === 'ToastAndroid',
+            );
+          if ((web && rawWeb) || (mobile && rawMobile))
+            context.report({ node, message });
+        };
+        const checkConfirmation = (node, value) => {
+          if (
+            typeof value === 'string' &&
+            /^(?:Copied (?:brief|worktree path)|Saved on this computer|Changes saved|Changes (?:committed|pushed))\.?$/i.test(
+              value.trim(),
+            )
+          )
+            context.report({ node, message });
+        };
+        return {
+          ImportDeclaration: checkImport,
+          ExportNamedDeclaration: checkImport,
+          ExportAllDeclaration: checkImport,
+          ImportExpression: checkImport,
+          JSXText(node) {
+            checkConfirmation(node, node.value);
+          },
+          JSXExpressionContainer(node) {
+            if (node.parent?.type === 'JSXElement')
+              checkConfirmation(node, staticString(node.expression, context));
+          },
+        };
+      },
+    },
     'worktree-admission-owner': {
       create(context) {
         const path = repositoryPath(context);
@@ -2697,6 +2919,31 @@ export default {
         };
       },
     },
+    'no-direct-vitest-imports': {
+      create(context) {
+        const check = (node) => {
+          const source = staticString(node, context);
+          if (source === 'vitest' || source?.startsWith('vitest/'))
+            context.report({
+              node,
+              message:
+                'Use vite-plus/test or its matching subpath, because the test rules recognize the Vite+ test API.',
+            });
+        };
+        return {
+          ...moduleVisitors((node) => check(node.source)),
+          TSImportType: (node) => check(node.source),
+          TSExternalModuleReference: (node) => check(node.expression),
+          CallExpression(node) {
+            if (
+              node.callee.type === 'Identifier' &&
+              node.callee.name === 'require'
+            )
+              check(node.arguments[0]);
+          },
+        };
+      },
+    },
     'spec-no-clock': {
       create(context) {
         if (!timedTest(context)) return {};
@@ -2838,7 +3085,7 @@ export default {
               });
           },
           ImportExpression(node) {
-            if (moduleSource(node) === 'vitest')
+            if (moduleSource(node) === 'vite-plus/test')
               context.report({
                 node,
                 message:
@@ -2846,7 +3093,7 @@ export default {
               });
           },
           ImportDeclaration(node) {
-            if (node.source.value !== 'vitest') return;
+            if (moduleSource(node) !== 'vite-plus/test') return;
             for (const specifier of node.specifiers)
               if (
                 specifier.type === 'ImportNamespaceSpecifier' ||

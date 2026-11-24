@@ -1,4 +1,4 @@
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import { test } from '@porcelain/server/kit/server-test';
 import { readBranchChanges, readBranchDiffs } from '@porcelain/client/changes';
 import { connection } from '../kit/connection.ts';

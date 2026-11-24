@@ -7,7 +7,28 @@ const IssueComment = Schema.Struct({
   user: Schema.NullOr(Schema.Struct({ type: Schema.String })),
 });
 
-const PullRequestAuthor = Schema.Struct({ author_association: Schema.String });
+const CommitPull = Schema.Struct({
+  number: Schema.Int,
+  head: Schema.Struct({ sha: Schema.String }),
+  base: Schema.Struct({ ref: Schema.String }),
+});
+
+const CurrentPull = Schema.Struct({
+  author_association: Schema.String,
+  state: Schema.String,
+  draft: Schema.Boolean,
+  head: Schema.Struct({
+    sha: Schema.String,
+    ref: Schema.String,
+    repo: Schema.NullOr(
+      Schema.Struct({ owner: Schema.Struct({ login: Schema.String }) }),
+    ),
+  }),
+  base: Schema.Struct({ ref: Schema.String }),
+});
+
+type WorkflowHead = { sha: string; owner: string; branch: string };
+
 const trustedAssociations = new Set(['OWNER', 'COLLABORATOR']);
 
 export function required(name: string): string {
@@ -87,22 +108,53 @@ export function upsertComment(
   );
 }
 
-export function trustedAuthor(repository: string, number: number): boolean {
-  const pull = Schema.decodeUnknownSync(
-    Schema.fromJsonString(PullRequestAuthor),
-  )(gh(['api', `repos/${repository}/pulls/${number}`]));
-  return trustedAssociations.has(pull.author_association);
+export function resolveWorkflowPullRequest(
+  repository: string,
+  { sha, owner, branch }: WorkflowHead,
+) {
+  if (!sha || !owner || !branch) return undefined;
+  const base =
+    branch === 'main' &&
+    owner.toLowerCase() === repository.split('/')[0]?.toLowerCase()
+      ? 'release'
+      : 'main';
+  return pages(
+    Schema.Array(CommitPull),
+    `repos/${repository}/pulls?state=open&head=${encodeURIComponent(`${owner}:${branch}`)}`,
+  )
+    .flat()
+    .find((pull) => pull.head.sha === sha && pull.base.ref === base);
 }
 
-const CheckRuns = Schema.Struct({
-  check_runs: Schema.Array(
-    Schema.Struct({
-      name: Schema.String,
-      status: Schema.String,
-      conclusion: Schema.NullOr(Schema.String),
-    }),
-  ),
+export function isCurrentTrustedPullRequest(
+  repository: string,
+  number: number,
+  head: WorkflowHead,
+  base: string,
+): boolean {
+  const pull = Schema.decodeUnknownSync(Schema.fromJsonString(CurrentPull))(
+    gh(['api', `repos/${repository}/pulls/${number}`]),
+  );
+  return (
+    trustedAssociations.has(pull.author_association) &&
+    pull.state === 'open' &&
+    !pull.draft &&
+    pull.head.sha === head.sha &&
+    pull.head.ref === head.branch &&
+    pull.head.repo?.owner.login.toLowerCase() === head.owner.toLowerCase() &&
+    pull.base.ref === base
+  );
+}
+
+const Check = Schema.Struct({
+  name: Schema.String,
+  conclusion: Schema.NullOr(Schema.String),
 });
+
+const CiJobs = Schema.Struct({ jobs: Schema.Array(Check) });
+const CheckRuns = Schema.Struct({ check_runs: Schema.Array(Check) });
+const passed = (name: string) => (check: typeof Check.Type) =>
+  check.name === name && check.conclusion === 'success';
 
 export function checkPassed(
   repository: string,
@@ -111,7 +163,67 @@ export function checkPassed(
 ): boolean {
   return pages(CheckRuns, `repos/${repository}/commits/${sha}/check-runs`)
     .flatMap((page) => page.check_runs)
-    .some((run) => run.name === name && run.conclusion === 'success');
+    .some(passed(name));
+}
+
+export function requiredCiJobPassed(
+  repository: string,
+  run: { id: number; run_attempt: number },
+  name: string,
+): boolean {
+  return pages(
+    CiJobs,
+    `repos/${repository}/actions/runs/${run.id}/attempts/${run.run_attempt}/jobs`,
+  )
+    .flatMap((page) => page.jobs)
+    .some(passed(name));
+}
+
+const CiRuns = Schema.Struct({
+  workflow_runs: Schema.Array(
+    Schema.Struct({
+      id: Schema.Int,
+      run_attempt: Schema.Int,
+      run_started_at: Schema.NullOr(Schema.String),
+      created_at: Schema.String,
+      status: Schema.String,
+      conclusion: Schema.NullOr(Schema.String),
+      head_repository: Schema.NullOr(
+        Schema.Struct({ full_name: Schema.String }),
+      ),
+      pull_requests: Schema.Array(Schema.Struct({ number: Schema.Int })),
+    }),
+  ),
+});
+
+export function pullRequestCiRuns(
+  repository: string,
+  pull: { number: number; sha: string; branch: string; headRepository: string },
+) {
+  const query = new URLSearchParams({
+    event: 'pull_request',
+    head_sha: pull.sha,
+    branch: pull.branch,
+  });
+  const matching = pages(
+    CiRuns,
+    `repos/${repository}/actions/workflows/ci.yml/runs?${query.toString()}`,
+  )
+    .flatMap((page) => page.workflow_runs)
+    .filter(
+      (run) =>
+        run.head_repository?.full_name.toLowerCase() ===
+          pull.headRepository.toLowerCase() &&
+        (run.pull_requests.length === 0 ||
+          run.pull_requests.some(({ number }) => number === pull.number)),
+    );
+  const latest = matching.sort(
+    (left, right) =>
+      (right.run_started_at ?? right.created_at).localeCompare(
+        left.run_started_at ?? left.created_at,
+      ) || right.id - left.id,
+  )[0];
+  return { active: matching.some((run) => run.status !== 'completed'), latest };
 }
 
 export function isAncestor(

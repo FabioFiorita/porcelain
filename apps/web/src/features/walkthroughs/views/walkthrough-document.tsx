@@ -43,9 +43,10 @@ import {
   PostSaved,
 } from './walkthrough-conversation';
 import { WalkthroughStatus } from './walkthrough-status';
-import { WalkthroughProof } from './walkthrough-evidence';
-import { WalkthroughExcerpt } from './walkthrough-excerpt';
+import { ComparisonTable, StepBlocks } from './walkthrough-blocks';
 import { WalkthroughStart } from './walkthrough-start';
+import { useWalkthroughWriter } from '../queries/writer';
+import { WalkthroughWriterNotice } from './walkthrough-writer-notice';
 import { ReviewCode } from './walkthrough-code-document';
 import { DIFF_WINDOW_FILES } from '@/config/limits';
 
@@ -199,9 +200,9 @@ function Calls({
   if (calls.length === 0) return null;
   return (
     <section id="your-calls" className="flex scroll-mt-6 flex-col gap-3">
-      {calls.map(({ attention, step }) => (
+      {calls.map(({ attention, comparison, step, callIndex }) => (
         <article
-          key={step}
+          key={`${step}:${callIndex}`}
           className="flex flex-col gap-3 rounded-xl border bg-card p-4 @3xl:p-5"
         >
           <div className="flex items-baseline justify-between gap-3 text-caption text-muted-foreground">
@@ -220,7 +221,8 @@ function Calls({
           <p className="text-prose text-foreground-2">
             <RichText text={attention.note} />
           </p>
-          {conversation?.({ kind: 'call', step })}
+          {comparison && <ComparisonTable comparison={comparison} />}
+          {callIndex === 0 && conversation?.({ kind: 'call', step })}
         </article>
       ))}
     </section>
@@ -241,7 +243,6 @@ function Step({
   branch,
   eager,
   conversation,
-  excerpt,
 }: {
   stop: WalkthroughStop;
   step: number;
@@ -251,7 +252,6 @@ function Step({
   branch: ComparedBranch | undefined;
   eager: boolean;
   conversation: Conversation | undefined;
-  excerpt: WalkthroughStop['excerpts'][number] | undefined;
 }) {
   return (
     <li
@@ -260,7 +260,7 @@ function Step({
     >
       <p className="whitespace-pre-line font-mono text-caption text-muted-foreground">
         Step {step}
-        {stop.attention && (
+        {stop.callouts.length > 0 && (
           <button
             type="button"
             className="ml-2 text-foreground hover:underline"
@@ -276,22 +276,7 @@ function Step({
       <p className="text-prose text-foreground-2">
         <RichText text={stop.explanation} />
       </p>
-      {excerpt && (
-        <WalkthroughExcerpt
-          document={props}
-          runId={run.id}
-          step={step}
-          excerpt={excerpt}
-        />
-      )}
-      {stop.evidence.length > 0 && (
-        <WalkthroughProof
-          scope={props.scope}
-          context={props.context}
-          run={run}
-          items={stop.evidence}
-        />
-      )}
+      <StepBlocks blocks={stop.blocks} step={step} run={run} document={props} />
       {code && (
         <ReviewCode
           document={props}
@@ -313,6 +298,8 @@ function Written({
   freshness,
   props,
   onUpdate,
+  writeBlock,
+  writer,
   updateFailure,
   progressRun,
   requesting,
@@ -328,15 +315,13 @@ function Written({
   reused: boolean;
   props: DocumentProps;
   onUpdate: () => void;
+  writeBlock: string | undefined;
+  writer: ReturnType<typeof useWalkthroughWriter>;
   updateFailure:
     | { failure: WalkthroughFailure; writer: WalkthroughRun['writer'] }
     | undefined;
 }) {
-  const owner = { ...props, runId: run.id };
-  const excerptStep =
-    content.stops.find((stop) => stop.attention && stop.excerpts.length > 0) ??
-    content.stops.find((stop) => stop.excerpts.length > 0);
-  const writeBlock = useWorkspaceWriteBlock(props.context);
+  const owner = { ...props, run };
   const conversation: Conversation = ({ kind, step }) => {
     const title = content.stops[step - 1]!.title;
     return (
@@ -357,6 +342,14 @@ function Written({
       failure={updateFailure}
       onUpdate={onUpdate}
       writeBlock={writeBlock}
+      writerNotice={
+        <WalkthroughWriterNotice
+          document={props}
+          writer={writer}
+          existingMessage={updateFailure?.failure.message}
+          signedOut={updateFailure?.failure.kind === 'signed_out'}
+        />
+      }
     />
   );
   if (content.outcome === 'nothing')
@@ -406,7 +399,6 @@ function Written({
             branch={code.branch}
             eager={code.eager.steps[index] ?? true}
             conversation={conversation}
-            excerpt={stop === excerptStep ? stop.excerpts[0] : undefined}
           />
         ))}
       </ol>
@@ -465,6 +457,8 @@ function Failed({
   waiting,
   onRetry,
   writeBlock,
+  document,
+  writer,
   children,
 }: {
   run: WalkthroughRun | undefined;
@@ -472,6 +466,8 @@ function Failed({
   waiting: boolean;
   onRetry: () => void;
   writeBlock: string | undefined;
+  document: DocumentProps;
+  writer: ReturnType<typeof useWalkthroughWriter>;
   children: ReactNode;
 }) {
   const copy = failureCopy(failure, run);
@@ -485,6 +481,12 @@ function Failed({
         {copy.message && (
           <p className="text-prose text-foreground-2">{copy.message}</p>
         )}
+        <WalkthroughWriterNotice
+          document={document}
+          writer={writer}
+          existingMessage={copy.message}
+          signedOut={failure.kind === 'signed_out'}
+        />
         <Button
           disabled={waiting || Boolean(writeBlock)}
           aria-description={writeBlock}
@@ -536,7 +538,9 @@ function useReviewCode(
 }
 
 export function ReviewDocument(props: DocumentProps) {
-  const writeBlock = useWorkspaceWriteBlock(props.context);
+  const writer = useWalkthroughWriter(props);
+  const writeBlock =
+    useWorkspaceWriteBlock(props.context) ?? writer.status?.block;
   const {
     result,
     phase: observedPhase,
@@ -592,6 +596,8 @@ export function ReviewDocument(props: DocumentProps) {
           waiting={write.waiting}
           onRetry={write.start}
           writeBlock={writeBlock}
+          document={props}
+          writer={writer}
         >
           {everyFile}
         </Failed>
@@ -604,6 +610,7 @@ export function ReviewDocument(props: DocumentProps) {
           <Column>
             <WalkthroughStart
               document={props}
+              writer={writer}
               waiting={write.waiting}
               onWrite={write.start}
             />
@@ -620,6 +627,8 @@ export function ReviewDocument(props: DocumentProps) {
             waiting={write.waiting}
             onRetry={write.start}
             writeBlock={writeBlock}
+            document={props}
+            writer={writer}
           >
             {everyFile}
           </Failed>
@@ -634,6 +643,8 @@ export function ReviewDocument(props: DocumentProps) {
             freshness={phase.freshness}
             props={props}
             onUpdate={write.start}
+            writeBlock={writeBlock}
+            writer={writer}
             progressRun={phase.attempt ?? phase.run}
             requesting={write.waiting}
             reused={

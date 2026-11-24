@@ -4,7 +4,7 @@ import {
   type WorktreeActivity,
 } from '@porcelain/projects/models';
 import { Effect } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { InMemoryWorktreeCatalogStore } from '../../spec/fakes/in-memory-worktree-catalog-store.ts';
 import { RecordWorktreeActivityService } from './record-worktree-activity-service.ts';
 

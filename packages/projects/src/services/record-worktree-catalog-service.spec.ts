@@ -1,7 +1,7 @@
 import { testClock } from '@porcelain/kernel/test-kit';
 import { WorktreeCatalogStore } from '@porcelain/projects/ports';
 import { Effect, Clock, Logger } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import {
   type ListedWorktree,
   type RegisteredProject,

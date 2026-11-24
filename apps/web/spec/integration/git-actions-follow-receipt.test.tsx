@@ -1,4 +1,4 @@
-import { userEvent } from 'vitest/browser';
+import { userEvent } from 'vite-plus/test/browser';
 import { expect, test } from './fixtures.tsx';
 
 test('a commit made while the live connection is down shows its outcome once the app reconnects and reads the receipt', async ({

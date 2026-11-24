@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { queryObjects } from 'node:v8';
 import { Atom, AtomRegistry, AsyncResult } from 'effect/reactivity';
 import { retainRead } from '../src/shared/api/worktree-read.ts';

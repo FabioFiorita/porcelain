@@ -467,6 +467,9 @@ export function createDemoTransport(): Transport {
       return json(readWalkthroughResponseSchema, {
         walkthrough: demoWalkthrough,
         freshness: 'current',
+        ...(url.searchParams.has('excerptStep')
+          ? { capturedPatch: demoPatch }
+          : {}),
       });
     const conversationPath = `${worktree}/walkthrough/${demoWalkthrough.id}/conversations`;
     const view = () => ({

@@ -1,4 +1,5 @@
 import { TruncatedText } from '@/shared/views/truncated-text';
+import { PendingSpinner } from '@/shared/views/state-notice';
 import {
   Tooltip,
   TooltipTrigger,
@@ -25,7 +26,6 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
-import { Spinner } from '@/components/ui/spinner';
 import { Switch } from '@/components/ui/switch';
 import { copyText } from '@/shared/workspace/copy';
 import { submitForm } from '@/shared/lib/submit-form';
@@ -69,7 +69,7 @@ function RouteStatus({
   if (status.kind === 'off' || status.kind === 'starting')
     return (
       <Badge variant="outline">
-        <Spinner />
+        <PendingSpinner className="text-current [&>svg]:size-2.5" />
         {label}
       </Badge>
     );

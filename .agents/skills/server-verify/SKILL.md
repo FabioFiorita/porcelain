@@ -27,7 +27,24 @@ Schemas and endpoints in `packages/contracts/src/<area>/` are the map. For examp
 
 ## Drive HTTP: Node, then curl
 
-Use Node fetch with the fixture bearer read privately from `credentialFiles.fixture` and Origin from `requiredOrigin.http`. Construct the request from its contract, then independently read back the resulting state.
+Use the fixture credential and Origin from the private connection card. For example, check paired inventory without printing the credential:
+
+```sh
+node --input-type=module - "$CONNECTION" <<'JS'
+import { readFileSync } from 'node:fs';
+const card = JSON.parse(readFileSync(process.argv[2], 'utf8'));
+const { credential } = JSON.parse(readFileSync(card.credentialFiles.fixture, 'utf8'));
+const response = await fetch(new URL('/api/inventory', card.serverUrl), {
+  headers: { authorization: `Bearer ${credential}`, origin: card.requiredOrigin.http },
+});
+const type = response.headers.get('content-type');
+if (response.status !== 200 || !type?.includes('application/json'))
+  throw new Error(`Inventory returned ${response.status} ${type}`);
+console.log(response.status, type);
+JS
+```
+
+Set `CONNECTION` to the printed connection path. Construct feature requests from their contracts and read back the resulting state.
 
 Fallback: curl with `--include`, the card's Origin and fixture bearer. Keep bearer values out of output/traces. Check status **and content type**: a 200 with HTML can be the SPA fallback rather than an API response. The contracts in `packages/contracts` say which network routes need a paired caller. Public routes need no bearer. Paired routes accept the fixture bearer; browser sessions use their paired cookie. Browser pairing uses the exact printed `pairing-link` command, which mints a fresh one-time link. Treat its code as a secret.
 
@@ -52,7 +69,7 @@ Use Git and the filesystem directly in `fixtures.repositoryPath`.
 
 ## Evidence and cleanup
 
-The CLI records numbered, redacted fixture operations plus server and supervisor logs. Save your own sanitized HTTP status/content-type/body readbacks and WebSocket frames in `evidenceDirectory`. Direct driver calls do not automatically produce CLI records. Report the evidence path and observable result, not only a driver's success.
+The CLI records numbered, redacted fixture operations plus server and supervisor logs. Save your own sanitized HTTP status/content-type/body readbacks and WebSocket frames in `evidenceDirectory`. Direct driver calls do not automatically produce CLI records. Follow the [shared evidence reference](../verify-core/evidence.md) for readbacks, timings and gaps.
 
 `status` passively reports captured supervisor ownership, stale build metadata and connection path; it does not prove HTTP health. `logs` reads redacted server logs even after source edits. Keep one instance per surface while iterating. Fixture actions refuse a stale build; stop/start after server, contract or CLI edits. A map-only edit needs no restart.
 

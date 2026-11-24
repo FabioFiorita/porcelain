@@ -1,10 +1,9 @@
+import { PendingButton } from '@/shared/views/pending-button';
 import { Cause } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { useConnectedContext } from '../store';
 import { UnplugIcon } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
-import { Spinner } from '@/components/ui/spinner';
 import { useDisconnect } from '../commands/disconnect';
 import { connectionErrorMessage } from '@porcelain/client/access/rules';
 
@@ -22,17 +21,17 @@ export function DisconnectBrowser({ computer }: { computer: string }) {
             Ends its session on {computer}. Pair it again with a new link.
           </p>
         </div>
-        <Button
+        <PendingButton
+          pending={disconnect.waiting}
           variant="outline"
           size="sm"
           className="shrink-0 self-start sm:self-auto"
           aria-label="Disconnect this browser"
-          disabled={disconnect.waiting}
           onClick={submit}
         >
-          {disconnect.waiting ? <Spinner /> : <UnplugIcon />}
+          <UnplugIcon />
           Disconnect
-        </Button>
+        </PendingButton>
       </div>
       {AsyncResult.isFailure(disconnect) && (
         <Alert variant="destructive">

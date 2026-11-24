@@ -4,7 +4,7 @@ import {
   readOwnerStatusResponseSchema,
 } from '@porcelain/contracts/access';
 import * as Schema from 'effect/Schema';
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import {
   apiError,
   invalidRequest,

@@ -1,4 +1,4 @@
-import { page, userEvent } from 'vitest/browser';
+import { page, userEvent } from 'vite-plus/test/browser';
 import { expect, test } from './fixtures.tsx';
 
 test('without a coding CLI the commit dialog says drafting is unavailable, and a typed message still commits', async ({
@@ -12,14 +12,14 @@ test('without a coding CLI the commit dialog says drafting is unavailable, and a
     name: 'Commit changes',
     exact: true,
   });
-  const models = dialog.getByRole('combobox', {
-    name: 'Commit model',
-    exact: true,
-  });
-  await expect.element(models).toBeDisabled();
   await expect
-    .element(models.getByText('No coding CLI available', { exact: true }))
+    .element(dialog.getByText('No coding CLI available.', { exact: true }))
     .toBeVisible();
+  await expect
+    .element(
+      dialog.getByRole('combobox', { name: 'Commit model', exact: true }),
+    )
+    .not.toBeInTheDocument();
   await expect
     .element(
       dialog.getByRole('button', { name: 'Generate with AI', exact: true }),
@@ -27,7 +27,17 @@ test('without a coding CLI the commit dialog says drafting is unavailable, and a
     .toBeDisabled();
   await expect
     .element(dialog.getByRole('tab', { name: 'Use groups', exact: true }))
-    .toBeDisabled();
+    .not.toBeInTheDocument();
+  await expect
+    .element(dialog.getByRole('tab', { name: 'Amend last', exact: true }))
+    .toBeVisible();
+  await expect
+    .element(
+      dialog.getByText('Write or generate a message before committing.', {
+        exact: true,
+      }),
+    )
+    .not.toBeInTheDocument();
   const commit = dialog.getByRole('button', {
     name: 'Commit selected files',
     exact: true,

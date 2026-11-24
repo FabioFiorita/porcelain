@@ -97,7 +97,6 @@ export type StyleRule =
   | 'tsconfig'
   | 'code-outside-lint-roots'
   | 'format-config'
-  | 'shadcn-ui-pinned'
   | 'duplicate-code';
 
 export const generatedRouteTree = 'apps/web/src/routeTree.gen.ts';

@@ -34,8 +34,8 @@ function SectionBody({
     case 'changes':
       return <WorktreeChangesPane />;
     case 'files':
-      return <FilesScreen mode={mode} search="content" />;
+      return <FilesScreen mode={mode} search="content" nested />;
     case 'history':
-      return <HistoryScreen />;
+      return <HistoryScreen nested />;
   }
 }

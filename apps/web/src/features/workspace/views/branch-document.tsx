@@ -248,12 +248,19 @@ function BranchDiffs({
   const [previous, setPrevious] = useState<{
     version: string;
     comparison: string;
+    count: number;
     patches: typeof diffs.patches;
-  }>({ version: '', comparison: comparisonKey, patches: new Map() });
+  }>({
+    version: '',
+    comparison: comparisonKey,
+    count: reached.length,
+    patches: new Map(),
+  });
   if (!diffs.pending && !diffs.failed && previous.version !== patchVersion)
     setPrevious({
       version: patchVersion,
       comparison: comparisonKey,
+      count: reached.length,
       patches: new Map(
         reached.flatMap((file) => {
           const patch = diffs.patches.get(commitPaths(file).join('\0'));
@@ -304,7 +311,11 @@ function BranchDiffs({
         diffs.failed ||
         patchOf(item) !== undefined),
   );
-  const more = items.length - reached.length;
+  const visibleCount =
+    diffs.pending && previous.comparison === comparisonKey
+      ? previous.count
+      : reached.length;
+  const more = items.length - visibleCount;
   const uncommitted = overview?.changes.length ?? 0;
   const [first] = items;
   const singleHeader = heading !== undefined;

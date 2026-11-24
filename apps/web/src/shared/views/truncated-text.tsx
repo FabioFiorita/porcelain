@@ -3,6 +3,7 @@ import {
   type HTMLAttributes,
   type ReactElement,
   type ReactNode,
+  type Ref,
   useId,
   useState,
 } from 'react';
@@ -11,6 +12,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { RenderInto } from '@/components/ui/render-part';
 import { cn } from '@/shared/lib/utils';
 
 const owners = [
@@ -30,6 +32,7 @@ const owners = [
 ].join(', ');
 
 type Label = HTMLAttributes<HTMLElement> & {
+  ref?: Ref<HTMLElement> | undefined;
   'data-truncated'?: string;
   'data-clipped'?: '' | undefined;
 };
@@ -74,7 +77,10 @@ export function TruncatedText({
   renderTrigger?: (
     label: ReactElement,
     clip: (value: string, className?: string, cut?: Cut) => ReactElement,
-  ) => ReactElement<{ children?: ReactNode }>;
+  ) => ReactElement<{
+    children?: ReactNode;
+    ref?: Ref<HTMLElement> | undefined;
+  }>;
 }) {
   const id = useId();
   const [clipped, setClipped] = useState(false);
@@ -108,8 +114,7 @@ export function TruncatedText({
     };
     const hide = () => setOwnerOpen(false);
     const dismiss = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape' || !element.hasAttribute('data-popup-open'))
-        return;
+      if (event.key !== 'Escape' || !element.hasAttribute('data-open')) return;
       setOwnerOpen(false);
       setSelfOpen(false);
       if (!propagateEscape) event.stopPropagation();
@@ -172,19 +177,23 @@ export function TruncatedText({
     cutContent(cut, children ?? text),
   );
   const trigger = renderTrigger?.(label, clip) ?? label;
+  if (!disclosed && !triggered)
+    return <RenderInto ref={attach} render={trigger} />;
   return (
     <Tooltip
       disabled={!disclosed}
-      disableHoverablePopup
+      hoverable={false}
       open={disclosed && (selfOpen || ownerOpen)}
-      onOpenChange={(open, details) => {
+      onOpenChange={(open) => {
         setSelfOpen(open);
         if (!open) setOwnerOpen(false);
-        if (propagateEscape && details.reason === 'escape-key')
-          details.allowPropagation();
       }}
     >
-      <TooltipTrigger ref={attach} render={trigger}>
+      <TooltipTrigger
+        ref={attach}
+        render={trigger}
+        onPointerLeave={() => setSelfOpen(false)}
+      >
         {trigger.props.children}
       </TooltipTrigger>
       <TooltipContent role="tooltip" className="wrap-anywhere">

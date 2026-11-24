@@ -3,7 +3,7 @@ import {
   readReviewGitSettingsResponseSchema,
   saveReviewGitSettingsResponseSchema,
 } from '@porcelain/contracts/access';
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import { apiError, invalidRequest, unauthenticated } from '../kit/answers.ts';
 import { inventoryNotice, watching } from '../kit/reads.ts';
 import { pairDevice, read } from '../kit/requests.ts';

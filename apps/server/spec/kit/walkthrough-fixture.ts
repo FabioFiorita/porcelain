@@ -1,5 +1,5 @@
 import { DatabaseSync } from 'node:sqlite';
-import { readFile, rename, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { Effect, Schema } from 'effect';
 import { NodeServices } from '@effect/platform-node';
@@ -9,7 +9,8 @@ import {
   walkthroughJobSchema,
   type EvidenceAsset,
   type StoredWalkthroughMessage,
-  type WalkthroughContent,
+  type WalkthroughChecks,
+  type WalkthroughDraft,
   type WalkthroughJob,
 } from '@porcelain/walkthroughs/models';
 import {
@@ -121,6 +122,42 @@ function storedJob(directory: string, runId: string): WalkthroughJob {
   } finally {
     database.close();
   }
+}
+
+export async function setFixtureCodexEffort(
+  session: Session,
+  manifestPath: string,
+  supportsHigh: boolean,
+) {
+  const manifest = record(JSON.parse(await readFile(manifestPath, 'utf8')));
+  const codex = join(
+    session.projectHome,
+    session.fixture.folders.home,
+    '.codex',
+  );
+  await mkdir(codex, { recursive: true });
+  await writeFile(
+    join(codex, 'models_cache.json'),
+    JSON.stringify({
+      models: [
+        {
+          slug: 'fixture-model',
+          display_name: 'Fixture model',
+          visibility: 'list',
+          default_reasoning_level: 'medium',
+          supported_reasoning_levels: supportsHigh
+            ? [{ effort: 'medium' }, { effort: 'high' }]
+            : [{ effort: 'medium' }],
+        },
+      ],
+    }),
+  );
+  const bin = text(manifest.bin);
+  await writeFile(
+    join(bin, 'codex'),
+    '#!/bin/sh\n[ "$1" = login ] && [ "$2" = status ]\n',
+    { mode: 0o755 },
+  );
 }
 
 export async function scriptedWalkthroughs(
@@ -245,6 +282,7 @@ else if (endpoint) {
       runId: string,
       step: number,
       assets: readonly EvidenceAsset[],
+      checks?: WalkthroughChecks,
     ) => {
       const directory = join(
         session.projectHome,
@@ -254,6 +292,9 @@ else if (endpoint) {
       const state = job.run.state;
       if (state.status !== 'ready')
         throw new Error('Evidence attaches only to a ready walkthrough.');
+      const [before, after] = assets;
+      if (before === undefined || after === undefined)
+        throw new Error('The fixture needs before and after assets.');
       const live = await followWorktree(session);
       try {
         seedStoredWalkthroughs(directory, {
@@ -270,10 +311,29 @@ else if (endpoint) {
                       index === step - 1
                         ? {
                             ...stop,
-                            evidence: assets.map((asset) => ({
-                              assetId: asset.id,
-                              shows: asset.caption,
-                            })),
+                            blocks: [
+                              ...stop.blocks,
+                              ...(checks === undefined
+                                ? []
+                                : [
+                                    {
+                                      kind: 'checks' as const,
+                                      headOid: job.run.headOid,
+                                      ...checks,
+                                    },
+                                  ]),
+                              {
+                                kind: 'before_after',
+                                before: {
+                                  assetId: before.id,
+                                  shows: before.caption,
+                                },
+                                after: {
+                                  assetId: after.id,
+                                  shows: after.caption,
+                                },
+                              },
+                            ],
                           }
                         : stop,
                     ),
@@ -300,20 +360,10 @@ else if (endpoint) {
       }
     },
     write: async (
-      content: WalkthroughContent,
+      content: WalkthroughDraft,
       input: { base: string; pullRequestNumber?: number },
     ) => {
-      await writeFile(
-        contentPath,
-        JSON.stringify({
-          ...content,
-          checks: content.checks ?? null,
-          stops: content.stops.map((stop) => ({
-            ...stop,
-            attention: stop.attention ?? null,
-          })),
-        }),
-      );
+      await writeFile(contentPath, JSON.stringify(content));
       const live = await followWorktree(session);
       try {
         const accepted = await read(session, {

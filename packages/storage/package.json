@@ -6,7 +6,7 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.spec.json",
     "db:check": "node scripts/check-migrations.ts",
     "test": "pnpm --dir ../.. test --project @porcelain/storage"
   },

@@ -1,4 +1,4 @@
-import { commands } from 'vitest/browser';
+import { commands } from 'vite-plus/test/browser';
 import type {
   CodingToolReplies,
   PairingParts,
@@ -13,6 +13,7 @@ import type {
 
 declare module 'vitest/browser' {
   interface BrowserCommands {
+    porcelainWalkthroughBlocks: () => Promise<string>;
     porcelainWalkthroughConversations: (
       action:
         | 'pr'
@@ -26,9 +27,13 @@ declare module 'vitest/browser' {
         | 'changed-pr'
         | 'running-update'
         | 'failed-update'
+        | 'reject-send'
+        | 'other-worktree'
+        | 'revision'
         | 'two-branches',
     ) => Promise<string>;
     porcelainCollectGarbage: () => Promise<void>;
+    porcelainAllowClipboardRead: () => Promise<void>;
     porcelainReplaceEditorContent: (
       selector: string,
       text: string,
@@ -48,11 +53,17 @@ declare module 'vitest/browser' {
       step: ProjectHomeStep,
       server: ServerName,
     ) => Promise<string>;
+    porcelainCodexEffort: (supportsHigh: boolean) => Promise<void>;
     porcelainCodingTool: () => Promise<CodingToolReplies>;
   }
 }
 
 export const host = commands;
+
+export async function readClipboard() {
+  await host.porcelainAllowClipboardRead();
+  return navigator.clipboard.readText();
+}
 
 export function replaceEditorContent(
   editor: { selector: string },

@@ -3,7 +3,7 @@ import { Clock, Effect, Layer, Schema, Stream } from 'effect';
 import { readServiceUpdateResponseSchema } from '@porcelain/contracts/access';
 import { AtomRegistry } from 'effect/reactivity';
 import { TestClock } from 'effect/testing';
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import { clientFixtures } from '../../../../spec/kit/client-fixture.ts';
 import {
   runSettingsUpdates,

@@ -15,6 +15,7 @@ import {
   read,
   waysInChange,
 } from '@porcelain/server/kit/requests';
+import { setFixtureCodexEffort } from '@porcelain/server/kit/walkthrough-fixture';
 import type { Session } from '@porcelain/server/kit/session';
 import type {
   CodingToolReplies,
@@ -169,6 +170,7 @@ export class World {
     }
     if (step.kind === 'rename')
       return repository.git('mv', '--', step.from, step.to);
+    if (step.kind === 'stage') return repository.git('add', '--', step.path);
     if (step.kind === 'commit') {
       await repository.git('add', '--all');
       return repository.git('commit', '--message', step.message);
@@ -277,6 +279,14 @@ export class World {
       await home.git('init', '--initial-branch', 'main', path);
     else await mkdir(path);
     return path;
+  }
+
+  async codexEffort(supportsHigh: boolean): Promise<void> {
+    await setFixtureCodexEffort(
+      await this.session(),
+      this.server.manifestPath,
+      supportsHigh,
+    );
   }
 
   async codingTool(): Promise<CodingToolReplies> {

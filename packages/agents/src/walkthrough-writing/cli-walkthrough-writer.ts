@@ -1,3 +1,7 @@
+import {
+  unsupportedWalkthroughEffortMessage,
+  walkthroughWriterAvailability,
+} from '@porcelain/walkthroughs/rules';
 import { randomUUID } from 'node:crypto';
 import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -7,7 +11,7 @@ import {
   WalkthroughModelReader,
   WalkthroughWriter,
 } from '@porcelain/walkthroughs/ports';
-import { walkthroughContentSchema } from '@porcelain/contracts/walkthroughs';
+import { openWalkthroughMcp } from './walkthrough-mcp.ts';
 import type { WalkthroughWriterChoice } from '@porcelain/walkthroughs/models';
 import { WalkthroughFailedError } from '@porcelain/walkthroughs/errors';
 import type { ProcessGroupLimits } from '@porcelain/process';
@@ -19,6 +23,9 @@ import {
 } from './agent-turn.ts';
 import {
   answerPrompts,
+  claudeWritingSchema,
+  codexWritingSchema,
+  decodeClaudeWriting,
   firstPassSchema,
   writingPrompts,
 } from './writing-prompts.ts';
@@ -59,15 +66,16 @@ export const cliWalkthroughWriterLayer = (options: {
       const validate = Effect.fn('WalkthroughWriter.validate')(function* (
         writer: WalkthroughWriterChoice,
       ) {
-        const available = (yield* models.read()).find(
-          (model) =>
-            model.provider === writer.provider && model.model === writer.model,
+        const availability = walkthroughWriterAvailability(
+          writer,
+          yield* models.read(),
         );
-        if (!available) return yield* unavailableWriter(writer);
-        if (!available.efforts.includes(writer.effort))
+        if (availability.kind === 'missing-model')
+          return yield* unavailableWriter(writer);
+        if (availability.kind === 'unsupported-effort')
           return yield* failure(
             'other',
-            `The walkthrough model ${writer.model} does not support ${writer.effort} effort. Choose a supported effort in walkthrough settings.`,
+            `${unsupportedWalkthroughEffortMessage(availability.model.label, writer.effort)} Choose a supported effort in walkthrough settings.`,
           );
       });
       return WalkthroughWriter.of({
@@ -100,6 +108,10 @@ export const cliWalkthroughWriterLayer = (options: {
             let sessionId = input.run.sessionId ?? randomUUID();
             let costUsd: number | undefined = undefined;
             let answer: unknown;
+            const mcp =
+              provider === 'codex' ? yield* openWalkthroughMcp() : undefined;
+            const writingSchema =
+              provider === 'codex' ? codexWritingSchema : claudeWritingSchema;
             for (let pass = 0; pass < 2; pass++) {
               if (provider === 'claude') yield* input.recordSession(sessionId);
               const resumed =
@@ -113,7 +125,8 @@ export const cliWalkthroughWriterLayer = (options: {
                 folder,
                 session: { kind: resumed ? 'resume' : 'new', id: sessionId },
                 label: String(pass),
-                schema: pass === 0 ? firstPassSchema : walkthroughContentSchema,
+                schema: pass === 0 ? firstPassSchema : writingSchema,
+                walkthroughMcp: pass === 1 ? mcp : undefined,
                 images,
                 prompt: pass === 0 ? prompts.first : prompts.second,
                 timeoutMs: options.deadlineMs ?? 20 * 60 * 1000,
@@ -131,21 +144,22 @@ export const cliWalkthroughWriterLayer = (options: {
                     : firstPassSchema,
                 )(answer);
             }
-            const content = yield* Schema.decodeUnknownEffect(
-              provider === 'codex'
-                ? Schema.toCodecJson(walkthroughContentSchema)
-                : walkthroughContentSchema,
-            )(answer);
-            if (
-              content.outcome === 'needs_you' &&
-              !content.stops.some((stop) => stop.attention !== undefined)
-            )
-              return yield* failure(
-                'unusable_output',
-                'The writer requested a decision without giving a question.',
-              );
+            const content =
+              mcp === undefined
+                ? yield* decodeClaudeWriting(answer)
+                : yield* Schema.decodeUnknownEffect(
+                    Schema.toCodecJson(codexWritingSchema),
+                  )(answer).pipe(
+                    Effect.map(({ stops, ...prose }) => ({
+                      ...prose,
+                      stops: stops.map(({ blockIds, ...stop }) => ({
+                        ...stop,
+                        blocks: mcp.resolveBlocks(blockIds),
+                      })),
+                    })),
+                  );
             return {
-              content,
+              content: { ...content, version: 1 as const },
               sessionId,
               durationMs: (yield* Clock.currentTimeMillis) - started,
               costUsd,

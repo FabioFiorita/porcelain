@@ -1,4 +1,4 @@
-import { expect, test } from 'vitest';
+import { expect, test } from 'vite-plus/test';
 import { Effect, Layer, Schema } from 'effect';
 import { AtomRegistry } from 'effect/reactivity';
 import { readBranchBases, readBranchChanges } from '@porcelain/client/changes';
@@ -64,6 +64,15 @@ test('a fresh demo exposes a navigable project and a complete sample Walkthrough
   expect(walkthrough.walkthrough?.state).toMatchObject({
     content: { title: 'A warmer welcome for every visitor' },
   });
+  expect(walkthrough.capturedPatch).toBeUndefined();
+  const excerpt = Schema.decodeUnknownSync(readWalkthroughResponseSchema)(
+    await (
+      await send(
+        `${worktree}/walkthrough?excerptRunId=${walkthrough.walkthrough?.id}&excerptStep=1&excerptBlock=2`,
+      )
+    ).json(),
+  );
+  expect(excerpt.capturedPatch).toContain('+  const trimmed = name.trim();');
 });
 
 test('sample source is readable and file mutations require a real computer', async () => {

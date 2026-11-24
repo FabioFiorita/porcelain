@@ -1,6 +1,6 @@
 import { AtomRegistry, AsyncResult, Reactivity } from 'effect/reactivity';
 import { Layer, Context, Effect, Fiber, Option } from 'effect';
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import type { RunGitActionResponse } from '@porcelain/contracts/git-actions';
 import {
   createWorktreeConnection,

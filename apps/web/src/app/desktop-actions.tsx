@@ -1,6 +1,6 @@
 import { linkOptions, useNavigate } from '@tanstack/react-router';
 import { useAtomMount } from '@effect/atom-react';
-import { toast } from '@/components/ui/toast';
+import { notify } from '@/shared/views/notify';
 import { connectionErrorMessage } from '@porcelain/client/access/rules';
 import { useRemoteConnections } from '@/features/access/index';
 import {
@@ -29,14 +29,14 @@ export function useOpenProjectOnThisComputer(
   openWorktree: (target: WorktreeTarget) => Promise<void>,
 ) {
   const pick = useNativeProjectPicker(connection, openWorktree, (error) =>
-    toast.add({
+    notify({
       title: 'Could not open the project',
       description: connectionErrorMessage(error),
       type: 'error',
     }),
   );
   return () =>
-    pick ? pick() : openProjectDialog.openWithPayload({ remote: null });
+    pick ? pick() : void openProjectDialog.open({ payload: { remote: null } });
 }
 
 export function DesktopActions({

@@ -1,3 +1,4 @@
+import { userEvent } from 'vite-plus/test/browser';
 import { expect, test } from './fixtures.tsx';
 
 test('reopening configured preferences retains values without checking update permissions again', async ({
@@ -128,12 +129,47 @@ test('global Settings titles name Porcelain across sections and restore the work
   await app.navigate('/settings/computers');
   await expect
     .element(
-      app.page.getByText(
-        'Connect to your computers to review their projects and worktrees.',
-        { exact: true },
-      ),
+      app.page.getByRole('heading', {
+        name: 'Settings. Computers',
+        exact: true,
+      }),
     )
     .toBeVisible();
+  await expect
+    .element(
+      app.page.getByText('Manage your paired computers.', { exact: true }),
+    )
+    .not.toBeInTheDocument();
   await app.navigate('/');
   await expect.poll(() => app.title()).toMatch(/^Review — /);
+});
+
+test('arrow keys move between tabs without choosing, and Enter chooses', async ({
+  render,
+  server,
+}) => {
+  const page = await render.preferences();
+  await page
+    .getByRole('button', {
+      name: 'Use these settings for this computer',
+      exact: true,
+    })
+    .click();
+  const merge = page.getByRole('tab', { name: 'Merge', exact: true });
+  const rebase = page.getByRole('tab', { name: 'Rebase', exact: true });
+  await expect.element(merge).toBeEnabled();
+  await merge.click();
+  await expect.element(merge).toHaveFocus();
+  await userEvent.keyboard('{ArrowRight}');
+  await expect.element(rebase).toHaveFocus();
+  await expect.element(rebase).toHaveAttribute('aria-selected', 'false');
+  await expect.element(merge).toHaveAttribute('aria-selected', 'true');
+  await userEvent.keyboard('{Enter}');
+  await expect.element(rebase).toHaveAttribute('aria-selected', 'true');
+  await expect
+    .poll(() => server.reviewGitSettings())
+    .toMatchObject({
+      kind: 'configured',
+      settings: { pullStrategy: 'rebase' },
+    });
 });

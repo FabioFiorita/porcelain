@@ -16,7 +16,7 @@ const serverInputs: BuildInputs = {
   ],
   apps: ['apps/server'],
 };
-const skipped = new Set(['node_modules', 'dist', '.turbo', 'test-results']);
+const skipped = new Set(['node_modules', 'dist', '.vite', 'test-results']);
 const testFile = /\.(?:spec|test|e2e|integration)\.tsx?$/;
 const manifestSchema = Schema.Struct({
   name: Schema.String,

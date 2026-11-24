@@ -1,6 +1,5 @@
 import { judgeReview } from './review-judgment.ts';
 import { readReviewPatch } from './review-patch.ts';
-import { appendFileSync } from 'node:fs';
 import { setTimeout as sleep } from 'node:timers/promises';
 import OpenAI from 'openai';
 import { Schema } from 'effect';
@@ -27,13 +26,18 @@ import {
   isAncestor,
   labeledOnHead,
   pages,
+  pullRequestCiRuns,
   required,
+  requiredCiJobPassed,
+  resolveWorkflowPullRequest,
   setStatus,
   upsertComment,
 } from './github.ts';
-import { decisionModel, dollars, reviewModel } from './openai.ts';
+import { decisionModel, dollars, jobCosts, reviewModel } from './openai.ts';
 
 const reviewDeadlineMs = 15 * 60 * 1000;
+const mergeRetryDelaysMs = [1000, 2000, 4000, 8000];
+const mergeBlockedMessage = 'the base branch policy prohibits the merge';
 
 const PullRequestView = Schema.Struct({
   number: Schema.Int,
@@ -45,6 +49,9 @@ const PullRequestView = Schema.Struct({
   baseRefOid: Schema.String,
   headRefOid: Schema.String,
   headRefName: Schema.String,
+  headRepository: Schema.NullOr(
+    Schema.Struct({ nameWithOwner: Schema.String }),
+  ),
   changedFiles: Schema.Int,
   author: Schema.NullOr(Schema.Struct({ login: Schema.String })),
   isCrossRepository: Schema.Boolean,
@@ -58,18 +65,7 @@ const ChangedFile = Schema.Struct({
   previous_filename: Schema.optional(Schema.String),
 });
 
-const CommitPull = Schema.Struct({
-  number: Schema.Int,
-  head: Schema.Struct({ sha: Schema.String }),
-  base: Schema.Struct({ ref: Schema.String }),
-});
-
-const costs: { step: string; dollars: number }[] = [];
-
-function recordCost(step: string, amount: number): void {
-  costs.push({ step, dollars: amount });
-  console.log(`${step} cost $${amount.toFixed(4)}`);
-}
+const costs = jobCosts();
 
 function reviewInstructions(
   view: PullRequestView,
@@ -117,7 +113,7 @@ async function recordSessionCost(client: OpenAI, id: string): Promise<void> {
   for (let attempt = 0; attempt < 4; attempt += 1) {
     const usage = (await client.beta.agents.sessions.retrieve(id)).usage;
     if (usage) {
-      recordCost(
+      costs.record(
         'Reviewer',
         dollars(reviewModel, {
           input: usage.input_tokens,
@@ -129,7 +125,7 @@ async function recordSessionCost(client: OpenAI, id: string): Promise<void> {
     }
     await sleep(2000);
   }
-  console.log('Reviewer cost unknown: the session reported no usage yet');
+  costs.record('Reviewer', undefined);
 }
 
 async function runReview(
@@ -197,23 +193,11 @@ function pullRequestNumber(
 ): number | undefined {
   const given = process.env.PR_NUMBER?.trim();
   if (given) return Number(given);
-  const owner = process.env.HEAD_OWNER?.trim();
-  const branch = process.env.HEAD_BRANCH?.trim();
-  if (!headSha || !owner || !branch) return undefined;
-  return pages(
-    Schema.Array(CommitPull),
-    `repos/${repository}/pulls?state=open&head=${encodeURIComponent(`${owner}:${branch}`)}`,
-  )
-    .flat()
-    .find(
-      (pull) =>
-        pull.head.sha === headSha &&
-        pull.base.ref ===
-          (branch === 'main' &&
-          owner.toLowerCase() === repository.split('/')[0]?.toLowerCase()
-            ? 'release'
-            : 'main'),
-    )?.number;
+  return resolveWorkflowPullRequest(repository, {
+    sha: headSha ?? '',
+    owner: process.env.HEAD_OWNER?.trim() ?? '',
+    branch: process.env.HEAD_BRANCH?.trim() ?? '',
+  })?.number;
 }
 
 function readView(repository: string, number: number): PullRequestView {
@@ -225,7 +209,7 @@ function readView(repository: string, number: number): PullRequestView {
       '--repo',
       repository,
       '--json',
-      'number,title,body,state,isDraft,baseRefName,baseRefOid,headRefOid,headRefName,changedFiles,author,isCrossRepository,labels',
+      'number,title,body,state,isDraft,baseRefName,baseRefOid,headRefOid,headRefName,headRepository,changedFiles,author,isCrossRepository,labels',
     ]),
   );
 }
@@ -250,23 +234,17 @@ function merge(repository: string, view: PullRequestView): string | undefined {
   } catch (error) {
     const stderr =
       error instanceof Error && 'stderr' in error ? String(error.stderr) : '';
+    const lines = stderr.trim().split('\n');
     return (
-      stderr.trim().split('\n').at(-1) ||
+      lines.find((line) => line.endsWith(`${mergeBlockedMessage}.`)) ||
+      lines.at(-1) ||
       (error instanceof Error ? error.message : String(error))
     );
   }
 }
 
 function writeSummary(number: number, line: string): void {
-  const total = costs.reduce((sum, cost) => sum + cost.dollars, 0);
-  const summary = [
-    `### #${number}: ${line}`,
-    ...costs.map((cost) => `- ${cost.step}: $${cost.dollars.toFixed(4)}`),
-    `- Total: $${total.toFixed(4)}`,
-  ].join('\n');
-  console.log(summary);
-  const file = process.env.GITHUB_STEP_SUMMARY;
-  if (file) appendFileSync(file, `${summary}\n`);
+  costs.summarize(`### #${number}: ${line}`);
 }
 
 const repository = required('GITHUB_REPOSITORY');
@@ -332,9 +310,7 @@ const skip =
         ? 'it is a draft'
         : headSha && view.headRefOid !== headSha
           ? 'a newer commit will be judged when its CI passes'
-          : !checkPassed(repository, view.headRefOid, ciCheck)
-            ? 'CI has not passed on its head yet'
-            : undefined;
+          : undefined;
 if (skip) {
   console.log(`Skipping #${number}: ${skip}`);
   process.exit(0);
@@ -353,6 +329,37 @@ const report = (
     url: runUrl,
   });
 };
+const reportCiBlock = (candidate: PullRequestView) => {
+  const stop = (state: 'pending' | 'failure', description: string) => {
+    report(state, description);
+    return description;
+  };
+  if (candidate.headRepository === null)
+    return stop('failure', 'The head repository is unavailable');
+
+  const { active, latest } = pullRequestCiRuns(repository, {
+    number,
+    sha: candidate.headRefOid,
+    branch: candidate.headRefName,
+    headRepository: candidate.headRepository.nameWithOwner,
+  });
+  if (active) return stop('pending', 'Waiting for CI');
+  if (!latest)
+    return checkPassed(repository, candidate.headRefOid, ciCheck)
+      ? undefined
+      : 'CI has not passed on its head yet';
+  if (requiredCiJobPassed(repository, latest, ciCheck)) return;
+  if (latest.conclusion === 'cancelled')
+    return stop('failure', 'CI was cancelled');
+  if (latest.conclusion === 'failure') return stop('failure', 'CI failed');
+  return stop('failure', `The required CI job ${ciCheck} did not pass`);
+};
+const initialCiBlock = reportCiBlock(view);
+if (initialCiBlock) {
+  writeSummary(number, initialCiBlock);
+  process.exit(0);
+}
+
 let failed = false;
 let summarized = false;
 const fail = (reason: string) => {
@@ -365,9 +372,9 @@ const fail = (reason: string) => {
   }
 };
 process.once('exit', (code) => {
-  if (code === 0) return;
+  if (code === 0 || summarized) return;
   fail(`exit code ${code}`);
-  if (!summarized) writeSummary(number, `stopped with exit code ${code}`);
+  writeSummary(number, `stopped with exit code ${code}`);
 });
 report('pending', 'Checking landing rules for this commit');
 
@@ -426,7 +433,7 @@ try {
           },
         ],
       });
-      recordCost(
+      costs.record(
         'Decisions API',
         dollars(decisionModel, {
           input: response.usage.input_tokens,
@@ -483,15 +490,59 @@ try {
       step: nextStep(assessment, now),
     };
   };
-  const unchanged = (latest: PullRequestView) =>
+  const sameTarget = (latest: PullRequestView) =>
     latest.headRefOid === view.headRefOid &&
-    latest.baseRefName === view.baseRefName &&
+    latest.baseRefName === view.baseRefName;
+  const unchanged = (latest: PullRequestView) =>
+    sameTarget(latest) &&
     (!promotion || latest.baseRefOid === view.baseRefOid) &&
     latest.state === 'OPEN' &&
     !latest.isDraft &&
     latest.labels.some((label) => label.name === labels.review) === requested &&
     (markedReviewedHead === undefined ||
       latest.labels.some((label) => label.name === labels.reviewed));
+  const land = async (initialCandidate: PullRequestView) => {
+    let candidate = initialCandidate;
+    let mergeError: string | undefined;
+    for (const delay of [0, ...mergeRetryDelaysMs]) {
+      if (delay !== 0) {
+        console.log(`GitHub blocked the merge. Checking again in ${delay} ms.`);
+        await sleep(delay);
+        candidate = readView(repository, number);
+        if (sameTarget(candidate) && candidate.state === 'MERGED')
+          return 'merged';
+        if (!unchanged(candidate)) {
+          const reason = 'The pull request changed before it could merge';
+          report('failure', reason);
+          return reason;
+        }
+        const { step } = judge(
+          candidate.body,
+          new Set(candidate.labels.map((label) => label.name)),
+        );
+        if (!step.merge) {
+          report(step.status, step.description);
+          return step.description;
+        }
+      }
+      const ciBlock = reportCiBlock(candidate);
+      if (ciBlock) return ciBlock;
+      mergeError = merge(repository, candidate);
+      if (!mergeError?.endsWith(`${mergeBlockedMessage}.`)) break;
+    }
+    if (!mergeError) return 'merged';
+    const stillBlocked = mergeError.endsWith(`${mergeBlockedMessage}.`);
+    if (stillBlocked) {
+      const ciBlock = reportCiBlock(candidate);
+      if (ciBlock) return ciBlock;
+    }
+    const reason = stillBlocked
+      ? `Merge still blocked after retries: ${mergeError}`
+      : `Merging failed: ${mergeError}`;
+    report('failure', reason);
+    if (stillBlocked) process.exitCode = 1;
+    return reason;
+  };
   const before = readView(repository, number);
   const first = unchanged(before)
     ? judge(before.body, new Set(before.labels.map((label) => label.name)))
@@ -526,19 +577,13 @@ try {
     report('failure', 'The pull request changed before this verdict');
   } else {
     report(settled.status, settled.description);
-    const mergeError = settled.merge ? merge(repository, view) : undefined;
-    if (mergeError) report('failure', `Merging failed: ${mergeError}`);
-    outcome = mergeError
-      ? `merge failed: ${mergeError}`
-      : settled.merge
-        ? 'merged'
-        : settled.description;
+    outcome = settled.merge ? await land(latest) : settled.description;
   }
 } catch (error) {
   outcome = error instanceof Error ? error.message : String(error);
   fail(outcome);
   process.exitCode = 1;
 } finally {
-  summarized = true;
   writeSummary(number, outcome);
+  summarized = true;
 }

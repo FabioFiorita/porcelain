@@ -18,9 +18,11 @@ Create a phone and a tablet profile once in Android Studio's Device Manager, usi
 
 Use the phone for shared phone journeys and a proper tablet profile for shared tablet journeys. Enlarging the phone window or changing screenshot dimensions is insufficient: `expo-device` must classify the device as `DeviceType.TABLET`. The shared `ListDetail` component then uses its measured content width: at least 700dp shows a 340dp list beside detail, while a narrower content area stacks. Screen pixels alone do not establish the content width because density, insets and native chrome reduce the available space.
 
-Choose a tablet whose content area can reach that width in both landscape and portrait. Through the bound device driver, verify Reviews and Worktrees list/detail selection, a pushed screen and its Back path, Settings open/close, and rotation with a selected review or worktree. Selection, list position and unsent drafts stay with their original workspace. Retain both orientations and the observed layout; refresh geometry and refs after rotation, then restore the original orientation. Use [the shell map](../features/app.shell.md) for the detailed journey.
+Choose a tablet with at least 700 dp of measured content width in both orientations. Drive both orientations with the [Worktree map](../features/projects.worktree.md). Confirm the landscape side-by-side layout and the portrait worktree drawer, including selection and Back. Refresh driver references after rotation and restore the original orientation. Report iPad tab sidebars, sheets and other Apple-specific behavior from an iOS run.
 
-Android tablet checks cover the shared layout and Android navigation. They do not establish iPad's native tab sidebar, iOS sheet behavior or Apple-specific input and accessibility behavior.
+### Check graphics on headless hosts
+
+Record the graphics mode passed by the device launcher and the guest's actual OpenGL renderer. On the owned emulator use `adb -s <serial> shell dumpsys SurfaceFlinger | grep '^GLES:'` for renderer readback. A launcher that passes `-gpu auto` can select SwiftShader even when the profile requests host graphics. SwiftShader is suitable for functional proof if the app renders and the journey completes. For hardware rendering, use the device tool's supported host mode if available and confirm the guest renderer after boot. `lavapipe` and `swangle` are software options. See [Android Emulator graphics acceleration](https://developer.android.com/studio/run/emulator-acceleration).
 
 ## Build, start and develop
 
@@ -53,6 +55,6 @@ Run the card's `stopCommand`. It closes this run's driver session, force-stops P
 
 A missing/busy emulator or another live claim is a refusal: stop the owning run or choose an independently owned emulator. Cleanup failures retain protected runtime state and explain what remains; inspect the evidence before retrying stop by instance id. Keep screenshots containing pairing links private.
 
-This localhost/emulator proof does not establish physical-device LAN permissions, remote-environment routing, iOS behavior or Android store delivery. EAS delivery remains iOS-only.
+This localhost/emulator proof does not establish physical-device LAN permissions, remote-environment routing, iOS behavior or Android store delivery.
 
 References: [Expo local builds](https://docs.expo.dev/guides/local-app-development/), [Android emulator setup](https://docs.expo.dev/workflow/android-studio-emulator/), [Android Debug Bridge](https://developer.android.com/tools/adb), [emulator host-loopback networking](https://developer.android.com/studio/run/emulator-networking-address), [React Native single-ABI development builds](https://reactnative.dev/docs/build-speed#build-only-one-abi-during-development-android-only), [Android Gradle CMake arguments](https://developer.android.com/reference/tools/gradle-api/7.4/com/android/build/api/dsl/ExternalNativeBuildOptions), [CMake Ninja job pools](https://cmake.org/cmake/help/v3.22/prop_gbl/JOB_POOLS.html), [Gradle init scripts](https://docs.gradle.org/current/userguide/init_scripts.html).

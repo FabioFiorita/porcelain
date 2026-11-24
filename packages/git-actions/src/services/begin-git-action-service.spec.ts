@@ -1,5 +1,5 @@
 import { Clock, Effect, Layer } from 'effect';
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { testClock } from '@porcelain/kernel/test-kit';
 import { sampleReceipt } from '../../spec/fixtures/git-action-samples.ts';
 import { InMemoryGitActionReceiptStore } from '../../spec/fakes/in-memory-git-action-receipt-store.ts';
@@ -21,7 +21,7 @@ async function begin(store: InMemoryGitActionReceiptStore) {
 it('starts an accepted exact request once and refuses replay after a crash', async () => {
   const receipt = sampleReceipt();
   const store = new InMemoryGitActionReceiptStore();
-  await Effect.runPromise(store.insert(receipt));
+  await Effect.runPromise(store.accept(receipt));
   const service = await begin(store);
   const first = await Effect.runPromise(
     service.execute({

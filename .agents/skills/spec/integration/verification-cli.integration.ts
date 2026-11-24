@@ -3,7 +3,7 @@ import { list, record, text } from '@porcelain/server/kit/session';
 import { existsSync } from 'node:fs';
 import { readFile, stat } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import {
   cli,
   evidenceOf,
@@ -20,6 +20,7 @@ test('the web CLI publishes a browser-free connection card and a fresh pairing l
   const web = (...args: string[]) =>
     cli(repositoryRoot, WEB_CLI, ...args, '--instance', instance.id);
   expect(instance.run.stdout).toContain('\nconnection ');
+  expect(instance.run.stdout).not.toContain('\nbrowser fixture ');
   const [, connectionPath = ''] =
     /\nconnection (\S+)\n/.exec(instance.run.stdout) ?? [];
   const connection = record(JSON.parse(await readFile(connectionPath, 'utf8')));
@@ -103,6 +104,30 @@ test('the web CLI publishes a browser-free connection card and a fresh pairing l
   expect((await web('stop')).stdout).toContain(
     `already stopped ${instance.id}`,
   );
+});
+
+test('web startup can issue a private pairing URL for its disposable browser fixture', async ({
+  onTestFinished,
+}) => {
+  const instance = await started(onTestFinished, {
+    path: WEB_CLI,
+    startArgs: ['--browser-fixture'],
+  });
+  const [, url = ''] =
+    /^browser fixture (\S+)$/m.exec(instance.run.stdout) ?? [];
+  const link = new URL(url);
+  const fragment = new URLSearchParams(link.hash.slice(1));
+  const code = fragment.get('c') ?? '';
+  expect(link.origin).toBe(instance.detail.web);
+  expect(link.pathname).toBe('/pair');
+  expect(code).toMatch(/^pcp_/);
+  expect(fragment.get('e')).toBe(instance.detail.environmentId);
+  const evidence = await evidenceOf(instance.evidence);
+  expect(evidence.text).toContain('/pair#c=[redacted]&e=');
+  expect(evidence.text).not.toContain(code);
+  const [, connection = ''] =
+    /^connection (\S+)$/m.exec(instance.run.stdout) ?? [];
+  expect(await readFile(connection, 'utf8')).not.toContain(code);
 });
 
 test('the web CLI prints the second computer’s pairing link and keeps it and that computer’s credentials out of its evidence', async ({

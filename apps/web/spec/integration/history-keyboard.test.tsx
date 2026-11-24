@@ -1,4 +1,4 @@
-import { page, userEvent } from 'vitest/browser';
+import { page, userEvent } from 'vite-plus/test/browser';
 import { expect, test, expectInputFocus } from './fixtures.tsx';
 
 test('History retains commit focus and arrows traverse commits without taking over tab shortcuts', async ({

@@ -6,7 +6,6 @@ import { Option } from 'effect';
 import type { HistoryScope } from '@porcelain/client/history/rules';
 import type { Connection } from '@/shared/workspace/connection';
 import { TruncatedText } from '@/shared/views/truncated-text';
-import { ScrollArea as ScrollAreaPrimitive } from '@base-ui/react/scroll-area';
 import { formatForDisplay } from '@tanstack/react-hotkeys';
 import {
   Columns2Icon,
@@ -45,7 +44,11 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { ScrollBar } from '@/components/ui/scroll-area';
+import {
+  ScrollAreaRoot,
+  ScrollAreaViewport,
+  ScrollBar,
+} from '@/components/ui/scroll-area';
 import { shortOid } from '@porcelain/client/history/rules';
 import { cn } from '@/shared/lib/utils';
 import { parseEntry } from '../rules/documents';
@@ -224,8 +227,8 @@ export function DocumentTabs({
             />
           </span>
         )}
-        <ScrollAreaPrimitive.Root className="@container/tabs relative h-full min-w-0 flex-1">
-          <ScrollAreaPrimitive.Viewport
+        <ScrollAreaRoot className="@container/tabs relative h-full min-w-0 flex-1">
+          <ScrollAreaViewport
             data-tab-viewport=""
             className="size-full overflow-y-hidden"
             ref={(viewport) => {
@@ -293,16 +296,16 @@ export function DocumentTabs({
                   );
                 })}
             </div>
-          </ScrollAreaPrimitive.Viewport>
+          </ScrollAreaViewport>
           <ScrollBar
             orientation="horizontal"
             className="absolute inset-x-0 bottom-0 data-horizontal:h-1.5"
           />
-        </ScrollAreaPrimitive.Root>
+        </ScrollAreaRoot>
       </div>
       {tabs.length > 1 && (
         <DropdownMenu>
-          <Tooltip disableHoverablePopup>
+          <Tooltip hoverable={false}>
             <TooltipTrigger
               render={
                 <DropdownMenuTrigger
@@ -343,7 +346,7 @@ export function DocumentTabs({
                   <DropdownMenuRadioItem
                     key={key}
                     value={key}
-                    closeOnClick
+                    closeOnSelect
                     aria-label={accessibleName}
                     className="items-start"
                   >
@@ -465,7 +468,7 @@ function DocumentTab({
               />
               {label}
               {!permanentTab(tabKey) && pinned && (
-                <Tooltip disableHoverablePopup>
+                <Tooltip hoverable={false}>
                   <TooltipTrigger
                     render={
                       <Button
@@ -486,7 +489,7 @@ function DocumentTab({
                 </Tooltip>
               )}
               {!permanentTab(tabKey) && active && (
-                <Tooltip disableHoverablePopup>
+                <Tooltip hoverable={false}>
                   <TooltipTrigger
                     render={
                       <Button
@@ -515,17 +518,20 @@ function DocumentTab({
         >
           {tabTitle}
         </TruncatedText>
-        <ContextMenuContent className="min-w-52" finalFocus={!openingSide}>
+        <ContextMenuContent
+          className="min-w-52"
+          finalFocus={openingSide ? 'none' : 'trigger'}
+        >
           <ContextMenuItem
             disabled={permanentTab(tabKey)}
-            onClick={() => onTogglePin(tabKey)}
+            onSelect={() => onTogglePin(tabKey)}
           >
             {pinned ? <PinOffIcon /> : <PinIcon />}
             {pinned ? 'Unpin' : 'Pin'}
           </ContextMenuItem>
           <ContextMenuItem
             disabled={onOpenToSide === undefined || permanentTab(tabKey)}
-            onClick={() => {
+            onSelect={() => {
               flushSync(() => setOpeningSide(true));
               onOpenToSide?.(tabKey);
             }}
@@ -537,7 +543,7 @@ function DocumentTab({
             </ContextMenuShortcut>
           </ContextMenuItem>
           {onClosePane && (
-            <ContextMenuItem onClick={onClosePane}>
+            <ContextMenuItem onSelect={onClosePane}>
               <Columns2Icon />
               Close pane
             </ContextMenuItem>
@@ -545,7 +551,7 @@ function DocumentTab({
           <ContextMenuSeparator />
           <ContextMenuItem
             disabled={permanentTab(tabKey)}
-            onClick={() => onClose(tabKey)}
+            onSelect={() => onClose(tabKey)}
           >
             <XIcon />
             Close
@@ -553,11 +559,11 @@ function DocumentTab({
               {formatForDisplay(SHORTCUTS.closeTab)}
             </ContextMenuShortcut>
           </ContextMenuItem>
-          <ContextMenuItem onClick={() => onCloseOthers(tabKey)}>
+          <ContextMenuItem onSelect={() => onCloseOthers(tabKey)}>
             <SquareXIcon />
             Close others
           </ContextMenuItem>
-          <ContextMenuItem disabled={!hasUnpinned} onClick={onCloseUnpinned}>
+          <ContextMenuItem disabled={!hasUnpinned} onSelect={onCloseUnpinned}>
             <ListXIcon />
             Close unpinned
           </ContextMenuItem>

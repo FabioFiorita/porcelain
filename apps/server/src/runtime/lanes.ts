@@ -30,6 +30,10 @@ type OperationEvent = {
 
 type LaneMode = 'read' | 'write';
 type LaneOwners = string | readonly [string, ...string[]];
+type LaneCompletionOptions<A, E> = {
+  deadlineMs?: number;
+  completed?: ((exit: Exit.Exit<A, E>) => Effect.Effect<void>) | undefined;
+};
 type LaneRunOptions<A, E> = {
   deadlineMs?: number;
   succeeded?: ((value: A) => Effect.Effect<void>) | undefined;
@@ -184,12 +188,7 @@ export class Lanes extends Context.Service<
         lane: LaneOwners,
         mode: LaneMode,
         work: () => Effect.Effect<A, E>,
-        options: {
-          deadlineMs?: number;
-          completed?:
-            | ((exit: Exit.Exit<A, E>) => Effect.Effect<void>)
-            | undefined;
-        },
+        options: LaneCompletionOptions<A, E>,
       ): Effect.Effect<A, E> {
         return Effect.uninterruptibleMask((restore) =>
           Effect.gen(function* () {
@@ -231,15 +230,7 @@ export class Lanes extends Context.Service<
         onFailure: (cause: Cause.Cause<E>) => Effect.Effect<void>,
         options: { deadlineMs?: number } = {},
       ): Effect.Effect<void> {
-        return Effect.forkIn(
-          run(lane, 'write', work, options).pipe(
-            Effect.onExit((exit) =>
-              Exit.isFailure(exit) ? onFailure(exit.cause) : Effect.void,
-            ),
-          ),
-          scope,
-          { startImmediately: true },
-        ).pipe(Effect.asVoid);
+        return start(() => run(lane, 'write', work, options), onFailure);
       }
       function finish<A, E>(
         lane: string,
@@ -290,12 +281,7 @@ export class Lanes extends Context.Service<
           effect: Effect.Effect<B, F, R>,
         ) => Effect.Effect<B, F, R>,
         mode: LaneMode | undefined,
-        options: {
-          deadlineMs?: number;
-          completed?:
-            | ((exit: Exit.Exit<A, E>) => Effect.Effect<void>)
-            | undefined;
-        },
+        options: LaneCompletionOptions<A, E>,
       ): Effect.Effect<A, E> {
         return Effect.gen(function* () {
           const admitted = yield* Deferred.make<void>();

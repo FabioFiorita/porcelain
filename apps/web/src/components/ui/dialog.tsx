@@ -1,39 +1,86 @@
-'use client';
-
 import * as React from 'react';
-import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';
+import {
+  Dialog as DialogRoot,
+  DialogBackdrop,
+  DialogClose as DialogClosePrimitive,
+  DialogContent as DialogContentPrimitive,
+  DialogDescription as DialogDescriptionPrimitive,
+  DialogTitle as DialogTitlePrimitive,
+  DialogTrigger as DialogTriggerPrimitive,
+  createDialogController,
+  type DialogController,
+} from '@ui-sdk/react/dialog';
 import { cn } from 'cn';
 
 import { Button } from '@/components/ui/button';
 import { XIcon } from 'lucide-react';
 
-function Dialog({ ...props }: DialogPrimitive.Root.Props) {
-  return <DialogPrimitive.Root data-slot="dialog" {...props} />;
+const modalBackdropClassName =
+  'fixed inset-0 isolate bg-scrim transition-opacity duration-150 ease-out data-closed:pointer-events-none data-starting-style:opacity-0 data-ending-style:opacity-0 motion-reduce:transition-none supports-backdrop-filter:backdrop-blur-xs';
+
+function focusMarkedField(event: React.FocusEvent<HTMLElement>) {
+  const content = event.currentTarget;
+  if (content.hasAttribute('data-focused')) return;
+  content.setAttribute('data-focused', '');
+  const field = content.querySelector<HTMLElement>('[data-autofocus]');
+  if (field && field !== event.target) field.focus();
 }
 
-function DialogTrigger({ ...props }: DialogPrimitive.Trigger.Props) {
-  return <DialogPrimitive.Trigger data-slot="dialog-trigger" {...props} />;
+type RootProps = Omit<
+  React.ComponentProps<typeof DialogRoot>,
+  'children' | 'controller'
+>;
+
+function Dialog<Payload = unknown>({
+  controller,
+  children,
+  onOpenChange,
+  onPayloadChange,
+  ...props
+}: RootProps & {
+  controller?: DialogController<Payload>;
+  children?:
+    | React.ReactNode
+    | ((payload: Payload | undefined) => React.ReactNode);
+}) {
+  const [payload, setPayload] = React.useState<Payload | undefined>(undefined);
+  return (
+    <DialogRoot
+      data-slot="dialog"
+      {...(controller === undefined ? {} : { controller })}
+      onOpenChange={(open, details) => {
+        if (open && controller) setPayload(controller.getPayload());
+        onOpenChange?.(open, details);
+      }}
+      onPayloadChange={(next, details) => {
+        setPayload(next as Payload);
+        onPayloadChange?.(next, details);
+      }}
+      {...props}
+    >
+      {typeof children === 'function' ? children(payload) : children}
+    </DialogRoot>
+  );
 }
 
-function DialogPortal({ ...props }: DialogPrimitive.Portal.Props) {
-  return <DialogPrimitive.Portal data-slot="dialog-portal" {...props} />;
+function DialogTrigger(
+  props: React.ComponentProps<typeof DialogTriggerPrimitive>,
+) {
+  return <DialogTriggerPrimitive data-slot="dialog-trigger" {...props} />;
 }
 
-function DialogClose({ ...props }: DialogPrimitive.Close.Props) {
-  return <DialogPrimitive.Close data-slot="dialog-close" {...props} />;
+function DialogClose(props: React.ComponentProps<typeof DialogClosePrimitive>) {
+  return <DialogClosePrimitive data-slot="dialog-close" {...props} />;
 }
 
 function DialogOverlay({
   className,
   ...props
-}: DialogPrimitive.Backdrop.Props) {
+}: React.ComponentProps<typeof DialogBackdrop>) {
   return (
-    <DialogPrimitive.Backdrop
+    <DialogBackdrop
       data-slot="dialog-overlay"
-      className={cn(
-        'fixed inset-0 isolate z-50 bg-black/80 duration-100 supports-backdrop-filter:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0',
-        className,
-      )}
+      className={cn(modalBackdropClassName, className)}
       {...props}
     />
   );
@@ -43,25 +90,32 @@ function DialogContent({
   className,
   children,
   showCloseButton = true,
+  onFocus,
   ...props
-}: DialogPrimitive.Popup.Props & {
+}: Omit<React.ComponentProps<typeof DialogContentPrimitive>, 'children'> & {
   showCloseButton?: boolean;
+  children?: React.ReactNode;
 }) {
   return (
-    <DialogPortal>
+    <>
       <DialogOverlay />
-      <DialogPrimitive.Popup
+      <DialogContentPrimitive
+        onFocus={(event) => {
+          onFocus?.(event);
+          focusMarkedField(event);
+        }}
         data-slot="dialog-content"
         className={cn(
-          'fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-xs/relaxed text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95',
+          'fixed top-1/2 left-1/2 m-0 data-closed:pointer-events-none grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-xs/relaxed text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none backdrop:bg-transparent sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95',
           className,
         )}
         {...props}
       >
         {children}
         {showCloseButton && (
-          <DialogPrimitive.Close
+          <DialogClosePrimitive
             data-slot="dialog-close"
+            data-dialog-close=""
             render={
               <Button
                 variant="ghost"
@@ -72,10 +126,10 @@ function DialogContent({
           >
             <XIcon />
             <span className="sr-only">Close</span>
-          </DialogPrimitive.Close>
+          </DialogClosePrimitive>
         )}
-      </DialogPrimitive.Popup>
-    </DialogPortal>
+      </DialogContentPrimitive>
+    </>
   );
 }
 
@@ -108,17 +162,20 @@ function DialogFooter({
     >
       {children}
       {showCloseButton && (
-        <DialogPrimitive.Close render={<Button variant="outline" />}>
+        <DialogClosePrimitive render={<Button variant="outline" />}>
           Close
-        </DialogPrimitive.Close>
+        </DialogClosePrimitive>
       )}
     </div>
   );
 }
 
-function DialogTitle({ className, ...props }: DialogPrimitive.Title.Props) {
+function DialogTitle({
+  className,
+  ...props
+}: React.ComponentProps<typeof DialogTitlePrimitive>) {
   return (
-    <DialogPrimitive.Title
+    <DialogTitlePrimitive
       data-slot="dialog-title"
       className={cn('font-heading text-sm font-medium', className)}
       {...props}
@@ -129,9 +186,9 @@ function DialogTitle({ className, ...props }: DialogPrimitive.Title.Props) {
 function DialogDescription({
   className,
   ...props
-}: DialogPrimitive.Description.Props) {
+}: React.ComponentProps<typeof DialogDescriptionPrimitive>) {
   return (
-    <DialogPrimitive.Description
+    <DialogDescriptionPrimitive
       data-slot="dialog-description"
       className={cn(
         'text-xs/relaxed text-muted-foreground *:[a]:underline *:[a]:underline-offset-3 *:[a]:hover:text-foreground',
@@ -143,6 +200,9 @@ function DialogDescription({
 }
 
 export {
+  createDialogController,
+  focusMarkedField,
+  modalBackdropClassName,
   Dialog,
   DialogClose,
   DialogContent,
@@ -150,7 +210,6 @@ export {
   DialogFooter,
   DialogHeader,
   DialogOverlay,
-  DialogPortal,
   DialogTitle,
   DialogTrigger,
 };

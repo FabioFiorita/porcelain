@@ -11,7 +11,12 @@ export function NativeDropdownMenu({
   actions,
   children,
 }: {
-  actions: readonly { id: string; label: string; onPress: () => void }[];
+  actions: readonly {
+    id: string;
+    label: string;
+    onPress: () => void;
+    disabled?: boolean;
+  }[];
   children: (open: () => void) => ReactElement;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -30,6 +35,7 @@ export function NativeDropdownMenu({
           {actions.map((action) => (
             <DropdownMenuItem
               key={action.id}
+              enabled={!action.disabled}
               onClick={() => {
                 setExpanded(false);
                 action.onPress();

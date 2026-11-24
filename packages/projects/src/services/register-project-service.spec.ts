@@ -8,7 +8,7 @@ import {
   WorktreePresenceStore,
 } from '@porcelain/projects/ports';
 import { Effect } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { SequentialIdSource } from '@porcelain/kernel/fakes';
 import {
   type ProjectRepository,

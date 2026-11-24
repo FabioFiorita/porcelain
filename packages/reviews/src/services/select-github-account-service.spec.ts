@@ -1,5 +1,5 @@
 import { Effect, Layer } from 'effect';
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { GitHubReadError } from '../errors/github-read-error.ts';
 import { GitHubReader } from '../ports/github-reader.ts';
 import { GitHubAccountStore } from '../ports/github-account-store.ts';

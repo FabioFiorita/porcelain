@@ -1,4 +1,4 @@
-import { userEvent } from 'vitest/browser';
+import { userEvent } from 'vite-plus/test/browser';
 import { expect, test } from './fixtures.tsx';
 
 test('a lost grouped-commit response is read once, then the remaining group commits from the recovered HEAD', async ({

@@ -5,7 +5,7 @@ import { readRemoteAccessResponseSchema } from '@porcelain/contracts/access';
 import { Clock, Effect, Fiber, Layer, Option, Schema, Stream } from 'effect';
 import { AsyncResult, AtomRegistry } from 'effect/reactivity';
 import { TestClock } from 'effect/testing';
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import { clientFixtures } from '../../../../spec/kit/client-fixture.ts';
 import {
   readPairedAccess,

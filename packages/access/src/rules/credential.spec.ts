@@ -1,5 +1,5 @@
 import { Redacted } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { sha256Hex } from '@porcelain/kernel/rules';
 import { credential, parseCredential, secretMatches } from './credential.ts';
 

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { encodeBase64 } from './encode-base64.ts';
 
 const CHUNK_BYTES = 0x8000;

@@ -112,10 +112,11 @@ export function useCapturedWalkthroughPatch(
   context: ConnectionContext,
   runId: string,
   step: number,
+  block: number,
 ) {
   const atom = readWalkthrough({
     ...worktreeSelection(scope, context),
-    excerpt: { runId, step },
+    excerpt: { runId, step, block },
   });
   return { result: useAtomValue(atom), retry: useAtomRefresh(atom) };
 }

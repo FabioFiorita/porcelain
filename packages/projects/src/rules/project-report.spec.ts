@@ -3,7 +3,7 @@ import type {
   ProjectWorktrees,
   RegisteredProject,
 } from '@porcelain/projects/models';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { inventoryReport, registeredProjectReport } from './project-report.ts';
 
 function project(id: string, position: number): RegisteredProject {

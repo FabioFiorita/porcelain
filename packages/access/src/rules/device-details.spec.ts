@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { validLabel, validPlatform } from './device-details.ts';
 
 const LABEL_LENGTH = 80;

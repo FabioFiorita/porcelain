@@ -10,7 +10,7 @@ import type {
 } from '@porcelain/walkthroughs/models';
 import { apiError } from '../kit/answers.ts';
 import { handlerCoverage } from '../kit/route-coverage.ts';
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import { Schema } from 'effect';
 import {
   readWalkthroughResponseSchema,
@@ -113,6 +113,7 @@ test('serves stored evidence bytes for a finished walkthrough and refuses assets
       writtenAt: '2026-11-09T00:00:00.000Z',
       durationMs: 1,
       content: {
+        version: 1 as const,
         outcome: 'nothing',
         title: 'Finished evidence fixture',
         summary: 'A completed walkthrough.',
@@ -288,9 +289,9 @@ test('answers a walkthrough comment, keeps it after a refresh, copies a brief wi
   const stop = (title: string, path: string) => ({
     title,
     explanation: 'Why it changed.',
-    excerpts: [],
-    evidence: [],
-    files: [{ path, note: 'Owns the behavior' }],
+    blocks: [
+      { kind: 'files', files: [{ path, note: 'Owns the behavior' }] },
+    ] as const,
   });
   const currentBranch = (await session.git('branch', '--show-current')).trim();
   const runJob = (
@@ -320,6 +321,7 @@ test('answers a walkthrough comment, keeps it after a refresh, copies a brief wi
         writtenAt: '2026-11-09T00:00:00.000Z',
         durationMs: 1,
         content: {
+          version: 1 as const,
           outcome: 'worth_knowing',
           title: 'Conversation fixture',
           summary: 'A finished walkthrough.',
@@ -773,6 +775,7 @@ test('announces screenshots attached to a ready walkthrough to a client that is 
   await session.git('commit', '-m', 'Prepare live evidence fixture');
   const run = await writer.write(
     {
+      version: 1 as const,
       outcome: 'worth_knowing',
       title: 'Live evidence',
       summary: 'A walkthrough that gains screenshots.',
@@ -781,9 +784,12 @@ test('announces screenshots attached to a ready walkthrough to a client that is 
         {
           title: 'Shown step',
           explanation: 'Why it changed.',
-          excerpts: [],
-          evidence: [],
-          files: [{ path: 'evidence-live.txt', note: 'Owns the behavior' }],
+          blocks: [
+            {
+              kind: 'files',
+              files: [{ path: 'evidence-live.txt', note: 'Owns the behavior' }],
+            },
+          ] as const,
         },
       ],
       onlyInTranscript: [],
@@ -807,6 +813,12 @@ test('announces screenshots attached to a ready walkthrough to a client that is 
     const bytes = Uint8Array.from([137, 80, 78, 71]);
     await writer.attachEvidence(run.id, 1, [
       {
+        id: 'earlier-screen',
+        mediaType: 'image/png',
+        caption: 'The previous screen',
+        bytes,
+      },
+      {
         id: 'live-screen',
         mediaType: 'image/png',
         caption: 'The live screen',
@@ -829,9 +841,15 @@ test('announces screenshots attached to a ready walkthrough to a client that is 
   );
   expect(
     shown.walkthrough?.state.status === 'ready'
-      ? shown.walkthrough.state.content.stops[0]?.evidence
+      ? shown.walkthrough.state.content.stops[0]?.blocks.find(
+          (block) => block.kind === 'before_after',
+        )
       : undefined,
-  ).toEqual([{ assetId: 'live-screen', shows: 'The live screen' }]);
+  ).toEqual({
+    kind: 'before_after',
+    before: { assetId: 'earlier-screen', shows: 'The previous screen' },
+    after: { assetId: 'live-screen', shows: 'The live screen' },
+  });
   const asset = await fetch(
     `${session.address}${path}/${run.id}/assets/live-screen`,
     {

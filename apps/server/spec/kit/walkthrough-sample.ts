@@ -6,6 +6,7 @@ import {
   captureWalkthroughFixture,
   seedStoredWalkthroughs,
 } from './walkthrough-fixture.ts';
+import { fixtureScreenshot } from './fixture-screenshot.ts';
 
 const execute = promisify(execFile);
 
@@ -44,9 +45,26 @@ export async function seedWalkthroughSample(
       await execute('git', ['rev-parse', ref], { cwd: repository })
     ).stdout.trim();
   const baseOid = await git('main');
+  const headOid = await git('HEAD');
   const snapshot = await captureWalkthroughFixture(repository, baseOid);
   const now = '2026-11-10T00:00:00.000Z';
   seedStoredWalkthroughs(directory, {
+    assets: [
+      {
+        runId: 'sample-walkthrough',
+        id: 'sample-before',
+        mediaType: 'image/png',
+        caption: 'The search results without a count',
+        bytes: fixtureScreenshot([113, 113, 122]),
+      },
+      {
+        runId: 'sample-walkthrough',
+        id: 'sample-after',
+        mediaType: 'image/png',
+        caption: 'The search results with “3 notes found”',
+        bytes: fixtureScreenshot([37, 99, 235]),
+      },
+    ],
     jobs: [
       {
         worktreePath: repository,
@@ -63,7 +81,7 @@ export async function seedWalkthroughSample(
           baseRef: 'refs/heads/main',
           contentTreeOid: snapshot.treeOid,
           includesUncommitted: snapshot.treeOid !== snapshot.headTreeOid,
-          headOid: await git('HEAD'),
+          headOid,
           writer: {
             provider: 'claude',
             model: 'synthetic-sample',
@@ -75,6 +93,7 @@ export async function seedWalkthroughSample(
             writtenAt: now,
             durationMs: 0,
             content: {
+              version: 1 as const,
               outcome: 'needs_you',
               title: 'Find notes by title',
               summary:
@@ -96,35 +115,76 @@ export async function seedWalkthroughSample(
                   title: 'Choose the empty search behavior',
                   explanation:
                     'Search matches a title when it contains the query. An empty query currently returns every note.',
-                  attention: {
-                    kind: 'product',
-                    question: 'Should an empty search show every note?',
-                    note: 'Showing all notes makes browsing easy; showing none keeps the first view quiet.',
-                  },
-                  excerpts: [
+                  blocks: [
                     {
+                      kind: 'callout',
+                      attention: {
+                        kind: 'product',
+                        question: 'Should an empty search show every note?',
+                        note: 'Showing all notes makes browsing easy; showing none keeps the first view quiet.',
+                      },
+                      comparison: {
+                        columns: ['Show all notes', 'Show no notes'],
+                        rows: [
+                          [
+                            'Browsing works immediately',
+                            'The first view stays quiet',
+                          ],
+                        ],
+                      },
+                    },
+                    {
+                      kind: 'diff_excerpt',
+                      contentTreeOid: snapshot.treeOid,
+                      headOid,
                       path: 'src/search.ts',
                       side: 'new',
                       start: 2,
                       end: 2,
                       caption: 'An empty string matches every title.',
                     },
-                  ],
-                  evidence: [],
-                  files: [
-                    { path: 'README.md', note: 'Introduces the sample.' },
+                    {
+                      kind: 'files',
+                      files: [
+                        { path: 'README.md', note: 'Introduces the sample.' },
+                      ],
+                    },
                   ],
                 },
                 {
                   title: 'Describe the result count',
                   explanation:
                     'The result label lives separately from matching so presentation can change without changing which notes appear.',
-                  excerpts: [],
-                  evidence: [],
-                  files: [
+                  blocks: [
                     {
-                      path: 'src/results.ts',
-                      note: 'Formats the number of matching notes.',
+                      kind: 'files',
+                      files: [
+                        {
+                          path: 'src/results.ts',
+                          note: 'Formats the number of matching notes.',
+                        },
+                      ],
+                    },
+                    {
+                      kind: 'checks',
+                      headOid,
+                      state: 'SUCCESS',
+                      checksTruncated: false,
+                      results: [
+                        { name: 'Unit tests', status: 'SUCCESS' },
+                        { name: 'Browser tests', status: 'SUCCESS' },
+                      ],
+                    },
+                    {
+                      kind: 'before_after',
+                      before: {
+                        assetId: 'sample-before',
+                        shows: 'The search results without a count',
+                      },
+                      after: {
+                        assetId: 'sample-after',
+                        shows: 'The search results with “3 notes found”',
+                      },
                     },
                   ],
                 },

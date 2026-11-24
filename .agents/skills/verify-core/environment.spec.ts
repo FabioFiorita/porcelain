@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { verificationEnvironment } from './environment.ts';
 
 it.each(['none', '', '/tmp/fixture bin'])(

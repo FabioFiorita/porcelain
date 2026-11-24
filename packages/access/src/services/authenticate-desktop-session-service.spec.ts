@@ -1,6 +1,6 @@
 import { DesktopSession } from '@porcelain/access/ports';
 import { Effect } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { sha256Hex } from '@porcelain/kernel/rules';
 import { AuthenticateDesktopSessionService } from './authenticate-desktop-session-service.ts';
 

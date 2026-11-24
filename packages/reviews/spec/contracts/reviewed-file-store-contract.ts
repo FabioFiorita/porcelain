@@ -1,5 +1,5 @@
 import { Effect } from 'effect';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vite-plus/test';
 import type { ReviewedFileMark } from '../../src/models/reviewed-mark.ts';
 import type { ReviewedFileStore } from '../../src/ports/reviewed-file-store.ts';
 

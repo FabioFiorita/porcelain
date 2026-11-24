@@ -1,6 +1,6 @@
 import { availableParallelism } from 'node:os';
-import { playwright } from '@vitest/browser-playwright';
-import { defineConfig } from 'vitest/config';
+import { playwright } from 'vite-plus/test/browser-playwright';
+import { defineConfig } from 'vite-plus';
 import { hostCommands, serverProxy } from './spec/integration/host.ts';
 import web from './vite.config.ts';
 import { BrowserShardSequencer } from './spec/kit/browser-shards.ts';
@@ -12,8 +12,22 @@ export default defineConfig({
     ...web.optimizeDeps,
     include: [
       ...(web.optimizeDeps?.include ?? []),
-      '@base-ui/react/select',
-      '@base-ui/react/avatar',
+      '@ui-sdk/react/alert-dialog',
+      '@ui-sdk/react/avatar',
+      '@ui-sdk/react/button',
+      '@ui-sdk/react/checkbox',
+      '@ui-sdk/react/collapsible',
+      '@ui-sdk/react/command',
+      '@ui-sdk/react/dialog',
+      '@ui-sdk/react/menu',
+      '@ui-sdk/react/popover',
+      '@ui-sdk/react/primitive',
+      '@ui-sdk/react/scroll-area',
+      '@ui-sdk/react/select',
+      '@ui-sdk/react/switch',
+      '@ui-sdk/react/tabs',
+      '@ui-sdk/react/toast',
+      '@ui-sdk/react/tooltip',
     ],
   },
   server: { ...web.server, proxy: serverProxy },

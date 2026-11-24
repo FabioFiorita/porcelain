@@ -3,7 +3,7 @@ import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import { CheckIcon } from 'lucide-react';
 import { type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
-import { toast } from '@/components/ui/toast';
+import { notify } from '@/shared/views/notify';
 import type { FileDraftHandle } from '@porcelain/client/files';
 import type { FileDraftState } from '@porcelain/client/files';
 import { fileDraftSaving } from '@/features/files/commands/edit-file';
@@ -37,7 +37,7 @@ function FileEditor({
   const { copyDraft, save, done, discard, notifyUnsaved } = fileDraftSaving(
     owner,
     draft,
-    toast.add,
+    notify,
   );
   const { initialText, attach } = usePierreFileEditor(
     owner,

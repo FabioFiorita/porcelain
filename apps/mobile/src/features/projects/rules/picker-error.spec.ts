@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { pickerError } from './picker-error';
 
 it('leaves a failed project read to its own notice, so it shows once', () => {

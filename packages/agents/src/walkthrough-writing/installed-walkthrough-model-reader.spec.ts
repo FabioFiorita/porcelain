@@ -3,7 +3,7 @@ import { mkdtemp, writeFile, chmod, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { ConfigProvider, Layer, ManagedRuntime } from 'effect';
 import { NodeServices } from '@effect/platform-node';
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { WalkthroughModelReader } from '@porcelain/walkthroughs/ports';
 import { installedWalkthroughModelReaderLayer } from './installed-walkthrough-model-reader.ts';
 it('lists signed-in installed writers, includes Opus, and uses each Codex model’s cached effort levels and default', async () => {

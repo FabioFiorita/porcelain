@@ -1,5 +1,5 @@
 import { PlatformError } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { GitCommandError } from './git-command-error.ts';
 import { GitFilesystemError } from './git-filesystem-error.ts';
 import { UnsupportedRepositoryError } from './unsupported-repository-error.ts';

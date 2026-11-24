@@ -12,7 +12,7 @@ import {
 } from 'node:fs';
 import { devNull } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, expect, it } from 'vitest';
+import { afterEach, beforeEach, expect, it } from 'vite-plus/test';
 import { readWorktreeSummary } from './read-worktree-summary.ts';
 import { runInspection } from './run-inspection.ts';
 import { gitLimits } from '../../../spec/fixtures/git-limits.ts';

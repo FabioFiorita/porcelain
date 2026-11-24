@@ -23,4 +23,3 @@ export { ReviewGitSettingsTrustRequiredError } from './review-git-settings-trust
 export { ReviewGitSettingsNotConfiguredError } from './review-git-settings-not-configured-error.ts';
 
 export { SharingManagementRequiredError } from './sharing-management-required-error.ts';
-export { PushRegistrationDeviceRequiredError } from './push-registration-device-required-error.ts';

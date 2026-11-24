@@ -53,6 +53,7 @@ export function DiffPage<F extends DiffPageFile>({
   part,
   onOpenFile,
   onFocused,
+  onFirstHeadingLayout,
 }: {
   page: string;
   title: string;
@@ -65,6 +66,7 @@ export function DiffPage<F extends DiffPageFile>({
   part: (props: DiffPagePartProps<F>) => ReactNode;
   onOpenFile: (file: F) => void;
   onFocused?: (() => void) | undefined;
+  onFirstHeadingLayout?: (() => void) | undefined;
 }) {
   const reading = useAtomValue(diffPageOpening(page));
   const focused = files.findIndex((file) => file.key === initialFile);
@@ -163,6 +165,8 @@ export function DiffPage<F extends DiffPageFile>({
               renderItem={({ item, index }) => {
                 const file = files[item.file];
                 if (!file) return null;
+                const firstHeadingLayout =
+                  index === 0 ? onFirstHeadingLayout : undefined;
                 const content = part({
                   file,
                   index: item.file,
@@ -172,11 +176,9 @@ export function DiffPage<F extends DiffPageFile>({
                 return (
                   <View
                     collapsable={false}
-                    {...(index === pending
-                      ? {
-                          onLayout: () => aim(index),
-                        }
-                      : {})}
+                    onLayout={
+                      index === pending ? () => aim(index) : firstHeadingLayout
+                    }
                   >
                     {content}
                   </View>
@@ -283,16 +285,23 @@ export function DiffPagePart({
   part,
   state,
   onOpen,
+  openLabel = 'Open file',
 }: {
   file: DiffPageFile;
   part: DiffPageRow['kind'];
   state: DiffPageState;
   onOpen: () => void;
+  openLabel?: 'Open file' | 'Open diff';
 }) {
   return part === 'heading' ? (
     <DiffPageHeading file={file} state={state} onOpen={onOpen} />
   ) : (
-    <DiffPageContent path={file.path} state={state} onOpen={onOpen} />
+    <DiffPageContent
+      path={file.path}
+      state={state}
+      onOpen={onOpen}
+      openLabel={openLabel}
+    />
   );
 }
 
@@ -333,10 +342,12 @@ function DiffPageContent({
   path,
   state,
   onOpen,
+  openLabel,
 }: {
   path: string;
   state: DiffPageState;
   onOpen: () => void;
+  openLabel: 'Open file' | 'Open diff';
 }) {
   const { preferences } = usePreferences();
   switch (state.kind) {
@@ -352,20 +363,16 @@ function DiffPageContent({
         </Box>
       );
     case 'notice':
-      return (
-        <Item
-          size="compact"
-          title={state.title}
-          description="Open the file to see this change."
-          onPress={onOpen}
-        />
-      );
     case 'large':
       return (
         <Item
           size="compact"
-          title={`Large diff · ${state.lines.toLocaleString()} lines`}
-          description="Open the file to read it."
+          title={openLabel}
+          description={
+            state.kind === 'notice'
+              ? state.title
+              : `Large diff · ${state.lines.toLocaleString()} lines`
+          }
           onPress={onOpen}
         />
       );

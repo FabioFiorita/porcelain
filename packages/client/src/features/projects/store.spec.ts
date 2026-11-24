@@ -3,7 +3,7 @@ import {
   unreadablePersistence,
 } from '../../../spec/kit/promise-storage.ts';
 import { Effect, Fiber } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { ProjectSelectionStore } from './store.ts';
 import { ProjectSelectionStorage } from '@porcelain/client/projects';
 import type { ProjectSelectionSnapshot } from '@porcelain/client/projects';

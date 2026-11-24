@@ -7,6 +7,7 @@ import {
 import {
   type BeginGitActionInput,
   type QueuedGitActionInput,
+  type GitActionReceipt,
 } from '@porcelain/git-actions/models';
 import {
   ReadQueuedGitActionService,
@@ -49,6 +50,21 @@ export class RunQueuedGitActionUseCase extends Context.Service<
       const findProject = yield* FindProjectService;
       const logger = yield* Logger;
       const options = yield* RunGitActionUseCaseOptions;
+      const receiptWorktree = Effect.fn(
+        'RunQueuedGitActionUseCase.receiptWorktree',
+      )(function* (
+        receipt: Pick<GitActionReceipt, 'projectId' | 'worktreeId'>,
+      ) {
+        const found = yield* lanes.run(keys.inventory(), 'read', () =>
+          findProject.execute({ projectId: receipt.projectId }),
+        );
+        if (found.kind === 'missing') return;
+        return {
+          id: receipt.worktreeId,
+          projectId: receipt.projectId,
+          repositoryId: found.project.repositoryIdentity,
+        };
+      });
       const interrupt = Effect.fn('RunQueuedGitActionUseCase.interrupt')(
         function* (input: BeginGitActionInput, cause: Cause.Cause<unknown>) {
           const found = yield* readQueued.execute(input);
@@ -76,15 +92,8 @@ export class RunQueuedGitActionUseCase extends Context.Service<
         const queued = yield* readQueued.execute(input);
         if (queued.kind === 'unavailable') return;
         const { receipt } = queued;
-        const found = yield* lanes.run(keys.inventory(), 'read', () =>
-          findProject.execute({ projectId: receipt.projectId }),
-        );
-        if (found.kind === 'missing') return;
-        const worktree = {
-          id: receipt.worktreeId,
-          projectId: receipt.projectId,
-          repositoryId: found.project.repositoryIdentity,
-        };
+        const worktree = yield* receiptWorktree(receipt);
+        if (worktree === undefined) return;
         yield* lanes.finish(keys.receipts(worktree), () =>
           interrupt(input, cause),
         );
@@ -175,15 +184,8 @@ export class RunQueuedGitActionUseCase extends Context.Service<
               const after = yield* readQueued.execute(input);
               if (after.kind === 'unavailable') return;
               const { receipt } = after;
-              const found = yield* lanes.run(keys.inventory(), 'read', () =>
-                findProject.execute({ projectId: receipt.projectId }),
-              );
-              if (found.kind === 'missing') return;
-              const worktree = {
-                id: receipt.worktreeId,
-                projectId: receipt.projectId,
-                repositoryId: found.project.repositoryIdentity,
-              };
+              const worktree = yield* receiptWorktree(receipt);
+              if (worktree === undefined) return;
               const view = yield* lanes.finish(keys.receipts(worktree), () =>
                 readReceipt
                   .execute({

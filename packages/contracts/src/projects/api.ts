@@ -1,3 +1,4 @@
+import { UnsupportedWalkthroughEffortError } from '@porcelain/walkthroughs/errors';
 import { WorktreeCleanupRefusedError } from '@porcelain/git-actions/errors';
 import { worktreeParamsSchema } from '../shared/worktree-params.ts';
 import { worktreeFailures } from '../shared/worktree-failures.ts';
@@ -125,7 +126,14 @@ export class ProjectsApi extends porcelainApi.add(
           params: renameProjectParamsSchema,
           payload: walkthroughSettingsSchema,
           success: walkthroughSettingsSchema,
-          error: projectNotFound,
+          error: [
+            projectNotFound,
+            httpFailure(
+              UnsupportedWalkthroughEffortError,
+              'UnprocessableEntity',
+              { message: { fromError: true } },
+            ),
+          ],
         },
       ),
       HttpApiEndpoint.patch('renameProject', '/api/projects/:projectId', {

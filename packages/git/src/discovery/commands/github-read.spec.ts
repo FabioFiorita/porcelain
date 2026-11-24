@@ -5,7 +5,7 @@ import { mkdtemp, writeFile, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { Effect } from 'effect';
 import { NodeServices } from '@effect/platform-node';
-import { expect, it, onTestFinished } from 'vitest';
+import { expect, it, onTestFinished } from 'vite-plus/test';
 import { gitLimits } from '../../../spec/fixtures/git-limits.ts';
 import {
   listGitHubAccounts,

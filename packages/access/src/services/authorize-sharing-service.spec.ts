@@ -1,5 +1,5 @@
 import { Effect } from 'effect';
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { DeviceStore } from '../ports/device-store.ts';
 import type { StoredDevice } from '../models/device.ts';
 import { InMemoryDeviceStore } from '../../spec/fakes/in-memory-device-store.ts';

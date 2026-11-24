@@ -1,4 +1,4 @@
-import { Atom } from 'effect/reactivity';
+import { Atom, type AtomRef } from 'effect/reactivity';
 import type { RunGitActionRequest } from '@porcelain/contracts/git-actions';
 import type { GitConnection } from '../ports/git-connection.ts';
 import type { Operation, OperationState } from '../ports/operation-store.ts';
@@ -83,5 +83,71 @@ export function networkMenuFeedback(
           ? fallback.action
           : (selected?.action ?? fallback?.action)
         : undefined,
+  };
+}
+
+const succeeded = (receipt: Operation['receipt']) =>
+  receipt?.state === 'succeeded' || receipt?.state === 'no-change';
+
+export function networkSuccesses(
+  previous: OperationState,
+  next: OperationState,
+): { action: 'fetch' | 'pull'; requestId: string }[] {
+  return [...next.operations].flatMap(([key, now]) => {
+    const action = now.request.input.action;
+    if (action !== 'fetch' && action !== 'pull') return [];
+    const before = previous.operations.get(key);
+    return succeeded(now.receipt) &&
+      before?.requestId === now.requestId &&
+      !(before.receipt && isTerminal(before.receipt))
+      ? [{ action, requestId: now.requestId }]
+      : [];
+  });
+}
+
+type WatchedOperations = {
+  readonly operations: { readonly state: AtomRef.ReadonlyRef<OperationState> };
+};
+
+type WatchedConnections = {
+  readonly value: readonly WatchedOperations[];
+  readonly subscribe: (changed: () => void) => () => void;
+};
+
+export function watchNetworkSuccesses(
+  connections: WatchedConnections,
+  announce: (action: 'fetch' | 'pull') => void,
+) {
+  const announced = new Set<string>();
+  const watched = new Map<WatchedOperations, () => void>();
+  const watch = () => {
+    const current = connections.value;
+    for (const [connection, stop] of watched)
+      if (!current.includes(connection)) {
+        stop();
+        watched.delete(connection);
+      }
+    for (const connection of current) {
+      if (watched.has(connection)) continue;
+      let previous = connection.operations.state.value;
+      watched.set(
+        connection,
+        connection.operations.state.subscribe(() => {
+          const next = connection.operations.state.value;
+          for (const { action, requestId } of networkSuccesses(previous, next))
+            if (!announced.has(requestId)) {
+              announced.add(requestId);
+              announce(action);
+            }
+          previous = next;
+        }),
+      );
+    }
+  };
+  watch();
+  const stopConnections = connections.subscribe(watch);
+  return () => {
+    stopConnections();
+    for (const stop of watched.values()) stop();
   };
 }

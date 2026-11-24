@@ -35,8 +35,9 @@ export class RetryWalkthroughAnswerUseCase extends Context.Service<
       return {
         execute: Effect.fn('RetryWalkthroughAnswerUseCase.execute')(
           function* (input) {
-            const { view, requeued } = yield* access.write(
+            const { view } = yield* access.transaction(
               input.worktreeId,
+              () => Effect.void,
               () =>
                 Effect.gen(function* () {
                   const requeued = yield* retry.execute(input);
@@ -45,14 +46,19 @@ export class RetryWalkthroughAnswerUseCase extends Context.Service<
                     view: yield* conversations.execute(input),
                   };
                 }),
+              ({ requeued }) =>
+                requeued
+                  ? answers.execute().pipe(
+                      Effect.ensuring(
+                        events.worktreeChanged({
+                          worktreeId: input.worktreeId,
+                          change: 'walkthrough-conversations',
+                        }),
+                      ),
+                    )
+                  : Effect.void,
+              { requireAvailableProject: true },
             );
-            if (requeued) {
-              yield* answers.execute();
-              yield* events.worktreeChanged({
-                worktreeId: input.worktreeId,
-                change: 'walkthrough-conversations',
-              });
-            }
             return view;
           },
         ),

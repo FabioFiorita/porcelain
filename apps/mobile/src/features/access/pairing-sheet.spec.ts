@@ -1,9 +1,10 @@
-import { expect, test } from 'vitest';
+import { expect, test } from 'vite-plus/test';
 import { scheduledRegistry } from '../../../spec/kit/atom-registry';
 import {
   acceptScannedPairingLink,
   pairingLinkArrival,
   pairingScanAccepted,
+  pairingSheetComputer,
   pairingSheetLink,
   pairingSheetSession,
   receivePairingIntent,
@@ -54,4 +55,18 @@ test('the scanner keeps the first accepted pairing link while it closes', () => 
   } finally {
     registry.dispose();
   }
+});
+
+test('Pair again keeps its computer through a scanned link and forgets it when the sheet closes', () => {
+  const { registry, flush } = scheduledRegistry();
+  registry.set(pairingSheetComputer, 'computer');
+  const leaveSheet = registry.mount(pairingSheetSession);
+  const leaveScan = registry.mount(pairingScanAccepted);
+  registry.set(acceptScannedPairingLink, otherLink);
+  expect(registry.get(pairingSheetLink)).toBe(otherLink);
+  expect(registry.get(pairingSheetComputer)).toBe('computer');
+  leaveScan();
+  leaveSheet();
+  flush();
+  expect(registry.get(pairingSheetComputer)).toBeUndefined();
 });

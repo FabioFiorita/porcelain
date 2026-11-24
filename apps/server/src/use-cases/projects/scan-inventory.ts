@@ -38,6 +38,14 @@ export class ScanInventoryUseCase extends Context.Service<
       const recordWorktreeActivityCapability =
         yield* RecordWorktreeActivityService;
       const eventsCapability = yield* EventPublisher;
+      const readInventory = Effect.fn('ScanInventoryUseCase.readInventory')(
+        function* () {
+          const inventory = yield* listRegisteredProjectsCapability.execute();
+          const { listings } =
+            yield* listKnownWorktreesCapability.execute(inventory);
+          return { inventory, listings };
+        },
+      );
       const announce = (change: 'inventory' | 'activity' | undefined) =>
         change === undefined
           ? Effect.void
@@ -53,10 +61,8 @@ export class ScanInventoryUseCase extends Context.Service<
               'write',
               () =>
                 Effect.gen(function* () {
-                  const inventory =
-                    yield* listRegisteredProjectsCapability.execute();
-                  const { listings: before } =
-                    yield* listKnownWorktreesCapability.execute(inventory);
+                  const { inventory, listings: before } =
+                    yield* readInventory();
                   const listings = yield* Effect.forEach(
                     inventory.projects,
                     (project) =>
@@ -99,10 +105,8 @@ export class ScanInventoryUseCase extends Context.Service<
               'write',
               () =>
                 Effect.gen(function* () {
-                  const inventory =
-                    yield* listRegisteredProjectsCapability.execute();
-                  const { listings: before } =
-                    yield* listKnownWorktreesCapability.execute(inventory);
+                  const { inventory, listings: before } =
+                    yield* readInventory();
                   yield* recordWorktreeActivityCapability.execute({
                     observations,
                   });

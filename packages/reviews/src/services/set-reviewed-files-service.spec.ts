@@ -4,7 +4,7 @@ import {
   SetReviewedFilesOptions,
 } from '@porcelain/reviews/ports';
 import { Effect, Clock } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { ReviewedMarkConflictError } from '@porcelain/reviews/errors';
 import { type FileChange } from '@porcelain/kernel/models';
 import { InMemoryReviewedFileStore } from '../../spec/fakes/in-memory-reviewed-file-store.ts';

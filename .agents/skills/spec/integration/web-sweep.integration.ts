@@ -13,7 +13,7 @@ import { test } from '@porcelain/server/kit/server-test';
 import { list, record, text } from '@porcelain/server/kit/session';
 import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { join, relative } from 'node:path';
-import { expect, inject } from 'vitest';
+import { expect, inject } from 'vite-plus/test';
 import { cli, repositoryRoot, started, WEB_CLI } from './verification-cli.ts';
 
 const themed = `<script>const media = matchMedia('(prefers-color-scheme: dark)'); const apply = () => document.documentElement.classList.toggle('dark', media.matches); apply(); media.addEventListener('change', apply);</script>`;

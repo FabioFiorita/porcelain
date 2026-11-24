@@ -12,6 +12,7 @@ import {
 } from '@porcelain/client/projects/rules';
 import type { EnvironmentConnection } from '@porcelain/client/access';
 import { useInventory } from '../queries/inventory';
+import { workspaceKey } from '../rules/workspace-key';
 
 export type Workspace = {
   readonly key: string;
@@ -27,19 +28,6 @@ type WorkspaceState =
       readonly kind: 'selected';
       readonly workspace: Workspace;
     };
-
-export function workspaceKey(
-  remote: Pick<Remote, 'environmentId' | 'address' | 'deviceId'>,
-  scope: { readonly projectId: string; readonly worktreeId: string },
-) {
-  return JSON.stringify([
-    remote.environmentId,
-    remote.address,
-    remote.deviceId ?? '',
-    scope.projectId,
-    scope.worktreeId,
-  ]);
-}
 
 export function useWorkspaceConnection(
   remote: Remote | undefined,

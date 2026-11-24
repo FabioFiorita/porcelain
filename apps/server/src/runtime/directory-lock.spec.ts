@@ -23,7 +23,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { join } from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vite-plus/test';
 import { acquireDirectoryLock, directoryLockIsHeld } from './directory-lock.ts';
 
 class HeldError extends Error {}

@@ -1,5 +1,5 @@
 import type { FileChange } from '@porcelain/kernel/models';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { targetMatchesExpectation } from './target-matches-expectation.ts';
 
 const readme = { path: 'README.md', fingerprint: 'a'.repeat(64) };

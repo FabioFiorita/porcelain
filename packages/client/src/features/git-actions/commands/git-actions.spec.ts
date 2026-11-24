@@ -4,7 +4,7 @@ import {
 } from '@porcelain/client/transport';
 import { Effect, Exit, Layer, Scope } from 'effect';
 import { AtomRegistry } from 'effect/reactivity';
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { generateCommitDraft } from './git-actions.ts';
 
 const scope = {

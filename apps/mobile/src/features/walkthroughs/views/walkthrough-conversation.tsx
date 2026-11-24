@@ -1,3 +1,4 @@
+import type { WalkthroughDraftPlacement } from '@porcelain/client/walkthroughs';
 import { useState, type ReactNode } from 'react';
 import { Keyboard } from 'react-native';
 import { useAtom } from '@effect/atom-react';
@@ -33,7 +34,8 @@ import {
   useConversations,
   type ConversationOwner,
 } from '../queries/conversations';
-import { walkthroughAsking, walkthroughDraft } from '../store';
+import { walkthroughAsking } from '../store';
+import { useWritesBlocked } from '../../access';
 
 type Props = { owner: ConversationOwner };
 
@@ -74,6 +76,7 @@ function PostActions({
 }) {
   const actions = usePostActions(owner, message);
   const { notice, waiting } = actions;
+  const blocked = useWritesBlocked(owner.workspace.connection.environmentId);
   const copy = () => {
     Keyboard.dismiss();
     actions.copy();
@@ -111,7 +114,7 @@ function PostActions({
             label="Undo"
             variant="plain"
             size="sm"
-            disabled={waiting}
+            disabled={waiting || blocked}
             onPress={() => save(false)}
           />
         </Box>
@@ -123,6 +126,7 @@ function PostActions({
             variant={message ? 'tonal' : 'filled'}
             size="sm"
             pending={waiting}
+            disabled={pullRequest !== undefined && blocked}
             onPress={pullRequest === undefined ? copy : post}
           />
           {message ? (
@@ -130,7 +134,7 @@ function PostActions({
               label="Save for later"
               variant="plain"
               size="sm"
-              disabled={waiting}
+              disabled={waiting || blocked}
               onPress={() => save(true)}
             />
           ) : null}
@@ -174,6 +178,7 @@ function AgentReply({
   const [open, setOpen] = useState(false);
   const [clipped, setClipped] = useState(false);
   const { failure, waiting, retry } = useAnswerRetry(owner);
+  const blocked = useWritesBlocked(owner.workspace.connection.environmentId);
   const state = message.state;
   return (
     <Message author="Walkthrough agent">
@@ -198,7 +203,7 @@ function AgentReply({
       {state.status === 'failed' ? (
         <LinkButton
           label="Try again"
-          disabled={waiting}
+          disabled={waiting || blocked}
           onPress={() => retry(message.replyTo)}
         />
       ) : null}
@@ -238,32 +243,34 @@ function Messages({
 function Composer({
   owner,
   title,
+  placement,
   placeholder,
   scroller,
 }: Props & {
   title: string;
+  placement: WalkthroughDraftPlacement;
   placeholder: string;
   scroller: KeyboardScroller;
 }) {
-  const [draft, setDraft] = useAtom(
-    walkthroughDraft(JSON.stringify([owner.workspace.key, title])),
+  const { text, failure, waiting, change, send } = useAsk(
+    owner,
+    title,
+    placement,
   );
-  const { failure, waiting, ask } = useAsk(owner, title);
+  const blocked = useWritesBlocked(owner.workspace.connection.environmentId);
   return (
     <MessageComposer
-      value={draft}
+      value={text}
       placeholder={placeholder}
       sending={waiting}
+      disabled={blocked}
       error={failure}
-      onChangeText={setDraft}
+      onChangeText={change}
       scroller={scroller}
       onSend={() => {
-        const text = draft.trim();
-        if (!text || waiting) return;
+        if (blocked) return;
         Keyboard.dismiss();
-        ask(text, () =>
-          setDraft((current) => (current === draft ? '' : current)),
-        );
+        send();
       }}
     />
   );
@@ -277,7 +284,7 @@ export function WalkthroughConversation({
   scroller,
 }: Props & {
   title: string;
-  placement: 'call' | 'step';
+  placement: WalkthroughDraftPlacement;
   lead?: ReactNode;
   scroller: KeyboardScroller;
 }) {
@@ -332,6 +339,7 @@ export function WalkthroughConversation({
           <Composer
             owner={owner}
             title={title}
+            placement={placement}
             scroller={scroller}
             placeholder={
               call ? 'Decide, or ask about this' : 'Ask about this step'
@@ -377,9 +385,12 @@ export function PostSaved({ owner }: Props) {
   const saved = savedSummary(view);
   if (!saved) return null;
   return (
-    <FloatingBar>
+    <FloatingBar
+      action={
+        <PostActions owner={owner} pullRequest={view?.pullRequestNumber} />
+      }
+    >
       <Text variant="secondary">{saved}</Text>
-      <PostActions owner={owner} pullRequest={view?.pullRequestNumber} />
     </FloatingBar>
   );
 }

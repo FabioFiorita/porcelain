@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { networkActionBlocker } from './network-availability.ts';
 import type { GitActionStatus } from './status.ts';
 

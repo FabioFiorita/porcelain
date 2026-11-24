@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { Clock, Effect, ManagedRuntime, Redacted } from 'effect';
 import { TestClock } from 'effect/testing';
 import { ConnectionError } from '../../../shared/api/connection-error.ts';

@@ -34,6 +34,7 @@ export {
 export { lookAgainGitAction, refreshGitLook } from './commands/action-form.ts';
 export {
   networkMenuFeedback,
+  watchNetworkSuccesses,
   networkMenuAttemptNotice,
   type NetworkMenuAttempt,
   networkMenuNotice,

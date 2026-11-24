@@ -1,12 +1,13 @@
 import { Stack } from 'expo-router';
 import type { WorktreeSwitcher } from '../features/projects';
-import { topBarItems } from '../components/ui/top-bar-items';
+import { useTopBarItems } from '../components/ui/top-bar-items';
 import { usePublishedTopBar } from '../shared/application/top-bar';
 
 export function TopBar({ switcher }: { switcher?: WorktreeSwitcher }) {
   const published = usePublishedTopBar();
   const leading = switcher?.items ?? [];
-  const items = switcher?.holdsPageActions ? [] : topBarItems(published);
+  const pageItems = useTopBarItems(published);
+  const items = switcher?.holdsPageActions ? [] : pageItems;
   if (leading.length === 0 && items.length === 0) return null;
   return (
     <Stack.Toolbar placement="right">

@@ -30,6 +30,7 @@ import {
 import { Cause, Effect, Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import type { Workspace } from '../../projects';
+import { useWriteAllowed } from '../../access';
 
 const NOT_READY = 'Git actions are not ready yet. Try again.';
 
@@ -57,6 +58,7 @@ export function useGitMenu(selection: Pick<Workspace, 'connection' | 'scope'>) {
   const feedback = networkMenuFeedback(operations, scope, notice);
   const running = feedback.running;
   const runners = { fetch: fetchCommands, pull: pullCommands };
+  const allowed = useWriteAllowed(connection.environmentId);
   const remember = (
     attempt: NetworkMenuAttempt,
     notice: Parameters<GitMenuControls['onResult']>[0],
@@ -109,6 +111,7 @@ export function useGitMenu(selection: Pick<Workspace, 'connection' | 'scope'>) {
     );
   };
   const run = (action: 'fetch' | 'pull') => {
+    if (!allowed()) return;
     const commands = runners[action];
     const attempt: NetworkMenuAttempt = {
       action,

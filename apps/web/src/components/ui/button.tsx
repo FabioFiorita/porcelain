@@ -1,9 +1,10 @@
-import { Button as ButtonPrimitive } from '@base-ui/react/button';
+import type * as React from 'react';
+import { Button as ButtonPrimitive } from '@ui-sdk/react/button';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from 'cn';
 
 const buttonVariants = cva(
-  "group/button inline-flex shrink-0 items-center justify-center rounded-md border border-transparent bg-clip-padding text-xs/relaxed font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-2 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "group/button inline-flex shrink-0 items-center justify-center rounded-md border border-transparent bg-clip-padding text-xs/relaxed font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-2 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
@@ -41,12 +42,33 @@ function Button({
   className,
   variant = 'default',
   size = 'default',
+  onClick,
+  type,
+  disabled,
   ...props
-}: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
+}: Omit<
+  React.ComponentProps<typeof ButtonPrimitive>,
+  'className' | 'onClick' | 'children' | 'type' | 'disabled'
+> & {
+  className?: string | undefined;
+  onClick?: ((event: React.MouseEvent<HTMLElement>) => void) | undefined;
+  children?: React.ReactNode;
+  type?: 'button' | 'submit' | 'reset' | undefined;
+  disabled?: boolean | undefined;
+} & VariantProps<typeof buttonVariants>) {
   return (
     <ButtonPrimitive
       data-slot="button"
       className={cn(buttonVariants({ variant, size, className }))}
+      {...(onClick
+        ? {
+            onClick: (event: React.MouseEvent<HTMLElement>) => {
+              onClick(event);
+            },
+          }
+        : {})}
+      {...(type ? { type } : {})}
+      {...(disabled === undefined ? {} : { disabled })}
       {...props}
     />
   );

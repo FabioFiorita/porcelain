@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { Exit } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import type { StartWalkthroughRequest } from '@porcelain/contracts/walkthroughs';

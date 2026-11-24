@@ -1,4 +1,4 @@
-import { page as browserPage, userEvent } from 'vitest/browser';
+import { page as browserPage, userEvent } from 'vite-plus/test/browser';
 import { expect, test } from './fixtures.tsx';
 
 const before = 'draft-notes.md';

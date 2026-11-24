@@ -10,7 +10,12 @@ import {
   useListDetailLayout,
   usePortrait,
 } from '../components/ui/list-detail';
-import { SettingsToolbar } from '../features/access';
+import { View } from 'react-native';
+import {
+  ReadingConnection,
+  SettingsToolbar,
+  useEnvironments,
+} from '../features/access';
 import { useOpenedFile } from '../features/files';
 import {
   WorktreeDetail,
@@ -31,6 +36,7 @@ import {
   type ListAction,
   type ListDrawerEvent,
 } from '../shared/rules/list-detail';
+import { worktreeListNoticeComputer } from '../shared/rules/list-notice';
 
 export function WorktreesHome() {
   const selected = useSelectedWorktree();
@@ -98,6 +104,12 @@ export function WorktreesHome() {
     if (view.closing === 'close') act('close');
   };
   const { toggle } = view;
+  const environments = useEnvironments();
+  const listComputer = worktreeListNoticeComputer({
+    layout: layout.mode,
+    selected: selected?.environment,
+    computers: environments,
+  });
   return (
     <>
       <Stack.Screen options={{ headerLargeTitleEnabled: !beside }} />
@@ -117,13 +129,16 @@ export function WorktreesHome() {
         place={view.place}
         onDismiss={close}
         list={(mode, presentation) => (
-          <WorktreesScreen
-            mode={mode}
-            presentation={presentation}
-            onOpen={close}
-            onSearchFocusChange={searchFocusChange}
-            searchBarRef={searchBarRef}
-          />
+          <View className="flex-1" collapsable={false}>
+            <WorktreesScreen
+              mode={mode}
+              presentation={presentation}
+              onOpen={close}
+              onSearchFocusChange={searchFocusChange}
+              searchBarRef={searchBarRef}
+            />
+            {listComputer ? <ReadingConnection remote={listComputer} /> : null}
+          </View>
         )}
         detail={
           selected ? (

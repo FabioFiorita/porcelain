@@ -5,7 +5,7 @@ import {
   HttpApiEndpoint,
   HttpApiGroup,
 } from 'effect/http-api';
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { openHttpApplication } from '@porcelain/server/kit/http';
 import { requestBody, requestBodyLimit } from './request-body.ts';
 

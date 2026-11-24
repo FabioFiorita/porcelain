@@ -4,12 +4,18 @@ import type {
   walkthroughContentSchema,
 } from '@porcelain/contracts/walkthroughs';
 import type { ReadChangesResponse } from '@porcelain/contracts/changes';
+import { readStop, stepCitedPaths, type WalkthroughStop } from './blocks.ts';
 
 export type WalkthroughRead = typeof readWalkthroughResponseSchema.Type;
 export type WalkthroughRun = NonNullable<WalkthroughRead['walkthrough']>;
-export type WalkthroughContent = typeof walkthroughContentSchema.Type;
-export type WalkthroughStop = WalkthroughContent['stops'][number];
-export type WalkthroughEvidence = WalkthroughStop['evidence'][number];
+type BlockContent = typeof walkthroughContentSchema.Type;
+export type WalkthroughContent = Omit<BlockContent, 'stops' | 'version'> & {
+  readonly stops: readonly WalkthroughStop[];
+};
+
+function readBlockContent(content: BlockContent): WalkthroughContent {
+  return { ...content, stops: content.stops.map(readStop) };
+}
 export type WalkthroughFailure = Extract<
   WalkthroughRun['state'],
   { status: 'failed' }
@@ -41,7 +47,7 @@ export function walkthroughPhase(read: WalkthroughRead): WalkthroughPhase {
       return {
         kind: 'ready',
         run,
-        content: run.state.content,
+        content: readBlockContent(run.state.content),
         freshness: read.freshness,
         attempt: read.attempt,
       };
@@ -58,9 +64,12 @@ const CALL_WORDS = ['One', 'Two', 'Three', 'Four', 'Five'];
 
 export function walkthroughCalls(content: WalkthroughContent) {
   return content.stops.flatMap((stop, index) =>
-    stop.attention === undefined
-      ? []
-      : [{ stop, step: index + 1, attention: stop.attention }],
+    stop.callouts.map((callout, callIndex) => ({
+      ...callout,
+      stop,
+      step: index + 1,
+      callIndex,
+    })),
   );
 }
 
@@ -79,10 +88,7 @@ export function stopPaths(
   stop: WalkthroughStop,
   renames: readonly ChangedFile[] = [],
 ): readonly string[] {
-  const cited = [
-    ...stop.excerpts.map((excerpt) => excerpt.path),
-    ...stop.files.map((file) => file.path),
-  ];
+  const cited = stepCitedPaths(stop);
   const renamed = renames.flatMap((file) =>
     file.oldPath !== undefined && cited.includes(file.oldPath)
       ? [file.path]

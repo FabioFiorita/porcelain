@@ -15,7 +15,7 @@ Simple systems, the smallest model that makes the correct behaviour unsurprising
 
 Agents author this codebase. Prefer one enforced, typed abstraction per responsibility; dependency requirements and invalid alternatives should fail before runtime. Familiarity with the old implementation is not a reason to preserve it: when a new path replaces an old one, move every caller and delete the old path and its tests in the same change.
 
-The codebase is the example. Copy the nearest feature's shape, and extract a second copy into its owner rather than pasting it. TypeScript, Oxlint, Oxfmt and the architecture check are the rulebook, and every lint message says why its rule exists: when one blocks you, change the code. When a rule fights the task itself, say so and ask before changing the rule. Code comments, including `@ts-ignore`, are banned by `no-comments`: express rules in code or a verification skill, because comment prose can drift from the behavior enforced by executable checks.
+The codebase is the example. Copy the nearest feature's shape, and extract a second copy into its owner rather than pasting it. Patched TypeScript, Vite+ lint and format, and the architecture check are the rulebook, and every lint message says why its rule exists: when one blocks you, change the code. When a rule fights the task itself, say so and ask before changing the rule. Code comments, including `@ts-ignore`, are banned by `no-comments`: express rules in code or a verification skill, because comment prose can drift from the behavior enforced by executable checks.
 
 ## Ways to hurt yourself
 
@@ -33,9 +33,11 @@ Before calling a change done, check each of these and say which applied:
 - **The way back:** a way in needs a way out and a way to see it.
 - **Connections:** local, local network and remote environments behave differently.
 
+For visible web, desktop, and mobile changes, use the [UI review checklist](.agents/skills/ui-review/SKILL.md).
+
 ## Libraries
 
-Each job has one library. Rules already hold Zustand's ban, the shadcn pins, routing, forms, hotkeys and Expo UI chrome; these choices have no check:
+Each job has one library. Rules already hold Zustand's ban, the UI SDK owner and the ban on replaced UI libraries (Base UI, cmdk), routing, forms, hotkeys and Expo UI chrome; these choices have no check:
 
 - On web and desktop, code, diffs and file trees render with Pierre (`@pierre/diffs`, `@pierre/trees`) and Markdown with TanStack Markdown. Pierre's renderers need a browser page, so mobile draws its own code, diff, tree and Markdown views and highlights with Shiki.
 - `useState` holds only one component's UI details; anything shared or saved is an Effect atom.
@@ -80,7 +82,7 @@ Prove a change with the smallest sufficient local proof: `pnpm check:local` and 
 
 While you iterate with the developer, keep one verification instance running between edits and restart it only when its skill says the edit requires it; it is their preview too. Run the changed E2E specs once, when the work is done.
 
-The root integration command runs suite tasks sequentially, because each Vitest runner already owns a machine-sized worker budget. Keep parallelism inside the suite; concurrent runners must not multiply that budget or require longer product deadlines.
+Vite+ runs the workspace tasks and the Vitest projects. Use `pnpm test` with a project and file for a focused unit run. The root integration command runs suite tasks sequentially, because each Vitest runner already owns a machine-sized worker budget. Keep parallelism inside the suite; concurrent runners must not multiply that budget or require longer product deadlines.
 
 ## Pull requests
 
@@ -90,7 +92,7 @@ Feature PRs into `main` run affected static and unit checks, changed browser spe
 
 Promote `main` into `release` with a PR. This lane runs full static, unit, server, browser and desktop suites, mobile exports, migrations and package checks. The hosted agent reviews the accumulated changes. Address findings on main. Promotion preserves main’s history. Only an explicit version tag publishes the qualified commit.
 
-The workflow reuses a completed decision or review for the same candidate. A maintainer can request an additional hosted review and CI failure explanations on a feature PR with `agent-review`. Verify `agent-fixes` findings. A local verification marked `reviewed` can satisfy an optional feature review; a release requires its hosted review.
+The workflow reuses a completed decision or review for the same candidate. Failed CI on an eligible trusted, open, non-draft PR gets an explanation for its current head when it has failed jobs to explain. A maintainer can request an additional hosted review on a feature PR with `agent-review`. Verify `agent-fixes` findings. A local verification marked `reviewed` can satisfy an optional feature review; a release requires its hosted review.
 
 In Risks, declare `Door: one-way` for a release, destructive data change, breaking compatibility, permission or secret change. Explain what needs deciding. The loop also checks release, migration, landing-policy and workflow permission changes, outside contributions and an explicit `decision` label. Routine features, dependency updates and backward-compatible API additions use `Door: two-way`. When a PR needs approval, name the PR and commit to the owner. Apply `approved` only after they approve that commit. Recheck after a push. The loop rechecks the head before merging. Never use GitHub auto-merge or merge around it.
 
@@ -101,7 +103,7 @@ When `main` turns red after a pull request merges, fix it forward with a follow-
 ## Where code lives
 
 - `apps/server`: the Effect HTTP server, its use cases, routes and installer.
-- `apps/web`: React and Vite; UI primitives come from the shadcn registry and stay as installed.
+- `apps/web`: React and Vite; UI primitives live in `src/components/ui`. They are Porcelain's own wrappers over UI SDK, which only `components/ui` imports, styled with Tailwind and shadcn's class conventions; change them like any other Porcelain code.
 - `apps/desktop`: Electron around the web.
 - `apps/mobile`: Expo and Uniwind; controls are web-styled primitives in `src/components/ui`, Expo UI keeps system chrome (menus, navigation, tabs), and sheets are expo-router form-sheet routes drawn with `src/components/ui/sheet`.
 - `packages/contracts`, `packages/client` and the domain packages.

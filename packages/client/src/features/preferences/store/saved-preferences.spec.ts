@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { defaultReviewGitSettings } from '../rules/review-git-settings.ts';
 import { Effect, Option, Schema } from 'effect';
 import { KeyValueStore } from 'effect/persistence';
@@ -25,7 +25,6 @@ it.each([null, '{}', 'not-json', 'null', '[]', '42', '"text"'])(
         archiveDeleteLocalBranch: true,
         archiveDeleteRemoteBranch: false,
       },
-      notifications: { reviewReady: false, agentReply: false },
     });
   },
 );
@@ -109,7 +108,6 @@ const upgraded = {
   lineOverflow: 'wrap',
   documentsDefault: 'source',
   reviewGitSettingsImportCandidate: legacyCandidate,
-  notifications: { reviewReady: false, agentReply: false },
 } as const;
 it('moves the old Reviews & Git choices into the import candidate and writes only the canonical shape', () => {
   const preferences = readPreferences(JSON.stringify(legacyRecord));
@@ -246,19 +244,19 @@ it('reads web records through the browser key-value path, keeping an old record 
   });
 });
 
-it('keeps the notification switches the phone saved and turns a damaged choice off', () => {
+it('ignores retired notification switches and keeps the rest of the saved preferences', () => {
   const saved = readPreferences(
     JSON.stringify({
       ...upgraded,
-      notifications: { reviewReady: true, agentReply: false },
+      notifications: { reviewReady: true, agentReply: true },
     }),
   );
-  expect(saved.notifications).toEqual({ reviewReady: true, agentReply: false });
-  expect(
-    readPreferences(
-      JSON.stringify({ ...upgraded, notifications: { reviewReady: 'yes' } }),
-    ).notifications,
-  ).toEqual({ reviewReady: false, agentReply: false });
+  expect(saved.appearance).toBe('light');
+  expect(saved.diffStyle).toBe('split');
+  expect(saved.reviewGitSettingsImportCandidate).toEqual(legacyCandidate);
+  expect(Schema.encodeSync(preferencesSchema)(saved)).not.toHaveProperty(
+    'notifications',
+  );
 });
 
 it('ignores obsolete review-status collapse choices without losing other preferences', () => {

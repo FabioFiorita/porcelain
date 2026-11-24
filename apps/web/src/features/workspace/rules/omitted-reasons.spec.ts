@@ -1,4 +1,4 @@
-import { expect, test } from 'vitest';
+import { expect, test } from 'vite-plus/test';
 import { omittedReasonText } from './omitted-reasons';
 
 test('repeated comparison reasons appear once while distinct reasons keep their order', () => {

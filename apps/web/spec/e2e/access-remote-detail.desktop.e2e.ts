@@ -289,11 +289,13 @@ test('forgetting from detail protects an unsavable remote draft and succeeds aft
   const editor = page.getByRole('textbox', { name: readme, exact: true });
   await expect(editor).toBeVisible();
   const disk = 'A newer change on the remote disk\n';
+  const notices = app.holdLive();
   await remote.repo.write(readme, disk);
   await replaceEditorContent(editor, 'Keep this unsaved remote draft');
   await expect(
     page.getByText('Not saving: changed on disk', { exact: true }),
   ).toBeVisible();
+  notices.release();
   await page
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
@@ -676,4 +678,41 @@ test('a rename confirmed after the computer drops keeps the real file in the tre
   await expect
     .poll(async () => (await remote.server.text(readme)).text)
     .toBe(before);
+});
+
+test('a Git action that Git allows says the computer is offline when the computer drops with the Git menu open', async ({
+  pairedPage: page,
+  app,
+  remote,
+}) => {
+  const inventory = await remote.server.inventory();
+  const project = await remote.server.project();
+  const link = await app.remoteLink();
+  await openRemotes(page);
+  await page
+    .getByRole('textbox', { name: 'Pairing link', exact: true })
+    .fill(link);
+  await page.getByRole('button', { name: 'Add', exact: true }).click();
+  await openComputer(page, inventory.environment.name);
+  await expect(page.getByText('Online', { exact: true })).toBeVisible();
+  const worktree = project.worktrees.find((item) => item.main);
+  if (!worktree) throw new Error('The remote has no main worktree');
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await app.follow(
+    `/remotes/${inventory.environmentId}/${project.id}/${worktree.id}`,
+  );
+  await page.getByRole('button', { name: 'Git actions', exact: true }).click();
+  const stash = page.getByRole('menuitem', { name: /^Stash changes/ });
+  await expect(stash).not.toHaveAttribute('aria-disabled');
+
+  const outage = await app.dropRemoteComputer(link);
+  try {
+    await expect(stash).toHaveAttribute('aria-disabled', 'true');
+    await stash.hover();
+    await expect(page.getByRole('tooltip')).toHaveText(
+      'Set aside local changes Computer is offline',
+    );
+  } finally {
+    await outage.restore();
+  }
 });

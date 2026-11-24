@@ -4,7 +4,7 @@ import { Duration, Effect, Fiber, Schedule } from 'effect';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vite-plus/test';
 import { gitRead, gitWrite } from './run-git.ts';
 import { gitLimits } from '../../../spec/fixtures/git-limits.ts';
 

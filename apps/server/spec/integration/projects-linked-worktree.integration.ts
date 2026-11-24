@@ -2,7 +2,7 @@ import * as Schema from 'effect/Schema';
 import { randomUUID } from 'node:crypto';
 import { readChangesResponseSchema } from '@porcelain/contracts/changes';
 import { readInventoryResponseSchema } from '@porcelain/contracts/projects';
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import { eventually } from '../kit/reads.ts';
 import { read } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';

@@ -1,3 +1,4 @@
+import { PendingButton, PendingContent } from '@/shared/views/pending-button';
 import { PendingSpinner } from '@/shared/views/state-notice';
 import { useWorkspaceWriteBlock } from '@/shared/workspace/connection';
 import { TruncatedText } from '@/shared/views/truncated-text';
@@ -31,7 +32,6 @@ import {
 import {
   Popover,
   PopoverContent,
-  PopoverDescription,
   PopoverHeader,
   PopoverTitle,
   PopoverTrigger,
@@ -41,8 +41,7 @@ import {
   TooltipTrigger,
   TooltipContent,
 } from '@/components/ui/tooltip';
-import { Spinner } from '@/components/ui/spinner';
-import { toast } from '@/components/ui/toast';
+import { notify } from '@/shared/views/notify';
 import { useReviewGitSettings } from '@/features/preferences/index';
 import {
   reviewGitPullStrategy,
@@ -119,6 +118,15 @@ export function GitButton({
     null,
   );
   const writeBlock = useWorkspaceWriteBlock(context);
+  const showNotice = ({ title, description, type }: GitNotice) =>
+    notify({
+      title,
+      description:
+        description === undefined ? undefined : (
+          <GitActionMessage text={description} />
+        ),
+      type,
+    });
   const menu = useGitMenu(scope, context, {
     details,
     enableDetails: () => setDetailsEnabled(true),
@@ -130,20 +138,15 @@ export function GitButton({
             pullBlock ??
             'Changes & Git settings for this computer are unavailable.',
         },
-    notify: ({ title, description, type }) =>
-      toast.add({
-        title,
-        description:
-          description === undefined ? undefined : (
-            <GitActionMessage text={description} />
-          ),
-        type,
-      }),
+    notify: showNotice,
     onProgress: (open) => {
       if (open) setResult(null);
       setProgressOpen(open);
     },
-    onResult: setResult,
+    onResult: (notice) => {
+      setResult(notice.type === 'error' ? notice : null);
+      if (notice.type !== 'error') showNotice(notice);
+    },
     refreshLook,
     onLooked: setOpenedStatus,
   });
@@ -210,6 +213,7 @@ export function GitButton({
                           primaryBlocked ||
                           Boolean(writeBlock))
                       }
+                      aria-busy={Boolean(running)}
                       aria-description={writeBlock}
                       focusableWhenDisabled
                       className="aria-disabled:cursor-default"
@@ -226,14 +230,12 @@ export function GitButton({
                 />
               }
             >
-              {running ? (
-                <Spinner className="size-3.5" />
-              ) : (
+              <PendingContent pending={Boolean(running)}>
                 <GitActionIcon
                   action={primaryIcon(primary)}
                   className="size-3.5"
                 />
-              )}
+              </PendingContent>
               <span
                 ref={measureLabel}
                 aria-hidden="true"
@@ -250,14 +252,9 @@ export function GitButton({
               {result && !running ? (
                 <PopoverHeader>
                   <PopoverTitle>{result.title}</PopoverTitle>
-                  {result.description !== undefined &&
-                    (result.type === 'error' ? (
-                      <GitActionError text={result.description} />
-                    ) : (
-                      <PopoverDescription>
-                        <GitActionMessage text={result.description} />
-                      </PopoverDescription>
-                    ))}
+                  {result.description !== undefined && (
+                    <GitActionError text={result.description} />
+                  )}
                 </PopoverHeader>
               ) : (
                 <>
@@ -285,14 +282,13 @@ export function GitButton({
                     <GitActionError text={result.description} />
                   )}
                   {running && (
-                    <Button
+                    <PendingButton
                       variant="outline"
-                      disabled={running.checking}
+                      pending={running.checking}
                       onClick={menu.checkOutcome}
                     >
-                      {running.checking && <Spinner aria-hidden="true" />}
                       Check outcome
-                    </Button>
+                    </PendingButton>
                   )}
                 </>
               )}
@@ -360,34 +356,34 @@ export function GitButton({
                       pullBlock,
                     );
                     const reason =
-                      blocker ?? gitActionReason(candidate.id, status);
+                      writeBlock ??
+                      (blocker
+                        ? undefined
+                        : gitActionReason(candidate.id, status));
                     return (
-                      <Tooltip
-                        key={candidate.id}
-                        onOpenChange={(_open, details) => {
-                          if (details.reason === 'escape-key')
-                            details.allowPropagation();
-                        }}
-                      >
-                        <TooltipTrigger render={<span className="block" />}>
-                          <DropdownMenuItem
-                            disabled={
-                              Boolean(writeBlock) ||
-                              (blocker !== null && blocker !== undefined)
-                            }
-                            aria-description={writeBlock}
-                            onClick={() => choose(candidate.id)}
-                          >
-                            <GitActionIcon action={candidate.id} />
-                            <span className="flex min-w-0 flex-col">
-                              <TruncatedText text={candidate.label} />
-                              {blocker && (
-                                <span className="text-xs whitespace-normal text-muted-foreground">
-                                  {blocker}
-                                </span>
-                              )}
-                            </span>
-                          </DropdownMenuItem>
+                      <Tooltip key={candidate.id}>
+                        <TooltipTrigger
+                          render={
+                            <DropdownMenuItem
+                              className="data-disabled:pointer-events-auto"
+                              disabled={
+                                Boolean(writeBlock) ||
+                                (blocker !== null && blocker !== undefined)
+                              }
+                              aria-description={writeBlock}
+                              onSelect={() => choose(candidate.id)}
+                            />
+                          }
+                        >
+                          <GitActionIcon action={candidate.id} />
+                          <span className="flex min-w-0 flex-col">
+                            <TruncatedText text={candidate.label} />
+                            {blocker && (
+                              <span className="text-xs whitespace-normal text-muted-foreground">
+                                {blocker}
+                              </span>
+                            )}
+                          </span>
                         </TooltipTrigger>
                         <TooltipContent>
                           {candidate.description}
@@ -419,27 +415,23 @@ export function GitButton({
                         ? `Restore discarded rename of ${item.path}`
                         : `Restore discarded hunk of ${item.path}`;
                     return (
-                      <Tooltip
-                        key={item.oid}
-                        onOpenChange={(_open, details) => {
-                          if (details.reason === 'escape-key')
-                            details.allowPropagation();
-                        }}
-                      >
-                        <TooltipTrigger render={<span className="block" />}>
-                          <DropdownMenuItem
-                            onClick={() => {
-                              setMenuOpen(false);
-                              menu.restoreDiscarded(item);
-                            }}
-                          >
-                            <Undo2Icon />
-                            <TruncatedText
-                              className="min-w-0"
-                              text={label}
-                              propagateEscape
+                      <Tooltip key={item.oid}>
+                        <TooltipTrigger
+                          render={
+                            <DropdownMenuItem
+                              onSelect={() => {
+                                setMenuOpen(false);
+                                menu.restoreDiscarded(item);
+                              }}
                             />
-                          </DropdownMenuItem>
+                          }
+                        >
+                          <Undo2Icon />
+                          <TruncatedText
+                            className="min-w-0"
+                            text={label}
+                            propagateEscape
+                          />
                         </TooltipTrigger>
                         <TooltipContent>
                           {label} · Kept until you restore it
@@ -457,7 +449,7 @@ export function GitButton({
       {action !== null && action !== undefined ? (
         <Dialog
           open
-          disablePointerDismissal
+          closeOnOutsidePress={false}
           onOpenChange={(open) => {
             if (!open && !busy) setAction(null);
           }}

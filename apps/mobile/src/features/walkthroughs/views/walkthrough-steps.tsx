@@ -14,6 +14,7 @@ import { documentHeading } from '../../../shared/rules/document-heading';
 import type { Workspace } from '../../projects/index';
 import { reviewParams } from '../../workspace/index';
 import { useWalkthroughFiles } from '../queries/walkthrough';
+import { useChangedFileOpening } from './changed-file-opening';
 
 const BRANCH = { kind: 'branch' } as const;
 
@@ -36,6 +37,7 @@ export function WalkthroughSteps({
 }) {
   const router = useRouter();
   const { branch, worktree } = useWalkthroughFiles(workspace);
+  const opening = useChangedFileOpening(workspace);
   const files = [
     ...new Map(
       [...branch, ...worktree].map((file) => [file.path, file]),
@@ -76,7 +78,7 @@ export function WalkthroughSteps({
           size="compact"
           title={plainText(stop.title)}
           titleNumberOfLines={2}
-          accessibilityLabel={`Step ${step}: ${plainText(stop.title)}${stop.attention ? ', your call' : ''}, ${owned.length === 1 ? '1 file' : `${owned.length} files`}`}
+          accessibilityLabel={`Step ${step}: ${plainText(stop.title)}${stop.callouts.length > 0 ? ', your call' : ''}, ${owned.length === 1 ? '1 file' : `${owned.length} files`}`}
           leading={
             <Text variant="mono" tone="muted" className="w-4">
               {step}
@@ -84,7 +86,7 @@ export function WalkthroughSteps({
           }
           trailing={
             <Box className="flex-row items-center" gap={2}>
-              {stop.attention ? (
+              {stop.callouts.length > 0 ? (
                 <StatusDot label="Your call" tone="foreground" />
               ) : null}
               <Text variant="caption" tone="muted">
@@ -113,23 +115,11 @@ export function WalkthroughSteps({
                 titleNumberOfLines={1}
                 {...(subtitle ? { description: subtitle } : {})}
                 descriptionNumberOfLines={1}
-                onPress={() =>
-                  router.push({
-                    pathname: '/review-file',
-                    params: {
-                      ...reviewParams(
-                        workspace.key,
-                        branch.some((committed) => committed.path === file.path)
-                          ? BRANCH
-                          : { kind: 'worktree' },
-                      ),
-                      path: file.path,
-                    },
-                  })
-                }
+                {...opening.row(file.path)}
               />
             );
           })}
+          {opening.failure ? <Box paddingX={4}>{opening.failure}</Box> : null}
         </>
       ) : null}
     </ScrollView>

@@ -6,7 +6,7 @@ export class ResolveWalkthroughWriterService extends Context.Service<
   ResolveWalkthroughWriterService,
   {
     readonly execute: (input: {
-      projectId: string;
+      projectId: string | undefined;
       writer: WalkthroughWriterChoice | undefined;
     }) => Effect.Effect<WalkthroughWriterChoice>;
   }
@@ -19,11 +19,12 @@ export class ResolveWalkthroughWriterService extends Context.Service<
         execute: Effect.fn('ResolveWalkthroughWriterService.execute')(
           function* (input) {
             if (input.writer) return input.writer;
-            const project = yield* store.readSettings(input.projectId);
+            if (input.projectId !== undefined) {
+              const project = yield* store.readSettings(input.projectId);
+              if (project.writer) return project.writer;
+            }
             return (
-              project.writer ??
-              (yield* store.readDefaultWriter()) ??
-              builtInWalkthroughWriter
+              (yield* store.readDefaultWriter()) ?? builtInWalkthroughWriter
             );
           },
         ),

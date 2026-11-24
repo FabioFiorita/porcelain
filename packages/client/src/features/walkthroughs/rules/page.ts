@@ -5,10 +5,10 @@ import {
   type WalkthroughFailure,
   type WalkthroughContent,
   type WalkthroughRun,
-  type WalkthroughStop,
 } from './walkthrough.ts';
+import type { WalkthroughStop } from './blocks.ts';
 
-type Attention = NonNullable<WalkthroughStop['attention']>;
+type Attention = WalkthroughStop['callouts'][number]['attention'];
 type Growth = WalkthroughContent['growth'][number];
 
 const ATTENTION_LABELS: Record<Attention['kind'], string> = {

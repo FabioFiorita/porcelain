@@ -13,6 +13,7 @@ import { Sheet } from '../../../components/ui/sheet';
 import { Text } from '../../../components/ui/text';
 import { useInventory } from '../queries/inventory';
 import { useRenameProject } from '../commands/project-actions';
+import { ComputerConnectionNotice, useWritesBlocked } from '../../access';
 
 export function RenameProjectSheet({
   environmentId,
@@ -39,6 +40,7 @@ export function RenameProjectSheet({
       ) : (
         <Empty title="Project unavailable" />
       )}
+      <ComputerConnectionNotice environmentId={environmentId} />
     </Sheet>
   );
 }
@@ -54,6 +56,7 @@ function RenameProjectForm({
 }) {
   const [name, setName] = useState(project.name);
   const commands = useRenameProject(connection, project.id);
+  const blocked = useWritesBlocked(connection.environmentId);
   const result = commands.result;
   const failure = AsyncResult.isFailure<unknown, unknown>(result)
     ? connectionErrorMessage(Cause.squash(result.cause))
@@ -82,7 +85,7 @@ function RenameProjectForm({
       <Button
         label="Rename"
         pending={result.waiting}
-        disabled={!name.trim()}
+        disabled={!name.trim() || blocked}
         onPress={() => commands.rename(name.trim(), onClose)}
       />
     </>

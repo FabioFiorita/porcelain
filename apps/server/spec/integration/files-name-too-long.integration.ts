@@ -1,6 +1,6 @@
 import { commitReviewFixture } from '../kit/requests.ts';
 
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import { unreadablePath } from '../kit/answers.ts';
 import { worktreePath } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';

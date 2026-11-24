@@ -4,7 +4,7 @@ import { NodeServices } from '@effect/platform-node';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { afterEach, beforeEach, expect, it } from 'vitest';
+import { afterEach, beforeEach, expect, it } from 'vite-plus/test';
 import { cliPackageRoot, readCliVersion } from './package-version.ts';
 
 let root: string;

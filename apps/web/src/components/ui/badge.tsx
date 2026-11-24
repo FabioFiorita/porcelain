@@ -1,5 +1,8 @@
-import { mergeProps } from '@base-ui/react/merge-props';
-import { useRender } from '@base-ui/react/use-render';
+import {
+  mergeProps,
+  renderPart,
+  type PartElementProps,
+} from '@/components/ui/render-part';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from 'cn';
 
@@ -38,10 +41,10 @@ function Badge({
   variant = 'default',
   render,
   ...props
-}: useRender.ComponentProps<'span'> & VariantProps<typeof badgeVariants>) {
-  return useRender({
+}: PartElementProps<'span'> & VariantProps<typeof badgeVariants>) {
+  return renderPart({
     defaultTagName: 'span',
-    props: mergeProps<'span'>(
+    props: mergeProps(
       {
         className: cn(badgeVariants({ variant }), className),
       },

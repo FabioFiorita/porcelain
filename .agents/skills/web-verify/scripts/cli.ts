@@ -19,13 +19,13 @@ import {
   serverRead,
 } from '../../verify-core/fixtures.ts';
 import { registry, type WebInstance } from './instance.ts';
-import { start, serve, vite, remoteRequest, remoteFailed } from './start.ts';
+import { start, serve, vp, remoteRequest, remoteFailed } from './start.ts';
 
 const remoteReadyMs = 90 * 1000;
 const remotePollMs = 200;
 const usage = `Usage: .agents/skills/web-verify/scripts/cli <command> [--instance <id>]
-  start [--desktop] [--coding-tool] [--walkthrough-sample] [--git-interruption]
-                          start a disposable server and Vite; print the connection card
+  start [--browser-fixture] [--desktop] [--coding-tool] [--walkthrough-sample] [--git-interruption]
+                          start a disposable server and Vite+; print the card and optional one-time browser fixture URL
   doctor                  check startup dependencies; list optional browser drivers
   status                  inspect captured ownership, build staleness and connection metadata
   logs                    print redacted server and Vite output
@@ -45,26 +45,23 @@ const usage = `Usage: .agents/skills/web-verify/scripts/cli <command> [--instanc
   remote start            start a second disposable computer
   remote pairing-link [--trusted]
                           mint a link for that computer; server accepts --remote
-Drive the browser with your own tools. Startup neither opens nor pairs a browser.
+Drive the browser with your own tools. Open the browser fixture URL in a fresh browser context.
 `;
 async function doctor(): Promise<string> {
   const sandbox = sandboxProblems();
-  if (sandbox.length > 0 || !existsSync(vite)) process.exitCode = 1;
+  if (sandbox.length > 0 || !existsSync(vp)) process.exitCode = 1;
   const checks = [
     `node ${process.versions.node}`,
     ...(sandbox.length > 0 ? sandbox : ['server sandbox and Git: ready']),
-    `Vite: ${existsSync(vite) ? 'ready' : 'missing; run pnpm install --frozen-lockfile'}`,
+    `Vite+: ${existsSync(vp) ? 'ready' : 'missing; run pnpm install --frozen-lockfile'}`,
     'Optional drivers (not required for startup): harness browser, project Playwright MCP, pnpm exec playwright cli',
     ...optionalDrivers(),
   ];
-  const live = registry
-    .list()
-    .filter((entry) => entry.alive)
-    .map(
-      ({ instance }) =>
-        `${instance.id} ${instance.detail.web}${instance.detail.desktop ? ' (desktop)' : ''}`,
-    );
-  return `${checks.join('\n')}\nlive instances: ${live.join(', ') || 'none'}\n`;
+  const live = registry.doctorInstances(
+    ({ id, detail }) =>
+      `${id} ${detail.web}${detail.desktop ? ' (desktop)' : ''}`,
+  );
+  return `${checks.join('\n')}\n${live}\n`;
 }
 function remoteOf(instance: WebInstance) {
   const { remote } = instance.detail;
@@ -96,6 +93,24 @@ async function remoteStart(instance: WebInstance): Promise<string> {
     `the second computer did not start within ${remoteReadyMs / 1000} s; read supervisor.log`,
   );
 }
+async function browserFixtureLink(
+  instance: WebInstance,
+  args: readonly string[],
+): Promise<string> {
+  const recorder = registry.redactor(instance).recorder();
+  const grant = await issuedLink(
+    instance.detail.manifest,
+    'Verification browser',
+    false,
+    recorder,
+  );
+  const link = `${instance.detail.web}${pairingLink({ addresses: [''], code: grant.code, environmentId: grant.environmentId })}`;
+  await registry
+    .evidence(instance)
+    .json('pairing-link', { command: args, output: link }, recorder);
+  return link;
+}
+
 type ServerSideValues = {
   remote: boolean;
   trusted: boolean;
@@ -107,6 +122,8 @@ async function serverSide(
   values: ServerSideValues,
   args: readonly string[],
 ): Promise<string | undefined> {
+  if (name === 'pairing-link')
+    return `${await browserFixtureLink(instance, args)}\n`;
   const manifest = () =>
     values.remote ? remoteOf(instance).manifest : instance.detail.manifest;
   const recorder = registry.redactor(instance).recorder();
@@ -121,16 +138,6 @@ async function serverSide(
       `server-${rest[0] ?? ''}`,
       await serverRead(manifest(), rest, recorder),
     );
-  if (name === 'pairing-link') {
-    const grant = await issuedLink(
-      instance.detail.manifest,
-      'Verification browser',
-      false,
-      recorder,
-    );
-    const link = `${instance.detail.web}${pairingLink({ addresses: [''], code: grant.code, environmentId: grant.environmentId })}`;
-    return record('pairing-link', `${link}\n`);
-  }
   if (name === 'remote' && rest[0] === 'start')
     return record('remote-start', await remoteStart(instance));
   if (name === 'remote' && rest[0] === 'pairing-link') {
@@ -155,6 +162,7 @@ async function command(args: readonly string[]): Promise<string> {
     options: {
       instance: { type: 'string' },
       ...serverOptions,
+      'browser-fixture': { type: 'boolean', default: false },
       desktop: { type: 'boolean', default: false },
       'coding-tool': { type: 'boolean', default: false },
       'walkthrough-sample': { type: 'boolean', default: false },
@@ -173,13 +181,25 @@ async function command(args: readonly string[]): Promise<string> {
     await serve(rest[0]);
     return '';
   }
-  if (name === 'start')
-    return start({
+  if (name === 'start') {
+    const { instance, card } = await start({
       desktop: values.desktop,
       codingTool: values['coding-tool'],
       walkthroughSample: values['walkthrough-sample'],
       gitInterruption: values['git-interruption'],
     });
+    if (!values['browser-fixture']) return card;
+    try {
+      return `${card}browser fixture ${await browserFixtureLink(instance, args)}\n`;
+    } catch (error) {
+      const stopped = await registry.stopById(instance.id);
+      if (!stopped.complete)
+        throw new Refusal(
+          `Could not prepare the browser fixture. Stop incomplete for ${instance.id}; evidence: ${instance.evidence}`,
+        );
+      throw error;
+    }
+  }
   if (name === 'doctor') return doctor();
   if (
     name === undefined ||

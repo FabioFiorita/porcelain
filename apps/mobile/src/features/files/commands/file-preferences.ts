@@ -3,6 +3,7 @@ import { setFilePreference } from '@porcelain/client/projects';
 import type { SetFilePreferenceRequest } from '@porcelain/contracts/projects';
 import type { RuntimeConnection } from '@porcelain/client/transport';
 import { useState } from 'react';
+import { useWriteAllowed } from '../../access';
 
 export function useSetFilePreference(
   connection: RuntimeConnection,
@@ -13,14 +14,16 @@ export function useSetFilePreference(
     setFilePreference({ connection, projectId }),
     { mode: 'promiseExit' },
   );
+  const allowed = useWriteAllowed(connection.environmentId);
   return {
     result,
     submit: (input: SetFilePreferenceRequest) => {
+      if (!allowed()) return;
       setRequest(input);
       void submit(input);
     },
     retry: () => {
-      if (request) void submit(request);
+      if (request && allowed()) void submit(request);
     },
   };
 }

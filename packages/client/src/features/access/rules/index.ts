@@ -7,6 +7,8 @@ export {
   sameRemoteConnection,
   remoteStatusText,
   remoteStatusNote,
+  remoteWorktreeInterrupted,
+  type ReadingConnectionNotice,
   parseRemotes,
   serializeRemotes,
   type Remote,

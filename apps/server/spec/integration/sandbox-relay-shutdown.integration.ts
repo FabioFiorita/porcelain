@@ -2,7 +2,7 @@ import { once } from 'node:events';
 import { connect } from 'node:net';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { expect, inject } from 'vitest';
+import { expect, inject } from 'vite-plus/test';
 import { IsolatedServer, Recorder } from '../kit/isolated-server.ts';
 import { test } from '../kit/server-test.ts';
 

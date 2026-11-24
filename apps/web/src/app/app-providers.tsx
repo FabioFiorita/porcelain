@@ -2,12 +2,8 @@ import { HotkeysProvider } from '@tanstack/react-hotkeys';
 import { RegistryContext } from '@effect/atom-react';
 import type { AtomRegistry } from 'effect/reactivity';
 import { StrictMode, type ReactNode } from 'react';
-import { toast, Toaster } from '@/components/ui/toast';
-import { TooltipProvider } from '@/components/ui/tooltip';
-import { onCopyNotice } from '@/shared/workspace/copy';
+import { NotificationProvider } from '@/shared/views/notify';
 import { WorkspaceProvider } from '@/app/workspace-provider';
-
-onCopyNotice((notice) => toast.add(notice));
 
 export function AppProviders({
   registry,
@@ -26,11 +22,9 @@ export function AppProviders({
             },
           }}
         >
-          <TooltipProvider delay={400}>
-            <WorkspaceProvider>
-              <Toaster>{children}</Toaster>
-            </WorkspaceProvider>
-          </TooltipProvider>
+          <WorkspaceProvider>
+            <NotificationProvider>{children}</NotificationProvider>
+          </WorkspaceProvider>
         </HotkeysProvider>
       </RegistryContext.Provider>
     </StrictMode>

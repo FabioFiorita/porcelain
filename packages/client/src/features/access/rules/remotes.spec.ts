@@ -1,12 +1,14 @@
 import { ENVIRONMENT_PROTOCOL } from '@porcelain/contracts/shared';
 import { Redacted } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import {
   connectionRoutes,
   connectionRouteTitle,
   operationJournalKey,
   parseRemotes,
+  readingConnectionNotice,
   remoteStatus,
+  remoteWritesAvailable,
   remoteStatusNote,
   serializeRemotes,
   withConnectionRoutes,
@@ -61,6 +63,26 @@ describe('remoteStatus', () => {
   });
 });
 
+describe('remoteWritesAvailable', () => {
+  it('allows writes only while the computer answers', () => {
+    expect(remoteWritesAvailable({ kind: 'online', name: 'Beelink' })).toBe(
+      true,
+    );
+    expect(
+      (
+        [
+          'checking',
+          'reconnecting',
+          'offline',
+          'needs-pairing',
+          'other-server',
+          'incompatible',
+        ] as const
+      ).filter((kind) => remoteWritesAvailable({ kind })),
+    ).toEqual([]);
+  });
+});
+
 describe('remoteStatusNote', () => {
   it('explains each unusable remote without naming the kind of device reading it', () => {
     expect(
@@ -85,6 +107,45 @@ describe('remoteStatusNote', () => {
       remoteStatusNote({ kind: 'checking' }),
       remoteStatusNote({ kind: 'online', name: 'home-server' }),
     ]).toEqual([undefined, undefined]);
+  });
+});
+
+describe('readingConnectionNotice', () => {
+  it('shows nothing while the computer answers', () => {
+    expect(
+      readingConnectionNotice({ kind: 'online', name: 'Beelink' }),
+    ).toBeUndefined();
+  });
+
+  it('keeps one reconnecting title while retries alternate between kinds', () => {
+    const reconnecting = {
+      title: 'Reconnecting',
+      interrupted: true,
+      repair: false,
+    };
+    expect(readingConnectionNotice({ kind: 'checking' })).toEqual(reconnecting);
+    expect(readingConnectionNotice({ kind: 'reconnecting' })).toEqual(
+      reconnecting,
+    );
+    expect(readingConnectionNotice({ kind: 'offline' })).toEqual(reconnecting);
+  });
+
+  it('offers pairing only when the computer refuses this device', () => {
+    expect(readingConnectionNotice({ kind: 'needs-pairing' })).toEqual({
+      title: 'Needs pairing',
+      interrupted: false,
+      repair: true,
+    });
+    expect(readingConnectionNotice({ kind: 'other-server' })).toEqual({
+      title: 'Another server answers',
+      interrupted: false,
+      repair: false,
+    });
+    expect(readingConnectionNotice({ kind: 'incompatible' })).toEqual({
+      title: 'Update needed',
+      interrupted: false,
+      repair: false,
+    });
   });
 });
 

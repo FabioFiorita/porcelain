@@ -1,7 +1,7 @@
 import { clientFixtures } from '../../../../spec/kit/client-fixture.ts';
 import { Effect, Exit, Schema } from 'effect';
 import { AtomRegistry } from 'effect/reactivity';
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 
 import { revokeAccess, setDeviceTrust, setRemoteAccess } from './share.ts';
 import { readRemoteAccess } from '@porcelain/client/access';

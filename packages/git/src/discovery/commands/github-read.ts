@@ -108,6 +108,19 @@ const githubCommentSchema = Schema.fromJsonString(
   Schema.Struct({ html_url: Schema.String }),
 );
 
+const githubToken = Effect.fn('Git.githubToken')(function* (
+  account: string,
+  limits: GitLimits,
+) {
+  const value = (yield* output(
+    ['auth', 'token', '--hostname', 'github.com', '--user', account],
+    limits,
+  )).trim();
+  if (value === '')
+    return yield* new GitHubCommandError({ reason: 'no-access' });
+  return Redacted.make(value);
+});
+
 export const postGitHubIssueComment = Effect.fn('Git.postGitHubIssueComment')(
   function* (
     input: {
@@ -119,14 +132,7 @@ export const postGitHubIssueComment = Effect.fn('Git.postGitHubIssueComment')(
     },
     limits: GitLimits,
   ) {
-    const token = Redacted.make(
-      (yield* output(
-        ['auth', 'token', '--hostname', 'github.com', '--user', input.account],
-        limits,
-      )).trim(),
-    );
-    if (Redacted.value(token) === '')
-      return yield* new GitHubCommandError({ reason: 'no-access' });
+    const token = yield* githubToken(input.account, limits);
     const response = yield* output(
       [
         'api',
@@ -167,14 +173,7 @@ export const readGitHubApi = Effect.fn('Git.readGitHubApi')(function* (
     !input.query.trimStart().startsWith('query ')
   )
     return yield* new GitHubCommandError({ reason: 'invalid-response' });
-  const token = Redacted.make(
-    (yield* output(
-      ['auth', 'token', '--hostname', 'github.com', '--user', input.account],
-      limits,
-    )).trim(),
-  );
-  if (Redacted.value(token) === '')
-    return yield* new GitHubCommandError({ reason: 'no-access' });
+  const token = yield* githubToken(input.account, limits);
   const args = ['api', '--hostname', 'github.com', input.endpoint];
   if (input.query === undefined) args.push('--method', 'GET');
   else {

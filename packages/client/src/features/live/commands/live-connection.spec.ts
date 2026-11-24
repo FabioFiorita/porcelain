@@ -1,6 +1,6 @@
 import { idleLiveConnectionInput } from '../../../../spec/kit/client-fixture.ts';
 import { ENVIRONMENT_PROTOCOL } from '@porcelain/contracts/shared';
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { Redacted, Effect, Exit, Fiber, Layer, ManagedRuntime } from 'effect';
 import { SecureRandom } from 'effect/crypto';
 import { AtomRegistry } from 'effect/reactivity';

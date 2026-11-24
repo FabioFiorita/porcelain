@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { reviewSidebarActions } from './sidebar-actions.ts';
 
 describe('review sidebar actions', () => {

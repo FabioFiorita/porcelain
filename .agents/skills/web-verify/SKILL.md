@@ -1,21 +1,21 @@
 ---
 name: web-verify
-description: Prepare a disposable Porcelain server and Vite, drive the web app with an independent browser tool following tool-neutral feature maps, and retain evidence. Use before calling a web change done, when checking a feature or web performance, or when correcting a map.
+description: Prepare a disposable Porcelain server and Vite+, drive the web app with an independent browser tool following tool-neutral feature maps, and retain evidence. Use before calling a web change done, when checking a feature or web performance, or when correcting a map.
 ---
 
 # Web verification
 
-From the repository root, `C=.agents/skills/web-verify/scripts/cli`. Run `$C` for command help. The CLI prepares disposable server/Vite processes and fixtures; use a browser driver for interactions and assertions.
+From the repository root, `C=.agents/skills/web-verify/scripts/cli`. Run `$C` for command help. The CLI prepares disposable server/Vite+ processes and fixtures; use a browser driver for interactions and assertions.
 
 ## Prepare and connect
 
-1. Run `$C doctor`, then `$C start`.
+1. Run `$C doctor`, then `$C start --browser-fixture` for a paired journey. Use `$C start` for an unpaired journey.
 2. Read the card: instance ID, server/web/WebSocket URLs, private `connection.json`, pairing-link command, evidence directory and stop command. The connection file adds build identity, fixture IDs/paths, required origins, owner socket, credential-file paths, initial route, web mode and status/log/remote-start commands.
-3. Open the web URL in a fresh browser context. For a paired journey, run the card's pairing-link command and navigate to its fresh link. Each link works once and its fragment is consumed. For an unpaired journey, open `/` without minting a link.
+3. Open the card's `browser fixture` URL in a fresh browser context. It pairs only with that disposable server and works once. Keep the URL private, including its fragment. For a new browser context, use the card's pairing-link command to mint a new URL. For an unpaired journey, open the web URL from plain startup.
 
 A new tab can share credentials with an existing tab. Use an isolated browser context/profile for disposable verification and preserve the browser driver's ownership controls. The caller selects its available driver; this skill keeps the same startup, pairing, fixture and evidence lifecycle.
 
-A restarted instance reuses its worktree-derived web port while free, but needs new pairing. For a developer walkthrough, use Vite's development-only “Pair this browser” button on the not-paired page; it obtains a one-time link from the owner socket.
+A restarted instance reuses its worktree-derived web port while free. Open the new instance’s fixture URL to pair again.
 
 `start --walkthrough-sample` prepares a feature branch with committed files and a ready synthetic Walkthrough. `pnpm dev:walkthrough` starts this same sample; plain `pnpm dev` uses it too.
 
@@ -33,17 +33,19 @@ $C remote start --instance <id>
 $C remote pairing-link --instance <id>
 ```
 
-Save browser actions and resulting URL/title, snapshots, screenshots, console and HTTP status/content-type readbacks in the card's evidence directory. Use trace/CDP tools for performance. Distinguish setup, interactions and independent server readbacks. The CLI redacts its fixture evidence; sanitize browser artifacts separately, especially pairing fragments and credentials.
+Development builds expose UI SDK's agent bridge as `window.porcelainAgent`, created before the app renders. Production builds leave it out. `snapshot()` lists the page's components with refs, labels, values and allowed actions; `query({ text, within, kind })` finds components and list items; `act({ steps: [{ ref, action, args }] })` runs component actions, such as setting a select or tabs value or pressing a dialog button, and reports what changed. Use it from the browser driver's evaluate to read state or reach a control quickly. A journey still drives what a person does through the page and asserts what the page shows.
+
+Follow the [shared evidence reference](../verify-core/evidence.md). Use trace/CDP tools for web timings and retain relevant console and HTTP diagnostics.
 
 ## Sweep the standard states
 
 Choose evidence for the behavior changed: drive the affected entry and return path, capture its result, and add widths, themes, long text or many items when those dimensions can change that behavior. Use the full sweep for shared shell, responsive layout or theme changes and broad visual audits; record why the selected states are sufficient. QA reuses the same evidence scope:
 
 ```sh
-$C sweep /$projectId/$worktreeId /settings/general --instance <id>
+$C sweep "/$projectId/$worktreeId?entry=review" /settings/general --instance <id>
 ```
 
-- Pass routes as paths (`/settings/general`) or feature maps (`reviews.walkthrough-page`). A map's `$projectId`, `$worktreeId` and `$environmentId` come from the instance; pass a concrete path for anything else. Pass the route the app settles on: a capture that lands elsewhere is a problem. Start with `--desktop` for `shell: desktop` maps such as Settings.
+- Pass routes as paths (`/settings/general`) or feature maps. For `reviews.walkthrough-page`, use the explicit worktree route with `entry=review` above. Its map names the landing page `/`, which redirects. A map's `$projectId`, `$worktreeId` and `$environmentId` come from the instance; pass a concrete path for anything else. Pass the route the app settles on: a capture that lands elsewhere is a problem. Start with `--desktop` for `shell: desktop` maps such as Settings.
 - `--board <png>` after a route compares it with that board: its first 1440 light capture (as-is, or the first seeded state when as-is has no review) beside the board, and the dark capture beside a `-D` or `-dark` sibling when one exists.
 - Each route is captured at 1440, 1080 and 414, light and dark, in three states: as-is, then after a long-text fixture (maximum-length titles, prose, file names, computer, project and device names), then after a many-items fixture (changed files and devices). The seeds stack: many-items diffs against the fixture base, so Changes also lists the sample's and long-text's files. The seeds apply once per instance and stay: committed fixture work, devices, and the computer and project names. Each sweep also pairs one more `Sweep browser` device.
 - As-is and a board beside it need a freshly started instance. On an instance an earlier sweep seeded, the first state is labelled `as-left` (the last seeded fixture, not the fixture) in the folders, the index and the JSON.

@@ -8,7 +8,7 @@ import { queryKeys, type Transport } from '@porcelain/client/transport';
 import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
 import { Cause, Effect, Exit, Layer, Option, Stream } from 'effect';
 import { AsyncResult, Atom, AtomRegistry, Reactivity } from 'effect/reactivity';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { clientFixtures } from '../../../../spec/kit/client-fixture.ts';
 import { holdFirstRead } from '../../../../spec/kit/held-transport.ts';
 import { readInventories, readInventory } from './inventory.ts';

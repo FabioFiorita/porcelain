@@ -21,8 +21,12 @@ selectors:
   - 'Next step'
   - 'See the lines'
   - 'Back to step'
+  - 'Enlarge before screenshot'
+  - 'Enlarge after screenshot'
+  - 'More checks on the pull request'
 tests:
   - apps/web/spec/integration/walkthroughs-page.test.tsx
+  - apps/web/spec/integration/walkthrough-blocks.test.tsx
   - apps/web/spec/integration/walkthrough-writer-availability.test.tsx
   - apps/web/spec/integration/walkthrough-conversations.test.tsx
   - apps/server/spec/integration/walkthroughs-fake-writer.integration.ts
@@ -43,8 +47,10 @@ Every worktree opens on its review: the document tab "Review", pinned at the lef
 - Without a run, Review shows the one line "No walkthrough yet." with one action, "Write walkthrough", above group "Code: Every changed file" (regions "Every changed file: branch" and "Every changed file: uncommitted"). While writing or after a failure, the status or failure sits above the same code. The same line names the base and the effective project/default writer ("Since main · Claude / Opus 5.5 · high"). With no available coding CLI the line says to sign in to Claude Code or Codex and its one action is Check writers again; an unavailable chosen writer offers Project walkthrough settings (or the Settings link) instead of Write walkthrough. A missing saved project writer is never replaced with the default.
 - A worktree with no change since the base and no run shows the one line "No changes to review." with one Files button in Review. A branch with no commits yet shows its local files with no comparison error.
 - Review reads quietly: local files show without waiting for the branch comparison, code already shown stays while a newer patch is read, and no loading words or placeholders appear inside it (the writer's status stays). Each Uncommitted section shows its first 25 files, then "Read N more of <total files>". While another tab is shown, Review keeps its place but reads no patches; it catches up when shown again.
+- Each step draws its blocks in the writer's order between its explanation and its code: an excerpt as "See the lines" beside its `path · New line N`; a before/after pair as two thumbnails captioned "Before …" and "After …" (buttons "Enlarge before screenshot" / "Enlarge after screenshot"); files as list "Files", one button per file with the writer's note, opening the file; checks as region "Checks passing at <sha>" (failing, running) with one row per check and "More checks on the pull request" when GitHub listed more. Callouts stay in the calls section with their comparison as a two-column table. A step without evidence shows none.
 - Each step shows group "Code: Step N" under its prose: region "Step N: branch" for its committed files and "Step N: uncommitted" for its local edits, each diff rendered with Pierre; then textbox "Ask about this step". A file cited by two steps appears in both. Changed files no step cites appear under heading "Not covered by the steps" at the end (regions "Not covered by the steps: branch" / "…: uncommitted"); the heading is absent when every file is in a step.
-- "See the lines" opens the first qualified excerpt on the first eligible step with a call, or the first eligible step when there is no such call. The Captured diff dialog selects the saved path, side and line range in its matching snapshot hunk. If the work changes, opening the saved run still shows its saved lines. "Back to step" and Escape return focus to the action. When the hunk is unavailable, "Open step code" opens the current comparison.
+- Type a question in a step that also has a call card. Its call card, the other steps and a second worktree's Walkthrough each have their own drafts. Return to the original step and confirm its unsent text stays there. Switch branches in the same worktree and confirm a same-titled step starts empty. Return to the original branch and update the Walkthrough. The draft remains if the step keeps its title.
+- Every excerpt block has its own "See the lines". Its Captured diff dialog selects the saved path, side and line range in that block's snapshot hunk, read by its position in the step. If the work changes, opening the saved run still shows its saved lines. "Back to step" and Escape return focus to the action. When the hunk is unavailable, "Open step code" opens the current comparison.
 - The Changes panel's "By step" rows still open document "Step N" (`entry=walkthrough-step:N`) after Review: it selects the comparisons containing the step's files, with one Reviewed toggle for the step and buttons "Previous step" and "Next step" in its header row. Its "All changes" row opens the uncommitted file table ("All changes", `entry=all-changes`).
 - Changes panel on a walkthrough worktree opens by default, on Uncommitted when there are local files and no committed files, otherwise Branch (an explicit tab choice wins): "All changes" with its count, "By step" with file counts and a "Your call" dot; under Uncommitted, empty step groups and their "By step" heading are hidden and files the walkthrough never read are under "Not in the walkthrough yet".
 
@@ -52,7 +58,7 @@ Every worktree opens on its review: the document tab "Review", pinned at the lef
 
 Preconditions: [surface baseline](README.md), started with `$C start --coding-tool`, which installs the fake writer. The fake answers from a scenario file in the repository's Git directory: no file writes a ready walkthrough; `hold` waits until the file changes; `signed-out` fails signed out; `nothing` writes the short page.
 
-For a ready synthetic page without running the fake writer, start with `$C start --walkthrough-sample` and open the initial worktree. Expect one call, two steps, "How the system grew" and "What the code doesn't say". Follow the call to Step 1, then open "See the lines". Expect `src/search.ts` · New line 2 with the title-matching rule selected. Click "Back to step" and confirm the original step stays in view.
+For a ready synthetic page without running the fake writer, start with `$C start --walkthrough-sample` and open the initial worktree. Expect one call with a two-column comparison, two steps, "How the system grew" and "What the code doesn't say"; Step 2 shows its file, "Checks passing at <sha>" and a before/after pair. Follow the call to Step 1, then open "See the lines". Expect `src/search.ts` · New line 2 with the title-matching rule selected. Click "Back to step" and confirm the original step stays in view.
 
 ### Setup
 
@@ -113,6 +119,8 @@ Conversation browser proof: `apps/web/spec/integration/walkthrough-conversations
 13. After a later walkthrough has outcome `nothing`, retained threads still appear under "Earlier comments" with Undo, copy/post controls and the saved bar. A posted link always labels its original comment destination, even when the current walkthrough names another PR; an unrecognized URL reads "Posted comment".
 
 14. With two ready walkthroughs on different branches in one checkout, read A’s comment and switch to B. B’s heading, comments and saved bar must name B; A’s comments disappear. Every conversation request includes the displayed ready run ID, so a pending A post remains targeted to A even if the branch switches.
+
+15. Reject the send request using [failure injection](../references/failure-injection.md). Switch worktrees and return. The draft and send error stay together. Editing the text or displaying a new revision clears the error. Send again and confirm the draft clears on success.
 
 ### Pull request evidence at another commit
 

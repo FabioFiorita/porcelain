@@ -4,7 +4,7 @@ import {
   listAccessResponseSchema,
   setDeviceTrustResponseSchema,
 } from '@porcelain/contracts/access';
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import { apiError, invalidRequest } from '../kit/answers.ts';
 import { pairDevice, read, owner } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';

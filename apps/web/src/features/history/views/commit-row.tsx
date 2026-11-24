@@ -177,10 +177,10 @@ export function CommitRow({
           </>
         )}
       </ContextMenuTrigger>
-      <ContextMenuContent finalFocus={!openingSide}>
+      <ContextMenuContent finalFocus={openingSide ? 'none' : 'trigger'}>
         {openToSide && (
           <ContextMenuItem
-            onClick={() => {
+            onSelect={() => {
               flushSync(() => setOpeningSide(true));
               openToSide.open();
             }}
@@ -189,12 +189,12 @@ export function CommitRow({
             {openToSide.label}
           </ContextMenuItem>
         )}
-        <ContextMenuItem onClick={() => copyText(commit.oid, 'commit id')}>
+        <ContextMenuItem onSelect={() => copyText(commit.oid, 'commit id')}>
           <CopyIcon />
           Copy commit id
         </ContextMenuItem>
         <ContextMenuItem
-          onClick={() => copyText(commitMessage(commit), 'commit message')}
+          onSelect={() => copyText(commitMessage(commit), 'commit message')}
         >
           <CopyIcon />
           Copy message

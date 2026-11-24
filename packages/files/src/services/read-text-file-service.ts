@@ -1,13 +1,13 @@
+import { fileFailure } from './file-failure.ts';
 import { ReadTextFileOptions } from '../ports/read-text-file-options.ts';
 import { type WorktreeRead } from '@porcelain/effects/worktree';
 import { sha256Hex, utf8ByteLength } from '@porcelain/kernel/rules';
 import { Effect, Context, Layer } from 'effect';
-import { ContentChangedError } from '../errors/content-changed-error.ts';
+import type { ContentChangedError } from '../errors/content-changed-error.ts';
 import { FileTooLargeError } from '../errors/file-too-large-error.ts';
-import { PathNotFoundError } from '../errors/path-not-found-error.ts';
-import { PathNotReadableError } from '../errors/path-not-readable-error.ts';
-import { UnsupportedTextError } from '../errors/unsupported-text-error.ts';
-import { type TextFailure } from '../models/file-failure.ts';
+import type { PathNotFoundError } from '../errors/path-not-found-error.ts';
+import type { PathNotReadableError } from '../errors/path-not-readable-error.ts';
+import type { UnsupportedTextError } from '../errors/unsupported-text-error.ts';
 import {
   type ReadTextFileInput,
   type ReadTextFileResult,
@@ -37,18 +37,6 @@ export class ReadTextFileService extends Context.Service<
       const fileReaderCapability = yield* FileReader;
       const headTextReaderCapability = yield* HeadTextReader;
       const optionsCapability = yield* ReadTextFileOptions;
-      function operationFailure(failure: TextFailure): TextFailureError {
-        switch (failure) {
-          case 'missing':
-            return new PathNotFoundError();
-          case 'unreadable':
-            return new PathNotReadableError();
-          case 'changed':
-            return new ContentChangedError();
-          case 'unsupported-text':
-            return new UnsupportedTextError();
-        }
-      }
       return {
         execute: Effect.fn('ReadTextFileService.execute')(function* (
           input: ReadTextFileInput,
@@ -67,7 +55,7 @@ export class ReadTextFileService extends Context.Service<
             maxBytes: optionsCapability.maxBytes,
           });
           if (read.kind === 'failed')
-            return yield* Effect.fail(operationFailure(read.failure));
+            return yield* Effect.fail(fileFailure[read.failure]());
           if (read.kind === 'too-large') return yield* new FileTooLargeError();
           const answer: Omit<ReadTextFileResult, 'contentFingerprint'> = {
             worktreeId: input.worktreeId,

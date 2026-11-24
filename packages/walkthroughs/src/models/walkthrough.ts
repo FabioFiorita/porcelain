@@ -1,4 +1,9 @@
 import { Schema } from 'effect';
+import {
+  walkthroughBlockSchema,
+  type WalkthroughChecks,
+  type WalkthroughBlockRequest,
+} from './blocks.ts';
 
 export const claudeEffortSchema = Schema.Literals([
   'low',
@@ -61,45 +66,18 @@ export const walkthroughContentSchema = Schema.Struct({
       note: Schema.String,
     }),
   ),
+  version: Schema.Literal(1),
   stops: Schema.Array(
     Schema.Struct({
       title: Schema.String,
       explanation: Schema.String,
-      attention: Schema.optional(
-        Schema.Struct({
-          kind: Schema.Literals([
-            'tradeoff',
-            'contract',
-            'product',
-            'risk',
-            'accessibility',
-          ]),
-          note: Schema.String,
-          question: Schema.String,
-        }),
-      ),
-      excerpts: Schema.Array(
-        Schema.Struct({
-          path: Schema.String,
-          side: Schema.Literals(['new', 'old']),
-          start: Schema.Int,
-          end: Schema.Int,
-          caption: Schema.String,
-        }),
-      ),
-      evidence: Schema.Array(
-        Schema.Struct({ assetId: Schema.String, shows: Schema.String }),
-      ),
-      files: Schema.Array(
-        Schema.Struct({ path: Schema.String, note: Schema.String }),
-      ),
+      blocks: Schema.Array(walkthroughBlockSchema),
     }),
   ),
   onlyInTranscript: Schema.Array(
     Schema.Struct({ point: Schema.String, answer: Schema.String }),
   ),
   stillUnclear: Schema.Array(Schema.String),
-  checks: Schema.optional(Schema.String),
 });
 const walkthroughStageSchema = Schema.Literals([
   'queued',
@@ -162,6 +140,13 @@ export const walkthroughRunSchema = Schema.Struct({
 export type WalkthroughRun = typeof walkthroughRunSchema.Type;
 export type WalkthroughFailure = typeof walkthroughFailureSchema.Type;
 export type WalkthroughContent = typeof walkthroughContentSchema.Type;
+export type WalkthroughDraft = Omit<WalkthroughContent, 'stops'> & {
+  readonly stops: readonly {
+    readonly title: string;
+    readonly explanation: string;
+    readonly blocks: readonly WalkthroughBlockRequest[];
+  }[];
+};
 export type DiffFile = {
   readonly path: string;
   readonly oldPath?: string | undefined;
@@ -209,7 +194,7 @@ export type WalkthroughEvidence = {
   readonly unavailable?: WalkthroughRun['evidenceUnavailable'];
   readonly title: string;
   readonly body: string;
-  readonly checks: WalkthroughContent['checks'];
+  readonly checks: WalkthroughChecks | undefined;
   readonly assets: readonly EvidenceAsset[];
 };
 

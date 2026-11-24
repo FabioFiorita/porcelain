@@ -3,7 +3,7 @@ import { Schema } from 'effect';
 import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { TestProject } from 'vitest/node';
+import type { TestProject } from 'vite-plus/test/node';
 import { temporaryServerBuild } from './sandbox.ts';
 import { routeCoverage, handlerCoverage } from './route-coverage.ts';
 const integrationFolder = resolve(

@@ -1,3 +1,4 @@
+import { decorateRequest } from '../decorate-request.ts';
 import { handlerAudit } from '../diagnostics.ts';
 import {
   Layer,
@@ -7,13 +8,11 @@ import {
   Schema,
   Semaphore,
   Stream,
-  Inspectable,
 } from 'effect';
 import {
   HttpRouter,
   HttpServerRequest,
   HttpServerResponse,
-  HttpIncomingMessage,
   Headers,
 } from 'effect/http';
 import { Socket } from 'effect/socket';
@@ -168,33 +167,11 @@ function openedRequest(
   request: HttpServerRequest.HttpServerRequest,
   socket: Socket.Socket,
 ): HttpServerRequest.HttpServerRequest {
-  return HttpServerRequest.HttpServerRequest.of({
-    [HttpServerRequest.TypeId]: HttpServerRequest.TypeId,
-    [HttpIncomingMessage.TypeId]: HttpIncomingMessage.TypeId,
-    source: request.source,
-    url: request.url,
-    originalUrl: request.originalUrl,
-    method: request.method,
-    headers: request.headers,
-    cookies: request.cookies,
-    remoteAddress: request.remoteAddress,
-    peerAddress: request.peerAddress,
-    protocol: request.protocol,
+  return decorateRequest(request, (current) => ({
     upgrade: Effect.succeed(socket),
     upgradeWith: (options) =>
       Object.keys(Headers.fromInput(options.headers)).length === 0
         ? Effect.succeed(socket)
-        : request.upgradeWith(options),
-    text: request.text,
-    json: request.json,
-    urlParamsBody: request.urlParamsBody,
-    arrayBuffer: request.arrayBuffer,
-    stream: request.stream,
-    multipart: request.multipart,
-    multipartStream: request.multipartStream,
-    modify: (options) => openedRequest(request.modify(options), socket),
-    toJSON: () => request.toJSON(),
-    toString: () => request.toString(),
-    [Inspectable.NodeInspectSymbol]: () => request.toJSON(),
-  });
+        : current.upgradeWith(options),
+  }));
 }

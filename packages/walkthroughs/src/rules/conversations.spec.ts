@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import type { WalkthroughRun } from '../models/walkthrough.ts';
 import type { StoredWalkthroughMessage } from '../models/conversation.ts';
 import { composeBrief, conversationsView, planPost } from './conversations.ts';
@@ -25,6 +25,7 @@ const run = (
     writtenAt: '2026-11-09T00:00:00.000Z',
     durationMs: 1,
     content: {
+      version: 1 as const,
       outcome: 'worth_knowing',
       title: 'Walkthrough',
       summary: 'A summary.',
@@ -32,11 +33,19 @@ const run = (
       stops: titles.map((title) => ({
         title,
         explanation: 'Why.',
-        excerpts: [
-          { path: 'src/a.ts', side: 'new', start: 1, end: 3, caption: 'a' },
+        blocks: [
+          {
+            kind: 'diff_excerpt',
+            contentTreeOid: 'tree',
+            headOid: 'head',
+            path: 'src/a.ts',
+            side: 'new',
+            start: 1,
+            end: 3,
+            caption: 'a',
+          },
+          { kind: 'files', files: [{ path: 'src/b.ts', note: 'b' }] },
         ],
-        evidence: [],
-        files: [{ path: 'src/b.ts', note: 'b' }],
       })),
       onlyInTranscript: [],
       stillUnclear: [],

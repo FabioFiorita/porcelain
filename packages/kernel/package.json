@@ -5,6 +5,7 @@
   "exports": {
     "./models": "./src/models/index.ts",
     "./ports": "./src/ports/index.ts",
+    "./relative-path": "./src/rules/relative-path.ts",
     "./rules": "./src/rules/index.ts",
     "./errors": "./src/errors/index.ts",
     "./fakes": "./spec/fakes/index.ts",

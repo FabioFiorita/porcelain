@@ -1,4 +1,4 @@
-import { userEvent } from 'vitest/browser';
+import { userEvent } from 'vite-plus/test/browser';
 import { expect, test, type Render, type Repo } from './fixtures.tsx';
 
 const target = 'quick-target.md';
@@ -357,4 +357,68 @@ test('empty quick open lists open file tabs by activation then deduplicated pinn
   await expect.element(options.nth(3)).not.toBeInTheDocument();
   await expect.poll(() => reads.paths).toEqual([]);
   await userEvent.keyboard('{Escape}');
+});
+
+test('a press outside the Files sheet closes it while quick open is still leaving', async ({
+  render,
+  repo,
+  reviewLayout,
+}) => {
+  const opened = await openFiles(render, repo);
+  const sheet = opened.getByRole('dialog', {
+    name: 'Worktree review',
+    exact: true,
+  });
+  await userEvent.keyboard('{ControlOrMeta>}p{/ControlOrMeta}');
+  const quickOpen = opened.getByRole('dialog', {
+    name: 'Find a file',
+    exact: true,
+  });
+  await expect
+    .element(
+      opened.getByRole('combobox', {
+        name: 'Find a file by name',
+        exact: true,
+      }),
+    )
+    .toHaveFocus();
+  const release = reviewLayout.holdDialogExit(quickOpen);
+  try {
+    await userEvent.keyboard('{Escape}');
+    await expect.element(quickOpen).toHaveAttribute('data-ending-style');
+    await reviewLayout.pressPageCorner();
+    await expect.element(sheet).not.toBeInTheDocument();
+  } finally {
+    release();
+  }
+});
+
+test('quick open moves through results with Ctrl+J/K and Ctrl+N/P', async ({
+  render,
+  repo,
+}) => {
+  await repo.write('alpha-note.md', '# Alpha\n');
+  await repo.write('beta-note.md', '# Beta\n');
+  await repo.write('gamma-note.md', '# Gamma\n');
+  const page = await render.workspace();
+  await userEvent.keyboard('{ControlOrMeta>}p{/ControlOrMeta}');
+  await page
+    .getByRole('combobox', { name: 'Find a file by name', exact: true })
+    .fill('-note.md');
+  const options = page.getByRole('option');
+  await expect.element(options.nth(2)).toBeVisible();
+  const highlighted = (index: number) =>
+    expect.element(options.nth(index)).toHaveAttribute('aria-selected', 'true');
+  await highlighted(0);
+  await userEvent.keyboard('{Control>}j{/Control}');
+  await highlighted(1);
+  await userEvent.keyboard('{Control>}n{/Control}');
+  await highlighted(2);
+  await userEvent.keyboard('{Control>}k{/Control}');
+  await highlighted(1);
+  await userEvent.keyboard('{Control>}p{/Control}');
+  await highlighted(0);
+  await expect
+    .element(page.getByRole('dialog', { name: 'Find a file', exact: true }))
+    .toBeVisible();
 });

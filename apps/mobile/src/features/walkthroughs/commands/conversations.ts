@@ -1,25 +1,26 @@
 import { useState } from 'react';
-import { useAtom } from '@effect/atom-react';
+import { useAtom, useAtomSet } from '@effect/atom-react';
 import type { Atom } from 'effect/reactivity';
 import {
   walkthroughCommandBinding,
   walkthroughConversationCommands,
+  walkthroughDraft,
+  walkthroughDraftBinding,
+  type WalkthroughDraftPlacement,
 } from '@porcelain/client/walkthroughs';
 import {
   conversationFailure,
   postOutcome,
   type DeveloperMessage,
 } from '@porcelain/client/walkthroughs/rules';
+import { notify as notifyCommand } from '../../../shared/application/notify';
 import { copyToClipboard } from '../../../shared/adapters/clipboard';
 import {
   conversationSelection,
   type ConversationOwner,
 } from '../queries/conversations';
-import {
-  copiedNotice,
-  stillSavedNotice,
-  type PostNotice,
-} from '../rules/post-notice';
+import { stillSavedNotice, type PostNotice } from '../rules/post-notice';
+import { useWriteAllowed } from '../../access';
 
 function useBound<I, A, E>(command: Atom.AtomResultFn<I, A, E>) {
   return walkthroughCommandBinding(useAtom(command, { mode: 'promiseExit' }));
@@ -34,16 +35,18 @@ export function usePostActions(
   message: DeveloperMessage | undefined,
 ) {
   const commands = commandsOf(owner);
+  const notify = useAtomSet(notifyCommand);
   const postOne = useBound(commands.postMessage);
   const postSaved = useBound(commands.postSavedMessages);
   const saving = useBound(commands.saveMessage);
   const brief = useBound(commands.readBrief);
   const [notice, setNotice] = useState<PostNotice>();
+  const allowed = useWriteAllowed(owner.workspace.connection.environmentId);
   const fail = (error: unknown) => setNotice(conversationFailure(error));
   const toClipboard = (text: string) =>
     copyToClipboard(text).then(
-      () => setNotice(copiedNotice(true)),
-      () => setNotice(copiedNotice(false)),
+      () => notify({ kind: 'copy', target: 'brief' }),
+      () => setNotice({ text: 'Could not copy the brief.', copy: false }),
     );
   return {
     notice,
@@ -57,10 +60,12 @@ export function usePostActions(
         .catch(fail);
     },
     save: (saved: boolean) => {
+      if (!allowed()) return;
       setNotice(undefined);
       if (message) saving.run({ messageId: message.id, saved }).catch(fail);
     },
     post: () => {
+      if (!allowed()) return;
       setNotice(undefined);
       (message ? postOne.run(message.id) : postSaved.run(undefined))
         .then((answer) => {
@@ -78,10 +83,12 @@ export function usePostActions(
 export function useAnswerRetry(owner: ConversationOwner) {
   const retry = useBound(commandsOf(owner).retryAnswer);
   const [failure, setFailure] = useState<string>();
+  const allowed = useWriteAllowed(owner.workspace.connection.environmentId);
   return {
     failure,
     waiting: retry.waiting,
     retry: (messageId: string) => {
+      if (!allowed()) return;
       setFailure(undefined);
       retry
         .run(messageId)
@@ -90,18 +97,22 @@ export function useAnswerRetry(owner: ConversationOwner) {
   };
 }
 
-export function useAsk(owner: ConversationOwner, title: string) {
-  const add = useBound(commandsOf(owner).addMessage);
-  const [failure, setFailure] = useState<string>();
+export function useAsk(
+  owner: ConversationOwner,
+  title: string,
+  placement: WalkthroughDraftPlacement,
+) {
+  const selection = conversationSelection(owner);
+  const allowed = useWriteAllowed(owner.workspace.connection.environmentId);
+  const binding = walkthroughDraftBinding(
+    useAtom(walkthroughDraft(selection, owner.run, title, placement)),
+    useBound(walkthroughConversationCommands(selection).addMessage),
+    { runId: selection.runId, title },
+  );
   return {
-    failure,
-    waiting: add.waiting,
-    ask: (text: string, sent: () => void) => {
-      setFailure(undefined);
-      add
-        .run({ anchor: { kind: 'stop', title }, text })
-        .then(sent)
-        .catch((error: unknown) => setFailure(conversationFailure(error).text));
+    ...binding,
+    send: () => {
+      if (allowed()) binding.send();
     },
   };
 }

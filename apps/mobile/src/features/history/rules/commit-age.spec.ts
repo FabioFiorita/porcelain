@@ -1,5 +1,5 @@
 import { DateTime } from 'effect';
-import { expect, test } from 'vitest';
+import { expect, test } from 'vite-plus/test';
 import { commitAge } from './commit-age';
 
 const now = DateTime.makeUnsafe('2026-11-01T12:00:00Z');

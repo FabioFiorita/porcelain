@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import { API, type Project } from 'typescript/sync';
+import type { Project } from 'typescript/sync';
 import {
   SyntaxKind,
   type MethodSignatureDeclaration,
@@ -24,6 +24,11 @@ import {
   isVariableDeclaration,
 } from 'typescript/ast/is';
 import { domainPackages, type ArchRule } from './policy.ts';
+import {
+  descendants,
+  readTypeScriptProjects,
+  sourceLocation,
+} from './typescript-project.ts';
 
 export type TypeFinding = { rule: ArchRule; from: string; to: string };
 
@@ -59,7 +64,6 @@ const tableLanes: Readonly<
   PairingGrantStore: { any: ['access'] },
   EnvironmentLabelStore: { any: ['access'] },
   ReviewGitSettingsStore: { any: ['access'] },
-  PushRegistrationStore: { any: ['access'] },
   RemoteAccessStore: { any: ['remoteAccess'] },
   DeviceSightingStore: { any: ['access'] },
   PairingAttemptStore: { any: ['access'] },
@@ -92,27 +96,8 @@ type Lane =
   | 'none'
   | 'unknown';
 
-function children(node: Node): Node[] {
-  const result: Node[] = [];
-  node.forEachChild((child) => {
-    result.push(child);
-    return undefined;
-  });
-  return result;
-}
-
-function descendants(node: Node): Node[] {
-  return children(node).flatMap((child) => [child, ...descendants(child)]);
-}
-
 function isSpecFile(file: SourceFile): boolean {
   return file.fileName.endsWith('.spec.ts');
-}
-
-function where(root: string, node: Node): string {
-  const file = node.getSourceFile();
-  const { line } = file.getLineAndCharacterOfPosition(node.getStart(file));
-  return `${file.fileName.slice(root.length + 1)}:${line + 1}`;
 }
 
 function executeMethods(file: SourceFile) {
@@ -428,7 +413,7 @@ function tableFindings(
       )
       .map((site) => ({
         rule: 'lane-per-table',
-        from: where(root, call),
+        from: sourceLocation(root, call),
         to: `${field} calls ${store}.${method}; that table belongs to the ${allowed.join(' or ')} lane, so run it inside lanes.run(this.laneKeys.${allowed[0] ?? ''}(...)), not ${site.keys[0] === 'none' ? 'outside any lane' : `the ${site.keys.join(' or ')} lane`}`,
       })),
   );
@@ -445,7 +430,7 @@ function storeLaneFindings(root: string, file: SourceFile): TypeFinding[] {
     return [
       {
         rule: 'lane-per-table',
-        from: where(root, node),
+        from: sourceLocation(root, node),
         to: `${node.name.text} has no tableLanes entry; name the lane that owns its table so its calls cannot race writes`,
       },
     ];
@@ -491,7 +476,7 @@ function laneFindings(
     if (wrong.length > 0)
       result.push({
         rule: 'lane-mode-matches-service',
-        from: where(root, node),
+        from: sourceLocation(root, node),
         to: `${field} writes; call it inside a 'write' lane, lanes.background or the shutdown context lanes.finish, never in ${[...new Set(wrong)].join(' or ')} lane, because a read lane cannot serialize a service that writes`,
       });
   }
@@ -549,7 +534,7 @@ function worktreeCheckFindings(
     return [
       {
         rule: 'worktree-use-case-checks',
-        from: where(root, execute),
+        from: sourceLocation(root, execute),
         to: `${name} takes a worktreeId; resolve it with this.checkWorktree.execute before using it, or hand it to a use case that does, because the catalog must resolve the worktree before its files are accessed`,
       },
     ];
@@ -557,44 +542,36 @@ function worktreeCheckFindings(
 }
 
 export function typeRuleFindings(root: string): TypeFinding[] {
-  const api = new API({ cwd: root });
-  try {
-    const configs = [
-      ...[...domainPackages, 'kernel'].map((name) =>
-        join(root, 'packages', name, 'tsconfig.json'),
-      ),
-      join(root, 'apps/server/tsconfig.json'),
-    ];
-    const snapshot = api.createSnapshot({ openProjects: configs });
+  const configs = [
+    ...[...domainPackages, 'kernel'].map((name) =>
+      join(root, 'packages', name, 'tsconfig.json'),
+    ),
+    join(root, 'apps/server/tsconfig.json'),
+  ];
+  const checked = new Set<string>();
+  const writerCache = new Map<Node, boolean>();
+  return readTypeScriptProjects(root, configs, (project, config) => {
     const findings: TypeFinding[] = [];
-    const checked = new Set<string>();
-    const writerCache = new Map<Node, boolean>();
-    for (const config of configs) {
-      const project = snapshot.getConfiguredProject(config);
-      if (!project) throw new Error(`TypeScript did not open ${config}`);
-      for (const name of project.program.getSourceFileNames()) {
-        if (!name.startsWith(root) || name.includes('/node_modules/')) continue;
-        const inServer = config.endsWith('apps/server/tsconfig.json');
-        if (!inServer && checked.has(name)) continue;
-        const file = project.program.getSourceFile(name);
-        if (!file || isSpecFile(file)) continue;
-        if (storePortFile.test(name) && !checked.has(name))
-          findings.push(...storeLaneFindings(root, file));
-        if (inServer) {
-          if (workflowFile.test(name))
-            findings.push(...laneFindings(root, project, file, writerCache));
-          if (useCaseFile.test(name))
-            findings.push(
-              ...laneFindings(root, project, file, writerCache),
-              ...worktreeCheckFindings(root, project, file),
-            );
-          continue;
-        }
-        checked.add(name);
+    const inServer = config.endsWith('apps/server/tsconfig.json');
+    for (const name of project.program.getSourceFileNames()) {
+      if (!name.startsWith(root) || name.includes('/node_modules/')) continue;
+      if (!inServer && checked.has(name)) continue;
+      const file = project.program.getSourceFile(name);
+      if (!file || isSpecFile(file)) continue;
+      if (storePortFile.test(name) && !checked.has(name))
+        findings.push(...storeLaneFindings(root, file));
+      if (inServer) {
+        if (workflowFile.test(name))
+          findings.push(...laneFindings(root, project, file, writerCache));
+        if (useCaseFile.test(name))
+          findings.push(
+            ...laneFindings(root, project, file, writerCache),
+            ...worktreeCheckFindings(root, project, file),
+          );
+        continue;
       }
+      checked.add(name);
     }
     return findings;
-  } finally {
-    api.close();
-  }
+  });
 }

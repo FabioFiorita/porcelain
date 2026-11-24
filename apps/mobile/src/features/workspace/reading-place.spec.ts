@@ -3,7 +3,7 @@ import {
   documentReadingLine,
   documentReadingStart,
 } from '../../shared/application/document-reading';
-import { expect, test } from 'vitest';
+import { expect, test } from 'vite-plus/test';
 import { scheduledRegistry } from '../../../spec/kit/atom-registry';
 import {
   phoneReviewComparison,

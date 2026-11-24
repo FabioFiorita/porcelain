@@ -13,7 +13,7 @@ import {
   MissingUpstreamExpectationError,
 } from '@porcelain/git-actions/errors';
 import { type AcceptGitActionInput } from '@porcelain/git-actions/models';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import {
   CLEAN_EXPECTATION,
   PROJECT_ID,

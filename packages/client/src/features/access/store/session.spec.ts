@@ -1,7 +1,7 @@
 import { idleLiveConnectionInput } from '../../../../spec/kit/client-fixture.ts';
 import { Redacted, Effect, Layer, ManagedRuntime } from 'effect';
 import { SecureRandom } from 'effect/crypto';
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import {
   AccessSession,
   remoteConnectionsLayer,

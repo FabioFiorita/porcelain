@@ -114,8 +114,20 @@ function walkthroughContent(files: readonly string[], outcome: string) {
       stops: [],
       onlyInTranscript: [],
       stillUnclear: [],
-      checks: null,
     };
+  const groups =
+    outcome === 'grouped'
+      ? [files.slice(0, 2), ...files.slice(2).map((path) => [path])]
+      : files.map((path) => [path]);
+  const maxStops = 8;
+  const stops =
+    groups.length <= maxStops
+      ? groups
+      : [
+          ...groups.slice(0, maxStops - 2),
+          groups.slice(maxStops - 2, -1).flat(),
+          ...groups.slice(-1),
+        ];
   return {
     outcome: 'needs_you',
     title: 'Teach the sample to explain itself',
@@ -128,24 +140,27 @@ function walkthroughContent(files: readonly string[], outcome: string) {
       { change: 'added', what: 'Glossary', note: 'Terms live in one place.' },
       { change: 'added', what: 'Changelog', note: 'Kept by hand for now.' },
     ],
-    stops: (outcome === 'grouped'
-      ? [files.slice(0, 2), ...files.slice(2).map((path) => [path])]
-      : files.map((path) => [path])
-    ).map((paths, index) => ({
+    stops: stops.map((paths, index) => ({
       title: `Step about \`${paths[0]}\``,
       explanation: 'A file changed here, and this explains why it did.',
-      attention:
-        index === 0
-          ? {
-              kind: 'product',
-              note: 'Either choice ships; only the owner can pick.',
-              question: 'Should `notes` stay in the sample?',
-            }
-          : null,
-      excerpts:
-        outcome.startsWith('line-excerpt') && paths[0] === 'renamed notes.txt'
+      blocks: [
+        ...(index === 0
           ? [
               {
+                kind: 'callout',
+                attention: {
+                  kind: 'product',
+                  note: 'Either choice ships; only the owner can pick.',
+                  question: 'Should `notes` stay in the sample?',
+                },
+              },
+            ]
+          : []),
+        ...(outcome.startsWith('line-excerpt') &&
+        paths[0] === 'renamed notes.txt'
+          ? [
+              {
+                kind: 'diff_excerpt',
                 path:
                   outcome === 'line-excerpt-old'
                     ? 'original notes.txt'
@@ -166,9 +181,12 @@ function walkthroughContent(files: readonly string[], outcome: string) {
                 caption: 'The local search rule',
               },
             ]
-          : [],
-      evidence: [],
-      files: paths.map((path) => ({ path, note: 'Changed' })),
+          : []),
+        {
+          kind: 'files',
+          files: paths.map((path) => ({ path, note: 'Changed' })),
+        },
+      ],
     })),
     onlyInTranscript: [
       { point: 'Why notes exist.', answer: 'The owner asked for them.' },
@@ -176,7 +194,6 @@ function walkthroughContent(files: readonly string[], outcome: string) {
       { point: 'Why now.', answer: 'A release needs them.' },
     ],
     stillUnclear: ['Whether the notes should move.', 'Who updates them.'],
-    checks: null,
   };
 }
 

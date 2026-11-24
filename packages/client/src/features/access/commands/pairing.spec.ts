@@ -1,6 +1,6 @@
 import { Cause, Effect, Exit, Redacted } from 'effect';
 import { Atom, AtomRegistry } from 'effect/reactivity';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vite-plus/test';
 import { ENVIRONMENT_PROTOCOL } from '@porcelain/contracts/shared';
 import { pairBrowserSession, pairEnvironment } from './pairing.ts';
 import {

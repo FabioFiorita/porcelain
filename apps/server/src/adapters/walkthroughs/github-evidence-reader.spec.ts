@@ -1,13 +1,10 @@
 import { GitHubReadError } from '@porcelain/reviews/errors';
 import type { githubPullRequestSchema } from '@porcelain/reviews/models';
-import { expect, it } from 'vitest';
-import { NodeServices } from '@effect/platform-node';
+import { expect, it } from 'vite-plus/test';
 import { Effect, Layer } from 'effect';
 import { FetchHttpClient } from 'effect/http';
 import { GitHubReader, GitHubAccountStore } from '@porcelain/reviews/ports';
 import { EvidenceReader } from '@porcelain/walkthroughs/ports';
-import type { WalkthroughJob } from '@porcelain/walkthroughs/models';
-import { LIMITS } from '../../config/limits.ts';
 import { githubEvidenceReaderLayer } from './github-evidence-reader.ts';
 
 const source =
@@ -15,27 +12,13 @@ const source =
 const image =
   'https://github-production-user-asset-6210df.s3.amazonaws.com/49520710/699206213-f52cbae9-dae7-4fa4-8905-9ef69d8718c0.png?X-Amz-Signature=fixture';
 const bytes = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
-const job: WalkthroughJob = {
-  run: {
-    id: 'run',
-    projectId: 'project',
-    worktreeId: 'worktree',
-    pullRequestNumber: 702,
-    baseOid: 'a'.repeat(40),
-    baseRef: 'refs/heads/main',
-    contentTreeOid: 'a'.repeat(40),
-    includesUncommitted: true,
-    headOid: 'b'.repeat(40),
-    writer: { provider: 'claude', model: 'claude-opus-5-5', effort: 'high' },
-    sessionId: undefined,
-    createdAt: '2026-11-09T00:00:00Z',
-    state: { status: 'running' },
-  },
-  worktreePath: '/unused',
-  patch: '',
-  files: [],
+const target = {
+  projectId: 'project',
+  number: 702,
+  headOid: 'b'.repeat(40),
+  repository: { owner: 'example', repo: 'porcelain' },
 };
-const github = Layer.succeed(GitHubReader, {
+const githubReader = GitHubReader.of({
   accounts: () => Effect.succeed(['fixture']),
   canRead: () => Effect.succeed(true),
   checks: () => Effect.die('Unexpected checks read'),
@@ -61,7 +44,8 @@ const github = Layer.succeed(GitHubReader, {
       reviews: { nodes: [], pageInfo: { hasNextPage: false } },
     }),
 });
-const accounts = Layer.succeed(GitHubAccountStore, {
+const github = Layer.succeed(GitHubReader, githubReader);
+const accountStore = GitHubAccountStore.of({
   read: () =>
     Effect.succeed({
       repository: 'example/porcelain',
@@ -71,20 +55,77 @@ const accounts = Layer.succeed(GitHubAccountStore, {
   detect: () => Effect.void,
   override: () => Effect.void,
 });
-const readEvidence = (fetch: typeof globalThis.fetch) =>
+const accounts = Layer.succeed(GitHubAccountStore, accountStore);
+const readEvidence = (
+  fetch: typeof globalThis.fetch,
+  input = target,
+  readerLayer = github,
+  accountsLayer = accounts,
+) =>
   Effect.gen(function* () {
     const reader = yield* EvidenceReader;
-    return yield* reader.read(job);
+    return yield* reader.read(input);
   }).pipe(
     Effect.provide(
-      githubEvidenceReaderLayer(LIMITS.git).pipe(
-        Layer.provide(Layer.mergeAll(NodeServices.layer, github, accounts)),
+      githubEvidenceReaderLayer.pipe(
+        Layer.provide(Layer.mergeAll(readerLayer, accountsLayer)),
         Layer.provide(Layer.succeed(FetchHttpClient.Fetch, fetch)),
       ),
     ),
   );
 
-it('attaches PR evidence with a matching head even when the captured change includes uncommitted work', async () => {
+it.each(['unreadable', 'rate-limited'] as const)(
+  'reads evidence from the captured repository when the other repository has the same head and the first account is %s',
+  async (firstAccount) => {
+    const reads: Array<{
+      owner: string;
+      repo: string;
+      number: number;
+      account: string;
+    }> = [];
+    const readerLayer = Layer.succeed(GitHubReader, {
+      ...githubReader,
+      accounts: () => Effect.succeed(['fixture', 'second']),
+      canRead: ({ owner, repo, account }) =>
+        account === 'fixture' && firstAccount === 'rate-limited'
+          ? Effect.fail(new GitHubReadError({ reason: 'rate-limited' }))
+          : Effect.succeed(
+              owner === 'captured' &&
+                repo === 'original' &&
+                account === 'second',
+            ),
+      read: (input) => {
+        reads.push(input);
+        return githubReader.read(input).pipe(
+          Effect.map((pr) => ({
+            ...pr,
+            title: `${input.owner}/${input.repo}`,
+            bodyHTML: undefined,
+          })),
+        );
+      },
+    });
+    const captured = {
+      ...target,
+      repository: { owner: 'captured', repo: 'original' },
+    };
+    const evidence = await Effect.runPromise(
+      readEvidence(
+        async () => {
+          throw new Error('Unexpected image request');
+        },
+        captured,
+        readerLayer,
+      ),
+    );
+    expect(evidence.title).toBe('captured/original');
+    expect(reads).toEqual([
+      { owner: 'captured', repo: 'original', number: 702, account: 'second' },
+    ]);
+  },
+);
+
+it('attaches PR evidence with a matching captured head', async () => {
   const requested: string[] = [];
   const redirects: (string | undefined)[] = [];
   const evidence = await Effect.runPromise(
@@ -157,26 +198,6 @@ it('stops a redirect loop after five redirects', async () => {
   expect(evidence.assets).toEqual([]);
 });
 
-const missingJob: WalkthroughJob = {
-  worktreePath: '/unused',
-  patch: '',
-  files: [],
-  run: {
-    id: 'run',
-    projectId: 'project',
-    worktreeId: 'worktree',
-    pullRequestNumber: 42,
-    baseOid: 'base',
-    headOid: 'local',
-    contentTreeOid: 'tree',
-    baseRef: 'main',
-    includesUncommitted: false,
-    writer: { provider: 'claude', model: 'claude-opus-5-5', effort: 'high' },
-    createdAt: '2026-11-10T00:00:00Z',
-    state: { status: 'queued' },
-  },
-};
-
 it('reads matching images and checks but never fetches images at another commit or without GitHub access', async () => {
   let head = 'local';
   let account: string | undefined = 'fixture';
@@ -208,7 +229,24 @@ it('reads matching images and checks but never fetches images at another commit 
           commit: {
             statusCheckRollup: {
               state: 'SUCCESS',
-              contexts: { nodes: [], pageInfo: { hasNextPage: false } },
+              contexts: {
+                nodes: [
+                  {
+                    __typename: 'CheckRun',
+                    name: 'Tests',
+                    status: 'COMPLETED',
+                    conclusion: 'SUCCESS',
+                    detailsUrl: null,
+                  },
+                  {
+                    __typename: 'StatusContext',
+                    context: 'Package',
+                    state: 'SUCCESS',
+                    targetUrl: null,
+                  },
+                ],
+                pageInfo: { hasNextPage: true },
+              },
             },
           },
         },
@@ -219,7 +257,6 @@ it('reads matching images and checks but never fetches images at another commit 
     reviews: { nodes: [], pageInfo: { hasNextPage: false } },
   };
   const dependencies = Layer.mergeAll(
-    NodeServices.layer,
     Layer.succeed(FetchHttpClient.Fetch, fetchImage),
     Layer.succeed(GitHubAccountStore, {
       read: () =>
@@ -232,7 +269,7 @@ it('reads matching images and checks but never fetches images at another commit 
       override: () => Effect.void,
     }),
     Layer.succeed(GitHubReader, {
-      accounts: () => Effect.succeed([]),
+      accounts: () => Effect.succeed(account === undefined ? [] : [account]),
       canRead: () => Effect.succeed(true),
       read: () =>
         outage
@@ -245,17 +282,27 @@ it('reads matching images and checks but never fetches images at another commit 
   const read = () =>
     Effect.runPromise(
       Effect.gen(function* () {
-        return yield* (yield* EvidenceReader).read(missingJob);
+        return yield* (yield* EvidenceReader).read({
+          projectId: 'project',
+          number: 42,
+          headOid: 'local',
+          repository: { owner: 'o', repo: 'r' },
+        });
       }).pipe(
         Effect.provide(
-          githubEvidenceReaderLayer(LIMITS.git).pipe(
-            Layer.provide(dependencies),
-          ),
+          githubEvidenceReaderLayer.pipe(Layer.provide(dependencies)),
         ),
       ),
     );
   const matching = await read();
-  expect(matching.checks).toBe('SUCCESS: ');
+  expect(matching.checks).toEqual({
+    state: 'SUCCESS',
+    checksTruncated: true,
+    results: [
+      { name: 'Tests', status: 'SUCCESS' },
+      { name: 'Package', status: 'SUCCESS' },
+    ],
+  });
   expect(matching.assets[0]?.bytes).toEqual(Buffer.from([137, 80, 78, 71]));
   expect(fetched).toEqual([
     'https://github.com/user-attachments/assets/fixture',

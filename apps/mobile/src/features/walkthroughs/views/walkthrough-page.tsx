@@ -1,3 +1,13 @@
+import { useAtom, useAtomValue } from '@effect/atom-react';
+import {
+  readWalkthroughWriterSettings,
+  recheckWalkthroughWriterSettings,
+  walkthroughWriterCheck,
+} from '@porcelain/client/projects';
+import {
+  canRecheckWalkthroughWriters,
+  walkthroughWriterNotice,
+} from '@porcelain/client/projects/rules';
 import { useState, type ComponentRef, type ReactNode } from 'react';
 import { ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -40,7 +50,8 @@ import {
   useSavedSummary,
 } from './walkthrough-conversation';
 import { WalkthroughStatus } from './walkthrough-status';
-import { WalkthroughProof } from './walkthrough-evidence';
+import { ComparisonTable, StepBlocks } from './walkthrough-blocks';
+import { useWritesBlocked } from '../../access';
 
 type Phase = ReturnType<typeof walkthroughPhase>;
 
@@ -48,6 +59,50 @@ type UpdateFailure = {
   failure: WalkthroughFailure;
   writer: WalkthroughRun['writer'];
 };
+
+function useWriterCheck(workspace: Workspace) {
+  const { connection } = workspace;
+  const { projectId } = workspace.scope;
+  const result = useAtomValue(
+    readWalkthroughWriterSettings(connection, projectId),
+  );
+  const [recheck, run] = useAtom(recheckWalkthroughWriterSettings(connection));
+  return {
+    ...walkthroughWriterCheck(result),
+    checking: result.waiting || recheck.waiting,
+    refresh: () => run(undefined),
+  };
+}
+
+type WriterCheck = ReturnType<typeof useWriterCheck>;
+
+function WriterNotice({
+  writer,
+  existingMessage,
+  signedOut,
+}: {
+  writer: WriterCheck;
+  existingMessage?: string | undefined;
+  signedOut?: boolean | undefined;
+}) {
+  const check = canRecheckWalkthroughWriters(writer, signedOut);
+  const message = walkthroughWriterNotice(writer, existingMessage);
+  if (!message && !check) return null;
+  return (
+    <Box gap={2} className="items-start">
+      {message && <Text tone="muted">{message}</Text>}
+      {check && (
+        <Button
+          label="Check writers again"
+          size="sm"
+          variant="tonal"
+          pending={writer.checking}
+          onPress={writer.refresh}
+        />
+      )}
+    </Box>
+  );
+}
 
 const GROWTH_TONES = {
   added: 'add',
@@ -259,31 +314,36 @@ function Calls({
   jump: Jump;
   scroller: KeyboardScroller;
 }) {
-  return walkthroughCalls(content).map(({ attention, step, stop }) => (
-    <Card key={step} gap={3} padding={4}>
-      <Box className="flex-row items-center justify-between" gap={3}>
-        <Text variant="caption" tone="muted">
-          {attentionLabel(attention)}
-        </Text>
-        <Button
-          label={`Step ${step}`}
-          variant="plain"
-          size="sm"
-          accessibilityLabel={`Go to step ${step}`}
-          className="-my-1.5 -mr-3.5"
-          onPress={() => jump(`step:${step}`)}
-        />
-      </Box>
-      <RichText text={attention.question} variant="headline" />
-      <RichText text={attention.note} variant="secondary" tone="muted" />
-      <WalkthroughConversation
-        owner={owner}
-        title={stop.title}
-        placement="call"
-        scroller={scroller}
-      />
-    </Card>
-  ));
+  return walkthroughCalls(content).map(
+    ({ attention, comparison, step, stop, callIndex }) => (
+      <Card key={`${step}:${callIndex}`} gap={3} padding={4}>
+        <Box className="flex-row items-center justify-between" gap={3}>
+          <Text variant="caption" tone="muted">
+            {attentionLabel(attention)}
+          </Text>
+          <Button
+            label={`Step ${step}`}
+            variant="plain"
+            size="sm"
+            accessibilityLabel={`Go to step ${step}`}
+            className="-my-1.5 -mr-3.5"
+            onPress={() => jump(`step:${step}`)}
+          />
+        </Box>
+        <RichText text={attention.question} variant="headline" />
+        <RichText text={attention.note} variant="secondary" tone="muted" />
+        {comparison ? <ComparisonTable comparison={comparison} /> : null}
+        {callIndex === 0 ? (
+          <WalkthroughConversation
+            owner={owner}
+            title={stop.title}
+            placement="call"
+            scroller={scroller}
+          />
+        ) : null}
+      </Card>
+    ),
+  );
 }
 
 function Written({
@@ -296,6 +356,8 @@ function Written({
   reused,
   updateFailure,
   onUpdate,
+  writer,
+  blocked,
 }: {
   workspace: Workspace;
   run: WalkthroughRun;
@@ -306,9 +368,11 @@ function Written({
   reused: boolean;
   updateFailure: UpdateFailure | undefined;
   onUpdate: () => void;
+  writer: WriterCheck;
+  blocked: boolean;
 }) {
   const router = useRouter();
-  const owner = { workspace, runId: run.id };
+  const owner = { workspace, run };
   const saved = useSavedSummary(owner) !== undefined;
   const seeChange = () =>
     router.push({
@@ -330,6 +394,15 @@ function Written({
         freshness={freshness}
         failure={updateFailure}
         onUpdate={onUpdate}
+        writeBlock={writer.status?.block}
+        updateDisabled={blocked}
+        writerNotice={
+          <WriterNotice
+            writer={writer}
+            existingMessage={updateFailure?.failure.message}
+            signedOut={updateFailure?.failure.kind === 'signed_out'}
+          />
+        }
       />
     </Box>
   );
@@ -396,7 +469,7 @@ function Written({
                   <Text variant="mono" tone="muted">
                     Step {step}
                   </Text>
-                  {stop.attention ? (
+                  {stop.callouts.length > 0 ? (
                     <Button
                       label="Your call"
                       variant="plain"
@@ -409,14 +482,12 @@ function Written({
                 </Box>
                 <RichText text={stop.title} variant="headline" />
                 <RichText text={stop.explanation} />
-                {stop.evidence.length > 0 ? (
-                  <WalkthroughProof
-                    workspace={workspace}
-                    run={run}
-                    step={step}
-                    items={stop.evidence}
-                  />
-                ) : null}
+                <StepBlocks
+                  workspace={workspace}
+                  run={run}
+                  step={step}
+                  blocks={stop.blocks}
+                />
                 <WalkthroughConversation
                   owner={owner}
                   title={stop.title}
@@ -471,10 +542,14 @@ function Unwritten({
   workspace,
   waiting,
   onWrite,
+  writer,
+  blocked,
 }: {
   workspace: Workspace;
   waiting: boolean;
   onWrite: () => void;
+  writer: WriterCheck;
+  blocked: boolean;
 }) {
   return (
     <Column workspace={workspace}>
@@ -483,9 +558,19 @@ function Unwritten({
           <Text variant="largeTitle" weight="semibold">
             No walkthrough yet.
           </Text>
+          {!writer.status && !writer.failed && (
+            <Text tone="muted">Checking Walkthrough writer…</Text>
+          )}
+          <WriterNotice writer={writer} />
           <Button
             label="Write walkthrough"
             pending={waiting}
+            disabled={
+              !writer.status ||
+              writer.noWriters ||
+              Boolean(writer.status.block) ||
+              blocked
+            }
             onPress={onWrite}
           />
         </Box>
@@ -519,12 +604,16 @@ function Failed({
   failure,
   waiting,
   onRetry,
+  writer,
+  blocked,
 }: {
   workspace: Workspace;
   run: WalkthroughRun | undefined;
   failure: WalkthroughFailure;
   waiting: boolean;
   onRetry: () => void;
+  writer: WriterCheck;
+  blocked: boolean;
 }) {
   const copy = failureCopy(failure, run);
   return (
@@ -536,7 +625,17 @@ function Failed({
             {copy.title}
           </Text>
           {copy.message ? <Text tone="muted">{copy.message}</Text> : null}
-          <Button label="Try again" pending={waiting} onPress={onRetry} />
+          <WriterNotice
+            writer={writer}
+            existingMessage={copy.message}
+            signedOut={failure.kind === 'signed_out'}
+          />
+          <Button
+            label="Try again"
+            pending={waiting}
+            disabled={Boolean(writer.status?.block) || blocked}
+            onPress={onRetry}
+          />
         </Box>
       )}
     </Column>
@@ -550,6 +649,8 @@ export function WalkthroughPage({
   workspace: Workspace;
   phase: Phase;
 }) {
+  const writer = useWriterCheck(workspace);
+  const blocked = useWritesBlocked(workspace.connection.environmentId);
   const write = useStartWalkthrough(
     workspace,
     observedPhase.kind !== 'unwritten' ? observedPhase.run : undefined,
@@ -564,6 +665,8 @@ export function WalkthroughPage({
         failure={startFailure.failure}
         waiting={write.waiting}
         onRetry={write.start}
+        writer={writer}
+        blocked={blocked}
       />
     );
   switch (phase.kind) {
@@ -573,6 +676,8 @@ export function WalkthroughPage({
           workspace={workspace}
           waiting={write.waiting}
           onWrite={write.start}
+          writer={writer}
+          blocked={blocked}
         />
       );
     case 'writing':
@@ -585,6 +690,8 @@ export function WalkthroughPage({
           failure={phase.failure}
           waiting={write.waiting}
           onRetry={write.start}
+          writer={writer}
+          blocked={blocked}
         />
       );
     case 'ready': {
@@ -604,6 +711,8 @@ export function WalkthroughPage({
           }
           updateFailure={failure}
           onUpdate={write.start}
+          writer={writer}
+          blocked={blocked}
         />
       );
     }

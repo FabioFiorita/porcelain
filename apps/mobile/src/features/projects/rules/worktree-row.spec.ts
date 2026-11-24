@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import type { NavigatorEntry } from '@porcelain/client/projects/rules';
 import { worktreeRow } from './worktree-row';
 
@@ -102,5 +102,15 @@ it('announces each detached checkout by its path and preserves main-checkout ide
   ).toBe('qa, Detached HEAD, /code/two/qa, Porcelain, Private workstation');
   expect(worktreeRow({ ...entry, main: true }).accessibilityLabel).toBe(
     'feat/pinned-files, Main worktree, Porcelain, Private workstation',
+  );
+});
+
+it('announces saved rows distinctly from unavailable live rows', () => {
+  const unavailable = { ...entry, available: false };
+  expect(worktreeRow(unavailable, true).accessibilityLabel).toBe(
+    'feat/pinned-files, Porcelain, Private workstation, Saved',
+  );
+  expect(worktreeRow(unavailable).accessibilityLabel).toBe(
+    'feat/pinned-files, Porcelain, Private workstation',
   );
 });

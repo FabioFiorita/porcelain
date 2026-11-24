@@ -6,7 +6,7 @@ import {
 } from '@porcelain/access/errors';
 import type { ServiceUpdateState } from '@porcelain/access/models';
 import { Effect } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { CheckServiceUpdateService } from './check-service-update-service.ts';
 
 const offered: ServiceUpdateState = {

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import type { CheckLocalRequestInput } from '@porcelain/access/models';
 import { localRequest } from './local-request.ts';
 

@@ -118,6 +118,12 @@ export function ReviewWorkspace({
 }: ReviewWorkspaceProps) {
   const { open: panelOpen, setOpen: setPanelOpen } = useReviewPanelOpen();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [sheetReturnsFocus, setSheetReturnsFocus] = useState(true);
+  const [sheetWasOpen, setSheetWasOpen] = useState(mobileOpen);
+  if (mobileOpen !== sheetWasOpen) {
+    setSheetWasOpen(mobileOpen);
+    if (mobileOpen) setSheetReturnsFocus(true);
+  }
   const desktop = useDesktopReview();
   const [docked, setDocked] = useState(desktop);
   if (docked !== desktop) {
@@ -206,10 +212,17 @@ export function ReviewWorkspace({
         );
     setFileTarget(
       options?.path
-        ? { path: options.path, nonce: Date.now(), pane, key }
+        ? {
+            path: options.path,
+            entry: options.entry,
+            nonce: Date.now(),
+            pane,
+            key,
+          }
         : undefined,
     );
     if (options?.toSide) layout.openToSide(focusedPane, key);
+    setSheetReturnsFocus(false);
     setMobileOpen(false);
   };
   const setSurface = (next: Surface) => {
@@ -229,10 +242,10 @@ export function ReviewWorkspace({
   useHotkey(SHORTCUTS.surfaceHistory, () => showSurface('history'), {
     ignoreInputs: true,
   });
-  const browseTrigger = useElement<HTMLButtonElement>();
+  const browseTrigger = useElement<HTMLElement>();
   const browse = (
     next: 'changes' | 'files' | 'history',
-    trigger: HTMLButtonElement,
+    trigger: HTMLElement,
   ) => {
     browseTrigger.attach(trigger);
     showSurface(next);
@@ -384,7 +397,17 @@ export function ReviewWorkspace({
         open={mobileOpen && !desktop}
         onOpenChange={setMobileOpen}
         onOpenChangeComplete={(open) => {
-          if (!open) layout.focusDestination();
+          if (open) return;
+          layout.focusDestination();
+          if (
+            !sheetReturnsFocus &&
+            !layout.hasDestinationFocus() &&
+            document.activeElement === document.body
+          )
+            (browseTrigger.element?.isConnected
+              ? browseTrigger.element
+              : mobileTrigger.element
+            )?.focus();
         }}
       >
         <SheetContent
@@ -392,16 +415,21 @@ export function ReviewWorkspace({
             mobileSheet.attach(element);
             if (element === null) layout.focusDestination();
           }}
-          finalFocus={() => {
-            if (layout.hasDestinationFocus()) return false;
-            const active = document.activeElement;
-            const stayed =
-              active === document.body || mobileSheet.element?.contains(active);
-            if (!stayed) return false;
-            return browseTrigger.element?.isConnected
-              ? browseTrigger.element
-              : mobileTrigger.element;
-          }}
+          finalFocus={
+            sheetReturnsFocus
+              ? () => {
+                  if (layout.hasDestinationFocus()) return null;
+                  const active = document.activeElement;
+                  const stayed =
+                    active === document.body ||
+                    mobileSheet.element?.contains(active);
+                  if (!stayed) return null;
+                  return browseTrigger.element?.isConnected
+                    ? browseTrigger.element
+                    : mobileTrigger.element;
+                }
+              : 'none'
+          }
           className="w-[min(90vw,22rem)]!"
           showCloseButton={false}
         >
@@ -430,7 +458,7 @@ type PaneContext = ReviewContentProps & {
   onOpen: OpenDocument;
   onBrowse: (
     surface: 'changes' | 'files' | 'history',
-    trigger: HTMLButtonElement,
+    trigger: HTMLElement,
   ) => void;
   fileTarget?:
     | (DocumentFileTarget & { pane: PaneIndex; key: string })
@@ -641,25 +669,27 @@ function PaneView({
         leading={
           index === 0 ? (
             <Tooltip>
-              <TooltipTrigger render={<span className="inline-flex" />}>
-                <SidebarTrigger
-                  ref={(element) => navigationTrigger.attach(element)}
-                  aria-label="Toggle Sidebar"
-                  aria-expanded={
-                    navigatorIsMobile ? navigatorOpenMobile : navigatorOpen
-                  }
-                  aria-keyshortcuts={
-                    detectPlatform() === 'mac' ? 'Meta+B' : 'Control+B'
-                  }
-                  onClick={() => {
-                    if (!navigatorIsMobile && navigatorOpen) {
-                      requestAnimationFrame(() =>
-                        navigationTrigger.element?.focus(),
-                      );
+              <TooltipTrigger
+                render={
+                  <SidebarTrigger
+                    ref={(element) => navigationTrigger.attach(element)}
+                    aria-label="Toggle Sidebar"
+                    aria-expanded={
+                      navigatorIsMobile ? navigatorOpenMobile : navigatorOpen
                     }
-                  }}
-                />
-              </TooltipTrigger>
+                    aria-keyshortcuts={
+                      detectPlatform() === 'mac' ? 'Meta+B' : 'Control+B'
+                    }
+                    onClick={() => {
+                      if (!navigatorIsMobile && navigatorOpen) {
+                        requestAnimationFrame(() =>
+                          navigationTrigger.element?.focus(),
+                        );
+                      }
+                    }}
+                  />
+                }
+              />
               <TooltipContent role="tooltip" className="break-all">
                 Toggle Sidebar{' '}
                 <Kbd>{formatForDisplay(SHORTCUTS.toggleNavigator)}</Kbd>

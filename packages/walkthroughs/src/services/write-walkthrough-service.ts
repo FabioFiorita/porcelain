@@ -1,6 +1,7 @@
 import { Context, DateTime, Effect, Layer } from 'effect';
 import type {
   WalkthroughJob,
+  WalkthroughEvidence,
   WalkthroughProgress,
   WalkthroughRun,
 } from '../models/walkthrough.ts';
@@ -54,7 +55,25 @@ export class WriteWalkthroughService extends Context.Service<
                 ? 'No pull request is attached. Continuing without pull request evidence.'
                 : 'Reading existing pull request evidence and checks.',
             );
-            const evidence = yield* evidenceReader.read(job);
+            const evidence: WalkthroughEvidence =
+              run.pullRequestNumber !== undefined &&
+              run.pullRequestRepository !== undefined
+                ? yield* evidenceReader.read({
+                    projectId: run.projectId,
+                    headOid: run.headOid,
+                    number: run.pullRequestNumber,
+                    repository: run.pullRequestRepository,
+                  })
+                : {
+                    title: '',
+                    body: '',
+                    checks: undefined,
+                    assets: [],
+                    unavailable:
+                      run.pullRequestNumber === undefined
+                        ? undefined
+                        : 'github_unavailable',
+                  };
             run = { ...run, evidenceUnavailable: evidence.unavailable };
             yield* store.saveAssets(run.id, evidence.assets);
             const unavailable =
@@ -64,7 +83,7 @@ export class WriteWalkthroughService extends Context.Service<
                     head_mismatch: 'The pull request is at another commit.',
                     github_account:
                       'No GitHub account is selected for this project.',
-                    github_unavailable: 'GitHub could not be reached.',
+                    github_unavailable: 'Pull request evidence is unavailable.',
                   }[evidence.unavailable];
             yield* record(
               'transcript',
@@ -90,17 +109,7 @@ export class WriteWalkthroughService extends Context.Service<
               'validating',
               'Checking the written walkthrough against captured files and evidence.',
             );
-            const content = qualifyWalkthrough(
-              {
-                ...result.content,
-                checks:
-                  evidence.unavailable === undefined
-                    ? result.content.checks
-                    : undefined,
-              },
-              job.files,
-              evidence.assets.map((asset) => asset.id),
-            );
+            const content = qualifyWalkthrough(result.content, job, evidence);
             run = {
               ...run,
               sessionId: result.sessionId,

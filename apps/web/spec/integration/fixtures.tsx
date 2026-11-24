@@ -12,8 +12,8 @@ import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import { AtomRegistry } from 'effect/reactivity';
 import { Suspense, useState, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { expect, test as base } from 'vitest';
-import { page } from 'vitest/browser';
+import { expect, test as base } from 'vite-plus/test';
+import { page } from 'vite-plus/test/browser';
 import '@/app.css';
 import { AppProviders } from '@/app/app-providers';
 import { PairedShell } from '@/app/paired-shell';
@@ -60,7 +60,7 @@ import { createFetchGate, live } from './network.ts';
 
 export { expect };
 export { expectInputFocus } from './focus.ts';
-export { replaceEditorContent } from './commands.ts';
+export { readClipboard, replaceEditorContent } from './commands.ts';
 
 export type Repo = SampleRepository;
 export type { Agent } from '../kit/shapes.ts';
@@ -412,6 +412,8 @@ export const test = base
   )
   .extend('codingTool', ({ world: _world }) => ({
     install: () => host.porcelainCodingTool(),
+    codexEffort: (supportsHigh: boolean) =>
+      host.porcelainCodexEffort(supportsHigh),
   }))
   .extend('render', async ({ world: _world }, { onCleanup }) => {
     let unmount: (() => Promise<void>) | undefined;
@@ -585,3 +587,4 @@ export const gitInterruptionTest = test.extend('sample', () =>
   'git-interruption' as const);
 
 export const conversationFixture = host.porcelainWalkthroughConversations;
+export const blocksFixture = host.porcelainWalkthroughBlocks;

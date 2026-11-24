@@ -1,11 +1,13 @@
-import { Schema } from 'effect';
-import { capturedChange } from './captured-change.ts';
-import type {
-  WalkthroughContent,
-  WalkthroughEvidence,
-  WalkthroughJob,
-  WalkthroughRun,
+import { Array as Arr, Effect, Schema } from 'effect';
+import { walkthroughBlockRequestSchema } from '@porcelain/contracts/walkthroughs';
+import {
+  walkthroughContentSchema,
+  type WalkthroughContent,
+  type WalkthroughEvidence,
+  type WalkthroughJob,
+  type WalkthroughRun,
 } from '@porcelain/walkthroughs/models';
+import { capturedChange } from './captured-change.ts';
 export const firstPassSchema = Schema.Struct({
   understood: Schema.String,
   could_not_tell: Schema.Array(
@@ -16,6 +18,62 @@ export const firstPassSchema = Schema.Struct({
     }),
   ),
 });
+const proseFields = {
+  outcome: walkthroughContentSchema.fields.outcome,
+  title: walkthroughContentSchema.fields.title,
+  summary: walkthroughContentSchema.fields.summary,
+  growth: walkthroughContentSchema.fields.growth,
+  onlyInTranscript: walkthroughContentSchema.fields.onlyInTranscript,
+  stillUnclear: walkthroughContentSchema.fields.stillUnclear,
+};
+const stopFields = {
+  title: Schema.String,
+  explanation: Schema.String,
+};
+
+export const codexWritingSchema = Schema.Struct({
+  ...proseFields,
+  stops: Schema.Array(
+    Schema.Struct({
+      ...stopFields,
+      blockIds: Schema.Array(Schema.String).check(Schema.isMaxLength(12)),
+    }),
+  ).check(Schema.isMaxLength(8)),
+});
+
+const claudeOutputSchema = <Block extends Schema.Constraint>(block: Block) =>
+  Schema.Struct({
+    ...proseFields,
+    stops: Schema.Array(
+      Schema.Struct({
+        ...stopFields,
+        blocks: Schema.Array(block).check(Schema.isMaxLength(12)),
+      }),
+    ).check(Schema.isMaxLength(8)),
+  });
+export const claudeWritingSchema = claudeOutputSchema(
+  walkthroughBlockRequestSchema,
+);
+const decodeClaudeOutput = Schema.decodeUnknownEffect(
+  claudeOutputSchema(Schema.Unknown),
+);
+const decodeBlockRequest = Schema.decodeUnknownOption(
+  walkthroughBlockRequestSchema,
+  { onExcessProperty: 'error' },
+);
+
+export function decodeClaudeWriting(output: unknown) {
+  return decodeClaudeOutput(output).pipe(
+    Effect.map(({ stops, ...prose }) => ({
+      ...prose,
+      stops: stops.map(({ blocks, ...stop }) => ({
+        ...stop,
+        blocks: Arr.getSomes(blocks.map((block) => decodeBlockRequest(block))),
+      })),
+    })),
+  );
+}
+
 export function writingPrompts(
   job: WalkthroughJob,
   evidence: WalkthroughEvidence,
@@ -61,7 +119,7 @@ Screenshots from the pull request. Open each one with the Read tool before placi
 ${images || '(no images)'}
 
 CI results recorded for this pull request:
-${evidence.checks || '(none recorded)'}
+${evidence.checks ? JSON.stringify(evidence.checks) : '(none recorded)'}
 
 Now write the walkthrough. The reader owns this codebase and agents wrote the code. Bugs, style, types and tests are checked elsewhere. The reader wants to understand what was built, see how the system is growing, and make the few calls only they can make. They may read this on a phone, so be brief.
 
@@ -75,15 +133,23 @@ Return JSON with:
 - stops: the tour, empty when outcome is "nothing". Usually 2 to 6, at most 8, each building on the last: data shape or contract first, then what implements it, then what uses it. Each stop has:
   - title: a claim about what this stop accomplishes, not a file name.
   - explanation: 2 to 4 sentences, before and after. Never narrate code line by line.
-  - attention: null, or kind ("tradeoff", "contract", "product", "risk" or "accessibility"), note (why this needs a human) and question (the actual decision, phrased so it can be answered). Most stops are null.
-  - excerpts: the code worth showing, usually 1 to 3, each with path, side ("new" or "old"), start, end and caption. 3 to 25 lines inside one hunk of ${job.run.includesUncommitted ? 'the captured diff' : 'git diff ' + job.run.baseOid + '..' + job.run.headOid} for <path>.
-  - evidence: screenshots you opened that show this stop working, each with assetId and shows (one sentence). A screenshot belongs on the stop whose behavior it shows. Leave out any that show nothing useful.
-  - files: every other changed file this stop owns, with path and note.
+  - ${
+    job.run.writer.provider === 'codex'
+      ? 'blockIds: IDs returned by the Porcelain MCP tools, in reading order. If the tools are deferred, look up the Porcelain Walkthrough tools by name. Call the tool once for each block you place. Use [] if no block helps.'
+      : 'blocks: array of block requests in reading order. Each has a kind as listed below. Use [] if no block helps.'
+  }
 - onlyInTranscript: what the pull request and code did not explain and only the human's messages did. Use your first pass's could_not_tell. Each has point (what was unclear) and answer (what the human's messages say). Empty if none.
 - stillUnclear: anything from could_not_tell that nothing answered, as short sentences.
-- checks: one sentence on what CI shows, or null if nothing was recorded.
 
-Coverage, unless outcome is "nothing": every changed file appears in an excerpt or in files of exactly one stop. Group mechanical files in a last stop.
+Block catalog:
+- diff_excerpt: path, side ("new" or "old"), start, end and caption. Choose 3 to 25 lines within one hunk of the captured diff. For a rename, use the old path only on the old side.
+- before_after: before and after, each with assetId and shows. Use two different existing PR images you inspected that actually depict before and after. Omit if either is missing.
+- files: files, each with path and note. Use changed paths from the capture. Group mechanical files in a last stop.
+- checks: headOid, the captured head (${job.run.headOid}). Only use when results are recorded above. Porcelain supplies the results.
+- callout: attention with kind ("tradeoff", "contract", "product", "risk" or "accessibility"), note (why it matters) and question (the decision). comparison is optional and has columns (two labels) and rows (up to six pairs of short text cells). Use only for a real decision or risk.
+
+Use blocks only when they make the step easier to understand. Do not write UI or generate evidence. Do not supply made-up line ranges, screenshots, check results or paths. Use a bare step when evidence is unavailable. When outcome is "needs_you", place the actual question in a callout.
+
 `,
   };
 }

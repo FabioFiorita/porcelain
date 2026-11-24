@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { lineRangeProblem, sliceChangeLines } from './slice-change-lines.ts';
 
 const text = 'one\ntwo\nthree\n';

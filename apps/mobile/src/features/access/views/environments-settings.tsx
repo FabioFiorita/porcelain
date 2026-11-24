@@ -40,9 +40,6 @@ function EnvironmentSettingsSection({
         />
       </Stack.Toolbar>
       <Box gap={3}>
-        <Text variant="caption" tone="muted">
-          Manage your paired computers.
-        </Text>
         <ComputerUpdatesSummary />
         {storage.status === 'loading' ? <Spinner /> : null}
         {storage.error ? (

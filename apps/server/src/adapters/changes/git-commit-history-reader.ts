@@ -2,7 +2,6 @@ import { Effect, Layer } from 'effect';
 import { readGitEffect } from '../../runtime/git-io.ts';
 import { captureGitPlatform } from '@porcelain/git/discovery';
 import { HistorySnapshotUnavailableError } from '@porcelain/git/errors';
-import { makeGitSession } from '@porcelain/git/inspection';
 import type { Limits } from '../../config/limits.ts';
 import {
   type CommitFilesLookup,
@@ -17,10 +16,8 @@ import {
 } from '@porcelain/changes/models';
 import { CommitHistoryReader } from '@porcelain/changes/ports';
 import { type CommitSummary as GitCommitSummary } from '@porcelain/git/history';
-import {
-  openCheckoutEffect,
-  type ListedWorktrees,
-} from '../projects/checkout-session.ts';
+import type { ListedWorktrees } from '../projects/checkout-session.ts';
+import { inspectionCheckouts } from './inspection-checkouts.ts';
 
 import * as history from '@porcelain/git/history';
 
@@ -33,15 +30,11 @@ export const gitCommitHistoryReaderLayer = (
     CommitHistoryReader,
     Effect.gen(function* () {
       const provideGit = yield* captureGitPlatform();
+      const openInspection = inspectionCheckouts(worktrees, limits);
       const listCommitsNative = Effect.fn(
         'CommitHistoryReader.listCommitsNative',
       )(function* (input: ListCommitsInput) {
-        const session = yield* makeGitSession(limits);
-        const { worktree, checkout } = yield* openCheckoutEffect(
-          worktrees,
-          session,
-          input.worktreeId,
-        );
+        const { worktree, checkout } = yield* openInspection(input.worktreeId);
         const historyCheckout = { ...worktree, path: checkout.path };
         const page = yield* history.listCommits(
           historyCheckout,
@@ -70,12 +63,7 @@ export const gitCommitHistoryReaderLayer = (
       const listFileCommitsNative = Effect.fn(
         'CommitHistoryReader.listFileCommitsNative',
       )(function* (input: ListFileCommitsInput) {
-        const session = yield* makeGitSession(limits);
-        const { worktree, checkout } = yield* openCheckoutEffect(
-          worktrees,
-          session,
-          input.worktreeId,
-        );
+        const { worktree, checkout } = yield* openInspection(input.worktreeId);
         const historyCheckout = { ...worktree, path: checkout.path };
         const listed = yield* history.listFileCommits(
           historyCheckout,
@@ -103,12 +91,7 @@ export const gitCommitHistoryReaderLayer = (
       const readCommitFilesNative = Effect.fn(
         'CommitHistoryReader.readCommitFilesNative',
       )(function* (input: ReadCommitFilesInput) {
-        const session = yield* makeGitSession(limits);
-        const { worktree, checkout } = yield* openCheckoutEffect(
-          worktrees,
-          session,
-          input.worktreeId,
-        );
+        const { worktree, checkout } = yield* openInspection(input.worktreeId);
         const historyCheckout = { ...worktree, path: checkout.path };
         const read = yield* history
           .readCommitFiles(
@@ -148,12 +131,7 @@ export const gitCommitHistoryReaderLayer = (
       const readCommitPatchesNative = Effect.fn(
         'CommitHistoryReader.readCommitPatchesNative',
       )(function* (input: CommitPatchesRequest) {
-        const session = yield* makeGitSession(limits);
-        const { worktree, checkout } = yield* openCheckoutEffect(
-          worktrees,
-          session,
-          input.worktreeId,
-        );
+        const { worktree, checkout } = yield* openInspection(input.worktreeId);
         const historyCheckout = { ...worktree, path: checkout.path };
         const sections = yield* history.readCommitDiffs(
           historyCheckout,

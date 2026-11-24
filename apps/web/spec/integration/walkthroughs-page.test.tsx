@@ -1,4 +1,4 @@
-import { page as browserPage, userEvent } from 'vitest/browser';
+import { page as browserPage, userEvent } from 'vite-plus/test/browser';
 import { expect, test, type Repo } from './fixtures.tsx';
 
 const SCENARIO = '.git/porcelain-fake-walkthrough';

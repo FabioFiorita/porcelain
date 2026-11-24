@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import type {
   WalkthroughJob,
   WalkthroughContent,
@@ -24,6 +24,7 @@ const job: WalkthroughJob = {
   files: [],
 };
 const content: WalkthroughContent = {
+  version: 1 as const,
   outcome: 'nothing',
   title: 'A small change',
   summary: 'Changed.',

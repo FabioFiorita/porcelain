@@ -1,4 +1,4 @@
-import { page, userEvent } from 'vitest/browser';
+import { page, userEvent } from 'vite-plus/test/browser';
 import { expect, test } from './fixtures.tsx';
 
 for (const surface of ['Files'] as const) {
@@ -155,6 +155,51 @@ test('All changes keeps file shortcuts without redundant header arrows', async (
   await expect.poll(currentRows).toEqual(['README.md+2−0']);
   await userEvent.keyboard('J');
   await expect.poll(currentRows).toEqual(['zz-notes.md+2−0']);
+});
+
+test('All changes moves to the previous listed file while its diff is still loading and shows it once it renders', async ({
+  repo,
+  render,
+  fetchGate,
+  reviewLayout,
+}) => {
+  await repo.write(
+    'zz-notes.md',
+    `${Array.from({ length: 80 }, (_, index) => `Note ${index + 1}`).join('\n')}\n`,
+  );
+  const held = fetchGate.holdNextChangeDiff();
+  held.arm();
+  try {
+    const workspace = await render.workspace();
+    await held.requested;
+    await reviewLayout.openAllChanges();
+    const table = workspace.getByRole('region', {
+      name: '2 uncommitted changes',
+      exact: true,
+    });
+    const currentRows = () => reviewLayout.currentChangeRows(table);
+    await expect.poll(currentRows).toEqual(['README.md']);
+    await table
+      .getByRole('button', { name: 'zz-notes.md +80 −0', exact: true })
+      .click();
+    await expect.poll(currentRows).toEqual(['zz-notes.md+80−0']);
+    await userEvent.keyboard('K');
+    await expect.poll(currentRows).toEqual(['README.md']);
+    const code = workspace.getByRole('region', {
+      name: 'Code content',
+      exact: true,
+    });
+    await expect
+      .element(code.getByText('Note 1', { exact: true }))
+      .toBeInViewport();
+    held.release();
+    await expect
+      .element(code.getByText('A change to review.', { exact: true }))
+      .toBeInViewport();
+    await expect.poll(currentRows).toEqual(['README.md+2−0']);
+  } finally {
+    held.release();
+  }
 });
 
 test('All changes reopens a collapsed file from its table', async ({
@@ -688,5 +733,304 @@ test('All changes preserves readable diffs and retries a failed final window', a
     await expect.element(retry).not.toBeInTheDocument();
   } finally {
     fetchGate.restore();
+  }
+});
+
+test('a non-text file chosen in All changes before its diff arrives is focused once it is read', async ({
+  repo,
+  render,
+  fetchGate,
+  reviewLayout,
+}) => {
+  await repo.write('logo.png', 'PNG\u0000\u0001binary');
+  await repo.commit('Add a logo');
+  await repo.write('logo.png', 'PNG\u0000\u0002changed');
+  const held = fetchGate.holdNextChangeDiff('logo.png');
+  held.arm();
+  try {
+    const workspace = await render.workspace();
+    await held.requested;
+    await reviewLayout.openAllChanges();
+    await workspace
+      .getByRole('region', { name: '1 uncommitted change', exact: true })
+      .getByRole('button', { name: /^logo\.png/ })
+      .click();
+    held.release();
+    const omitted = workspace.getByRole('listitem', { name: /^logo\.png: / });
+    await expect.element(omitted).toHaveFocus();
+    await expect.element(omitted).toBeInViewport();
+  } finally {
+    held.release();
+  }
+});
+
+test('moving to another file in All changes cancels a jump to a non-text file still being read', async ({
+  repo,
+  render,
+  fetchGate,
+  reviewLayout,
+}) => {
+  await repo.write('logo.png', 'PNG\u0000\u0001binary');
+  await repo.commit('Add a logo');
+  await repo.write('logo.png', 'PNG\u0000\u0002changed');
+  await repo.write('a-notes.md', 'A note read before the logo\n');
+  const held = fetchGate.holdNextChangeDiff('logo.png');
+  held.arm();
+  try {
+    const workspace = await render.workspace();
+    await held.requested;
+    await reviewLayout.openAllChanges();
+    const table = workspace.getByRole('region', {
+      name: '2 uncommitted changes',
+      exact: true,
+    });
+    const currentRows = () => reviewLayout.currentChangeRows(table);
+    const notes = workspace
+      .getByRole('region', { name: 'Code content', exact: true })
+      .getByText('A note read before the logo', { exact: true });
+    await expect.element(notes).toBeInTheDocument();
+    await table.getByRole('button', { name: /^logo\.png/ }).click();
+    await userEvent.keyboard('K');
+    await expect.poll(currentRows).toEqual(['a-notes.md+1−0']);
+    held.release();
+    const omitted = workspace.getByRole('listitem', { name: /^logo\.png: / });
+    await expect.element(omitted).toBeInTheDocument();
+    await expect.element(omitted).not.toHaveFocus();
+    await expect.poll(currentRows).toEqual(['a-notes.md+1−0']);
+  } finally {
+    held.release();
+  }
+});
+
+test('a file with a non-text staged change and a text edit lands on its text once its diffs are read', async ({
+  repo,
+  render,
+  fetchGate,
+  reviewLayout,
+}) => {
+  await repo.write('data.txt', 'DATA\u0000\u0001binary');
+  await repo.commit('Add data as bytes');
+  await repo.write('data.txt', 'Plain data line\n');
+  await repo.stage('data.txt');
+  await repo.write('data.txt', 'Plain data line\nAn unstaged data line\n');
+  await repo.write(
+    'a-long.md',
+    `${Array.from({ length: 80 }, (_, index) => `Note ${index + 1}`).join('\n')}\n`,
+  );
+  const held = fetchGate.holdNextChangeDiff('data.txt');
+  held.arm();
+  try {
+    const workspace = await render.workspace();
+    await held.requested;
+    await reviewLayout.openAllChanges();
+    const table = workspace.getByRole('region', {
+      name: '2 uncommitted changes',
+      exact: true,
+    });
+    const code = workspace.getByRole('region', {
+      name: 'Code content',
+      exact: true,
+    });
+    await expect
+      .element(code.getByText('Note 1', { exact: true }))
+      .toBeInViewport();
+    await table.getByRole('button', { name: /^data\.txt/ }).click();
+    held.release();
+    await expect
+      .element(code.getByText('An unstaged data line', { exact: true }))
+      .toBeInViewport();
+  } finally {
+    held.release();
+  }
+});
+
+test('the next file shortcut shows a file staged and unstaged comparison in turn', async ({
+  repo,
+  workspace,
+  reviewLayout,
+}) => {
+  await repo.write('steps.txt', 'Base line\n');
+  await repo.commit('Add steps');
+  const staged = Array.from(
+    { length: 80 },
+    (_, index) => `Staged line ${index + 1}`,
+  ).join('\n');
+  await repo.write('steps.txt', `Base line\n${staged}\n`);
+  await repo.stage('steps.txt');
+  await repo.write('steps.txt', `Base line\n${staged}\nAn unstaged line\n`);
+  await reviewLayout.openAllChanges();
+  const code = workspace.getByRole('region', {
+    name: 'Code content',
+    exact: true,
+  });
+  const unstaged = code.getByText('An unstaged line', { exact: true });
+  await expect
+    .element(code.getByText('Staged line 1', { exact: true }))
+    .toBeInViewport();
+  await userEvent.keyboard('J');
+  await expect.element(unstaged).toBeInViewport();
+});
+
+test('a non-text file read for an inactive pane leaves focus in the pane the developer moved to', async ({
+  render,
+  repo,
+  fetchGate,
+  reviewLayout,
+}) => {
+  await repo.write('logo.png', 'PNG\u0000\u0001binary');
+  await repo.commit('Add a logo');
+  await repo.write('logo.png', 'PNG\u0000\u0002changed');
+  const held = fetchGate.holdNextChangeDiff('logo.png');
+  held.arm();
+  await page.viewport(1440, 900);
+  try {
+    const workspace = await render.workspace();
+    await held.requested;
+    await reviewLayout.openAllChanges();
+    await workspace
+      .getByRole('region', { name: '1 uncommitted change', exact: true })
+      .getByRole('button', { name: /^logo\.png/ })
+      .click();
+    await userEvent.keyboard('{Alt>}1{/Alt}');
+    await workspace
+      .getByRole('treeitem', { name: repo.readme.path, exact: true })
+      .click({ button: 'right' });
+    await workspace.getByRole('menuitem', { name: /Open to the side/ }).click();
+    const right = workspace.getByRole('region', {
+      name: 'Right pane',
+      exact: true,
+    });
+    await expect.element(right).toHaveAttribute('data-focused', 'true');
+    held.release();
+    const omitted = workspace.getByRole('listitem', { name: /^logo\.png: / });
+    await expect.element(omitted).toBeInTheDocument();
+    await expect.element(omitted).not.toHaveFocus();
+    await expect.element(right).toHaveAttribute('data-focused', 'true');
+  } finally {
+    held.release();
+    await page.viewport(414, 896);
+  }
+});
+
+test('a jump to a file that was removed before it was read does not fire when the file comes back', async ({
+  repo,
+  render,
+  fetchGate,
+  reviewLayout,
+}) => {
+  await repo.write('logo.png', 'PNG\u0000\u0001binary');
+  const held = fetchGate.holdNextTextRead('logo.png');
+  held.arm();
+  try {
+    const workspace = await render.workspace();
+    await reviewLayout.openAllChanges();
+    const table = workspace.getByRole('region', {
+      name: '2 uncommitted changes',
+      exact: true,
+    });
+    await held.requested;
+    await table.getByRole('button', { name: /^logo\.png/ }).click();
+    await repo.remove('logo.png');
+    await expect
+      .element(
+        workspace.getByRole('region', {
+          name: '1 uncommitted change',
+          exact: true,
+        }),
+      )
+      .toBeVisible();
+    held.release();
+    await repo.write('logo.png', 'PNG\u0000\u0002again');
+    const omitted = workspace.getByRole('listitem', { name: /^logo\.png: / });
+    await expect.element(omitted).toBeInTheDocument();
+    await expect.element(omitted).not.toHaveFocus();
+  } finally {
+    held.release();
+  }
+});
+
+test('a file whose deletion is staged and whose new bytes are untracked waits for its staged diff before landing', async ({
+  repo,
+  render,
+  fetchGate,
+  reviewLayout,
+}) => {
+  await repo.write('shape.txt', 'A shape line that is staged for deletion\n');
+  await repo.commit('Add a shape');
+  await repo.remove('shape.txt');
+  await repo.stage('shape.txt');
+  await repo.write('shape.txt', 'SHAPE\u0000\u0001bytes');
+  await repo.write(
+    'a-long.md',
+    `${Array.from({ length: 80 }, (_, index) => `Note ${index + 1}`).join('\n')}\n`,
+  );
+  const held = fetchGate.holdNextChangeDiff('shape.txt');
+  held.arm();
+  try {
+    const workspace = await render.workspace();
+    await held.requested;
+    await reviewLayout.openAllChanges();
+    const omitted = workspace.getByRole('listitem', { name: /^shape\.txt: / });
+    await expect.element(omitted).toBeInTheDocument();
+    await workspace
+      .getByRole('region', { name: '2 uncommitted changes', exact: true })
+      .getByRole('button', { name: /^shape\.txt/ })
+      .click();
+    held.release();
+    await expect
+      .element(
+        workspace
+          .getByRole('region', { name: 'Code content', exact: true })
+          .getByText('A shape line that is staged for deletion', {
+            exact: true,
+          }),
+      )
+      .toBeInViewport();
+    await expect.element(omitted).not.toHaveFocus();
+  } finally {
+    held.release();
+  }
+});
+
+test('the next file shortcut onto a comparison still loading lands on that comparison', async ({
+  repo,
+  render,
+  fetchGate,
+  reviewLayout,
+}) => {
+  await repo.write('steps.txt', 'Base line\n');
+  await repo.commit('Add steps');
+  const staged = Array.from(
+    { length: 80 },
+    (_, index) => `Staged line ${index + 1}`,
+  ).join('\n');
+  await repo.write('steps.txt', `Base line\n${staged}\n`);
+  await repo.stage('steps.txt');
+  await repo.write('steps.txt', `Base line\n${staged}\nAn unstaged line\n`);
+  const held = fetchGate.holdNextChangeDiff('steps.txt');
+  held.arm();
+  try {
+    const workspace = await render.workspace();
+    await held.requested;
+    await reviewLayout.openAllChanges();
+    await expect
+      .element(
+        workspace.getByRole('region', {
+          name: '1 uncommitted change',
+          exact: true,
+        }),
+      )
+      .toBeVisible();
+    await userEvent.keyboard('J');
+    held.release();
+    await expect
+      .element(
+        workspace
+          .getByRole('region', { name: 'Code content', exact: true })
+          .getByText('An unstaged line', { exact: true }),
+      )
+      .toBeInViewport();
+  } finally {
+    held.release();
   }
 });

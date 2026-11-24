@@ -1,5 +1,5 @@
 import { Schema } from 'effect';
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { relativePathSchema } from './relative-path.ts';
 
 it('accepts normalized paths with wide Unicode characters', () => {

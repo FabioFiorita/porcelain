@@ -1,5 +1,5 @@
 import { developmentPairing } from '@porcelain/server/kit/development-pairing';
-import type { Plugin } from 'vite';
+import type { Plugin } from 'vite-plus';
 
 export function devPair(ownerSocket: string, serverAddress: string): Plugin {
   return {

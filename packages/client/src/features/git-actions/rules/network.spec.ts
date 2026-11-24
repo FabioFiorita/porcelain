@@ -1,5 +1,5 @@
 import { expectationFor } from './feedback.ts';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { networkInput, networkTarget, networkNotice } from './network.ts';
 
 const displayed = { name: 'main', upstream: 'origin/main' };

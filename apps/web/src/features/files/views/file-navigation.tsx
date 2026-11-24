@@ -34,7 +34,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { toast } from '@/components/ui/toast';
+import { notify } from '@/shared/views/notify';
 import { changePath } from '@porcelain/client/changes/rules';
 import { useReviewOverview } from '@/features/changes/index';
 import {
@@ -360,7 +360,7 @@ function ScopedFileNavigation({
     bindRename,
     bindCollapseAll,
     onInvalidName: (error) =>
-      toast.add({ title: 'Invalid name', description: error, type: 'error' }),
+      notify({ title: 'Invalid name', description: error, type: 'error' }),
     renderMenu: (item, context, rename) => {
       const path =
         item.kind === 'directory' && !item.path.endsWith('/')
@@ -424,7 +424,7 @@ function ScopedFileNavigation({
                 <DropdownMenuItem
                   disabled={Boolean(writeBlock)}
                   aria-description={writeBlock}
-                  onClick={() =>
+                  onSelect={() =>
                     setCreating({
                       kind: 'file',
                       folder: '',
@@ -438,7 +438,7 @@ function ScopedFileNavigation({
                 <DropdownMenuItem
                   disabled={Boolean(writeBlock)}
                   aria-description={writeBlock}
-                  onClick={() =>
+                  onSelect={() =>
                     setCreating({
                       kind: 'directory',
                       folder: '',

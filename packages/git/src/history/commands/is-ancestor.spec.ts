@@ -4,7 +4,7 @@ import { NodeServices } from '@effect/platform-node';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vite-plus/test';
 import { isHistoryAncestor as isHistoryAncestorEffect } from './is-ancestor.ts';
 import { gitLimits } from '../../../spec/fixtures/git-limits.ts';
 

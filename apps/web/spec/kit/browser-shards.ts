@@ -1,5 +1,5 @@
 import { relative } from 'node:path';
-import { BaseSequencer, type TestSpecification } from 'vitest/node';
+import { BaseSequencer, type TestSpecification } from 'vite-plus/test/node';
 import timings from './browser-shards.json' with { type: 'json' };
 
 export function browserShardFiles(

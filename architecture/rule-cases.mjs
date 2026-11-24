@@ -244,7 +244,7 @@ it.${modifier}('reads the saved value', () => Effect.gen(function* () { const re
     path: 'apps/server/src/runtime/read.spec.ts',
     valid: `import { it, expect } from '@effect/vitest'; import { Effect } from 'effect'; import { read } from './read.ts';
 it.effect('reads the saved value', () => Effect.gen(function* () { const result = yield* read(); expect(result).toBe('saved'); }));`,
-    invalid: `import { it, expect } from 'vitest'; import { Effect } from 'effect'; import { read } from './read.ts';
+    invalid: `import { it, expect } from 'vite-plus/test'; import { Effect } from 'effect'; import { read } from './read.ts';
 it('reads the saved value', () => { Effect.gen(function* () { const result = yield* read(); expect(result).toBe('saved'); }); });`,
     errors: 1,
   },
@@ -260,9 +260,9 @@ it.effect('reads the saved values', () => Effect.gen(function* () { const result
   {
     rule: 'spec-asserts',
     path: 'apps/server/src/runtime/read.spec.ts',
-    valid: `import { it, expect } from 'vitest'; import { read } from './read.ts';
+    valid: `import { it, expect } from 'vite-plus/test'; import { read } from './read.ts';
 it('reads once', async () => { const test = { read }; const result = await test.read(); expect(result).toBe('saved'); });`,
-    invalid: `import { it, expect } from 'vitest'; import { read } from './read.ts';
+    invalid: `import { it, expect } from 'vite-plus/test'; import { read } from './read.ts';
 it('reads once', async () => { const result = await read(); if (result) it('asserts later', () => expect(result).toBe('saved')); });`,
     errors: 1,
   },
@@ -422,7 +422,7 @@ const filesystemDirectoryReader = `export class FilesystemDirectoryReader implem
     }
   }
 }`;
-const remoteLinkCases = `import { describe, expect, it } from 'vitest';
+const remoteLinkCases = `import { describe, expect, it } from 'vite-plus/test';
 import { remoteLink } from './remotes.ts';
 
 describe('remoteLink', () => {
@@ -440,7 +440,7 @@ describe('remoteLink', () => {
 });
 `;
 const apiErrorCases = `import { apiErrorSchema } from '@porcelain/contracts/shared';
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import { z } from 'zod';
 import { worktreeNotFound } from '../kit/answers.ts';
 import { test } from '../kit/server-test.ts';
@@ -921,6 +921,112 @@ const nativeLaneCases = [
 ];
 
 export default [
+  ...[
+    [
+      'ci/explain-failure.ts',
+      'const pulls = `repos/${repository}/pulls`; gh(["api", `${pulls}?state=open&head=${head}`]);',
+    ],
+    [
+      'ci/explain-failure.ts',
+      'const commit = `repos/${repository}/commits/${sha}`; gh(["api", `${commit}/pulls`]);',
+    ],
+    [
+      'ci/explain-failure.ts',
+      'const options = ["-f", `head=${head}`] as const; gh(["api", pulls, ...options]);',
+    ],
+    [
+      'scripts/pulls.ts',
+      'execFileSync("gh", ["pr", "list", "--head", branch]);',
+    ],
+    ['scripts/pulls.ts', 'spawnSync("gh", ["pr", "list", "-H", branch]);'],
+    [
+      'scripts/pulls.ts',
+      'execSync("gh api repos/owner/repo/pulls --method GET -f head=main");',
+    ],
+  ].map(([path, invalid]) => ({
+    rule: 'ci-pull-request-resolver',
+    path,
+    valid:
+      'const args = ["api", pulls, "-f", "state=open"]; execFileSync("gh", args);',
+    invalid,
+    errors: 1,
+  })),
+
+  {
+    rule: 'ci-pull-request-resolver',
+    path: 'ci/explain-failure.ts',
+    valid:
+      "import { resolveWorkflowPullRequest } from './github.ts'; resolveWorkflowPullRequest(repository, head);",
+    invalid: 'gh(["api", `repos/${repository}/commits/${headSha}/pulls`]);',
+    errors: 1,
+  },
+  {
+    rule: 'ci-pull-request-resolver',
+    path: 'ci/review.ts',
+    validPath: 'ci/github.ts',
+    valid:
+      'function resolveWorkflowPullRequest(repository, head) { return pages(Pulls, `repos/${repository}/pulls?state=open&head=${head}`); }',
+    invalid: 'pages(Pulls, base + "/pulls?state=open&" + "head=" + head);',
+    errors: 1,
+  },
+  {
+    rule: 'ci-pull-request-resolver',
+    path: 'ci/review.ts',
+    validPath: 'ci/review.spec.ts',
+    valid: 'const endpoint = "pulls?head=owner:branch";',
+    invalid:
+      'fetch("https://api.github.com/repos/owner/repo/pulls?head=owner:branch");',
+    errors: 1,
+  },
+
+  {
+    rule: 'pending-control-owner',
+    path: 'apps/web/src/features/history/views/file-timeline.tsx',
+    valid: "import { PendingButton } from '@/shared/views/pending-button';",
+    invalid:
+      "import { Spinner as RawIndicator } from '@/components/ui/spinner';",
+    errors: 1,
+  },
+  {
+    rule: 'pending-control-owner',
+    path: 'apps/mobile/src/features/access/views/computer-updates-summary.tsx',
+    valid:
+      "import { Spinner } from '../../../components/ui/spinner'; export const read = <Spinner />;",
+    invalid:
+      "import { Spinner as Indicator } from '../../../components/ui/spinner'; import { Item as Row } from '../../../components/ui/item'; export const control = <Row trailing={<Indicator inline />} />;",
+    errors: 1,
+  },
+  {
+    rule: 'notification-owner',
+    path: 'apps/web/src/features/files/views/file-editor.tsx',
+    validPath: 'apps/web/src/shared/views/notify.tsx',
+    valid: "import { toast } from '@/components/ui/toast';",
+    invalid: "import { toast as rawToast } from '@/components/ui/toast';",
+    errors: 1,
+  },
+  {
+    rule: 'notification-owner',
+    path: 'apps/web/src/components/ui/extra-notices.tsx',
+    valid: "import { notify } from '@/shared/views/notify';",
+    invalid: "export * from './toast.tsx';",
+    errors: 1,
+  },
+  {
+    rule: 'notification-owner',
+    path: 'apps/web/src/components/ui/extra-notices.tsx',
+    valid: "import { notify } from '@/shared/views/notify';",
+    invalid: "import { toast } from '@ui-sdk/react/toast';",
+    errors: 1,
+  },
+  {
+    rule: 'notification-owner',
+    path: 'apps/mobile/src/features/projects/views/worktree-actions-sheet.tsx',
+    valid:
+      "export const view = <Text accessibilityRole='alert'>Could not copy this path.</Text>;",
+    invalid:
+      "import { ToastAndroid as RawToast } from 'react-native'; export const view = <Text>{'Copied brief'}</Text>;",
+    errors: 2,
+  },
   ...[
     ['"Save"', 'Save', 'Delete'],
     ["{'Save'}", "{'Save'}", "{'Delete'}"],
@@ -2133,7 +2239,7 @@ export const saveBoth = Atom.writable(
     ],
     [
       "import { it } from '@effect/vitest'; it.layer(Layer.empty)((test) => { test.effect('virtual', () => Effect.sleep(100)); });",
-      "import { it } from 'vitest'; it.layer(Layer.empty)((test) => { test.effect('unknown clock', () => Effect.sleep(100)); });",
+      "import { it } from 'vite-plus/test'; it.layer(Layer.empty)((test) => { test.effect('unknown clock', () => Effect.sleep(100)); });",
     ],
     [
       "import { it } from '@effect/vitest'; const callback = () => Effect.sleep(100); const alias = callback; it.effect('virtual', alias);",
@@ -2188,7 +2294,7 @@ export const saveBoth = Atom.writable(
     valid:
       "import { it } from '@effect/vitest'; it.effect('virtual', () => Effect.sleep(100));",
     invalid:
-      "import { it } from 'vitest'; it.effect('not an Effect test', () => Effect.sleep(100));",
+      "import { it } from 'vite-plus/test'; it.effect('not an Effect test', () => Effect.sleep(100));",
     errors: 1,
   },
   ...[
@@ -2209,7 +2315,7 @@ export const saveBoth = Atom.writable(
     ],
     [
       "import * as tests from '@effect/vitest'; tests.it.effect('virtual', () => Effect.sleep(100));",
-      "import * as tests from 'vitest'; tests.it.effect('live', () => Effect.sleep(100));",
+      "import * as tests from 'vite-plus/test'; tests.it.effect('live', () => Effect.sleep(100));",
       1,
     ],
     [
@@ -2266,12 +2372,12 @@ export const saveBoth = Atom.writable(
       1,
     ],
     [
-      "import { vi as timers } from 'vitest'; it('virtual', () => { timers.useFakeTimers(); Date.now(); });",
+      "import { vi as timers } from 'vite-plus/test'; it('virtual', () => { timers.useFakeTimers(); Date.now(); });",
       'function unrelated(vi) { vi.useFakeTimers(); Date.now(); }',
       1,
     ],
     [
-      "import { vitest } from 'vitest'; it('virtual', () => { vitest.useFakeTimers({ toFake: ['performance'] }); performance.now(); });",
+      "import { vitest } from 'vite-plus/test'; it('virtual', () => { vitest.useFakeTimers({ toFake: ['performance'] }); performance.now(); });",
       "it('live performance', () => { vi.useFakeTimers({ toFake: ['Date'] }); performance.now(); });",
       1,
     ],
@@ -2311,13 +2417,13 @@ export const saveBoth = Atom.writable(
       1,
     ],
     [
-      "import {it,vi} from 'vitest'; it('virtual',()=>{vi.useFakeTimers();Date.now();vi.useRealTimers();});",
-      "import {it,vi} from 'vitest'; it('virtual',()=>{vi.useFakeTimers();Date.now();vi.useRealTimers();});it('live',()=>Date.now());",
+      "import {it,vi} from 'vite-plus/test'; it('virtual',()=>{vi.useFakeTimers();Date.now();vi.useRealTimers();});",
+      "import {it,vi} from 'vite-plus/test'; it('virtual',()=>{vi.useFakeTimers();Date.now();vi.useRealTimers();});it('live',()=>Date.now());",
       1,
     ],
     [
-      "import * as V from 'vitest'; V.it('virtual',()=>{V.vi.useFakeTimers();Date.now();});",
-      "import * as V from 'vitest'; V.it('live',()=>{V.vi.useFakeTimers();V.vi.useRealTimers();Date.now();});",
+      "import * as V from 'vite-plus/test'; V.it('virtual',()=>{V.vi.useFakeTimers();Date.now();});",
+      "import * as V from 'vite-plus/test'; V.it('live',()=>{V.vi.useFakeTimers();V.vi.useRealTimers();Date.now();});",
       1,
     ],
     [
@@ -2424,6 +2530,76 @@ export const saveBoth = Atom.writable(
     invalid:
       'Reflect.defineProperty(console, "warn", { value: () => {} }); Reflect["defineProperty"](globalThis, "fetch", { value: () => {} }); Object.assign(window, { fetch: () => {} }); Object["assign"](console, { warn: () => {} });',
     errors: 4,
+  },
+  ...[
+    'apps/server/src/git/fixture.spec.ts',
+    'apps/web/spec/integration/probe.test.tsx',
+  ].map((path) => ({
+    rule: 'no-direct-vitest-imports',
+    path,
+    valid:
+      "import { expect } from 'vite-plus/test'; expect(read()).toBe('ready');",
+    invalid: "import { vi as mocking } from 'vitest'; mocking.fn();",
+    errors: 1,
+  })),
+  {
+    rule: 'no-direct-vitest-imports',
+    path: 'apps/server/src/git/fixture.spec.ts',
+    valid:
+      "import { expect, it } from 'vite-plus/test'; it('reads the data', () => expect(read()).toBe('ready'));",
+    invalid:
+      "import { expect, it } from 'vitest'; if (enabled) { it('reads the data', () => expect(read()).toBe('ready')); }",
+    errors: 1,
+  },
+  {
+    rule: 'spec-asserts',
+    path: 'apps/server/src/git/fixture.spec.ts',
+    valid:
+      "import { expect, it } from 'vite-plus/test'; it('reads the data', () => expect(read()).toBe('ready'));",
+    invalid:
+      "import { expect, it } from 'vite-plus/test'; if (enabled) { it('reads the data', () => expect(read()).toBe('ready')); }",
+    errors: 1,
+  },
+  {
+    rule: 'no-direct-vitest-imports',
+    path: 'apps/server/spec/kit/clock.ts',
+    valid:
+      "import { vi as timers } from 'vite-plus/test'; timers.useFakeTimers(); Date.now(); timers.useRealTimers();",
+    invalid:
+      "import { vi as timers } from 'vitest'; timers.useFakeTimers(); Date.now(); timers.useRealTimers();",
+    errors: 1,
+  },
+  {
+    rule: 'spec-no-clock',
+    path: 'apps/server/spec/kit/clock.ts',
+    valid:
+      "import { vi as timers } from 'vite-plus/test'; timers.useFakeTimers(); Date.now(); timers.useRealTimers();",
+    invalid:
+      "import { vi as timers } from 'vite-plus/test'; timers.useFakeTimers(); timers.useRealTimers(); Date.now();",
+    errors: 1,
+  },
+  {
+    rule: 'no-direct-vitest-imports',
+    path: 'apps/web/src/features/files/test-api.ts',
+    valid: "export { commands } from 'vite-plus/test/browser';",
+    invalid: "export { commands } from 'vitest/browser';",
+    errors: 1,
+  },
+  {
+    rule: 'no-direct-vitest-imports',
+    path: 'apps/web/src/features/files/test-api.ts',
+    valid: "const runner = await import('vite-plus/test');",
+    invalid: 'const runner = await import(`vitest`);',
+    errors: 1,
+  },
+  {
+    rule: 'no-direct-vitest-imports',
+    path: 'apps/server/spec/kit/setup.ts',
+    valid:
+      "declare module 'vitest' { interface ProvidedContext { serverBuild: string; } }",
+    invalid:
+      "type Context = import('vitest').ProvidedContext; import legacy = require('vitest'); const runner = require('vitest');",
+    errors: 3,
   },
   {
     rule: 'spec-no-mocking',
@@ -3921,18 +4097,18 @@ describe('deriveProjectName probe', () => {
     rule: 'spec-asserts',
     path: 'apps/server/spec/integration/access-health.integration.ts',
     valid:
-      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect(response.status).toBe(404);\n  expect(response.body).toStrictEqual(worktreeNotFound);\n});\n",
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vite-plus/test';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect(response.status).toBe(404);\n  expect(response.body).toStrictEqual(worktreeNotFound);\n});\n",
     invalid:
-      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect(response.status).toBe(response.status);\n  expect(response.body).toStrictEqual(response.body);\n});\n",
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vite-plus/test';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect(response.status).toBe(response.status);\n  expect(response.body).toStrictEqual(response.body);\n});\n",
     errors: 1,
   },
   {
     rule: 'spec-asserts',
     path: 'apps/server/spec/integration/access-health.integration.ts',
     valid:
-      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect(response.body).toStrictEqual(worktreeNotFound);\n});\n",
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vite-plus/test';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect(response.body).toStrictEqual(worktreeNotFound);\n});\n",
     invalid:
-      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect(response.body).not.toStrictEqual('sentinel');\n});\n",
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vite-plus/test';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect(response.body).not.toStrictEqual('sentinel');\n});\n",
     errors: 1,
   },
   {
@@ -3940,52 +4116,52 @@ describe('deriveProjectName probe', () => {
     path: 'apps/server/spec/integration/access-health.integration.ts',
     valid: apiErrorCases,
     invalid:
-      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused with the error contract', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect(response.body).toEqual(expect.schemaMatching(z.unknown()));\n});\n",
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vite-plus/test';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused with the error contract', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect(response.body).toEqual(expect.schemaMatching(z.unknown()));\n});\n",
     errors: 1,
   },
   {
     rule: 'spec-asserts',
     path: 'apps/server/spec/integration/access-health.integration.ts',
     valid:
-      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect(body.statusCode).toBe(404);\n});\n",
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vite-plus/test';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect(body.statusCode).toBe(404);\n});\n",
     invalid:
-      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect({ refused: body.statusCode !== 200, statusCode: body.statusCode }).toStrictEqual({ refused: true, statusCode: 404 });\n});\n",
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vite-plus/test';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect({ refused: body.statusCode !== 200, statusCode: body.statusCode }).toStrictEqual({ refused: true, statusCode: 404 });\n});\n",
     errors: 1,
   },
   {
     rule: 'spec-asserts',
     path: 'apps/server/spec/integration/access-health.integration.ts',
     valid:
-      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect(body.error).toBe('Not Found');\n});\n",
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vite-plus/test';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect(body.error).toBe('Not Found');\n});\n",
     invalid:
-      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect('Not').toBe('Not');\n});\n",
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vite-plus/test';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect('Not').toBe('Not');\n});\n",
     errors: 1,
   },
   {
     rule: 'spec-asserts',
     path: 'apps/server/spec/integration/access-health.integration.ts',
     valid:
-      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect(response.body).toStrictEqual({ ...worktreeNotFound });\n});\n",
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vite-plus/test';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect(response.body).toStrictEqual({ ...worktreeNotFound });\n});\n",
     invalid:
-      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect(response.body).toStrictEqual({ ...record(response.body) });\n});\n",
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vite-plus/test';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect(response.body).toStrictEqual({ ...record(response.body) });\n});\n",
     errors: 1,
   },
   {
     rule: 'spec-asserts',
     path: 'apps/server/spec/integration/access-health.integration.ts',
     valid:
-      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused as JSON', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect(response.headers['content-type']).toBe('application/json; charset=utf-8');\n});\n",
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vite-plus/test';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused as JSON', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect(response.headers['content-type']).toBe('application/json; charset=utf-8');\n});\n",
     invalid:
-      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused as JSON', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect(response.headers['content-type']).toBe(response.headers['content-type']);\n});\n",
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vite-plus/test';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused as JSON', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect(response.headers['content-type']).toBe(response.headers['content-type']);\n});\n",
     errors: 1,
   },
   {
     rule: 'spec-asserts',
     path: 'apps/server/spec/integration/access-health.integration.ts',
     valid:
-      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect({ wrapped: response.body }).toStrictEqual({ wrapped: worktreeNotFound });\n});\n",
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vite-plus/test';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect({ wrapped: response.body }).toStrictEqual({ wrapped: worktreeNotFound });\n});\n",
     invalid:
-      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect({ wrapped: response.body }).toStrictEqual({ wrapped: body });\n});\n",
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vite-plus/test';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect({ wrapped: response.body }).toStrictEqual({ wrapped: body });\n});\n",
     errors: 1,
   },
   {
@@ -3993,88 +4169,88 @@ describe('deriveProjectName probe', () => {
     path: 'apps/server/spec/integration/access-health.integration.ts',
     valid: apiErrorCases,
     invalid:
-      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused with the error contract', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect(response.body).toEqual(expect.schemaMatching(apiErrorSchema.partial()));\n});\n",
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vite-plus/test';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused with the error contract', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect(response.body).toEqual(expect.schemaMatching(apiErrorSchema.partial()));\n});\n",
     errors: 1,
   },
   {
     rule: 'spec-asserts',
     path: 'apps/server/spec/integration/access-health.integration.ts',
     valid:
-      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect([body.statusCode, body.message]).toStrictEqual([404, 'Worktree not found']);\n});\n",
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vite-plus/test';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect([body.statusCode, body.message]).toStrictEqual([404, 'Worktree not found']);\n});\n",
     invalid:
-      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect([body.statusCode, typeof body.message === 'string']).toStrictEqual([404, true]);\n});\n",
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vite-plus/test';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect([body.statusCode, typeof body.message === 'string']).toStrictEqual([404, true]);\n});\n",
     errors: 1,
   },
   {
     rule: 'spec-asserts',
     path: 'apps/server/spec/integration/access-health.integration.ts',
     valid:
-      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect(text(body.message)).toBe('Worktree not found');\n});\n",
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vite-plus/test';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect(text(body.message)).toBe('Worktree not found');\n});\n",
     invalid:
-      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect(text(body.message).split(' ')[0]).toBe('Worktree');\n});\n",
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vite-plus/test';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect(text(body.message).split(' ')[0]).toBe('Worktree');\n});\n",
     errors: 1,
   },
   {
     rule: 'spec-asserts',
     path: 'apps/server/spec/integration/access-health.integration.ts',
     valid:
-      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect(response.status).not.toBe(200);\n  expect(body.error).toBe('Not Found');\n});\n",
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vite-plus/test';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect(response.status).not.toBe(200);\n  expect(body.error).toBe('Not Found');\n});\n",
     invalid:
-      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect(response.status).not.toBe(record(response.body).error);\n});\n",
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vite-plus/test';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the changes of an unknown worktree are refused', async ({ session }) => {\n  const response = await session.send(unknownChanges());\n  const body = record(response.body);\n  expect(response.status).not.toBe(record(response.body).error);\n});\n",
     errors: 1,
   },
   {
     rule: 'spec-asserts',
     path: 'apps/server/spec/integration/access-health.integration.ts',
     valid:
-      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the health route answers', async ({ session }) => {\n  const response = await session.send(health());\n  const body = record(response.body);\n  expect(response.status).toBe(200);\n  expect(body.status).toBe('ok');\n});\n",
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vite-plus/test';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the health route answers', async ({ session }) => {\n  const response = await session.send(health());\n  const body = record(response.body);\n  expect(response.status).toBe(200);\n  expect(body.status).toBe('ok');\n});\n",
     invalid:
-      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the health route answers', async ({ session }) => {\n  const response = await session.send(health());\n  const body = record(response.body);\n  const again = await session.send(health());\n  expect(response.status).toBe(again.status);\n  expect(response.body).toStrictEqual(again.body);\n});\n",
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vite-plus/test';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the health route answers', async ({ session }) => {\n  const response = await session.send(health());\n  const body = record(response.body);\n  const again = await session.send(health());\n  expect(response.status).toBe(again.status);\n  expect(response.body).toStrictEqual(again.body);\n});\n",
     errors: 1,
   },
   {
     rule: 'spec-asserts',
     path: 'apps/server/spec/integration/access-health.integration.ts',
     valid:
-      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the health route answers', async ({ session }) => {\n  const response = await session.send(health());\n  const body = record(response.body);\n  expect(body.status).toMatch(/^ok$/);\n});\n",
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vite-plus/test';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the health route answers', async ({ session }) => {\n  const response = await session.send(health());\n  const body = record(response.body);\n  expect(body.status).toMatch(/^ok$/);\n});\n",
     invalid:
-      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the health route answers', async ({ session }) => {\n  const response = await session.send(health());\n  const body = record(response.body);\n  expect(body.status).toMatch(/(?:)/);\n});\n",
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vite-plus/test';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the health route answers', async ({ session }) => {\n  const response = await session.send(health());\n  const body = record(response.body);\n  expect(body.status).toMatch(/(?:)/);\n});\n",
     errors: 1,
   },
   {
     rule: 'spec-asserts',
     path: 'apps/server/spec/integration/access-health.integration.ts',
     valid:
-      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the health route answers', async ({ session }) => {\n  const response = await session.send(health());\n  const body = record(response.body);\n  expect(response.status).toBe(200);\n});\n",
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vite-plus/test';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the health route answers', async ({ session }) => {\n  const response = await session.send(health());\n  const body = record(response.body);\n  expect(response.status).toBe(200);\n});\n",
     invalid:
-      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the health route answers', async ({ session }) => {\n  const response = await session.send(health());\n  const body = record(response.body);\n  await session.send(health());\n});\n",
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vite-plus/test';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the health route answers', async ({ session }) => {\n  const response = await session.send(health());\n  const body = record(response.body);\n  await session.send(health());\n});\n",
     errors: 1,
   },
   {
     rule: 'spec-asserts',
     path: 'apps/server/spec/integration/access-health.integration.ts',
     valid:
-      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the health route answers', async ({ session }) => {\n  const response = await session.send(health());\n  const body = record(response.body);\n  expect(response.body).toBeDefined();\n  expect(body.status).toBe('ok');\n});\n",
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vite-plus/test';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the health route answers', async ({ session }) => {\n  const response = await session.send(health());\n  const body = record(response.body);\n  expect(response.body).toBeDefined();\n  expect(body.status).toBe('ok');\n});\n",
     invalid:
-      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the health route answers', async ({ session }) => {\n  const response = await session.send(health());\n  const body = record(response.body);\n  expect(response.body).toBeDefined();\n  expect(response.status).toBeGreaterThan(0);\n  expect(response).toBeInstanceOf(Object);\n  expect(body.status).toBeTruthy();\n  expect(() => apiErrorSchema.parse(body)).not.toThrow();\n});\n",
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vite-plus/test';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the health route answers', async ({ session }) => {\n  const response = await session.send(health());\n  const body = record(response.body);\n  expect(response.body).toBeDefined();\n  expect(response.status).toBeGreaterThan(0);\n  expect(response).toBeInstanceOf(Object);\n  expect(body.status).toBeTruthy();\n  expect(() => apiErrorSchema.parse(body)).not.toThrow();\n});\n",
     errors: 1,
   },
   {
     rule: 'spec-asserts',
     path: 'apps/server/spec/integration/access-health.integration.ts',
     valid:
-      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the health route answers', async ({ session }) => {\n  const response = await session.send(health());\n  const body = record(response.body);\n  expect(body.error).toBeUndefined();\n  expect(Object.keys(body)).toEqual(['status', 'environmentId']);\n});\n",
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vite-plus/test';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the health route answers', async ({ session }) => {\n  const response = await session.send(health());\n  const body = record(response.body);\n  expect(body.error).toBeUndefined();\n  expect(Object.keys(body)).toEqual(['status', 'environmentId']);\n});\n",
     invalid:
-      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the health route answers', async ({ session }) => {\n  const response = await session.send(health());\n  const body = record(response.body);\n  expect(body.error).toBeUndefined();\n  expect(Object.keys(body.errors ?? {})).toEqual([]);\n  expect(text(body.status)).not.toHaveLength(0);\n  expect([]).toHaveLength(0);\n});\n",
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vite-plus/test';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the health route answers', async ({ session }) => {\n  const response = await session.send(health());\n  const body = record(response.body);\n  expect(body.error).toBeUndefined();\n  expect(Object.keys(body.errors ?? {})).toEqual([]);\n  expect(text(body.status)).not.toHaveLength(0);\n  expect([]).toHaveLength(0);\n});\n",
     errors: 1,
   },
   {
     rule: 'spec-asserts',
     path: 'apps/server/spec/integration/access-health.integration.ts',
     valid:
-      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the health route answers', async ({ session }) => {\n  const response = await session.send(health());\n  const body = record(response.body);\n  const project = { name: 'App' };\n  expect(body.status).not.toBe(project.name);\n  expect(body.status).toBe('ok');\n});\n",
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vite-plus/test';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the health route answers', async ({ session }) => {\n  const response = await session.send(health());\n  const body = record(response.body);\n  const project = { name: 'App' };\n  expect(body.status).not.toBe(project.name);\n  expect(body.status).toBe('ok');\n});\n",
     invalid:
-      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vitest';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the health route answers', async ({ session }) => {\n  const response = await session.send(health());\n  const body = record(response.body);\n  const project = { name: 'App' };\n  expect(project.name).toBe('App');\n});\n",
+      "import { apiErrorSchema } from '@porcelain/contracts/shared';\nimport { expect } from 'vite-plus/test';\nimport { z } from 'zod';\nimport { worktreeNotFound } from '../kit/answers.ts';\nimport { test } from '../kit/server-test.ts';\nimport { record, text } from '../kit/session.ts';\n\nconst unknownChanges = () => ({ method: 'GET', path: `/api/worktrees/${'0'.repeat(32)}/changes` });\nconst health = () => ({ method: 'GET', path: '/api/health' });\n\ntest('the health route answers', async ({ session }) => {\n  const response = await session.send(health());\n  const body = record(response.body);\n  const project = { name: 'App' };\n  expect(project.name).toBe('App');\n});\n",
     errors: 1,
   },
   {
@@ -4099,7 +4275,7 @@ describe('deriveProjectName probe', () => {
     rule: 'spec-asserts',
     path: 'apps/web/src/features/access/rules/remotes.spec.ts',
     valid: remoteLinkCases,
-    invalid: `import { describe, expect, it } from 'vitest';
+    invalid: `import { describe, expect, it } from 'vite-plus/test';
 import { remoteLink } from './remotes.ts';
 
 describe('remoteLink', () => {
@@ -4155,7 +4331,7 @@ describe('remoteLink', () => {
   {
     rule: 'spec-asserts',
     path: 'packages/client/src/shared/api/per-connection.spec.ts',
-    valid: `import { describe, expect, it } from 'vitest';
+    valid: `import { describe, expect, it } from 'vite-plus/test';
 import { perConnection } from './per-connection.ts';
 
 describe('perConnection', () => {
@@ -4172,7 +4348,7 @@ describe('perConnection', () => {
   });
 });
 `,
-    invalid: `import { describe, expect, it } from 'vitest';
+    invalid: `import { describe, expect, it } from 'vite-plus/test';
 import { perConnection } from './per-connection.ts';
 
 describe('perConnection', () => {
@@ -4188,7 +4364,7 @@ describe('perConnection', () => {
   {
     rule: 'spec-asserts',
     path: 'packages/changes/src/rules/fingerprint-branch-file.spec.ts',
-    valid: `import { describe, expect, it } from 'vitest';
+    valid: `import { describe, expect, it } from 'vite-plus/test';
 import { fingerprintBranchFile } from './fingerprint-branch-file.ts';
 
 describe('fingerprintBranchFile', () => {
@@ -4201,7 +4377,7 @@ describe('fingerprintBranchFile', () => {
   });
 });
 `,
-    invalid: `import { describe, expect, it } from 'vitest';
+    invalid: `import { describe, expect, it } from 'vite-plus/test';
 import { fingerprintBranchFile } from './fingerprint-branch-file.ts';
 
 describe('fingerprintBranchFile', () => {
@@ -4215,7 +4391,7 @@ describe('fingerprintBranchFile', () => {
   {
     rule: 'spec-asserts',
     path: 'packages/kernel/src/rules/absence.spec.ts',
-    valid: `import { describe, expect, it } from 'vitest';
+    valid: `import { describe, expect, it } from 'vite-plus/test';
 
 describe('absence spelled every way, beside what each subject produces', () => {
   it('names nothing when neither side has a path', () => {
@@ -4275,7 +4451,7 @@ describe('absence spelled every way, beside what each subject produces', () => {
   });
 });
 `,
-    invalid: `import { describe, expect, it } from 'vitest';
+    invalid: `import { describe, expect, it } from 'vite-plus/test';
 
 describe('absence spelled every way, alone', () => {
   it('names nothing when neither side has a path', () => {
@@ -4312,7 +4488,7 @@ describe('absence spelled every way, alone', () => {
   {
     rule: 'spec-asserts',
     path: 'apps/desktop/src/rules/content-security-policy.spec.ts',
-    valid: `import { describe, expect, it } from 'vitest';
+    valid: `import { describe, expect, it } from 'vite-plus/test';
 import { desktopContentSecurityPolicy } from './content-security-policy.ts';
 
 describe('desktop content security policy', () => {
@@ -4331,7 +4507,7 @@ describe('desktop content security policy', () => {
   });
 });
 `,
-    invalid: `import { describe, expect, it } from 'vitest';
+    invalid: `import { describe, expect, it } from 'vite-plus/test';
 import { desktopContentSecurityPolicy } from './content-security-policy.ts';
 
 describe('desktop content security policy', () => {
@@ -4349,7 +4525,7 @@ describe('desktop content security policy', () => {
   {
     rule: 'spec-asserts',
     path: 'packages/git/src/actions/commands/commit-paths.spec.ts',
-    valid: `import { describe, expect, it } from 'vitest';
+    valid: `import { describe, expect, it } from 'vite-plus/test';
 
 describe('commitPaths', () => {
   it('commits the asked paths', async () => {
@@ -4362,7 +4538,7 @@ describe('commitPaths', () => {
   });
 });
 `,
-    invalid: `import { describe, expect, it, vi } from 'vitest';
+    invalid: `import { describe, expect, it, vi } from 'vite-plus/test';
 
 describe('commitPaths', () => {
   it('commits the asked paths', async () => {
@@ -4389,7 +4565,7 @@ describe('commitPaths', () => {
   });
 
   it('reads the clock once per mark', async () => {
-    const { vi } = await import('vitest');
+    const { vi } = await import('vite-plus/test');
     const spy = vi.fn();
     spy();
     expect(spy.mock.calls.length).toBe(1);
@@ -4569,8 +4745,8 @@ export const probeRequest = HttpApiClient;
     rule: 'spec-no-mocking',
     path: 'apps/web/spec/integration/probe.test.tsx',
     valid:
-      "import {expect} from 'vitest'; expect.element(workspace.getByRole('region')).toBeVisible();",
-    invalid: `import { vi } from 'vitest';
+      "import {expect} from 'vite-plus/test'; expect.element(workspace.getByRole('region')).toBeVisible();",
+    invalid: `import { vi } from 'vite-plus/test';
 
 vi.fn();
 `,
@@ -4580,8 +4756,8 @@ vi.fn();
     rule: 'spec-no-skips',
     path: 'apps/web/spec/integration/probe.test.tsx',
     valid:
-      "import {test} from 'vitest'; test('opens the workspace', () => undefined);",
-    invalid: `import { test } from 'vitest';
+      "import {test} from 'vite-plus/test'; test('opens the workspace', () => undefined);",
+    invalid: `import { test } from 'vite-plus/test';
 
 test.skip('probe', () => undefined);
 `,
@@ -4591,8 +4767,8 @@ test.skip('probe', () => undefined);
     rule: 'spec-no-skips',
     path: 'apps/web/spec/integration/probe.test.tsx',
     valid:
-      "import {expect} from 'vitest'; import {test} from './fixtures.tsx'; test('the workspace opens after pairing', async ({workspace}) => { await expect.element(workspace.getByRole('region', {name: 'Review content'})).toBeVisible(); });",
-    invalid: `import { expect } from 'vitest';
+      "import {expect} from 'vite-plus/test'; import {test} from './fixtures.tsx'; test('the workspace opens after pairing', async ({workspace}) => { await expect.element(workspace.getByRole('region', {name: 'Review content'})).toBeVisible(); });",
+    invalid: `import { expect } from 'vite-plus/test';
 import { test } from './fixtures.tsx';
 
 test('the workspace opens after pairing', { retry: 2 }, async ({ workspace }) => {
@@ -4764,7 +4940,7 @@ test('opening the commit dialog shows its form', async ({ pairedPage }) => {
     rule: 'web-journey-asserts',
     path: 'apps/web/spec/integration/probe.test.tsx',
     valid:
-      "import {expect} from 'vitest'; import {test} from './fixtures.tsx'; test('opening the commit dialog shows its form', async ({workspace}) => { await workspace.getByRole('button', {name: 'Commit', exact: true}).click(); await expect.element(workspace.getByRole('dialog')).toBeVisible(); });",
+      "import {expect} from 'vite-plus/test'; import {test} from './fixtures.tsx'; test('opening the commit dialog shows its form', async ({workspace}) => { await workspace.getByRole('button', {name: 'Commit', exact: true}).click(); await expect.element(workspace.getByRole('dialog')).toBeVisible(); });",
     invalid: `import { test } from './fixtures.tsx';
 
 test('opening the commit dialog shows its form', async ({ workspace }) => {
@@ -4777,8 +4953,8 @@ test('opening the commit dialog shows its form', async ({ workspace }) => {
     rule: 'web-journey-imports',
     path: 'apps/web/spec/integration/probe.test.tsx',
     valid:
-      "import {expect} from 'vitest'; import {test} from './fixtures.tsx'; test('the server keeps its health status', async ({server}) => { await expect.poll(async () => (await server.health()).status).toBe('ok'); });",
-    invalid: `import { expect } from 'vitest';
+      "import {expect} from 'vite-plus/test'; import {test} from './fixtures.tsx'; test('the server keeps its health status', async ({server}) => { await expect.poll(async () => (await server.health()).status).toBe('ok'); });",
+    invalid: `import { expect } from 'vite-plus/test';
 import { isContentChangedError } from '../../src/features/review/queries/review';
 import { test } from './fixtures.tsx';
 
@@ -4792,8 +4968,8 @@ test('a conflict is recognised by the review client', async ({ server }) => {
     rule: 'web-journey-locators',
     path: 'apps/web/spec/integration/probe.test.tsx',
     valid:
-      "import {expect} from 'vitest'; import {test} from './fixtures.tsx'; test('the workspace names its review region', async ({workspace}) => { await expect.element(workspace.getByRole('region', {name: 'Review content', exact: true})).toBeVisible(); });",
-    invalid: `import { expect } from 'vitest';
+      "import {expect} from 'vite-plus/test'; import {test} from './fixtures.tsx'; test('the workspace names its review region', async ({workspace}) => { await expect.element(workspace.getByRole('region', {name: 'Review content', exact: true})).toBeVisible(); });",
+    invalid: `import { expect } from 'vite-plus/test';
 import { test } from './fixtures.tsx';
 
 test('the workspace names its review region', async ({ workspace }) => {
@@ -4807,8 +4983,8 @@ test('the workspace names its review region', async ({ workspace }) => {
     rule: 'web-journey-locators',
     path: 'apps/web/spec/integration/probe.test.tsx',
     valid:
-      "import {expect} from 'vitest'; import {test} from './fixtures.tsx'; test('the workspace offers a commit button', async ({workspace}) => { await expect.element(workspace.getByRole('button', {name: 'Commit', exact: true})).toBeVisible(); });",
-    invalid: `import { expect } from 'vitest';
+      "import {expect} from 'vite-plus/test'; import {test} from './fixtures.tsx'; test('the workspace offers a commit button', async ({workspace}) => { await expect.element(workspace.getByRole('button', {name: 'Commit', exact: true})).toBeVisible(); });",
+    invalid: `import { expect } from 'vite-plus/test';
 import { test } from './fixtures.tsx';
 
 test('the workspace offers a commit button', async ({ workspace }) => {
@@ -4820,7 +4996,7 @@ test('the workspace offers a commit button', async ({ workspace }) => {
   {
     rule: 'web-journey-locators',
     path: 'apps/web/spec/integration/probe.test.tsx',
-    valid: `import { expect } from 'vitest';
+    valid: `import { expect } from 'vite-plus/test';
 import { test } from './fixtures.tsx';
 
 test('marking a file reviewed presses its toggle', async ({ workspace }) => {
@@ -4830,7 +5006,7 @@ test('marking a file reviewed presses its toggle', async ({ workspace }) => {
   await expect.element(workspace.getByLabelText(new RegExp('^Comment'))).toBeVisible();
 });
 `,
-    invalid: `import { expect } from 'vitest';
+    invalid: `import { expect } from 'vite-plus/test';
 import { test } from './fixtures.tsx';
 
 test('marking a file reviewed presses its toggle', async ({ workspace }) => {
@@ -4845,8 +5021,8 @@ test('marking a file reviewed presses its toggle', async ({ workspace }) => {
     rule: 'web-journey-no-waits',
     path: 'apps/web/spec/integration/probe.test.tsx',
     valid:
-      "import {expect} from 'vitest'; import {test} from './fixtures.tsx'; test('the commit dialog opens after a click', async ({workspace}) => { await workspace.getByRole('button', {name: 'Commit', exact: true}).click(); await expect.element(workspace.getByRole('dialog')).toBeVisible(); });",
-    invalid: `import { expect } from 'vitest';
+      "import {expect} from 'vite-plus/test'; import {test} from './fixtures.tsx'; test('the commit dialog opens after a click', async ({workspace}) => { await workspace.getByRole('button', {name: 'Commit', exact: true}).click(); await expect.element(workspace.getByRole('dialog')).toBeVisible(); });",
+    invalid: `import { expect } from 'vite-plus/test';
 import { test } from './fixtures.tsx';
 
 test('the commit dialog opens after a click', async ({ workspace }) => {
@@ -4861,8 +5037,8 @@ test('the commit dialog opens after a click', async ({ workspace }) => {
     rule: 'web-journey-retrying-assertions',
     path: 'apps/web/spec/integration/probe.test.tsx',
     valid:
-      "import {expect} from 'vitest'; import {test} from './fixtures.tsx'; test('a renamed project keeps its name on the server', async ({server}) => { await expect.poll(async () => (await server.project()).name).toBe('Renamed'); });",
-    invalid: `import { expect } from 'vitest';
+      "import {expect} from 'vite-plus/test'; import {test} from './fixtures.tsx'; test('a renamed project keeps its name on the server', async ({server}) => { await expect.poll(async () => (await server.project()).name).toBe('Renamed'); });",
+    invalid: `import { expect } from 'vite-plus/test';
 import { test } from './fixtures.tsx';
 
 test('a renamed project keeps its new name on the server', async ({ workspace, server }) => {
@@ -4877,7 +5053,7 @@ test('a renamed project keeps its new name on the server', async ({ workspace, s
     path: 'apps/web/spec/integration/probe.test.tsx',
     valid:
       'export async function probeFocus(locator: {click(): Promise<void>}) { await locator.click(); }',
-    invalid: `import { expect } from 'vitest';
+    invalid: `import { expect } from 'vite-plus/test';
 import { test } from './fixtures.tsx';
 
 test('the paired browser can read its inventory', async ({ workspace }) => {
@@ -4929,7 +5105,6 @@ export const ProbeContext = createContext('');
     'apps/desktop/src/main/window.ts',
     'apps/mobile/src/components/ui/probe.tsx',
     'packages/client/src/features/files/store.ts',
-    'apps/web/src/components/ui/custom.tsx',
   ].flatMap((path) => [
     {
       rule: 'react-no-effects-or-refs',
@@ -4961,8 +5136,8 @@ export const ProbeContext = createContext('');
   ]),
   {
     rule: 'react-no-effects-or-refs',
-    path: 'apps/web/src/components/ui/custom.tsx',
-    validPath: 'apps/web/src/components/ui/sidebar.tsx',
+    path: 'apps/web/src/features/files/views/probe-view.tsx',
+    validPath: 'apps/web/src/components/ui/custom.tsx',
     valid:
       "import * as React from 'react'; React.useEffect(subscribe, []); React.useRef(null);",
     invalid: "import { useEffect } from 'react'; useEffect(subscribe, []);",
@@ -4997,10 +5172,90 @@ export function nextGeneration() { return ++generation; }
     path: 'apps/web/src/features/access/views/probe-view.tsx',
     valid:
       "import {pairingOverlay} from '../overlays'; export const openPairing = () => pairingOverlay.open();",
-    invalid: `import { Dialog } from '@base-ui/react/dialog';
+    invalid: `import { createDialogController } from '@/components/ui/dialog';
 
-export const probeHandle = Dialog.createHandle();
+export const probeController = createDialogController();
 `,
+    errors: 1,
+  },
+  {
+    rule: 'web-ui-library-owner',
+    path: 'apps/web/src/features/files/views/probe-view.tsx',
+    valid: "import { Dialog } from '@/components/ui/dialog';",
+    invalid: "import { Command } from 'cmdk';",
+    errors: 1,
+  },
+  {
+    rule: 'web-ui-library-owner',
+    path: 'apps/web/src/features/files/views/probe-view.tsx',
+    valid: "import { DropdownMenu } from '@/components/ui/dropdown-menu';",
+    invalid: "import { Menu } from '@ui-sdk/react/menu';",
+    errors: 1,
+  },
+  {
+    rule: 'web-ui-library-owner',
+    path: 'apps/desktop/src/renderer/probe-view.tsx',
+    valid: "import { Tooltip } from '@/components/ui/tooltip';",
+    invalid: "export { Menu } from '@base-ui-components/react/menu';",
+    errors: 1,
+  },
+  {
+    rule: 'web-ui-library-owner',
+    path: 'apps/web/src/components/ui/probe.tsx',
+    valid: "import { Menu } from '@ui-sdk/react/menu';",
+    invalid: "import { Dialog } from '@base-ui/react/dialog';",
+    errors: 1,
+  },
+  {
+    rule: 'web-ui-library-owner',
+    path: 'apps/web/src/features/files/views/probe-view.tsx',
+    valid: "import { Dialog } from '@/components/ui/dialog';",
+    invalid: "import { Dialog } from '@base-ui/react';",
+    errors: 1,
+  },
+  {
+    rule: 'web-ui-library-owner',
+    path: 'apps/web/src/features/files/views/probe-view.ts',
+    valid:
+      "export type ProbeProps = import('@/components/ui/button').ButtonProps;",
+    invalid:
+      "export type ProbeProps = import('@base-ui/react/button').Button.Props;",
+    errors: 1,
+  },
+  {
+    rule: 'web-ui-library-owner',
+    path: 'apps/web/src/features/files/views/probe-view.tsx',
+    valid: "export const probeDialog = () => import('@/components/ui/dialog');",
+    invalid: "export const probeDialog = () => import('@ui-sdk/react/dialog');",
+    errors: 1,
+  },
+  {
+    rule: 'web-ui-library-owner',
+    path: 'apps/web/src/features/files/views/probe-view.tsx',
+    valid:
+      "export const probeMenu = () => import('@/components/ui/dropdown-menu');",
+    invalid: "export const probeMenu = () => import('@base-ui/react/menu');",
+    errors: 1,
+  },
+  {
+    rule: 'web-ui-library-owner',
+    path: 'apps/web/src/features/files/views/probe-view.tsx',
+    valid: 'export const probeDialog = () => import(`@/components/ui/dialog`);',
+    invalid: 'export const probeDialog = () => import(`@ui-sdk/react/dialog`);',
+    errors: 1,
+  },
+  {
+    rule: 'web-ui-library-owner',
+    path: 'apps/web/src/components/ui/probe.tsx',
+    valid: "import { Button } from '@ui-sdk/react/button';",
+    invalid: "import { Button } from '@base-ui/react/button';",
+    errors: 1,
+  },
+  {
+    rule: 'web-ui-library-owner',
+    path: 'apps/web/src/components/ui/probe.tsx',
+    valid: "import { mergeProps } from '@ui-sdk/react/primitive';",
+    invalid: "import { useRender } from '@base-ui/react/use-render';",
     errors: 1,
   },
 
@@ -5723,6 +5978,15 @@ const styleConfigCases = [
     details: [toolOutput === '{}' ? '{}' : 'SyntaxError'],
   })),
   { name: 'canonical configs and empty source', status: 0, rules: [] },
+  {
+    name: 'shell scripts use the CI pull request resolver',
+    files: {
+      'scripts/resolve-pull.sh': 'gh pr list --head main\n',
+    },
+    status: 1,
+    rules: [],
+    findings: ['porcelain(ci-pull-request-resolver)'],
+  },
   ...[
     ['events-after-lane', 'warning', 1],
     ['use-case-input-is-contract', 'warning', 1],
@@ -5752,7 +6016,7 @@ const styleConfigCases = [
       name: `${rule} requires error instead of ${JSON.stringify(level)}`,
       status: 1,
       rules: ['lint-config'],
-      json: { '.oxlintrc.json': { [`rules.porcelain/${rule}`]: level } },
+      json: { 'vite.config.ts': { [`lint.rules.porcelain/${rule}`]: level } },
       tokens: [`porcelain/${rule}`],
     })),
   ),
@@ -5761,14 +6025,14 @@ const styleConfigCases = [
     status: 0,
     rules: [],
     json: {
-      '.oxlintrc.json': { 'rules.typescript/no-explicit-any': ['error'] },
+      'vite.config.ts': { 'lint.rules.typescript/no-explicit-any': ['error'] },
     },
   },
   ...[false, undefined].map((value) => ({
     name: `typeAware ${String(value)}`,
     status: 1,
     rules: ['lint-config'],
-    json: { '.oxlintrc.json': { 'options.typeAware': value } },
+    json: { 'vite.config.ts': { 'lint.options.typeAware': value } },
   })),
   ...[
     ['plugins empty', { plugins: [] }],
@@ -5777,7 +6041,11 @@ const styleConfigCases = [
     ['unsupported lint field', { ignorePatterns: [] }],
   ].map(([name, json]) => ({
     name,
-    json: { '.oxlintrc.json': json },
+    json: {
+      'vite.config.ts': Object.fromEntries(
+        Object.entries(json).map(([key, value]) => [`lint.${key}`, value]),
+      ),
+    },
     status: 1,
     rules: ['lint-config'],
   })),
@@ -5786,46 +6054,31 @@ const styleConfigCases = [
     status: 1,
     rules: ['lint-config'],
     json: {
-      '.oxlintrc.json': Object.fromEntries(
-        configRequiredRules.map((name) => [`rules.${name}`, value]),
+      'vite.config.ts': Object.fromEntries(
+        configRequiredRules.map((name) => [`lint.rules.${name}`, value]),
       ),
     },
     tokens: configRequiredRules,
   })),
-  ...['{/*comment*/}', '{"plugins":[],}'].map((text) => ({
-    name: `strict JSON rejects ${JSON.stringify(text)}`,
-    status: 1,
-    files: { '.oxlintrc.json': text },
-    rules: ['strict-json'],
-    tokens: ['.oxlintrc.json'],
-  })),
-  {
-    name: 'empty lint object',
-    files: { '.oxlintrc.json': '{}' },
-    status: 1,
+  ...['', 'export default {', 'export default {}'].map((source) => ({
+    name: `invalid Vite+ config ${JSON.stringify(source)}`,
+    files: { 'vite.config.ts': source },
     rules: ['lint-config'],
-  },
-  {
-    name: 'empty formatter JSON',
-    files: { '.oxfmtrc.json': '' },
+    status: 1,
+    tokens: ['must export lint and fmt settings'],
+  })),
+  ...['tsconfig.json', 'apps/web/tsconfig.json'].map((path) => ({
+    name: `malformed ${path}`,
+    files: { [path]: '{' },
     status: 1,
     rules: ['strict-json'],
-    tokens: ['.oxfmtrc.json'],
-  },
-  ...['.oxfmtrc.json', 'tsconfig.json', 'apps/web/tsconfig.json'].map(
-    (path) => ({
-      name: `malformed ${path}`,
-      files: { [path]: '{' },
-      status: 1,
-      rules: ['strict-json'],
-      tokens: [path],
-    }),
-  ),
+    tokens: [path],
+  })),
   ...[[], ['**']].map((patterns) => ({
     name: `formatter ignores ${JSON.stringify(patterns)}`,
     status: 1,
     rules: ['format-config'],
-    json: { '.oxfmtrc.json': { ignorePatterns: patterns } },
+    json: { 'vite.config.ts': { 'fmt.ignorePatterns': patterns } },
   })),
   {
     name: 'nested lint configs and ignores',
@@ -6005,42 +6258,40 @@ const styleConfigCases = [
   ...[
     {
       name: 'jsPlugins empty',
-      json: { '.oxlintrc.json': { jsPlugins: [] } },
+      json: { 'vite.config.ts': { 'lint.jsPlugins': [] } },
       rules: ['lint-config'],
       tokens: ['loads the Porcelain and shadcn plugins'],
     },
     {
       name: 'jsPlugins absent',
-      json: { '.oxlintrc.json': { jsPlugins: undefined } },
+      json: { 'vite.config.ts': { 'lint.jsPlugins': undefined } },
       rules: ['lint-config'],
       details: ['Missing key\n  at ["jsPlugins"]'],
     },
     {
       name: 'jsPlugins missing shadcn',
       json: {
-        '.oxlintrc.json': { jsPlugins: ['./architecture/oxlint-plugin.mjs'] },
+        'vite.config.ts': {
+          'lint.jsPlugins': ['./architecture/oxlint-plugin.mjs'],
+        },
       },
       rules: ['lint-config'],
       tokens: ['loads the Porcelain and shadcn plugins'],
     },
     {
       name: 'unknown custom rule',
-      json: { '.oxlintrc.json': { 'rules.porcelain/not-a-rule': 'error' } },
+      json: {
+        'vite.config.ts': { 'lint.rules.porcelain/not-a-rule': 'error' },
+      },
       rules: ['lint-config'],
       tokens: ['names porcelain/not-a-rule, which the plugin does not define'],
     },
     {
       name: 'lint ignores every file',
-      json: { '.oxlintrc.json': { ignorePatterns: ['**'] } },
+      json: { 'vite.config.ts': { 'lint.ignorePatterns': ['**'] } },
       rules: ['lint-config'],
       details: ['Expected no excess property\n  at ["ignorePatterns"]'],
     },
-    ...['', '{'].map((text) => ({
-      name: `lint JSON ${text === '' ? 'empty' : 'truncated'}`,
-      files: { '.oxlintrc.json': text },
-      rules: ['strict-json'],
-      tokens: ['.oxlintrc.json is not strict JSON'],
-    })),
   ].flatMap((fixture) =>
     ['server', 'web'].map((target) => ({
       ...fixture,
@@ -6062,7 +6313,7 @@ const styleConfigCases = [
       name: `jsPlugins empty: ${target}, tool missing`,
       target,
       missingTool: true,
-      json: { '.oxlintrc.json': { jsPlugins: [] } },
+      json: { 'vite.config.ts': { 'lint.jsPlugins': [] } },
       status: 1,
       rules: ['lint-config'],
       stdout: '',
@@ -6093,7 +6344,7 @@ const styleConfigCases = [
     {
       name: `config failure retains other policy order: ${target}`,
       target,
-      json: { '.oxlintrc.json': { jsPlugins: [] } },
+      json: { 'vite.config.ts': { 'lint.jsPlugins': [] } },
       files: { 'outside/fixture.ts': 'export {};' },
       status: 1,
       rules: ['code-outside-lint-roots', 'lint-config'],
@@ -6110,7 +6361,87 @@ const styleConfigCases = [
   ]),
 ];
 
+const nativeMigrationRegistry = (body) =>
+  `export const nativeMigrations = Migrator.fromRecord({ ${body} });`;
+const shippedNativeMigrations = `'001_adopt': Effect.void, '003_retain': Effect.gen(function* () { yield* sql\`ALTER TABLE example ADD COLUMN retained INTEGER NOT NULL DEFAULT 0\`; })`;
+
 export const guardrailCases = [
+  {
+    rule: 'repository-sql',
+    valid: 'sql`SELECT id FROM items WHERE ${sql.in("id", [1])}`;',
+    query: 'SELECT id FROM items WHERE "id" IN (?)',
+    cases: [
+      {
+        name: 'rejects a fragment in a variable',
+        source: 'sql`SELECT ${fragment}`;',
+        error:
+          /fixture\.ts:4:.*Put SQL helpers directly inside the query template/,
+      },
+      {
+        name: 'rejects an identifier in a variable',
+        source: 'sql`SELECT ${identifier}`;',
+        error:
+          /fixture\.ts:4:.*Put SQL helpers directly inside the query template/,
+      },
+      {
+        name: 'rejects an unsupported inline helper',
+        source: 'sql`SELECT ${sql.literal("id")}`;',
+        error: /fixture\.ts:4:.*Unsupported SQL interpolation literal/,
+      },
+      {
+        name: 'rejects a raw SQL method',
+        source: 'sql.unsafe("SELECT id FROM items");',
+        error: /fixture\.ts:4:.*Use a SQL template and inline SQL helpers/,
+      },
+      {
+        name: 'rejects a direct SQL constructor call',
+        source: 'sql("id");',
+        error:
+          /fixture\.ts:4:.*Use a SQL template so SQLite can check the query/,
+      },
+    ],
+  },
+  {
+    rule: 'native-migration-history',
+    shipped: nativeMigrationRegistry(shippedNativeMigrations),
+    cases: [
+      {
+        name: 'accepts a new numbered migration',
+        current: nativeMigrationRegistry(
+          `${shippedNativeMigrations}, '004_add': Effect.void`,
+        ),
+        problems: [],
+      },
+      {
+        name: 'rejects an edited migration body',
+        current: nativeMigrationRegistry(
+          shippedNativeMigrations.replace('DEFAULT 0', 'DEFAULT 1'),
+        ),
+        problems: ['Shipped native migration edited: 003_retain.'],
+      },
+      {
+        name: 'rejects an omitted registration',
+        current: nativeMigrationRegistry("'001_adopt': Effect.void"),
+        problems: ['Shipped native migration removed or renamed: 003_retain.'],
+      },
+      {
+        name: 'rejects a renamed registration',
+        current: nativeMigrationRegistry(
+          shippedNativeMigrations.replace('003_retain', '003_keep'),
+        ),
+        problems: ['Shipped native migration removed or renamed: 003_retain.'],
+      },
+      {
+        name: 'rejects a migration inserted before the shipped prefix ends',
+        current: nativeMigrationRegistry(
+          `${shippedNativeMigrations}, '002_inserted': Effect.void`,
+        ),
+        problems: [
+          'Native migration added inside shipped history: 002_inserted. Use a new migration number.',
+        ],
+      },
+    ],
+  },
   { rule: 'style-config', cases: styleConfigCases },
   {
     rule: 'ci-action-pins',
@@ -6213,6 +6544,10 @@ export const guardrailCases = [
   },
   {
     rule: 'ci-affected-selection',
+    files: {
+      'apps/web/spec/integration/changes-branch-base.test.tsx': 'export {};',
+      'apps/web/spec/integration/access-remote-access.test.tsx': 'export {};',
+    },
     cases: [
       {
         name: 'new architecture file selects rules',
@@ -6221,20 +6556,77 @@ export const guardrailCases = [
         selected: [],
         rules: true,
       },
+      ...['repository-queries', 'typescript-project'].map((name) => ({
+        name: `${name} selects rules`,
+        path: `architecture/${name}.ts`,
+        source: 'export {};',
+        selected: [],
+        rules: true,
+      })),
+      ...[
+        'packages/storage/spec/kit/native-database.ts',
+        'packages/storage/spec/kit/repository-queries.ts',
+        'packages/storage/scripts/native-migration-history.ts',
+        'packages/storage/src/repositories/access/sqlite-device-store.ts',
+        'packages/storage/src/db/migrate.ts',
+        'packages/storage/drizzle/0000_initial.sql',
+      ].map((path) => ({
+        name: `${path} selects rules`,
+        path,
+        source: 'fixture',
+        selected: path.endsWith('.sql')
+          ? ['server', 'web-integration', 'web-e2e', 'desktop', 'storage']
+          : ['web-e2e', 'storage'],
+        rules: true,
+      })),
       {
-        name: 'web view leaves rules cached',
+        name: 'storage dependency source selects rules',
+        path: 'packages/access/src/models/ci-fixture.ts',
+        source: 'export {};',
+        selected: ['web-e2e'],
+        rules: true,
+      },
+      {
+        name: 'verification manifest selects rules',
+        path: '.agents/skills/package.json',
+        selected: [],
+        rules: true,
+      },
+      {
+        name: 'tsconfig in a dot directory selects rules',
+        path: '.agents/skills/tsconfig.json',
+        source: '{}',
+        selected: [],
+        rules: true,
+      },
+      {
+        name: 'web view leaves rule fixtures unselected',
         rules: false,
         path: 'apps/web/src/features/files/views/ci-fixture.tsx',
         source: 'export const fixture = true;',
+        selected: ['web-e2e'],
+      },
+      {
+        name: 'unchanged selects nothing',
+        selected: [],
+        unitProjects: [],
+        rules: false,
+        shards: [1],
+      },
+      {
+        name: 'release selects every runtime gate without changed files',
+        release: true,
+        rules: true,
+        shards: [1, 2, 3, 4],
         selected: [
           'server',
           'web-integration',
           'web-e2e',
           'desktop',
+          'storage',
           'package',
         ],
       },
-      { name: 'unchanged selects nothing', selected: [], unitProjects: [] },
       {
         name: 'desktop test helpers select their unit project',
         path: 'scripts/desktop-ci-fixture.spec.ts',
@@ -6246,87 +6638,116 @@ export const guardrailCases = [
         name: 'crash collector selects its desktop unit project',
         path: 'scripts/collect-desktop-crashes.sh',
         source: 'true',
-        selected: ['desktop'],
+        selected: [],
         unitProjects: ['@porcelain/desktop'],
       },
       {
-        name: 'web rule test keeps unrelated unit results cached',
+        name: 'web rule test selects only web unit tests',
         path: 'apps/web/src/features/reviews/rules/ci-fixture.spec.ts',
         source: 'export const fixture = true;',
-        selected: [],
-        changedUnitProjects: ['@porcelain/web'],
+        selected: ['web-e2e'],
+        unitProjects: ['@porcelain/web'],
       },
       {
-        name: 'client selects dependent surfaces',
+        name: 'client source selects the web smoke',
         path: 'packages/client/src/ci-fixture.ts',
         source: 'export const fixture = true;',
-        selected: [
-          'server',
-          'web-integration',
-          'web-e2e',
-          'desktop',
-          'package',
-        ],
+        selected: ['web-e2e'],
       },
       {
-        name: 'web feature spec selects only browser integration',
+        name: 'web feature spec selects browser integration and the web smoke',
         path: 'apps/web/spec/integration/ci-fixture.test.tsx',
         source: 'export const fixture = true;',
-        selected: ['web-integration'],
+        selected: ['web-integration', 'web-e2e'],
+        rules: true,
+        browserShards: [1],
       },
       {
         name: 'web journey spec selects only web journeys',
         path: 'apps/web/spec/e2e/ci-fixture.e2e.ts',
         source: 'export const fixture = true;',
         selected: ['web-e2e'],
+        rules: true,
       },
       {
-        name: 'web test helper keeps both browser suites selected',
+        name: 'web test helper selects browser suites',
         path: 'apps/web/spec/kit/navigator.ts',
         source: 'export const fixture = true;',
-        selected: ['server', 'web-integration', 'web-e2e'],
+        selected: ['web-integration', 'web-e2e'],
+        rules: true,
       },
       ...['world', 'review-fixture', 'protocol'].map((name) => ({
-        name: `exported ${name} fixture retains dependent verification`,
+        name: `exported ${name} fixture selects its runtime suites`,
         path: `apps/web/spec/kit/${name}.ts`,
         source: 'export const fixture = true;',
-        selected: ['server', 'web-integration', 'web-e2e'],
+        selected:
+          name === 'review-fixture'
+            ? ['web-integration', 'web-e2e']
+            : ['server', 'web-integration', 'web-e2e'],
+        rules: true,
       })),
       {
-        name: 'contract selects every consuming runtime surface',
+        name: 'sandbox fake tool selects both integration harnesses and shards all browser specs',
+        path: 'apps/server/spec/kit/coding-tool.ts',
+        source: 'export {};',
+        selected: ['server', 'web-integration', 'web-e2e'],
+        rules: true,
+        browserShards: [1, 2, 3, 4, 5, 6],
+        integration: [
+          'spec/integration/access-remote-access.test.tsx',
+          'spec/integration/changes-branch-base.test.tsx',
+          'spec/integration/ci-fixture.test.tsx',
+        ],
+      },
+      {
+        name: 'contract source selects the web smoke',
         rules: true,
         path: 'packages/contracts/src/shared/ci-fixture.ts',
         source: 'export const fixture = true;',
-        selected: [
-          'server',
-          'web-integration',
-          'web-e2e',
-          'desktop',
-          'storage',
-          'package',
-        ],
+        selected: ['web-e2e'],
       },
       {
-        name: 'server source selects its consuming runtime surfaces',
+        name: 'server source selects the web smoke',
         path: 'apps/server/src/ci-fixture.ts',
         source: 'export const fixture = true;',
-        selected: [
-          'server',
-          'web-integration',
-          'web-e2e',
-          'desktop',
-          'package',
-        ],
+        selected: ['web-e2e'],
       },
       ...[
         'package.json',
         '.github/workflows/ci.yml',
-        'turbo.json',
+        '.github/workflows/agent-review.yml',
+        'ci/check-plan.ts',
         'pnpm-workspace.yaml',
       ].map((path) => ({
-        name: `${path} selects every runtime gate`,
+        name: `${path} selects rule fixtures`,
         rules: true,
         path,
+        selected:
+          path === 'package.json' || path === 'pnpm-workspace.yaml'
+            ? ['package']
+            : [],
+      })),
+      {
+        name: 'duplicate policy edits select rule fixtures',
+        path: 'architecture/duplicate-policy.ts',
+        source: 'export {};',
+        rules: true,
+        selected: [],
+      },
+      ...[
+        {
+          name: 'root Vite configuration selects every runtime gate and the preferred integration smoke',
+          integration: ['spec/integration/changes-branch-base.test.tsx'],
+        },
+        {
+          name: 'root Vite configuration selects an unchanged integration spec after deleting the preferred smoke',
+          remove: ['apps/web/spec/integration/changes-branch-base.test.tsx'],
+          integration: ['spec/integration/access-remote-access.test.tsx'],
+        },
+      ].map((fixture) => ({
+        ...fixture,
+        rules: true,
+        path: 'vite.config.ts',
         selected: [
           'server',
           'web-integration',
@@ -6339,6 +6760,68 @@ export const guardrailCases = [
     ],
   },
   {
+    rule: 'ci-task-inputs',
+    requiredImports: {
+      'test:rules': ['packages/changes/src/models/index.ts'],
+      'web-integration': ['apps/server/spec/kit/coding-tool.ts'],
+      server: ['apps/server/spec/kit/coding-tool.ts'],
+      'web-e2e': ['apps/server/spec/kit/coding-tool.ts'],
+    },
+    runtimeSuites: {
+      'web-integration': {
+        roots: [
+          'apps/web/vitest.config.ts',
+          'apps/web/spec/integration/*.test.tsx',
+          'apps/server/spec/kit/sandboxed-server.ts',
+        ],
+        files: ['packages/storage/drizzle/**/*.sql'],
+      },
+      server: {
+        roots: [
+          'vitest.integration.config.ts',
+          'apps/server/spec/kit/global-setup.ts',
+          'packages/client/spec/kit/global-setup.ts',
+          'apps/server/spec/integration/*.integration.ts',
+          'packages/client/spec/integration/*.integration.ts',
+          '.agents/skills/spec/integration/*.integration.ts',
+          'apps/server/spec/kit/sandboxed-server.ts',
+        ],
+        files: [
+          'packages/storage/drizzle/**/*.sql',
+          '.agents/skills/*/scripts/cli',
+          '.agents/skills/*/scripts/**/*.mjs',
+        ],
+      },
+      'web-e2e': {
+        roots: [
+          'apps/web/playwright.config.ts',
+          'apps/web/vite.config.ts',
+          'apps/web/spec/e2e/global-setup.ts',
+          'apps/web/spec/e2e/**/*.e2e.ts',
+          'apps/server/spec/kit/sandboxed-server.ts',
+        ],
+        files: ['packages/storage/drizzle/**/*.sql'],
+      },
+      desktop: {
+        roots: [
+          'apps/desktop/playwright.config.ts',
+          'apps/desktop/spec/e2e/global-setup.ts',
+          'apps/desktop/spec/e2e/**/*.e2e.ts',
+          'apps/web/vite.config.ts',
+        ],
+        files: ['packages/storage/drizzle/**/*.sql'],
+      },
+    },
+    negative: {
+      task: 'test:rules',
+      path: 'packages/changes/src/models/index.ts',
+    },
+  },
+  {
+    rule: 'ci-landing-completion',
+    workflowRun: { workflows: ['CI'], types: ['completed'] },
+  },
+  {
     rule: 'ci-required-checks',
     dependencyStoreWriter: 'units',
     dependencyStoreReaders: [
@@ -6349,19 +6832,19 @@ export const guardrailCases = [
       'web-e2e',
       'migrations',
     ],
-    unitCommand:
-      'pnpm exec turbo run test $AFFECTED --concurrency=1 --continue',
+    unitCommand: 'pnpm check:unit --ci',
     webIntegrationShards:
-      "${{ fromJSON(needs.affected.outputs.shards || '[1]') }}",
+      "${{ fromJSON(needs.affected.outputs.browser-shards || '[1]') }}",
     webIntegrationCommand:
-      'pnpm --filter @porcelain/web test:integration --shard=${{ matrix.shard }}/4',
+      'pnpm --filter @porcelain/web test:integration --shard=${{ matrix.shard }}/${{ strategy.job-total }}',
     webE2eShardPlan: "${{ fromJSON(needs.affected.outputs.shards || '[1]') }}",
     webE2eCases: [
       {
-        name: 'ordinary browser job executes its full shard',
-        shard: '3',
+        name: 'release browser job uses the matrix shard total',
+        shard: '2',
+        jobTotal: '3',
         specs: [],
-        commands: ['--shard=3/4'],
+        commands: ['--shard=2/3'],
         status: 0,
       },
       {
@@ -6941,6 +7424,49 @@ Effect.runPromise(Effect.provideService(read, WorktreeRead, { assert: () => unde
     valid,
     invalid,
   })),
+  {
+    rule: 'duplicate-ceiling',
+    ceilings: { server: 2, tooling: 1 },
+    source: duplicateFixtureSource,
+  },
+  ...[
+    ['ci/copy.ts', 'architecture/copy-again.ts'],
+    ['scripts/copy.ts', '.agents/skills/new-verifier/scripts/copy-again.ts'],
+    ['architecture/copy.mjs', 'scripts/copy-again.mjs'],
+    ['packages/new-domain/spec/kit/copy.ts', 'scripts/copy-again.ts'],
+    ['.agents/skills/verify-core/copy.ts', 'scripts/copy-again.ts'],
+    ['apps/server/spec/kit/copy.ts', 'apps/web/spec/kit/copy-again.ts'],
+    ['ci/copy.ts', 'ci/copy-again.spec.ts'],
+  ].map(([first, second]) => ({
+    rule: 'duplicate-code',
+    scope: 'tooling',
+    rejected: !second.endsWith('.spec.ts'),
+    first,
+    second,
+    valid: 'export const label = "Unique";',
+    invalid: first.endsWith('.mjs')
+      ? duplicateFixtureSource
+          .replace(': readonly string[]', '')
+          .replace(': string', '')
+      : duplicateFixtureSource,
+  })),
+  {
+    rule: 'duplicate-code',
+    scope: 'server',
+    first: 'apps/server/src/copy.ts',
+    second: 'packages/git/src/copy-again.ts',
+    valid: 'export const label = "Unique";',
+    invalid: duplicateFixtureSource,
+  },
+  {
+    rule: 'duplicate-code',
+    scope: 'server',
+    first: 'apps/server/src/copy.ts',
+    second: 'packages/git/src/copy-again.spec.ts',
+    valid: 'export const label = "Unique";',
+    invalid: duplicateFixtureSource,
+    rejected: false,
+  },
   {
     rule: 'duplicate-code',
     first: 'apps/web/src/copy.ts',

@@ -112,6 +112,16 @@ export function captureProcess(pid: number): ProcessIdentity | undefined {
   return identity;
 }
 
+export function processCaptureProblem(): string | undefined {
+  try {
+    if (captureProcess(process.pid) === undefined)
+      return 'Process capture failed: ps did not report the current process identity';
+    return undefined;
+  } catch (error) {
+    return `Process capture failed: ${error instanceof Error ? error.message : String(error)}`;
+  }
+}
+
 export function sameProcess(identity: ProcessIdentity): boolean {
   if (!Number.isSafeInteger(identity.pid) || identity.pid <= 0) return false;
   return listed([identity.pid]).some((entry) => matches(entry, identity));

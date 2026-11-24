@@ -87,6 +87,43 @@ export const ghPullRequestReaderLayer = (limits: Limits['git']) =>
       ) {
         return yield* readGitHubApi(input, limits).pipe(provide);
       });
+      const readPull = Effect.fn('GitHubReader.readPull')(function* <T>(
+        input: Parameters<GitHubReader['read']>[0],
+        query: string,
+        schema: Schema.Codec<{
+          readonly data: {
+            readonly repository: { readonly pullRequest: T | null };
+          };
+        }>,
+      ) {
+        const json = yield* api({
+          account: input.account,
+          endpoint: 'graphql',
+          query,
+          variables: {
+            owner: input.owner,
+            repo: input.repo,
+            number: input.number,
+          },
+        }).pipe(
+          Effect.mapError((error) =>
+            error.reason === 'not-found'
+              ? new GitHubPullRequestNotFoundError()
+              : unavailable(error),
+          ),
+        );
+        const decoded = yield* Schema.decodeEffect(
+          Schema.fromJsonString(schema),
+        )(json).pipe(
+          Effect.mapError(
+            () => new GitHubReadError({ reason: 'invalid-response' }),
+          ),
+        );
+        const pullRequest = decoded.data.repository.pullRequest;
+        if (pullRequest === null)
+          return yield* new GitHubPullRequestNotFoundError();
+        return pullRequest;
+      });
       return GitHubReader.of({
         accounts: () =>
           listGitHubAccounts(limits).pipe(
@@ -105,64 +142,8 @@ export const ghPullRequestReaderLayer = (limits: Limits['git']) =>
               () => Effect.succeed(false),
             ),
           ),
-        read: Effect.fn('GitHubReader.read')(function* (input) {
-          const json = yield* api({
-            account: input.account,
-            endpoint: 'graphql',
-            query: detailQuery,
-            variables: {
-              owner: input.owner,
-              repo: input.repo,
-              number: input.number,
-            },
-          }).pipe(
-            Effect.mapError((error) =>
-              error.reason === 'not-found'
-                ? new GitHubPullRequestNotFoundError()
-                : unavailable(error),
-            ),
-          );
-          const decoded = yield* Schema.decodeEffect(
-            Schema.fromJsonString(detailSchema),
-          )(json).pipe(
-            Effect.mapError(
-              () => new GitHubReadError({ reason: 'invalid-response' }),
-            ),
-          );
-          const pullRequest = decoded.data.repository.pullRequest;
-          if (pullRequest === null)
-            return yield* new GitHubPullRequestNotFoundError();
-          return pullRequest;
-        }),
-        checks: Effect.fn('GitHubReader.checks')(function* (input) {
-          const json = yield* api({
-            account: input.account,
-            endpoint: 'graphql',
-            query: CHECKS_QUERY,
-            variables: {
-              owner: input.owner,
-              repo: input.repo,
-              number: input.number,
-            },
-          }).pipe(
-            Effect.mapError((error) =>
-              error.reason === 'not-found'
-                ? new GitHubPullRequestNotFoundError()
-                : unavailable(error),
-            ),
-          );
-          const decoded = yield* Schema.decodeEffect(
-            Schema.fromJsonString(checksSchema),
-          )(json).pipe(
-            Effect.mapError(
-              () => new GitHubReadError({ reason: 'invalid-response' }),
-            ),
-          );
-          const pullRequest = decoded.data.repository.pullRequest;
-          if (pullRequest === null)
-            return yield* new GitHubPullRequestNotFoundError();
-          return pullRequest;
-        }),
+        read: (input) => readPull(input, detailQuery, detailSchema),
+        checks: (input) => readPull(input, CHECKS_QUERY, checksSchema),
         list: Effect.fn('GitHubReader.list')(function* (input) {
           const open: (typeof githubPullSummarySchema.Type)[] = [];
           let cursor: string | undefined;

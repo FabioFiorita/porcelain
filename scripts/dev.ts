@@ -11,7 +11,7 @@ import {
   stageDesktop,
 } from '../apps/desktop/spec/kit/stage.ts';
 const webRoot = resolve(root, 'apps/web');
-const vite = resolve(webRoot, 'node_modules/.bin/vite');
+const vp = resolve(webRoot, 'node_modules/.bin/vp');
 const readySchema = Schema.Struct({
   address: Schema.String.check(
     Schema.makeFilter((value) =>
@@ -34,6 +34,15 @@ function exitOf(child: ChildProcess): Promise<number> {
     });
     child.once('close', (code) => done(code ?? 1));
   });
+}
+function stopWeb(child: ChildProcess | undefined): void {
+  if (child?.pid === undefined) return;
+  try {
+    process.kill(-child.pid, 'SIGTERM');
+  } catch (error) {
+    if (!(error instanceof Error && 'code' in error && error.code === 'ESRCH'))
+      throw error;
+  }
 }
 function freePort(): Promise<number> {
   return new Promise((done, fail) => {
@@ -71,7 +80,7 @@ async function desktop(): Promise<void> {
   });
   const port = await freePort();
   const origin = `http://127.0.0.1:${port}`;
-  const web = spawn(vite, ['--mode', 'desktop'], {
+  const web = spawn(vp, ['dev', '--mode', 'desktop'], {
     cwd: webRoot,
     detached: true,
     env: { ...process.env, PORCELAIN_DESKTOP_WEB_PORT: `${port}` },
@@ -84,7 +93,7 @@ async function desktop(): Promise<void> {
     if (stopping) return;
     stopping = true;
     electron?.kill('SIGTERM');
-    web.kill('SIGTERM');
+    stopWeb(web);
   };
   process.on('SIGINT', stop);
   process.on('SIGTERM', stop);
@@ -136,7 +145,7 @@ async function browser(): Promise<void> {
   const stop = () => {
     if (stopping) return;
     stopping = true;
-    web?.kill('SIGTERM');
+    stopWeb(web);
     server.kill('SIGTERM');
   };
   process.on('SIGINT', stop);
@@ -163,7 +172,7 @@ async function browser(): Promise<void> {
       }),
     ]);
     if (stopping) return;
-    web = spawn(vite, [], {
+    web = spawn(vp, ['dev'], {
       cwd: webRoot,
       detached: true,
       env: {

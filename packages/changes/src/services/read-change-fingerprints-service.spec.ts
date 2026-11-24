@@ -4,7 +4,7 @@ import {
 } from '@porcelain/changes/ports';
 import { Effect } from 'effect';
 import { withReadLease } from '@porcelain/effects/worktree';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { type WorktreeEntry } from '@porcelain/changes/models';
 import { ReadChangeFingerprintsService } from './read-change-fingerprints-service.ts';
 import { modified } from '../../spec/fixtures/comparisons.ts';

@@ -124,6 +124,24 @@ export const filesystemFileWriterLayer = (
         return yield* pathRefused('changed');
       return { root: check.worktree.path, path: location.path };
     });
+    const entryLocation = Effect.fn('FilesystemFileWriter.entryLocation')(
+      function* (input: FileLocation) {
+        const target = yield* locate(input);
+        const folder = yield* parent(target);
+        return {
+          target,
+          folder,
+          path: join(folder.path, basename(target.path)),
+        };
+      },
+    );
+    const sourceEntry = Effect.fn('FilesystemFileWriter.sourceEntry')(
+      function* (input: FileLocation) {
+        const entry = yield* entryLocation(input);
+        const info = yield* syscall(() => lstat(entry.path, { bigint: true }));
+        return { ...entry, info };
+      },
+    );
     const attempt = (
       worktreeId: string,
       work: (
@@ -208,9 +226,7 @@ export const filesystemFileWriterLayer = (
       (input: EntryCreateInput) =>
         attempt(input.worktreeId, (commit) =>
           Effect.gen(function* () {
-            const target = yield* locate(input);
-            const folder = yield* parent(target);
-            const path = join(folder.path, basename(target.path));
+            const { target, folder, path } = yield* entryLocation(input);
             let committed = false;
             yield* Effect.acquireRelease(
               Effect.scoped(
@@ -316,10 +332,12 @@ export const filesystemFileWriterLayer = (
       (input: EntryMoveInput) =>
         attempt(input.worktreeId, (commit) =>
           Effect.gen(function* () {
-            const target = yield* locate(input);
-            const sourceParent = yield* parent(target);
-            const source = join(sourceParent.path, basename(target.path));
-            const info = yield* syscall(() => lstat(source, { bigint: true }));
+            const {
+              target,
+              folder: sourceParent,
+              path: source,
+              info,
+            } = yield* sourceEntry(input);
             const destinationTarget = { ...target, path: input.destination };
             const destinationParent = yield* parent(destinationTarget);
             yield* moveEntry(
@@ -339,10 +357,12 @@ export const filesystemFileWriterLayer = (
       (input: EntryCopyInput) =>
         attempt(input.worktreeId, (commit) =>
           Effect.gen(function* () {
-            const target = yield* locate(input);
-            const sourceParent = yield* parent(target);
-            const source = join(sourceParent.path, basename(target.path));
-            const info = yield* syscall(() => lstat(source, { bigint: true }));
+            const {
+              target,
+              folder: sourceParent,
+              path: source,
+              info,
+            } = yield* sourceEntry(input);
             if (!info.isFile())
               return yield* Effect.fail(pathRefused('unreadable'));
             if (info.size > BigInt(input.maxBytes))
@@ -403,9 +423,7 @@ export const filesystemFileWriterLayer = (
       (input: FileLocation) =>
         attempt(input.worktreeId, (commit) =>
           Effect.gen(function* () {
-            const target = yield* locate(input);
-            const folder = yield* parent(target);
-            const path = join(folder.path, basename(target.path));
+            const { target, folder, path } = yield* entryLocation(input);
             const before = yield* syscall(() => lstat(path, { bigint: true }));
             yield* verifyParent(folder, target);
             if (

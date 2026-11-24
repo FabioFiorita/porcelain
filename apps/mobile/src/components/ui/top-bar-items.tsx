@@ -1,5 +1,6 @@
 import { Stack } from 'expo-router';
 import type { ReactNode } from 'react';
+import { useCSSVariable } from 'uniwind';
 import { headerIcon } from '../../shared/icons/header-icon';
 import type { HeaderIconName } from '../../shared/icons/icon';
 import type { ScreenKeyBinding } from '../../shared/rules/key-commands';
@@ -31,12 +32,17 @@ export type TopBarAction =
 
 const visibleActions = 3;
 
-export function topBarItems(actions: readonly TopBarAction[]): ReactNode[] {
+export function useTopBarItems(actions: readonly TopBarAction[]): ReactNode[] {
+  const muted = useCSSVariable('--muted-foreground');
+  const disabledTint =
+    process.env.EXPO_OS === 'android' && typeof muted === 'string'
+      ? muted
+      : undefined;
   const overflowing = actions.length > visibleActions;
   const visible = overflowing ? actions.slice(0, 2) : actions;
   const overflow = overflowing ? actions.slice(2) : [];
   return [
-    ...visible.map(barItem),
+    ...visible.map((action) => barItem(action, disabledTint)),
     ...(overflowing
       ? [
           <Stack.Toolbar.Menu
@@ -52,7 +58,7 @@ export function topBarItems(actions: readonly TopBarAction[]): ReactNode[] {
   ];
 }
 
-function barItem(action: TopBarAction) {
+function barItem(action: TopBarAction, disabledTint: string | undefined) {
   if (action.kind === 'choice')
     return (
       <Stack.Toolbar.Menu
@@ -70,6 +76,7 @@ function barItem(action: TopBarAction) {
       icon={headerIcon(action.icon)}
       accessibilityLabel={action.label}
       disabled={action.disabled ?? false}
+      {...(action.disabled && disabledTint ? { tintColor: disabledTint } : {})}
       onPress={action.onPress}
     />
   );

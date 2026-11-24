@@ -2,8 +2,15 @@ import '../app.css';
 import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
 import { StatusBar, type ColorValue } from 'react-native';
 import { useCSSVariable, useUniwind } from 'uniwind';
+import { NotificationViewport } from '../components/ui/notify';
 import { ShellStartup } from './shell-startup';
-import { RegistryProvider, useAtomMount } from '@effect/atom-react';
+import {
+  RegistryProvider,
+  useAtomMount,
+  useAtomValue,
+} from '@effect/atom-react';
+import { notificationNotice } from '../shared/application/notice';
+import { keyboardTop } from '../shared/application/notify';
 import { preferenceTheme } from '../features/preferences';
 
 function themeColor(
@@ -23,6 +30,8 @@ export function RootLayout() {
 
 function ThemedShell() {
   useAtomMount(preferenceTheme);
+  const notice = useAtomValue(notificationNotice);
+  const keyboard = useAtomValue(keyboardTop);
   const { theme } = useUniwind();
   const [background, foreground, border] = useCSSVariable([
     '--background',
@@ -47,6 +56,7 @@ function ThemedShell() {
         barStyle={theme === 'dark' ? 'light-content' : 'dark-content'}
       />
       <ShellStartup />
+      <NotificationViewport title={notice ?? undefined} keyboard={keyboard} />
     </ThemeProvider>
   );
 }

@@ -1,6 +1,5 @@
 export {
   WalkthroughsApi,
-  walkthroughContentSchema,
   readWalkthroughResponseSchema,
   type StartWalkthroughRequest,
   type ReadWalkthroughResult,
@@ -10,11 +9,14 @@ export {
 
 export {
   walkthroughWriterSettingsSchema,
+  isUnsupportedWalkthroughEffortFailure,
   type WalkthroughWriterSettings,
+  type WalkthroughWriterSettingsQuery,
   type SaveDefaultWalkthroughWriterRequest,
 } from './api.ts';
 
 export { writerSchema } from '@porcelain/walkthroughs/models';
+export { unsupportedWalkthroughEffortMessage } from '@porcelain/walkthroughs/rules';
 export {
   walkthroughConversationsResponseSchema,
   type WalkthroughConversationsResponse,
@@ -26,3 +28,11 @@ export {
   type WalkthroughConversationsResult,
   type WalkthroughPostResult,
 } from './conversations.ts';
+
+export {
+  walkthroughContentSchema,
+  walkthroughBlockSchema,
+  type WalkthroughBlock,
+  walkthroughBlockRequestSchema,
+  type WalkthroughBlockRequest,
+} from '@porcelain/walkthroughs/models';

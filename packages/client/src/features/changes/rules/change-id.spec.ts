@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { changeId } from './change-id.ts';
 
 type OrdinaryChange = Extract<Parameters<typeof changeId>[0], { kind: string }>;

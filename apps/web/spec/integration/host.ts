@@ -1,4 +1,5 @@
 import { walkthroughConversationsFixture } from '../kit/walkthrough-conversations.ts';
+import { walkthroughBlocksFixture } from '../kit/walkthrough-blocks.ts';
 import type { IncomingMessage } from 'node:http';
 import { join, resolve } from 'node:path';
 import { temporaryServerBuild } from '@porcelain/server/kit/sandbox';
@@ -6,7 +7,7 @@ import type {
   BrowserCommand,
   BrowserCommandContext,
   TestProject,
-} from 'vitest/node';
+} from 'vite-plus/test/node';
 import type {
   CodingToolReplies,
   PairingParts,
@@ -177,6 +178,11 @@ const porcelainProjectHome: BrowserCommand<
   string
 > = (context, step, server) => world(context).projectHome(step, server);
 
+const porcelainCodexEffort: BrowserCommand<[boolean], void> = (
+  context,
+  supportsHigh,
+) => world(context).codexEffort(supportsHigh);
+
 const porcelainCodingTool: BrowserCommand<[], CodingToolReplies> = (context) =>
   world(context).codingTool();
 
@@ -188,6 +194,15 @@ const porcelainReplaceEditorContent: BrowserCommand<[string, string], void> = (
 
 const porcelainCollectGarbage: BrowserCommand<[], void> = (context) =>
   context.page.requestGC();
+
+const porcelainAllowClipboardRead: BrowserCommand<[], void> = async (
+  context,
+) => {
+  const frame = await context.frame();
+  await context.context.grantPermissions(['clipboard-read'], {
+    origin: new URL(frame.url()).origin,
+  });
+};
 
 const porcelainWalkthroughConversations: BrowserCommand<
   [
@@ -202,15 +217,40 @@ const porcelainWalkthroughConversations: BrowserCommand<
     | 'changed-pr'
     | 'running-update'
     | 'failed-update'
+    | 'reject-send'
+    | 'other-worktree'
+    | 'revision'
     | 'two-branches',
   ],
   string
-> = (context, action) =>
-  walkthroughConversationsFixture(world(context), action);
+> = async (context, action) => {
+  if (action !== 'reject-send')
+    return walkthroughConversationsFixture(world(context), action);
+  await context.context.route(
+    '**/api/worktrees/*/walkthrough/*/conversations/messages',
+    (route) =>
+      route.fulfill({
+        status: 404,
+        json: {
+          statusCode: 404,
+          error: 'Not Found',
+          message: 'Finished walkthrough or step not found',
+        },
+      }),
+    { times: 1 },
+  );
+  return '';
+};
+
+const porcelainWalkthroughBlocks: BrowserCommand<[], string> = async (
+  context,
+) => walkthroughBlocksFixture(world(context));
 
 export const hostCommands = {
+  porcelainWalkthroughBlocks,
   porcelainWalkthroughConversations,
   porcelainCollectGarbage,
+  porcelainAllowClipboardRead,
   porcelainReplaceEditorContent,
   porcelainStart,
   porcelainStop,
@@ -221,4 +261,5 @@ export const hostCommands = {
   porcelainHits,
   porcelainProjectHome,
   porcelainCodingTool,
+  porcelainCodexEffort,
 };

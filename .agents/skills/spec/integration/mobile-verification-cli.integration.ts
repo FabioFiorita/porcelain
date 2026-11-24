@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { readFile, stat, writeFile, access } from 'node:fs/promises';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import { test } from '@porcelain/server/kit/server-test';
 import {
   bootSimulator,

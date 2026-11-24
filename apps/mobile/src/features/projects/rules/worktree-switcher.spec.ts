@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { phoneTopBar } from './worktree-switcher';
 
 const create = { label: 'Create file or folder' };

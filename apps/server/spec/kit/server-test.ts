@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { inject, test as base, type TestError } from 'vitest';
+import { inject, test as base, type TestError } from 'vite-plus/test';
 import {
   IsolatedServer,
   Recorder,

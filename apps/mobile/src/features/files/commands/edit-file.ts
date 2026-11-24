@@ -5,6 +5,7 @@ import type { FilesScope } from '@porcelain/client/files/rules';
 import { Cause, Exit } from 'effect';
 import { fileErrorMessage } from '@porcelain/client/files/rules';
 import type { EditFileRequest } from '@porcelain/contracts/files';
+import { useWriteAllowed } from '../../access';
 
 export type FileAction =
   | { kind: 'create'; folder: string; entryKind: 'file' | 'directory' }
@@ -14,9 +15,11 @@ export function useEditFile(connection: RuntimeConnection, scope: FilesScope) {
   const [result, submit] = useAtom(editFile({ connection, scope }), {
     mode: 'promiseExit',
   });
+  const allowed = useWriteAllowed(connection.environmentId);
   return {
     result,
     trash: (path: string, onFailure: (message: string) => void) => {
+      if (!allowed()) return;
       void submit({ kind: 'trash', path }).then((exit) => {
         if (Exit.isFailure(exit))
           onFailure(fileErrorMessage(Cause.squash(exit.cause)));
@@ -28,6 +31,7 @@ export function useEditFile(connection: RuntimeConnection, scope: FilesScope) {
       onClose: () => void,
       onCreated: (path: string) => void,
     ) => {
+      if (!allowed()) return;
       const request: EditFileRequest =
         action.kind === 'move'
           ? { ...action, destination: value }

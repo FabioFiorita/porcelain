@@ -3,7 +3,7 @@ import {
   listBranchBasesResponseSchema,
   readBranchChangesResponseSchema,
 } from '@porcelain/contracts/changes';
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import {
   apiError,
   invalidRequest,

@@ -3,7 +3,7 @@ import { Effect, Layer, Option } from 'effect';
 import { createServer, type Server } from 'node:http';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { afterEach, expect, it } from 'vitest';
+import { afterEach, expect, it } from 'vite-plus/test';
 import { EnvironmentSettings } from '../config/environment-settings.ts';
 import { ownerSocketPath } from '../config/owner-socket-settings.ts';
 import { CliInvocation, serverSettingsFor } from './settings.ts';

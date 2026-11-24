@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import { expectation, settledReceipt } from '../kit/reads.ts';
 import { commitReviewFixture, read, worktreePath } from '../kit/requests.ts';
 import { list, record, text, type Session } from '../kit/session.ts';

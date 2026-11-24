@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { githubReadArguments, permittedGitHubRead } from './github-read.ts';
 
 const input = githubReadArguments([

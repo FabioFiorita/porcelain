@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vite-plus/test';
 import type { ListedWorktree } from '../../src/models/listed-worktree.ts';
 import type {
   CatalogObservation,

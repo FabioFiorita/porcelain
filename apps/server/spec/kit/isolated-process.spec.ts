@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 import { connect } from 'node:net';
 import { once } from 'node:events';
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { IsolatedProcess } from './isolated-process.ts';
 
 async function listeningChild(

@@ -4,8 +4,8 @@ Read [web verification](../SKILL.md) for lifecycle, pairing and failure injectio
 
 ## Baseline preconditions
 
-- From the repository root set `C=.agents/skills/web-verify/scripts/cli`; run `$C doctor`, then `$C start`. Read its card and private `connection.json`. Set `REPO` to `fixtures.repositoryPath`, `HOME_DIR` to `fixtures.projectHome`, and `WEB` to `webUrl`.
-- Open a fresh browser context and redeem the card's fresh pairing link, except when a map starts unpaired. Links work once; startup opens no browser. Reloads keep this context/session.
+- From the repository root set `C=.agents/skills/web-verify/scripts/cli`; run `$C doctor`, then `$C start --browser-fixture`. Read its card and private `connection.json`. Set `REPO` to `fixtures.repositoryPath`, `HOME_DIR` to `fixtures.projectHome`, and `WEB` to `webUrl`.
+- Open the card’s `browser fixture` URL in a fresh browser context. For a map that starts unpaired, use plain `$C start` and open the web URL. Reloads keep the browser session.
 - The default recipe viewport is phone width, 414 × 896; use 1280 × 800 for desktop proof unless the map specifies another size. At phone width: `Toggle Sidebar` opens the navigator; `Review` or `Alt+Shift+R` opens the `Worktree review` sheet. Opening a document closes that sheet; reopen it for the next tree action. Actions that open no document leave it open, so do not click the covered Review button.
 - At 1280px and wider the rail (navigation "Side panel" of toggle buttons) switches the docked panel; clicking its pressed button hides the panel, so choose a different view or use the keys. Files is the default view without a `surface` selection. Choose Changes/Review before using its controls. `Alt+1`, `Alt+2`, `Alt+3` open Files, Changes/Review and History (and the sheet at phone width). Explicit surface/document URL selections survive this default.
 - A `shell: desktop` map needs `$C start --desktop` for desktop-mode views. Native bridge, menu and sheet proof requires desktop verification. Drafting maps need `$C start --coding-tool`.
@@ -22,13 +22,9 @@ Read [web verification](../SKILL.md) for lifecycle, pairing and failure injectio
 
 Each map has one short behavior paragraph, then three sections: How to get to it (user POV), Driving it with the surface harness, and Gotchas. Keep user paths, stable handles, required state, commands and observable proof. Frontmatter keeps the route/screen, selectors, tests, API and optional desktop shell tag for `pnpm features:check`; it is not evidence that a journey passed.
 
-## Proof and skip reporting
+## Evidence
 
-- Select widths, themes and fixture states using [the verification scope](../SKILL.md#sweep-the-standard-states). A route being a page does not itself require the full sweep; use it for shared shell, responsive layout, theme changes and broad visual audits. Report which dimensions were driven and which remain unverified.
-- Capture the action and result, with a fresh interactive snapshot and screenshot identifying the app and destination. Store driver actions, URL/title and diagnostics in the card's evidence directory; redact pairing fragments and credentials.
-- Verify mutations independently through the filesystem, Git, storage or the card's typed `$C server …` readbacks. A success toast alone is insufficient.
-- Report the map, entry points, platform, width and connection actually driven. Named automated tests, source review and live proof are separate results. An unmet precondition is a reported gap, never a reason to weaken the journey.
-- Restore mutated fixtures or restart the disposable instance before repeating. Stop with the card's command; retain evidence after cleanup.
+Use the [shared evidence reference](../../verify-core/evidence.md) for screenshots, readbacks, measurements and gaps.
 
 ## Features
 
@@ -36,7 +32,7 @@ Each map has one short behavior paragraph, then three sections: How to get to it
 
 - [reviews.workspace-shell](reviews.workspace-shell.md) — Navigator pixel width, document menu and compact comparison controls.
 
-- [reviews.walkthrough-page](reviews.walkthrough-page.md) — The Walkthrough tab, its Step documents and the Changes panel by step.
+- [reviews.walkthrough-page](reviews.walkthrough-page.md) — The Review tab, its Step documents and the Changes panel by step.
 
 - [access.device-trust](access.device-trust.md) (desktop) — Trust grants, revocation and trusted pairing links.
 - [access.disconnect](access.disconnect.md) — Session disconnect, draft refusal and return to pairing.

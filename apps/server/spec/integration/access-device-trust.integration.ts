@@ -3,7 +3,7 @@ import {
   listAccessResponseSchema,
   setDeviceTrustResponseSchema,
 } from '@porcelain/contracts/access';
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import { apiError, invalidRequest } from '../kit/answers.ts';
 import { tunnelOn } from '../kit/reads.ts';
 import { issuePairing, pairDevice, read } from '../kit/requests.ts';

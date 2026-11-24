@@ -1,7 +1,7 @@
 import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { afterEach, beforeEach, expect, it } from 'vitest';
+import { afterEach, beforeEach, expect, it } from 'vite-plus/test';
 import { Schema } from 'effect';
 import { driver as makeDriver, pairClient } from './setup.ts';
 
@@ -165,18 +165,18 @@ it('hands driving to the exact supplied launcher, config and session without tar
     directory,
     null,
     'emulator-5580',
-    't3-session',
-    '/private/t3/host.json',
-    '/private/t3/agent-device',
+    'device-session',
+    '/private/device-tool/host.json',
+    '/private/device-tool/agent-device',
     'android',
   );
-  expect(driver.launcher).toBe('/private/t3/agent-device');
-  expect(driver.config).toBe('/private/t3/host.json');
+  expect(driver.launcher).toBe('/private/device-tool/agent-device');
+  expect(driver.config).toBe('/private/device-tool/host.json');
   expect(driver.targetArgs).toEqual([
     '--config',
-    '/private/t3/host.json',
+    '/private/device-tool/host.json',
     '--session',
-    't3-session',
+    'device-session',
   ]);
   expect(driver.platform).toBe('android');
 });

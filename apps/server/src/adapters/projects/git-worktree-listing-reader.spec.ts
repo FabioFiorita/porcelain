@@ -17,7 +17,7 @@ import {
   renameSync,
 } from 'node:fs';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vite-plus/test';
 import { type FailureReport, Logger } from '../../ports/logger.ts';
 import { gitWorktreeListingReaderLayer } from './git-worktree-listing-reader.ts';
 import { gitLimits } from '../../../spec/fixtures/git-limits.ts';

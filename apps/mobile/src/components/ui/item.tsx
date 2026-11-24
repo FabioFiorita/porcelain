@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
-import { Pressable, View } from 'react-native';
+import { Pressable, View, type ViewProps } from 'react-native';
 import { hitHeight } from './hit-target';
 import { usePressRipple } from './press-ripple';
+import { PendingContent } from './pending-content';
 import { Text } from './text';
 import { itemAccessibilityLabel } from '../../shared/rules/item-label.ts';
 const sizes = {
@@ -29,7 +30,9 @@ export type ItemProps = {
   highlighted?: boolean;
   selectionTone?: 'brand' | 'neutral';
   disabled?: boolean;
+  pending?: boolean;
   onPress?: () => void;
+  onLayout?: ViewProps['onLayout'];
   onLongPress?: () => void;
   accessibilityLabel?: string;
   testID?: string;
@@ -51,11 +54,14 @@ export function Item({
   highlighted = false,
   selectionTone = 'brand',
   disabled = false,
+  pending = false,
   onPress,
+  onLayout,
   onLongPress,
   accessibilityLabel,
   testID,
 }: ItemProps) {
+  const unavailable = disabled || pending;
   const ripple = usePressRipple('bounded');
   const pressable = Boolean(onPress || onLongPress);
   const className = [
@@ -69,14 +75,16 @@ export function Item({
     selected && !highlighted && selectionTone === 'neutral'
       ? 'rounded-md bg-muted'
       : '',
-    disabled ? 'opacity-50' : '',
+    unavailable ? 'opacity-50' : '',
     pressable ? 'active:bg-accent' : '',
   ]
     .filter(Boolean)
     .join(' ');
   const content = (
     <>
-      {leading}
+      {pending || leading ? (
+        <PendingContent pending={pending}>{leading}</PendingContent>
+      ) : null}
       <View className="w-0 min-w-0 flex-1 shrink gap-0.5">
         {titleTrailing || detail ? (
           <View className="w-full min-w-0 flex-row items-center gap-2">
@@ -139,8 +147,9 @@ export function Item({
           leading || trailing || titleTrailing || detail || children,
         ),
       })}
-      accessibilityState={{ selected, disabled }}
-      disabled={disabled}
+      accessibilityState={{ selected, disabled: unavailable, busy: pending }}
+      disabled={unavailable}
+      onLayout={onLayout}
       onPress={onPress}
       onLongPress={onLongPress}
       className={
@@ -150,7 +159,7 @@ export function Item({
       {content}
     </Pressable>
   ) : (
-    <View testID={testID} className={className}>
+    <View testID={testID} className={className} onLayout={onLayout}>
       {content}
     </View>
   );

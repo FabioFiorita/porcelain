@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { runtimePlan } from './runtime-plan.ts';
 
 it('runs touched browser specs, a separate smoke and storage checks on main', () => {
@@ -19,6 +19,47 @@ it('runs touched browser specs, a separate smoke and storage checks on main', ()
     server: false,
     desktop: false,
     package: false,
+    'browser-shards': [1],
+  });
+});
+
+it('runs every runtime job with a browser integration smoke for root Vite configuration changes', () => {
+  expect(
+    runtimePlan(
+      false,
+      ['vite.config.ts'],
+      ['apps/web/spec/integration/changes-branch-base.test.tsx'],
+    ),
+  ).toEqual({
+    server: true,
+    'web-integration': true,
+    'web-e2e': true,
+    desktop: true,
+    storage: true,
+    package: true,
+    shards: [1],
+    'browser-shards': [1],
+    integration: ['spec/integration/changes-branch-base.test.tsx'],
+    e2e: ['spec/e2e/access-pairing.e2e.ts'],
+  });
+});
+
+it('uses an unchanged browser integration spec when the preferred smoke was deleted', () => {
+  expect(
+    runtimePlan(
+      false,
+      [
+        'vite.config.ts',
+        'apps/web/spec/integration/changes-branch-base.test.tsx',
+      ],
+      [
+        'apps/web/spec/integration/helper.test.ts',
+        'apps/web/spec/integration/walkthroughs-page.test.tsx',
+      ],
+    ),
+  ).toMatchObject({
+    'web-integration': true,
+    integration: ['spec/integration/walkthroughs-page.test.tsx'],
   });
 });
 
@@ -31,6 +72,7 @@ it('requires every runtime suite on promotion even when only documentation chang
     storage: true,
     package: true,
     shards: [1, 2, 3, 4],
+    'browser-shards': [1, 2, 3, 4, 5, 6],
   });
   expect(runtimePlan(false, ['README.md'], ['README.md'])).toMatchObject({
     'web-integration': false,
@@ -38,3 +80,14 @@ it('requires every runtime suite on promotion even when only documentation chang
     storage: false,
   });
 });
+
+it.each(['scripts/check-package.sh', 'scripts/build-package.ts'])(
+  'runs the package job when %s changes',
+  (path) => {
+    expect(runtimePlan(false, [path], [])).toMatchObject({
+      package: true,
+      server: false,
+      desktop: false,
+    });
+  },
+);

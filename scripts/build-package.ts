@@ -181,7 +181,7 @@ async function buildWeb(webOutput: string): Promise<void> {
     '--filter',
     '@porcelain/web',
     'exec',
-    'vite',
+    'vp',
     'build',
     '--outDir',
     webOutput,

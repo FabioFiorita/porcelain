@@ -1,7 +1,7 @@
 import { readGitActionReceiptResponseSchema } from '@porcelain/contracts/git-actions';
 import * as Schema from 'effect/Schema';
 import { randomUUID } from 'node:crypto';
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import { apiError, invalidRequest, UNKNOWN_UUID } from '../kit/answers.ts';
 import {
   expectation,

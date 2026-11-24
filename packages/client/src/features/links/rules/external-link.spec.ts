@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { externalLink } from './external-link.ts';
 it.each([
   'http://example.com',

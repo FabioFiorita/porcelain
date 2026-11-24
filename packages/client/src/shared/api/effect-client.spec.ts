@@ -9,7 +9,7 @@ import {
 import { WorktreeChangedError } from '@porcelain/kernel/errors';
 import { Cause, Effect, Exit, Layer } from 'effect';
 import { HttpApiClient } from 'effect/http-api';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 
 import type { Transport } from '@porcelain/client/transport';
 import {

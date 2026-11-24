@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { gitActionTarget } from './git-action-target.ts';
 
 const readme = { path: 'README.md', fingerprint: 'a'.repeat(64) };

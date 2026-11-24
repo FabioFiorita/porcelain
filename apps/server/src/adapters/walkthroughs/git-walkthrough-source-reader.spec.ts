@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { NodeServices } from '@effect/platform-node';
 import { Effect, Layer } from 'effect';
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { BranchRangeReader } from '@porcelain/changes/ports';
 import { WalkthroughSourceReader } from '@porcelain/walkthroughs/ports';
 import { withReadLease } from '@porcelain/effects/worktree';

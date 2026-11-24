@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import { expectation, fingerprintOf, watching } from '../kit/reads.ts';
 import { gitPath } from '../kit/requests.ts';
 import { gitInterruptionTest as it } from '../kit/server-test.ts';

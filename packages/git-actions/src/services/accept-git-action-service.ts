@@ -95,17 +95,6 @@ export class AcceptGitActionService extends Context.Service<
           const { intent, expected } = input;
           const problem = gitActionProblem(intent, expected);
           if (problem) return yield* Effect.fail(operationFailure(problem));
-          const previous = yield* gitActionReceiptsCapability.read({
-            requestId: input.requestId,
-          });
-          if (previous) {
-            if (!sameGitActionRequest(previous, input))
-              return yield* Effect.fail(new GitActionReceiptMismatchError());
-            return {
-              kind: 'repeated',
-              receipt: gitActionReceiptView(previous),
-            };
-          }
           const receipt: GitActionReceipt = {
             requestId: input.requestId,
             projectId: input.projectId,
@@ -120,7 +109,15 @@ export class AcceptGitActionService extends Context.Service<
               DateTime.makeUnsafe(yield* clockCapability.currentTimeMillis),
             ),
           };
-          yield* gitActionReceiptsCapability.insert(receipt);
+          const accepted = yield* gitActionReceiptsCapability.accept(receipt);
+          if (accepted.kind === 'existing') {
+            if (!sameGitActionRequest(accepted.receipt, input))
+              return yield* Effect.fail(new GitActionReceiptMismatchError());
+            return {
+              kind: 'repeated',
+              receipt: gitActionReceiptView(accepted.receipt),
+            };
+          }
           return {
             kind: 'accepted',
             receipt: gitActionReceiptView(receipt),

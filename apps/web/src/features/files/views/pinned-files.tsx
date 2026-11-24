@@ -191,7 +191,7 @@ export function PinnedFiles({
                   <div className="w-full">{renderDirectory(path)}</div>
                 )}
               </ContextMenuTrigger>
-              <ContextMenuContent finalFocus={!openingSide}>
+              <ContextMenuContent finalFocus={openingSide ? 'none' : 'trigger'}>
                 <FileTreeMenuList
                   writeBlock={writeBlock}
                   actions={menu.actions}

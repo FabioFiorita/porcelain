@@ -4,7 +4,7 @@ import {
   TunnelConnectionStore,
 } from '@porcelain/access/ports';
 import { Effect } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import type {
   RemoteAccessSettings,
   RouteState,

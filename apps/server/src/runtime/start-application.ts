@@ -1,4 +1,4 @@
-import { Effect, Exit, FileSystem, Path, Scope, type Clock } from 'effect';
+import { Effect, Exit, FileSystem, Scope, type Clock } from 'effect';
 import { networkInterfaces } from 'node:os';
 import type { HostPolicy, PairingReach } from '@porcelain/access/models';
 import type { OwnerStatus } from '@porcelain/kernel/models';
@@ -9,8 +9,10 @@ import type { OpenedServer } from '../ports/opened-server.ts';
 import type { OwnerProbe } from '../ports/owner-probe.ts';
 import type { Runtime } from '../ports/runtime.ts';
 import type { ClosableListener } from '../ports/closable-listener.ts';
-import { prepareDataDirectory } from './data-directory.ts';
-import { acquireDirectoryLock } from './directory-lock.ts';
+import {
+  acquireDataDirectoryLock,
+  prepareDataDirectory,
+} from './data-directory.ts';
 import { DataDirectoryOwnedError } from './errors/data-directory-owned-error.ts';
 import { OwnerSocketUnreadableError } from './errors/owner-socket-unreadable-error.ts';
 import { restrictOwnerSocket } from './owner-socket.ts';
@@ -62,7 +64,6 @@ export const startApplication = Effect.fn('startApplication')(function* (
   starter: ApplicationStarter,
 ) {
   const fs = yield* FileSystem.FileSystem;
-  const pathApi = yield* Path.Path;
   const applicationScope = yield* Scope.fork(yield* Scope.Scope, 'sequential');
   const { host, port, allowedHosts, limits } = settings;
   const parts: RuntimeParts = { jobs: [], listeners: [] };
@@ -79,14 +80,12 @@ export const startApplication = Effect.fn('startApplication')(function* (
         dataDirectory: directory,
         pid: process.pid,
       };
-      yield* acquireDirectoryLock({
-        path: pathApi.join(directory, 'server.lock'),
-        waitMs: limits.locks.startupWaitMs,
-        pollMs: limits.locks.pollMs,
-        staleTakeovers: limits.locks.staleTakeovers,
-        clock: starter.clock,
-        held: () => new DataDirectoryOwnedError(directory),
-      }).pipe(Scope.provide(applicationScope));
+      yield* acquireDataDirectoryLock(
+        directory,
+        limits.locks,
+        starter.clock,
+        () => new DataDirectoryOwnedError(directory),
+      ).pipe(Scope.provide(applicationScope));
       const probe = yield* starter.ownerProbe.probe({
         socketPath,
         timeoutMs: limits.owner.probeTimeoutMs,

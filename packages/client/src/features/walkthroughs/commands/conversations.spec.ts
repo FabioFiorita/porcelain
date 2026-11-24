@@ -9,7 +9,7 @@ import {
 } from '@porcelain/client/transport';
 import { Effect, Layer } from 'effect';
 import { AtomRegistry, type Atom, type AsyncResult } from 'effect/reactivity';
-import { expect, it, onTestFinished } from 'vitest';
+import { expect, it, onTestFinished } from 'vite-plus/test';
 
 const scope = { projectId: 'project', worktreeId: 'f'.repeat(32) };
 const route = `/api/worktrees/${scope.worktreeId}/walkthrough/run/conversations`;

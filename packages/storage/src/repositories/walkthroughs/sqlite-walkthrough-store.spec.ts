@@ -16,7 +16,7 @@ import type { WalkthroughJob } from '@porcelain/walkthroughs/models';
 import { storageLayer } from '../../index.ts';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 
 function job(
   id: string,
@@ -214,6 +214,7 @@ it('resolves every comment answer from request, project, changed default and bui
             writtenAt: '2026-11-09T00:00:00.000Z',
             durationMs: 1,
             content: {
+              version: 1 as const,
               outcome: 'worth_knowing',
               title: 'Fixture',
               summary: 'Fixture',
@@ -335,6 +336,7 @@ it.each(['queued', 'running', 'ready'] as const)(
         writtenAt: '2026-11-09T00:00:00.000Z',
         durationMs: 1,
         content: {
+          version: 1 as const,
           outcome: 'worth_knowing',
           title: 'First writer',
           summary: 'Summary',

@@ -16,6 +16,15 @@ packageExtensions:
 # current Pierre packages. The compatible patch release widens that peer.
 overrides:
   '@pierre/trees>@pierre/theming': 1.0.2
+  '@ui-sdk/core': 0.1.0-beta.14
+  vite@*: 'catalog:'
+  vitest@*: 'catalog:'
 patchedDependencies:
   '@pierre/diffs@1.6.4': patches/@pierre__diffs@1.6.4.patch
+  '@ui-sdk/core@0.1.0-beta.14': patches/@ui-sdk__core@0.1.0-beta.14.patch
   uniwind@1.12.1: patches/uniwind@1.12.1.patch
+catalog:
+  vite: npm:@voidzero-dev/vite-plus-core@8.3.8000
+  vitest: 5.1.0
+  vite-plus: 1.7.0
+  '@vitest/browser-playwright': 5.1.0

@@ -7,7 +7,7 @@ selectors:
   - 'spinner'
   - "Couldn't load diff"
   - 'Large diff'
-  - 'Open the file to see this change.'
+  - 'Open file'
   - 'No changes'
   - 'Review unavailable'
 tests:
@@ -33,9 +33,13 @@ Every changed file of the selected comparison reads as one scrolling page, each 
 
 Preconditions: [surface baseline](README.md) with `--fixture development` (its worktree has staged, unstaged and untracked changes).
 
-1. Open All changes. The native title is All changes with the comparison (`Uncommitted` or `Branch · main`) beneath; a caption line counts the changes. Each comparison of a file is its own section in the Changes order: a file with staged and unstaged edits shows two sections, `staged` and `unstaged`. Headings show the file name, folder, comparison and `+added −removed`; untracked files read as added lines. Verify the lines against the server's diffs.
+1. Open All changes. The native title is All changes with the comparison (Uncommitted or Branch · main) beneath.
+   A caption counts the changes. File headings show the name, folder and comparison before the first diff batch
+   arrives. Each comparison of a file is its own section in the Changes order. A file with staged and unstaged edits
+   shows two sections, staged and unstaged. The diff bodies and line counts fill in as the reads complete.
+   Untracked files read as added lines. Verify the lines against the server's diffs.
 2. Scroll from the first to the last file without tapping: headings stick under the opaque bar while their diff scrolls, diffs appear before they reach the screen, nothing blinks and nothing jumps. With General → Long lines → Scroll, a horizontal drag on a diff pans only that diff and a vertical drag that starts on code scrolls the page. With Wrap, lines wrap and nothing pans sideways.
-3. Conflicts, unsupported comparisons, binary and omitted patches, metadata-only changes and diffs above 1,000 rows are one compact row (`Large diff · n lines`, `Binary change`, `Conflict`…) that opens the file screen. A refused diff read shows Couldn't load diff with Retry.
+3. Conflicts, unsupported comparisons, binary and omitted patches, metadata-only changes and diffs above 1,000 rows show an Open file row with the reason or `Large diff · n lines`. It opens the file screen. A refused diff read shows Couldn't load diff with Retry.
 4. Tap a heading: [the file screen](reviews.file.md) opens on that comparison with Mark reviewed. Back returns to the same scroll place.
 5. iPhone: the Files top-bar menu lists up to 100 sections, one line each (the file name, the folder only when two names collide, the comparison only when a file has two sections, such as `staged` and `unstaged`); choosing one scrolls there, and the pinned heading names the section being read. iPad with content at least 700 wide (landscape, and portrait now that the worktrees list slides over the page instead of sitting beside it): the section list stays on the left, marks the section at the top as the page scrolls, and tapping one scrolls the page to it; narrower content falls back to the iPhone layout. Rotate with the page open.
 6. Edit a changed file through the fixture: the page keeps showing the previous diff until the new one arrives, then updates in place. Switch to Branch in Changes and reopen: the page reads the branch comparison. Change workspace: Review unavailable.

@@ -1,7 +1,6 @@
 import { Effect, Layer } from 'effect';
 import { readGitEffect } from '../../runtime/git-io.ts';
 import { captureGitPlatform } from '@porcelain/git/discovery';
-import { makeGitSession } from '@porcelain/git/inspection';
 import type { Limits } from '../../config/limits.ts';
 import {
   type BranchBases,
@@ -12,10 +11,8 @@ import {
   type ListBranchBasesInput,
 } from '@porcelain/changes/models';
 import { BranchRangeReader } from '@porcelain/changes/ports';
-import {
-  openCheckoutEffect,
-  type ListedWorktrees,
-} from '../projects/checkout-session.ts';
+import type { ListedWorktrees } from '../projects/checkout-session.ts';
+import { inspectionCheckouts } from './inspection-checkouts.ts';
 
 import * as history from '@porcelain/git/history';
 
@@ -28,15 +25,11 @@ export const gitBranchRangeReaderLayer = (
     BranchRangeReader,
     Effect.gen(function* () {
       const provideGit = yield* captureGitPlatform();
+      const openInspection = inspectionCheckouts(worktrees, limits);
       const readBranchRangeNative = Effect.fn(
         'BranchRangeReader.readBranchRangeNative',
       )(function* (input: BranchRangeRequest) {
-        const session = yield* makeGitSession(limits);
-        const { worktree, checkout } = yield* openCheckoutEffect(
-          worktrees,
-          session,
-          input.worktreeId,
-        );
+        const { worktree, checkout } = yield* openInspection(input.worktreeId);
         const historyCheckout = { ...worktree, path: checkout.path };
         const range = yield* history.readBranchRange(
           historyCheckout,
@@ -74,12 +67,7 @@ export const gitBranchRangeReaderLayer = (
       const readBranchPatchesNative = Effect.fn(
         'BranchRangeReader.readBranchPatchesNative',
       )(function* (input: BranchPatchesRequest) {
-        const session = yield* makeGitSession(limits);
-        const { worktree, checkout } = yield* openCheckoutEffect(
-          worktrees,
-          session,
-          input.worktreeId,
-        );
+        const { worktree, checkout } = yield* openInspection(input.worktreeId);
         const historyCheckout = { ...worktree, path: checkout.path };
         const read = yield* history.readBranchDiffs(
           historyCheckout,
@@ -104,12 +92,7 @@ export const gitBranchRangeReaderLayer = (
       const listBranchBasesNative = Effect.fn(
         'BranchRangeReader.listBranchBasesNative',
       )(function* (input: ListBranchBasesInput) {
-        const session = yield* makeGitSession(limits);
-        const { worktree, checkout } = yield* openCheckoutEffect(
-          worktrees,
-          session,
-          input.worktreeId,
-        );
+        const { worktree, checkout } = yield* openInspection(input.worktreeId);
         const historyCheckout = { ...worktree, path: checkout.path };
         const listed = yield* history.listBranchBases(
           historyCheckout,

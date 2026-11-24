@@ -1,4 +1,7 @@
-import type { ChangeKind } from '@porcelain/kernel/models';
+import type {
+  ChangeKind,
+  CommitSummary as SharedCommitSummary,
+} from '@porcelain/kernel/models';
 import type { ChangeDiffContent } from './change-diff.ts';
 
 type CommitHead =
@@ -11,20 +14,7 @@ type HistorySnapshot = {
   head: CommitHead;
 };
 
-type CommitRef =
-  | { kind: 'local-branch' | 'remote-branch' | 'tag'; name: string }
-  | { kind: 'head'; name: 'HEAD' };
-
-export type CommitSummary = {
-  oid: string;
-  parentOids: string[];
-  author: { name: string; timestamp: string };
-  subject: string;
-  subjectTruncated: boolean;
-  body: string | undefined;
-  bodyTruncated: boolean;
-  refs: CommitRef[];
-};
+export type CommitSummary = SharedCommitSummary<undefined>;
 
 export type CommitPage = {
   snapshot: HistorySnapshot | undefined;

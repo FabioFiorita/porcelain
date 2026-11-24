@@ -1,6 +1,10 @@
 import { claudeEnvironment } from '../shared/commands/claude-environment.ts';
 import { providerFailure, logProviderFailure } from './provider-failure.ts';
 import { codexOutputSchema } from './codex-output-schema.ts';
+import {
+  WALKTHROUGH_MCP_NAME,
+  WALKTHROUGH_MCP_TOKEN_ENV,
+} from './walkthrough-mcp.ts';
 import { writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
@@ -92,6 +96,7 @@ const mcpServersSchema = Schema.fromJsonString(
         Schema.Struct({
           type: Schema.Literal('streamable_http'),
           url: Schema.String,
+          bearer_token_env_var: Schema.optional(Schema.NullOr(Schema.String)),
         }),
       ]),
     }),
@@ -137,6 +142,9 @@ export type AgentTurn = {
   readonly images: readonly string[];
   readonly prompt: string;
   readonly timeoutMs: number;
+  readonly walkthroughMcp?:
+    | { readonly url: string; readonly token: string }
+    | undefined;
   readonly wording: AgentTurnWording;
 };
 
@@ -210,6 +218,13 @@ export const agentTurns = (options: {
           `cli_auth_credentials_store=${JSON.stringify(credentialsStore)}`,
         );
       const mcpOverrides: string[] = [];
+      const catalog = turn.walkthroughMcp;
+      const trustedServer = (server: (typeof mcpServersSchema.Type)[number]) =>
+        catalog !== undefined &&
+        server.name === WALKTHROUGH_MCP_NAME &&
+        server.transport.type === 'streamable_http' &&
+        server.transport.url === catalog.url &&
+        server.transport.bearer_token_env_var === WALKTHROUGH_MCP_TOKEN_ENV;
       for (let check = 0; check < 2; check++) {
         const servers = yield* runProvider({
           command,
@@ -233,12 +248,26 @@ export const agentTurns = (options: {
             ),
           ),
         );
-        if (check === 0)
-          mcpOverrides.push(
-            '-c',
-            `mcp_servers={${servers.map((server) => `${JSON.stringify(server.name)}={enabled=false,${server.transport.type === 'stdio' ? `command=${JSON.stringify(server.transport.command)}` : `url=${JSON.stringify(server.transport.url)}`}}`).join(',')}}`,
-          );
-        else if (servers.some((server) => server.enabled))
+        if (check === 0) {
+          const disabled = servers
+            .filter(
+              (server) =>
+                catalog === undefined || server.name !== WALKTHROUGH_MCP_NAME,
+            )
+            .map(
+              (server) =>
+                `${JSON.stringify(server.name)}={enabled=false,${server.transport.type === 'stdio' ? `command=${JSON.stringify(server.transport.command)}` : `url=${JSON.stringify(server.transport.url)}`}}`,
+            );
+          if (catalog !== undefined)
+            disabled.push(
+              `${WALKTHROUGH_MCP_NAME}={enabled=true,url=${JSON.stringify(catalog.url)},bearer_token_env_var=${JSON.stringify(WALKTHROUGH_MCP_TOKEN_ENV)},required=true}`,
+            );
+          mcpOverrides.push('-c', `mcp_servers={${disabled.join(',')}}`);
+        } else if (
+          servers.some((server) => server.enabled && !trustedServer(server)) ||
+          (catalog !== undefined &&
+            !servers.some((server) => server.enabled && trustedServer(server)))
+        )
           return yield* failure(
             'other',
             'The Codex MCP servers could not be disabled. Check its configuration, then try again.',
@@ -247,7 +276,10 @@ export const agentTurns = (options: {
       return [...configArgs, ...mcpOverrides];
     });
     const run = Effect.fn('AgentTurns.run')(function* (turn: AgentTurn) {
-      const isolated = isolatedEnvironment(turn.folder);
+      const isolated = {
+        ...isolatedEnvironment(turn.folder),
+        [WALKTHROUGH_MCP_TOKEN_ENV]: turn.walkthroughMcp?.token ?? '',
+      };
       const env =
         turn.provider === 'claude' ? claudeEnvironment(isolated) : isolated;
       if (turn.provider === 'claude' && process.platform === 'darwin') {

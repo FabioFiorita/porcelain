@@ -13,7 +13,7 @@ import {
 } from 'node:fs/promises';
 import { delimiter, dirname, join } from 'node:path';
 import { chromium } from 'playwright';
-import { beforeAll, afterAll, expect, type TestContext } from 'vitest';
+import { beforeAll, afterAll, expect, type TestContext } from 'vite-plus/test';
 import { test } from '@porcelain/server/kit/server-test';
 import { repositoryRoot } from '../../verify-core/registry.ts';
 import {

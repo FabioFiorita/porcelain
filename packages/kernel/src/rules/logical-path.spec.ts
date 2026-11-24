@@ -1,5 +1,5 @@
 import type { TrackedComparison } from '@porcelain/kernel/models';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { logicalPath, trackedPath } from './logical-path.ts';
 
 function tracked(

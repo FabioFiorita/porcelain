@@ -220,6 +220,7 @@ function CommitFilePart({
   return (
     <DiffPagePart
       {...props}
+      openLabel="Open diff"
       state={commitFileState(props.file.change, patch)}
     />
   );

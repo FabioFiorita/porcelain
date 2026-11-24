@@ -10,6 +10,9 @@ import { type Atom } from 'effect/reactivity';
 import {
   walkthroughCommandBinding,
   walkthroughConversationCommands,
+  walkthroughDraft,
+  walkthroughDraftBinding,
+  type WalkthroughDraftPlacement,
 } from '@porcelain/client/walkthroughs';
 import {
   conversationSelection,
@@ -25,7 +28,6 @@ function useConversationCommands(props: ConversationScope) {
     conversationSelection(props),
   );
   return {
-    add: useCommand(commands.addMessage),
     retry: useCommand(commands.retryAnswer),
     save: useCommand(commands.saveMessage),
     post: useCommand(commands.postMessage),
@@ -48,7 +50,7 @@ export function usePostActions(
   const failed = (error: unknown) => setNotice(conversationFailure(error));
   const copy = () =>
     void commands.brief.run(message?.id).then((text) => {
-      if (text) copyText(text, 'brief', false);
+      if (text) copyText(text, 'brief');
     }, failed);
   const save = (saved: boolean) => {
     if (message)
@@ -61,7 +63,7 @@ export function usePostActions(
       : commands.postSaved.run(undefined);
     void pending.then((result) => {
       const outcome = postOutcome(result);
-      if (outcome.kind === 'brief') copyText(outcome.text, 'brief', false);
+      if (outcome.kind === 'brief') copyText(outcome.text, 'brief');
       if (outcome.kind === 'still-saved')
         setNotice({
           text: `Still saved: ${outcome.messages.map((item) => item.text).join('; ')}. These comments belong to a different repository.`,
@@ -95,22 +97,15 @@ export function useRetryAnswer(owner: ConversationScope, messageId: string) {
   };
 }
 
-export function useSendMessage(owner: ConversationScope) {
-  const [failure, setFailure] = useState<string>();
-  const commands = useConversationCommands(owner);
-  return {
-    failure,
-    waiting: commands.add.waiting,
-    send: (
-      payload: Parameters<typeof commands.add.run>[0],
-      done: () => void,
-    ) => {
-      setFailure(undefined);
-      void commands.add
-        .run(payload)
-        .then(done, (error: unknown) =>
-          setFailure(conversationFailure(error).text),
-        );
-    },
-  };
+export function useSendMessage(
+  owner: ConversationScope,
+  title: string,
+  placement: WalkthroughDraftPlacement,
+) {
+  const selection = conversationSelection(owner);
+  return walkthroughDraftBinding(
+    useAtom(walkthroughDraft(selection, owner.run, title, placement)),
+    useCommand(walkthroughConversationCommands(selection).addMessage),
+    { runId: selection.runId, title },
+  );
 }

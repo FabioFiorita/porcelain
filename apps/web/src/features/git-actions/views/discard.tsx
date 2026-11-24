@@ -1,4 +1,4 @@
-import { Spinner } from '@/components/ui/spinner';
+import { PendingButton } from '@/shared/views/pending-button';
 import { useWorkspaceWriteBlock } from '@/shared/workspace/connection';
 import { TruncatedText } from '@/shared/views/truncated-text';
 import { AsyncResult } from 'effect/reactivity';
@@ -15,7 +15,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
-import { toast } from '@/components/ui/toast';
+import { dismissNotice, notify } from '@/shared/views/notify';
 import {
   useReadCurrentChanges,
   useReviewOverview,
@@ -69,8 +69,8 @@ export function DiscardButton({
     what,
     look: candidate,
     readChanges,
-    notify: (notice) => toast.add(notice),
-    dismissNotice: (id) => toast.close(id),
+    notify,
+    dismissNotice,
     close: () => setOpen(false),
   });
   const { busy, error, uncertain } = discard;
@@ -82,9 +82,13 @@ export function DiscardButton({
     setOpenedStatus(status);
     setOpen(true);
   }
+  const [liveTrigger, setLiveTrigger] = useState<HTMLButtonElement | null>(
+    null,
+  );
   const trigger =
     shown && !hiddenTrigger ? (
       <Button
+        ref={setLiveTrigger}
         size={variant === 'button' ? 'sm' : 'xs'}
         disabled={Boolean(writeBlock)}
         aria-description={writeBlock}
@@ -106,7 +110,7 @@ export function DiscardButton({
     ) : null;
   const dialog = shown ? (
     <AlertDialog open={isOpen} onOpenChange={(next) => !busy && setOpen(next)}>
-      <AlertDialogContent>
+      <AlertDialogContent finalFocus={() => liveTrigger}>
         <AlertDialogHeader>
           <AlertDialogTitle>Discard {what}?</AlertDialogTitle>
           <AlertDialogDescription>
@@ -142,10 +146,9 @@ export function DiscardButton({
           </AlertDialogCancel>
           {!error?.moved &&
             (uncertain ? (
-              <Button disabled={busy} onClick={discard.checkOutcome}>
-                {busy && <Spinner aria-hidden="true" />}
+              <PendingButton pending={busy} onClick={discard.checkOutcome}>
                 Check outcome
-              </Button>
+              </PendingButton>
             ) : (
               <Button
                 variant="destructive"

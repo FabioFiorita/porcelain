@@ -11,13 +11,13 @@
     "test": "pnpm --dir ../.. test --project @porcelain/agents"
   },
   "dependencies": {
+    "@effect/platform-node": "4.1.2",
     "@porcelain/contracts": "workspace:*",
     "@porcelain/process": "workspace:*",
     "@porcelain/walkthroughs": "workspace:*",
     "effect": "4.1.2"
   },
   "devDependencies": {
-    "@effect/platform-node": "4.1.2",
     "@porcelain/kernel": "workspace:*",
     "@types/node": "24.13.3"
   }

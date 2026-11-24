@@ -1,6 +1,6 @@
 import { liveSessionState } from '../../live/store.ts';
-import { afterEach, describe, expect } from 'vitest';
-import { AsyncResult, AtomRegistry } from 'effect/reactivity';
+import { afterEach, describe, expect } from 'vite-plus/test';
+import { AsyncResult, Atom, AtomRegistry } from 'effect/reactivity';
 import type { AccessPlatformValue } from '../ports/access-platform.ts';
 import { it } from '@effect/vitest';
 import {
@@ -17,14 +17,16 @@ import {
 import { TestClock } from 'effect/testing';
 import { ENVIRONMENT_PROTOCOL } from '@porcelain/contracts/shared';
 import {
+  readingConnection,
+  remoteWriteGuard,
   readRemoteEnvironment,
   readRemoteStatus,
   readRemoteConnectionStatus,
   revalidateRemoteStatus,
   remoteStatusResult,
 } from './environments.ts';
-import { statusRuntime } from '../store/status.ts';
-import type { RemoteAnswer } from '../rules/remotes.ts';
+import { reconnectNoticeRuntime, statusRuntime } from '../store/status.ts';
+import type { RemoteAnswer, RemoteStatus } from '../rules/remotes.ts';
 import type { Transport } from '@porcelain/client/transport';
 const environment = {
   environmentId: 'saved-environment',
@@ -629,4 +631,63 @@ it('uses the live session as connection truth when independent HTTP probes fail,
   expect(subject.registry.get(atom)).toEqual({ kind: 'offline' });
   stop();
   subject.stop();
+});
+
+it('shows Reconnecting on the reading screen only after the computer stays away two seconds, and refusals at once', async () => {
+  const runtime = ManagedRuntime.make(TestClock.layer());
+  testRuntimes.push(runtime);
+  const clock = await runtime.runPromise(Clock.Clock);
+  reconnectNoticeRuntime.addGlobalLayer(Layer.succeed(Clock.Clock, clock));
+  const advance = (ms: number) => runtime.runPromise(TestClock.adjust(ms));
+  const status = Atom.make<RemoteStatus>({ kind: 'online', name: 'Computer' });
+  const registry = registryFixture();
+  const notice = readingConnection(status);
+  registry.mount(notice);
+  expect(registry.get(notice)).toBeUndefined();
+  registry.set(status, { kind: 'reconnecting' });
+  await advance(1_999);
+  expect(registry.get(notice)).toBeUndefined();
+  await advance(1);
+  expect(registry.get(notice)).toEqual({
+    title: 'Reconnecting',
+    interrupted: true,
+    repair: false,
+  });
+  registry.set(status, { kind: 'online', name: 'Computer' });
+  expect(registry.get(notice)).toBeUndefined();
+  registry.set(status, { kind: 'needs-pairing' });
+  expect(registry.get(notice)).toEqual({
+    title: 'Needs pairing',
+    interrupted: false,
+    repair: true,
+  });
+});
+
+it('runs a write only while the computer answers, whichever control starts it', () => {
+  const status = Atom.make<RemoteStatus>({ kind: 'reconnecting' });
+  const registry = registryFixture();
+  const guard = remoteWriteGuard(status);
+  const writes: string[] = [];
+  registry.set(guard, { write: () => writes.push('trash') });
+  registry.set(status, { kind: 'needs-pairing' });
+  registry.set(guard, { write: () => writes.push('retry') });
+  expect(writes).toEqual([]);
+  registry.set(status, { kind: 'online', name: 'Computer' });
+  registry.set(guard, { write: () => writes.push('archive') });
+  expect(writes).toEqual(['archive']);
+});
+
+it('runs the write when the guard is set through a React setter that calls function values as updaters', () => {
+  const status = Atom.make<RemoteStatus>({ kind: 'online', name: 'Computer' });
+  const registry = registryFixture();
+  const guard = remoteWriteGuard(status);
+  type Request = { readonly write: () => void };
+  const setLikeReact = (value: Request | ((current: undefined) => Request)) =>
+    registry.set(
+      guard,
+      typeof value === 'function' ? value(registry.get(guard)) : value,
+    );
+  const writes: string[] = [];
+  setLikeReact({ write: () => writes.push('pull') });
+  expect(writes).toEqual(['pull']);
 });

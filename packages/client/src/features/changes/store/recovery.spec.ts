@@ -1,5 +1,5 @@
 import { Effect } from 'effect';
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { ChangedDiffRecovery } from './recovery.ts';
 
 it('attempts recovery only once for an observation, even after it finishes', () => {

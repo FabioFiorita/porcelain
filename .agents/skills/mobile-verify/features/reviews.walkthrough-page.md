@@ -31,7 +31,10 @@ selectors:
   - 'By step'
   - 'All changes'
   - 'Not in the walkthrough yet'
-  - 'Enlarge screenshot'
+  - 'Enlarge before screenshot'
+  - 'Enlarge after screenshot'
+  - 'These lines are unavailable in the saved walkthrough.'
+  - 'More checks on the pull request'
   - 'The walkthrough could not be read.'
 tests:
   - packages/client/src/features/walkthroughs/rules/walkthrough.spec.ts
@@ -57,6 +60,7 @@ On tablets with at least 700 units of content width the steps sit beside the pag
 ## How to get to it (user POV)
 
 - Worktrees tab → a worktree. The page opens on Walkthrough only when its current branch has a ready, queued, running or failed run; otherwise Changes opens with Walkthrough one tap away.
+- Each step draws its blocks in the writer's order under its explanation: an excerpt as its `path · New line N` line, the writer's caption and the captured lines; a before/after pair as two thumbnails captioned "Before · …" and "After · …"; files as rows with the writer's note that open the file on Branch (or Uncommitted when the file is only local); checks as "Checks passing at <sha>" (failing, running) with one row per check. A callout stays in the calls card above the steps, with its comparison as a two-column table. A step without evidence shows none.
 - Each step's See the code opens [the step's code](reviews.walkthrough-step.md); a screenshot on a step opens [the screenshot](reviews.walkthrough-screenshot.md); See every changed file and See the change open [All changes](reviews.all-changes.md) on Branch. Native Back returns to the same place on the page.
 
 ## Driving it with agent-device
@@ -72,7 +76,7 @@ git -C "$REPO" add --all && git -C "$REPO" commit -m "Add notes"
 ### 1. Writing and reading
 
 1. Open the worktree. With no run, the four top-bar buttons Walkthrough, Changes, Files and History show with Changes selected. Choose Walkthrough for "No walkthrough yet." and "Write walkthrough". With an existing run (queued, running, failed or ready), the page opens on Walkthrough selected; Changes is one tap away in the same bar.
-2. `printf hold > "$REPO/.git/porcelain-fake-walkthrough"`, press Write walkthrough. Expect "Writing the walkthrough" under the `written for <sha>` line.
+2. `printf hold > "$REPO/.git/porcelain-fake-walkthrough"`, press Write walkthrough. Expect "Writing the walkthrough" under the `written for <sha>` line. With a saved effort that the connected computer reports as unsupported, Write walkthrough, Update walkthrough and Try again are disabled and the note names the model and effort. Update and Try again remain available while the catalog check is pending or fails. A failed check, missing writer or signed-out run shows Check writers again. Sign in on the connected computer, then use that action to refresh the available writers.
 3. `rm "$REPO/.git/porcelain-fake-walkthrough"`. Without leaving, expect the heading ending "One call is yours.", the call card ("Product call", "Step 1", the question, "Decide, or ask about this"), "How the system grew" with "1 more", the steps, "What the code doesn't say" with "2 more" and "See every changed file". Step 1 → scrolls to the step; Your call → back to the calls.
 4. Open See the code on an uncommitted-only ready walkthrough: the existing one-page diff reader shows its dirty file. Back → See every changed file shows the same file. With committed and dirty files, both entries show Branch first, then Uncommitted; each comparison appears once and opening a file preserves that comparison. The steps list includes dirty files, and All changes opens the same complete reader.
    Worktrees list: the row now leads with the walkthrough title and shows the branch as small text beneath it.
@@ -85,9 +89,9 @@ git -C "$REPO" add --all && git -C "$REPO" commit -m "Add notes"
 
 ### 3. Conversations
 
-8. Focus "Decide, or ask about this": the whole field, border included, sits above the keyboard. Type and Send: the keyboard closes and, without touching anything, expect a right-aligned bubble, "Walkthrough agent" with a `spinner`, then the answer. A short answer shows no Read all. Under a step, Ask about this reveals "Ask about this step". Switch to another destination and back: an unsent draft is still there.
-9. With the composer focused, "Save for later" → "Saved for later" with Undo and the keyboard closed (Post and Copy close it too); the bar at the bottom reads "1 comment saved" with Copy together. Without a pull request, Copy as prompt and Copy together show the one line "Copied brief" and never the brief; read the clipboard independently.
-10. Pull request, screenshots and long answers: `$C walkthrough sample` writes a ready walkthrough for pull request #423 with two screenshots on step 2, then reopen the worktree. `$C walkthrough answer long` before asking: the answer is clamped to three lines with Read all. "Post on #423" turns into the link "Posted on #423"; `$C walkthrough posts` reads what the fake GitHub received. Save two, "Post together on #423" posts them once. `$C walkthrough moved` then Post: "Nothing was posted. Copy the brief instead." with Copy.
+8. Focus "Decide, or ask about this": the whole field, border included, sits above the keyboard. Type and Send: the keyboard closes and, without touching anything, expect a right-aligned bubble, "Walkthrough agent" with a `spinner`, then the answer. A short answer shows no Read all. Under a step, Ask about this reveals "Ask about this step". The call card and numbered step have separate drafts. Switch to another destination and back: the unsent text and any send error are still there. Drafts stay on their original branch. After an update on that branch, a draft remains in its original box when the step keeps its title. Editing the text or displaying a new revision clears a previous send error.
+9. With the composer focused, "Save for later" → "Saved for later" with Undo and the keyboard closed (Post and Copy close it too); the bar at the bottom reads "1 comment saved" with Copy together. Without a pull request, Copy as prompt and Copy together confirm the copy. On Android 13 and later, the system confirms the copy with a protected preview. Elsewhere Porcelain shows "Copied brief". Read the clipboard independently and check for a single announcement with the platform screen reader.
+10. Pull request, screenshots and long answers: `$C walkthrough sample` writes a ready walkthrough for pull request #423 with a comparison and an excerpt on step 1 and checks and two screenshots on step 2, then reopen the worktree. `$C walkthrough answer long` before asking: the answer is clamped to three lines with Read all. "Post on #423" turns into the link "Posted on #423"; `$C walkthrough posts` reads what the fake GitHub received. Save two, "Post together on #423" posts them once. `$C walkthrough moved` then Post: "Nothing was posted. Copy the brief instead." with Copy.
 
 ### 4. Tablet
 

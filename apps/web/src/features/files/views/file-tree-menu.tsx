@@ -14,7 +14,6 @@ import {
   Trash2Icon,
 } from 'lucide-react';
 import type { KeyboardEvent } from 'react';
-import { useElement } from '@/shared/hooks/use-element';
 import {
   ContextMenuContent,
   ContextMenuItem,
@@ -31,7 +30,7 @@ type MenuListProps = {
 
 type Props = MenuListProps & {
   path: string;
-  finalFocus: () => HTMLElement | false;
+  finalFocus: 'none' | (() => HTMLElement | null);
 };
 
 const icons = {
@@ -59,10 +58,8 @@ export function FileTreeMenu({
   writeBlock,
   onAction,
 }: Props) {
-  const popup = useElement<HTMLDivElement>();
   return (
     <ContextMenuContent
-      ref={(element) => popup.attach(element)}
       aria-label={`${path} actions`}
       className="w-max max-w-[calc(100vw-2rem)] whitespace-nowrap"
       onKeyDownCapture={(event: KeyboardEvent<HTMLDivElement>) => {
@@ -74,12 +71,7 @@ export function FileTreeMenu({
         event.stopPropagation();
         first.focus();
       }}
-      finalFocus={() => {
-        const active = document.activeElement;
-        const stayed =
-          active === document.body || popup.element?.contains(active);
-        return stayed ? finalFocus() : false;
-      }}
+      finalFocus={finalFocus}
     >
       <FileTreeMenuList
         actions={actions}
@@ -138,8 +130,8 @@ function FileTreeMenuAction({
       <ContextMenuItem
         disabled={Boolean(blocked)}
         aria-description={blocked}
-        variant={action.id === 'trash' ? 'destructive' : 'default'}
-        onClick={() => onAction(action.id)}
+        destructive={action.id === 'trash'}
+        onSelect={() => onAction(action.id)}
       >
         <Icon />
         {action.label}

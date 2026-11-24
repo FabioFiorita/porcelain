@@ -1,3 +1,4 @@
+import { notify } from '@/shared/views/notify';
 import type { WalkthroughSettings } from '@porcelain/contracts/projects';
 import type { SaveDefaultWalkthroughWriterRequest } from '@porcelain/contracts/walkthroughs';
 import type { Project } from '@porcelain/client/projects/rules';
@@ -25,7 +26,10 @@ export function useWalkthroughWriterSave(
         ? saveDefault(input.writer)
         : undefined;
     return operation?.then(
-      () => onSaved?.(),
+      () => {
+        notify({ title: 'Saved on this computer', type: 'success' });
+        onSaved?.();
+      },
       () => undefined,
     );
   };

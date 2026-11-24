@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { desktopContentSecurityPolicy } from './content-security-policy.ts';
 
 describe('desktop content security policy', () => {

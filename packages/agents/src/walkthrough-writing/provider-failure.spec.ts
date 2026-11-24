@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { providerFailure } from './provider-failure.ts';
 
 it('keeps invalid schemas distinct from sign-in and discards provider text', () => {

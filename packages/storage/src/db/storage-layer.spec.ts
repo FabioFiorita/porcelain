@@ -10,7 +10,7 @@ import {
   DeviceStore,
 } from '@porcelain/access/ports';
 import { InventoryStore } from '@porcelain/projects/ports';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vite-plus/test';
 import { storageLayer } from './storage-layer.ts';
 
 const journalSchema = Schema.fromJsonString(
@@ -177,6 +177,8 @@ describe('Native storage adoption', () => {
         { migration_id: 15, name: 'working_tree_walkthroughs' },
         { migration_id: 16, name: 'remove_saved_reviews_and_comments' },
         { migration_id: 17, name: 'preserve_reconnected_worktrees' },
+        { migration_id: 18, name: 'drop_push_registrations' },
+        { migration_id: 19, name: 'walkthrough_blocks' },
       ]);
     } finally {
       database.close();
@@ -531,6 +533,8 @@ describe('Native storage adoption', () => {
         { migration_id: 15, name: 'working_tree_walkthroughs' },
         { migration_id: 16, name: 'remove_saved_reviews_and_comments' },
         { migration_id: 17, name: 'preserve_reconnected_worktrees' },
+        { migration_id: 18, name: 'drop_push_registrations' },
+        { migration_id: 19, name: 'walkthrough_blocks' },
       ]);
       expect(database.prepare('PRAGMA foreign_key_check').all()).toEqual([]);
     } finally {
@@ -597,6 +601,8 @@ describe('Native storage adoption', () => {
           { migration_id: 15, name: 'working_tree_walkthroughs' },
           { migration_id: 16, name: 'remove_saved_reviews_and_comments' },
           { migration_id: 17, name: 'preserve_reconnected_worktrees' },
+          { migration_id: 18, name: 'drop_push_registrations' },
+          { migration_id: 19, name: 'walkthrough_blocks' },
         ]);
         expect(
           stored

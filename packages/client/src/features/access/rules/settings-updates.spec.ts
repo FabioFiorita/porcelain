@@ -1,5 +1,5 @@
 import { Effect } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { clientFixtures } from '../../../../spec/kit/client-fixture.ts';
 import type {
   MacAppUpdateTarget,

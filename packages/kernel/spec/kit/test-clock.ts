@@ -1,6 +1,6 @@
 import { DateTime, Effect, Exit, Scope } from 'effect';
 import { TestClock } from 'effect/testing';
-import { onTestFinished } from 'vitest';
+import { onTestFinished } from 'vite-plus/test';
 
 export async function testClock(
   instant: string = '2026-01-01T00:00:00.000Z',

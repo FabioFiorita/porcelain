@@ -6,7 +6,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { Deferred, Effect, Layer, ManagedRuntime } from 'effect';
 import { NodeServices } from '@effect/platform-node';
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { storageLayer } from '@porcelain/storage';
 import {
   PullRequestCommenter,
@@ -70,6 +70,7 @@ const job = (
       writtenAt: '2026-11-09T00:00:00.000Z',
       durationMs: 1,
       content: {
+        version: 1 as const,
         outcome: 'worth_knowing',
         title: 'Walkthrough',
         summary: 'Summary.',
@@ -78,11 +79,18 @@ const job = (
           {
             title: 'Keep the retry local',
             explanation: 'Why.',
-            excerpts: [
-              { path: 'src/a.ts', side: 'new', start: 1, end: 3, caption: 'a' },
+            blocks: [
+              {
+                kind: 'diff_excerpt',
+                contentTreeOid: 'tree',
+                headOid: 'head',
+                path: 'src/a.ts',
+                side: 'new',
+                start: 1,
+                end: 3,
+                caption: 'a',
+              },
             ],
-            evidence: [],
-            files: [],
           },
         ],
         onlyInTranscript: [],

@@ -1,5 +1,5 @@
 import { Schema } from 'effect';
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { readWorktreeSummaryResponseSchema } from './git-status.ts';
 
 const summary = {

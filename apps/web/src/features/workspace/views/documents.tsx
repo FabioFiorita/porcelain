@@ -69,7 +69,7 @@ export type DocumentProps = {
   sideLabel: string;
   onBrowse: (
     surface: 'changes' | 'files' | 'history',
-    trigger: HTMLButtonElement,
+    trigger: HTMLElement,
   ) => void;
 };
 
@@ -285,7 +285,6 @@ function TimelineDocument({
             <TruncatedText text={path} />
           </span>
         }
-        subtitle="Commits that changed this file"
       />
       <FileTimeline
         scope={scope}

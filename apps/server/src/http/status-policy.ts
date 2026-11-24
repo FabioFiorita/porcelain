@@ -8,7 +8,6 @@ import {
   InvalidPairingAddressError,
   InvalidPairingError,
   DeviceViewerRequiredError,
-  PushRegistrationDeviceRequiredError,
   InvalidTailnetHostnameError,
   InvalidTunnelHostnameError,
   MissingTailnetHostnameError,
@@ -105,7 +104,6 @@ import {
   FilePreferenceLimitError,
   FolderNotFoundError,
   FolderNotReadableError,
-  NoWorktreeAtPathError,
   ProjectNotFoundError,
   ProjectReconnectionRefusedError,
   RepositoryInspectionFailedError,
@@ -191,7 +189,6 @@ const rules: readonly StatusRule[] = [
   {
     errors: [
       DeviceViewerRequiredError,
-      PushRegistrationDeviceRequiredError,
       UntrustedDeviceError,
       WaysInPermissionRequiredError,
       SharingManagementRequiredError,
@@ -209,7 +206,6 @@ const rules: readonly StatusRule[] = [
       PathNotFoundError,
       FolderNotFoundError,
       GitActionNotFoundError,
-      NoWorktreeAtPathError,
       DeviceNotFoundError,
     ],
     statusCode: 404,

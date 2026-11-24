@@ -1,5 +1,5 @@
 import { clientFixtures } from '../../../../spec/kit/client-fixture.ts';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { Cause, Effect, Exit, Layer } from 'effect';
 import { HtmlPreviewPlatform } from '@porcelain/client/files';
 import { AtomRegistry } from 'effect/reactivity';

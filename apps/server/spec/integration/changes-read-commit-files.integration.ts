@@ -1,6 +1,6 @@
 import * as Schema from 'effect/Schema';
 import { readCommitFilesResponseSchema } from '@porcelain/contracts/changes';
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import {
   apiError,
   invalidRequest,

@@ -10,7 +10,7 @@ import {
   statSync,
 } from 'node:fs';
 import { join } from 'node:path';
-import { beforeEach, afterEach, describe, expect, it } from 'vitest';
+import { beforeEach, afterEach, describe, expect, it } from 'vite-plus/test';
 import type { ListedWorktree } from '@porcelain/projects/models';
 import {
   ListedWorktreeAccessReader,

@@ -2,12 +2,13 @@ import { Schema } from 'effect';
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api';
 import {
   walkthroughRunSchema as domainRunSchema,
-  walkthroughContentSchema as domainContentSchema,
+  walkthroughContentSchema,
   writerSchema,
   walkthroughModelSchema,
   walkthroughFreshnessSchema,
 } from '@porcelain/walkthroughs/models';
 import {
+  UnsupportedWalkthroughEffortError,
   WalkthroughFailedError,
   WalkthroughAssetNotFoundError,
   WalkthroughMessageNotFoundError,
@@ -32,28 +33,6 @@ import {
   walkthroughConversationParamsSchema,
 } from './conversations.ts';
 import { httpFailure } from '../shared/http-failure.ts';
-export const walkthroughContentSchema = Schema.Struct({
-  ...domainContentSchema.fields,
-  checks: nullableAsUndefined(Schema.String),
-  stops: Schema.Array(
-    Schema.Struct({
-      ...domainContentSchema.fields.stops.value.fields,
-      attention: nullableAsUndefined(
-        Schema.Struct({
-          kind: Schema.Literals([
-            'tradeoff',
-            'contract',
-            'product',
-            'risk',
-            'accessibility',
-          ]),
-          note: Schema.String,
-          question: Schema.String,
-        }),
-      ),
-    }),
-  ),
-});
 const readySchema = Schema.Struct({
   status: Schema.Literal('ready'),
   content: walkthroughContentSchema,
@@ -93,6 +72,9 @@ const readWalkthroughQuerySchema = Schema.Struct({
   excerptStep: Schema.optional(
     Schema.NumberFromString.check(Schema.isInt(), Schema.isGreaterThan(0)),
   ),
+  excerptBlock: Schema.optional(
+    Schema.NumberFromString.check(Schema.isInt(), Schema.isGreaterThan(0)),
+  ),
 });
 export type ReadWalkthroughQuery = typeof readWalkthroughQuerySchema.Type;
 export const readWalkthroughResponseSchema = Schema.Struct({
@@ -101,25 +83,66 @@ export const readWalkthroughResponseSchema = Schema.Struct({
   freshness: walkthroughFreshnessSchema,
   capturedPatch: Schema.optional(Schema.String),
 });
+const walkthroughWriterSettingsQuerySchema = Schema.Struct({
+  projectId: Schema.optional(Schema.String),
+  refresh: Schema.optional(Schema.Literal('true')),
+});
+export type WalkthroughWriterSettingsQuery =
+  typeof walkthroughWriterSettingsQuerySchema.Type;
 export const walkthroughWriterSettingsSchema = Schema.Struct({
   writer: writerSchema,
   models: Schema.Array(walkthroughModelSchema),
+  availability: Schema.optional(
+    Schema.Literals(['ready', 'missing-model', 'unsupported-effort']),
+  ),
 });
 export type WalkthroughWriterSettings =
   typeof walkthroughWriterSettingsSchema.Type;
+export function isUnsupportedWalkthroughEffortFailure(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    error.name === UnsupportedWalkthroughEffortError.name
+  );
+}
+
 export type SaveDefaultWalkthroughWriterRequest = typeof writerSchema.Type;
+const postWalkthroughFailures = [
+  ...worktreeFailures,
+  httpFailure(WalkthroughTargetNotFoundError, 'NotFound'),
+  httpFailure(WalkthroughMessageNotFoundError, 'NotFound'),
+  httpFailure(WalkthroughPostFailedError, 'BadGateway', {
+    message: { fromError: true },
+  }),
+  httpFailure(WalkthroughRepositoryChangedError, 'Conflict', {
+    message: { fromError: true },
+  }),
+] as const;
+
 export class WalkthroughsApi extends porcelainApi.add(
   HttpApiGroup.make('walkthroughs')
     .add(
       HttpApiEndpoint.get(
         'readWalkthroughWriterSettings',
         '/api/walkthrough-settings',
-        { disableCodecs: true, success: walkthroughWriterSettingsSchema },
+        {
+          disableCodecs: true,
+          query: walkthroughWriterSettingsQuerySchema.fields,
+          success: walkthroughWriterSettingsSchema,
+        },
       ),
       HttpApiEndpoint.put(
         'saveDefaultWalkthroughWriter',
         '/api/walkthrough-settings',
-        { disableCodecs: true, payload: writerSchema, success: writerSchema },
+        {
+          disableCodecs: true,
+          payload: writerSchema,
+          success: writerSchema,
+          error: httpFailure(
+            UnsupportedWalkthroughEffortError,
+            'UnprocessableEntity',
+            { message: { fromError: true } },
+          ),
+        },
       ),
       HttpApiEndpoint.post(
         'startWalkthrough',
@@ -225,17 +248,7 @@ export class WalkthroughsApi extends porcelainApi.add(
           disableCodecs: true,
           params: walkthroughMessageParamsSchema,
           success: postWalkthroughMessagesResponseSchema,
-          error: [
-            ...worktreeFailures,
-            httpFailure(WalkthroughTargetNotFoundError, 'NotFound'),
-            httpFailure(WalkthroughMessageNotFoundError, 'NotFound'),
-            httpFailure(WalkthroughPostFailedError, 'BadGateway', {
-              message: { fromError: true },
-            }),
-            httpFailure(WalkthroughRepositoryChangedError, 'Conflict', {
-              message: { fromError: true },
-            }),
-          ],
+          error: postWalkthroughFailures,
         },
       ),
       HttpApiEndpoint.post(
@@ -245,17 +258,7 @@ export class WalkthroughsApi extends porcelainApi.add(
           disableCodecs: true,
           params: walkthroughConversationParamsSchema,
           success: postWalkthroughMessagesResponseSchema,
-          error: [
-            ...worktreeFailures,
-            httpFailure(WalkthroughTargetNotFoundError, 'NotFound'),
-            httpFailure(WalkthroughMessageNotFoundError, 'NotFound'),
-            httpFailure(WalkthroughPostFailedError, 'BadGateway', {
-              message: { fromError: true },
-            }),
-            httpFailure(WalkthroughRepositoryChangedError, 'Conflict', {
-              message: { fromError: true },
-            }),
-          ],
+          error: postWalkthroughFailures,
         },
       ),
       HttpApiEndpoint.get(

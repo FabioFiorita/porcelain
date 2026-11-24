@@ -13,7 +13,7 @@ import {
 import { join, relative } from 'node:path';
 import { NodeServices } from '@effect/platform-node';
 import { Effect } from 'effect';
-import { afterEach, beforeEach, expect, it } from 'vitest';
+import { afterEach, beforeEach, expect, it } from 'vite-plus/test';
 import { readWorkingTree } from './read-working-tree.ts';
 import { gitLimits } from '../../../spec/fixtures/git-limits.ts';
 

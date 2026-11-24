@@ -4,7 +4,7 @@ import {
   unreadablePersistence,
 } from '../../../spec/kit/promise-storage.ts';
 import { Effect } from 'effect';
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { PreferencesStore } from './store.ts';
 import { PreferenceStorage } from './ports/preference-storage.ts';
 import {

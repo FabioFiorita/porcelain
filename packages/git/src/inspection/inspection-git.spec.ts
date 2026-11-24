@@ -4,7 +4,7 @@ import { Cause, Effect, Exit } from 'effect';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vite-plus/test';
 import { readBranchDetails, readCheckoutStatus } from './inspection-git.ts';
 import { gitLimits } from '../../spec/fixtures/git-limits.ts';
 

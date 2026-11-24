@@ -37,7 +37,12 @@ export function BranchBasePicker({
   onBase: (base: string | undefined) => void;
   compact?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpenState] = useState(false);
+  const [query, setQuery] = useState('');
+  const setOpen = (next: boolean) => {
+    setOpenState(next);
+    if (!next) setQuery('');
+  };
   const bases = useBranchBases(scope, connection, open);
   const comparison = useBranchChanges(scope, connection, base);
   const branches = Option.getOrUndefined(AsyncResult.value(bases.result));
@@ -47,16 +52,21 @@ export function BranchBasePicker({
     currentBase === undefined ? 'the default branch' : refLabel(currentBase);
   const defaultRef = branches?.defaultRef ?? null;
   const chosen = base ?? defaultRef;
-  const groups = [
-    {
-      heading: 'Local',
-      entries: branches?.bases.filter((entry) => !entry.remote) ?? [],
-    },
-    {
-      heading: 'Remote',
-      entries: branches?.bases.filter((entry) => entry.remote) ?? [],
-    },
-  ].filter((group) => group.entries.length > 0);
+  const entries = new Map(
+    (branches?.bases ?? []).map((entry) => [entry.ref, entry]),
+  );
+  const items = [
+    { label: 'Local', remote: false },
+    { label: 'Remote', remote: true },
+  ]
+    .map(({ label, remote }) => ({
+      type: 'group' as const,
+      label,
+      items: (branches?.bases ?? [])
+        .filter((entry) => entry.remote === remote)
+        .map((entry) => ({ value: entry.ref, label: entry.name })),
+    }))
+    .filter((group) => group.items.length > 0);
   const choose = (ref: string) => {
     onBase(ref === defaultRef ? undefined : ref);
     setOpen(false);
@@ -100,52 +110,71 @@ export function BranchBasePicker({
         <ChevronsUpDownIcon className="size-3.5 shrink-0 text-muted-foreground" />
       </PopoverTrigger>
       <PopoverContent align="start" className="w-72">
-        <Command>
+        <Command
+          items={items}
+          query={query}
+          onQueryChange={setQuery}
+          onEscape={() => setOpen(false)}
+        >
           <CommandInput
             aria-label="Find a base branch"
             placeholder="Find a branch"
           />
+          {AsyncResult.isInitial(bases.result) && (
+            <p className="p-3">
+              <PendingSpinner label="Reading branches" />
+            </p>
+          )}
+          {AsyncResult.isFailure(bases.result) && (
+            <div className="p-3 text-xs text-muted-foreground">
+              <span className="block">The branches could not be read.</span>
+              <Button
+                variant="outline"
+                size="xs"
+                className="mt-2"
+                onClick={bases.refresh}
+              >
+                Try again
+              </Button>
+            </div>
+          )}
+          {AsyncResult.isSuccess(bases.result) && (
+            <CommandEmpty>No branch matches.</CommandEmpty>
+          )}
           <CommandList aria-label="Base branches">
-            {AsyncResult.isInitial(bases.result) && (
-              <p className="p-3">
-                <PendingSpinner label="Reading branches" />
-              </p>
-            )}
-            {AsyncResult.isFailure(bases.result) && (
-              <div className="p-3 text-xs text-muted-foreground">
-                <span className="block">The branches could not be read.</span>
-                <Button
-                  variant="outline"
-                  size="xs"
-                  className="mt-2"
-                  onClick={bases.refresh}
-                >
-                  Try again
-                </Button>
-              </div>
-            )}
-            {AsyncResult.isSuccess(bases.result) && (
-              <CommandEmpty>No branch matches.</CommandEmpty>
-            )}
-            {groups.map((group) => (
-              <CommandGroup key={group.heading} heading={group.heading}>
-                {group.entries.map((entry) => (
-                  <CommandItem
-                    key={entry.ref}
-                    value={entry.name}
-                    data-checked={entry.ref === chosen}
-                    onSelect={() => choose(entry.ref)}
-                  >
-                    <TruncatedText text={entry.name} />
-                    {entry.ref === defaultRef && (
-                      <span className="text-xs text-muted-foreground">
-                        default
-                      </span>
-                    )}
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            ))}
+            {(state) =>
+              state.items.map((group) =>
+                typeof group === 'object' &&
+                'type' in group &&
+                group.type === 'group' ? (
+                  <CommandGroup key={group.label} heading={group.label}>
+                    {group.items.map((item) => {
+                      const value =
+                        typeof item === 'string' ? item : item.value;
+                      const entry = entries.get(value);
+                      return (
+                        entry && (
+                          <CommandItem
+                            key={entry.ref}
+                            value={entry.ref}
+                            label={entry.name}
+                            data-checked={entry.ref === chosen}
+                            onSelect={() => choose(entry.ref)}
+                          >
+                            <TruncatedText text={entry.name} />
+                            {entry.ref === defaultRef && (
+                              <span className="text-xs text-muted-foreground">
+                                default
+                              </span>
+                            )}
+                          </CommandItem>
+                        )
+                      );
+                    })}
+                  </CommandGroup>
+                ) : null,
+              )
+            }
           </CommandList>
         </Command>
       </PopoverContent>

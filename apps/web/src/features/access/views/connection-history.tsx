@@ -38,7 +38,6 @@ export function ConnectionHistory({
         <Button
           variant="outline"
           size="sm"
-          nativeButton={false}
           render={
             <a href={exportUrl} download="porcelain-connection-history.json" />
           }

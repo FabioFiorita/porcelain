@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { Effect, Layer, ManagedRuntime, Schema } from 'effect';
 import { WorkflowEngine } from 'effect/workflow';
 import { NodeServices } from '@effect/platform-node';
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { storageLayer } from '@porcelain/storage';
 import {
   WalkthroughModelReader,
@@ -55,6 +55,7 @@ const ready: WalkthroughJob = {
   files: [],
 };
 const content = {
+  version: 1 as const,
   outcome: 'worth_knowing' as const,
   title: 'Walkthrough',
   summary: 'Summary.',
@@ -63,9 +64,7 @@ const content = {
     {
       title: 'Keep the retry local',
       explanation: 'Why.',
-      excerpts: [],
-      evidence: [],
-      files: [],
+      blocks: [],
     },
   ],
   onlyInTranscript: [],

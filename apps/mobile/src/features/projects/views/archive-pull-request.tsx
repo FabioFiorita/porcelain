@@ -23,6 +23,7 @@ import { Text } from '../../../components/ui/text';
 import { useReviewGitSettings } from '../../preferences';
 import { useInventory } from '../queries/inventory';
 import { useArchivePullRequest } from '../commands/archive-pull-request';
+import { ComputerConnectionNotice, useWritesBlocked } from '../../access';
 
 type ArchiveTarget = {
   connection: RuntimeConnection;
@@ -37,12 +38,13 @@ function ArchivePullRequest(props: ArchiveTarget) {
   const settings = confirmedReviewGitSettings(view);
   const block = reviewGitSettingsBlock(view);
   const { result, prepare } = useArchivePullRequest(props);
+  const blocked = useWritesBlocked(props.connection.environmentId);
   return (
     <>
       <Button
         label="Archive"
         variant="tonal"
-        disabled={!settings}
+        disabled={!settings || blocked}
         pending={result.waiting}
         onPress={() => {
           if (settings)
@@ -95,6 +97,7 @@ export function ArchivePullRequestSheet({
       ) : (
         <ArchiveUnavailable />
       )}
+      <ComputerConnectionNotice environmentId={environmentId} />
     </Sheet>
   );
 }
@@ -111,6 +114,7 @@ function ArchiveConfirmation({
     useReviewGitSettings(target.connection),
   );
   const { result, submit } = useArchivePullRequest(target);
+  const blocked = useWritesBlocked(target.connection.environmentId);
   const [acknowledged, setAcknowledged] = useState(false);
   const plan =
     AsyncResult.isSuccess(result) && !result.value.archived
@@ -149,7 +153,7 @@ function ArchiveConfirmation({
         label="Archive pull request"
         variant="destructive"
         pending={result.waiting}
-        disabled={!plan || !settings || (risky && !acknowledged)}
+        disabled={!plan || !settings || (risky && !acknowledged) || blocked}
         onPress={() => {
           if (plan && settings)
             void submit(

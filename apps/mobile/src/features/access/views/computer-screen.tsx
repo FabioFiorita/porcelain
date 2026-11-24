@@ -44,7 +44,7 @@ export function ComputerScreen({
           <GroupHeader variant="section" label="Pair a device" />
           <Card>
             <Item
-              title="Pair a device"
+              title="Create a pairing link"
               description="Create a link from Computers on a device with sharing access, then open it on the device you want to pair."
             />
           </Card>

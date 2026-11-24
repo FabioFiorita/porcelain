@@ -1,5 +1,5 @@
 import { Effect } from 'effect';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vite-plus/test';
 import type { FilePreference } from '../../src/models/file-preference.ts';
 import type { FilePreferenceStore } from '../../src/ports/file-preference-store.ts';
 

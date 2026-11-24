@@ -28,7 +28,7 @@ export function OpenProjectMenu({
 }) {
   if (!remotes?.length)
     return (
-      <Tooltip disableHoverablePopup>
+      <Tooltip hoverable={false}>
         <TooltipTrigger
           render={
             <SidebarGroupAction
@@ -45,7 +45,7 @@ export function OpenProjectMenu({
     );
   return (
     <DropdownMenu>
-      <Tooltip disableHoverablePopup>
+      <Tooltip hoverable={false}>
         <TooltipTrigger
           render={
             <DropdownMenuTrigger
@@ -65,7 +65,7 @@ export function OpenProjectMenu({
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuGroup>
           <DropdownMenuLabel>Open project on</DropdownMenuLabel>
-          <DropdownMenuItem onClick={() => openProject(null)}>
+          <DropdownMenuItem onSelect={() => openProject(null)}>
             <MonitorIcon />
             This computer
           </DropdownMenuItem>
@@ -92,7 +92,7 @@ function RemoteItem({
   const status = useRemoteStatus(entry.remote);
   const online = status.kind === 'online';
   return (
-    <DropdownMenuItem disabled={!online} onClick={onOpen}>
+    <DropdownMenuItem disabled={!online} onSelect={onOpen}>
       <ServerIcon />
       <TruncatedText
         className="min-w-0"

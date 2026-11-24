@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import type { ServiceUpdateState } from '@porcelain/access/models';
 import { serviceUpdateRefusal } from './service-update.ts';
 

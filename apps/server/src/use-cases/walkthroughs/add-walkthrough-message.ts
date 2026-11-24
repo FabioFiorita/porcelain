@@ -33,17 +33,24 @@ export class AddWalkthroughMessageUseCase extends Context.Service<
       return {
         execute: Effect.fn('AddWalkthroughMessageUseCase.execute')(
           function* (input) {
-            const view = yield* access.write(input.worktreeId, () =>
-              add
-                .execute(input)
-                .pipe(Effect.andThen(conversations.execute(input))),
+            return yield* access.transaction(
+              input.worktreeId,
+              () => Effect.void,
+              () =>
+                add
+                  .execute(input)
+                  .pipe(Effect.andThen(conversations.execute(input))),
+              () =>
+                answers.execute().pipe(
+                  Effect.ensuring(
+                    events.worktreeChanged({
+                      worktreeId: input.worktreeId,
+                      change: 'walkthrough-conversations',
+                    }),
+                  ),
+                ),
+              { requireAvailableProject: true },
             );
-            yield* answers.execute();
-            yield* events.worktreeChanged({
-              worktreeId: input.worktreeId,
-              change: 'walkthrough-conversations',
-            });
-            return view;
           },
         ),
       };

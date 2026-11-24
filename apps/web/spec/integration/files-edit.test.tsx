@@ -1,4 +1,4 @@
-import { userEvent } from 'vitest/browser';
+import { userEvent } from 'vite-plus/test/browser';
 import { expect, test, replaceEditorContent } from './fixtures.tsx';
 
 test.for(['pause', 'shortcut', 'Done', 'tab close'] as const)(

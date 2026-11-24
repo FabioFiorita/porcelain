@@ -41,6 +41,8 @@ export const queryKeys = {
     ] as const,
   environment: (environmentId: string) =>
     ['environment', environmentId] as const,
+  walkthroughWriterCatalog: (environmentId: string) =>
+    ['walkthrough-writer-catalog', environmentId] as const,
   reviewGitSettings: (environmentId: string) =>
     ['review-git-settings', environmentId] as const,
   filePreferences: (environmentId: string, projectId: string) =>

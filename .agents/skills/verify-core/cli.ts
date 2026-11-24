@@ -1,4 +1,4 @@
-import type { StopResult } from './processes.ts';
+import { processCaptureProblem, type StopResult } from './processes.ts';
 import { createHash } from 'node:crypto';
 import { accessSync, constants, existsSync, readFileSync } from 'node:fs';
 import { createServer } from 'node:net';
@@ -44,6 +44,10 @@ export function sandboxProblems(): string[] {
     problems.push(
       'ps is missing: install procps on Linux or restore the macOS system PATH; captured process ownership requires ps',
     );
+  else {
+    const problem = processCaptureProblem();
+    if (problem !== undefined) problems.push(problem);
+  }
   return problems;
 }
 

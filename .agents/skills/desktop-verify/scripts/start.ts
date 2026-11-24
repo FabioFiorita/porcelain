@@ -1,5 +1,6 @@
 import { Schema } from 'effect';
-import { readHealthResponseSchema } from '@porcelain/contracts/access';
+import { readServerHealth } from '../../verify-core/health.ts';
+import { disposableMacKeychain } from '@porcelain/desktop/kit/disposable-mac-keychain';
 import { launchOptions, sampleRepository } from '@porcelain/desktop/kit/launch';
 import { electronExecutable, stageDesktop } from '@porcelain/desktop/kit/stage';
 import { ownerStatus } from '@porcelain/server/kit/owner';
@@ -17,6 +18,7 @@ import {
   connectionSchema,
   shellCommand,
 } from '../../verify-core/connection.ts';
+import { processCaptureProblem } from '../../verify-core/processes.ts';
 import { repositoryRoot } from '../../verify-core/registry.ts';
 
 export const desktopInputs = {
@@ -61,15 +63,17 @@ export function desktopProblems(): string[] {
       'Electron is missing for apps/desktop; run pnpm install --frozen-lockfile with the project toolchain. Do not change install policy.',
     );
   }
-  for (const tool of ['git', 'ps', 'pnpm'])
+  for (const tool of ['git', 'pnpm'])
     if (!onPath(tool)) problems.push(`${tool} is missing from PATH`);
+  const capture = processCaptureProblem();
+  if (capture !== undefined) problems.push(capture);
   if (
     process.platform === 'linux' &&
     !process.env.DISPLAY &&
     !process.env.WAYLAND_DISPLAY
   )
     problems.push(
-      'No display is configured; run xvfb-run -a .agents/skills/desktop-verify/scripts/cli start (requires xvfb), or use a desktop session.',
+      'No display is configured; open an owned shell with xvfb-run -a sh and keep it open through stop, or use a desktop session.',
     );
   if (process.platform !== 'darwin' && process.platform !== 'linux')
     problems.push('The desktop launcher supports macOS and Linux');
@@ -91,6 +95,7 @@ export async function startDesktop(input: {
   let child: ReturnType<NonNullable<typeof electron>['process']> | undefined;
   let awake: ReturnType<typeof spawn> | undefined;
   let stopped: Promise<void> | undefined;
+  let keychain: ReturnType<typeof disposableMacKeychain> | undefined;
   const stop = () =>
     (stopped ??= (async () => {
       if (
@@ -134,7 +139,20 @@ export async function startDesktop(input: {
         await cp(log, join(input.evidenceDirectory, 'server.log'));
       if (awake !== undefined) awake.kill('SIGTERM');
       await rm(workspace, { recursive: true, force: true });
-    })());
+    })().then(
+      () => keychain?.verifyAfterTeardown(),
+      (failure: unknown) => {
+        try {
+          keychain?.verifyAfterTeardown();
+        } catch (error) {
+          throw new AggregateError(
+            [failure, error],
+            'Desktop verifier cleanup failed',
+          );
+        }
+        throw failure;
+      },
+    ));
   input.onStop?.(stop);
   try {
     if (process.platform === 'darwin') {
@@ -162,6 +180,10 @@ export async function startDesktop(input: {
       { ...options.env, HOME: home, XDG_CONFIG_HOME: join(home, '.config') },
       input.codingToolDirectory,
     );
+    if (process.platform === 'darwin') {
+      keychain = disposableMacKeychain(home, options.env);
+      keychain.setup();
+    }
     const launchOptionsFile = join(workspace, 'electron-launch.json');
     await writeFile(
       launchOptionsFile,
@@ -196,15 +218,7 @@ export async function startDesktop(input: {
       );
     const server = await ownerStatus(join(profilePath, 'server'));
     input.own?.(server.pid);
-    const health = await fetch(`${server.address}/api/health`);
-    if (
-      health.status !== 200 ||
-      !health.headers.get('content-type')?.includes('application/json')
-    )
-      throw new Error('Desktop health did not answer JSON 200');
-    const { environmentId } = Schema.decodeUnknownSync(
-      readHealthResponseSchema,
-    )(await health.json());
+    const { environmentId } = await readServerHealth(server.address);
     const cli = join(
       repositoryRoot,
       '.agents/skills/desktop-verify/scripts/cli',

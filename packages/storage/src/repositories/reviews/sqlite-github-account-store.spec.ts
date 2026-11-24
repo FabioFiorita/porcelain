@@ -3,7 +3,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { Effect, Layer, ManagedRuntime } from 'effect';
 import { NodeServices } from '@effect/platform-node';
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { GitHubAccountStore } from '@porcelain/reviews/ports';
 import { InventoryStore } from '@porcelain/projects/ports';
 import { storageLayer } from '../../index.ts';

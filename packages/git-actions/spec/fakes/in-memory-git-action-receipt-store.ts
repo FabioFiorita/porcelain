@@ -1,4 +1,4 @@
-import { Effect } from 'effect';
+import { Effect, Option } from 'effect';
 import type {
   FinishedGitAction,
   GitActionReceipt,
@@ -25,12 +25,21 @@ export class InMemoryGitActionReceiptStore implements GitActionReceiptStore {
     });
   }
 
-  insert(input: GitActionReceipt): Effect.Effect<void> {
-    return Effect.sync(() => {
-      this.rows.set(input.requestId, structuredClone(input));
-      this.saved.delete(input.requestId);
-      this.queued.add(input.requestId);
-    });
+  accept(input: GitActionReceipt): ReturnType<GitActionReceiptStore['accept']> {
+    return Effect.sync(() =>
+      Option.match(Option.fromUndefinedOr(this.rows.get(input.requestId)), {
+        onSome: (existing) => ({
+          kind: 'existing',
+          receipt: this.current(existing),
+        }),
+        onNone: () => {
+          this.rows.set(input.requestId, structuredClone(input));
+          this.saved.delete(input.requestId);
+          this.queued.add(input.requestId);
+          return { kind: 'inserted' };
+        },
+      }),
+    );
   }
 
   claimExecution(input: { requestId: string }): Effect.Effect<boolean> {

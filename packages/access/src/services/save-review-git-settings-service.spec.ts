@@ -5,7 +5,7 @@ import type {
   StoredDevice,
 } from '@porcelain/access/models';
 import { Effect } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { InMemoryDeviceStore } from '../../spec/fakes/in-memory-device-store.ts';
 import { InMemoryReviewGitSettingsStore } from '../../spec/fakes/in-memory-review-git-settings-store.ts';
 import { SaveReviewGitSettingsService } from './save-review-git-settings-service.ts';

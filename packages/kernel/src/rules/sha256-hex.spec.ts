@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { sha256Hex } from './sha256-hex.ts';
 
 describe('sha256Hex', () => {

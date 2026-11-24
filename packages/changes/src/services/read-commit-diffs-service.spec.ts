@@ -1,7 +1,7 @@
 import { CommitHistoryReader } from '@porcelain/changes/ports';
 import { Effect } from 'effect';
 import { withReadLease } from '@porcelain/effects/worktree';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { ReadCommitDiffsService } from './read-commit-diffs-service.ts';
 import { InMemoryCommitHistoryReader } from '../../spec/fakes/in-memory-commit-history-reader.ts';
 

@@ -4,6 +4,7 @@ import {
 } from '@porcelain/walkthroughs/services';
 import {
   WalkthroughStore,
+  WalkthroughModelReader,
   WalkthroughInventoryReader,
 } from '@porcelain/walkthroughs/ports';
 import { SaveWalkthroughSettingsUseCase } from '../use-cases/projects/save-walkthrough-settings.ts';
@@ -15,7 +16,6 @@ import {
   ReadEnvironmentService,
   ReadEnvironmentLabelService,
 } from '@porcelain/access/services';
-import { ReadTextFilesService } from '@porcelain/files/services';
 import { InventoryScan } from '../ports/inventory-scan.ts';
 import { EventPublisher } from '../ports/event-publisher.ts';
 import { LaneKeys } from '../runtime/lane-keys.ts';
@@ -36,7 +36,6 @@ import {
   CollectAbsentWorktreesOptions,
 } from '@porcelain/projects/ports';
 import {
-  FindWorktreeAtPathService,
   BrowseProjectFoldersService,
   CheckProjectService,
   CollectAbsentWorktreesService,
@@ -70,7 +69,6 @@ import { WorktreeAccess } from '../runtime/worktree-access.ts';
 import { BrowseProjectFoldersUseCase } from '../use-cases/projects/browse-project-folders.ts';
 import { CheckWorktreeUseCase } from '../use-cases/projects/check-worktree.ts';
 import { CollectAbsentWorktreesUseCase } from '../use-cases/projects/collect-absent-worktrees.ts';
-import { FindWorktreeByPathUseCase } from '../use-cases/projects/find-worktree-by-path.ts';
 import { ListFilePreferencesUseCase } from '../use-cases/projects/list-file-preferences.ts';
 import { ReadInventoryUseCasePort } from '../ports/read-inventory-use-case-port.ts';
 import { ReadInventoryUseCase } from '../use-cases/projects/read-inventory.ts';
@@ -87,6 +85,7 @@ import { type Stores } from './compose-stores.ts';
 type ProjectsDependencies = {
   stores: Stores;
   shared: Shared;
+  walkthroughModels: WalkthroughModelReader;
   worktreeId: (projectId: string, metadataIdentity: string) => string;
   projectFolderReader: ProjectFolderReader;
 };
@@ -115,6 +114,7 @@ export function composeProjects(
   const { listRegisteredProjects, listKnownWorktrees } = shared;
   const ports = Layer.mergeAll(
     Layer.succeed(WalkthroughStore, stores.walkthroughs),
+    Layer.succeed(WalkthroughModelReader, dependencies.walkthroughModels),
     Layer.succeed(WalkthroughInventoryReader, stores.walkthroughInventory),
     gitWorktreeCleanerLayer(settings.limits.git),
     gitWorktreeListingReaderLayer({
@@ -142,7 +142,6 @@ export function composeProjects(
     Layer.succeed(CheckWorktreeService, shared.checkWorktreeService),
     Layer.succeed(CheckRefreshedWorktreeService, shared.checkRefreshedWorktree),
     Layer.succeed(WorktreeConsistencyProbe, shared.confirmWorktree),
-    Layer.succeed(ReadTextFilesService, shared.readTextFilesService),
     Layer.succeed(ReadEnvironmentService, shared.readEnvironment),
     Layer.succeed(ReadEnvironmentLabelService, shared.readEnvironmentLabel),
     Layer.succeed(IdSource, ids),
@@ -166,7 +165,6 @@ export function composeProjects(
     RecordWorktreeCatalogService.layer,
     ReadWorktreeActivityService.layer,
     RecordWorktreeActivityService.layer,
-    FindWorktreeAtPathService.layer,
     InspectProjectRepositoryService.layer,
     ReadRepositoryOriginService.layer,
     RegisterProjectService.layer,
@@ -197,7 +195,6 @@ export function composeProjects(
   ).pipe(Layer.provideMerge(admission));
   const layer4 = Layer.mergeAll(
     CheckWorktreeUseCase.layer,
-    FindWorktreeByPathUseCase.layer,
     RemoveProjectUseCase.layer,
   ).pipe(Layer.provideMerge(application));
   const layer5 = Layer.mergeAll(
@@ -224,7 +221,6 @@ export function composeProjects(
     return yield* Effect.gen(function* () {
       const useCases = {
         readInventory: yield* ReadInventoryUseCase,
-        findWorktreeByPath: yield* FindWorktreeByPathUseCase,
         scanInventory: yield* InventoryScanCoordinator,
         checkWorktree: yield* CheckWorktreeUseCase,
         registerProject: yield* RegisterProjectUseCase,

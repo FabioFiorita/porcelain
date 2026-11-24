@@ -1,6 +1,6 @@
-import { AlertDialog as AlertDialogPrimitive } from '@base-ui/react/alert-dialog';
+import { PendingButton } from '@/shared/views/pending-button';
 import {
-  AlertDialogAction,
+  AlertDialog,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -8,7 +8,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Spinner } from '@/components/ui/spinner';
 import { useRemoveProject } from '../commands/manage-project';
 import { removeProjectDialog } from '../overlays';
 import { projectPath } from '@porcelain/client/projects/rules';
@@ -22,8 +21,8 @@ export function RemoveProjectDialog({
   connection: Connection;
 }) {
   return (
-    <AlertDialogPrimitive.Root handle={removeProjectDialog}>
-      {({ payload }) =>
+    <AlertDialog controller={removeProjectDialog}>
+      {(payload) =>
         payload && (
           <ProjectOwner remote={payload.remote} connection={connection}>
             {(owner) => (
@@ -38,7 +37,7 @@ export function RemoveProjectDialog({
           </ProjectOwner>
         )
       }
-    </AlertDialogPrimitive.Root>
+    </AlertDialog>
   );
 }
 
@@ -72,14 +71,15 @@ function RemoveProjectContent({
       <ProjectCommandProblem unavailable={unavailable} result={result} />
       <AlertDialogFooter>
         <AlertDialogCancel disabled={result.waiting}>Cancel</AlertDialogCancel>
-        <AlertDialogAction
+        <PendingButton
+          data-slot="alert-dialog-action"
+          pending={result.waiting}
           variant="destructive"
           disabled={result.waiting || unavailable !== undefined}
           onClick={() => void remove.submit(project.id)}
         >
-          {result.waiting && <Spinner />}
-          {result.waiting ? 'Removing…' : 'Remove from Porcelain'}
-        </AlertDialogAction>
+          Remove from Porcelain
+        </PendingButton>
       </AlertDialogFooter>
     </>
   );

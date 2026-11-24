@@ -1,4 +1,4 @@
-import { afterEach, expect } from 'vitest';
+import { afterEach, expect } from 'vite-plus/test';
 import { Effect } from 'effect';
 import { AtomRegistry } from 'effect/reactivity';
 import { test } from '@porcelain/server/kit/server-test';

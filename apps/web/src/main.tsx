@@ -3,6 +3,7 @@ import { createRouter, RouterProvider } from '@tanstack/react-router';
 import { createRoot } from 'react-dom/client';
 import './app.css';
 import { AppProviders } from './app/app-providers';
+import { startAgentBridge } from './components/ui/agent-bridge';
 import { routeTree } from './routeTree.gen';
 
 const registry = AtomRegistry.make();
@@ -18,6 +19,8 @@ declare module '@tanstack/react-router' {
     router: typeof router;
   }
 }
+
+await startAgentBridge();
 
 const root = document.getElementById('root');
 if (!root) throw new Error('Missing application root');

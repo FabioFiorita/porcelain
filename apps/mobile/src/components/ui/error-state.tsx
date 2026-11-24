@@ -6,7 +6,12 @@ export function ErrorState({
   retry,
 }: {
   message: string;
-  retry?: { label: string; onPress: () => void; pending?: boolean };
+  retry?: {
+    label: string;
+    onPress: () => void;
+    pending?: boolean;
+    disabled?: boolean;
+  };
 }) {
   return (
     <View className="gap-3 rounded-lg border border-destructive/30 bg-destructive/10 p-4">
@@ -19,6 +24,7 @@ export function ErrorState({
           variant="tonal"
           onPress={retry.onPress}
           pending={retry.pending ?? false}
+          disabled={retry.disabled ?? false}
         />
       ) : null}
     </View>

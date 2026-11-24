@@ -1,4 +1,3 @@
-import shadcnPins from './shadcn-pins.json' with { type: 'json' };
 import { replacesGlobal } from './spec-globals.mjs';
 import { variableOf } from './scope.mjs';
 import { testOverrides } from './test-overrides.mjs';
@@ -13,6 +12,9 @@ const repositoryRoot = fileURLToPath(new URL('..', import.meta.url)).replaceAll(
 const webSource = 'apps/web/src/';
 const reactModules = new Set(['react', 'react-dom']);
 const zustandModule = /^zustand(?:\/|$)/;
+const replacedUiModule =
+  /^(?:cmdk(?:\/|$)|@base-ui-components\/|@base-ui\/react(?:$|\/))/;
+const uiSdkModule = /^@ui-sdk\//;
 const routerDataHooks = new Set([
   'getRouteApi',
   'useLoaderData',
@@ -90,8 +92,8 @@ const journeyImports = {
   'integration-spec': {
     local: /^(?:\.\/fixtures\.tsx|\.\.\/kit\/[a-z0-9-]+\.ts)$/,
     packages: new Map([
-      ['vitest', new Set(['expect', 'describe'])],
-      ['vitest/browser', new Set(['page', 'userEvent'])],
+      ['vite-plus/test', new Set(['expect', 'describe'])],
+      ['vite-plus/test/browser', new Set(['page', 'userEvent'])],
     ]),
   },
   'e2e-spec': {
@@ -310,9 +312,11 @@ function viewLike(path) {
 
 function sourceOf(node) {
   const source = node.source;
-  return source?.type === 'Literal' && typeof source.value === 'string'
-    ? source.value
-    : undefined;
+  if (source?.type === 'Literal' && typeof source.value === 'string')
+    return source.value;
+  if (source?.type === 'TemplateLiteral' && source.expressions.length === 0)
+    return source.quasis[0]?.value.cooked ?? undefined;
+  return undefined;
 }
 
 function localTarget(path, specifier) {
@@ -878,12 +882,7 @@ export const webRules = {
         'apps/mobile/src/',
         'packages/client/src/',
       ].some((prefix) => path.startsWith(prefix)),
-    allowed: (path) =>
-      path.startsWith('apps/web/src/components/ui/') &&
-      Object.hasOwn(
-        shadcnPins,
-        path.slice('apps/web/src/components/ui/'.length),
-      ),
+    allowed: (path) => path.startsWith('apps/web/src/components/ui/'),
     message: (name) =>
       `\`${name}\` keeps React in step with something outside it, so that resource belongs in an atom with a finalizer or a ref callback with cleanup; compute derived values during render and handle events in their handler.`,
   }),
@@ -981,12 +980,52 @@ export const webRules = {
             node.callee.type === 'Identifier'
               ? node.callee.name
               : methodName(node.callee);
-          if (name === 'createHandle')
+          if (/^create\w*Controller$/.test(name ?? ''))
             context.report({
               node,
               message:
-                'A Base UI handle is created in the feature overlays.ts only, so every trigger and every command opens the same overlay.',
+                'An overlay controller is created in the feature overlays.ts only, so every trigger and every command opens the same overlay.',
             });
+        },
+      };
+    },
+  },
+  'web-ui-library-owner': {
+    create(context) {
+      const path = webPath(context);
+      if (!path.startsWith('apps/web/') && !path.startsWith('apps/desktop/'))
+        return {};
+      const ui = path.startsWith('apps/web/src/components/ui/');
+      const check = (node, source = sourceOf(node) ?? '') => {
+        if (replacedUiModule.test(source))
+          context.report({
+            node,
+            message: `${source} was replaced by UI SDK; compose the wrapper in components/ui instead, because two overlay libraries keep separate Escape, focus and layer stacks that fight each other.`,
+          });
+        else if (uiSdkModule.test(source) && !ui)
+          context.report({
+            node,
+            message:
+              'Import UI SDK only inside apps/web/src/components/ui and compose those wrappers, because one owner keeps the styling, slots and library workarounds in one place.',
+          });
+      };
+      return {
+        ImportDeclaration: check,
+        ImportExpression: check,
+        ExportAllDeclaration: check,
+        ExportNamedDeclaration(node) {
+          if (node.source) check(node);
+        },
+        TSImportType(node) {
+          const argument =
+            node.argument?.type === 'TSLiteralType'
+              ? node.argument.literal
+              : (node.argument ?? node.source);
+          if (
+            argument?.type === 'Literal' &&
+            typeof argument.value === 'string'
+          )
+            check(node, argument.value);
         },
       };
     },
@@ -1420,7 +1459,7 @@ export const webRules = {
     const message =
       role === 'e2e-spec'
         ? 'An e2e test imports test, expect and its fixtures from ./fixtures.ts, the shared kit from ../kit/ and @porcelain/contracts; the app and the server are reached only through the fixtures, which open the app the way a user does, because fixtures own isolation and pair the app as a user would.'
-        : 'An integration test imports test, expect and its fixtures from ./fixtures.tsx, the shared kit from ../kit/, expect and describe from vitest, page and userEvent from vitest/browser, and @porcelain/contracts; the feature is rendered only through the fixtures, which pair and provide it the way the app does, because fixtures own isolation and pair the app as a user would.';
+        : 'An integration test imports test, expect and its fixtures from ./fixtures.tsx, the shared kit from ../kit/, expect and describe from vite-plus/test, page and userEvent from vite-plus/test/browser, and @porcelain/contracts; the feature is rendered only through the fixtures, which pair and provide it the way the app does, because fixtures own isolation and pair the app as a user would.';
     const allowed = journeyImports[role];
     const check = (node) => {
       const source = sourceOf(node);
@@ -1584,13 +1623,15 @@ export function browserSpecNoMocks(context) {
         context.report({ node, message });
     },
     ImportDeclaration(node) {
-      if (sourceOf(node) !== 'vitest') return;
+      if (sourceOf(node) !== 'vite-plus/test') return;
       for (const specifier of node.specifiers)
         if (
           specifier.type !== 'ImportSpecifier' ||
-          (specifier.imported.type === 'Identifier'
-            ? specifier.imported.name
-            : specifier.imported.value) === 'vi'
+          ['vi', 'vitest'].includes(
+            specifier.imported.type === 'Identifier'
+              ? specifier.imported.name
+              : specifier.imported.value,
+          )
         )
           context.report({ node: specifier, message });
     },

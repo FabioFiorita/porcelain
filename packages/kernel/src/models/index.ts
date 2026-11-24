@@ -24,3 +24,4 @@ export {
   type WorktreeCleanupPlan,
   type WorktreeCleanupRequest,
 } from './worktree-cleanup.ts';
+export { type CommitSummary } from './commit-summary.ts';

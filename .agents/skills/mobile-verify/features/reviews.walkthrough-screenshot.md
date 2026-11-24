@@ -19,13 +19,13 @@ A screenshot the walkthrough placed on a step opens larger in a native sheet, wi
 
 ## How to get to it (user POV)
 
-- [Walkthrough](reviews.walkthrough-page.md) → a step's screenshot thumbnail ("Enlarge screenshot N"). Close (iOS sheet X, Android Back) returns to the page.
+- [Walkthrough](reviews.walkthrough-page.md) → a step's screenshot thumbnail ("Enlarge before screenshot" or "Enlarge after screenshot"). Close (iOS sheet X, Android Back) returns to the page.
 
 ## Driving it with agent-device
 
 Preconditions: [reviews.walkthrough-page](reviews.walkthrough-page.md) after `$C walkthrough sample` (two screenshots on step 2).
 
-1. Step 2 shows two thumbnails with captions. Tap the first: under the sheet's title bar (never beneath it, on iPhone and iPad) the sheet shows its caption and the image; "1 of 2" with Next screenshot moves to the second; Previous screenshot returns. Close stays the only control in the title bar.
+1. Step 2 shows two thumbnails captioned "Before · …" and "After · …". Tap the first: under the sheet's title bar (never beneath it, on iPhone and iPad) the sheet shows its caption and the image; "1 of 2" with Next screenshot moves to the second; Previous screenshot returns. Close stays the only control in the title bar.
 2. Write a new walkthrough while the sheet is open: "The walkthrough changed since this screenshot opened."
 3. Write `$C walkthrough sample` while the page is open: step 2's thumbnails appear without reopening the page.
 

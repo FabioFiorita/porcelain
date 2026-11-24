@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import type { ReadChangesResponse } from '@porcelain/contracts/changes';
 import {
   firstDocument,
@@ -16,11 +16,12 @@ import {
   walkthroughStartFailure,
   walkthroughTabTitle,
   walkthroughVerdict,
+  walkthroughCalls,
   type WalkthroughContent,
   type WalkthroughRead,
   type WalkthroughRun,
-  type WalkthroughStop,
 } from './walkthrough.ts';
+import type { WalkthroughStop } from './blocks.ts';
 import { worktreeOpening } from './opening.ts';
 import { readingOf } from '../queries/reading.ts';
 import {
@@ -41,14 +42,33 @@ import {
 } from './progress.ts';
 import { AsyncResult } from 'effect/reactivity';
 
-const stop = (over: Partial<WalkthroughStop> = {}): WalkthroughStop => ({
+const excerpt = (path: string, side: 'new' | 'old' = 'new') => ({
+  path,
+  side,
+  start: 1,
+  end: 2,
+  caption: 'Lines',
+  position: 1,
+  lines: 'New lines 1–2',
+  span: { startLine: 1, endLine: 2 },
+});
+
+const stop = ({
+  callouts = [],
+  excerpts = [],
+  files = [],
+}: {
+  callouts?: WalkthroughStop['callouts'];
+  excerpts?: readonly ReturnType<typeof excerpt>[];
+  files?: readonly { path: string; note: string }[];
+} = {}): WalkthroughStop => ({
   title: 'A step',
   explanation: 'Why it exists.',
-  attention: undefined,
-  excerpts: [],
-  evidence: [],
-  files: [],
-  ...over,
+  callouts,
+  blocks: [
+    ...excerpts.map((item) => ({ kind: 'excerpt' as const, excerpt: item })),
+    ...(files.length > 0 ? [{ kind: 'files' as const, files }] : []),
+  ],
 });
 
 const attention = {
@@ -67,16 +87,7 @@ const content = (
   stops: [],
   onlyInTranscript: [],
   stillUnclear: [],
-  checks: undefined,
   ...over,
-});
-
-const excerpt = (path: string, side: 'new' | 'old' = 'new') => ({
-  path,
-  side,
-  start: 1,
-  end: 2,
-  caption: 'Lines',
 });
 
 const run = (state: WalkthroughRun['state']): WalkthroughRun => ({
@@ -105,12 +116,22 @@ const read = (
 
 describe('walkthroughVerdict', () => {
   it('counts the calls that are the reader’s', () => {
-    expect(walkthroughVerdict(content({ stops: [stop({ attention })] }))).toBe(
-      'One call is yours.',
-    );
     expect(
       walkthroughVerdict(
-        content({ stops: [stop({ attention }), stop(), stop({ attention })] }),
+        content({
+          stops: [stop({ callouts: [{ attention, comparison: undefined }] })],
+        }),
+      ),
+    ).toBe('One call is yours.');
+    expect(
+      walkthroughVerdict(
+        content({
+          stops: [
+            stop({ callouts: [{ attention, comparison: undefined }] }),
+            stop(),
+            stop({ callouts: [{ attention, comparison: undefined }] }),
+          ],
+        }),
       ),
     ).toBe('Two calls are yours.');
   });
@@ -178,7 +199,12 @@ describe('walkthroughTabTitle', () => {
         read(
           run({
             status: 'ready',
-            content: content({ title: 'Add `notes` to the sample.' }),
+            content: {
+              ...content(),
+              title: 'Add `notes` to the sample.',
+              version: 1,
+              stops: [],
+            },
             writtenAt: '2026-11-09T00:00:01.000Z',
             durationMs: 1,
             costUsd: undefined,
@@ -284,7 +310,7 @@ describe('walkthroughPhase', () => {
         read(
           run({
             status: 'ready',
-            content: content(),
+            content: { ...content(), version: 1, stops: [] },
             writtenAt: '2026-11-09T00:00:01.000Z',
             durationMs: 1,
             costUsd: undefined,
@@ -306,7 +332,7 @@ describe('firstDocument', () => {
     { status: 'failed', failure: { kind: 'other', message: 'Stopped' } },
     {
       status: 'ready',
-      content: content(),
+      content: { ...content(), version: 1, stops: [] },
       writtenAt: '2026-11-10T00:00:00Z',
       durationMs: 1,
       costUsd: undefined,
@@ -472,7 +498,45 @@ it.each([
 ] as const)('keeps ready steps while the newer attempt is $status', (state) => {
   const ready = run({
     status: 'ready',
-    content: content({ stops: [stop()] }),
+    content: {
+      ...content(),
+      version: 1,
+      stops: [
+        {
+          title: 'A step',
+          explanation: 'Why it exists.',
+          blocks: [
+            {
+              kind: 'checks',
+              state: 'SUCCESS',
+              headOid: 'abcdef12345',
+              checksTruncated: true,
+              results: [{ name: 'Test', status: 'SUCCESS' }],
+            },
+            {
+              kind: 'callout',
+              attention,
+              comparison: {
+                columns: ['Keep', 'Replace'],
+                rows: [['Two names', 'One name']],
+              },
+            },
+            {
+              kind: 'callout',
+              attention: {
+                kind: 'risk',
+                note: 'Old readers differ.',
+                question: 'Keep the old path?',
+              },
+              comparison: {
+                columns: ['Old', 'New'],
+                rows: [['Compatible', 'Shorter']],
+              },
+            },
+          ],
+        },
+      ],
+    },
     writtenAt: 'today',
     durationMs: 1,
     costUsd: undefined,
@@ -485,10 +549,44 @@ it.each([
   expect(phase).toMatchObject({
     kind: 'ready',
     run: { id: 'run', headOid: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' },
-    content: { stops: [{ title: 'A step' }] },
+    content: {
+      stops: [
+        {
+          title: 'A step',
+          explanation: 'Why it exists.',
+          blocks: [{ kind: 'checks', checks: { headOid: 'abcdef12345' } }],
+        },
+      ],
+    },
     freshness: 'changed',
     attempt: { id: 'newer' },
   });
+  if (phase?.kind !== 'ready')
+    throw new Error('Expected the saved walkthrough');
+  expect(
+    walkthroughCalls(phase.content).map(({ attention: call, comparison }) => ({
+      question: call.question,
+      note: call.note,
+      comparison,
+    })),
+  ).toEqual([
+    {
+      question: 'Keep it?',
+      note: 'It matters.',
+      comparison: {
+        columns: ['Keep', 'Replace'],
+        rows: [['Two names', 'One name']],
+      },
+    },
+    {
+      question: 'Keep the old path?',
+      note: 'Old readers differ.',
+      comparison: {
+        columns: ['Old', 'New'],
+        rows: [['Compatible', 'Shorter']],
+      },
+    },
+  ]);
 });
 
 describe('worktreeOpening', () => {
@@ -591,7 +689,7 @@ describe('walkthrough page rules', () => {
   it('keeps the ready page while an update runs, and blames the failed attempt’s writer', () => {
     const ready = run({
       status: 'ready',
-      content: content(),
+      content: { ...content(), version: 1, stops: [] },
       writtenAt: '2026-11-09T00:00:01.000Z',
       durationMs: 1,
       costUsd: undefined,
@@ -853,7 +951,7 @@ describe('walkthrough update status', () => {
   const saved = () => ({
     ...run({
       status: 'ready',
-      content: content(),
+      content: { ...content(), version: 1, stops: [] },
       writtenAt: '2026-11-12T12:00:00Z',
       durationMs: 1,
       costUsd: undefined,

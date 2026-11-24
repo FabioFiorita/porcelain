@@ -1,19 +1,30 @@
 import { Schema, Result } from 'effect';
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { pathToFileURL } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
-import { basename, join, relative } from 'node:path';
+import { basename, join, relative, resolve } from 'node:path';
 import {
   domainPackages,
   mobileNativeSourceProblem,
   generatedRouteTree,
   type StyleRule,
 } from '../architecture/policy.ts';
-import { pinProblems, uiFolder } from '../architecture/shadcn-pins.ts';
 import {
+  githubHeadLookupCommand,
+  githubHeadLookupMessage,
+} from '../architecture/github-head-lookup.ts';
+import {
+  clonesChangedSince,
+  duplicateComparison,
   duplicateScope,
+  raisedDuplicateCeiling,
   scanDuplicates,
+  serverDuplicateScope,
+  toolingDuplicateScope,
 } from '../architecture/duplicate-policy.ts';
+
+const uiFolder = 'apps/web/src/components/ui';
 
 export async function checkStyle(
   mode: string | undefined,
@@ -54,6 +65,7 @@ export async function checkStyle(
     'architecture',
     'scripts',
     'ci',
+    'vite.config.ts',
     'vitest.config.ts',
     'vitest.integration.config.ts',
     '.agents/skills/server-verify/scripts',
@@ -76,7 +88,7 @@ export async function checkStyle(
   const roots = target === 'web' ? webRoots : serverRoots;
   const disableDirective =
     /(?:\/\/|\/\*)\s*(?:eslint|oxlint)-(?:disable|enable)/;
-  const lintConfig = '.oxlintrc.json';
+  const configFile = 'vite.config.ts';
   const lintedFile = /\.[cm]?[jt]sx?$/;
   const strayLintConfig =
     /^(?:\.(?:oxlintrc|eslintrc)(?:\..+)?|\.(?:eslint|oxlint)ignore|(?:oxlint|eslint)\.config\.[cm]?[jt]s)$/;
@@ -94,7 +106,6 @@ export async function checkStyle(
     '.claude',
     'dist',
     '.vite',
-    '.turbo',
     'test-results',
   ]);
   function filesUnder(path: string): string[] {
@@ -165,31 +176,25 @@ export async function checkStyle(
         : [];
     });
   }
-  const formatConfig = '.oxfmtrc.json';
   const strayFormatConfig =
     /^(?:\.oxfmtrc(?:\..+)?|\.prettierrc(?:\..+)?|\.prettierignore|prettier\.config\.[cm]?[jt]s)$/;
   function strayFormatConfigs(): Problem[] {
     return filesUnder('.')
-      .filter(
-        (path) =>
-          path !== formatConfig && strayFormatConfig.test(basename(path)),
-      )
+      .filter((path) => strayFormatConfig.test(basename(path)))
       .map((path) =>
         problem(
           'format-config',
-          `${path}: the format check reads one configuration, the root ${formatConfig}, with no ignore files; remove this file, because a second configuration can exclude code from the root format check.`,
+          `${path}: the format check reads one configuration, the root ${configFile}, with no ignore files; remove this file, because a second configuration can exclude code from the root format check.`,
         ),
       );
   }
   function strayLintConfigs(): Problem[] {
     return filesUnder('.')
-      .filter(
-        (path) => path !== lintConfig && strayLintConfig.test(basename(path)),
-      )
+      .filter((path) => strayLintConfig.test(basename(path)))
       .map((path) =>
         problem(
           'one-lint-config',
-          `${path}: lint reads one configuration, the root ${lintConfig}, with no ignore files; remove this file, because a second configuration can hide code from the root lint policy.`,
+          `${path}: lint reads one configuration, the root ${configFile}, with no ignore files; remove this file, because a second configuration can hide code from the root lint policy.`,
         ),
       );
   }
@@ -276,18 +281,33 @@ export async function checkStyle(
   }
   async function configProblems(): Promise<Problem[]> {
     const problems: Problem[] = [];
+    const loaded: unknown = await import(
+      pathToFileURL(resolve(configFile)).href
+    )
+      .then((module: { default?: unknown }) => module.default)
+      .catch(() => undefined);
+    const settings = Schema.decodeUnknownResult(
+      Schema.Struct({ lint: Schema.Unknown, fmt: Schema.Unknown }),
+    )(loaded);
+    if (!Result.isSuccess(settings))
+      return [
+        problem(
+          'lint-config',
+          `${configFile} must export lint and fmt settings, because the shared policy comes from the root Vite+ config.`,
+        ),
+      ];
     const config = Schema.decodeUnknownResult(lintConfigSchema, {
       onExcessProperty: 'error',
-    })(strictJson('.oxlintrc.json'));
+    })(settings.success.lint);
     if (!Result.isSuccess(config))
       return [
         problem(
           'lint-config',
-          `.oxlintrc.json holds plugins, jsPlugins, options, rules and overrides only, because unsupported fields can bypass the shared lint policy: ${config.failure.message}`,
+          `${configFile} lint holds plugins, jsPlugins, options, rules and overrides only, because unsupported fields can bypass the shared lint policy: ${config.failure.message}`,
         ),
       ];
     const format = Schema.decodeUnknownResult(formatConfigSchema)(
-      strictJson(formatConfig),
+      settings.success.fmt,
     );
     if (
       !Result.isSuccess(format) ||
@@ -296,7 +316,7 @@ export async function checkStyle(
       problems.push(
         problem(
           'format-config',
-          `${formatConfig} ignores nothing; every file under the format roots is checked, because a second configuration can exclude code from the root format check.`,
+          `${configFile} ignores nothing; every file under the format roots is checked, because a second configuration can exclude code from the root format check.`,
         ),
       );
     const { plugins, jsPlugins, rules } = config.success;
@@ -304,7 +324,7 @@ export async function checkStyle(
       problems.push(
         problem(
           'lint-config',
-          '.oxlintrc.json loads the typescript plugin, because disabling a configured rule leaves its mistakes unchecked.',
+          `${configFile} lint loads the typescript plugin, because disabling a configured rule leaves its mistakes unchecked.`,
         ),
       );
     for (const name of requiredRules)
@@ -312,7 +332,7 @@ export async function checkStyle(
         problems.push(
           problem(
             'lint-config',
-            `.oxlintrc.json keeps ${name} on as "error"; a built-in rule leaves lint only by changing this check, where the change is visible, because disabling a configured rule leaves its mistakes unchecked.`,
+            `${configFile} lint keeps ${name} on as "error"; a built-in rule leaves lint only by changing this check, where the change is visible, because disabling a configured rule leaves its mistakes unchecked.`,
           ),
         );
     if (
@@ -324,7 +344,7 @@ export async function checkStyle(
       problems.push(
         problem(
           'lint-config',
-          '.oxlintrc.json loads the Porcelain and shadcn plugins, because disabling a configured rule leaves its mistakes unchecked.',
+          `${configFile} lint loads the Porcelain and shadcn plugins, because disabling a configured rule leaves its mistakes unchecked.`,
         ),
       );
     const pluginPath = new URL(
@@ -339,7 +359,7 @@ export async function checkStyle(
         problems.push(
           problem(
             'lint-config',
-            `.oxlintrc.json sets porcelain/${name} to "error", because disabling a configured rule leaves its mistakes unchecked.`,
+            `${configFile} lint sets porcelain/${name} to "error", because disabling a configured rule leaves its mistakes unchecked.`,
           ),
         );
     for (const [name, level] of Object.entries(rules)) {
@@ -347,7 +367,7 @@ export async function checkStyle(
         problems.push(
           problem(
             'lint-config',
-            `.oxlintrc.json turns ${name} on as "error" or leaves it out, because disabling a configured rule leaves its mistakes unchecked.`,
+            `${configFile} lint turns ${name} on as "error" or leaves it out, because disabling a configured rule leaves its mistakes unchecked.`,
           ),
         );
       if (
@@ -357,7 +377,7 @@ export async function checkStyle(
         problems.push(
           problem(
             'lint-config',
-            `.oxlintrc.json names ${name}, which the plugin does not define, because disabling a configured rule leaves its mistakes unchecked.`,
+            `${configFile} lint names ${name}, which the plugin does not define, because disabling a configured rule leaves its mistakes unchecked.`,
           ),
         );
     }
@@ -468,30 +488,87 @@ export async function checkStyle(
     code: string;
     message: string;
   };
-  function duplicateFindings(): Finding[] {
-    if (target !== 'web') return [];
-    const scope = duplicateScope();
+  function duplicateFindings(
+    scope: ReturnType<typeof duplicateScope>,
+    comparison: ReturnType<typeof duplicateComparison>,
+  ): Finding[] {
     const report = scanDuplicates(process.cwd(), scope);
     const total = report.statistics.total;
     const unit = 'clones';
     process.stdout.write(
       `Duplicate code (${scope.name}): ${total.clones} clones, ${total.duplicatedLines} duplicated lines (limit ${scope.ceiling} ${unit}). ${scope.why}\n`,
     );
-    if (!report.exceeded) return [];
     const at = (name: string) => relative('.', name);
-    return report.duplicates.flatMap((clone) =>
-      [
-        [clone.firstFile, clone.secondFile],
-        [clone.secondFile, clone.firstFile],
-      ].map(([here, there]) => ({
-        rule: 'style/duplicate-code',
-        file: at(here?.name ?? ''),
-        line: here?.start ?? 0,
-        column: 0,
-        code: 'error style(duplicate-code)',
-        message: `${clone.lines} lines here repeat ${at(there?.name ?? '')}:${there?.start ?? 0}; ${scope.name} has ${report.count} ${unit}, above its ceiling of ${scope.ceiling}. ${scope.why} Extract the copy into its owner, because duplicated fixes drift between copies.`,
-      })),
-    );
+    const ceilingMessage = (message: string): Finding => ({
+      rule: 'style/duplicate-code',
+      file: 'architecture/duplicate-ceilings.json',
+      line: 1,
+      column: 1,
+      code: 'error style(duplicate-code)',
+      message,
+    });
+    const baseCeiling = raisedDuplicateCeiling(scope, comparison);
+    if (baseCeiling !== undefined)
+      return [
+        ceilingMessage(
+          `Lower the ${scope.name} ceiling to ${baseCeiling} clones or fewer, because the limit cannot increase from the base branch.`,
+        ),
+      ];
+    if (scope.name !== 'client' && report.count < scope.ceiling)
+      process.stdout.write(
+        `Lower the ${scope.name} ceiling in architecture/duplicate-ceilings.json to ${report.count} clones to keep removed copies from returning.\n`,
+      );
+    if (!report.exceeded) return [];
+    let duplicates = report.duplicates;
+    if (scope.name !== 'client') {
+      duplicates = comparison
+        ? clonesChangedSince(process.cwd(), comparison.base, report.duplicates)
+        : [];
+    }
+    return [
+      ceilingMessage(
+        `${scope.name} has ${report.count} clones, above its ceiling of ${scope.ceiling}. ${scope.why}`,
+      ),
+      ...duplicates.flatMap((clone) =>
+        [
+          [clone.firstFile, clone.secondFile],
+          [clone.secondFile, clone.firstFile],
+        ].map(([here, there]) => ({
+          rule: 'style/duplicate-code',
+          file: at(here?.name ?? ''),
+          line: here?.start ?? 0,
+          column: 0,
+          code: 'error style(duplicate-code)',
+          message: `${clone.lines} lines here repeat ${at(there?.name ?? '')}:${there?.start ?? 0}; ${scope.name} has ${report.count} ${unit}, above its ceiling of ${scope.ceiling}. ${scope.why} Extract the copy into its owner, because duplicated fixes drift between copies.`,
+        })),
+      ),
+    ];
+  }
+  function shellGitHubFindings(): Finding[] {
+    if (!existsSync('scripts')) return [];
+    return filesUnder('scripts')
+      .filter((file) => file.endsWith('.sh'))
+      .flatMap((file) => {
+        let line = 1;
+        return readFileSync(file, 'utf8')
+          .split(/(?<!\\)\n/)
+          .flatMap((command) => {
+            const start = line;
+            line += command.split('\n').length;
+            if (!githubHeadLookupCommand(command.replaceAll('\\\n', ' ')))
+              return [];
+            return [
+              {
+                rule: 'porcelain/ci-pull-request-resolver',
+                file,
+                line: start,
+                column: 1,
+                code: 'error porcelain(ci-pull-request-resolver)',
+                message: githubHeadLookupMessage,
+              },
+            ];
+          });
+      });
   }
   async function lint(): Promise<number> {
     const files = roots
@@ -506,10 +583,11 @@ export async function checkStyle(
           !path.startsWith(`${uiFolder}/`),
       );
     const result = spawnSync(
-      join('node_modules', '.bin', 'oxlint'),
+      join('node_modules', '.bin', 'vp'),
       [
+        'lint',
         '--config',
-        lintConfig,
+        configFile,
         '--no-ignore',
         '--type-aware',
         '--report-unused-disable-directives',
@@ -535,7 +613,19 @@ export async function checkStyle(
       code: `${diagnostic.severity} ${diagnostic.code ?? ''}`,
       message: diagnostic.message,
     }));
-    const reported = [...linted, ...duplicateFindings()];
+    const duplicateScopes =
+      target === 'web'
+        ? [duplicateScope()]
+        : [serverDuplicateScope(), toolingDuplicateScope(process.cwd())];
+    const comparison =
+      target === 'server' ? duplicateComparison(process.cwd()) : undefined;
+    const reported = [
+      ...linted,
+      ...(target === 'server' ? shellGitHubFindings() : []),
+      ...duplicateScopes.flatMap((scope) =>
+        duplicateFindings(scope, comparison),
+      ),
+    ];
     for (const finding of reported)
       process.stdout.write(
         `${finding.file}:${finding.line}:${finding.column}: ${finding.code}: ${finding.message}\n`,
@@ -551,8 +641,15 @@ export async function checkStyle(
   }
   if (mode === 'format') {
     const result = spawnSync(
-      join('node_modules', '.bin', 'oxfmt'),
-      ['--check', ...roots, `!${mobileGeneratedTypes}`],
+      join('node_modules', '.bin', 'vp'),
+      [
+        'fmt',
+        '--config',
+        configFile,
+        '--check',
+        ...roots,
+        `!${mobileGeneratedTypes}`,
+      ],
       {
         stdio: 'inherit',
       },
@@ -573,9 +670,6 @@ export async function checkStyle(
       ...codeOutsideLintRoots(files),
       ...mobileNativeSourceOwnership(files),
       ...config,
-      ...(target === 'web'
-        ? pinProblems('.').map((found) => problem('shadcn-ui-pinned', found))
-        : []),
     ];
     for (const { rule, message } of problems)
       process.stderr.write(`error style(${rule}): ${message}\n`);

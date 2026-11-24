@@ -7,12 +7,16 @@ import { useHotkey } from '@tanstack/react-hotkeys';
 import { CheckIcon, SquareIcon } from 'lucide-react';
 import { BarAction } from '@/shared/workspace/bar-action';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
-import { toast } from '@/components/ui/toast';
+import { notify } from '@/shared/views/notify';
 import { useToggleReviewed } from '../commands/reviewed';
 import { Badge } from '@/components/ui/badge';
 import { isImagePath } from '@porcelain/client/files/rules';
 import { Button } from '@/components/ui/button';
-import { changeId, selectionKey } from '@porcelain/client/changes/rules';
+import {
+  changeId,
+  changePath,
+  selectionKey,
+} from '@porcelain/client/changes/rules';
 import {
   diffEntry,
   useChangeDiffs,
@@ -33,7 +37,11 @@ import {
   type ReviewChangeItem,
   type ReviewScope,
 } from '@porcelain/client/changes/rules';
-import { CodeDocument, type CodeHeaderControls } from './code-document';
+import {
+  CodeDocument,
+  type CodeHeaderControls,
+  type ListedComparison,
+} from './code-document';
 import { ReservedCode } from './reserved-code';
 import { fileReviewControl, ReviewedControl } from './reviewed-control';
 import { type ConnectionContext } from '@/shared/workspace/connection';
@@ -70,13 +78,6 @@ export function ReviewCodeDocument({
   toolbar?: (collapseControl: ReactNode) => ReactNode;
 }) {
   const { connection } = context;
-  const [pendingOmittedPath, setPendingOmittedPath] = useState<string>();
-  const focusOmitted = (path: string, target: HTMLLIElement) => {
-    if (pendingOmittedPath !== path) return;
-    setPendingOmittedPath(undefined);
-    target.focus({ preventScroll: true });
-    target.scrollIntoView({ block: 'start' });
-  };
   usePrefetchReviewed(scope, context);
   const quiet = interaction.quiet === true;
   const changes = useHeldWhileHidden(
@@ -224,6 +225,33 @@ export function ReviewCodeDocument({
         : [];
     }),
   );
+  const rendered = new Map(entries.map((entry) => [entry.id, entry.path]));
+  const omittedPaths = new Set(unrenderable.map(({ item }) => item.path));
+  const listed = items.flatMap((item) =>
+    item.comparisons.flatMap((change): ListedComparison[] => {
+      const id = changeId(change);
+      const path = rendered.get(id);
+      if (path !== undefined) return [{ id, path, state: 'code' }];
+      const waiting =
+        change.scope === 'untracked'
+          ? untracked.pending && textOf(change.path) === undefined
+          : change.scope !== 'unmerged' &&
+            change.supported &&
+            diffs.pending &&
+            patchOf(change) === undefined;
+      if (waiting)
+        return [
+          {
+            id,
+            path: change.scope === 'untracked' ? item.path : changePath(change),
+            state: 'pending',
+          },
+        ];
+      return omittedPaths.has(item.path)
+        ? [{ id, path: item.path, state: 'omitted' }]
+        : [];
+    }),
+  );
   const renderedPaths = new Set(entries.map((entry) => entry.path));
   const paneFile =
     interaction.toolbarTarget !== undefined &&
@@ -236,15 +264,7 @@ export function ReviewCodeDocument({
     header || loading || failed || unrenderable.length > 0
       ? (controls: CodeHeaderControls) => (
           <>
-            {header?.({
-              ...controls,
-              open: (path) => {
-                setPendingOmittedPath(undefined);
-                if (!renderedPaths.has(path)) {
-                  setPendingOmittedPath(path);
-                } else controls.open(path);
-              },
-            })}
+            {header?.(controls)}
             {failed && (
               <ChangesFailure
                 column={column}
@@ -259,9 +279,10 @@ export function ReviewCodeDocument({
                 changes={unrenderable}
                 column={column}
                 onTarget={(path, target) => {
-                  if (target) {
-                    focusOmitted(path, target);
-                  }
+                  if (!target || controls.awaiting !== path) return;
+                  controls.landed(path);
+                  target.focus({ preventScroll: true });
+                  target.scrollIntoView({ block: 'start' });
                 }}
                 renderedPaths={renderedPaths}
                 scope={scope}
@@ -294,6 +315,8 @@ export function ReviewCodeDocument({
       context={context}
       interaction={interaction}
       entries={entries}
+      listed={listed}
+      paths={items.map((item) => item.path)}
       column={column}
       {...(footer ? { footer } : {})}
       {...(documentHeader ? { header: documentHeader } : {})}
@@ -443,9 +466,7 @@ function OmittedActions({
   active: boolean;
   children: ReactNode;
 }) {
-  const review = useToggleReviewed(scope, context, (notice) =>
-    toast.add(notice),
-  );
+  const review = useToggleReviewed(scope, context, (notice) => notify(notice));
   const target = fileReviewControl(scope, context, item);
   const hotkeysEnabled = useHotkeysEnabled();
   const toggle = () => review.toggle(target);

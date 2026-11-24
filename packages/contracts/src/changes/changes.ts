@@ -6,24 +6,17 @@ import { oidSchema } from '../shared/oid.ts';
 import { relativePathSchema } from '../shared/relative-path.ts';
 import { worktreeIdSchema } from '../shared/schema.ts';
 import { gitDiffContentSchema } from './git-diff.ts';
-import { gitChangeSchema, gitChangeSelectionSchema } from './git-status.ts';
+import {
+  gitBranchSummarySchema,
+  gitChangeSchema,
+  gitChangeSelectionSchema,
+} from './git-status.ts';
 import { CHANGED_PATHS, DIFFS_PER_REQUEST } from '../shared/limits.ts';
 
 const fileChangeSchema = Schema.Struct({
   path: relativePathSchema,
   fingerprint: nullableAsUndefined(fingerprintSchema),
   comparisons: Schema.Array(gitChangeSchema).check(Schema.isMinLength(1)),
-});
-
-const changeListBranchSchema = Schema.Struct({
-  name: nullableAsUndefined(Schema.String),
-  upstream: nullableAsUndefined(Schema.String),
-  ahead: Schema.Number.check(Schema.isInt()).check(
-    Schema.isGreaterThanOrEqualTo(0),
-  ),
-  behind: Schema.Number.check(Schema.isInt()).check(
-    Schema.isGreaterThanOrEqualTo(0),
-  ),
 });
 
 export const readChangesResponseSchema = Schema.Struct({
@@ -33,7 +26,7 @@ export const readChangesResponseSchema = Schema.Struct({
   headOid: nullableAsUndefined(oidSchema),
   inProgress: nullableAsUndefined(Schema.Literals(['merge', 'rebase'])),
   mergeHeadOid: nullableAsUndefined(oidSchema),
-  branch: nullableAsUndefined(changeListBranchSchema),
+  branch: nullableAsUndefined(gitBranchSummarySchema),
   interrupted: Schema.optional(
     Schema.Struct({
       requestId: Schema.String.check(Schema.isUUID()),

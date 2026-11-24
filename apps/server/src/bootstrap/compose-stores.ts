@@ -12,7 +12,6 @@ import {
   EnvironmentIdentityReader,
   EnvironmentLabelStore,
   ReviewGitSettingsStore,
-  PushRegistrationStore,
   PairingGrantStore,
   RemoteAccessStore,
 } from '@porcelain/access/ports';
@@ -47,7 +46,6 @@ export const composeStores = Effect.fn('Server.composeStores')(function* () {
     environmentIdentity: yield* EnvironmentIdentityReader,
     environmentLabel: yield* EnvironmentLabelStore,
     reviewGitSettings: yield* ReviewGitSettingsStore,
-    pushRegistrations: yield* PushRegistrationStore,
     devices: yield* DeviceStore,
     deviceSightings: Context.get(memory, DeviceSightingStore),
     pairingGrants: yield* PairingGrantStore,

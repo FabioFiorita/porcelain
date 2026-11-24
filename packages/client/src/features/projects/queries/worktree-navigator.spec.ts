@@ -1,6 +1,6 @@
 import type { Transport } from '../../../shared/api/transport.ts';
-import { expect, it } from 'vitest';
-import { AsyncResult, type AtomRegistry } from 'effect/reactivity';
+import { expect, it } from 'vite-plus/test';
+import { AsyncResult, Atom, type AtomRegistry } from 'effect/reactivity';
 import {
   clientFixtures,
   idleClientAtoms,
@@ -10,7 +10,11 @@ import { refreshWorktreeNavigator } from '../commands/worktree-navigator.ts';
 import { emptyNavigatorFilter } from '../rules/worktree-navigator.ts';
 import { worktreeNavigatorState } from '../store/worktree-navigator.ts';
 import { readGitStatus } from '../../changes/queries/changes.ts';
-import { readWorktreeNavigator } from './worktree-navigator.ts';
+import { projectWorktreeSnapshot } from '../rules/worktree-snapshot.ts';
+import {
+  readWorktreeNavigator,
+  readWorktreeNavigatorWithSnapshots,
+} from './worktree-navigator.ts';
 import { readProjectPullRequests } from './pull-requests.ts';
 
 const create = clientFixtures();
@@ -164,6 +168,136 @@ function expectNavigatorNames(
     )
     .toEqual(names);
 }
+
+it('keeps project groups and scope choices when saved rows give way to live rows', async () => {
+  const opened = Promise.withResolvers<Response>();
+  const subject = create(
+    (path) =>
+      path.startsWith('/api/inventory')
+        ? opened.promise.then((response) => response.clone())
+        : navigatorResponse(path),
+    undefined,
+    1000,
+    environmentId,
+  );
+  const snapshot = projectWorktreeSnapshot(inventory(), '["phone"]', 5);
+  const list = readWorktreeNavigatorWithSnapshots({
+    connections: [subject.connection],
+    snapshots: Atom.make([{ environmentId, snapshot }]),
+  });
+  const stop = subject.registry.mount(list);
+  try {
+    await expectNavigatorNames(subject.registry, list, ['main', 'topic']);
+    const saved = subject.registry.get(list);
+    expect(saved.projects[0]).toMatchObject({ key: projectKey, saved: true });
+    expect(saved.projects[0]?.entries.map((row) => row.available)).toEqual([
+      false,
+      false,
+    ]);
+    const before = saved.projects[0]?.entries.map((row) => row.key);
+    expect(saved.filters.map(({ items }) => items.map(({ id }) => id))).toEqual(
+      [[environmentId], [projectKey]],
+    );
+    opened.resolve(Response.json(inventory()));
+    await expect
+      .poll(() =>
+        subject.registry
+          .get(list)
+          .projects[0]?.entries.map((row) => row.available),
+      )
+      .toEqual([true, true]);
+    const live = subject.registry.get(list);
+    expect(live.filters).toEqual(saved.filters);
+    expect(live.projects[0]?.entries.map((row) => row.key)).toEqual(before);
+    expect(live.projects[0]?.saved).toBeUndefined();
+  } finally {
+    stop();
+  }
+});
+
+it('keeps loading visible for a computer without saved rows beside another computer’s projects', async () => {
+  const opened = Promise.withResolvers<Response>();
+  const desk = create(
+    (path) => identityResponse(path, environmentId),
+    undefined,
+    1000,
+    environmentId,
+  );
+  const studioInventory = inventory(secondEnvironmentId, 'Studio');
+  const studio = create(
+    (path) =>
+      path.startsWith('/api/inventory')
+        ? opened.promise.then((answer) => answer.clone())
+        : identityResponse(path, secondEnvironmentId, studioInventory),
+    undefined,
+    1000,
+    secondEnvironmentId,
+  );
+  const snapshot = projectWorktreeSnapshot(studioInventory, '["phone"]', 5);
+  const snapshots = Atom.make<
+    readonly { environmentId: string; snapshot: typeof snapshot }[]
+  >([]);
+  const { registry } = desk;
+  const list = readWorktreeNavigatorWithSnapshots({
+    connections: [desk.connection, studio.connection],
+    snapshots,
+  });
+  const stop = registry.mount(list);
+  try {
+    await expectNavigatorNames(registry, list, ['main', 'topic']);
+    expect(registry.get(list).loadingWithoutSavedRows).toBe(true);
+    registry.set(snapshots, [{ environmentId: secondEnvironmentId, snapshot }]);
+    expect(registry.get(list).loadingWithoutSavedRows).toBe(false);
+    registry.set(snapshots, [
+      {
+        environmentId: secondEnvironmentId,
+        snapshot: { ...snapshot, rows: [] },
+      },
+    ]);
+    expect(registry.get(list).loadingWithoutSavedRows).toBe(true);
+    opened.resolve(Response.json(studioInventory));
+    await expect
+      .poll(() => registry.get(list).loadingWithoutSavedRows)
+      .toBe(false);
+  } finally {
+    stop();
+  }
+});
+
+it('reads status only for worktrees matching a pull request search', async () => {
+  const { registry, connection, paths } = recordedNavigator();
+  const list = readWorktreeNavigator([connection]);
+  registry.set(worktreeNavigatorState, {
+    ...registry.get(worktreeNavigatorState),
+    query: '42',
+  });
+  const stop = registry.mount(list);
+  try {
+    await expect
+      .poll(() => registry.get(list).projects[0]?.entries[0]?.changes.state)
+      .toBe('available');
+    expect(
+      registry.get(list).projects[0]?.entries.map((entry) => entry.name),
+    ).toEqual(['topic']);
+    expect(paths.filter((path) => path.endsWith('/git/status'))).toEqual([
+      `/api/worktrees/${topicId}/git/status`,
+    ]);
+    registry.set(worktreeNavigatorState, {
+      ...registry.get(worktreeNavigatorState),
+      query: '',
+    });
+    await expectNavigatorNames(registry, list, ['main', 'topic']);
+    await expect
+      .poll(() => registry.get(list).projects[0]?.entries[0]?.changes.state)
+      .toBe('available');
+    expect(paths.filter((path) => path.endsWith('/git/status'))).toEqual([
+      `/api/worktrees/${topicId}/git/status`,
+      `/api/worktrees/${mainId}/git/status`,
+    ]);
+  } finally {
+    stop();
+  }
+});
 
 it('keeps colliding projects distinct and mounts no hidden-project details or GitHub payloads, including refresh', async () => {
   const reads: { environmentId: string; path: string }[] = [];
@@ -339,11 +473,15 @@ it('loads checks after useful cards without computing diff summaries or reading 
         pullRequest: { checks: { state: 'available', result: 'running' } },
       });
     const refresh = refreshWorktreeNavigator([subject.connection]);
+    const refreshStart = reads.length;
     subject.registry.set(refresh, undefined);
     await readClientAtom(subject.registry, refresh);
     await expect
       .poll(() => reads.filter((path) => path.endsWith('/checks')).length)
       .toBe(2);
+    expect(
+      reads.slice(refreshStart).filter((path) => path.endsWith('/git/status')),
+    ).toEqual([`/api/worktrees/${topicId}/git/status`]);
     expect(reads.filter((path) => path.endsWith('/summary'))).toEqual([]);
   } finally {
     stop();

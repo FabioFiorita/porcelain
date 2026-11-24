@@ -70,14 +70,14 @@ function SettingItem({
   children,
 }: {
   label: string;
-  description: string;
+  description?: string | undefined;
   children: ReactNode;
 }) {
   return (
     <Item variant="outline">
       <ItemContent className="min-w-0">
         <ItemTitle>{label}</ItemTitle>
-        <ItemDescription>{description}</ItemDescription>
+        {description && <ItemDescription>{description}</ItemDescription>}
       </ItemContent>
       <ItemActions>{children}</ItemActions>
     </Item>
@@ -95,7 +95,7 @@ function ChoiceItem<V extends string>({
   onChange,
 }: {
   label: string;
-  description: string;
+  description?: string | undefined;
   value: V | undefined;
   options: ChoiceOption<V>[];
   disabled?: boolean;
@@ -144,7 +144,7 @@ function Choice<K extends ChoiceName>({
   options,
 }: {
   label: string;
-  description: string;
+  description?: string | undefined;
   name: K;
   options: ChoiceOption<NonNullable<PreferenceChange[K]>>[];
 }) {
@@ -324,7 +324,6 @@ function ReviewGitSettingsForm({
         <ItemGroup>
           <ChoiceItem
             label="Pull strategy"
-            description="Used by Pull in the Git menu."
             value={settings?.pullStrategy}
             disabled={!editable}
             options={[
@@ -402,11 +401,7 @@ function ComputerPicker({
 export function GeneralSettings() {
   return (
     <div className="flex flex-col">
-      <SettingsHeading
-        section="Settings"
-        title="General"
-        lead="How Porcelain looks, and how code and documents open."
-      />
+      <SettingsHeading section="Settings" title="General" />
       <div className="mt-8 flex flex-col gap-7">
         <FieldSet>
           <FieldLegend variant="label">Appearance</FieldLegend>
@@ -438,11 +433,10 @@ export function GeneralSettings() {
             <Separator />
             <Choice
               label="Long lines"
-              description="Wrap keeps every line visible without scrolling."
               name="lineOverflow"
               options={[
                 { value: 'scroll', label: 'Scroll' },
-                { value: 'wrap', label: 'Wrap' },
+                { value: 'wrap', label: 'Wrap long lines' },
               ]}
             />
           </ItemGroup>
@@ -498,11 +492,7 @@ export function ReviewsGitSettings() {
     computers.find((entry) => entry.id === chosen) ?? computers[0];
   return (
     <>
-      <SettingsHeading
-        section="Settings"
-        title="Changes & Git"
-        lead="How changes are grouped, who writes walkthroughs, which GitHub account opens pull requests, and what Git does when you pull and archive."
-      />
+      <SettingsHeading section="Settings" title="Changes & Git" />
       {computers.length > 1 && (
         <ComputerPicker
           computers={computers}

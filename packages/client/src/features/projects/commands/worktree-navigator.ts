@@ -8,6 +8,7 @@ import {
 } from '../queries/pull-requests.ts';
 import { refreshInventory } from './projects.ts';
 import { readInventory } from '../queries/inventory.ts';
+import { readMatchingProjectEntries } from '../queries/worktree-navigator.ts';
 import { worktreeNavigatorState } from '../store/worktree-navigator.ts';
 import { navigatorProjectVisible } from '../rules/worktree-navigator.ts';
 
@@ -98,10 +99,11 @@ export const refreshWorktreeNavigator = Atom.family(
             )
           )
             continue;
-          const projectRead = readProjectPullRequests({
+          const projectInput = {
             connection: source.connection,
             projectId: source.project.id,
-          });
+          };
+          const projectRead = readProjectPullRequests(projectInput);
           if (
             !state.query.trim() &&
             state.expanded[source.key] === false &&
@@ -111,6 +113,7 @@ export const refreshWorktreeNavigator = Atom.family(
           const records = Option.getOrUndefined(
             AsyncResult.value(get(projectRead)),
           );
+          const entries = get(readMatchingProjectEntries(projectInput));
           get.refresh(projectRead);
           for (const pull of records?.kind === 'available'
             ? records.pullRequests
@@ -123,14 +126,14 @@ export const refreshWorktreeNavigator = Atom.family(
               }),
             );
           }
-          for (const worktree of source.project.worktrees) {
-            if (source.project.available && worktree.available) {
+          for (const entry of entries) {
+            if (entry.available && entry.worktreeId) {
               get.refresh(
                 readGitStatus({
                   connection: source.connection,
                   scope: {
                     projectId: source.project.id,
-                    worktreeId: worktree.id,
+                    worktreeId: entry.worktreeId,
                   },
                 }),
               );

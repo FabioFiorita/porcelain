@@ -8,8 +8,8 @@ import {
   symlink,
   writeFile,
 } from 'node:fs/promises';
-import { dirname, join, resolve } from 'node:path';
-import { expect } from 'vitest';
+import { delimiter, dirname, join, resolve } from 'node:path';
+import { expect } from 'vite-plus/test';
 import { test } from '@porcelain/server/kit/server-test';
 import { list, record, text } from '@porcelain/server/kit/session';
 import {
@@ -392,6 +392,112 @@ test('stop refuses a stale process identity even when its PID and command still 
   expect(alive(strangerPid)).toBe(true);
   expect(alive(instance.pid)).toBe(false);
 });
+
+test('doctor and start refuse a failed process query before creating an instance', async ({
+  onTestFinished,
+}) => {
+  const copy = await checkoutCopy(onTestFinished);
+  const home = resolve(instanceFile(copy, 'server', 'abc12345'), '../../..');
+  onTestFinished(() => rm(home, { recursive: true, force: true }));
+  const bin = join(copy, 'refuse-process-query');
+  await mkdir(bin);
+  await writeFile(
+    join(bin, 'ps'),
+    "#!/bin/sh\nprintf '%s\\n' 'fixture refused process query' >&2\nexit 2\n",
+    { mode: 0o700 },
+  );
+  const run = (command: string) =>
+    spawnSync(join(copy, SERVER_CLI), [command], {
+      cwd: copy,
+      env: { ...process.env, PATH: [bin, process.env.PATH].join(delimiter) },
+      encoding: 'utf8',
+    });
+
+  const doctor = run('doctor');
+  const start = run('start');
+
+  expect(doctor.status).toBe(1);
+  expect(doctor.stdout).toContain('FAIL Process capture failed');
+  expect(doctor.stdout).toContain('fixture refused process query');
+  expect(start.status).toBe(1);
+  expect(start.stderr).toContain('fixture refused process query');
+  expect(existsSync(home)).toBe(false);
+  expect(running(home)).toStrictEqual([]);
+});
+
+test.for(['note', 'capture'])(
+  'a failed startup stops the supervisor even if the %s fails',
+  async (mode, { onTestFinished }) => {
+    const fixture = await sessionFixture(onTestFinished);
+    const home = resolve(
+      instanceFile(fixture.root, 'server', 'abc12345'),
+      '../../..',
+    );
+    const instances = join(home, 'instances');
+    const bin = join(fixture.root, 'ps-shim');
+    await mkdir(bin);
+    await writeFile(
+      join(bin, 'ps'),
+      `#!/bin/sh
+if [ "$1" = -p ] && [ "$2" != "$PPID" ] && [ ! -f "${bin}/refused" ]; then
+  echo "$2" > "${bin}/refused"
+  echo 'fixture refused supervisor capture' >&2
+  exit 2
+fi
+if [ "$1" = -A ] && [ ! -f "${bin}/group-refused" ]; then
+  touch "${bin}/group-refused"
+  echo 'fixture refused the first process group scan' >&2
+  exit 2
+fi
+if [ "$1" = -p ] && [ -f "${bin}/group-refused" ] && [ ! -f "${bin}/finish-started" ]; then
+  touch "${bin}/finish-started"
+  for ledger in "${instances}"/*/processes.json; do
+    if [ -f "$ledger" ]; then cp "$ledger" "${bin}/ownership-before-finish"; fi
+  done
+fi
+exec /bin/ps "$@"
+`,
+      { mode: 0o700 },
+    );
+    const instanceIds = () => readdir(instances).catch(() => []);
+    onTestFinished(async () => {
+      for (const id of await instanceIds()) await fixture.command('stop', id);
+      const pid = Number(
+        await readFile(join(bin, 'refused'), 'utf8').catch(() => ''),
+      );
+      if (
+        pid > 0 &&
+        running(instances).some((line) =>
+          line.trimStart().startsWith(`${pid} `),
+        )
+      ) {
+        process.kill(pid, 'SIGTERM');
+        await settled(() => running(instances).length === 0);
+      }
+      expect(running(instances)).toStrictEqual([]);
+      await rm(home, { recursive: true, force: true });
+    });
+
+    const start = await fixture.command('start', mode);
+
+    expect(start.code).toBe(1);
+    expect(start.stderr).toContain('did not start');
+    expect(start.stderr).toContain(
+      mode === 'note'
+        ? 'supervisor did not become ready'
+        : 'fixture refused supervisor capture',
+    );
+    if (mode === 'capture') {
+      const pid = Number(await readFile(join(bin, 'refused'), 'utf8'));
+      const ownership: unknown = JSON.parse(
+        await readFile(join(bin, 'ownership-before-finish'), 'utf8'),
+      );
+      expect(ownership).toEqual([expect.objectContaining({ pid })]);
+    }
+    expect(running(instances)).toStrictEqual([]);
+    expect(await instanceIds()).toStrictEqual([]);
+  },
+);
 
 test('failed startup cleans a captured detached child even when the supervisor dies before readiness', async ({
   onTestFinished,

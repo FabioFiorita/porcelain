@@ -3,7 +3,7 @@ import {
   listReviewedFilesResponseSchema,
   removeReviewedFilesResponseSchema,
 } from '@porcelain/contracts/changes';
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import { apiError, invalidRequest } from '../kit/answers.ts';
 import { fingerprintOf } from '../kit/reads.ts';
 import { read, worktreePath } from '../kit/requests.ts';

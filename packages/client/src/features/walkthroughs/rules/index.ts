@@ -14,11 +14,18 @@ export {
   type ReviewCode,
   type StepFiles,
   type WalkthroughContent,
-  type WalkthroughEvidence,
   type WalkthroughFailure,
   type WalkthroughRun,
-  type WalkthroughStop,
 } from './walkthrough.ts';
+export {
+  stepScreenshots,
+  type StepBlock,
+  type WalkthroughComparison,
+  type WalkthroughEvidence,
+  type WalkthroughExcerpt,
+  type WalkthroughScreenshot,
+  type WalkthroughStop,
+} from './blocks.ts';
 export {
   answerTo,
   canPostMessage,
@@ -61,3 +68,4 @@ export {
   walkthroughProgress,
   walkthroughFreshnessText,
 } from './progress.ts';
+export { fileComparison, fileOpening } from './file-comparison.ts';

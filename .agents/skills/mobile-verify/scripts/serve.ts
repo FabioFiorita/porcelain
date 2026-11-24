@@ -3,7 +3,7 @@ import { appendFileSync, readFileSync } from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { readHealthResponseSchema } from '@porcelain/contracts/access';
+import { readServerHealth } from '../../verify-core/health.ts';
 import { buildIsolatedServer } from '@porcelain/server/kit/sandbox';
 import {
   buildProblem,
@@ -185,15 +185,9 @@ export function serve(folder: string): Promise<void> {
           ? 'The manual preview unexpectedly paired a native device.'
           : 'Pairing did not register exactly one native verification device.',
       );
-    const health = await fetch(`${environment.server.address}/api/health`);
-    if (
-      health.status !== 200 ||
-      !health.headers.get('content-type')?.includes('application/json')
-    )
-      throw new Error('The disposable health route did not answer JSON 200.');
-    const { environmentId } = Schema.decodeUnknownSync(
-      readHealthResponseSchema,
-    )(await health.json());
+    const { environmentId } = await readServerHealth(
+      environment.server.address,
+    );
     const ids = await environment.server.sampleIds();
     const manifest = Schema.decodeUnknownSync(manifestSchema)(
       JSON.parse(readFileSync(environment.server.manifestPath, 'utf8')),
@@ -252,7 +246,7 @@ export async function startProblems(
       ).catch(() => '');
       if (ready !== '1')
         problems.push(
-          `Android emulator ${serial} is unavailable or still booting. Boot it in Android Studio or T3 and retry.`,
+          `Android emulator ${serial} is unavailable or still booting. Boot it (Android Studio's Device Manager or emulator -avd <name>) and retry.`,
         );
     }
     return [
@@ -318,5 +312,5 @@ export async function start(
   );
   const target =
     card.mobile.platform === 'android' ? card.mobile.serial : card.mobile.udid;
-  return `${connectionCard(card, instance.connectionPath)}fixture ${fixture}${codingTool ? ' with the fake walkthrough writer' : ''}\nsimulator ${target} (${card.mobile.simulator})\nJavaScript ${productionJs ? 'production, minified' : 'development'}\nmetro ${card.mobile.metroUrl}\nagent-device ${card.mobile.agentDevice.command}\n`;
+  return `${connectionCard(card, instance.connectionPath, instance.readyMs)}fixture ${fixture}${codingTool ? ' with the fake walkthrough writer' : ''}\nsimulator ${target} (${card.mobile.simulator})\nJavaScript ${productionJs ? 'production, minified' : 'development'}\nmetro ${card.mobile.metroUrl}\nagent-device ${card.mobile.agentDevice.command}\n`;
 }

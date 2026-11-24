@@ -1,4 +1,4 @@
-import { afterEach } from 'vitest';
+import { afterEach } from 'vite-plus/test';
 import type { Context } from 'effect';
 import { Effect, Layer, ManagedRuntime } from 'effect';
 import { OperationStorage } from '../../src/features/git-actions/ports/operation-storage.ts';

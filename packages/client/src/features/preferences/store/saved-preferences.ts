@@ -15,10 +15,6 @@ const fields = Schema.Struct({
   lineOverflow: Schema.Literals(['scroll', 'wrap']),
   documentsDefault: Schema.Literals(['rendered', 'source']),
   reviewGitSettingsImportCandidate: reviewGitSettingsSchema,
-  notifications: Schema.Struct({
-    reviewReady: Schema.Boolean,
-    agentReply: Schema.Boolean,
-  }),
 });
 export type Preferences = typeof fields.Type;
 export type PreferenceChange = Partial<
@@ -31,7 +27,6 @@ export const defaultPreferences: Preferences = {
   lineOverflow: 'scroll',
   documentsDefault: 'rendered',
   reviewGitSettingsImportCandidate: defaultReviewGitSettings,
-  notifications: { reviewReady: false, agentReply: false },
 };
 function legacyReviewGitSettings(
   saved: Record<string, unknown>,
@@ -125,11 +120,6 @@ export const preferencesSchema = Schema.Unknown.pipe(
               saved.reviewGitSettingsImportCandidate,
             ),
             () => legacyReviewGitSettings(saved),
-          ),
-          notifications: savedField(
-            fields.fields.notifications,
-            saved.notifications,
-            defaultPreferences.notifications,
           ),
         };
       },

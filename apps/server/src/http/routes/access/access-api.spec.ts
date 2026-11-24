@@ -5,7 +5,7 @@ import { Observability } from '../../../runtime/observability.ts';
 const observability = Effect.runSync(
   Observability.pipe(Effect.provide(Observability.layer)),
 );
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { openHttpApplication } from '@porcelain/server/kit/http';
 import { HttpRouter } from 'effect/http';
 import { deliverBrowserCredential } from '../../hooks/browser-credential.ts';
@@ -66,8 +66,6 @@ async function fixture(owner = false) {
     setEnvironmentIcon: unused,
     readReviewGitSettings: unused,
     saveReviewGitSettings: unused,
-    setPushRegistration: unused,
-    clearPushRegistration: unused,
     revokeAccess: unused,
     setDeviceTrust: unused,
     setRemoteAccess: unused,

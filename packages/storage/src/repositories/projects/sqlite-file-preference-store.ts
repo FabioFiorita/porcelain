@@ -8,23 +8,20 @@ export const sqliteFilePreferenceStoreLayer = Layer.effect(
   FilePreferenceStore,
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
+    const preferenceSchema = Schema.Struct({
+      path: FilePreferenceRow.fields.path,
+      pinned: FilePreferenceRow.fields.pinned,
+      hidden: FilePreferenceRow.fields.hidden,
+    });
     const list = SqlSchema.findAll({
       Request: Schema.Struct({ projectId: Schema.String }),
-      Result: Schema.Struct({
-        path: FilePreferenceRow.fields.path,
-        pinned: FilePreferenceRow.fields.pinned,
-        hidden: FilePreferenceRow.fields.hidden,
-      }),
+      Result: preferenceSchema,
       execute: (input) =>
         sql`SELECT path, pinned, hidden FROM project_file_preferences WHERE project_id = ${input.projectId} ORDER BY path`,
     });
     const find = SqlSchema.findOneOption({
       Request: Schema.Struct({ projectId: Schema.String, path: Schema.String }),
-      Result: Schema.Struct({
-        path: FilePreferenceRow.fields.path,
-        pinned: FilePreferenceRow.fields.pinned,
-        hidden: FilePreferenceRow.fields.hidden,
-      }),
+      Result: preferenceSchema,
       execute: (input) =>
         sql`SELECT path, pinned, hidden FROM project_file_preferences WHERE project_id = ${input.projectId} AND path = ${input.path}`,
     });

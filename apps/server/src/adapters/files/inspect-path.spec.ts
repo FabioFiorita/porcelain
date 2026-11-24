@@ -1,5 +1,5 @@
 import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
-import { it, expect } from 'vitest';
+import { it, expect } from 'vite-plus/test';
 import { NodeServices } from '@effect/platform-node';
 import { Effect, FileSystem } from 'effect';
 import { inspectPath, verifyPath } from './inspect-path.ts';

@@ -13,10 +13,10 @@ import {
 } from '@tanstack/react-hotkeys';
 import { useAtomValue } from '@effect/atom-react';
 import { useState } from 'react';
+import { remoteWorkspaceNotice } from '@porcelain/client/access';
+import { remoteWorktreeInterrupted } from '@porcelain/client/access/rules';
 import {
   remoteConnectionStatus,
-  remoteWorkspaceNotice,
-  remoteWorktreeInterrupted,
   shownRemoteWorkspace,
   useConnectedContext,
   useRemoteConnection,

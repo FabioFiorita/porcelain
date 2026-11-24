@@ -1,4 +1,4 @@
-import { page } from 'vitest/browser';
+import { page } from 'vite-plus/test/browser';
 import { expect, test } from './fixtures.tsx';
 
 test('a file timeline keeps its selection and reading position after returning from a commit', async ({

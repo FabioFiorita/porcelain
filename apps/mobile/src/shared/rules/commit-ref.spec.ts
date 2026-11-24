@@ -1,4 +1,4 @@
-import { expect, test } from 'vitest';
+import { expect, test } from 'vite-plus/test';
 import { commitRefLabel } from './commit-ref';
 
 test('same-named branches and tags retain their distinct identities in native badges and accessible names', () => {

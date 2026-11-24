@@ -1,6 +1,6 @@
 import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { NodeServices } from '@effect/platform-node';
-import { Effect, Layer, ManagedRuntime, Schema } from 'effect';
+import { Layer, ManagedRuntime, Schema } from 'effect';
 import {
   walkthroughJobSchema,
   type WalkthroughJob,
@@ -9,7 +9,7 @@ import { SqlClient } from 'effect/sql';
 import { DatabaseSync } from 'node:sqlite';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { databaseLayer } from './connection.ts';
 import { prepareNativeDatabase } from '../../spec/kit/native-database.ts';
 
@@ -45,6 +45,7 @@ it.each([false, true])(
             writtenAt: 'today',
             durationMs: 1000,
             content: {
+              version: 1 as const,
               outcome: 'worth_knowing',
               title: 'Keep ownership',
               summary: 'Read the working change',
@@ -188,34 +189,41 @@ it.each([false, true])(
   },
 );
 
-it('clears retired push kinds before the remaining registration reader decodes stored JSON', async () => {
+it('drops legacy push registrations while preserving the paired device', async () => {
   const directory = mkdtempSync(
     join(temporaryRoot, 'porcelain-push-migration-'),
   );
-  const options = { worktreeIdLength: 32, busyTimeoutMs: 5000 };
-  const open = () =>
-    ManagedRuntime.make(
-      databaseLayer(directory, options).pipe(Layer.provide(NodeServices.layer)),
-    );
+  const filename = join(directory, 'inventory.sqlite');
   try {
     await prepareNativeDatabase(directory, 13);
-    const stored = new DatabaseSync(join(directory, 'inventory.sqlite'));
-    stored.exec(`INSERT INTO devices (id, label, platform, secret_hash, created_at, last_seen_at, route, route_inferred, trusted, can_manage_sharing, can_edit_ways_in) VALUES ('phone', 'Phone', 'ios', 'fixture-hash', '2026-11-10T10:00:00Z', '2026-11-10T10:00:00Z', 'lan', 0, 0, 0, 0);
+    {
+      using old = new DatabaseSync(filename);
+      old.exec(`INSERT INTO devices (id, label, platform, secret_hash, created_at, last_seen_at, route, route_inferred, trusted, can_manage_sharing, can_edit_ways_in) VALUES ('phone', 'Phone', 'ios', 'fixture-hash', '2026-11-10T10:00:00Z', '2026-11-10T10:00:00Z', 'lan', 0, 0, 0, 0);
       INSERT INTO push_registrations (device_id, token, platform, kinds) VALUES ('phone', 'ExponentPushToken[fixture]', 'ios', '["review-ready","agent-reply"]');`);
-    stored.close();
-    const migrated = open();
+    }
+    const migrated = ManagedRuntime.make(
+      databaseLayer(directory, {
+        worktreeIdLength: 32,
+        busyTimeoutMs: 5000,
+      }).pipe(Layer.provide(NodeServices.layer)),
+    );
     try {
-      const sql = await migrated.runPromise(SqlClient.SqlClient);
-      expect(
-        await Effect.runPromise(
-          sql`SELECT device_id, token, kinds FROM push_registrations`,
-        ),
-      ).toEqual([
-        { deviceId: 'phone', token: 'ExponentPushToken[fixture]', kinds: '[]' },
-      ]);
+      await migrated.runPromise(SqlClient.SqlClient);
     } finally {
       await migrated.dispose();
     }
+    using stored = new DatabaseSync(filename);
+    expect(
+      stored
+        .prepare(
+          "SELECT name FROM sqlite_master WHERE name = 'push_registrations'",
+        )
+        .all(),
+    ).toEqual([]);
+    expect(stored.prepare('SELECT id, label FROM devices').all()).toEqual([
+      { id: 'phone', label: 'Phone' },
+    ]);
+    expect(stored.prepare('PRAGMA foreign_key_check').all()).toEqual([]);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
@@ -318,3 +326,88 @@ it.each([12, 14])(
     }
   },
 );
+
+it('retires old ready walkthroughs and their evidence while preserving queued work and automatic PR history', async () => {
+  const directory = mkdtempSync(
+    join(temporaryRoot, 'porcelain-walkthrough-blocks-'),
+  );
+  const filename = join(directory, 'inventory.sqlite');
+  const options = { worktreeIdLength: 32, busyTimeoutMs: 5000 };
+  try {
+    await prepareNativeDatabase(directory, 18);
+    const versionOne = JSON.stringify({
+      run: {
+        state: {
+          status: 'ready',
+          content: {
+            version: 1,
+            outcome: 'nothing',
+            title: 'A ready walkthrough',
+            summary: 'Already saved in version one.',
+            stops: [],
+            growth: [],
+            onlyInTranscript: [],
+            stillUnclear: [],
+          },
+        },
+      },
+    });
+    const previous = new DatabaseSync(filename);
+    try {
+      previous.exec(`PRAGMA foreign_keys = ON;
+        INSERT INTO inventory_projects VALUES ('project', 'Project', 0, '/repo/.git', 'identity', 1, 0);
+        INSERT INTO worktree_presence (worktree_id, project_id, missing_since) VALUES ('worktree', 'project', NULL);
+        INSERT INTO walkthrough_runs (id,worktree_id,head_oid,status,payload)
+          VALUES ('old','worktree','previous-head','ready','{"run":{"state":{"status":"ready","content":{"stops":[{"title":"Old step","files":[]}]}}}}'),
+                 ('queued','worktree','next-head','queued','{"run":{"state":{"status":"queued"}}}'),
+                 ('version-one','worktree','written-head','ready','${versionOne}');
+        INSERT INTO walkthrough_evidence VALUES ('old','image','image/png','Existing evidence',X'010203');
+        INSERT INTO walkthrough_messages (id,run_id,worktree_id,text,created_at,answer_status,answer)
+          VALUES ('question','old','worktree','Why?','today','answered','{"status":"answered"}');
+        INSERT INTO walkthrough_automatic VALUES ('project/42','old');`);
+    } finally {
+      previous.close();
+    }
+    const runtime = ManagedRuntime.make(
+      databaseLayer(directory, options).pipe(Layer.provide(NodeServices.layer)),
+    );
+    try {
+      await runtime.runPromise(SqlClient.SqlClient);
+    } finally {
+      await runtime.dispose();
+    }
+    const current = new DatabaseSync(filename);
+    try {
+      expect(
+        current
+          .prepare('SELECT id, status FROM walkthrough_runs ORDER BY id')
+          .all(),
+      ).toEqual([
+        { id: 'queued', status: 'queued' },
+        { id: 'version-one', status: 'ready' },
+      ]);
+      expect(
+        current
+          .prepare(
+            "SELECT payload FROM walkthrough_runs WHERE id = 'version-one'",
+          )
+          .get(),
+      ).toEqual({ payload: versionOne });
+      expect(
+        current.prepare('SELECT asset_id FROM walkthrough_evidence').all(),
+      ).toEqual([]);
+      expect(
+        current.prepare('SELECT id FROM walkthrough_messages').all(),
+      ).toEqual([]);
+      expect(
+        current
+          .prepare('SELECT pr_key, run_id FROM walkthrough_automatic')
+          .all(),
+      ).toEqual([{ pr_key: 'project/42', run_id: null }]);
+    } finally {
+      current.close();
+    }
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});

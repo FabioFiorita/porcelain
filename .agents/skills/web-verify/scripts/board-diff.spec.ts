@@ -1,5 +1,5 @@
 import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { boardDiffOptions } from './board-options.ts';

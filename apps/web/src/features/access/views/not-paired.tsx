@@ -1,7 +1,7 @@
 import { TruncatedText } from '@/shared/views/truncated-text';
+import { PendingSpinner } from '@/shared/views/state-notice';
 import { CheckIcon, CopyIcon, XIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Spinner } from '@/components/ui/spinner';
 import {
   Tooltip,
   TooltipContent,
@@ -31,50 +31,27 @@ export function NotPaired({
   pending?: boolean;
 }) {
   const command = `porcelain pair "This browser" --address ${pairingAddress()}`;
-  let status = 'This browser cannot open your worktrees yet';
   let firstStep = 'On your computer, run this';
   if (reason) {
-    status = 'That link did not let this browser in';
     firstStep = 'On your computer, run it again';
   }
   if (pending) {
-    status = 'Checking the link with your computer';
     firstStep = 'Ran porcelain pair on your computer';
   }
   return (
     <section className="flex w-full min-w-0 flex-1 flex-col gap-8">
-      <p
-        role="status"
-        className="flex w-fit max-w-full flex-wrap items-center gap-2 rounded-full border bg-background p-1 pr-3 text-ui text-muted-foreground"
-      >
-        <span
-          className={cn(
-            'inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium',
-            pending
-              ? 'bg-brand-soft text-brand'
-              : 'bg-foreground text-background',
-          )}
+      {pending && (
+        <p
+          role="status"
+          className="flex items-center gap-1 text-ui text-muted-foreground"
         >
-          {pending && <Spinner className="size-3" />}
-          {pending ? 'Pairing' : 'Not paired'}
-        </span>
-        {status}
-      </p>
-      <div className="flex flex-col gap-6">
-        <div className="text-4xl font-semibold leading-none tracking-tighter md:text-6xl">
-          <h2
-            aria-label="This browser is not paired"
-            className="text-title-dim"
-          >
-            This browser is not paired.
-          </h2>
-          <p>Pair it from your computer.</p>
-        </div>
-        <p className="max-w-xl text-lg leading-relaxed text-muted-foreground">
-          Porcelain runs on the computer where your agents work, and this
-          browser reads from it. That computer prints a link to let it in.
+          <PendingSpinner className="[&>svg]:size-3" />
+          Checking the link with your computer
         </p>
-      </div>
+      )}
+      <h2 className="text-4xl font-semibold leading-none tracking-tighter md:text-6xl">
+        This browser is not paired
+      </h2>
       <ol aria-label="How pairing works" className="flex max-w-3xl flex-col">
         <PairingStep number={1} current={!pending} done={pending}>
           <h3 className="font-semibold">{firstStep}</h3>
@@ -124,15 +101,9 @@ export function NotPaired({
             )}
           >
             {reason ??
-              (pending ? (
-                'Checking that the link belongs to this Porcelain installation.'
-              ) : (
-                <>
-                  Its Porcelain page continues here, at{' '}
-                  <code>{pairingAddress()}/pair</code>. On a phone, scan the QR
-                  code it prints.
-                </>
-              ))}
+              (pending
+                ? 'Checking that the link belongs to this Porcelain installation.'
+                : 'On a phone, scan the QR code printed with the link.')}
           </p>
         </PairingStep>
         <PairingStep number={3}>

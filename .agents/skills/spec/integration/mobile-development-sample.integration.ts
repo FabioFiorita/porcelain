@@ -10,7 +10,7 @@ import { execFile } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
-import { expect, inject, test } from 'vitest';
+import { expect, inject, test } from 'vite-plus/test';
 
 const execute = promisify(execFile);
 

@@ -1,5 +1,5 @@
 import { Schema } from 'effect';
-import { readHealthResponseSchema } from '@porcelain/contracts/access';
+import { readServerHealth } from '../../verify-core/health.ts';
 import { spawn } from 'node:child_process';
 import {
   appendFileSync,
@@ -35,7 +35,7 @@ import {
 import { registry } from './instance.ts';
 import { verificationEnvironment } from '../../verify-core/environment.ts';
 
-export const vite = join(root, 'apps/web/node_modules/.bin/vite');
+export const vp = join(root, 'apps/web/node_modules/.bin/vp');
 const readyTimeoutMs = 60 * 1000;
 const remotePollMs = 200;
 export const remoteRequest = 'remote-request';
@@ -146,8 +146,9 @@ export function serve(folder: string): Promise<void> {
     const origin = `http://127.0.0.1:${port}`;
     const log = openSync(join(evidence, 'vite.log'), 'a', 0o600);
     const web = spawn(
-      vite,
+      vp,
       [
+        'dev',
         '--mode',
         desktop ? 'desktop' : 'test',
         '--host',
@@ -169,22 +170,9 @@ export function serve(folder: string): Promise<void> {
     closeSync(log);
     web.once('error', () => life.stop('Vite failed to start'));
     web.once('exit', () => life.stop('Vite exited'));
-    life.onStop(() => {
-      web.kill('SIGTERM');
-    });
     await reachable(`${origin}/src/main.tsx`, Date.now() + readyTimeoutMs);
     serveRemote(folder, life.id, build, life);
-    const health = await fetch(`${server.address}/api/health`);
-    if (
-      health.status !== 200 ||
-      !health.headers.get('content-type')?.includes('application/json')
-    )
-      throw new Error(
-        'The disposable health route did not answer JSON with status 200',
-      );
-    const { environmentId } = Schema.decodeUnknownSync(
-      readHealthResponseSchema,
-    )(await health.json());
+    const { environmentId } = await readServerHealth(server.address);
     const ids = await server.sampleIds();
     const manifest = Schema.decodeUnknownSync(
       Schema.Struct({
@@ -214,27 +202,23 @@ export function serve(folder: string): Promise<void> {
     };
   });
 }
-export async function start(
-  options: typeof startOptions.Encoded,
-): Promise<string> {
+export async function start(options: typeof startOptions.Encoded) {
   refuseMissing([
     ...sandboxProblems(),
     memoryProblem(),
-    existsSync(vite)
+    existsSync(vp)
       ? undefined
-      : 'Vite is missing: run pnpm install --frozen-lockfile',
+      : 'Vite+ is missing: run pnpm install --frozen-lockfile',
   ]);
-  const started = performance.now();
   const instance = await registry.launch(options, readyTimeoutMs * 2);
-  process.stderr.write(
-    `started in ${Math.round(performance.now() - started)} ms\n`,
-  );
   if (instance.connectionPath === undefined)
     throw new Error('The web launcher published no connection metadata');
-  return connectionCard(
+  const card = connectionCard(
     Schema.decodeUnknownSync(connectionSchema)(
       JSON.parse(readFileSync(instance.connectionPath, 'utf8')),
     ),
     instance.connectionPath,
+    instance.readyMs,
   );
+  return { instance, card };
 }

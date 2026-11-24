@@ -133,6 +133,9 @@ test('the app serves its window from a private loopback server that refuses othe
 }) => {
   const app = await desktop.launch();
   const page = await app.window();
+  await expect
+    .poll(() => app.output.join('').split('\n'))
+    .toContain('Porcelain: renderer ready');
   const policy = (await responsePolicy(page, '/'))?.split('; ') ?? [];
   expect(policy).toContain("connect-src 'self' http: https: ws: wss:");
   expect(policy).toContain("script-src 'self'");

@@ -1,4 +1,4 @@
-import { admittedRead, type WorktreeRead } from '@porcelain/effects';
+import { type WorktreeRead } from '@porcelain/effects';
 import { constants } from 'node:fs';
 import type {
   FileRead,
@@ -11,16 +11,13 @@ import { openGuardedFile, syscall } from './guarded-filesystem-syscalls.ts';
 import {
   inspectPath,
   type GuardedPathFailure,
-  readFailure,
   fileIdentity,
   sameFile,
   unchanged,
   verifyPath,
 } from './inspect-path.ts';
-import {
-  listedWorktreeEffect,
-  type ListedWorktrees,
-} from '../projects/checkout-session.ts';
+import type { ListedWorktrees } from '../projects/checkout-session.ts';
+import { readGuardedWorktree } from './read-guarded-worktree.ts';
 
 const textDecoder = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
 
@@ -28,64 +25,43 @@ export const filesystemFileReaderLayer = (worktrees: ListedWorktrees) =>
   Layer.sync(FileReader, () => {
     const read = Effect.fn('FilesystemFileReader.read')(
       (input: FileReadInput) =>
-        admittedRead(
-          input.worktreeId,
-          Effect.gen(function* () {
-            const checkout = yield* listedWorktreeEffect(
-              worktrees,
-              input.worktreeId,
-            ).pipe(Effect.orDie);
-            const target = { root: checkout.path, path: input.path };
-            return yield* Effect.scoped(
-              Effect.gen(function* (): Effect.fn.Return<
-                FileRead,
-                GuardedPathFailure,
-                Scope.Scope
-              > {
-                const before = yield* inspectPath(target);
-                if (!before.info.isFile())
-                  return { kind: 'failed', failure: 'unreadable' };
-                const handle = yield* openGuardedFile(
-                  before.path,
-                  constants.O_RDONLY,
-                );
-                const opened = yield* syscall(() =>
-                  handle.stat({ bigint: true }),
-                );
-                if (!opened.isFile() || !sameFile(before.info, opened))
-                  return { kind: 'failed', failure: 'changed' };
-                if (opened.size > BigInt(input.maxBytes))
-                  return { kind: 'too-large' };
-                const buffer = Buffer.alloc(Number(opened.size) + 1);
-                let length = 0;
-                while (length < buffer.length) {
-                  const { bytesRead } = yield* syscall(() =>
-                    handle.read(buffer, length, buffer.length - length, length),
-                  );
-                  if (bytesRead === 0) break;
-                  length += bytesRead;
-                }
-                if (length > input.maxBytes) return { kind: 'too-large' };
-                const settled = yield* syscall(() =>
-                  handle.stat({ bigint: true }),
-                );
-                if (!unchanged(opened, settled))
-                  return { kind: 'failed', failure: 'changed' };
-                yield* verifyPath(before, target);
-                return {
-                  kind: 'file',
-                  bytes: buffer.subarray(0, length),
-                  revision: fileIdentity(settled),
-                };
-              }),
-            ).pipe(
-              Effect.catch((error) => {
-                const failure = readFailure(error);
-                return failure === undefined
-                  ? Effect.die(error)
-                  : Effect.succeed<FileRead>({ kind: 'failed', failure });
-              }),
+        readGuardedWorktree(worktrees, input, (target) =>
+          Effect.gen(function* (): Effect.fn.Return<
+            FileRead,
+            GuardedPathFailure,
+            Scope.Scope
+          > {
+            const before = yield* inspectPath(target);
+            if (!before.info.isFile())
+              return { kind: 'failed', failure: 'unreadable' };
+            const handle = yield* openGuardedFile(
+              before.path,
+              constants.O_RDONLY,
             );
+            const opened = yield* syscall(() => handle.stat({ bigint: true }));
+            if (!opened.isFile() || !sameFile(before.info, opened))
+              return { kind: 'failed', failure: 'changed' };
+            if (opened.size > BigInt(input.maxBytes))
+              return { kind: 'too-large' };
+            const buffer = Buffer.alloc(Number(opened.size) + 1);
+            let length = 0;
+            while (length < buffer.length) {
+              const { bytesRead } = yield* syscall(() =>
+                handle.read(buffer, length, buffer.length - length, length),
+              );
+              if (bytesRead === 0) break;
+              length += bytesRead;
+            }
+            if (length > input.maxBytes) return { kind: 'too-large' };
+            const settled = yield* syscall(() => handle.stat({ bigint: true }));
+            if (!unchanged(opened, settled))
+              return { kind: 'failed', failure: 'changed' };
+            yield* verifyPath(before, target);
+            return {
+              kind: 'file',
+              bytes: buffer.subarray(0, length),
+              revision: fileIdentity(settled),
+            };
           }),
         ),
     );

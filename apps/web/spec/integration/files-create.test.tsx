@@ -1,4 +1,4 @@
-import { userEvent } from 'vitest/browser';
+import { userEvent } from 'vite-plus/test/browser';
 import { expect, expectInputFocus, test } from './fixtures.tsx';
 
 test('New file and New folder open inline names at phone width and create entries', async ({

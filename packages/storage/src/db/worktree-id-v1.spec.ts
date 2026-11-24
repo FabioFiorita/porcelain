@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { worktreeIdV1 } from './worktree-id-v1.ts';
 
 const projectId = '3f2a9c1e-0000-4000-8000-000000000001';

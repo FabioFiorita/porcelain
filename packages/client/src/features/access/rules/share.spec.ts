@@ -1,6 +1,6 @@
 import { readRemoteAccessResponseSchema } from '@porcelain/contracts/access';
 import { Schema } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import {
   hostnameForm,
   LOCAL_NETWORK_WARNING,

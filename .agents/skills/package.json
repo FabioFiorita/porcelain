@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "test": "pnpm --dir ../.. test --project @porcelain/verification",
-    "test:integration": "vitest run --config ../../vitest.integration.config.ts --project @porcelain/verification-integration"
+    "test:integration": "vp test run --config ../../vitest.integration.config.ts --project @porcelain/verification-integration"
   },
   "dependencies": {
     "@porcelain/contracts": "workspace:*",

@@ -87,3 +87,27 @@ export function useWalkthroughAsset(input: {
     refresh: useAtomRefresh(readWalkthroughAsset(asset)),
   };
 }
+
+export function useBranchFileList(workspace: Selection) {
+  const atom = readBranchChanges(walkthroughSelection(workspace));
+  const result = useAtomValue(atom);
+  return {
+    files: Option.getOrUndefined(AsyncResult.value(result))?.files,
+    failed: AsyncResult.isFailure(result),
+    waiting: result.waiting,
+    retry: useAtomRefresh(atom),
+  };
+}
+
+export function useCapturedExcerpt(input: {
+  workspace: Selection;
+  runId: string;
+  step: number;
+  block: number;
+}) {
+  const atom = readWalkthrough({
+    ...walkthroughSelection(input.workspace),
+    excerpt: { runId: input.runId, step: input.step, block: input.block },
+  });
+  return { result: useAtomValue(atom), retry: useAtomRefresh(atom) };
+}

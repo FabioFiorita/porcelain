@@ -43,7 +43,7 @@ export function NavigatorRowMenu({
           {entry.available &&
             entry.kind === 'worktree' &&
             entry.changes.state === 'unavailable' && (
-              <ContextMenuItem onClick={onRetryChanges}>
+              <ContextMenuItem onSelect={onRetryChanges}>
                 <RefreshCwIcon />
                 Retry changes
               </ContextMenuItem>
@@ -51,7 +51,7 @@ export function NavigatorRowMenu({
           {entry.path && (
             <ContextMenuItem
               className="cursor-pointer"
-              onClick={() =>
+              onSelect={() =>
                 entry.path && copyText(entry.path, 'worktree path')
               }
             >
@@ -64,12 +64,14 @@ export function NavigatorRowMenu({
               className="cursor-pointer"
               disabled={!entry.available || Boolean(writeBlock)}
               aria-description={writeBlock}
-              onClick={() =>
-                switchWorktreeBranchDialog.openWithPayload({
-                  entry,
-                  context,
-                  worktreeId,
-                  requestId: crypto.randomUUID(),
+              onSelect={() =>
+                void switchWorktreeBranchDialog.open({
+                  payload: {
+                    entry,
+                    context,
+                    worktreeId,
+                    requestId: crypto.randomUUID(),
+                  },
                 })
               }
             >
@@ -79,16 +81,18 @@ export function NavigatorRowMenu({
           )}
           {!entry.main && entry.kind === 'worktree' && worktreeId && (
             <ContextMenuItem
-              variant="destructive"
+              destructive
               className="cursor-pointer"
               disabled={!entry.available || Boolean(writeBlock)}
               aria-description={writeBlock}
-              onClick={() =>
-                deleteWorktreeDialog.openWithPayload({
-                  entry,
-                  context,
-                  worktreeId,
-                  requestId: crypto.randomUUID(),
+              onSelect={() =>
+                void deleteWorktreeDialog.open({
+                  payload: {
+                    entry,
+                    context,
+                    worktreeId,
+                    requestId: crypto.randomUUID(),
+                  },
                 })
               }
             >

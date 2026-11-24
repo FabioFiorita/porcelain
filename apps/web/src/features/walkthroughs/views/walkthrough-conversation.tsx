@@ -1,3 +1,4 @@
+import type { WalkthroughDraftPlacement } from '@porcelain/client/walkthroughs';
 import { useWorkspaceWriteBlock } from '@/shared/workspace/connection';
 import { useState, type ReactNode } from 'react';
 import {
@@ -223,33 +224,36 @@ function Messages({
 
 function Composer({
   owner,
-  anchor,
+  title,
+  placement,
   placeholder,
 }: Props & {
-  anchor: Conversation['anchor'];
+  title: string;
+  placement: WalkthroughDraftPlacement;
   placeholder: string;
 }) {
-  const [draft, setDraft] = useState('');
   const writeBlock = useWorkspaceWriteBlock(owner.context);
-  const { failure, waiting, send: submit } = useSendMessage(owner);
+  const {
+    text,
+    failure,
+    waiting,
+    change,
+    send: submit,
+  } = useSendMessage(owner, title, placement);
   const send = () => {
-    const text = draft.trim();
-    if (!text || waiting || writeBlock) return;
-    submit({ anchor, text }, () =>
-      setDraft((current) => (current === draft ? '' : current)),
-    );
+    if (!writeBlock) submit();
   };
   return (
     <>
       <InputGroup>
         <InputGroupTextarea
-          value={draft}
+          value={text}
           rows={1}
           maxLength={8000}
           aria-label={placeholder}
           placeholder={placeholder}
           className="min-h-9"
-          onChange={(event) => setDraft(event.target.value)}
+          onChange={(event) => change(event.target.value)}
           onKeyDown={(event) => {
             if (
               event.key === 'Enter' &&
@@ -269,10 +273,11 @@ function Composer({
                   size="icon-xs"
                   variant="default"
                   aria-label="Send"
-                  disabled={!draft.trim() || waiting || Boolean(writeBlock)}
+                  focusableWhenDisabled
+                  disabled={!text.trim() || waiting || Boolean(writeBlock)}
                   aria-description={writeBlock}
 
-                  onClick={() => send()}
+                  onClick={send}
                 >
                   <ArrowUpIcon />
                 </InputGroupButton>
@@ -324,7 +329,8 @@ export function WalkthroughConversation({
       )}
       <Composer
         owner={owner}
-        anchor={{ kind: 'stop', title }}
+        title={title}
+        placement={call ? 'call' : 'step'}
         placeholder={call ? 'Decide, or ask about this' : 'Ask about this step'}
       />
     </div>

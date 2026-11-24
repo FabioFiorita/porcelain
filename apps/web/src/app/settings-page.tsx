@@ -120,7 +120,7 @@ function typing(target: EventTarget | null) {
 function overlayPress(target: EventTarget | null) {
   return (
     target instanceof Element &&
-    target.closest('[data-slot=dialog-overlay]') !== null
+    target.closest('[data-slot=dialog-backdrop]') !== null
   );
 }
 
@@ -292,7 +292,7 @@ export function SettingsDialog({
       onOpenChange={(next, details) => {
         if (next) return;
         if (details.reason === 'escape-key') {
-          if (typing(details.event.target)) return;
+          if (typing(details.event?.target ?? null)) return;
           if (environmentId !== undefined) {
             returnToList();
             return;
@@ -300,7 +300,7 @@ export function SettingsDialog({
         }
         if (
           details.reason === 'outside-press' &&
-          !overlayPress(details.event.target)
+          !overlayPress(details.event?.target ?? null)
         )
           return;
         leave();
@@ -308,7 +308,7 @@ export function SettingsDialog({
     >
       <DialogContent
         ref={attachPopup}
-        finalFocus={false}
+        finalFocus="none"
         onKeyDown={(event) => {
           if (togglesNavigator(event)) event.stopPropagation();
         }}

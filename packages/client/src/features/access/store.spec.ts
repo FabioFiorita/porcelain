@@ -6,7 +6,7 @@ import {
 import { operationStoreFixture } from '../../../spec/kit/operation-store.ts';
 import { runGitActionRequestSchema } from '@porcelain/contracts/git-actions';
 import { Redacted, Effect, Fiber, Schema } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { AccessStore } from './store.ts';
 import {
   EnvironmentStorage,

@@ -1,7 +1,7 @@
 import { operationStoreFixture } from '../../../../spec/kit/operation-store.ts';
 
 import { Cause, Deferred, Effect, Exit, Fiber, Schema } from 'effect';
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 import type {
   RunGitActionRequest,
   RunGitActionResponse,

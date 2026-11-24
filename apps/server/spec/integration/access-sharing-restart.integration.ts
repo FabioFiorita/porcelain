@@ -7,7 +7,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { realpathSync } from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { expect, vi } from 'vitest';
+import { expect, vi } from 'vite-plus/test';
 import { composeServer } from '../../src/bootstrap/compose-server.ts';
 import { ownerClient, ownerRequest } from '../../src/cli/owner-client.ts';
 import { readServerSettings } from '../../src/config/server-settings.ts';

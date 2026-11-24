@@ -1,12 +1,8 @@
+import { PendingButton } from '@/shared/views/pending-button';
 import { AsyncResult } from 'effect/reactivity';
 import { Link } from '@tanstack/react-router';
 import { Cause, Option } from 'effect';
-import {
-  ChevronRightIcon,
-  CircleIcon,
-  GlobeIcon,
-  KeyRoundIcon,
-} from 'lucide-react';
+import { ChevronRightIcon, CircleIcon, KeyRoundIcon } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import {
   connectionErrorMessage,
@@ -18,7 +14,6 @@ import {
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Spinner } from '@/components/ui/spinner';
 import { FieldLegend, FieldSet } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { TruncatedText } from '@/shared/views/truncated-text';
@@ -172,16 +167,7 @@ export function RemoteComputers({
   const appBusy = appUpdateProgress(useAppUpdateState()) !== undefined;
   return (
     <>
-      <SettingsHeading
-        section="Settings"
-        title="Computers"
-        lead="Manage your paired computers."
-      >
-        <p className="mt-3.5 flex max-w-160 items-start gap-2 text-ui leading-5 text-muted-foreground">
-          <GlobeIcon aria-hidden className="mt-0.75 size-3.5 shrink-0" />
-          Connect to your computers to review their projects and worktrees.
-        </p>
-      </SettingsHeading>
+      <SettingsHeading section="Settings" title="Computers" />
       {unreadable !== undefined && (
         <Alert variant="destructive">
           <KeyRoundIcon />
@@ -213,7 +199,8 @@ export function RemoteComputers({
             <span className="tabular-nums">{remotes.length + 1}</span>
           </h2>
           <div className="flex flex-wrap justify-end gap-2">
-            <Button
+            <PendingButton
+              pending={asked !== 'no' && checking}
               size="sm"
               variant="outline"
               disabled={batch.running || checking || appBusy}
@@ -222,9 +209,8 @@ export function RemoteComputers({
                 retry();
               }}
             >
-              {asked !== 'no' && checking && <Spinner aria-hidden="true" />}
               Check for updates
-            </Button>
+            </PendingButton>
             <Button
               size="sm"
               disabled={batch.running || count === 0}

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { Cause, Effect, Exit, Fiber, Layer, Scope } from 'effect';
 import { ServerComponents, openServerResources } from './server-resources.ts';
 

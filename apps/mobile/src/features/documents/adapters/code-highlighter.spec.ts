@@ -1,6 +1,6 @@
 import { diffLines } from '@porcelain/client/changes/rules';
 import { createOnigurumaEngine } from 'shiki/engine/oniguruma';
-import { expect, it } from 'vitest';
+import { expect, it } from 'vite-plus/test';
 
 import { createCodeHighlighter } from './code-highlighter';
 import {
@@ -45,6 +45,25 @@ async function highlighter() {
     () => Promise.resolve(),
   );
 }
+
+it('loads a language alias and embedded script grammar for the first requests', async () => {
+  const highlight = await highlighter();
+  const [script, embedded] = await Promise.all([
+    highlight('const ready = true;', 'TS', 'light', signal),
+    highlight(
+      '<script>\nconst ready = true;\n</script>',
+      'html',
+      'light',
+      signal,
+    ),
+  ]);
+  expect(script[0]?.find(({ text }) => text === 'const')?.color).toBeTypeOf(
+    'number',
+  );
+  expect(embedded[1]?.find(({ text }) => text === 'const')?.color).toBeTypeOf(
+    'number',
+  );
+});
 
 it('keeps multiline grammar state across batches and isolated between files', async () => {
   const highlight = await highlighter();

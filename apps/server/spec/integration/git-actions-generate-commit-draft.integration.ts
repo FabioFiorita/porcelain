@@ -1,6 +1,6 @@
 import { generateCommitDraftResponseSchema } from '@porcelain/contracts/git-actions';
 import * as Schema from 'effect/Schema';
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import { apiError, unknownFingerprint } from '../kit/answers.ts';
 import { changes, head, type Changes } from '../kit/reads.ts';
 import { gitPath } from '../kit/requests.ts';

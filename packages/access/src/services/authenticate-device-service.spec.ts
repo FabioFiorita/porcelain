@@ -8,7 +8,7 @@ import { credential } from '@porcelain/access/rules';
 import { sha256Hex } from '@porcelain/kernel/rules';
 import { testClock } from '@porcelain/kernel/test-kit';
 import { Clock, Effect, Redacted } from 'effect';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { InMemoryDeviceSightingStore } from '../../spec/fakes/in-memory-device-sighting-store.ts';
 import { InMemoryDeviceStore } from '../../spec/fakes/in-memory-device-store.ts';
 import { AuthenticateDeviceService } from './authenticate-device-service.ts';

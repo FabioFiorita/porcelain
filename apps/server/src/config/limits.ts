@@ -1,3 +1,4 @@
+import type { GitLimits } from '@porcelain/git/limits';
 import { Duration } from 'effect';
 import {
   BRANCH_BASES,
@@ -15,8 +16,6 @@ import {
   ENVIRONMENT_PROTOCOL,
   PATH_LENGTH,
   TUNNEL_HOSTNAME_LENGTH,
-  REVIEW_PROOF_BYTES,
-  REVIEW_PROOF_FILE_BYTES,
   REVIEW_SUMMARY_BYTES,
   REVIEWED_BRANCH_FILE_MARKS,
   REVIEWED_FILE_MARKS,
@@ -118,12 +117,6 @@ export type Limits = {
     };
     reviewedFiles: { marksPerWorktree: number; marksPerBranch: number };
     summaryLink: { lifetimeMs: number; secretBytes: number };
-    proof: {
-      maxBytes: number;
-      totalBytes: number;
-      signatureBytes: number;
-      base64ChunkBytes: number;
-    };
   };
   gitActions: {
     deadlineMs: number;
@@ -137,49 +130,7 @@ export type Limits = {
     };
     commitGroups: { maxGroups: number; maxMessageBytes: number };
   };
-  git: {
-    processGroup: ProcessGroupLimits;
-    readTimeoutMs: number;
-    outputBytes: number;
-    followUpTimeoutMs: number;
-    renames: { limit: number; similarityPercent: number };
-    inspection: {
-      statusBytes: number;
-      maxChanges: number;
-      maxPathLength: number;
-      diffBatchBytes: number;
-      patchBytes: number;
-      selectedDiffBytes: number;
-      upstreamOidBytes: number;
-      ignoredPathsBytes: number;
-      checkIgnoredBytes: number;
-      checkoutDirectoryBytes: number;
-      stashListBytes: number;
-      maxStashes: number;
-      contextLines: number;
-      submoduleStatusBytes: number;
-      filterConfigBytes: number;
-      filterPathsBytes: number;
-      filterAttributesBytes: number;
-      trackedPathsBytes: number;
-      maxTrackedPaths: number;
-      headCommitBytes: number;
-      branchTrackingBytes: number;
-      discardedRefsBytes: number;
-      discardedBlobsBytes: number;
-      maxDiscarded: number;
-    };
-    history: {
-      defaultCommits: number;
-      maxCommits: number;
-      maxFrontier: number;
-      maxCommitFiles: number;
-      maxBranchBases: number;
-      subjectBytes: number;
-      bodyBytes: number;
-    };
-    actions: { maxCommitPaths: number; hookBytes: number; maxNewFiles: number };
-  };
+  git: GitLimits;
   inventory: {
     listingLaunches: number;
     listingTimeout: Duration.Duration;
@@ -348,12 +299,6 @@ export const LIMITS: Limits = {
       marksPerBranch: REVIEWED_BRANCH_FILE_MARKS,
     },
     summaryLink: { lifetimeMs: HOUR_MS, secretBytes: 32 },
-    proof: {
-      maxBytes: REVIEW_PROOF_FILE_BYTES,
-      totalBytes: REVIEW_PROOF_BYTES,
-      signatureBytes: 16,
-      base64ChunkBytes: 32 * KIBIBYTE,
-    },
   },
   gitActions: {
     deadlineMs: 2 * MINUTE_MS,

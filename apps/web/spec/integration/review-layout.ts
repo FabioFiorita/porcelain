@@ -1,4 +1,4 @@
-import { page, userEvent, type Locator } from 'vitest/browser';
+import { page, userEvent, type Locator } from 'vite-plus/test/browser';
 
 function uncovered(element: Element) {
   const box = element.getBoundingClientRect();
@@ -140,21 +140,15 @@ export const reviewLayout = {
   },
   holdDialogExit(locator: Locator) {
     const popup = locator.element();
-    const animations = new Set<Animation>();
-    const observer = new MutationObserver(() => {
-      if (!popup.hasAttribute('data-ending-style')) return;
-      for (const animation of popup.getAnimations()) {
-        animation.pause();
-        animations.add(animation);
-      }
-    });
-    observer.observe(popup, {
-      attributes: true,
-      attributeFilter: ['data-ending-style'],
-    });
+    const held = popup.ownerDocument.createElement('style');
+    popup.setAttribute('data-held-exit', '');
+    held.textContent =
+      '[data-held-exit][data-ending-style] { animation-duration: 600s !important; transition-duration: 600s !important; }';
+    popup.ownerDocument.head.append(held);
     return () => {
-      observer.disconnect();
-      for (const animation of animations) animation.finish();
+      for (const animation of popup.getAnimations()) animation.finish();
+      held.remove();
+      popup.removeAttribute('data-held-exit');
     };
   },
   scrollCodeTo(locator: Locator, position: number) {

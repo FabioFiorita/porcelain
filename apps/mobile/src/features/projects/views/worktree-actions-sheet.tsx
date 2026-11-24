@@ -1,3 +1,4 @@
+import { ComputerConnectionNotice, useWritesBlocked } from '../../access';
 import { useState } from 'react';
 import { useAtomRef, useAtomValue, useAtomSet } from '@effect/atom-react';
 import {
@@ -108,6 +109,7 @@ export function WorktreeActionsSheet({
       ) : (
         <Empty title="Worktree unavailable" />
       )}
+      <ComputerConnectionNotice environmentId={environmentId} />
     </Sheet>
   );
 }
@@ -242,6 +244,7 @@ function DeleteWorktreeOptions({
   const [plan, setPlan] = useState<WorktreeCleanupPlan>();
   const [acknowledged, setAcknowledged] = useState(false);
   const [attempted, setAttempted] = useState(false);
+  const blocked = useWritesBlocked(request.connection.environmentId);
   const command = useDeleteWorktree({
     connection: request.connection,
     scope: {
@@ -338,6 +341,7 @@ function DeleteWorktreeOptions({
         variant="destructive"
         pending={command.result.waiting}
         disabled={
+          blocked ||
           !hasDeletion ||
           Boolean(plan?.mainCheckout) ||
           (needsAcknowledgement && !acknowledged)
@@ -395,6 +399,7 @@ function SwitchWorktreeBranchContent({
     choice.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()),
   );
   const command = useSwitchWorktreeBranch(selection);
+  const blocked = useWritesBlocked(selection.connection.environmentId);
   const outcome = recovering ? command.recovered : command.result;
   const failure =
     attempted && AsyncResult.isFailure(outcome)
@@ -484,7 +489,7 @@ function SwitchWorktreeBranchContent({
         )}
       <Button
         label={submitLabel}
-        disabled={!command.unresolved && !eligible}
+        disabled={blocked || (!command.unresolved && !eligible)}
         pending={command.pending}
         onPress={() => {
           if (!command.unresolved && !eligible) return;

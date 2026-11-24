@@ -1,4 +1,4 @@
-import { expect } from 'vitest';
+import { expect } from 'vite-plus/test';
 import { apiError } from '../kit/answers.ts';
 import { eventually } from '../kit/reads.ts';
 import { waysInChange } from '../kit/requests.ts';
