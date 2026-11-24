@@ -47,6 +47,7 @@ function Toaster({ children }: { children?: React.ReactNode }) {
     <>
       {children}
       <ToastRegion
+        ref={() => () => toast.dismiss()}
         toaster={toast}
         aria-label="Notifications"
         side="bottom"
