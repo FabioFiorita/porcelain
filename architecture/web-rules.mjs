@@ -313,9 +313,11 @@ function viewLike(path) {
 
 function sourceOf(node) {
   const source = node.source;
-  return source?.type === 'Literal' && typeof source.value === 'string'
-    ? source.value
-    : undefined;
+  if (source?.type === 'Literal' && typeof source.value === 'string')
+    return source.value;
+  if (source?.type === 'TemplateLiteral' && source.expressions.length === 0)
+    return source.quasis[0]?.value.cooked ?? undefined;
+  return undefined;
 }
 
 function localTarget(path, specifier) {

@@ -5229,6 +5229,13 @@ export const probeController = createDialogController();
     invalid: "export const probeMenu = () => import('@base-ui/react/menu');",
     errors: 1,
   },
+  {
+    rule: 'web-ui-library-owner',
+    path: 'apps/web/src/features/files/views/probe-view.tsx',
+    valid: 'export const probeDialog = () => import(`@/components/ui/dialog`);',
+    invalid: 'export const probeDialog = () => import(`@ui-sdk/react/dialog`);',
+    errors: 1,
+  },
 
   ...[
     "import { useState } from 'react'; export const probeHook = useState;",
@@ -6308,6 +6315,19 @@ const styleConfigCases = [
     files: {
       'apps/web/src/components/ui/dialog.tsx':
         "export type { DialogProps } from '@ui-sdk/react/dialog';",
+    },
+    status: 1,
+    rules: ['shadcn-ui-pinned'],
+    tokens: [
+      'is listed as UI SDK-owned but imports no value from @ui-sdk/react',
+    ],
+  },
+  {
+    name: 'a type-only named UI SDK import does not leave the shadcn pins',
+    target: 'web',
+    files: {
+      'apps/web/src/components/ui/dialog.tsx':
+        "import { type DialogProps } from '@ui-sdk/react/dialog';\nexport type Probe = DialogProps;",
     },
     status: 1,
     rules: ['shadcn-ui-pinned'],

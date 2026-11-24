@@ -43,16 +43,28 @@ function folderFiles(root: string): string[] {
 export function uiFiles(root: string): string[] {
   return folderFiles(root).filter((name) => !uiSdkFiles.has(name));
 }
-const uiSdkValueImport =
-  /^import (?!type\b)[^;]*?\bfrom '@ui-sdk\/react\/[^']+';/m;
+const uiSdkImport =
+  /^import\s+(?!type\b)([^;]*?)\s+from\s+'@ui-sdk\/react\/[^']+';/gm;
+function importsUiSdkValue(source: string): boolean {
+  return [...source.matchAll(uiSdkImport)].some(([, clause = '']) => {
+    const named = /\{([^}]*)\}/.exec(clause);
+    const outside = clause
+      .replace(/\{[^}]*\}/, '')
+      .replace(/,/g, '')
+      .trim();
+    if (outside !== '') return true;
+    return (named?.[1] ?? '')
+      .split(',')
+      .map((name) => name.trim())
+      .some((name) => name !== '' && !/^type\s/.test(name));
+  });
+}
 function uiSdkProblems(root: string): string[] {
   return folderFiles(root)
     .filter((name) => uiSdkFiles.has(name))
     .filter(
       (name) =>
-        !uiSdkValueImport.test(
-          readFileSync(join(root, uiFolder, name), 'utf8'),
-        ),
+        !importsUiSdkValue(readFileSync(join(root, uiFolder, name), 'utf8')),
     )
     .map(
       (name) =>
