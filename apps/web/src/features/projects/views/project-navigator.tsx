@@ -214,6 +214,7 @@ export function ProjectNavigator({
           <InputGroup className="min-w-0 flex-1">
             <InputGroupInput
               autoFocus={isMobile}
+              data-autofocus={isMobile ? '' : undefined}
               type="search"
               aria-label="Search worktrees"
               placeholder="Search"
@@ -243,7 +244,7 @@ export function ProjectNavigator({
               setMenu({ pathname: location.pathname, open })
             }
           >
-            <Tooltip disableHoverablePopup>
+            <Tooltip hoverable={false}>
               <TooltipTrigger
                 render={
                   <DropdownMenuTrigger
@@ -271,9 +272,10 @@ export function ProjectNavigator({
                     {section.items.map((option) => (
                       <DropdownMenuCheckboxItem
                         key={option.id}
+                        value={option.id}
                         className="cursor-pointer"
                         checked={option.checked}
-                        closeOnClick={false}
+                        closeOnSelect={false}
                         onCheckedChange={() =>
                           setState((current) => ({
                             ...current,
@@ -297,7 +299,7 @@ export function ProjectNavigator({
                 ))}
                 <DropdownMenuItem
                   className="cursor-pointer"
-                  onClick={() =>
+                  onSelect={() =>
                     setState((current) => ({
                       ...current,
                       filter: emptyNavigatorFilter,
@@ -345,7 +347,7 @@ export function ProjectNavigator({
                     }
                     environmentName={source.environmentName}
                   />
-                  <Tooltip disableHoverablePopup>
+                  <Tooltip hoverable={false}>
                     <TooltipTrigger
                       render={
                         <CollapsibleTrigger
@@ -377,17 +379,19 @@ export function ProjectNavigator({
                           variant="outline"
                           size="xs"
                           onClick={() =>
-                            openProjectDialog.openWithPayload({
-                              remote:
-                                source.connection.environmentId ===
-                                connection.environmentId
-                                  ? null
-                                  : source.connection.environmentId,
-                              project: source.project,
-                              ...(label === 'Reconnect' &&
-                              projectPath(source.project)
-                                ? { path: projectPath(source.project) }
-                                : {}),
+                            void openProjectDialog.open({
+                              payload: {
+                                remote:
+                                  source.connection.environmentId ===
+                                  connection.environmentId
+                                    ? null
+                                    : source.connection.environmentId,
+                                project: source.project,
+                                ...(label === 'Reconnect' &&
+                                projectPath(source.project)
+                                  ? { path: projectPath(source.project) }
+                                  : {}),
+                              },
                             })
                           }
                         >
@@ -581,7 +585,7 @@ export function ProjectNavigator({
           aria-label="Navigator controls"
           className="navigator-footer flex shrink-0 items-center gap-1 p-2"
         >
-          <Tooltip disableHoverablePopup>
+          <Tooltip hoverable={false}>
             <TooltipTrigger
               render={
                 <Button
@@ -602,7 +606,7 @@ export function ProjectNavigator({
           </Tooltip>
           <div className="ml-auto flex shrink-0 items-center gap-1">
             <UpdatesMenu fallbackFocus={settingsButton} />
-            <Tooltip disableHoverablePopup>
+            <Tooltip hoverable={false}>
               <TooltipTrigger
                 render={
                   <Button

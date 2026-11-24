@@ -30,12 +30,14 @@ export function WalkthroughWriterSettingsAction({
       variant="outline"
       size="sm"
       onClick={() =>
-        walkthroughSettingsDialog.openWithPayload({
-          project,
-          remote:
-            connection.environmentId === local?.environmentId
-              ? null
-              : connection.environmentId,
+        void walkthroughSettingsDialog.open({
+          payload: {
+            project,
+            remote:
+              connection.environmentId === local?.environmentId
+                ? null
+                : connection.environmentId,
+          },
         })
       }
     >

@@ -37,7 +37,7 @@ For visible web, desktop, and mobile changes, use the [UI review checklist](.age
 
 ## Libraries
 
-Each job has one library. Rules already hold Zustand's ban, the shadcn pins, routing, forms, hotkeys and Expo UI chrome; these choices have no check:
+Each job has one library. Rules already hold Zustand's ban, the shadcn pins, the UI SDK owner and the ban on replaced UI libraries, routing, forms, hotkeys and Expo UI chrome; these choices have no check:
 
 - On web and desktop, code, diffs and file trees render with Pierre (`@pierre/diffs`, `@pierre/trees`) and Markdown with TanStack Markdown. Pierre's renderers need a browser page, so mobile draws its own code, diff, tree and Markdown views and highlights with Shiki.
 - `useState` holds only one component's UI details; anything shared or saved is an Effect atom.
@@ -103,7 +103,7 @@ When `main` turns red after a pull request merges, fix it forward with a follow-
 ## Where code lives
 
 - `apps/server`: the Effect HTTP server, its use cases, routes and installer.
-- `apps/web`: React and Vite; UI primitives come from the shadcn registry and stay as installed.
+- `apps/web`: React and Vite; UI primitives live in `src/components/ui`. Overlays (menus, command list, dialogs, sheets, popovers, tooltips, selects, toasts) are Porcelain wrappers over UI SDK, which only `components/ui` imports; the rest still come from the shadcn registry and stay as installed.
 - `apps/desktop`: Electron around the web.
 - `apps/mobile`: Expo and Uniwind; controls are web-styled primitives in `src/components/ui`, Expo UI keeps system chrome (menus, navigation, tabs), and sheets are expo-router form-sheet routes drawn with `src/components/ui/sheet`.
 - `packages/contracts`, `packages/client` and the domain packages.

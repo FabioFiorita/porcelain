@@ -210,8 +210,10 @@ export function ConnectedWorkspace({
     },
     onOpenProject: (entry: RemoteConnection | null) =>
       entry
-        ? openProjectDialog.openWithPayload({
-            remote: entry.remote.environmentId,
+        ? void openProjectDialog.open({
+            payload: {
+              remote: entry.remote.environmentId,
+            },
           })
         : openHere(),
     onOpenSettings: () => openSettings(),

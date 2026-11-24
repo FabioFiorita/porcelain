@@ -424,3 +424,29 @@ test.for(['default', 'project'] as const)(
       .not.toBeInTheDocument();
   },
 );
+
+test('choosing the writer that is already selected keeps the chosen effort', async ({
+  render,
+  codingTool,
+}) => {
+  await codingTool.install();
+  const { page } = await render.route('/settings/git');
+  const writer = page.getByRole('combobox', {
+    name: 'Walkthrough writer',
+    exact: true,
+  });
+  const effort = page.getByRole('combobox', {
+    name: 'Walkthrough effort',
+    exact: true,
+  });
+  await expect.element(writer).toHaveTextContent('Claude / Opus 5.5');
+  await effort.click();
+  await page.getByRole('option', { name: 'low', exact: true }).click();
+  await expect.element(effort).toHaveTextContent('low');
+  await writer.click();
+  await page
+    .getByRole('option', { name: 'Claude / Opus 5.5', exact: true })
+    .click();
+  await expect.element(page.getByRole('listbox')).not.toBeInTheDocument();
+  await expect.element(effort).toHaveTextContent('low');
+});

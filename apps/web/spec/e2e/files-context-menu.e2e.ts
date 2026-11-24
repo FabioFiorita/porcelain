@@ -64,8 +64,7 @@ test('consecutive right-clicks position the menu at the second row for every fil
   await page.keyboard.press('Shift+F10');
   await expect(
     page.getByRole('menu', { name: 'guide.md actions', exact: true }),
-  ).toBeFocused();
-  await page.keyboard.press('ArrowDown');
+  ).toBeVisible();
   await expect(
     page.getByRole('menuitem', { name: 'Rename', exact: true }),
   ).toBeFocused();

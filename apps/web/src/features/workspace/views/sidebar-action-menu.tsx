@@ -79,10 +79,8 @@ export function SidebarActionMenu({
     return {
       disabled: action.disabled || Boolean(reason),
       'aria-description': reason,
-      variant: action.destructive
-        ? ('destructive' as const)
-        : ('default' as const),
-      onClick: () => act(action.id),
+      destructive: action.destructive === true,
+      onSelect: () => act(action.id),
     };
   };
   const reset = (open: boolean) => {
@@ -122,7 +120,10 @@ export function SidebarActionMenu({
                 {label}
               </TooltipContent>
             </Tooltip>
-            <DropdownMenuContent align="end" finalFocus={!openingSide}>
+            <DropdownMenuContent
+              align="end"
+              finalFocus={openingSide ? 'none' : 'trigger'}
+            >
               {actions.map((action) => (
                 <DropdownMenuItem key={action.id} {...itemProps(action)}>
                   <ActionIcon action={action} />
@@ -133,7 +134,7 @@ export function SidebarActionMenu({
           </DropdownMenu>,
         )}
       </ContextMenuTrigger>
-      <ContextMenuContent finalFocus={!openingSide}>
+      <ContextMenuContent finalFocus={openingSide ? 'none' : 'trigger'}>
         {actions.map((action) => (
           <ContextMenuItem key={action.id} {...itemProps(action)}>
             <ActionIcon action={action} />

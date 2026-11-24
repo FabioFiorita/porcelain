@@ -49,13 +49,13 @@ git -C "$REPO" log --oneline main..feature | wc -l   # prints 2
 3. Click tab `Branch`
    Expect: text "2 commits on feature since main"; button "Compare against main"; buttons "README.md · modified", "first.md · added", "second.md · added"; the URL contains `scope=branch` and no `base=`.
 4. Click button `Compare against main`
-   Expect: listbox "Suggestions" with group "Local" holding options "checkpoint", "feature" and "main default".
+   Expect: listbox "Base branches" with group "Local" holding options "checkpoint", "feature" and "main default".
 5. Click option named `checkpoint`
    Expect: text "1 commit on feature since checkpoint"; button "Compare against checkpoint"; button "second.md · added" shows; buttons "first.md · added" and "README.md · modified" are gone; the URL contains `base=refs%2Fheads%2Fcheckpoint`.
    Proof before continuing: reload the complete current URL now: checkpoint still shows one commit and `base=refs/heads/checkpoint`; reopen Review → Changes → Branch if the sheet closed. Branch-base/branch-changes reads answer 200.
 
 6. Click button `Compare against checkpoint`
-   Expect: listbox "Suggestions" again with the same three options.
+   Expect: listbox "Base branches" again with the same three options.
 7. Click option named `/^main/`
    Expect: text "2 commits on feature since main"; button "Compare against main"; button "first.md · added" is back; the URL no longer contains `base=`.
 

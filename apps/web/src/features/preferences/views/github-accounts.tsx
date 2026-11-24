@@ -140,8 +140,8 @@ function ProjectAccount({
           >
             <SelectTrigger aria-label={`GitHub account for ${project.name}`}>
               <SelectValue>
-                {(value: string | null) =>
-                  value === null ? (
+                {({ value }) =>
+                  typeof value !== 'string' ? (
                     'Choose an account'
                   ) : (
                     <TruncatedText text={value} className="block max-w-30" />

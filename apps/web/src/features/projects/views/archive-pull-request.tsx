@@ -2,7 +2,6 @@ import { PendingButton } from '@/shared/views/pending-button';
 import { PendingSpinner } from '@/shared/views/state-notice';
 import { ContextMenuItem } from '@/components/ui/context-menu';
 import { type ReactNode, useState } from 'react';
-import { AlertDialog as AlertDialogPrimitive } from '@base-ui/react/alert-dialog';
 import { archivePullRequestDialog } from '../overlays';
 import { AsyncResult } from 'effect/reactivity';
 import { Cause } from 'effect';
@@ -30,6 +29,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Field, FieldLabel } from '@/components/ui/field';
 import {
+  AlertDialog,
   AlertDialogContent,
   AlertDialogHeader,
   AlertDialogTitle,
@@ -61,13 +61,15 @@ export function ArchivePullRequest({
   const open = () => {
     if (!settings || writeBlock) return;
     const options = archiveOptions(settings);
-    archivePullRequestDialog.openWithPayload({
-      context,
-      projectId,
-      number,
-      options,
-      requestId: crypto.randomUUID(),
-      beforeLeave,
+    void archivePullRequestDialog.open({
+      payload: {
+        context,
+        projectId,
+        number,
+        options,
+        requestId: crypto.randomUUID(),
+        beforeLeave,
+      },
     });
     void submit({ options });
   };
@@ -76,7 +78,7 @@ export function ArchivePullRequest({
       <ContextMenuItem
         disabled={!settings || Boolean(writeBlock)}
         aria-description={writeBlock}
-        onClick={open}
+        onSelect={open}
       >
         <span className="flex min-w-0 flex-col">
           Archive
@@ -111,13 +113,13 @@ export function ArchivePullRequest({
 
 export function ArchivePullRequestDialog() {
   return (
-    <AlertDialogPrimitive.Root handle={archivePullRequestDialog}>
-      {({ payload }) =>
+    <AlertDialog controller={archivePullRequestDialog}>
+      {(payload) =>
         payload && (
           <ArchivePullRequestContent key={payload.requestId} {...payload} />
         )
       }
-    </AlertDialogPrimitive.Root>
+    </AlertDialog>
   );
 }
 

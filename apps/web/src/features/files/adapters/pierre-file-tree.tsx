@@ -34,7 +34,7 @@ type MenuTarget = {
   pathsKey: string;
   filter: string;
   rename: () => void;
-  finalFocus: () => HTMLElement | false;
+  finalFocus: () => HTMLElement | null;
   close: (restoreFocus: boolean) => void;
 };
 
@@ -42,6 +42,7 @@ export function PierreFileTree(props: PierreFileTreeInput) {
   const input = fileTreeInputs(useId());
   const registry = useAtomValue(atomRegistry);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [restoreFocus, setRestoreFocus] = useState(true);
   const [menuTarget, setMenuTarget] = useState<MenuTarget | null>(null);
   const current =
     menuTarget?.pathsKey === props.paths.join('\0') &&
@@ -49,10 +50,19 @@ export function PierreFileTree(props: PierreFileTreeInput) {
   if (menuOpen && !current) setMenuOpen(false);
   const [attach] = useState(() => (host: HTMLDivElement | null) => {
     if (!host) return;
-    return mountTree(host, registry, input, setMenuTarget, setMenuOpen);
+    return mountTree(host, registry, input, setMenuTarget, (restore) => {
+      setRestoreFocus(restore);
+      setMenuOpen(false);
+    });
   });
   return (
-    <ContextMenu open={menuOpen && current} onOpenChange={setMenuOpen}>
+    <ContextMenu
+      open={menuOpen && current}
+      onOpenChange={(open) => {
+        if (open) setRestoreFocus(true);
+        setMenuOpen(open);
+      }}
+    >
       <ContextMenuTrigger
         render={<div className="flex min-h-0 flex-1 flex-col" />}
       >
@@ -82,7 +92,8 @@ export function PierreFileTree(props: PierreFileTreeInput) {
         props.renderMenu(
           menuTarget.item,
           {
-            finalFocus: current ? menuTarget.finalFocus : () => false,
+            finalFocus:
+              current && restoreFocus ? menuTarget.finalFocus : 'none',
             close: menuTarget.close,
           },
           menuTarget.rename,
@@ -96,7 +107,7 @@ function mountTree(
   registry: AtomRegistry.AtomRegistry,
   input: Atom.Writable<Option.Option<PierreFileTreeInput>>,
   setMenuTarget: (target: MenuTarget | null) => void,
-  setMenuOpen: (open: boolean) => void,
+  closeMenu: (restoreFocus: boolean) => void,
 ) {
   const read = () => Option.getOrThrow(registry.get(input));
   const place = fileTreePlaces(read().owner);
@@ -116,6 +127,7 @@ function mountTree(
   let pendingCreate: { path: string; kind: 'file' | 'directory' } | null = null;
   let handledCreate: number | undefined;
   let handledRename: number | undefined;
+  let queuedMenu: HTMLElement | null = null;
   const frames = new Set<number>();
   function frame(run: () => void) {
     const id = requestAnimationFrame(() => {
@@ -384,7 +396,7 @@ function mountTree(
     const path = row?.dataset.itemPath;
     const item = path === undefined ? null : model.getItem(path);
     if (!row || !path || !item || row.querySelector('[data-item-rename-input]'))
-      return false;
+      return null;
     const focus = { restore: true };
     const { paths, filter } = read();
     setMenuTarget({
@@ -394,10 +406,10 @@ function mountTree(
       finalFocus: () =>
         focus.restore && row.isConnected && row.dataset.itemPath === path
           ? row
-          : false,
+          : null,
       close: (restoreFocus) => {
         focus.restore = restoreFocus;
-        setMenuOpen(false);
+        closeMenu(restoreFocus);
       },
       rename: () => read().onRequestRename(path),
       item: {
@@ -406,10 +418,11 @@ function mountTree(
         kind: item.isDirectory() ? 'directory' : 'file',
       },
     });
-    return true;
+    return row;
   }
 
   function keyDown(event: KeyboardEvent) {
+    if (event.key === 'Escape') queuedMenu = null;
     if (event.key === 'F2' && !pendingCreate && !read().writeBlock) {
       const path = model.getFocusedPath();
       if (path) {
@@ -450,14 +463,65 @@ function mountTree(
     syncing = false;
     read().onSelect(path, event.altKey);
   }
+  function scrolling() {
+    return Boolean(
+      model
+        .getFileTreeContainer()
+        ?.shadowRoot?.querySelector('[data-is-scrolling]'),
+    );
+  }
   function contextMenu(event: Event) {
-    if (!targetMenu(event)) event.stopPropagation();
+    const row = targetMenu(event);
+    if (!row) {
+      event.stopPropagation();
+      return;
+    }
+    if (!(event instanceof MouseEvent) || event.button === 2 || !scrolling())
+      return;
+    event.preventDefault();
+    event.stopPropagation();
+    const path = row.dataset.itemPath;
+    queuedMenu = row;
+    const retry = () => {
+      if (queuedMenu !== row) return;
+      if (
+        !row.isConnected ||
+        row.dataset.itemPath !== path ||
+        model.getFocusedPath() !== path
+      ) {
+        queuedMenu = null;
+        return;
+      }
+      if (scrolling()) {
+        frame(retry);
+        return;
+      }
+      queuedMenu = null;
+      row.dispatchEvent(
+        new MouseEvent('contextmenu', {
+          bubbles: true,
+          cancelable: true,
+          composed: true,
+        }),
+      );
+    };
+    frame(retry);
+  }
+  function leave(event: FocusEvent) {
+    if (
+      !(
+        event.relatedTarget instanceof Node &&
+        host.contains(event.relatedTarget)
+      )
+    )
+      queuedMenu = null;
   }
   host.addEventListener('keydown', keyDown, true);
   host.addEventListener('click', click, true);
   host.addEventListener('blur', acceptDefaultName, true);
   host.addEventListener('contextmenu', contextMenu, true);
   host.addEventListener('touchstart', contextMenu, true);
+  host.addEventListener('focusout', leave, true);
   model.render({ containerWrapper: host });
   model.getFileTreeContainer()?.setAttribute('class', 'min-h-0 flex-1');
   model.getFileTreeContainer()?.setAttribute('data-slot', 'file-tree');
@@ -494,6 +558,7 @@ function mountTree(
     host.removeEventListener('blur', acceptDefaultName, true);
     host.removeEventListener('contextmenu', contextMenu, true);
     host.removeEventListener('touchstart', contextMenu, true);
+    host.removeEventListener('focusout', leave, true);
     model.cleanUp();
     host.replaceChildren();
   };

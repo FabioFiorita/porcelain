@@ -1,6 +1,5 @@
 import { PendingButton } from '@/shared/views/pending-button';
 import { useState } from 'react';
-import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';
 import { Cause, Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { CheckIcon, GitBranchIcon } from 'lucide-react';
@@ -10,6 +9,7 @@ import { useInventory } from '../queries/inventory';
 import { TruncatedText } from '@/shared/views/truncated-text';
 import { Button } from '@/components/ui/button';
 import {
+  Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -35,13 +35,13 @@ import { useSwitchWorktreeBranchAction } from '../commands/worktree-actions';
 
 export function SwitchWorktreeBranchDialog() {
   return (
-    <DialogPrimitive.Root handle={switchWorktreeBranchDialog}>
-      {({ payload }) =>
+    <Dialog controller={switchWorktreeBranchDialog}>
+      {(payload) =>
         payload && (
           <SwitchWorktreeBranchContent key={payload.requestId} {...payload} />
         )
       }
-    </DialogPrimitive.Root>
+    </Dialog>
   );
 }
 function SwitchWorktreeBranchContent({
@@ -56,6 +56,7 @@ function SwitchWorktreeBranchContent({
   const { connection } = context;
   const writeBlock = useWorkspaceWriteBlock(context);
   const [chosen, setChosen] = useState<string>();
+  const [query, setQuery] = useState('');
   const {
     result: outcome,
     pending,
@@ -79,6 +80,11 @@ function SwitchWorktreeBranchContent({
     project?.worktrees ?? [],
     worktreeId,
   );
+  const byRef = new Map(choices.map((branch) => [branch.ref, branch]));
+  const items = choices.map((branch) => ({
+    value: branch.ref,
+    label: branch.name,
+  }));
   const eligible = choices.some(
     (branch) => branch.ref === chosen && !branch.current && !branch.inUse,
   );
@@ -93,44 +99,63 @@ function SwitchWorktreeBranchContent({
           are unavailable.
         </DialogDescription>
       </DialogHeader>
-      <Command>
+      <Command
+        items={items}
+        query={query}
+        onQueryChange={setQuery}
+        onEscape={() => switchWorktreeBranchDialog.close()}
+      >
         <CommandInput aria-label="Find a branch" placeholder="Find a branch" />
+        {AsyncResult.isInitial(branches) && (
+          <p role="status" className="p-3 text-xs text-muted-foreground">
+            Reading branches
+          </p>
+        )}
+        {AsyncResult.isFailure(branches) && (
+          <p role="alert" className="p-3 text-xs text-muted-foreground">
+            Branches could not be read.
+          </p>
+        )}
+        {answer && <CommandEmpty>No matching branch</CommandEmpty>}
         <CommandList aria-label="Branches">
-          {AsyncResult.isInitial(branches) && (
-            <p role="status" className="p-3 text-xs text-muted-foreground">
-              Reading branches
-            </p>
+          {(state) => (
+            <CommandGroup>
+              {state.items.map((item) => {
+                let value = '';
+                if (typeof item === 'string') value = item;
+                else if ('value' in item) value = item.value;
+                const branch = byRef.get(value);
+                return (
+                  branch && (
+                    <CommandItem
+                      key={branch.ref}
+                      value={branch.ref}
+                      label={branch.name}
+                      disabled={
+                        pending || unresolved || branch.current || branch.inUse
+                      }
+                      onSelect={() => setChosen(branch.ref)}
+                      data-checked={chosen === branch.ref}
+                      className="cursor-pointer"
+                    >
+                      <GitBranchIcon />
+                      <TruncatedText
+                        text={branch.name}
+                        className="min-w-0 flex-1"
+                      />
+                      {branch.current && (
+                        <span className="text-muted-foreground">Current</span>
+                      )}
+                      {branch.inUse && (
+                        <span className="text-muted-foreground">In use</span>
+                      )}
+                      {chosen === branch.ref && <CheckIcon />}
+                    </CommandItem>
+                  )
+                );
+              })}
+            </CommandGroup>
           )}
-          {AsyncResult.isFailure(branches) && (
-            <p role="alert" className="p-3 text-xs text-muted-foreground">
-              Branches could not be read.
-            </p>
-          )}
-          {answer && <CommandEmpty>No matching branch</CommandEmpty>}
-          <CommandGroup>
-            {choices.map((branch) => (
-              <CommandItem
-                key={branch.ref}
-                value={branch.name}
-                disabled={
-                  pending || unresolved || branch.current || branch.inUse
-                }
-                onSelect={() => setChosen(branch.ref)}
-                data-checked={chosen === branch.ref}
-                className="cursor-pointer"
-              >
-                <GitBranchIcon />
-                <TruncatedText text={branch.name} className="min-w-0 flex-1" />
-                {branch.current && (
-                  <span className="text-muted-foreground">Current</span>
-                )}
-                {branch.inUse && (
-                  <span className="text-muted-foreground">In use</span>
-                )}
-                {chosen === branch.ref && <CheckIcon />}
-              </CommandItem>
-            ))}
-          </CommandGroup>
         </CommandList>
       </Command>
       {unresolved && (

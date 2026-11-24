@@ -13,6 +13,9 @@ const repositoryRoot = fileURLToPath(new URL('..', import.meta.url)).replaceAll(
 const webSource = 'apps/web/src/';
 const reactModules = new Set(['react', 'react-dom']);
 const zustandModule = /^zustand(?:\/|$)/;
+const replacedUiModule =
+  /^(?:cmdk(?:\/|$)|@base-ui-components\/|@base-ui\/react(?:$|\/(?:alert-dialog|context-menu|dialog|menu|menubar|popover|select|toast|tooltip)(?:\/|$)))/;
+const uiSdkModule = /^@ui-sdk\//;
 const routerDataHooks = new Set([
   'getRouteApi',
   'useLoaderData',
@@ -310,9 +313,11 @@ function viewLike(path) {
 
 function sourceOf(node) {
   const source = node.source;
-  return source?.type === 'Literal' && typeof source.value === 'string'
-    ? source.value
-    : undefined;
+  if (source?.type === 'Literal' && typeof source.value === 'string')
+    return source.value;
+  if (source?.type === 'TemplateLiteral' && source.expressions.length === 0)
+    return source.quasis[0]?.value.cooked ?? undefined;
+  return undefined;
 }
 
 function localTarget(path, specifier) {
@@ -981,12 +986,42 @@ export const webRules = {
             node.callee.type === 'Identifier'
               ? node.callee.name
               : methodName(node.callee);
-          if (name === 'createHandle')
+          if (/^create\w*Controller$/.test(name ?? ''))
             context.report({
               node,
               message:
-                'A Base UI handle is created in the feature overlays.ts only, so every trigger and every command opens the same overlay.',
+                'An overlay controller is created in the feature overlays.ts only, so every trigger and every command opens the same overlay.',
             });
+        },
+      };
+    },
+  },
+  'web-ui-library-owner': {
+    create(context) {
+      const path = webPath(context);
+      if (!path.startsWith('apps/web/') && !path.startsWith('apps/desktop/'))
+        return {};
+      const ui = path.startsWith('apps/web/src/components/ui/');
+      const check = (node) => {
+        const source = sourceOf(node) ?? '';
+        if (replacedUiModule.test(source))
+          context.report({
+            node,
+            message: `${source} was replaced by UI SDK; compose the wrapper in components/ui instead, because two overlay libraries keep separate Escape, focus and layer stacks that fight each other.`,
+          });
+        else if (uiSdkModule.test(source) && !ui)
+          context.report({
+            node,
+            message:
+              'Import UI SDK only inside apps/web/src/components/ui and compose those wrappers, because one owner keeps the styling, slots and library workarounds in one place.',
+          });
+      };
+      return {
+        ImportDeclaration: check,
+        ImportExpression: check,
+        ExportAllDeclaration: check,
+        ExportNamedDeclaration(node) {
+          if (node.source) check(node);
         },
       };
     },

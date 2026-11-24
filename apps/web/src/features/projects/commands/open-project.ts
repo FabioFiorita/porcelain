@@ -70,7 +70,9 @@ const pickProject = Atom.family((connection: Connection) =>
         path,
         remote: null,
         recover: (project, path) =>
-          openProjectDialog.openWithPayload({ remote: null, project, path }),
+          void openProjectDialog.open({
+            payload: { remote: null, project, path },
+          }),
         complete: () => undefined,
         select: (target) =>
           Effect.tryPromise({

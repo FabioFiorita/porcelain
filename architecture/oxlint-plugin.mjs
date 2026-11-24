@@ -1799,7 +1799,9 @@ export default {
           const rawWeb =
             target.replace(/\.tsx?$/, '') ===
               'apps/web/src/components/ui/toast' ||
-            /^(?:@base-ui\/react\/toast(?:\/|$)|sonner(?:\/|$))/.test(source) ||
+            /^(?:@ui-sdk\/react\/(?:toast|overlays)(?:\/|$)|@base-ui\/react\/toast(?:\/|$)|sonner(?:\/|$))/.test(
+              source,
+            ) ||
             (source === '@base-ui/react' &&
               node.specifiers?.some(
                 (specifier) => specifier.imported?.name === 'Toast',

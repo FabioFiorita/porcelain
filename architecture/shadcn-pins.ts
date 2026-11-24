@@ -20,13 +20,56 @@ type Pins = typeof pinsSchema.Type;
 export function digest(text: string): string {
   return createHash('sha256').update(text).digest('hex');
 }
-export function uiFiles(root: string): string[] {
+const uiSdkFiles: ReadonlySet<string> = new Set([
+  'alert-dialog.tsx',
+  'command.tsx',
+  'context-menu.tsx',
+  'dialog.tsx',
+  'dropdown-menu.tsx',
+  'popover.tsx',
+  'select.tsx',
+  'sheet.tsx',
+  'toast.tsx',
+  'tooltip.tsx',
+]);
+function folderFiles(root: string): string[] {
   const folder = join(root, uiFolder);
   return existsSync(folder)
     ? readdirSync(folder)
         .filter((name) => name.endsWith('.tsx'))
         .toSorted()
     : [];
+}
+export function uiFiles(root: string): string[] {
+  return folderFiles(root).filter((name) => !uiSdkFiles.has(name));
+}
+const uiSdkImport =
+  /^import\s+(?!type\b)([^;]*?)\s+from\s+'@ui-sdk\/react\/[^']+';/gm;
+function importsUiSdkValue(source: string): boolean {
+  return [...source.matchAll(uiSdkImport)].some(([, clause = '']) => {
+    const named = /\{([^}]*)\}/.exec(clause);
+    const outside = clause
+      .replace(/\{[^}]*\}/, '')
+      .replace(/,/g, '')
+      .trim();
+    if (outside !== '') return true;
+    return (named?.[1] ?? '')
+      .split(',')
+      .map((name) => name.trim())
+      .some((name) => name !== '' && !/^type\s/.test(name));
+  });
+}
+function uiSdkProblems(root: string): string[] {
+  return folderFiles(root)
+    .filter((name) => uiSdkFiles.has(name))
+    .filter(
+      (name) =>
+        !importsUiSdkValue(readFileSync(join(root, uiFolder, name), 'utf8')),
+    )
+    .map(
+      (name) =>
+        `${uiFolder}/${name} is listed as UI SDK-owned but imports no value from @ui-sdk/react; pin it from the shadcn registry instead, because only components built on UI SDK leave registry ownership.`,
+    );
 }
 function readPins(root: string): { pins: Pins; problems: string[] } {
   const path = join(root, pinsFile);
@@ -70,6 +113,7 @@ export function pinProblems(root: string): string[] {
   if (problems.length > 0) return problems;
   const files = uiFiles(root);
   return [
+    ...uiSdkProblems(root),
     ...files.flatMap((name) => {
       const path = `${uiFolder}/${name}`;
       const pinned = pins[name];

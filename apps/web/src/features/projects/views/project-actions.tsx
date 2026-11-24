@@ -50,9 +50,13 @@ export function ProjectActions({
             label: 'Reconnect project',
             icon: FolderGit2Icon,
             run: () =>
-              openProjectDialog.openWithPayload({
-                ...target,
-                ...(projectPath(project) ? { path: projectPath(project) } : {}),
+              void openProjectDialog.open({
+                payload: {
+                  ...target,
+                  ...(projectPath(project)
+                    ? { path: projectPath(project) }
+                    : {}),
+                },
               }),
             destructive: false,
           },
@@ -67,25 +71,25 @@ export function ProjectActions({
     {
       label: 'Rename project',
       icon: PencilIcon,
-      run: () => renameProjectDialog.openWithPayload(target),
+      run: () => void renameProjectDialog.open({ payload: target }),
       destructive: false,
     },
     {
       label: 'Walkthrough settings',
       icon: SettingsIcon,
-      run: () => walkthroughSettingsDialog.openWithPayload(target),
+      run: () => void walkthroughSettingsDialog.open({ payload: target }),
       destructive: false,
     },
     {
       label: 'Remove from Porcelain',
       icon: FolderMinusIcon,
-      run: () => removeProjectDialog.openWithPayload(target),
+      run: () => void removeProjectDialog.open({ payload: target }),
       destructive: true,
     },
   ];
   return (
     <DropdownMenu>
-      <Tooltip disableHoverablePopup>
+      <Tooltip hoverable={false}>
         <TooltipTrigger
           render={
             <DropdownMenuTrigger
@@ -114,8 +118,8 @@ export function ProjectActions({
             <DropdownMenuItem
               key={label}
               className="cursor-pointer"
-              variant={destructive ? 'destructive' : 'default'}
-              onClick={run}
+              destructive={destructive}
+              onSelect={run}
             >
               <Icon />
               {label}

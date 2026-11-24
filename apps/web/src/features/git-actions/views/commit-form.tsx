@@ -319,6 +319,7 @@ function CommitFiles({
           </p>
         )}
         <Textarea
+          data-autofocus=""
           ref={(message) => {
             if (message) onMessage?.(message);
           }}
@@ -367,10 +368,9 @@ function CommitGeneration({
           })) ?? []
         }
         value={model ?? null}
+        reselect
         disabled={!choices?.length || form.working || form.uncertain}
-        onValueChange={(value) => {
-          if (value) form.setModel(value);
-        }}
+        onValueChange={form.setModel}
       >
         <SelectTrigger
           aria-label="Commit model"

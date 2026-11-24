@@ -1,5 +1,5 @@
-import { AlertDialog } from '@base-ui/react/alert-dialog';
-import { Dialog } from '@base-ui/react/dialog';
+import { createAlertDialogController } from '@/components/ui/alert-dialog';
+import { createDialogController } from '@/components/ui/dialog';
 import type { NavigatorEntry } from '@porcelain/client/projects/rules';
 import type { ConnectionContext } from '@/shared/workspace/connection';
 import type { ArchivePullRequestRequest } from '@porcelain/contracts/projects';
@@ -8,16 +8,17 @@ import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
 type Project = ReadInventoryResponse['projects'][number];
 export type ProjectTarget = { project: Project; remote: string | null };
 
-export const openProjectDialog = Dialog.createHandle<{
+export const openProjectDialog = createDialogController<{
   remote: string | null;
   project?: Project;
   path?: string;
 }>();
-export const walkthroughSettingsDialog = Dialog.createHandle<ProjectTarget>();
-export const renameProjectDialog = Dialog.createHandle<ProjectTarget>();
-export const removeProjectDialog = AlertDialog.createHandle<ProjectTarget>();
+export const walkthroughSettingsDialog =
+  createDialogController<ProjectTarget>();
+export const renameProjectDialog = createDialogController<ProjectTarget>();
+export const removeProjectDialog = createAlertDialogController<ProjectTarget>();
 
-export const archivePullRequestDialog = AlertDialog.createHandle<{
+export const archivePullRequestDialog = createAlertDialogController<{
   context: ConnectionContext;
   projectId: string;
   number: number;
@@ -26,14 +27,14 @@ export const archivePullRequestDialog = AlertDialog.createHandle<{
   beforeLeave: () => void;
 }>();
 
-export const deleteWorktreeDialog = AlertDialog.createHandle<{
+export const deleteWorktreeDialog = createAlertDialogController<{
   context: ConnectionContext;
   entry: NavigatorEntry;
   worktreeId: string;
   requestId: string;
 }>();
 
-export const switchWorktreeBranchDialog = Dialog.createHandle<{
+export const switchWorktreeBranchDialog = createDialogController<{
   context: ConnectionContext;
   entry: NavigatorEntry;
   worktreeId: string;
