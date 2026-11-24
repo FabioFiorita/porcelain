@@ -56,7 +56,11 @@ const evidence: WalkthroughEvidence = {
     mediaType: 'image/png',
     caption: 'Existing image',
   })),
-  checks: { state: 'SUCCESS', results: [{ name: 'Test', status: 'SUCCESS' }] },
+  checks: {
+    state: 'SUCCESS',
+    checksTruncated: false,
+    results: [{ name: 'Test', status: 'SUCCESS' }],
+  },
 };
 const oldExcerpt = {
   kind: 'diff_excerpt',
@@ -124,12 +128,13 @@ it('keeps captured lines and real PR evidence, and drops blocks that cite unavai
   );
   expect(result.outcome).toBe('needs_you');
   expect(result.stops[0]?.blocks).toEqual([
-    { ...oldExcerpt, headOid: 'head' },
+    { ...oldExcerpt, headOid: 'head', contentTreeOid: 'tree' },
     images,
     {
       kind: 'checks',
       headOid: 'head',
       state: 'SUCCESS',
+      checksTruncated: false,
       results: [{ name: 'Test', status: 'SUCCESS' }],
     },
     {
@@ -245,4 +250,57 @@ it('numbers repeated stop titles without taking another step title', () => {
     'Same (2)',
     'Same (4)',
   ]);
+});
+
+it('keeps a detailed excerpt after a file overview and identifies the captured working tree', () => {
+  const overview = {
+    kind: 'files',
+    files: [{ path: 'owner.ts', note: 'The moved file' }],
+  } as const;
+  const result = qualifyWalkthrough(
+    {
+      ...content,
+      stops: [stop('Overview', overview), stop('Details', oldExcerpt)],
+    },
+    job,
+    evidence,
+  );
+  expect(result.stops[0]?.blocks).toEqual([overview]);
+  expect(result.stops[1]?.blocks).toEqual([
+    { ...oldExcerpt, headOid: 'head', contentTreeOid: 'tree' },
+  ]);
+});
+
+const decision = {
+  kind: 'callout',
+  attention: {
+    kind: 'risk',
+    note: 'Affects existing readers',
+    question: 'Keep both names?',
+  },
+} as const;
+
+it.each([
+  { ...decision, attention: { ...decision.attention, note: ' ' } },
+  { ...decision, attention: { ...decision.attention, question: '' } },
+  {
+    ...decision,
+    comparison: { columns: ['A', 'B', 'C'], rows: [['Yes', 'No']] },
+  },
+  {
+    ...decision,
+    comparison: {
+      columns: ['A', 'B'],
+      rows: Array.from({ length: 7 }, () => ['Yes', 'No']),
+    },
+  },
+  { ...decision, comparison: { columns: ['A', 'B'], rows: [['Yes']] } },
+])('omits an unusable callout', (block) => {
+  const result = qualifyWalkthrough(
+    { ...content, stops: [stop('Decision', block)] },
+    job,
+    evidence,
+  );
+  expect(result.stops[0]?.blocks).toEqual([]);
+  expect(result.outcome).toBe('worth_knowing');
 });

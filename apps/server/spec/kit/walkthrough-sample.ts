@@ -117,6 +117,7 @@ export async function seedWalkthroughSample(
                     },
                     {
                       kind: 'diff_excerpt',
+                      contentTreeOid: snapshot.treeOid,
                       headOid: await git('HEAD'),
                       path: 'src/search.ts',
                       side: 'new',

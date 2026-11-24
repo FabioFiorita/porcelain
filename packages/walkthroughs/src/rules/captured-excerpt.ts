@@ -21,7 +21,10 @@ export function capturedExcerpt(
 
 export function capturedDiffHunk(
   patch: string,
-  excerpt: Omit<Extract<WalkthroughBlock, { kind: 'diff_excerpt' }>, 'headOid'>,
+  excerpt: Pick<
+    Extract<WalkthroughBlock, { kind: 'diff_excerpt' }>,
+    'path' | 'side' | 'start' | 'end'
+  >,
 ) {
   const { path, side, start, end } = excerpt;
   if (start < 1 || end < start) return undefined;

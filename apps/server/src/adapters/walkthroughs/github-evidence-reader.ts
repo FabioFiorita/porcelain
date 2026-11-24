@@ -2,7 +2,10 @@ import { randomUUID } from 'node:crypto';
 import { Effect, Layer, Option } from 'effect';
 import { FetchHttpClient } from 'effect/http';
 import { GitHubReader, GitHubAccountStore } from '@porcelain/reviews/ports';
-import { githubAccountCandidates } from '@porcelain/reviews/rules';
+import {
+  githubAccountCandidates,
+  mapPullRequestChecks,
+} from '@porcelain/reviews/rules';
 import { EvidenceReader } from '@porcelain/walkthroughs/ports';
 import { WalkthroughFailedError } from '@porcelain/walkthroughs/errors';
 import type {
@@ -86,20 +89,22 @@ export const githubEvidenceReaderLayer = Layer.effect(
           });
           if (pr.headRefOid !== headOid)
             return withoutEvidence('head_mismatch');
-          const rollup = pr.commits.nodes[0]?.commit.statusCheckRollup;
-          const checks = rollup
-            ? {
-                state: rollup.state,
-                results: rollup.contexts.nodes.map((check) =>
-                  check.__typename === 'CheckRun'
-                    ? {
-                        name: check.name,
-                        status: check.conclusion ?? check.status,
-                      }
-                    : { name: check.context, status: check.state },
-                ),
-              }
-            : undefined;
+          const {
+            checks: recorded,
+            checksSummary: state,
+            checksTruncated,
+          } = mapPullRequestChecks(pr);
+          const checks =
+            state === undefined
+              ? undefined
+              : {
+                  state,
+                  checksTruncated,
+                  results: recorded.map(({ name, status, conclusion }) => ({
+                    name,
+                    status: conclusion ?? status,
+                  })),
+                };
           const assets: EvidenceAsset[] = [];
           for (const url of githubImageUrls(pr.bodyHTML ?? '')) {
             const asset = yield* Effect.tryPromise({

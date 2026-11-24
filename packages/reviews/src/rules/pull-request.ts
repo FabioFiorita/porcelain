@@ -31,7 +31,7 @@ export function mapPullRequestSummary(
     checksTruncated: false,
   };
 }
-export function mapPullRequest(raw: GitHubPullRequest): PullRequest {
+export function mapPullRequestChecks(raw: GitHubPullRequest) {
   const rollup = raw.commits.nodes[0]?.commit.statusCheckRollup;
   const checks = (rollup?.contexts.nodes ?? []).map((check) =>
     check.__typename === 'CheckRun'
@@ -55,6 +55,15 @@ export function mapPullRequest(raw: GitHubPullRequest): PullRequest {
           detailsUrl: check.targetUrl ?? undefined,
         },
   );
+  return {
+    checks,
+    checksSummary: rollup?.state ?? undefined,
+    checksTruncated: rollup?.contexts.pageInfo.hasNextPage ?? false,
+  };
+}
+
+export function mapPullRequest(raw: GitHubPullRequest): PullRequest {
+  const checkData = mapPullRequestChecks(raw);
   const timeline: PullRequest['timeline'][number][] = raw.comments.nodes.map(
     (comment) => ({
       id: comment.id,
@@ -119,8 +128,7 @@ export function mapPullRequest(raw: GitHubPullRequest): PullRequest {
     headRepository: raw.headRepository?.url,
     mergeable: raw.mergeable,
     labels: raw.labels.nodes,
-    checks,
-    checksTruncated: rollup?.contexts.pageInfo.hasNextPage ?? false,
+    ...checkData,
     timeline,
     truncated:
       raw.labels.pageInfo.hasNextPage ||
@@ -129,7 +137,7 @@ export function mapPullRequest(raw: GitHubPullRequest): PullRequest {
       raw.reviews.nodes.some(
         (review) => review.comments.pageInfo.hasNextPage,
       ) ||
-      (rollup?.contexts.pageInfo.hasNextPage ?? false),
+      checkData.checksTruncated,
   };
 }
 

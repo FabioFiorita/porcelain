@@ -605,12 +605,17 @@ async function write() {
     ]);
     const refused = await rpc('tools/call', {name:'checks',arguments:{headOid:42}});
     assert.equal(refused.result.isError, true);
+    const extra = await rpc('tools/call', {name:'checks',arguments:{headOid:'fixture',kind:'checks'}});
+    fs.writeFileSync('extra-rejected', String(extra.result.isError === true));
     const called = await rpc('tools/call', {name:'files',arguments:{files:[{path:'notes.md',note:'Owns the explanation'}]}});
     const {blockId} = JSON.parse(called.result.content[0].text);
     answer = {
       outcome:'worth_knowing', title:'A small change', summary:'Done', growth:[],
       onlyInTranscript:[], stillUnclear:[],
-      stops:[{title:'The notes',explanation:'Why they exist.',blockIds:['invented',blockId,blockId]}],
+      stops:[
+        {title:'The notes',explanation:'Why they exist.',blockIds:['invented',blockId,blockId]},
+        {title:'Later',explanation:'The same block is already placed.',blockIds:[blockId]},
+      ],
     };
   }
   fs.writeFileSync(args[args.indexOf('--output-last-message')+1], JSON.stringify(answer));
@@ -637,10 +642,18 @@ write().catch(error => { console.error(error); process.exitCode = 1; });`,
               },
             ],
           },
+          {
+            title: 'Later',
+            explanation: 'The same block is already placed.',
+            blocks: [],
+          },
         ],
       },
     },
   });
+  expect(await readFile(join(test.folder, 'extra-rejected'), 'utf8')).toBe(
+    'true',
+  );
   const url = await readFile(join(test.folder, 'mcp-url'), 'utf8');
   await expect(fetch(url)).rejects.toThrow();
 });

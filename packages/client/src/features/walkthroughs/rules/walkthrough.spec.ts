@@ -16,6 +16,7 @@ import {
   walkthroughStartFailure,
   walkthroughTabTitle,
   walkthroughVerdict,
+  walkthroughCalls,
   type WalkthroughContent,
   type WalkthroughRead,
   type WalkthroughRun,
@@ -44,7 +45,8 @@ import { AsyncResult } from 'effect/reactivity';
 const stop = (over: Partial<WalkthroughStop> = {}): WalkthroughStop => ({
   title: 'A step',
   explanation: 'Why it exists.',
-  attention: undefined,
+  callouts: [],
+  checks: [],
   excerpts: [],
   evidence: [],
   files: [],
@@ -104,12 +106,22 @@ const read = (
 
 describe('walkthroughVerdict', () => {
   it('counts the calls that are the reader’s', () => {
-    expect(walkthroughVerdict(content({ stops: [stop({ attention })] }))).toBe(
-      'One call is yours.',
-    );
     expect(
       walkthroughVerdict(
-        content({ stops: [stop({ attention }), stop(), stop({ attention })] }),
+        content({
+          stops: [stop({ callouts: [{ attention, comparison: [] }] })],
+        }),
+      ),
+    ).toBe('One call is yours.');
+    expect(
+      walkthroughVerdict(
+        content({
+          stops: [
+            stop({ callouts: [{ attention, comparison: [] }] }),
+            stop(),
+            stop({ callouts: [{ attention, comparison: [] }] }),
+          ],
+        }),
       ),
     ).toBe('Two calls are yours.');
   });
@@ -487,7 +499,8 @@ it.each([
             {
               kind: 'checks',
               state: 'SUCCESS',
-              headOid: 'head',
+              headOid: 'abcdef12345',
+              checksTruncated: true,
               results: [{ name: 'Test', status: 'SUCCESS' }],
             },
             {
@@ -496,6 +509,18 @@ it.each([
               comparison: {
                 columns: ['Keep', 'Replace'],
                 rows: [['Two names', 'One name']],
+              },
+            },
+            {
+              kind: 'callout',
+              attention: {
+                kind: 'risk',
+                note: 'Old readers differ.',
+                question: 'Keep the old path?',
+              },
+              comparison: {
+                columns: ['Old', 'New'],
+                rows: [['Compatible', 'Shorter']],
               },
             },
           ],
@@ -518,19 +543,39 @@ it.each([
       stops: [
         {
           title: 'A step',
-          explanation:
-            'Why it exists.\n\nChecks: SUCCESS · Test: SUCCESS\n\nKeep: Two names · Replace: One name',
-          attention: {
-            kind: 'product',
-            note: 'It matters.',
-            question: 'Keep it?',
-          },
+          explanation: 'Why it exists.',
+          checks: [
+            {
+              label: 'From CI at abcdef1',
+              text: 'SUCCESS · Test: SUCCESS · More checks on the pull request',
+            },
+          ],
         },
       ],
     },
     freshness: 'changed',
     attempt: { id: 'newer' },
   });
+  if (phase?.kind !== 'ready')
+    throw new Error('Expected the saved walkthrough');
+  expect(
+    walkthroughCalls(phase.content).map(({ attention: call, comparison }) => ({
+      question: call.question,
+      note: call.note,
+      comparison,
+    })),
+  ).toEqual([
+    {
+      question: 'Keep it?',
+      note: 'It matters.',
+      comparison: ['Keep: Two names · Replace: One name'],
+    },
+    {
+      question: 'Keep the old path?',
+      note: 'Old readers differ.',
+      comparison: ['Old: Compatible · New: Shorter'],
+    },
+  ]);
 });
 
 describe('worktreeOpening', () => {

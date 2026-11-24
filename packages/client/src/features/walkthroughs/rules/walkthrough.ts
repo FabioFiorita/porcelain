@@ -16,8 +16,15 @@ export type WalkthroughEvidence = Screenshots['before'];
 export type WalkthroughStop = {
   readonly title: string;
   readonly explanation: string;
-  readonly attention?: Callout['attention'] | undefined;
-  readonly excerpts: readonly Omit<Excerpt, 'kind' | 'headOid'>[];
+  readonly callouts: readonly {
+    readonly attention: Callout['attention'];
+    readonly comparison: readonly string[];
+  }[];
+  readonly checks: readonly { readonly label: string; readonly text: string }[];
+  readonly excerpts: readonly Omit<
+    Excerpt,
+    'kind' | 'headOid' | 'contentTreeOid'
+  >[];
   readonly evidence: readonly WalkthroughEvidence[];
   readonly files: Extract<
     WalkthroughBlock,
@@ -30,24 +37,30 @@ export type WalkthroughContent = Omit<BlockContent, 'stops' | 'version'> & {
 
 function readBlockContent(content: BlockContent): WalkthroughContent {
   const stops = content.stops.map(({ blocks, ...stop }) => {
-    const callouts = blocks.filter((block) => block.kind === 'callout');
-    const details = blocks.flatMap((block) => {
-      if (block.kind === 'checks')
-        return [
-          `Checks: ${[block.state, ...block.results.map(({ name, status }) => `${name}: ${status}`)].join(' · ')}`,
-        ];
-      if (block.kind === 'callout' && block.comparison !== undefined) {
-        const { columns, rows } = block.comparison;
-        return rows.map(
-          ([left, right]) => `${columns[0]}: ${left} · ${columns[1]}: ${right}`,
-        );
-      }
-      return [];
-    });
+    const callouts = blocks
+      .filter((block) => block.kind === 'callout')
+      .map(({ attention, comparison }) => ({
+        attention,
+        comparison:
+          comparison?.rows.map(
+            ([left, right]) =>
+              `${comparison.columns[0]}: ${left} · ${comparison.columns[1]}: ${right}`,
+          ) ?? [],
+      }));
+    const checks = blocks
+      .filter((block) => block.kind === 'checks')
+      .map((block) => ({
+        label: `From CI at ${block.headOid.slice(0, 7)}`,
+        text: [
+          block.state,
+          ...block.results.map(({ name, status }) => `${name}: ${status}`),
+          ...(block.checksTruncated ? ['More checks on the pull request'] : []),
+        ].join(' · '),
+      }));
     return {
       ...stop,
-      explanation: [stop.explanation, ...details].join('\n\n'),
-      attention: callouts[0]?.attention,
+      callouts,
+      checks,
       excerpts: blocks.filter((block) => block.kind === 'diff_excerpt'),
       files: blocks.flatMap((block) =>
         block.kind === 'files' ? block.files : [],
@@ -107,9 +120,12 @@ const CALL_WORDS = ['One', 'Two', 'Three', 'Four', 'Five'];
 
 export function walkthroughCalls(content: WalkthroughContent) {
   return content.stops.flatMap((stop, index) =>
-    stop.attention === undefined
-      ? []
-      : [{ stop, step: index + 1, attention: stop.attention }],
+    stop.callouts.map((callout, callIndex) => ({
+      ...callout,
+      stop,
+      step: index + 1,
+      callIndex,
+    })),
   );
 }
 

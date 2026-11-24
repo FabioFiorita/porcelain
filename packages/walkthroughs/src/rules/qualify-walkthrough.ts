@@ -34,7 +34,8 @@ function qualifyBlock(
   block: WalkthroughBlockRequest,
   job: WalkthroughJob,
   evidence: WalkthroughEvidence,
-  claimed: ReadonlySet<string>,
+  covered: ReadonlySet<string>,
+  excerpted: ReadonlySet<string>,
 ): { block: WalkthroughBlock; paths: readonly string[] } | undefined {
   switch (block.kind) {
     case 'diff_excerpt': {
@@ -45,12 +46,16 @@ function qualifyBlock(
       );
       if (
         file === undefined ||
-        claimed.has(file.path) ||
+        excerpted.has(file.path) ||
         !capturedDiffHunk(job.patch, block)
       )
         return undefined;
       return {
-        block: { ...block, headOid: job.run.headOid },
+        block: {
+          ...block,
+          headOid: job.run.headOid,
+          contentTreeOid: job.run.contentTreeOid,
+        },
         paths: [file.path],
       };
     }
@@ -67,7 +72,7 @@ function qualifyBlock(
     case 'files': {
       const [first, ...rest] = block.files.filter(
         ({ path }) =>
-          !claimed.has(path) && job.files.some((file) => file.path === path),
+          !covered.has(path) && job.files.some((file) => file.path === path),
       );
       if (first === undefined) return undefined;
       return {
@@ -107,18 +112,23 @@ export function qualifyWalkthrough(
 ): WalkthroughContent {
   if (content.outcome === 'nothing')
     return { ...content, stops: [], stillUnclear: [] };
-  const claimed = new Set<string>();
+  const covered = new Set<string>();
+  const excerpted = new Set<string>();
   const stops = content.stops.map((stop) => {
     const qualified = stop.blocks.flatMap((block) => {
-      const match = qualifyBlock(block, job, evidence, claimed);
+      const match = qualifyBlock(block, job, evidence, covered, excerpted);
       return match === undefined ? [] : [match];
     });
-    for (const item of qualified)
-      for (const path of item.paths) claimed.add(path);
+    for (const item of qualified) {
+      for (const path of item.paths) {
+        covered.add(path);
+        if (item.block.kind === 'diff_excerpt') excerpted.add(path);
+      }
+    }
     return { ...stop, blocks: qualified.map((item) => item.block) };
   });
   const [first, ...rest] = job.files
-    .filter((file) => !claimed.has(file.path))
+    .filter((file) => !covered.has(file.path))
     .map((file) => ({ path: file.path, note: 'Supporting change' }));
   if (first !== undefined) {
     const block: WalkthroughBlock = { kind: 'files', files: [first, ...rest] };

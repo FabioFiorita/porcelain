@@ -65,7 +65,7 @@ function StepList<File>({
                 className="min-w-0 flex-1"
                 text={plainText(stop.title)}
               />
-              {stop.attention && (
+              {stop.callouts.length > 0 && (
                 <span
                   role="img"
                   aria-label="Your call"

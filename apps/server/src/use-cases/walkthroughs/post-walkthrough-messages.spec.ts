@@ -82,6 +82,7 @@ const job = (
             blocks: [
               {
                 kind: 'diff_excerpt',
+                contentTreeOid: 'tree',
                 headOid: 'head',
                 path: 'src/a.ts',
                 side: 'new',

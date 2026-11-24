@@ -170,6 +170,7 @@ export const demoWalkthrough: NonNullable<
             },
             {
               kind: 'diff_excerpt',
+              contentTreeOid: demoHead,
               headOid: demoHead,
               path: 'src/welcome.ts',
               side: 'new',

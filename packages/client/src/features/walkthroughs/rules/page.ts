@@ -8,7 +8,7 @@ import {
   type WalkthroughStop,
 } from './walkthrough.ts';
 
-type Attention = NonNullable<WalkthroughStop['attention']>;
+type Attention = WalkthroughStop['callouts'][number]['attention'];
 type Growth = WalkthroughContent['growth'][number];
 
 const ATTENTION_LABELS: Record<Attention['kind'], string> = {

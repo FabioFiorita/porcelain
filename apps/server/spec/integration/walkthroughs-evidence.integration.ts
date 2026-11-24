@@ -91,6 +91,7 @@ test('writes without evidence at another PR commit and attaches checks after pus
     headOid,
     state: 'SUCCESS',
     results: [],
+    checksTruncated: false,
   });
   for (const [reason, script] of [
     [

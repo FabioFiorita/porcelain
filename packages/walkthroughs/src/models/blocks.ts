@@ -29,6 +29,7 @@ const checksRequestSchema = Schema.Struct({
 });
 const walkthroughChecksSchema = Schema.Struct({
   state: Schema.String,
+  checksTruncated: Schema.Boolean,
   results: Schema.Array(
     Schema.Struct({ name: Schema.String, status: Schema.String }),
   ),
@@ -64,7 +65,11 @@ export const walkthroughBlockRequestSchema = Schema.Union([
 ]);
 
 export const walkthroughBlockSchema = Schema.Union([
-  Schema.Struct({ ...diffExcerptSchema.fields, headOid: Schema.String }),
+  Schema.Struct({
+    ...diffExcerptSchema.fields,
+    headOid: Schema.String,
+    contentTreeOid: Schema.String,
+  }),
   imagesSchema,
   filesSchema,
   Schema.Struct({

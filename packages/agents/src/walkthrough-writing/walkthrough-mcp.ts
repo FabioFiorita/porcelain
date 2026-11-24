@@ -39,16 +39,14 @@ export const openWalkthroughMcp = Effect.fn('WalkthroughWriter.openMcp')(
         const mcp = yield* McpServer.McpServer;
         for (const schema of walkthroughBlockRequestSchema.members) {
           const kind = schema.fields.kind.literal;
-          const decode = Schema.decodeUnknownResult(schema, {
+          const { kind: _kind, ...fields } = schema.fields;
+          const parameters = Schema.Struct(fields);
+          const decode = Schema.decodeUnknownResult(parameters, {
             onExcessProperty: 'error',
           });
-          const { kind: _kind, ...fields } = schema.fields;
-          const inputSchema = Schema.toJsonSchemaDocument(
-            Schema.Struct(fields),
-            {
-              onExcessProperty: 'error',
-            },
-          ).schema;
+          const inputSchema = Schema.toJsonSchemaDocument(parameters, {
+            onExcessProperty: 'error',
+          }).schema;
           yield* mcp.addTool({
             tool: new McpSchema.Tool({
               name: kind,
@@ -59,7 +57,7 @@ export const openWalkthroughMcp = Effect.fn('WalkthroughWriter.openMcp')(
             annotations: Context.empty(),
             handle: (input: unknown) =>
               Effect.sync(() => {
-                const decoded = decode({ ...Object(input), kind });
+                const decoded = decode(input);
                 if (Result.isFailure(decoded) || blocks.size >= MAX_PROPOSALS)
                   return new McpSchema.CallToolResult({
                     isError: true,
@@ -71,7 +69,11 @@ export const openWalkthroughMcp = Effect.fn('WalkthroughWriter.openMcp')(
                     ],
                   });
                 const blockId = randomUUID();
-                blocks.set(blockId, decoded.success);
+                const request = Schema.decodeUnknownSync(schema)({
+                  ...decoded.success,
+                  kind,
+                });
+                blocks.set(blockId, request);
                 return new McpSchema.CallToolResult({
                   content: [
                     { type: 'text', text: JSON.stringify({ blockId }) },
@@ -124,8 +126,9 @@ export const openWalkthroughMcp = Effect.fn('WalkthroughWriter.openMcp')(
       url: `http://127.0.0.1:${address.port}/mcp`,
       token,
       resolveBlocks: (ids: readonly string[]) =>
-        [...new Set(ids)].flatMap((id) => {
+        ids.flatMap((id) => {
           const block = blocks.get(id);
+          blocks.delete(id);
           return block === undefined ? [] : [block];
         }),
     };

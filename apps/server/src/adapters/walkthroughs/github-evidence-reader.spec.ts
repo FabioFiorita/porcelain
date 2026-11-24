@@ -245,7 +245,7 @@ it('reads matching images and checks but never fetches images at another commit 
                     targetUrl: null,
                   },
                 ],
-                pageInfo: { hasNextPage: false },
+                pageInfo: { hasNextPage: true },
               },
             },
           },
@@ -297,6 +297,7 @@ it('reads matching images and checks but never fetches images at another commit 
   const matching = await read();
   expect(matching.checks).toEqual({
     state: 'SUCCESS',
+    checksTruncated: true,
     results: [
       { name: 'Tests', status: 'SUCCESS' },
       { name: 'Package', status: 'SUCCESS' },

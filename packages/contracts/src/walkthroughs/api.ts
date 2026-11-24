@@ -1,8 +1,9 @@
-import { Schema } from 'effect';
+import { Schema, SchemaTransformation } from 'effect';
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api';
 import {
   walkthroughRunSchema as domainRunSchema,
   walkthroughContentSchema as domainContentSchema,
+  walkthroughBlockSchema as domainBlockSchema,
   writerSchema,
   walkthroughModelSchema,
   walkthroughFreshnessSchema,
@@ -33,7 +34,30 @@ import {
   walkthroughConversationParamsSchema,
 } from './conversations.ts';
 import { httpFailure } from '../shared/http-failure.ts';
-export const walkthroughContentSchema = domainContentSchema;
+const unknownBlockSchema = Schema.Struct({ kind: Schema.Literal('unknown') });
+export const walkthroughBlockSchema = Schema.Union([
+  domainBlockSchema,
+  Schema.Unknown.pipe(
+    Schema.decodeTo(
+      unknownBlockSchema,
+      SchemaTransformation.transform<typeof unknownBlockSchema.Type, unknown>({
+        decode: () => ({ kind: 'unknown' }),
+        encode: (block) => block,
+      }),
+    ),
+  ),
+]);
+export type WalkthroughBlock = typeof walkthroughBlockSchema.Type;
+export const walkthroughContentSchema = Schema.Struct({
+  ...domainContentSchema.fields,
+  version: Schema.Int.check(Schema.isGreaterThan(0)),
+  stops: Schema.Array(
+    Schema.Struct({
+      ...domainContentSchema.fields.stops.value.fields,
+      blocks: Schema.Array(walkthroughBlockSchema),
+    }),
+  ),
+});
 const readySchema = Schema.Struct({
   status: Schema.Literal('ready'),
   content: walkthroughContentSchema,
