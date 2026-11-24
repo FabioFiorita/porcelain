@@ -25,7 +25,6 @@ const row = Schema.Struct({
     Schema.Struct({
       name: label,
       branch: label,
-      path: Schema.String.check(Schema.isMaxLength(4096)),
       main: Schema.Boolean,
       detached: Schema.Boolean,
     }),
@@ -69,7 +68,7 @@ export function savedWorktreeRows(
         projectId: row.projectId,
         projectName: row.projectName,
         worktreeId: row.worktreeId,
-        path: checkout?.path,
+        path: undefined,
         name: checkout?.name ?? row.title,
         displayTitle:
           checkout && row.title !== checkout.name ? row.title : undefined,
@@ -98,7 +97,7 @@ export function projectWorktreeSnapshot(
         inventory.environmentId,
         inventory.environment.name,
       ).flatMap((entry) =>
-        entry.available && entry.worktreeId && entry.path
+        entry.available && entry.worktreeId
           ? [
               {
                 projectId: project.id,
@@ -108,7 +107,6 @@ export function projectWorktreeSnapshot(
                 checkout: {
                   name: entry.name.slice(0, 512),
                   branch: entry.branch.slice(0, 512),
-                  path: entry.path.slice(0, 4096),
                   main: entry.main,
                   detached: entry.detached,
                 },

@@ -78,12 +78,13 @@ export function WorktreeNavigator({
   const { picker, checkout, initializing, reading } = useWorkspacePickerModel();
   const remotes = useAtomRef(remoteConnectionState);
   const connections = remotes.map((entry) => entry.connection);
-  const { loading, projects, allProjects, filters } = useAtomValue(
-    readWorktreeNavigatorWithSnapshots({
-      connections,
-      snapshots: savedWorktrees(remotes),
-    }),
-  );
+  const { loading, loadingWithoutSavedRows, projects, allProjects, filters } =
+    useAtomValue(
+      readWorktreeNavigatorWithSnapshots({
+        connections,
+        snapshots: savedWorktrees(remotes),
+      }),
+    );
   const retry = useAtomSet(refreshWorktreeNavigator(connections));
   const clipboard = useCopyPath();
   const router = useRouter();
@@ -203,7 +204,8 @@ export function WorktreeNavigator({
             ))}
           </ScrollView>
         </Box>
-        {allProjects.length === 0 && (initializing || loading) ? (
+        {loadingWithoutSavedRows ||
+        (initializing && allProjects.length === 0) ? (
           <Spinner />
         ) : null}
         {projects.map((project) => {
@@ -274,7 +276,7 @@ export function WorktreeNavigator({
                     .filter((entry) => entry.kind === 'worktree')
                     .map((entry) => {
                       const selected = navigatorEntrySelected(entry, selection);
-                      const row = worktreeRow(entry);
+                      const row = worktreeRow(entry, project.saved);
                       const review =
                         entry.pullRequest.state === 'available'
                           ? entry.pullRequest

@@ -189,11 +189,14 @@ function navigator(
     const all: NavigatorProject[] = [];
     const inventories = connectionInventories(get, connections);
     const saved = snapshots ? get(snapshots) : [];
-    for (const { connection, inventory } of inventories.reads) {
+    let loadingWithoutSavedRows = false;
+    for (const { connection, inventory, result } of inventories.reads) {
       if (!inventory) {
         const record = saved.find(
           (entry) => entry.environmentId === connection.environmentId,
         );
+        loadingWithoutSavedRows ||=
+          AsyncResult.isInitial(result) && !record?.snapshot.rows.length;
         if (record)
           all.push(...savedProjects(connection, record.snapshot, state));
         continue;
@@ -289,6 +292,7 @@ function navigator(
       allProjects: all,
       filters,
       loading: inventories.loading,
+      loadingWithoutSavedRows,
       neverRead: inventories.neverRead,
     };
   });

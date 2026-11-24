@@ -156,8 +156,11 @@ export function navigatorInventoryEntries(
         path: worktree.path,
         name:
           worktree.branch ??
-          worktree.path.split('/').filter(Boolean).at(-1) ??
-          worktree.path,
+          worktree.path
+            .split(worktree.path.startsWith('/') ? '/' : /[/\\]/)
+            .filter(Boolean)
+            .at(-1) ??
+          worktreeLabel(worktree.branch),
         displayTitle,
         branch: worktreeLabel(worktree.branch),
         main: worktree.main,

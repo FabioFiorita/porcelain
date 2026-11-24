@@ -215,6 +215,55 @@ it('keeps project groups and scope choices when saved rows give way to live rows
   }
 });
 
+it('keeps loading visible for a computer without saved rows beside another computer’s projects', async () => {
+  const opened = Promise.withResolvers<Response>();
+  const desk = create(
+    (path) => identityResponse(path, environmentId),
+    undefined,
+    1000,
+    environmentId,
+  );
+  const studioInventory = inventory(secondEnvironmentId, 'Studio');
+  const studio = create(
+    (path) =>
+      path.startsWith('/api/inventory')
+        ? opened.promise.then((answer) => answer.clone())
+        : identityResponse(path, secondEnvironmentId, studioInventory),
+    undefined,
+    1000,
+    secondEnvironmentId,
+  );
+  const snapshot = projectWorktreeSnapshot(studioInventory, '["phone"]', 5);
+  const snapshots = Atom.make<
+    readonly { environmentId: string; snapshot: typeof snapshot }[]
+  >([]);
+  const { registry } = desk;
+  const list = readWorktreeNavigatorWithSnapshots({
+    connections: [desk.connection, studio.connection],
+    snapshots,
+  });
+  const stop = registry.mount(list);
+  try {
+    await expectNavigatorNames(registry, list, ['main', 'topic']);
+    expect(registry.get(list).loadingWithoutSavedRows).toBe(true);
+    registry.set(snapshots, [{ environmentId: secondEnvironmentId, snapshot }]);
+    expect(registry.get(list).loadingWithoutSavedRows).toBe(false);
+    registry.set(snapshots, [
+      {
+        environmentId: secondEnvironmentId,
+        snapshot: { ...snapshot, rows: [] },
+      },
+    ]);
+    expect(registry.get(list).loadingWithoutSavedRows).toBe(true);
+    opened.resolve(Response.json(studioInventory));
+    await expect
+      .poll(() => registry.get(list).loadingWithoutSavedRows)
+      .toBe(false);
+  } finally {
+    stop();
+  }
+});
+
 it('keeps colliding projects distinct and mounts no hidden-project details or GitHub payloads, including refresh', async () => {
   const reads: { environmentId: string; path: string }[] = [];
   const subjects = [environmentId, secondEnvironmentId].map((identity) =>

@@ -13,7 +13,7 @@ export function worktreeChecksLabel(
     : navigatorChecksLabel(checks);
 }
 
-export function worktreeRow(entry: NavigatorEntry) {
+export function worktreeRow(entry: NavigatorEntry, saved = false) {
   const title = navigatorRowTitle(entry);
   const branch = entry.displayTitle === undefined ? '' : entry.branch;
   const changes =
@@ -30,6 +30,7 @@ export function worktreeRow(entry: NavigatorEntry) {
       entry.detached ? entry.path : undefined,
       entry.projectName,
       entry.environmentName,
+      saved ? 'Saved' : undefined,
       changes,
     ]
       .filter(Boolean)

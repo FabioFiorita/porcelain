@@ -24,7 +24,7 @@ const snapshot = projectWorktreeSnapshot(
         worktrees: [
           {
             id: detached,
-            path: '/code/app/release-checkout',
+            path: 'C:\\private\\app\\release-checkout',
             branch: undefined,
             main: false,
             available: true,
@@ -56,14 +56,16 @@ it('uses the checkout folder name for an untitled detached worktree', () => {
   expect(snapshot.rows.find((row) => row.worktreeId === detached)?.title).toBe(
     'release-checkout',
   );
+  expect(JSON.stringify(snapshot)).not.toContain('private');
 });
 
-it('matches saved rows across title, computer, branch and path within the chosen scopes', () => {
+it('matches saved rows across title, computer and branch within the chosen scopes', () => {
   const ids = (query: string, filter = emptyNavigatorFilter) =>
     savedWorktreeRows(snapshot, 'office', query, filter).map(
       (row) => row.worktreeId,
     );
-  expect(ids(' OFFICE    pairing /code/docs/tmp-123 ')).toEqual([topic]);
+  expect(ids(' OFFICE    pairing recovery ')).toEqual([topic]);
+  expect(ids('/code/docs/tmp-123')).toEqual([]);
   expect(
     ids('release-checkout app', {
       ...emptyNavigatorFilter,
