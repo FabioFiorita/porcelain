@@ -2,6 +2,8 @@ import { View } from 'react-native';
 import { headerTitleText, useHeaderTitleFrame } from './header-title-frame';
 import { Text } from './text';
 
+const headerFontScale = 1.5;
+
 export function HeaderTitle({
   title,
   subtitle,
@@ -14,7 +16,12 @@ export function HeaderTitle({
   const frame = useHeaderTitleFrame(trailingItems);
   return (
     <View className={frame.className} style={frame.style}>
-      <Text {...headerTitleText} numberOfLines={1} ellipsizeMode="middle">
+      <Text
+        {...headerTitleText}
+        numberOfLines={1}
+        ellipsizeMode="middle"
+        maxFontSizeMultiplier={headerFontScale}
+      >
         {title}
       </Text>
       {subtitle ? (
@@ -23,6 +30,7 @@ export function HeaderTitle({
           tone="muted"
           numberOfLines={1}
           ellipsizeMode="head"
+          maxFontSizeMultiplier={headerFontScale}
         >
           {subtitle}
         </Text>
