@@ -24,6 +24,11 @@ const branch = [
   { path: 'src/draft.ts', status: 'added' },
 ];
 const draftDeletion = change('unstaged', 'deleted', 'src/draft.ts');
+const conflict = {
+  scope: 'unmerged',
+  path: 'src/conflicted.ts',
+  conflict: 'both-modified',
+} as const;
 const worktree = [
   {
     path: 'notes.md',
@@ -37,16 +42,42 @@ const worktree = [
     path: 'scratch.md',
     comparisons: [{ scope: 'untracked', path: 'scratch.md' }],
   },
+  {
+    path: 'src/conflicted.ts',
+    comparisons: [conflict],
+  },
 ] as const;
 const read = { branch, branchFailed: false, worktree };
 
-it('opens a file on Branch when committed, on Uncommitted otherwise, and waits until the branch is read', () => {
+it('opens a file on Branch when committed, on Uncommitted otherwise, and waits for the branch only for files the working tree does not list', () => {
   expect(fileComparison(read, 'src/owner.ts')).toEqual({ kind: 'branch' });
   expect(fileComparison(read, 'notes.md')).toEqual({ kind: 'worktree' });
-  expect(
-    fileComparison({ ...read, branch: undefined }, 'notes.md'),
-  ).toBeUndefined();
+  const pending = { ...read, branch: undefined };
+  expect(fileComparison(pending, 'notes.md')).toEqual({ kind: 'worktree' });
+  expect(fileComparison(pending, 'scratch.md')).toEqual({ kind: 'worktree' });
+  expect(fileComparison(pending, 'src/owner.ts')).toBeUndefined();
 });
+
+it.each([
+  { branchRead: 'read', state: read },
+  { branchRead: 'still loading', state: { ...read, branch: undefined } },
+  {
+    branchRead: 'failed',
+    state: { ...read, branch: undefined, branchFailed: true },
+  },
+])(
+  'opens a conflicted file on its conflict, never as a live file, when the branch is $branchRead',
+  ({ state }) => {
+    expect(fileOpening(state, 'src/conflicted.ts')).toEqual({
+      kind: 'worktree',
+      change: conflict,
+    });
+    expect(fileComparison(state, 'src/conflicted.ts')).toEqual({
+      kind: 'worktree',
+      change: conflict,
+    });
+  },
+);
 
 it('opens a local change on Uncommitted when the branch cannot be read, and leaves only unknown files unavailable', () => {
   const failed = { branch: undefined, branchFailed: true, worktree };
