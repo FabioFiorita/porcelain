@@ -121,13 +121,10 @@ function SwitchWorktreeBranchContent({
           {(state) => (
             <CommandGroup>
               {state.items.map((item) => {
-                const branch = byRef.get(
-                  typeof item === 'string'
-                    ? item
-                    : 'value' in item
-                      ? item.value
-                      : '',
-                );
+                let value = '';
+                if (typeof item === 'string') value = item;
+                else if ('value' in item) value = item.value;
+                const branch = byRef.get(value);
                 return (
                   branch && (
                     <CommandItem

@@ -133,8 +133,6 @@ test('the base picker lists the best fuzzy matches first', async ({
     const options = page
       .getByRole('listbox', { name: 'Base branches', exact: true })
       .getByRole('option');
-    const listed = () =>
-      options.elements().map((option) => option.textContent?.trim());
     for (const [query, order] of [
       [
         'sea',
@@ -160,7 +158,7 @@ test('the base picker lists the best fuzzy matches first', async ({
         'mn',
         [
           'chore/merge-main',
-          'maindefault',
+          'main default',
           'mainline-sync',
           'release/main-2026',
           'spike/menu-a11y',
@@ -169,7 +167,9 @@ test('the base picker lists the best fuzzy matches first', async ({
       ],
     ] as const) {
       await search.fill(query);
-      await expect.poll(listed).toEqual(order);
+      for (const [index, name] of order.entries())
+        await expect.element(options.nth(index)).toHaveAccessibleName(name);
+      await expect.element(options.nth(order.length)).not.toBeInTheDocument();
     }
   } finally {
     await browserPage.viewport(414, 896);
