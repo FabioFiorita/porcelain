@@ -291,8 +291,8 @@ export const remoteWritable = Atom.family((status: Atom.Atom<RemoteStatus>) =>
 export const remoteWriteGuard = Atom.family((status: Atom.Atom<RemoteStatus>) =>
   Atom.writable(
     () => undefined,
-    (ctx, write: () => void) => {
-      if (remoteWritesAvailable(ctx.get(status))) write();
+    (ctx, request: { readonly write: () => void }) => {
+      if (remoteWritesAvailable(ctx.get(status))) request.write();
     },
   ),
 );

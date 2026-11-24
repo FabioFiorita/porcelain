@@ -668,11 +668,26 @@ it('runs a write only while the computer answers, whichever control starts it', 
   const registry = registryFixture();
   const guard = remoteWriteGuard(status);
   const writes: string[] = [];
-  registry.set(guard, () => writes.push('trash'));
+  registry.set(guard, { write: () => writes.push('trash') });
   registry.set(status, { kind: 'needs-pairing' });
-  registry.set(guard, () => writes.push('retry'));
+  registry.set(guard, { write: () => writes.push('retry') });
   expect(writes).toEqual([]);
   registry.set(status, { kind: 'online', name: 'Computer' });
-  registry.set(guard, () => writes.push('archive'));
+  registry.set(guard, { write: () => writes.push('archive') });
   expect(writes).toEqual(['archive']);
+});
+
+it('runs the write when the guard is set through a React setter that calls function values as updaters', () => {
+  const status = Atom.make<RemoteStatus>({ kind: 'online', name: 'Computer' });
+  const registry = registryFixture();
+  const guard = remoteWriteGuard(status);
+  type Request = { readonly write: () => void };
+  const setLikeReact = (value: Request | ((current: undefined) => Request)) =>
+    registry.set(
+      guard,
+      typeof value === 'function' ? value(registry.get(guard)) : value,
+    );
+  const writes: string[] = [];
+  setLikeReact({ write: () => writes.push('pull') });
+  expect(writes).toEqual(['pull']);
 });
