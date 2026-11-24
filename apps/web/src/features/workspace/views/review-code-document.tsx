@@ -74,13 +74,6 @@ export function ReviewCodeDocument({
   toolbar?: (collapseControl: ReactNode) => ReactNode;
 }) {
   const { connection } = context;
-  const [pendingOmittedPath, setPendingOmittedPath] = useState<string>();
-  const focusOmitted = (path: string, target: HTMLLIElement) => {
-    if (pendingOmittedPath !== path) return;
-    setPendingOmittedPath(undefined);
-    target.focus({ preventScroll: true });
-    target.scrollIntoView({ block: 'start' });
-  };
   usePrefetchReviewed(scope, context);
   const quiet = interaction.quiet === true;
   const changes = useHeldWhileHidden(
@@ -253,8 +246,6 @@ export function ReviewCodeDocument({
     }),
   );
   const renderedPaths = new Set(entries.map((entry) => entry.path));
-  if (pendingOmittedPath !== undefined && renderedPaths.has(pendingOmittedPath))
-    setPendingOmittedPath(undefined);
   const paneFile =
     interaction.toolbarTarget !== undefined &&
     /^(file|change|branch):/.test(interaction.entry);
@@ -266,16 +257,7 @@ export function ReviewCodeDocument({
     header || loading || failed || unrenderable.length > 0
       ? (controls: CodeHeaderControls) => (
           <>
-            {header?.({
-              ...controls,
-              open: (path) => {
-                setPendingOmittedPath(
-                  renderedPaths.has(path) ? undefined : path,
-                );
-                if (listed.some((entry) => entry.path === path))
-                  controls.open(path);
-              },
-            })}
+            {header?.(controls)}
             {failed && (
               <ChangesFailure
                 column={column}
@@ -290,9 +272,15 @@ export function ReviewCodeDocument({
                 changes={unrenderable}
                 column={column}
                 onTarget={(path, target) => {
-                  if (target) {
-                    focusOmitted(path, target);
-                  }
+                  if (
+                    !target ||
+                    controls.awaiting !== path ||
+                    renderedPaths.has(path)
+                  )
+                    return;
+                  controls.landed(path);
+                  target.focus({ preventScroll: true });
+                  target.scrollIntoView({ block: 'start' });
                 }}
                 renderedPaths={renderedPaths}
                 scope={scope}

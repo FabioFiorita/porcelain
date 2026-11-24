@@ -36,6 +36,7 @@ export function sampleRepository(step: Step, fixture: RepoFixture) {
     symlink: (target: string, path: string) =>
       step({ kind: 'symlink', target, path }),
     read: (path: string) => step({ kind: 'read', path }),
+    stage: (path: string) => step({ kind: 'stage', path }),
     commit: (message: string) => step({ kind: 'commit', message }),
     branch: (name: string) => step({ kind: 'branch', name }),
     tag: (name: string) => step({ kind: 'tag', name }),

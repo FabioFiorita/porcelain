@@ -763,3 +763,83 @@ test('a non-text file chosen in All changes before its diff arrives is focused o
     held.release();
   }
 });
+
+test('moving to another file in All changes cancels a jump to a non-text file still being read', async ({
+  repo,
+  render,
+  fetchGate,
+  reviewLayout,
+}) => {
+  await repo.write('logo.png', 'PNG\u0000\u0001binary');
+  await repo.commit('Add a logo');
+  await repo.write('logo.png', 'PNG\u0000\u0002changed');
+  await repo.write('a-notes.md', 'A note read before the logo\n');
+  const held = fetchGate.holdNextChangeDiff('logo.png');
+  held.arm();
+  try {
+    const workspace = await render.workspace();
+    await held.requested;
+    await reviewLayout.openAllChanges();
+    const table = workspace.getByRole('region', {
+      name: '2 uncommitted changes',
+      exact: true,
+    });
+    const currentRows = () => reviewLayout.currentChangeRows(table);
+    const notes = workspace
+      .getByRole('region', { name: 'Code content', exact: true })
+      .getByText('A note read before the logo', { exact: true });
+    await expect.element(notes).toBeInTheDocument();
+    await table.getByRole('button', { name: /^logo\.png/ }).click();
+    await userEvent.keyboard('K');
+    await expect.poll(currentRows).toEqual(['a-notes.md+1−0']);
+    held.release();
+    const omitted = workspace.getByRole('listitem', { name: /^logo\.png: / });
+    await expect.element(omitted).toBeInTheDocument();
+    await expect.element(omitted).not.toHaveFocus();
+    await expect.poll(currentRows).toEqual(['a-notes.md+1−0']);
+  } finally {
+    held.release();
+  }
+});
+
+test('a file with a non-text staged change and a text edit lands on its text once its diffs are read', async ({
+  repo,
+  render,
+  fetchGate,
+  reviewLayout,
+}) => {
+  await repo.write('data.txt', 'DATA\u0000\u0001binary');
+  await repo.commit('Add data as bytes');
+  await repo.write('data.txt', 'Plain data line\n');
+  await repo.stage('data.txt');
+  await repo.write('data.txt', 'Plain data line\nAn unstaged data line\n');
+  await repo.write(
+    'a-long.md',
+    `${Array.from({ length: 80 }, (_, index) => `Note ${index + 1}`).join('\n')}\n`,
+  );
+  const held = fetchGate.holdNextChangeDiff('data.txt');
+  held.arm();
+  try {
+    const workspace = await render.workspace();
+    await held.requested;
+    await reviewLayout.openAllChanges();
+    const table = workspace.getByRole('region', {
+      name: '2 uncommitted changes',
+      exact: true,
+    });
+    const code = workspace.getByRole('region', {
+      name: 'Code content',
+      exact: true,
+    });
+    await expect
+      .element(code.getByText('Note 1', { exact: true }))
+      .toBeInViewport();
+    await table.getByRole('button', { name: /^data\.txt/ }).click();
+    held.release();
+    await expect
+      .element(code.getByText('An unstaged data line', { exact: true }))
+      .toBeInViewport();
+  } finally {
+    held.release();
+  }
+});

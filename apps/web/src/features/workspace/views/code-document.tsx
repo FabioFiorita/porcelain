@@ -99,6 +99,8 @@ export type CodeHeaderControls = {
   current: string | undefined;
   counts: ReadonlyMap<string, LineCounts>;
   open: (path: string) => void;
+  awaiting: string | undefined;
+  landed: (path: string) => void;
 };
 export function CodeDocument(props: Props) {
   const review = useToggleReviewed(
@@ -187,9 +189,9 @@ function CodeSurface({
   };
   const discard = discardSelection(selection?.range);
   const [focusedId, focus] = useState(() => viewer.focused());
-  const [awaitedId, awaitEntry] = useState<CodeEntry['id']>();
+  const [awaitedPath, awaitPath] = useState<string>();
   const setFocusedId = (id: CodeEntry['id'] | undefined) => {
-    awaitEntry(undefined);
+    awaitPath(undefined);
     focus(id);
     viewer.rememberFocus(id);
   };
@@ -220,12 +222,12 @@ function CodeSurface({
     const entry = listed[index];
     if (!entry) return;
     setFocusedId(entry.id);
-    if (entries.some((shown) => shown.id === entry.id))
-      viewer.scrollTo({ type: 'item', id: entry.id, align: 'start' });
-    else awaitEntry(entry.id);
+    const shown = entries.find((candidate) => candidate.path === entry.path);
+    if (shown) viewer.scrollTo({ type: 'item', id: shown.id, align: 'start' });
+    else awaitPath(entry.path);
   };
   const keepView = () => {
-    if (awaitedId !== undefined) awaitEntry(undefined);
+    if (awaitedPath !== undefined) awaitPath(undefined);
   };
   const byId = new Map(entries.map((entry) => [entry.id, entry]));
   const items: CodeViewItem<never>[] = entries.map((entry) => ({
@@ -344,8 +346,16 @@ function CodeSurface({
         open: (path) => {
           const index = listed.findIndex((entry) => entry.path === path);
           const entry = listed[index];
-          if (entry) folds.setCollapsed([entry.id], false);
+          if (!entry) {
+            awaitPath(path);
+            return;
+          }
+          folds.setCollapsed([entry.id], false);
           focusEntry(index);
+        },
+        awaiting: awaitedPath,
+        landed: (path) => {
+          if (awaitedPath === path) awaitPath(undefined);
         },
       }));
 
@@ -455,16 +465,17 @@ function CodeSurface({
                       DEFAULT_VIRTUAL_FILE_METRICS.diffHeaderHeight)
                   : 0,
               );
-              if (
-                awaitedId !== undefined &&
-                entries.some((entry) => entry.id === awaitedId)
-              ) {
+              const arrived =
+                awaitedPath === undefined
+                  ? undefined
+                  : entries.find((entry) => entry.path === awaitedPath);
+              if (arrived) {
                 handle.scrollTo({
                   type: 'item',
-                  id: awaitedId,
+                  id: arrived.id,
                   align: 'start',
                 });
-                awaitEntry(undefined);
+                setFocusedId(arrived.id);
               }
               const requested = interaction.fileTarget;
               const requestedEntry = requested
