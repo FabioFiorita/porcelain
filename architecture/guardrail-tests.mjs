@@ -276,6 +276,7 @@ function ciSelectionFixture(entry) {
       'ci/check-plan.ts',
       'vite.config.ts',
       '.github/workflows/ci.yml',
+      '.github/workflows/agent-review.yml',
       ...manifests,
     ])
       writeFiles(root, {

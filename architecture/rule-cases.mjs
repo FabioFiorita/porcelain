@@ -6532,6 +6532,7 @@ export const guardrailCases = [
       ...[
         'package.json',
         '.github/workflows/ci.yml',
+        '.github/workflows/agent-review.yml',
         'ci/check-plan.ts',
         'pnpm-workspace.yaml',
       ].map((path) => ({
