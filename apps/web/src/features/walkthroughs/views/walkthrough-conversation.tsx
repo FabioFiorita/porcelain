@@ -1,4 +1,5 @@
 import { useWorkspaceWriteBlock } from '@/shared/workspace/connection';
+import { useAtom } from '@effect/atom-react';
 import { useState, type ReactNode } from 'react';
 import {
   Tooltip,
@@ -41,6 +42,7 @@ import {
   useConversations,
   type ConversationScope,
 } from '../queries/conversations';
+import { walkthroughDraft } from '../store';
 import { RichText } from './rich-text';
 
 type Props = { owner: ConversationScope };
@@ -229,7 +231,17 @@ function Composer({
   anchor: Conversation['anchor'];
   placeholder: string;
 }) {
-  const [draft, setDraft] = useState('');
+  const [draft, setDraft] = useAtom(
+    walkthroughDraft(
+      JSON.stringify([
+        owner.context.connection.environmentId,
+        owner.scope.projectId,
+        owner.scope.worktreeId,
+        owner.runId,
+        anchor,
+      ]),
+    ),
+  );
   const writeBlock = useWorkspaceWriteBlock(owner.context);
   const { failure, waiting, send: submit } = useSendMessage(owner);
   const send = () => {

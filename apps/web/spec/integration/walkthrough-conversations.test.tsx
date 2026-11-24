@@ -377,3 +377,29 @@ test('switching branches shows the displayed walkthrough conversations and never
     )
     .toBeVisible();
 });
+
+test('keeps an unsent step question when switching worktrees', async ({
+  render,
+  repo,
+}) => {
+  await conversationFixture('pr');
+  await repo.worktree('other-draft-worktree');
+  await browserPage.viewport(1280, 896);
+  const { page, location } = await render.route('/');
+  const sidebar = page.getByRole('navigation', {
+    name: 'Projects and worktrees',
+    exact: true,
+  });
+  const original = sidebar.getByRole('button', { name: /Main worktree/ });
+  const other = sidebar.getByRole('button', { name: /^other-draft-worktree,/ });
+  const step = page
+    .getByRole('textbox', { name: 'Ask about this step', exact: true })
+    .last();
+  await step.fill('What happens with duplicate titles?');
+  const originalLocation = location().split('?')[0];
+  await other.click();
+  await expect.poll(() => location().split('?')[0]).not.toBe(originalLocation);
+  await expect.element(step).not.toBeInTheDocument();
+  await original.click();
+  await expect.element(step).toHaveValue('What happens with duplicate titles?');
+});
