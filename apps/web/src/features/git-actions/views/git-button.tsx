@@ -356,28 +356,33 @@ export function GitButton({
                       pullBlock,
                     );
                     const reason =
-                      blocker ?? gitActionReason(candidate.id, status);
+                      writeBlock ??
+                      blocker ??
+                      gitActionReason(candidate.id, status);
                     return (
                       <Tooltip key={candidate.id}>
-                        <TooltipTrigger render={<span className="block" />}>
-                          <DropdownMenuItem
-                            disabled={
-                              Boolean(writeBlock) ||
-                              (blocker !== null && blocker !== undefined)
-                            }
-                            aria-description={writeBlock}
-                            onSelect={() => choose(candidate.id)}
-                          >
-                            <GitActionIcon action={candidate.id} />
-                            <span className="flex min-w-0 flex-col">
-                              <TruncatedText text={candidate.label} />
-                              {blocker && (
-                                <span className="text-xs whitespace-normal text-muted-foreground">
-                                  {blocker}
-                                </span>
-                              )}
-                            </span>
-                          </DropdownMenuItem>
+                        <TooltipTrigger
+                          render={
+                            <DropdownMenuItem
+                              className="data-disabled:pointer-events-auto"
+                              disabled={
+                                Boolean(writeBlock) ||
+                                (blocker !== null && blocker !== undefined)
+                              }
+                              aria-description={writeBlock}
+                              onSelect={() => choose(candidate.id)}
+                            />
+                          }
+                        >
+                          <GitActionIcon action={candidate.id} />
+                          <span className="flex min-w-0 flex-col">
+                            <TruncatedText text={candidate.label} />
+                            {blocker && (
+                              <span className="text-xs whitespace-normal text-muted-foreground">
+                                {blocker}
+                              </span>
+                            )}
+                          </span>
                         </TooltipTrigger>
                         <TooltipContent>
                           {candidate.description}
@@ -410,20 +415,22 @@ export function GitButton({
                         : `Restore discarded hunk of ${item.path}`;
                     return (
                       <Tooltip key={item.oid}>
-                        <TooltipTrigger render={<span className="block" />}>
-                          <DropdownMenuItem
-                            onSelect={() => {
-                              setMenuOpen(false);
-                              menu.restoreDiscarded(item);
-                            }}
-                          >
-                            <Undo2Icon />
-                            <TruncatedText
-                              className="min-w-0"
-                              text={label}
-                              propagateEscape
+                        <TooltipTrigger
+                          render={
+                            <DropdownMenuItem
+                              onSelect={() => {
+                                setMenuOpen(false);
+                                menu.restoreDiscarded(item);
+                              }}
                             />
-                          </DropdownMenuItem>
+                          }
+                        >
+                          <Undo2Icon />
+                          <TruncatedText
+                            className="min-w-0"
+                            text={label}
+                            propagateEscape
+                          />
                         </TooltipTrigger>
                         <TooltipContent>
                           {label} · Kept until you restore it
