@@ -45,7 +45,7 @@ export function ReviewPane({ workspace }: ReviewPaneProps) {
   if (!focused) return null;
   return profileMobileScreen(
     'changes',
-    <WorkspaceGate expectedWorkspace={workspace} frame="pane">
+    <WorkspaceGate expectedWorkspace={workspace} frame="pane" nested>
       {(selected) => <PhoneReview key={selected.key} workspace={selected} />}
     </WorkspaceGate>,
   );

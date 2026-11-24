@@ -6,6 +6,7 @@ import {
   connectionRouteTitle,
   operationJournalKey,
   parseRemotes,
+  readingConnectionNotice,
   remoteStatus,
   remoteStatusNote,
   serializeRemotes,
@@ -85,6 +86,42 @@ describe('remoteStatusNote', () => {
       remoteStatusNote({ kind: 'checking' }),
       remoteStatusNote({ kind: 'online', name: 'home-server' }),
     ]).toEqual([undefined, undefined]);
+  });
+});
+
+describe('readingConnectionNotice', () => {
+  it('shows nothing while the computer answers', () => {
+    expect(
+      readingConnectionNotice({ kind: 'online', name: 'Beelink' }, 'Beelink'),
+    ).toBeUndefined();
+  });
+
+  it('keeps one reconnecting title while retries alternate between kinds', () => {
+    expect(
+      (['checking', 'reconnecting', 'offline'] as const).map((kind) =>
+        readingConnectionNotice({ kind }, 'Beelink'),
+      ),
+    ).toEqual([
+      { title: 'Reconnecting to Beelink', interrupted: true, repair: false },
+      { title: 'Reconnecting to Beelink', interrupted: true, repair: false },
+      { title: 'Reconnecting to Beelink', interrupted: true, repair: false },
+    ]);
+  });
+
+  it('offers pairing only when the computer refuses this device', () => {
+    expect(
+      (['needs-pairing', 'other-server', 'incompatible'] as const).map(
+        (kind) => readingConnectionNotice({ kind }, 'Beelink'),
+      ),
+    ).toEqual([
+      { title: 'Beelink needs pairing', interrupted: false, repair: true },
+      {
+        title: 'Another server answers for Beelink',
+        interrupted: false,
+        repair: false,
+      },
+      { title: 'Beelink needs an update', interrupted: false, repair: false },
+    ]);
   });
 });
 

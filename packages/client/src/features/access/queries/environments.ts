@@ -1,6 +1,6 @@
 import type { EnvironmentConnection } from '../ports/connection-factory.ts';
 import { Effect, Layer, Option, Queue, Schedule, Stream } from 'effect';
-import { AsyncResult, Atom } from 'effect/reactivity';
+import { AsyncResult, Atom, AtomRegistry } from 'effect/reactivity';
 import { ENVIRONMENT_PROTOCOL } from '@porcelain/contracts/shared';
 import {
   REMOTE_STATUS_REFRESH_MS,
@@ -17,6 +17,7 @@ import type { AccessPlatformValue } from '../ports/access-platform.ts';
 import {
   connectionRoutes,
   remoteStatus,
+  remoteWorktreeInterrupted,
   sameRemoteConnection,
   type Remote,
   type ConnectionRoute,
@@ -240,3 +241,26 @@ export function readRemoteConnectionStatus(
 ) {
   return connectionStatusAtoms({ platform, remote, connection });
 }
+
+const interruption = Atom.family((status: Atom.Atom<RemoteStatus>) =>
+  status.pipe(Atom.map(({ kind }) => remoteWorktreeInterrupted(kind))),
+);
+
+export const remoteWorkspaceNotice = Atom.family(
+  (status: Atom.Atom<RemoteStatus>) =>
+    Atom.make((get) =>
+      AtomRegistry.toStream(get.registry, interruption(status)).pipe(
+        Stream.switchMap((interrupted) =>
+          interrupted
+            ? Stream.concat(
+                Stream.make(false),
+                Stream.fromEffect(Effect.as(Effect.sleep('2 seconds'), true)),
+              )
+            : Stream.make(false),
+        ),
+      ),
+    ).pipe(
+      Atom.map((result) => AsyncResult.getOrElse(result, () => false)),
+      Atom.setIdleTTL(0),
+    ),
+);

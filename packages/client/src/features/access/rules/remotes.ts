@@ -242,3 +242,45 @@ export function remoteStatusNote(status: RemoteStatus): string | undefined {
       return undefined;
   }
 }
+
+export function remoteWorktreeInterrupted(kind: RemoteStatus['kind']) {
+  return kind === 'checking' || kind === 'reconnecting' || kind === 'offline';
+}
+
+export type ReadingConnectionNotice = {
+  readonly title: string;
+  readonly interrupted: boolean;
+  readonly repair: boolean;
+};
+
+export function readingConnectionNotice(
+  status: RemoteStatus,
+  name: string,
+): ReadingConnectionNotice | undefined {
+  switch (status.kind) {
+    case 'online':
+      return undefined;
+    case 'checking':
+    case 'reconnecting':
+    case 'offline':
+      return {
+        title: `Reconnecting to ${name}`,
+        interrupted: true,
+        repair: false,
+      };
+    case 'needs-pairing':
+      return { title: `${name} needs pairing`, interrupted: false, repair: true };
+    case 'other-server':
+      return {
+        title: `Another server answers for ${name}`,
+        interrupted: false,
+        repair: false,
+      };
+    case 'incompatible':
+      return {
+        title: `${name} needs an update`,
+        interrupted: false,
+        repair: false,
+      };
+  }
+}

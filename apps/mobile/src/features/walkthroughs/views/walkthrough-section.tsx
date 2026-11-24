@@ -13,6 +13,7 @@ export function WalkthroughSection() {
   return (
     <WorkspaceGate
       frame="pane"
+      nested
       changed={<Empty title="Another worktree is selected now." />}
     >
       {(workspace) => (

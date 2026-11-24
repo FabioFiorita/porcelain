@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
 import { useRouter } from 'expo-router';
+import { View } from 'react-native';
+import { ReadingConnection } from '../../access';
 import { Box } from '../../../components/ui/box';
 import { Empty } from '../../../components/ui/empty';
 import { ErrorState } from '../../../components/ui/error-state';
@@ -14,12 +16,14 @@ export function WorkspaceGate({
   changed,
   unavailable,
   frame = 'screen',
+  nested = false,
   children,
 }: {
   expectedWorkspace?: string | undefined;
   changed?: ReactNode;
   unavailable?: ReactNode;
   frame?: 'screen' | 'pane';
+  nested?: boolean;
   children: (workspace: Workspace) => ReactNode;
 }) {
   const { state, read, reading, remote, environments } = useWorkspace();
@@ -84,7 +88,14 @@ export function WorkspaceGate({
     (expectedWorkspace === undefined ||
       state.workspace.key === expectedWorkspace)
   )
-    return children(state.workspace);
+    return nested || !remote ? (
+      children(state.workspace)
+    ) : (
+      <View className="flex-1" collapsable={false}>
+        {children(state.workspace)}
+        <ReadingConnection remote={remote} />
+      </View>
+    );
   return frame === 'screen' ? (
     <Screen layout="fixed">{notice()}</Screen>
   ) : (

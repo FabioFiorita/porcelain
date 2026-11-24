@@ -5,13 +5,16 @@ import { HistoryNavigation } from './history-navigation';
 
 export function HistoryScreen({
   workspace,
+  nested = false,
 }: {
   workspace?: string | undefined;
+  nested?: boolean;
 }) {
   const router = useRouter();
   return (
     <WorkspaceGate
       expectedWorkspace={workspace}
+      nested={nested}
       changed={<Empty title="Another worktree is selected now." />}
     >
       {(current) => (
