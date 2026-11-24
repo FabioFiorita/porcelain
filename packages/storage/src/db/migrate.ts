@@ -36,6 +36,10 @@ const nativeHistorySchema = Schema.Array(
 );
 
 export const nativeMigrations = Migrator.fromRecord({
+  '019_walkthrough_blocks': Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`DELETE FROM walkthrough_runs WHERE status = 'ready' AND json_extract(payload, '$.run.state.content.version') IS NULL`;
+  }),
   '018_drop_push_registrations': Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     yield* sql`DROP TABLE push_registrations`;

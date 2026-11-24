@@ -326,3 +326,88 @@ it.each([12, 14])(
     }
   },
 );
+
+it('retires old ready walkthroughs and their evidence while preserving queued work and automatic PR history', async () => {
+  const directory = mkdtempSync(
+    join(temporaryRoot, 'porcelain-walkthrough-blocks-'),
+  );
+  const filename = join(directory, 'inventory.sqlite');
+  const options = { worktreeIdLength: 32, busyTimeoutMs: 5000 };
+  try {
+    await prepareNativeDatabase(directory, 18);
+    const versionOne = JSON.stringify({
+      run: {
+        state: {
+          status: 'ready',
+          content: {
+            version: 1,
+            outcome: 'nothing',
+            title: 'A ready walkthrough',
+            summary: 'Already saved in version one.',
+            stops: [],
+            growth: [],
+            onlyInTranscript: [],
+            stillUnclear: [],
+          },
+        },
+      },
+    });
+    const previous = new DatabaseSync(filename);
+    try {
+      previous.exec(`PRAGMA foreign_keys = ON;
+        INSERT INTO inventory_projects VALUES ('project', 'Project', 0, '/repo/.git', 'identity', 1, 0);
+        INSERT INTO worktree_presence (worktree_id, project_id, missing_since) VALUES ('worktree', 'project', NULL);
+        INSERT INTO walkthrough_runs (id,worktree_id,head_oid,status,payload)
+          VALUES ('old','worktree','previous-head','ready','{"run":{"state":{"status":"ready","content":{"stops":[{"title":"Old step","files":[]}]}}}}'),
+                 ('queued','worktree','next-head','queued','{"run":{"state":{"status":"queued"}}}'),
+                 ('version-one','worktree','written-head','ready','${versionOne}');
+        INSERT INTO walkthrough_evidence VALUES ('old','image','image/png','Existing evidence',X'010203');
+        INSERT INTO walkthrough_messages (id,run_id,worktree_id,text,created_at,answer_status,answer)
+          VALUES ('question','old','worktree','Why?','today','answered','{"status":"answered"}');
+        INSERT INTO walkthrough_automatic VALUES ('project/42','old');`);
+    } finally {
+      previous.close();
+    }
+    const runtime = ManagedRuntime.make(
+      databaseLayer(directory, options).pipe(Layer.provide(NodeServices.layer)),
+    );
+    try {
+      await runtime.runPromise(SqlClient.SqlClient);
+    } finally {
+      await runtime.dispose();
+    }
+    const current = new DatabaseSync(filename);
+    try {
+      expect(
+        current
+          .prepare('SELECT id, status FROM walkthrough_runs ORDER BY id')
+          .all(),
+      ).toEqual([
+        { id: 'queued', status: 'queued' },
+        { id: 'version-one', status: 'ready' },
+      ]);
+      expect(
+        current
+          .prepare(
+            "SELECT payload FROM walkthrough_runs WHERE id = 'version-one'",
+          )
+          .get(),
+      ).toEqual({ payload: versionOne });
+      expect(
+        current.prepare('SELECT asset_id FROM walkthrough_evidence').all(),
+      ).toEqual([]);
+      expect(
+        current.prepare('SELECT id FROM walkthrough_messages').all(),
+      ).toEqual([]);
+      expect(
+        current
+          .prepare('SELECT pr_key, run_id FROM walkthrough_automatic')
+          .all(),
+      ).toEqual([{ pr_key: 'project/42', run_id: null }]);
+    } finally {
+      current.close();
+    }
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
