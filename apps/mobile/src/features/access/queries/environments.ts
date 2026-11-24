@@ -88,7 +88,7 @@ export function useWritesBlocked(environmentId: string) {
 
 const writeWithoutRemote = Atom.writable(
   () => undefined,
-  (_ctx, write: () => void) => write(),
+  (_ctx, request: { readonly write: () => void }) => request.write(),
 );
 
 export function useWriteAllowed(environmentId: string) {
@@ -108,8 +108,10 @@ export function useWriteAllowed(environmentId: string) {
   );
   return () => {
     let allowed = false;
-    guard(() => {
-      allowed = true;
+    guard({
+      write: () => {
+        allowed = true;
+      },
     });
     return allowed;
   };
