@@ -7,6 +7,7 @@ import {
   type NavigatorEntry,
 } from '@porcelain/client/projects/rules';
 import { remoteConnectionState } from '../../../shared/application/store';
+import { profileMobileScreen } from '../../../shared/application/mobile-timing';
 import type {
   ListDetailMode,
   ListPlace,
@@ -32,7 +33,8 @@ export function WorktreesScreen({
 }) {
   const router = useRouter();
   const remember = useAtomSet(openedWorktree);
-  return (
+  return profileMobileScreen(
+    'worktrees',
     <WorktreeNavigator
       hidden={presentation === 'away'}
       over={presentation === 'over'}
@@ -44,7 +46,7 @@ export function WorktreesScreen({
         if (mode === 'beside') remember(details);
         else router.push({ pathname: '/worktree', params: details });
       }}
-    />
+    />,
   );
 }
 
