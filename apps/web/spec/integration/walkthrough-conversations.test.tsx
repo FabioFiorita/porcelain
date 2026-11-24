@@ -378,28 +378,131 @@ test('switching branches shows the displayed walkthrough conversations and never
     .toBeVisible();
 });
 
-test('keeps an unsent step question when switching worktrees', async ({
+const question = 'What happens with duplicate titles?';
+
+test('keeps a question in its original step and worktree', async ({
+  render,
+  repo,
+  server,
+}) => {
+  await conversationFixture('pr');
+  await repo.worktree('other-draft-worktree');
+  await expect
+    .poll(async () =>
+      (await server.project()).worktrees.some(
+        (worktree) => worktree.branch === 'other-draft-worktree',
+      ),
+    )
+    .toBe(true);
+  await conversationFixture('other-worktree');
+  await browserPage.viewport(1280, 896);
+  const { page } = await render.route('/');
+  const sidebar = page.getByRole('navigation', {
+    name: 'Projects and worktrees',
+    exact: true,
+  });
+  const step = (title: string) =>
+    page
+      .getByRole('listitem')
+      .filter({
+        has: page.getByRole('heading', { name: title, exact: true }),
+      })
+      .getByRole('textbox', { name: 'Ask about this step', exact: true });
+  const originalStep = step('Failure handling');
+
+  await sidebar.getByRole('button', { name: /Main worktree/ }).click();
+  await expect
+    .element(
+      page.getByRole('heading', { name: /^Keep retries beside their owner/ }),
+    )
+    .toBeVisible();
+  await originalStep.fill(question);
+  await expect.element(originalStep).toHaveValue(question);
+  await expect.element(step('Retry boundary')).toHaveValue('');
+  await sidebar.getByRole('button', { name: /other-draft-worktree/ }).click();
+  await expect
+    .element(
+      page.getByRole('heading', { name: /^Questions on the other worktree/ }),
+    )
+    .toBeVisible();
+  await expect.element(originalStep).toHaveValue('');
+  await sidebar.getByRole('button', { name: /Main worktree/ }).click();
+  await expect.element(originalStep).toHaveValue(question);
+});
+
+test('keeps call and step drafts separate for the same title', async ({
+  render,
+}) => {
+  await conversationFixture('pr');
+  const { page } = await render.route('/');
+  const call = page.getByRole('textbox', {
+    name: 'Decide, or ask about this',
+    exact: true,
+  });
+  const step = page
+    .getByRole('textbox', { name: 'Ask about this step', exact: true })
+    .first();
+  await call.fill(question);
+  await expect.element(step).toHaveValue('');
+  await step.fill('Where are retries scheduled?');
+  await expect.element(call).toHaveValue(question);
+});
+
+test('keeps a step draft when a new walkthrough retains its title', async ({
+  render,
+  repo,
+  server,
+}) => {
+  await conversationFixture('pr');
+  const { page } = await render.route('/');
+  const step = page
+    .getByRole('textbox', { name: 'Ask about this step', exact: true })
+    .last();
+  await step.fill(question);
+  await repo.write(
+    'walkthrough-fixture.txt',
+    'The revised conversation fixture.\n',
+  );
+  const revised = await conversationFixture('revision');
+  await expect
+    .poll(async () => (await server.walkthrough()).walkthrough?.id)
+    .toBe(revised);
+  await expect
+    .element(page.getByRole('heading', { name: /^The revised retry guidance/ }))
+    .toBeVisible();
+  await expect.element(step).toHaveValue(question);
+});
+
+test('keeps a send error with its draft after switching worktrees', async ({
   render,
   repo,
 }) => {
   await conversationFixture('pr');
   await repo.worktree('other-draft-worktree');
   await browserPage.viewport(1280, 896);
-  const { page, location } = await render.route('/');
+  const { page } = await render.route('/');
   const sidebar = page.getByRole('navigation', {
     name: 'Projects and worktrees',
     exact: true,
   });
-  const original = sidebar.getByRole('button', { name: /Main worktree/ });
-  const other = sidebar.getByRole('button', { name: /^other-draft-worktree,/ });
   const step = page
     .getByRole('textbox', { name: 'Ask about this step', exact: true })
     .last();
-  await step.fill('What happens with duplicate titles?');
-  const originalLocation = location().split('?')[0];
-  await other.click();
-  await expect.poll(() => location().split('?')[0]).not.toBe(originalLocation);
+  const error = page.getByText('Finished walkthrough or step not found', {
+    exact: true,
+  });
+  await sidebar.getByRole('button', { name: /Main worktree/ }).click();
+  await step.fill(question);
+  await conversationFixture('reject-send');
+  await userEvent.keyboard('{Enter}');
+  await expect.element(error).toBeVisible();
+  await sidebar.getByRole('button', { name: /other-draft-worktree/ }).click();
   await expect.element(step).not.toBeInTheDocument();
-  await original.click();
-  await expect.element(step).toHaveValue('What happens with duplicate titles?');
+  await sidebar.getByRole('button', { name: /Main worktree/ }).click();
+  await expect.element(step).toHaveValue(question);
+  await expect.element(error).toBeVisible();
+  await step.click();
+  await userEvent.keyboard('{Enter}');
+  await expect.element(step).toHaveValue('');
+  await expect.element(error).not.toBeInTheDocument();
 });

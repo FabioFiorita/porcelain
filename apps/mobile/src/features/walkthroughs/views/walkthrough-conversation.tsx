@@ -1,3 +1,4 @@
+import type { WalkthroughDraftPlacement } from '@porcelain/client/walkthroughs';
 import { useState, type ReactNode } from 'react';
 import { Keyboard } from 'react-native';
 import { useAtom } from '@effect/atom-react';
@@ -33,7 +34,7 @@ import {
   useConversations,
   type ConversationOwner,
 } from '../queries/conversations';
-import { walkthroughAsking, walkthroughDraft } from '../store';
+import { walkthroughAsking } from '../store';
 
 type Props = { owner: ConversationOwner };
 
@@ -238,32 +239,31 @@ function Messages({
 function Composer({
   owner,
   title,
+  placement,
   placeholder,
   scroller,
 }: Props & {
   title: string;
+  placement: WalkthroughDraftPlacement;
   placeholder: string;
   scroller: KeyboardScroller;
 }) {
-  const [draft, setDraft] = useAtom(
-    walkthroughDraft(JSON.stringify([owner.workspace.key, title])),
+  const { text, failure, waiting, change, send } = useAsk(
+    owner,
+    title,
+    placement,
   );
-  const { failure, waiting, ask } = useAsk(owner, title);
   return (
     <MessageComposer
-      value={draft}
+      value={text}
       placeholder={placeholder}
       sending={waiting}
       error={failure}
-      onChangeText={setDraft}
+      onChangeText={change}
       scroller={scroller}
       onSend={() => {
-        const text = draft.trim();
-        if (!text || waiting) return;
         Keyboard.dismiss();
-        ask(text, () =>
-          setDraft((current) => (current === draft ? '' : current)),
-        );
+        send();
       }}
     />
   );
@@ -277,7 +277,7 @@ export function WalkthroughConversation({
   scroller,
 }: Props & {
   title: string;
-  placement: 'call' | 'step';
+  placement: WalkthroughDraftPlacement;
   lead?: ReactNode;
   scroller: KeyboardScroller;
 }) {
@@ -332,6 +332,7 @@ export function WalkthroughConversation({
           <Composer
             owner={owner}
             title={title}
+            placement={placement}
             scroller={scroller}
             placeholder={
               call ? 'Decide, or ask about this' : 'Ask about this step'

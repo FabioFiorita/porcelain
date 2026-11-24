@@ -4,6 +4,9 @@ import type { Atom } from 'effect/reactivity';
 import {
   walkthroughCommandBinding,
   walkthroughConversationCommands,
+  walkthroughDraft,
+  walkthroughDraftBinding,
+  type WalkthroughDraftPlacement,
 } from '@porcelain/client/walkthroughs';
 import {
   conversationFailure,
@@ -88,18 +91,15 @@ export function useAnswerRetry(owner: ConversationOwner) {
   };
 }
 
-export function useAsk(owner: ConversationOwner, title: string) {
-  const add = useBound(commandsOf(owner).addMessage);
-  const [failure, setFailure] = useState<string>();
-  return {
-    failure,
-    waiting: add.waiting,
-    ask: (text: string, sent: () => void) => {
-      setFailure(undefined);
-      add
-        .run({ anchor: { kind: 'stop', title }, text })
-        .then(sent)
-        .catch((error: unknown) => setFailure(conversationFailure(error).text));
-    },
-  };
+export function useAsk(
+  owner: ConversationOwner,
+  title: string,
+  placement: WalkthroughDraftPlacement,
+) {
+  const selection = conversationSelection(owner);
+  return walkthroughDraftBinding(
+    useAtom(walkthroughDraft(selection, title, placement)),
+    useBound(walkthroughConversationCommands(selection).addMessage),
+    title,
+  );
 }

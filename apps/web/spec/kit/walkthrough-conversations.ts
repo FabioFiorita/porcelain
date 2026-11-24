@@ -26,6 +26,8 @@ export async function walkthroughConversationsFixture(
     | 'changed-pr'
     | 'running-update'
     | 'failed-update'
+    | 'other-worktree'
+    | 'revision'
     | 'two-branches',
 ): Promise<string> {
   const server = world.server;
@@ -33,7 +35,12 @@ export async function walkthroughConversationsFixture(
     read: (request) => world.read({ ...request, server: 'this' }),
     hits: () => world.hits('this'),
   }).project();
-  const worktree = project.worktrees[0];
+  const worktree =
+    action === 'other-worktree'
+      ? project.worktrees.find(
+          ({ branch }) => branch === 'other-draft-worktree',
+        )
+      : project.worktrees[0];
   if (!worktree) throw new Error('The conversation fixture needs a worktree.');
   const session = server.session(world.recorder, {
     projectId: project.id,
@@ -59,19 +66,21 @@ export async function walkthroughConversationsFixture(
     return '';
   }
   if (action === 'posts') return readFile(calls, 'utf8');
-  await session.git(
-    'remote',
-    'add',
-    'origin',
-    'https://github.com/example/sample.git',
-  );
-  await session.git('branch', 'walkthrough-conversation-base');
-  await session.writeFile(
-    'walkthrough-fixture.txt',
-    'A conversation fixture.\n',
-  );
-  await session.git('add', 'walkthrough-fixture.txt');
-  await session.git('commit', '-m', 'Prepare walkthrough conversations');
+  if (action !== 'other-worktree' && action !== 'revision') {
+    await session.git(
+      'remote',
+      'add',
+      'origin',
+      'https://github.com/example/sample.git',
+    );
+    await session.git('branch', 'walkthrough-conversation-base');
+    await session.writeFile(
+      'walkthrough-fixture.txt',
+      'A conversation fixture.\n',
+    );
+    await session.git('add', 'walkthrough-fixture.txt');
+    await session.git('commit', '-m', 'Prepare walkthrough conversations');
+  }
   const writer = await scriptedWalkthroughs(session, server.manifestPath, {
     answer:
       'Keep the retry beside its owner. The `local` boundary is deliberate.',
@@ -110,6 +119,20 @@ export async function walkthroughConversationsFixture(
     stillUnclear: [],
   };
   const base = 'refs/heads/walkthrough-conversation-base';
+  if (action === 'other-worktree' || action === 'revision') {
+    return (
+      await writer.write(
+        {
+          ...content,
+          title:
+            action === 'other-worktree'
+              ? 'Questions on the other worktree'
+              : 'The revised retry guidance',
+        },
+        { base },
+      )
+    ).id;
+  }
   const hasPr = action !== 'no-pr';
   const run = await writer.write(content, {
     base,
