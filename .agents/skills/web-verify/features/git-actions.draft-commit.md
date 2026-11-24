@@ -43,7 +43,7 @@ Required instance mode: `--coding-tool`.
 
 ### Setup
 
-`start --coding-tool` puts the kit's fake `claude` on the server's PATH, without it "Commit model" reads "No coding CLI available" and every step below is disabled. The fake drafts fixed answers: the message "Explain the change to review in the README" (paths README.md), and the groups "Explain the change to review in the README" (README.md) then "Add notes for the reviewer" (NOTES.md). It serves only the models sonnet and haiku.
+`start --coding-tool` puts the kit's fake `claude` on the server's PATH, without it the dialog shows "No coding CLI available.", hides "Commit model" and "Use groups", and every step below is unavailable. The fake drafts fixed answers: the message "Explain the change to review in the README" (paths README.md), and the groups "Explain the change to review in the README" (README.md) then "Add notes for the reviewer" (NOTES.md). It serves only the models sonnet and haiku.
 
 ### Case 1: the chosen model drafts the message and the drafted commit becomes the newest
 
@@ -110,7 +110,7 @@ Automated coverage: `git-actions-draft-commit.test.tsx`.
 
 ## Gotchas
 
-- If the coding CLI offers models without an automatic default, "Choose a model to generate a message" keeps Generate disabled until a model is selected. Model loading or a failed catalogue read still allows a typed manual commit.
+- If the coding CLI offers models without an automatic default, "Commit model" shows "Choose a model" and Generate stays disabled until a model is selected. Model loading or a failed catalogue read still allows a typed manual commit.
 - Requires --coding-tool. Commit model is a combobox with labelled options/provider groups; both fixture models draft the same text.
 - Case 2 needs README and NOTES changed because the fixture proposes NOTES. Wait for watcher updates before opening: the dialog captures that file set.
 - Generating… must finish and Message fill before submit. Each case commits; use fresh setup for each.
