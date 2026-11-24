@@ -11,12 +11,14 @@ import { cn } from 'cn';
 function Tabs({
   className,
   orientation = 'horizontal',
+  activation = 'manual',
   ...props
 }: Omit<React.ComponentProps<typeof TabsRoot>, 'className'> & {
   className?: string | undefined;
 }) {
   return (
     <TabsRoot
+      activation={activation}
       data-slot="tabs"
       data-orientation={orientation}
       className={cn(
