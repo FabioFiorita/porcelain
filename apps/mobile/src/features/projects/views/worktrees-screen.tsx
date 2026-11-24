@@ -1,7 +1,7 @@
 import type { SearchBarCommands } from 'react-native-screens';
 import { useRouter } from 'expo-router';
 import { useAtomRef, useAtomSet, useAtomValue } from '@effect/atom-react';
-import { readWorktreeNavigator } from '@porcelain/client/projects';
+import { readWorktreeNavigatorRows } from '@porcelain/client/projects';
 import {
   navigatorEntrySelected,
   type NavigatorEntry,
@@ -54,7 +54,7 @@ export function useSelectedWorktree(): WorktreeDetails | undefined {
   const { checkout } = useWorkspacePickerModel();
   const remotes = useAtomRef(remoteConnectionState);
   const { projects } = useAtomValue(
-    readWorktreeNavigator(remotes.map((entry) => entry.connection)),
+    readWorktreeNavigatorRows(remotes.map((entry) => entry.connection)),
   );
   const remembered = useAtomValue(openedWorktree);
   const entry = projects

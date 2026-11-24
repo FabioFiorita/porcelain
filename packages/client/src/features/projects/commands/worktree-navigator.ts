@@ -15,10 +15,13 @@ export const refreshWorktreeNavigator = Atom.family(
   (connections: readonly RuntimeConnection[]) =>
     Atom.fn(
       Effect.fn('WorktreeNavigator.refresh')(function* (
-        target: { environmentId: string } | void,
+        target:
+          | { environmentId: string; worktreeId?: string }
+          | { mountedStatusOnly: true }
+          | void,
         get: Atom.FnContext,
       ) {
-        if (target) {
+        if (target && 'environmentId' in target) {
           const connection = connections.find(
             (connection) => connection.environmentId === target.environmentId,
           );
@@ -32,6 +35,8 @@ export const refreshWorktreeNavigator = Atom.family(
           ).flatMap((project) =>
             project.worktrees
               .filter((worktree) => {
+                if (target.worktreeId && target.worktreeId !== worktree.id)
+                  return false;
                 const status = statusOf(project.id, worktree.id);
                 return (
                   get.registry.getNodes().has(status) &&
@@ -124,17 +129,16 @@ export const refreshWorktreeNavigator = Atom.family(
             );
           }
           for (const worktree of source.project.worktrees) {
-            if (source.project.available && worktree.available) {
-              get.refresh(
-                readGitStatus({
-                  connection: source.connection,
-                  scope: {
-                    projectId: source.project.id,
-                    worktreeId: worktree.id,
-                  },
-                }),
-              );
-            }
+            if (!source.project.available || !worktree.available) continue;
+            const status = readGitStatus({
+              connection: source.connection,
+              scope: {
+                projectId: source.project.id,
+                worktreeId: worktree.id,
+              },
+            });
+            if (!target || get.registry.getNodes().has(status))
+              get.refresh(status);
           }
         }
       }),

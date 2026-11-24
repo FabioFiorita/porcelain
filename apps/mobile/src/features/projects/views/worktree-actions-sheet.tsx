@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useAtomRef, useAtomValue, useAtomSet } from '@effect/atom-react';
 import {
-  readWorktreeNavigator,
+  readWorktreeNavigatorRows,
+  readWorktreeRowChanges,
   refreshWorktreeNavigator,
 } from '@porcelain/client/projects';
 import { Cause, Option } from 'effect';
@@ -84,7 +85,7 @@ export function WorktreeActionsSheet({
   const remotes = useAtomRef(remoteConnectionState);
   const connection = useComputerConnection(environmentId);
   const { projects } = useAtomValue(
-    readWorktreeNavigator(remotes.map((entry) => entry.connection)),
+    readWorktreeNavigatorRows(remotes.map((entry) => entry.connection)),
   );
   const found = projects
     .flatMap((project) => project.entries)
@@ -145,17 +146,33 @@ function WorktreeMenu({
   onAction: (kind: 'delete' | 'switch') => void;
 }) {
   const retry = useAtomSet(refreshWorktreeNavigator([request.connection]));
+  const changes = useAtomValue(
+    readWorktreeRowChanges(
+      request.entry.available
+        ? {
+            connection: request.connection,
+            scope: {
+              projectId: request.entry.projectId,
+              worktreeId: request.worktreeId,
+            },
+          }
+        : undefined,
+    ),
+  );
   const clipboard = useCopyPath();
   const context = `${request.entry.name}, ${request.entry.projectName}, ${request.entry.environmentName}`;
   return (
     <Box gap={2}>
       {request.entry.available &&
         request.entry.kind === 'worktree' &&
-        request.entry.changes.state === 'unavailable' && (
+        changes.state === 'unavailable' && (
           <Item
             title="Retry changes"
             onPress={() => {
-              retry({ environmentId: request.connection.environmentId });
+              retry({
+                environmentId: request.connection.environmentId,
+                worktreeId: request.worktreeId,
+              });
               onClose();
             }}
           />

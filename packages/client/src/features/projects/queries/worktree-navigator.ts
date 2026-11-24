@@ -1,6 +1,9 @@
 import { Option } from 'effect';
 import { AsyncResult, Atom } from 'effect/reactivity';
-import type { RuntimeConnection } from '../../../shared/api/connection.ts';
+import type {
+  RuntimeConnection,
+  WorktreeSelection,
+} from '../../../shared/api/connection.ts';
 import { readGitStatus } from '../../changes/queries/changes.ts';
 import {
   readProjectPullRequests,
@@ -22,7 +25,7 @@ import {
   type EnvironmentIcon,
 } from '../../access/rules/environment-icon.ts';
 
-type NavigatorProject = {
+export type NavigatorProject = {
   key: string;
   connection: RuntimeConnection;
   project: Project;
@@ -126,41 +129,49 @@ const readProjectEntries = Atom.family(
     }).pipe(Atom.setIdleTTL(0)),
 );
 
+export const readWorktreeRowChanges = Atom.family(
+  (input: WorktreeSelection | undefined) =>
+    Atom.readable((get): NavigatorEntry['changes'] => {
+      if (!input) return { state: 'loading' };
+      const status = get(readGitStatus(input));
+      const answer = Option.getOrUndefined(AsyncResult.value(status));
+      if (!answer)
+        return {
+          state: AsyncResult.isFailure(status) ? 'unavailable' : 'loading',
+        };
+      return {
+        state: 'available',
+        count: new Set(
+          answer.changes.map((change) =>
+            change.scope === 'untracked' || change.scope === 'unmerged'
+              ? change.path
+              : (change.newPath ?? change.oldPath),
+          ),
+        ).size,
+      };
+    }).pipe(Atom.setIdleTTL(0)),
+);
+
 const readNavigatorProject = Atom.family(
   (input: { connection: RuntimeConnection; projectId: string }) =>
-    Atom.readable((get) => {
-      const entries = get(readProjectEntries(input)).map((source) => {
-        const entry: NavigatorEntry = { ...source };
-        if (entry.available && entry.worktreeId) {
-          const status = get(
-            readGitStatus({
-              connection: input.connection,
-              scope: {
-                projectId: entry.projectId,
-                worktreeId: entry.worktreeId,
-              },
-            }),
-          );
-          const answer = Option.getOrUndefined(AsyncResult.value(status));
-          entry.changes = answer
-            ? {
-                state: 'available',
-                count: new Set(
-                  answer.changes.map((change) =>
-                    change.scope === 'untracked' || change.scope === 'unmerged'
-                      ? change.path
-                      : (change.newPath ?? change.oldPath),
-                  ),
-                ).size,
-              }
-            : AsyncResult.isFailure(status)
-              ? { state: 'unavailable' }
-              : { state: 'loading' };
-        }
-        return entry;
-      });
-      return entries;
-    }).pipe(Atom.setIdleTTL(0)),
+    Atom.readable((get) =>
+      get(readProjectEntries(input)).map((entry) =>
+        entry.available && entry.worktreeId
+          ? {
+              ...entry,
+              changes: get(
+                readWorktreeRowChanges({
+                  connection: input.connection,
+                  scope: {
+                    projectId: entry.projectId,
+                    worktreeId: entry.worktreeId,
+                  },
+                }),
+              ),
+            }
+          : entry,
+      ),
+    ).pipe(Atom.setIdleTTL(0)),
 );
 function connectionInventories(
   get: Atom.AtomContext,
@@ -184,7 +195,10 @@ function connectionInventories(
   };
 }
 
-function navigator(connections: readonly RuntimeConnection[]) {
+function navigator(
+  connections: readonly RuntimeConnection[],
+  readEntries: typeof readProjectEntries,
+) {
   return Atom.readable((get) => {
     const state = get(worktreeNavigatorState);
     const query = state.query;
@@ -238,7 +252,7 @@ function navigator(connections: readonly RuntimeConnection[]) {
         connection: source.connection,
         projectId: source.project.id,
       };
-      const entries = get(readNavigatorProject(input))
+      const entries = get(readEntries(input))
         .filter((entry) => navigatorEntryMatches(entry, query))
         .map((entry): NavigatorEntry => ({
           ...entry,
@@ -284,5 +298,10 @@ function navigator(connections: readonly RuntimeConnection[]) {
 }
 
 export const readWorktreeNavigator = Atom.family(
-  (connections: readonly RuntimeConnection[]) => navigator(connections),
+  (connections: readonly RuntimeConnection[]) =>
+    navigator(connections, readNavigatorProject),
+);
+export const readWorktreeNavigatorRows = Atom.family(
+  (connections: readonly RuntimeConnection[]) =>
+    navigator(connections, readProjectEntries),
 );

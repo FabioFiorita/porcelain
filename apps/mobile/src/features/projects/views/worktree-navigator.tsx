@@ -10,12 +10,15 @@ import {
   useEnvironments,
   useEnvironmentStorageStatus,
 } from '../../access';
-import { ScrollView } from 'react-native';
-import { useScrollReveal } from '../../../components/ui/scroll-reveal';
-import { Stack, useRouter } from 'expo-router';
+import { FlatList, ScrollView, type FlatListProps } from 'react-native';
+import type { RuntimeConnection } from '@porcelain/client/transport';
+import { useListReveal } from '../../../components/ui/list-reveal';
+import { Stack, useIsFocused, useRouter } from 'expo-router';
 import { useAtomRef, useAtomValue, useAtomSet } from '@effect/atom-react';
 import {
-  readWorktreeNavigator,
+  readWorktreeNavigatorRows,
+  readWorktreeRowChanges,
+  type NavigatorProject,
   refreshWorktreeNavigator,
 } from '@porcelain/client/projects';
 import {
@@ -52,6 +55,25 @@ import { useCopyPath } from '../commands/clipboard';
 import { ProjectActions } from './project-actions';
 import { savedWorktrees } from '../queries/worktree-snapshot';
 
+type NavigatorRow =
+  | { kind: 'saved-computer'; key: string; computerName: string }
+  | {
+      kind: 'saved-worktree';
+      key: string;
+      row: ReturnType<typeof savedWorktreeRows>[number];
+    }
+  | { kind: 'project'; key: string; project: NavigatorProject }
+  | {
+      kind: 'worktree';
+      key: string;
+      connection: RuntimeConnection;
+      entry: NavigatorEntry;
+    };
+
+type Viewable = Parameters<
+  NonNullable<FlatListProps<NavigatorRow>['onViewableItemsChanged']>
+>[0];
+
 const environmentGlyphs: Record<EnvironmentIcon, IconName> = {
   desktop: 'environments',
   laptop: 'laptop',
@@ -80,7 +102,7 @@ export function WorktreeNavigator({
   const remotes = useAtomRef(remoteConnectionState);
   const connections = remotes.map((entry) => entry.connection);
   const { loading, projects, allProjects, filters } = useAtomValue(
-    readWorktreeNavigator(connections),
+    readWorktreeNavigatorRows(connections),
   );
   const retry = useAtomSet(refreshWorktreeNavigator(connections));
   const clipboard = useCopyPath();
@@ -92,10 +114,42 @@ export function WorktreeNavigator({
   const paired = useEnvironments();
   const storage = useEnvironmentStorageStatus();
   const snapshots = useAtomValue(savedWorktrees(remotes));
-  const saved = snapshots.flatMap(({ environmentId, snapshot }) => {
-    const rows = savedWorktreeRows(snapshot, environmentId, query, filter);
-    return rows.length ? [{ environmentId, snapshot, rows }] : [];
-  });
+  const saved = snapshots.flatMap(
+    ({ environmentId, snapshot }): NavigatorRow[] => {
+      const rows = savedWorktreeRows(snapshot, environmentId, query, filter);
+      return rows.length
+        ? [
+            {
+              kind: 'saved-computer',
+              key: `saved/${environmentId}`,
+              computerName: snapshot.computerName,
+            },
+            ...rows.map((row): NavigatorRow => ({
+              kind: 'saved-worktree',
+              key: `saved/${environmentId}/${row.worktreeId}`,
+              row,
+            })),
+          ]
+        : [];
+    },
+  );
+  const entries = projects.flatMap((project) => project.entries);
+  const rows: NavigatorRow[] = [
+    ...saved,
+    ...projects.flatMap((project): NavigatorRow[] => [
+      { kind: 'project', key: project.key, project },
+      ...project.entries.map((entry): NavigatorRow => ({
+        kind: 'worktree',
+        key: entry.key,
+        connection: project.connection,
+        entry,
+      })),
+    ]),
+  ];
+  const firstWorktree = rows.find(
+    ({ kind }) => kind === 'worktree' || kind === 'saved-worktree',
+  )?.key;
+  const showScopes = snapshots.length === 0 || allProjects.length > 0;
   const selection = checkout;
   const openActions = (entry: NavigatorEntry) => {
     if (entry.worktreeId)
@@ -123,21 +177,28 @@ export function WorktreeNavigator({
     current: null as SearchBarCommands | null,
   }));
   const searchBar = searchBarRef ?? ownSearchBar;
-  const visibleEntries = projects.flatMap((project) =>
-    project.expanded
-      ? project.entries.filter((entry) => entry.kind === 'worktree')
-      : [],
-  );
-  const reveal = useScrollReveal();
+  const focused = useIsFocused();
+  const reveal = useListReveal();
+  const [visibleKeys, setVisibleKeys] = useState(() => new Set<string>());
+  const [visibility] = useState(() => [
+    {
+      viewabilityConfig: reveal.props.viewabilityConfig,
+      onViewableItemsChanged: reveal.props.onViewableItemsChanged,
+    },
+    {
+      viewabilityConfig: { itemVisiblePercentThreshold: 1 },
+      onViewableItemsChanged: ({ viewableItems }: Viewable) =>
+        setVisibleKeys(new Set(viewableItems.map(({ key }) => key))),
+    },
+  ]);
   const cursor = useListCursor({
     hidden,
     over,
-    rows: visibleEntries,
-    selected: visibleEntries.find((entry) =>
-      navigatorEntrySelected(entry, selection),
-    )?.key,
+    rows: entries,
+    selected: entries.find((entry) => navigatorEntrySelected(entry, selection))
+      ?.key,
     onOpen: (key) => {
-      const entry = visibleEntries.find((candidate) => candidate.key === key);
+      const entry = entries.find((candidate) => candidate.key === key);
       if (entry && !picker.disabled) open(entry);
     },
     onSearch: () => searchBar.current?.focus(),
@@ -176,261 +237,307 @@ export function WorktreeNavigator({
         onChangeText={(event) => setQuery(event.nativeEvent.text)}
         onCancelButtonPress={() => setQuery('')}
       />
-      <ScrollView
-        {...reveal.scroller}
+      <FlatList
+        ref={(list) =>
+          reveal.attach(
+            list,
+            rows.findIndex(({ key }) => key === cursor.highlighted),
+          )
+        }
+        onScrollToIndexFailed={reveal.props.onScrollToIndexFailed}
+        viewabilityConfigCallbackPairs={visibility}
         className="flex-1"
         contentInsetAdjustmentBehavior="automatic"
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         accessibilityLabel="Worktrees by project"
-        contentContainerClassName="gap-2.5 px-4 pb-6"
-      >
-        {snapshots.length === 0 || allProjects.length > 0 ? (
-          <Box className="flex-row items-center" gap={2}>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerClassName="items-center gap-2"
-              keyboardShouldPersistTaps="handled"
-            >
-              {filters.map((section) => (
-                <NavigatorScopePicker
-                  key={section.key}
-                  section={section}
-                  label={scopeLabel(section)}
-                  onChange={(next) =>
-                    setFilter({ ...filter, [section.key]: next })
+        contentContainerClassName="px-4 pb-6"
+        data={rows}
+        keyExtractor={(row) => row.key}
+        initialNumToRender={12}
+        windowSize={5}
+        ItemSeparatorComponent={() => <Box className="h-2" />}
+        ListHeaderComponentClassName={
+          showScopes || initializing || loading ? 'pb-2.5' : ''
+        }
+        ListHeaderComponent={
+          <Box gap={2}>
+            {showScopes ? (
+              <Box className="flex-row items-center" gap={2}>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerClassName="items-center gap-2"
+                  keyboardShouldPersistTaps="handled"
+                >
+                  {filters.map((section) => (
+                    <NavigatorScopePicker
+                      key={section.key}
+                      section={section}
+                      label={scopeLabel(section)}
+                      onChange={(next) =>
+                        setFilter({ ...filter, [section.key]: next })
+                      }
+                    />
+                  ))}
+                </ScrollView>
+              </Box>
+            ) : null}
+            {initializing || loading ? <Spinner /> : null}
+          </Box>
+        }
+        ListFooterComponentClassName={rows.length ? 'pt-2.5' : ''}
+        ListFooterComponent={
+          <Box gap={2}>
+            {!initializing &&
+            !loading &&
+            picker.messages.length === 0 &&
+            rows.length === 0 ? (
+              <Empty title="No matching worktrees" />
+            ) : null}
+            <PickerNotices
+              messages={picker.messages}
+              error={picker.error}
+              onRead={picker.onRead}
+              reading={reading}
+            />
+            {picker.canReadInventory ? (
+              <Button
+                label="Read projects again"
+                variant="tonal"
+                pending={reading || loading}
+                onPress={() => retry({ mountedStatusOnly: true })}
+              />
+            ) : null}
+          </Box>
+        }
+        renderItem={({ item }) => {
+          switch (item.kind) {
+            case 'saved-computer':
+              return (
+                <Box gap={2}>
+                  <Text variant="secondary" weight="semibold">
+                    {item.computerName}
+                  </Text>
+                  <Text variant="caption" tone="muted">
+                    Saved worktrees · Reconnecting
+                  </Text>
+                </Box>
+              );
+            case 'saved-worktree':
+              return (
+                <Item
+                  title={item.row.title}
+                  description={item.row.projectName}
+                  size="compact"
+                  onLayout={
+                    item.key === firstWorktree
+                      ? mobileLayout('worktrees-first-row')
+                      : undefined
                   }
                 />
-              ))}
-            </ScrollView>
-          </Box>
-        ) : null}
-        {initializing || loading ? <Spinner /> : null}
-        {saved.map(({ environmentId, snapshot, rows }, index) => (
-          <Box key={environmentId} gap={2}>
-            <Text variant="secondary" weight="semibold">
-              {snapshot.computerName}
-            </Text>
-            <Text variant="caption" tone="muted">
-              Saved worktrees · Reconnecting
-            </Text>
-            {rows.map((row, rowIndex) => (
-              <Item
-                key={row.worktreeId}
-                title={row.title}
-                description={row.projectName}
-                size="compact"
-                onLayout={
-                  index === 0 && rowIndex === 0
-                    ? mobileLayout('worktrees-first-row')
-                    : undefined
-                }
-              />
-            ))}
-          </Box>
-        ))}
-        {projects.map((project) => {
-          const connection = remotes.find(
-            (remote) =>
-              remote.remote.environmentId === project.connection.environmentId,
-          )?.connection;
-          return (
-            <Box key={project.key} gap={2}>
-              <Box className="flex-row items-center" gap={1}>
-                <Box className="min-w-0 flex-1" gap={0.5}>
-                  <Text
-                    variant="secondary"
-                    weight="semibold"
-                    numberOfLines={1}
-                    accessibilityLabel={`${project.project.name}, ${project.environmentName}`}
-                  >
-                    {project.project.name}
-                  </Text>
-                  {connections.length > 1 && (
-                    <Box
-                      className="min-w-0 flex-row items-center"
-                      gap={1}
-                      accessible
-                      accessibilityLabel={`Computer: ${project.environmentName}`}
+              );
+            case 'project': {
+              const { project } = item;
+              return (
+                <Box className="flex-row items-center" gap={1}>
+                  <Box className="min-w-0 flex-1" gap={0.5}>
+                    <Text
+                      variant="secondary"
+                      weight="semibold"
+                      numberOfLines={1}
+                      accessibilityLabel={`${project.project.name}, ${project.environmentName}`}
                     >
-                      <Icon
-                        name={environmentGlyphs[project.environmentIcon]}
-                        tone="muted"
-                        size="caption"
-                      />
-                      <Text
-                        variant="caption"
-                        tone="muted"
-                        numberOfLines={1}
-                        className="min-w-0 flex-1"
+                      {project.project.name}
+                    </Text>
+                    {connections.length > 1 && (
+                      <Box
+                        className="min-w-0 flex-row items-center"
+                        gap={1}
+                        accessible
+                        accessibilityLabel={`Computer: ${project.environmentName}`}
                       >
-                        {project.environmentName}
-                      </Text>
-                    </Box>
-                  )}
-                </Box>
-                <ProjectActions
-                  connection={project.connection}
-                  project={project.project}
-                  environmentName={project.environmentName}
-                  onCopy={clipboard.copy}
-                />
-                <IconButton
-                  icon={project.expanded ? 'down' : 'chevron'}
-                  size="sm"
-                  expanded={project.expanded}
-                  accessibilityLabel={`${project.expanded ? 'Collapse' : 'Expand'} ${project.project.name} · ${project.environmentName}`}
-                  onPress={() => setExpanded(project.key, !project.expanded)}
-                />
-              </Box>
-              {project.expanded
-                ? project.entries
-                    .filter((entry) => entry.kind === 'worktree')
-                    .map((entry) => {
-                      const selected = navigatorEntrySelected(entry, selection);
-                      const row = worktreeRow(entry);
-                      const review =
-                        entry.pullRequest.state === 'available'
-                          ? entry.pullRequest
-                          : undefined;
-                      const number = review?.number;
-                      const checks = review?.checks;
-                      const failed =
-                        checks?.state === 'available' &&
-                        checks.result === 'failed';
-                      return (
-                        <Box
-                          key={entry.key}
-                          gap={1}
-                          collapsable={false}
-                          onLayout={
-                            entry.key === visibleEntries[0]?.key
-                              ? mobileLayout('worktrees-first-row')
-                              : undefined
-                          }
-                          {...(cursor.highlighted === entry.key
-                            ? { ref: reveal.row }
-                            : {})}
+                        <Icon
+                          name={environmentGlyphs[project.environmentIcon]}
+                          tone="muted"
+                          size="caption"
+                        />
+                        <Text
+                          variant="caption"
+                          tone="muted"
+                          numberOfLines={1}
+                          className="min-w-0 flex-1"
                         >
-                          <Item
-                            title={row.title}
-                            {...(entry.detached ? { detail: 'Detached' } : {})}
-                            titleNumberOfLines={1}
-                            size="compact"
-                            leading={
-                              <Icon name={worktreeIcon(entry)} tone="muted" />
-                            }
-                            trailing={
-                              failed ? (
-                                <Icon name="warning" tone="destructive" />
-                              ) : undefined
-                            }
-                            action={
-                              review && number !== undefined ? (
-                                <ButtonSurface
-                                  variant="plain"
-                                  size="sm"
-                                  className="self-end"
-                                  disabled={picker.disabled}
-                                  accessibilityLabel={[
-                                    `Open pull request #${number}`,
-                                    entry.projectName,
-                                    entry.environmentName,
-                                    worktreeChecksLabel(checks),
-                                  ]
-                                    .filter(Boolean)
-                                    .join(', ')}
-                                  onPress={() =>
-                                    openPullRequest({
-                                      environmentId: entry.environmentId,
-                                      number,
-                                      projectId: entry.projectId,
-                                    })
-                                  }
-                                >
-                                  <Text
-                                    accessible={false}
-                                    variant="caption"
-                                    tone="muted"
-                                  >
-                                    #{number}
-                                  </Text>
-                                </ButtonSurface>
-                              ) : undefined
-                            }
-                            selected={selected}
-                            highlighted={cursor.highlighted === entry.key}
-                            selectionTone="neutral"
-                            disabled={picker.disabled || !entry.available}
-                            accessibilityLabel={[
-                              row.accessibilityLabel,
-                              number ? worktreeChecksLabel(checks) : undefined,
-                              selected ? 'current' : undefined,
-                            ]
-                              .filter(Boolean)
-                              .join(', ')}
-                            onPress={() => {
-                              cursor.claim();
-                              open(entry);
-                            }}
-                            {...(entry.kind === 'worktree' &&
-                            entry.worktreeId &&
-                            connection
-                              ? {
-                                  onLongPress: () => openActions(entry),
-                                }
-                              : {})}
-                          >
-                            {row.branch ? (
-                              <Text
-                                variant="mono"
-                                tone="muted"
-                                numberOfLines={1}
-                              >
-                                {row.branch}
-                              </Text>
-                            ) : null}
-                            {row.changes ? (
-                              <Text variant="caption" tone="muted">
-                                {row.changes}
-                              </Text>
-                            ) : null}
-                          </Item>
-                        </Box>
-                      );
-                    })
-                : null}
-            </Box>
-          );
-        })}
-        {!initializing &&
-        !loading &&
-        picker.messages.length === 0 &&
-        saved.length === 0 &&
-        projects.length === 0 ? (
-          <Empty title="No matching worktrees" />
-        ) : null}
-        <PickerNotices
-          messages={picker.messages}
-          error={picker.error}
-          onRead={picker.onRead}
-          reading={reading}
-        />
-        {picker.canReadInventory ? (
-          <Button
-            label="Read projects again"
-            variant="tonal"
-            pending={reading || loading}
-            onPress={() => retry(undefined)}
-          />
-        ) : null}
-      </ScrollView>
+                          {project.environmentName}
+                        </Text>
+                      </Box>
+                    )}
+                  </Box>
+                  <ProjectActions
+                    connection={project.connection}
+                    project={project.project}
+                    environmentName={project.environmentName}
+                    onCopy={clipboard.copy}
+                  />
+                  <IconButton
+                    icon={project.expanded ? 'down' : 'chevron'}
+                    size="sm"
+                    expanded={project.expanded}
+                    accessibilityLabel={`${project.expanded ? 'Collapse' : 'Expand'} ${project.project.name} · ${project.environmentName}`}
+                    onPress={() => setExpanded(project.key, !project.expanded)}
+                  />
+                </Box>
+              );
+            }
+            case 'worktree':
+              return (
+                <WorktreeNavigatorRow
+                  entry={item.entry}
+                  connection={item.connection}
+                  visible={focused && !hidden && visibleKeys.has(item.key)}
+                  first={item.key === firstWorktree}
+                  selected={navigatorEntrySelected(item.entry, selection)}
+                  highlighted={cursor.highlighted === item.key}
+                  disabled={picker.disabled}
+                  onOpen={() => {
+                    cursor.claim();
+                    open(item.entry);
+                  }}
+                  onActions={() => openActions(item.entry)}
+                  onOpenPullRequest={openPullRequest}
+                />
+              );
+          }
+        }}
+      />
       {AsyncResult.isFailure(clipboard.result) && (
         <ErrorState
           message={connectionErrorMessage(Cause.squash(clipboard.result.cause))}
         />
       )}
+    </Box>
+  );
+}
+
+function WorktreeNavigatorRow({
+  entry,
+  connection,
+  visible,
+  first,
+  selected,
+  highlighted,
+  disabled,
+  onOpen,
+  onActions,
+  onOpenPullRequest,
+}: {
+  entry: NavigatorEntry;
+  connection: RuntimeConnection;
+  visible: boolean;
+  first: boolean;
+  selected: boolean;
+  highlighted: boolean;
+  disabled: boolean;
+  onOpen: () => void;
+  onActions: () => void;
+  onOpenPullRequest: ReturnType<typeof useOpenPullRequest>;
+}) {
+  const changes = useAtomValue(
+    readWorktreeRowChanges(
+      visible && entry.available && entry.worktreeId
+        ? {
+            connection,
+            scope: { projectId: entry.projectId, worktreeId: entry.worktreeId },
+          }
+        : undefined,
+    ),
+  );
+  const [last, setLast] = useState<{
+    connection: RuntimeConnection;
+    changes: NavigatorEntry['changes'];
+  }>();
+  if (changes.state !== 'loading' && changes !== last?.changes)
+    setLast({ connection, changes });
+  let displayed = entry.changes;
+  if (entry.available) {
+    if (changes.state !== 'loading') displayed = changes;
+    else if (last?.connection === connection) displayed = last.changes;
+  }
+  const row = worktreeRow({ ...entry, changes: displayed });
+  const review =
+    entry.pullRequest.state === 'available' ? entry.pullRequest : undefined;
+  const number = review?.number;
+  const checks = review?.checks;
+  const failed = checks?.state === 'available' && checks.result === 'failed';
+  return (
+    <Box
+      gap={1}
+      collapsable={false}
+      onLayout={first ? mobileLayout('worktrees-first-row') : undefined}
+    >
+      <Item
+        title={row.title}
+        {...(entry.detached ? { detail: 'Detached' } : {})}
+        titleNumberOfLines={1}
+        size="compact"
+        leading={<Icon name={worktreeIcon(entry)} tone="muted" />}
+        trailing={
+          failed ? <Icon name="warning" tone="destructive" /> : undefined
+        }
+        action={
+          review && number !== undefined ? (
+            <ButtonSurface
+              variant="plain"
+              size="sm"
+              className="self-end"
+              disabled={disabled}
+              accessibilityLabel={[
+                `Open pull request #${number}`,
+                entry.projectName,
+                entry.environmentName,
+                worktreeChecksLabel(checks),
+              ]
+                .filter(Boolean)
+                .join(', ')}
+              onPress={() =>
+                onOpenPullRequest({
+                  environmentId: entry.environmentId,
+                  number,
+                  projectId: entry.projectId,
+                })
+              }
+            >
+              <Text accessible={false} variant="caption" tone="muted">
+                #{number}
+              </Text>
+            </ButtonSurface>
+          ) : undefined
+        }
+        selected={selected}
+        highlighted={highlighted}
+        selectionTone="neutral"
+        disabled={disabled || !entry.available}
+        accessibilityLabel={[
+          row.accessibilityLabel,
+          number ? worktreeChecksLabel(checks) : undefined,
+          selected ? 'current' : undefined,
+        ]
+          .filter(Boolean)
+          .join(', ')}
+        onPress={onOpen}
+        {...(entry.worktreeId ? { onLongPress: onActions } : {})}
+      >
+        {row.branch ? (
+          <Text variant="mono" tone="muted" numberOfLines={1}>
+            {row.branch}
+          </Text>
+        ) : null}
+        {row.changes ? (
+          <Text variant="caption" tone="muted">
+            {row.changes}
+          </Text>
+        ) : null}
+      </Item>
     </Box>
   );
 }

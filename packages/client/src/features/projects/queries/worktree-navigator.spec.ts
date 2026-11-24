@@ -10,7 +10,11 @@ import { refreshWorktreeNavigator } from '../commands/worktree-navigator.ts';
 import { emptyNavigatorFilter } from '../rules/worktree-navigator.ts';
 import { worktreeNavigatorState } from '../store/worktree-navigator.ts';
 import { readGitStatus } from '../../changes/queries/changes.ts';
-import { readWorktreeNavigator } from './worktree-navigator.ts';
+import {
+  readWorktreeNavigator,
+  readWorktreeNavigatorRows,
+  readWorktreeRowChanges,
+} from './worktree-navigator.ts';
 import { readProjectPullRequests } from './pull-requests.ts';
 
 const create = clientFixtures();
@@ -164,6 +168,45 @@ function expectNavigatorNames(
     )
     .toEqual(names);
 }
+
+it('reads and refreshes status only for mounted worktrees after filtering the navigator', async () => {
+  const { registry, connection, paths } = recordedNavigator();
+  const connections = [connection];
+  const list = readWorktreeNavigatorRows(connections);
+  const refresh = refreshWorktreeNavigator(connections);
+  const statusReads = () =>
+    paths.filter((path) => path.endsWith('/git/status'));
+  const stop = registry.mount(list);
+  try {
+    await expectNavigatorNames(registry, list, ['main', 'topic']);
+    registry.set(worktreeNavigatorState, {
+      ...registry.get(worktreeNavigatorState),
+      query: 'topic',
+    });
+    await expectNavigatorNames(registry, list, ['topic']);
+    expect(statusReads()).toEqual([]);
+
+    const changes = readWorktreeRowChanges({
+      connection,
+      scope: { projectId, worktreeId: topicId },
+    });
+    const stopChanges = registry.mount(changes);
+    try {
+      await expect
+        .poll(() => registry.get(changes))
+        .toEqual({ state: 'available', count: 0 });
+      const topicStatus = `/api/worktrees/${topicId}/git/status`;
+      expect(statusReads()).toEqual([topicStatus]);
+      registry.set(refresh, { mountedStatusOnly: true });
+      await readClientAtom(registry, refresh);
+      await expect.poll(statusReads).toEqual([topicStatus, topicStatus]);
+    } finally {
+      stopChanges();
+    }
+  } finally {
+    stop();
+  }
+});
 
 it('keeps colliding projects distinct and mounts no hidden-project details or GitHub payloads, including refresh', async () => {
   const reads: { environmentId: string; path: string }[] = [];
