@@ -7,6 +7,7 @@ import { Icon } from '../../../components/ui/icon';
 import { Spinner } from '../../../components/ui/spinner';
 import { Text } from '../../../components/ui/text';
 import { useReadingConnectionNotice } from '../queries/environments';
+import { usePairComputerAgain } from '../pairing-sheet';
 
 export function ReadingConnection({ remote }: { remote: Remote }) {
   return useIsFocused() ? <FocusedReadingConnection remote={remote} /> : null;
@@ -15,6 +16,7 @@ export function ReadingConnection({ remote }: { remote: Remote }) {
 function FocusedReadingConnection({ remote }: { remote: Remote }) {
   const notice = useReadingConnectionNotice(remote);
   const router = useRouter();
+  const pairAgain = usePairComputerAgain();
   if (!notice) return null;
   return (
     <FloatingBar
@@ -25,15 +27,10 @@ function FocusedReadingConnection({ remote }: { remote: Remote }) {
           <Button
             label="Pair again"
             size="sm"
-            onPress={() =>
-              router.push(
-                {
-                  pathname: '/pair-computer',
-                  params: { environment: remote.environmentId },
-                },
-                { withAnchor: true },
-              )
-            }
+            onPress={() => {
+              pairAgain(remote.environmentId);
+              router.push('/pair-computer', { withAnchor: true });
+            }}
           />
         ) : undefined
       }

@@ -25,7 +25,11 @@ import {
   type RemoteAnswer,
   type RemoteStatus,
 } from '../rules/remotes.ts';
-import { statusChanges, statusRuntime } from '../store/status.ts';
+import {
+  reconnectNoticeRuntime,
+  statusChanges,
+  statusRuntime,
+} from '../store/status.ts';
 import { BootstrapClient } from '../../../shared/api/bootstrap-client.ts';
 
 export function remoteStatusResult<E>(
@@ -249,21 +253,23 @@ const interruption = Atom.family((status: Atom.Atom<RemoteStatus>) =>
 
 export const remoteWorkspaceNotice = Atom.family(
   (status: Atom.Atom<RemoteStatus>) =>
-    Atom.make((get) =>
-      AtomRegistry.toStream(get.registry, interruption(status)).pipe(
-        Stream.switchMap((interrupted) =>
-          interrupted
-            ? Stream.concat(
-                Stream.make(false),
-                Stream.fromEffect(Effect.as(Effect.sleep('2 seconds'), true)),
-              )
-            : Stream.make(false),
+    reconnectNoticeRuntime(Layer.empty)
+      .atom((get) =>
+        AtomRegistry.toStream(get.registry, interruption(status)).pipe(
+          Stream.switchMap((interrupted) =>
+            interrupted
+              ? Stream.concat(
+                  Stream.make(false),
+                  Stream.fromEffect(Effect.as(Effect.sleep('2 seconds'), true)),
+                )
+              : Stream.make(false),
+          ),
         ),
+      )
+      .pipe(
+        Atom.map((result) => AsyncResult.getOrElse(result, () => false)),
+        Atom.setIdleTTL(0),
       ),
-    ).pipe(
-      Atom.map((result) => AsyncResult.getOrElse(result, () => false)),
-      Atom.setIdleTTL(0),
-    ),
 );
 
 export const readingConnection = Atom.family(

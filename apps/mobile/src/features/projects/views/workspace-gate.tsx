@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useRouter } from 'expo-router';
 import { View } from 'react-native';
 import { ReadingConnection } from '../../access';
@@ -10,6 +10,8 @@ import { Screen } from '../../../components/ui/screen';
 import type { Workspace } from '../commands/workspace-connection';
 import { useWorkspace } from './workspace';
 import { useOpenComputers } from './open-computers';
+import { workspaceGateContent } from '../rules/workspace-gate';
+import { workspaceKey } from '../rules/workspace-key';
 
 export function WorkspaceGate({
   expectedWorkspace,
@@ -26,7 +28,25 @@ export function WorkspaceGate({
   nested?: boolean;
   children: (workspace: Workspace) => ReactNode;
 }) {
-  const { state, read, reading, remote, environments } = useWorkspace();
+  const { state, read, reading, remote, environments, selection, remembered } =
+    useWorkspace();
+  const [shown, setShown] = useState<Workspace | undefined>(undefined);
+  if (state.kind === 'selected' && state.workspace !== shown)
+    setShown(state.workspace);
+  const content = workspaceGateContent({
+    state,
+    shown,
+    remembered:
+      selection.currentEnvironmentId && remembered
+        ? workspaceKey(
+            { environmentId: selection.currentEnvironmentId },
+            remembered,
+          )
+        : undefined,
+    expected: expectedWorkspace,
+    nested,
+    remote: remote !== undefined,
+  });
   const router = useRouter();
   const openComputers = useOpenComputers();
   const notice = () => {
@@ -83,18 +103,14 @@ export function WorkspaceGate({
         return state satisfies never;
     }
   };
-  if (
-    state.kind === 'selected' &&
-    (expectedWorkspace === undefined ||
-      state.workspace.key === expectedWorkspace)
-  )
-    return nested || !remote ? (
-      children(state.workspace)
-    ) : (
+  if (content.kind === 'reading')
+    return content.notice && remote ? (
       <View className="flex-1" collapsable={false}>
-        {children(state.workspace)}
+        {children(content.workspace)}
         <ReadingConnection remote={remote} />
       </View>
+    ) : (
+      children(content.workspace)
     );
   return frame === 'screen' ? (
     <Screen layout="fixed">{notice()}</Screen>

@@ -20,9 +20,16 @@ export function receivePairingIntent(incoming: IncomingLink, path: string) {
 
 export const pairingSheetLink = Atom.make('').pipe(Atom.keepAlive);
 
+export const pairingSheetComputer = Atom.make<string | undefined>(
+  undefined,
+).pipe(Atom.keepAlive);
+
 export const pairingSheetSession = Atom.make((get) => {
   const registry = get.registry;
-  get.addFinalizer(() => registry.set(pairingSheetLink, ''));
+  get.addFinalizer(() => {
+    registry.set(pairingSheetLink, '');
+    registry.set(pairingSheetComputer, undefined);
+  });
 });
 
 export function pairingLinkArrival(incoming: IncomingLink) {
@@ -44,6 +51,14 @@ export const acceptScannedPairingLink = Atom.fnSync((link: string, get) => {
 export function usePairingSheetLink() {
   useAtomMount(pairingSheetSession);
   return useAtom(pairingSheetLink);
+}
+
+export function usePairingSheetComputer() {
+  return useAtomValue(pairingSheetComputer);
+}
+
+export function usePairComputerAgain() {
+  return useAtomSet(pairingSheetComputer);
 }
 
 export function useScannedPairingLink() {

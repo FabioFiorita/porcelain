@@ -28,7 +28,6 @@ export function WalkthroughScreenshotSheet({
     <Sheet title="Screenshot" layout="fixed">
       <WorkspaceGate
         frame="pane"
-        nested
         expectedWorkspace={workspace ?? ''}
         changed={unavailable}
       >

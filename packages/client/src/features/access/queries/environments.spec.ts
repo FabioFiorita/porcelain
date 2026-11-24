@@ -24,7 +24,7 @@ import {
   revalidateRemoteStatus,
   remoteStatusResult,
 } from './environments.ts';
-import { statusRuntime } from '../store/status.ts';
+import { reconnectNoticeRuntime, statusRuntime } from '../store/status.ts';
 import type { RemoteAnswer, RemoteStatus } from '../rules/remotes.ts';
 import type { Transport } from '@porcelain/client/transport';
 const environment = {
@@ -632,27 +632,32 @@ it('uses the live session as connection truth when independent HTTP probes fail,
   subject.stop();
 });
 
-it('shows Reconnecting on the reading screen only after the computer stays away, and refusals at once', async () => {
+it('shows Reconnecting on the reading screen only after the computer stays away two seconds, and refusals at once', async () => {
+  const runtime = ManagedRuntime.make(TestClock.layer());
+  testRuntimes.push(runtime);
+  const clock = await runtime.runPromise(Clock.Clock);
+  reconnectNoticeRuntime.addGlobalLayer(Layer.succeed(Clock.Clock, clock));
+  const advance = (ms: number) => runtime.runPromise(TestClock.adjust(ms));
   const status = Atom.make<RemoteStatus>({ kind: 'online', name: 'Computer' });
-  const registry = AtomRegistry.make();
+  const registry = registryFixture();
   const notice = readingConnection(status);
-  const stop = registry.mount(notice);
-  try {
-    expect(registry.get(notice)).toBeUndefined();
-    registry.set(status, { kind: 'reconnecting' });
-    expect(registry.get(notice)).toBeUndefined();
-    await expect
-      .poll(() => registry.get(notice), { timeout: 4_000 })
-      .toEqual({ title: 'Reconnecting', interrupted: true, repair: false });
-    registry.set(status, { kind: 'online', name: 'Computer' });
-    expect(registry.get(notice)).toBeUndefined();
-    registry.set(status, { kind: 'needs-pairing' });
-    expect(registry.get(notice)).toEqual({
-      title: 'Needs pairing',
-      interrupted: false,
-      repair: true,
-    });
-  } finally {
-    stop();
-  }
+  registry.mount(notice);
+  expect(registry.get(notice)).toBeUndefined();
+  registry.set(status, { kind: 'reconnecting' });
+  await advance(1_999);
+  expect(registry.get(notice)).toBeUndefined();
+  await advance(1);
+  expect(registry.get(notice)).toEqual({
+    title: 'Reconnecting',
+    interrupted: true,
+    repair: false,
+  });
+  registry.set(status, { kind: 'online', name: 'Computer' });
+  expect(registry.get(notice)).toBeUndefined();
+  registry.set(status, { kind: 'needs-pairing' });
+  expect(registry.get(notice)).toEqual({
+    title: 'Needs pairing',
+    interrupted: false,
+    repair: true,
+  });
 });
