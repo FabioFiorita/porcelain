@@ -1,6 +1,6 @@
 import { createReadStream, existsSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { relative, resolve, sep } from 'node:path';
+import { dirname, relative, resolve } from 'node:path';
 import { Schema } from 'effect';
 import { fileURLToPath } from 'node:url';
 import babel from '@rolldown/plugin-babel';
@@ -25,15 +25,15 @@ const fontFiles = [
 ];
 const webRoot = fileURLToPath(new URL('.', import.meta.url));
 
+const fontDirectories = new Set(fontFiles.map((file) => dirname(file)));
+
 function devFontFile(url: string | undefined) {
   const path = decodeURIComponent((url ?? '').split('?')[0] ?? '');
   if (!path.endsWith('.woff2')) return null;
   const file = path.startsWith('/@fs/')
     ? resolve(path.slice('/@fs'.length))
     : resolve(webRoot, `.${path}`);
-  return file.includes(`${sep}node_modules${sep}`) && existsSync(file)
-    ? file
-    : null;
+  return fontDirectories.has(dirname(file)) && existsSync(file) ? file : null;
 }
 
 const target = process.env.PORCELAIN_API_TARGET;
