@@ -21,6 +21,34 @@ import { cn } from 'cn';
 import { InputGroup, InputGroupAddon } from '@/components/ui/input-group';
 import { SearchIcon, CheckIcon } from 'lucide-react';
 
+const listKeys: Readonly<Record<string, string>> = {
+  j: 'ArrowDown',
+  n: 'ArrowDown',
+  k: 'ArrowUp',
+  p: 'ArrowUp',
+};
+
+function moveWithControlKeys(event: React.KeyboardEvent<HTMLElement>) {
+  const arrow = listKeys[event.key];
+  if (
+    arrow === undefined ||
+    !event.ctrlKey ||
+    event.altKey ||
+    event.metaKey ||
+    event.shiftKey
+  )
+    return;
+  event.preventDefault();
+  event.stopPropagation();
+  event.target.dispatchEvent(
+    new KeyboardEvent('keydown', {
+      key: arrow,
+      bubbles: true,
+      cancelable: true,
+    }),
+  );
+}
+
 function Command({
   className,
   onEscape,
@@ -31,6 +59,7 @@ function Command({
 }) {
   return (
     <CommandPrimitive
+      onKeyDownCapture={moveWithControlKeys}
       onQueryChange={(query, details) => {
         if (details.reason === 'escape-key' && onEscape) {
           details.cancel();
