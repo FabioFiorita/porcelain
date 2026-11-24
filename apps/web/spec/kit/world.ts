@@ -170,6 +170,7 @@ export class World {
     }
     if (step.kind === 'rename')
       return repository.git('mv', '--', step.from, step.to);
+    if (step.kind === 'stage') return repository.git('add', '--', step.path);
     if (step.kind === 'commit') {
       await repository.git('add', '--all');
       return repository.git('commit', '--message', step.message);
