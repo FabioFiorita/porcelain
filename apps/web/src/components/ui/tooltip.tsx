@@ -7,7 +7,17 @@ import {
 } from '@ui-sdk/react/tooltip';
 import { cn } from 'cn';
 
-const SilenceTooltip = React.createContext<(silent: boolean) => void>(() => {});
+type TooltipPointer = {
+  silence: (silent: boolean) => void;
+  overTrigger: (over: boolean) => void;
+  onTrigger: boolean;
+};
+
+const TooltipPointerContext = React.createContext<TooltipPointer>({
+  silence: () => {},
+  overTrigger: () => {},
+  onTrigger: false,
+});
 
 function Tooltip({
   delay = 400,
@@ -16,8 +26,11 @@ function Tooltip({
   ...props
 }: React.ComponentProps<typeof TooltipRoot>) {
   const [silent, setSilent] = React.useState(false);
+  const [onTrigger, setOnTrigger] = React.useState(false);
   return (
-    <SilenceTooltip value={setSilent}>
+    <TooltipPointerContext
+      value={{ silence: setSilent, overTrigger: setOnTrigger, onTrigger }}
+    >
       <TooltipRoot
         delay={delay}
         type={type}
@@ -25,13 +38,14 @@ function Tooltip({
         {...props}
         {...(silent ? { open: false } : {})}
       />
-    </SilenceTooltip>
+    </TooltipPointerContext>
   );
 }
 
 function TooltipTrigger({
   render,
   onContextMenu,
+  onPointerEnter,
   onPointerLeave,
   onKeyDown,
   ...props
@@ -40,7 +54,7 @@ function TooltipTrigger({
     | React.ComponentProps<typeof TooltipTriggerPrimitive>['render']
     | undefined;
 }) {
-  const silence = React.use(SilenceTooltip);
+  const { silence, overTrigger } = React.use(TooltipPointerContext);
   return (
     <TooltipTriggerPrimitive
       data-slot="tooltip-trigger"
@@ -49,7 +63,12 @@ function TooltipTrigger({
         silence(true);
         onContextMenu?.(event);
       }}
+      onPointerEnter={(event) => {
+        overTrigger(true);
+        onPointerEnter?.(event);
+      }}
       onPointerLeave={(event) => {
+        overTrigger(false);
         silence(false);
         onPointerLeave?.(event);
       }}
@@ -77,16 +96,18 @@ function TooltipContent({
 }: Omit<React.ComponentProps<typeof TooltipContentPrimitive>, 'children'> & {
   children?: React.ReactNode;
 }) {
+  const { onTrigger } = React.use(TooltipPointerContext);
   return (
     <TooltipContentPrimitive
       data-slot="tooltip-content"
+      data-over-trigger={onTrigger ? '' : undefined}
       container={typeof document === 'undefined' ? null : document.body}
       side={side}
       sideOffset={sideOffset}
       align={align}
       alignOffset={alignOffset}
       className={cn(
-        'not-data-[side]:pointer-events-none data-closed:pointer-events-none m-0 inline-flex overflow-visible empty:hidden w-fit max-w-xs origin-(--transform-origin) items-center gap-1.5 rounded-md bg-foreground px-3 py-1.5 text-xs text-background has-data-[slot=kbd]:pr-1.5 data-[side=bottom]:slide-in-from-top-2 data-[side=inline-end]:slide-in-from-left-2 data-[side=inline-start]:slide-in-from-right-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 **:data-[slot=kbd]:relative **:data-[slot=kbd]:isolate **:data-[slot=kbd]:z-50 **:data-[slot=kbd]:rounded-sm data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95',
+        'not-data-[side]:pointer-events-none data-closed:pointer-events-none data-over-trigger:pointer-events-none m-0 inline-flex overflow-visible empty:hidden w-fit max-w-xs origin-(--transform-origin) items-center gap-1.5 rounded-md bg-foreground px-3 py-1.5 text-xs text-background has-data-[slot=kbd]:pr-1.5 data-[side=bottom]:slide-in-from-top-2 data-[side=inline-end]:slide-in-from-left-2 data-[side=inline-start]:slide-in-from-right-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 **:data-[slot=kbd]:relative **:data-[slot=kbd]:isolate **:data-[slot=kbd]:z-50 **:data-[slot=kbd]:rounded-sm data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95',
         className,
       )}
       {...props}
