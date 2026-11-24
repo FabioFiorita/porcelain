@@ -116,6 +116,7 @@ function rankedByTyping<Entry>(
     (order, typed) =>
       order
         .map((entry) => ({ entry, score: score(entry, typed) }))
+        .filter((ranked) => ranked.score > 0)
         .sort((left, right) => right.score - left.score)
         .map(({ entry }) => entry),
     [...entries],
@@ -129,8 +130,6 @@ export function branchSearchMatches<Entry>(
 ): Entry[] {
   return rankedByTyping(entries, query, (entry, typed) =>
     branchSearchScore(name(entry), typed),
-  ).filter(
-    (entry) => query === '' || branchSearchScore(name(entry), query) > 0,
   );
 }
 

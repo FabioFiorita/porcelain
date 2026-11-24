@@ -22,6 +22,10 @@ import {
 
 const toast = createToaster({ duration: 5000 });
 
+function dismissOnUnmount() {
+  return () => toast.dismiss();
+}
+
 function ToastIcon({ type }: { type: string | undefined }) {
   let icon: React.ReactNode = null;
   if (type === 'success') icon = <CircleCheckIcon aria-hidden="true" />;
@@ -47,7 +51,7 @@ function Toaster({ children }: { children?: React.ReactNode }) {
     <>
       {children}
       <ToastRegion
-        ref={() => () => toast.dismiss()}
+        ref={dismissOnUnmount}
         toaster={toast}
         aria-label="Notifications"
         side="bottom"

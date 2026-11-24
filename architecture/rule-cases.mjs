@@ -955,6 +955,13 @@ export default [
   },
   {
     rule: 'notification-owner',
+    path: 'apps/web/src/components/ui/extra-notices.tsx',
+    valid: "import { notify } from '@/shared/views/notify';",
+    invalid: "import { toast } from '@ui-sdk/react/toast';",
+    errors: 1,
+  },
+  {
+    rule: 'notification-owner',
     path: 'apps/mobile/src/features/projects/views/worktree-actions-sheet.tsx',
     valid:
       "export const view = <Text accessibilityRole='alert'>Could not copy this path.</Text>;",

@@ -40,8 +40,12 @@ export function BranchBasePicker({
   onBase: (base: string | undefined) => void;
   compact?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpenState] = useState(false);
   const [query, setQuery] = useState('');
+  const setOpen = (next: boolean) => {
+    setOpenState(next);
+    if (!next) setQuery('');
+  };
   const bases = useBranchBases(scope, connection, open);
   const comparison = useBranchChanges(scope, connection, base);
   const branches = Option.getOrUndefined(AsyncResult.value(bases.result));
