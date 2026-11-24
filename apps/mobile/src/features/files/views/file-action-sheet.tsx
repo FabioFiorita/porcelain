@@ -43,6 +43,7 @@ export function FileActionSheet({
     <Sheet title={action ? actionTitle(action) : 'File'}>
       <WorkspaceGate
         expectedWorkspace={workspace ?? ''}
+        nested
         changed={<Empty title="Another worktree is selected now." />}
       >
         {(selected) =>
