@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, realpathSync } from 'node:fs';
 import { join } from 'node:path';
 
 export function prepareDisposableMacKeychain(
@@ -10,7 +10,7 @@ export function prepareDisposableMacKeychain(
   const keychains = join(home, 'Library', 'Keychains');
   mkdirSync(keychains, { recursive: true });
   mkdirSync(join(home, 'Library', 'Preferences'), { recursive: true });
-  const keychain = join(keychains, 'porcelain-smoke.keychain-db');
+  const keychain = join(realpathSync(keychains), 'porcelain-smoke.keychain-db');
   const password = randomBytes(24).toString('hex');
   const security = (args: string[]) => {
     try {
