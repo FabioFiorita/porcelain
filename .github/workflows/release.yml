@@ -222,12 +222,15 @@ jobs:
                 echo "@fabiofiorita/porcelain@$VERSION is already published; continuing to verification."
                 exit 0
               fi
-              publish_mode=--provenance
+              publish_args=(--provenance)
               ;;
-            false) publish_mode=--dry-run ;;
+            false)
+              unset ACTIONS_ID_TOKEN_REQUEST_URL ACTIONS_ID_TOKEN_REQUEST_TOKEN
+              publish_args=(--dry-run --force)
+              ;;
             *) echo "Unknown npm publication mode: $PUBLISH" >&2; exit 1 ;;
           esac
-          npm publish "${tarballs[0]}" --access public "$publish_mode"
+          npm publish "${tarballs[0]}" --access public "${publish_args[@]}"
 
   npm-check:
     needs: [version, npm]
