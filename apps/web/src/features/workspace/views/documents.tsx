@@ -69,7 +69,7 @@ export type DocumentProps = {
   sideLabel: string;
   onBrowse: (
     surface: 'changes' | 'files' | 'history',
-    trigger: HTMLButtonElement,
+    trigger: HTMLElement,
   ) => void;
 };
 

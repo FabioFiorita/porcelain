@@ -1,4 +1,5 @@
-import { Button as ButtonPrimitive } from '@base-ui/react/button';
+import type * as React from 'react';
+import { Button as ButtonPrimitive } from '@ui-sdk/react/button';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from 'cn';
 
@@ -41,12 +42,33 @@ function Button({
   className,
   variant = 'default',
   size = 'default',
+  onClick,
+  type,
+  disabled,
   ...props
-}: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
+}: Omit<
+  React.ComponentProps<typeof ButtonPrimitive>,
+  'className' | 'onClick' | 'children' | 'type' | 'disabled'
+> & {
+  className?: string | undefined;
+  onClick?: ((event: React.MouseEvent<HTMLElement>) => void) | undefined;
+  children?: React.ReactNode;
+  type?: 'button' | 'submit' | 'reset' | undefined;
+  disabled?: boolean | undefined;
+} & VariantProps<typeof buttonVariants>) {
   return (
     <ButtonPrimitive
       data-slot="button"
       className={cn(buttonVariants({ variant, size, className }))}
+      {...(onClick
+        ? {
+            onClick: (event: React.MouseEvent<HTMLElement>) => {
+              onClick(event);
+            },
+          }
+        : {})}
+      {...(type ? { type } : {})}
+      {...(disabled === undefined ? {} : { disabled })}
       {...props}
     />
   );

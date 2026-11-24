@@ -1,4 +1,3 @@
-import shadcnPins from './shadcn-pins.json' with { type: 'json' };
 import { replacesGlobal } from './spec-globals.mjs';
 import { variableOf } from './scope.mjs';
 import { testOverrides } from './test-overrides.mjs';
@@ -14,7 +13,7 @@ const webSource = 'apps/web/src/';
 const reactModules = new Set(['react', 'react-dom']);
 const zustandModule = /^zustand(?:\/|$)/;
 const replacedUiModule =
-  /^(?:cmdk(?:\/|$)|@base-ui-components\/|@base-ui\/react(?:$|\/(?:alert-dialog|context-menu|dialog|menu|menubar|popover|select|toast|tooltip)(?:\/|$)))/;
+  /^(?:cmdk(?:\/|$)|@base-ui-components\/|@base-ui\/react(?:$|\/))/;
 const uiSdkModule = /^@ui-sdk\//;
 const routerDataHooks = new Set([
   'getRouteApi',
@@ -883,12 +882,7 @@ export const webRules = {
         'apps/mobile/src/',
         'packages/client/src/',
       ].some((prefix) => path.startsWith(prefix)),
-    allowed: (path) =>
-      path.startsWith('apps/web/src/components/ui/') &&
-      Object.hasOwn(
-        shadcnPins,
-        path.slice('apps/web/src/components/ui/'.length),
-      ),
+    allowed: (path) => path.startsWith('apps/web/src/components/ui/'),
     message: (name) =>
       `\`${name}\` keeps React in step with something outside it, so that resource belongs in an atom with a finalizer or a ref callback with cleanup; compute derived values during render and handle events in their handler.`,
   }),

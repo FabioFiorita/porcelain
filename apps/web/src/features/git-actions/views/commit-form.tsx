@@ -296,7 +296,7 @@ function CommitFiles({
               <Checkbox
                 checked={included}
                 onCheckedChange={(checked) =>
-                  form.setIncluded(file.path, checked)
+                  form.setIncluded(file.path, checked === true)
                 }
               />
               {body}

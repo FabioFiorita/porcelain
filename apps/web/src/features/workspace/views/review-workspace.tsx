@@ -236,10 +236,10 @@ export function ReviewWorkspace({
   useHotkey(SHORTCUTS.surfaceHistory, () => showSurface('history'), {
     ignoreInputs: true,
   });
-  const browseTrigger = useElement<HTMLButtonElement>();
+  const browseTrigger = useElement<HTMLElement>();
   const browse = (
     next: 'changes' | 'files' | 'history',
-    trigger: HTMLButtonElement,
+    trigger: HTMLElement,
   ) => {
     browseTrigger.attach(trigger);
     showSurface(next);
@@ -452,7 +452,7 @@ type PaneContext = ReviewContentProps & {
   onOpen: OpenDocument;
   onBrowse: (
     surface: 'changes' | 'files' | 'history',
-    trigger: HTMLButtonElement,
+    trigger: HTMLElement,
   ) => void;
   fileTarget?:
     | (DocumentFileTarget & { pane: PaneIndex; key: string })
