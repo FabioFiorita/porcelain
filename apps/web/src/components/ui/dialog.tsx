@@ -15,6 +15,9 @@ import { cn } from 'cn';
 import { Button } from '@/components/ui/button';
 import { XIcon } from 'lucide-react';
 
+const modalBackdropClassName =
+  'fixed inset-0 isolate bg-scrim transition-opacity duration-150 ease-out data-closed:pointer-events-none data-starting-style:opacity-0 data-ending-style:opacity-0 motion-reduce:transition-none supports-backdrop-filter:backdrop-blur-xs';
+
 function focusMarkedField(event: React.FocusEvent<HTMLElement>) {
   const content = event.currentTarget;
   if (content.hasAttribute('data-focused')) return;
@@ -77,10 +80,7 @@ function DialogOverlay({
   return (
     <DialogBackdrop
       data-slot="dialog-overlay"
-      className={cn(
-        'fixed inset-0 data-closed:pointer-events-none isolate bg-black/80 duration-100 supports-backdrop-filter:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0',
-        className,
-      )}
+      className={cn(modalBackdropClassName, className)}
       {...props}
     />
   );
@@ -201,6 +201,7 @@ function DialogDescription({
 export {
   createDialogController,
   focusMarkedField,
+  modalBackdropClassName,
   Dialog,
   DialogClose,
   DialogContent,

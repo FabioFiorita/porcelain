@@ -12,7 +12,10 @@ import {
 } from '@ui-sdk/react/alert-dialog';
 import { cn } from 'cn';
 import { Button } from '@/components/ui/button';
-import { focusMarkedField } from '@/components/ui/dialog';
+import {
+  focusMarkedField,
+  modalBackdropClassName,
+} from '@/components/ui/dialog';
 
 type RootProps = Omit<
   React.ComponentProps<typeof AlertDialogRoot>,
@@ -66,10 +69,7 @@ function AlertDialogOverlay({
   return (
     <AlertDialogBackdrop
       data-slot="alert-dialog-overlay"
-      className={cn(
-        'fixed inset-0 data-closed:pointer-events-none isolate bg-black/80 duration-100 supports-backdrop-filter:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0',
-        className,
-      )}
+      className={cn(modalBackdropClassName, className)}
       {...props}
     />
   );

@@ -11,7 +11,10 @@ import {
 import { cn } from 'cn';
 
 import { Button } from '@/components/ui/button';
-import { focusMarkedField } from '@/components/ui/dialog';
+import {
+  focusMarkedField,
+  modalBackdropClassName,
+} from '@/components/ui/dialog';
 import { XIcon } from 'lucide-react';
 
 function Sheet(props: React.ComponentProps<typeof SheetRoot>) {
@@ -33,10 +36,7 @@ function SheetOverlay({
   return (
     <DialogBackdrop
       data-slot="sheet-overlay"
-      className={cn(
-        'fixed inset-0 data-closed:pointer-events-none bg-black/80 transition-opacity duration-150 data-ending-style:opacity-0 data-starting-style:opacity-0 supports-backdrop-filter:backdrop-blur-xs',
-        className,
-      )}
+      className={cn(modalBackdropClassName, className)}
       {...props}
     />
   );
