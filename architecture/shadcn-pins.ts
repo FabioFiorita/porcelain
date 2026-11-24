@@ -43,18 +43,20 @@ function folderFiles(root: string): string[] {
 export function uiFiles(root: string): string[] {
   return folderFiles(root).filter((name) => !uiSdkFiles.has(name));
 }
+const uiSdkValueImport =
+  /^import (?!type\b)[^;]*?\bfrom '@ui-sdk\/react\/[^']+';/m;
 function uiSdkProblems(root: string): string[] {
   return folderFiles(root)
     .filter((name) => uiSdkFiles.has(name))
     .filter(
       (name) =>
-        !readFileSync(join(root, uiFolder, name), 'utf8').includes(
-          "from '@ui-sdk/react/",
+        !uiSdkValueImport.test(
+          readFileSync(join(root, uiFolder, name), 'utf8'),
         ),
     )
     .map(
       (name) =>
-        `${uiFolder}/${name} is listed as UI SDK-owned but does not import @ui-sdk/react; pin it from the shadcn registry instead, because only components built on UI SDK leave registry ownership.`,
+        `${uiFolder}/${name} is listed as UI SDK-owned but imports no value from @ui-sdk/react; pin it from the shadcn registry instead, because only components built on UI SDK leave registry ownership.`,
     );
 }
 function readPins(root: string): { pins: Pins; problems: string[] } {

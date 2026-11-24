@@ -14,7 +14,7 @@ const webSource = 'apps/web/src/';
 const reactModules = new Set(['react', 'react-dom']);
 const zustandModule = /^zustand(?:\/|$)/;
 const replacedUiModule =
-  /^(?:cmdk(?:\/|$)|@base-ui-components\/|@base-ui\/react\/(?:alert-dialog|context-menu|dialog|menu|menubar|popover|select|toast|tooltip)(?:\/|$))/;
+  /^(?:cmdk(?:\/|$)|@base-ui-components\/|@base-ui\/react(?:$|\/(?:alert-dialog|context-menu|dialog|menu|menubar|popover|select|toast|tooltip)(?:\/|$)))/;
 const uiSdkModule = /^@ui-sdk\//;
 const routerDataHooks = new Set([
   'getRouteApi',
@@ -1016,6 +1016,7 @@ export const webRules = {
       };
       return {
         ImportDeclaration: check,
+        ImportExpression: check,
         ExportAllDeclaration: check,
         ExportNamedDeclaration(node) {
           if (node.source) check(node);
