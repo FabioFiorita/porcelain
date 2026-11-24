@@ -1,3 +1,4 @@
+import type { UnsupportedWalkthroughEffortError } from '@porcelain/walkthroughs/errors';
 import { Context, Effect, Layer } from 'effect';
 import { CheckProjectService } from '@porcelain/projects/services';
 import type { ProjectNotFoundError } from '@porcelain/projects/errors';
@@ -14,7 +15,10 @@ export class SaveWalkthroughSettingsUseCase extends Context.Service<
   {
     readonly execute: (
       input: RenameProjectParams & WalkthroughSettings,
-    ) => Effect.Effect<WalkthroughSettings, ProjectNotFoundError>;
+    ) => Effect.Effect<
+      WalkthroughSettings,
+      ProjectNotFoundError | UnsupportedWalkthroughEffortError
+    >;
   }
 >()('@porcelain/server/SaveWalkthroughSettingsUseCase') {
   static readonly layer = Layer.effect(

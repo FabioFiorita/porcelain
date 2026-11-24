@@ -1,3 +1,4 @@
+import { walkthroughWriterAvailability } from '@porcelain/walkthroughs/rules';
 import { randomUUID } from 'node:crypto';
 import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -59,15 +60,16 @@ export const cliWalkthroughWriterLayer = (options: {
       const validate = Effect.fn('WalkthroughWriter.validate')(function* (
         writer: WalkthroughWriterChoice,
       ) {
-        const available = (yield* models.read()).find(
-          (model) =>
-            model.provider === writer.provider && model.model === writer.model,
+        const availability = walkthroughWriterAvailability(
+          writer,
+          yield* models.read(),
         );
-        if (!available) return yield* unavailableWriter(writer);
-        if (!available.efforts.includes(writer.effort))
+        if (availability.kind === 'missing-model')
+          return yield* unavailableWriter(writer);
+        if (availability.kind === 'unsupported-effort')
           return yield* failure(
             'other',
-            `The walkthrough model ${writer.model} does not support ${writer.effort} effort. Choose a supported effort in walkthrough settings.`,
+            `${availability.model.label} doesn't support ${writer.effort} effort. Choose a supported effort in walkthrough settings.`,
           );
       });
       return WalkthroughWriter.of({

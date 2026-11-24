@@ -1,3 +1,5 @@
+import { WalkthroughModelReader } from '@porcelain/walkthroughs/ports';
+import { installedWalkthroughModelReaderLayer } from '@porcelain/agents/walkthrough-writing';
 import { ghPullRequestReaderLayer } from '../adapters/reviews/gh-pull-request-reader.ts';
 import { IdSource } from '@porcelain/kernel/ports';
 import { DeviceConnectionStore } from '../ports/device-connection-store.ts';
@@ -270,7 +272,16 @@ function serverResources(
           routeListenerRunner,
           tunnelProbe: Context.get(remoteContext, TunnelProbe),
         });
+        const walkthroughModels = Context.get(
+          yield* Layer.build(
+            installedWalkthroughModelReaderLayer(
+              context.settings.limits.agents,
+            ),
+          ).pipe(Effect.provide(NodeServices.layer)),
+          WalkthroughModelReader,
+        );
         const projects = yield* composeProjects(context, {
+          walkthroughModels,
           stores,
           shared,
           worktreeId,
@@ -354,6 +365,7 @@ function serverResources(
           context,
           shared,
           stores,
+          walkthroughModels,
           checkWorktree,
           projects.readInventory,
           reviews.listProjectPullRequests,

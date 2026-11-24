@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./rules": "./src/rules/walkthrough-writer.ts",
     "./models": "./src/models/index.ts",
     "./ports": "./src/ports/index.ts",
     "./errors": "./src/errors/index.ts",

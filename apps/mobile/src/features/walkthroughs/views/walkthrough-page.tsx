@@ -1,3 +1,8 @@
+import { AsyncResult } from 'effect/reactivity';
+import { Option } from 'effect';
+import { useAtomValue } from '@effect/atom-react';
+import { readWalkthroughWriterSettings } from '@porcelain/client/projects';
+import { walkthroughWriterStatus } from '@porcelain/client/projects/rules';
 import { useState, type ComponentRef, type ReactNode } from 'react';
 import { ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -476,6 +481,17 @@ function Unwritten({
   waiting: boolean;
   onWrite: () => void;
 }) {
+  const result = useAtomValue(
+    readWalkthroughWriterSettings(
+      workspace.connection,
+      workspace.scope.projectId,
+    ),
+  );
+  const settings = Option.getOrUndefined(AsyncResult.value(result));
+  let block: string | undefined = 'Checking Walkthrough writer…';
+  if (AsyncResult.isFailure(result))
+    block = 'Could not check writers on the connected computer.';
+  else if (settings) block = walkthroughWriterStatus(settings).block;
   return (
     <Column workspace={workspace}>
       {() => (
@@ -483,9 +499,11 @@ function Unwritten({
           <Text variant="largeTitle" weight="semibold">
             No walkthrough yet.
           </Text>
+          {block && <Text tone="muted">{block}</Text>}
           <Button
             label="Write walkthrough"
             pending={waiting}
+            disabled={Boolean(block)}
             onPress={onWrite}
           />
         </Box>

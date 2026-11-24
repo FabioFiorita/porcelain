@@ -1,4 +1,4 @@
-import { expect, test } from './fixtures.tsx';
+import { conversationFixture, expect, test } from './fixtures.tsx';
 
 test('an unwritten walkthrough offers one action: checking writers until one is available, then writing', async ({
   repo,
@@ -175,3 +175,83 @@ test('an unavailable project override opens its own settings and clearing it ena
     .toBeVisible();
   await expect.element(write).toBeEnabled();
 });
+
+const unsupportedWriter = {
+  provider: 'codex',
+  model: 'fixture-model',
+  effort: 'high',
+} as const;
+const unsupportedNote = "Fixture model doesn't support high effort.";
+
+test('disables Write and Save until the saved effort is changed', async ({
+  repo,
+  render,
+  codingTool,
+  server,
+}) => {
+  const project = await server.project();
+  await codingTool.codexEffort(true);
+  await repo.walkthroughSettings(project.id, {
+    mode: 'manual',
+    writer: unsupportedWriter,
+  });
+  await codingTool.codexEffort(false);
+  const { page } = await render.route('/');
+  await page.getByRole('tab', { name: 'Review', exact: true }).click();
+  const write = page.getByRole('button', {
+    name: 'Write walkthrough',
+    exact: true,
+  });
+  await expect
+    .element(page.getByText(unsupportedNote, { exact: true }))
+    .toBeVisible();
+  await expect.element(write).toBeDisabled();
+  await page
+    .getByRole('button', { name: 'Project walkthrough settings', exact: true })
+    .click();
+  const dialog = page.getByRole('dialog', {
+    name: `Walkthroughs for ${project.name}`,
+    exact: true,
+  });
+  await expect
+    .element(dialog.getByText(unsupportedNote, { exact: true }))
+    .toBeVisible();
+  const save = dialog.getByRole('button', { name: 'Save', exact: true });
+  await expect.element(save).toBeDisabled();
+  await dialog
+    .getByRole('combobox', { name: 'Walkthrough effort', exact: true })
+    .click();
+  await page.getByRole('option', { name: 'medium', exact: true }).click();
+  await expect.element(save).toBeEnabled();
+  await save.click();
+  await expect
+    .poll(
+      async () => (await server.project()).walkthroughSettings?.writer?.effort,
+    )
+    .toBe('medium');
+  await expect.element(write).toBeEnabled();
+});
+
+test.for([
+  ['pr', 'Update walkthrough'],
+  ['failed-update', 'Try again'],
+] as const)(
+  'blocks the %s writer action when the saved effort disappears',
+  async ([scenario, button], { repo, render, codingTool, server }) => {
+    await conversationFixture(scenario);
+    const project = await server.project();
+    await codingTool.codexEffort(true);
+    await repo.walkthroughSettings(project.id, {
+      mode: 'manual',
+      writer: unsupportedWriter,
+    });
+    await codingTool.codexEffort(false);
+    const { page } = await render.route('/');
+    await expect
+      .element(page.getByRole('button', { name: button, exact: true }))
+      .toBeDisabled();
+    await expect
+      .element(page.getByText(unsupportedNote, { exact: true }))
+      .toBeVisible();
+  },
+);

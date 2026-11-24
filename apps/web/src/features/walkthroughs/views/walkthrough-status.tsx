@@ -14,8 +14,15 @@ export function WalkthroughStatus({
   failure,
   onUpdate,
   writeBlock,
-}: WalkthroughStatusInput & { writeBlock?: string | undefined }) {
+  writerNote,
+}: WalkthroughStatusInput & {
+  writeBlock?: string | undefined;
+  writerNote?: string | undefined;
+}) {
   const progress = walkthroughProgress(run, requesting);
+  const note = writerNote && (
+    <p className="text-caption text-muted-foreground">{writerNote}</p>
+  );
   if (
     run.state.status === 'ready' &&
     !progress.active &&
@@ -44,6 +51,7 @@ export function WalkthroughStatus({
             </>
           )}
         </p>
+        {note}
         {onUpdate && (
           <Button
             size="sm"
@@ -79,6 +87,7 @@ export function WalkthroughStatus({
           </Button>
         )}
       </div>
+      {!progress.active && note}
       {run.state.status === 'ready' && (
         <p className="text-caption text-muted-foreground">
           Last written{' '}

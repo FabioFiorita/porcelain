@@ -46,6 +46,7 @@ import { WalkthroughStatus } from './walkthrough-status';
 import { WalkthroughProof } from './walkthrough-evidence';
 import { WalkthroughExcerpt } from './walkthrough-excerpt';
 import { WalkthroughStart } from './walkthrough-start';
+import { useWalkthroughWriter } from '../queries/writer';
 import { ReviewCode } from './walkthrough-code-document';
 import { DIFF_WINDOW_FILES } from '@/config/limits';
 
@@ -313,6 +314,8 @@ function Written({
   freshness,
   props,
   onUpdate,
+  writeBlock,
+  writerNote,
   updateFailure,
   progressRun,
   requesting,
@@ -328,6 +331,8 @@ function Written({
   reused: boolean;
   props: DocumentProps;
   onUpdate: () => void;
+  writeBlock: string | undefined;
+  writerNote: string | undefined;
   updateFailure:
     | { failure: WalkthroughFailure; writer: WalkthroughRun['writer'] }
     | undefined;
@@ -336,7 +341,6 @@ function Written({
   const excerptStep =
     content.stops.find((stop) => stop.attention && stop.excerpts.length > 0) ??
     content.stops.find((stop) => stop.excerpts.length > 0);
-  const writeBlock = useWorkspaceWriteBlock(props.context);
   const conversation: Conversation = ({ kind, step }) => {
     const title = content.stops[step - 1]!.title;
     return (
@@ -357,6 +361,7 @@ function Written({
       failure={updateFailure}
       onUpdate={onUpdate}
       writeBlock={writeBlock}
+      writerNote={writerNote}
     />
   );
   if (content.outcome === 'nothing')
@@ -465,6 +470,7 @@ function Failed({
   waiting,
   onRetry,
   writeBlock,
+  writerNote,
   children,
 }: {
   run: WalkthroughRun | undefined;
@@ -472,6 +478,7 @@ function Failed({
   waiting: boolean;
   onRetry: () => void;
   writeBlock: string | undefined;
+  writerNote: string | undefined;
   children: ReactNode;
 }) {
   const copy = failureCopy(failure, run);
@@ -484,6 +491,9 @@ function Failed({
         {run && <WalkthroughStatus run={run} requesting={waiting} />}
         {copy.message && (
           <p className="text-prose text-foreground-2">{copy.message}</p>
+        )}
+        {writerNote && writerNote !== copy.message && (
+          <p className="text-caption text-muted-foreground">{writerNote}</p>
         )}
         <Button
           disabled={waiting || Boolean(writeBlock)}
@@ -536,7 +546,9 @@ function useReviewCode(
 }
 
 export function ReviewDocument(props: DocumentProps) {
-  const writeBlock = useWorkspaceWriteBlock(props.context);
+  const writer = useWalkthroughWriter(props);
+  const writeBlock = useWorkspaceWriteBlock(props.context) ?? writer.block;
+  const writerNote = writer.status?.block;
   const {
     result,
     phase: observedPhase,
@@ -592,6 +604,7 @@ export function ReviewDocument(props: DocumentProps) {
           waiting={write.waiting}
           onRetry={write.start}
           writeBlock={writeBlock}
+          writerNote={writerNote}
         >
           {everyFile}
         </Failed>
@@ -604,6 +617,7 @@ export function ReviewDocument(props: DocumentProps) {
           <Column>
             <WalkthroughStart
               document={props}
+              writer={writer}
               waiting={write.waiting}
               onWrite={write.start}
             />
@@ -620,6 +634,7 @@ export function ReviewDocument(props: DocumentProps) {
             waiting={write.waiting}
             onRetry={write.start}
             writeBlock={writeBlock}
+            writerNote={writerNote}
           >
             {everyFile}
           </Failed>
@@ -634,6 +649,8 @@ export function ReviewDocument(props: DocumentProps) {
             freshness={phase.freshness}
             props={props}
             onUpdate={write.start}
+            writeBlock={writeBlock}
+            writerNote={writerNote}
             progressRun={phase.attempt ?? phase.run}
             requesting={write.waiting}
             reused={

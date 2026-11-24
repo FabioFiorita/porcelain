@@ -11,6 +11,7 @@ export {
 export {
   walkthroughWriterSettingsSchema,
   type WalkthroughWriterSettings,
+  type WalkthroughWriterSettingsQuery,
   type SaveDefaultWalkthroughWriterRequest,
 } from './api.ts';
 

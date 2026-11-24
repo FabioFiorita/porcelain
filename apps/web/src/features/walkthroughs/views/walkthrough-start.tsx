@@ -1,12 +1,9 @@
 import { PendingButton } from '@/shared/views/pending-button';
 import { useWorkspaceWriteBlock } from '@/shared/workspace/connection';
-import { useAtomRefresh, useAtomValue } from '@effect/atom-react';
 import { Link } from '@tanstack/react-router';
 import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { SparklesIcon } from 'lucide-react';
-import { readWalkthroughWriterSettings } from '@porcelain/client/projects';
-import { walkthroughWriterStatus } from '@porcelain/client/projects/rules';
 import { refLabel } from '@porcelain/client/history/rules';
 import { Button, buttonVariants } from '@/components/ui/button';
 import {
@@ -17,28 +14,25 @@ import { useLocalConnection } from '@/features/access/index';
 import { useBranchBases } from '@/features/changes/index';
 import type { DocumentProps } from '@/features/workspace/index';
 
+import type { useWalkthroughWriter } from '../queries/writer';
+
 export function WalkthroughStart({
   document,
+  writer,
   waiting,
   onWrite,
 }: {
   document: DocumentProps;
+  writer: ReturnType<typeof useWalkthroughWriter>;
   waiting: boolean;
   onWrite: () => void;
 }) {
   const { connection } = document.context;
   const writeBlock = useWorkspaceWriteBlock(document.context);
   const local = useLocalConnection();
-  const atom = readWalkthroughWriterSettings(connection);
-  const result = useAtomValue(atom);
-  const refresh = useAtomRefresh(atom);
-  const settings = Option.getOrUndefined(AsyncResult.value(result));
   const project = useInventory(connection).projects.find(
     (entry) => entry.id === document.scope.projectId,
   );
-  const writer = settings
-    ? walkthroughWriterStatus(settings, project?.walkthroughSettings?.writer)
-    : undefined;
   const branches = useBranchBases(
     document.scope,
     connection,
@@ -48,46 +42,44 @@ export function WalkthroughStart({
     AsyncResult.value(branches.result),
   );
   const base = document.base ?? availableBases?.defaultRef;
-  const failed = AsyncResult.isFailure(result);
-  const noWriters = settings?.models.length === 0;
+  const { failed, noWriters, status } = writer;
   const checkAgain = (
     <PendingButton
-      pending={result.waiting}
+      pending={writer.checking}
       variant="outline"
       size="sm"
-      onClick={refresh}
+      onClick={writer.refresh}
     >
       Check writers again
     </PendingButton>
   );
-  let note: string | undefined = writer
-    ? `Since ${base ? refLabel(base) : 'the default branch'} · ${writer.label}`
+  let note: string | undefined = status
+    ? `Since ${base ? refLabel(base) : 'the default branch'} · ${status.label}`
     : undefined;
   let action = (
     <Button
       size="sm"
-      disabled={
-        Boolean(writeBlock) || waiting || writer?.availability !== 'ready'
-      }
-      aria-description={writeBlock}
+      disabled={Boolean(writeBlock ?? writer.block) || waiting}
+      aria-description={writeBlock ?? writer.block}
       onClick={onWrite}
     >
       <SparklesIcon data-icon="inline-start" />
       Write walkthrough
     </Button>
   );
+  let settingsAction;
   if (failed) {
     note = 'Could not check writers on the connected computer.';
     action = checkAgain;
   } else if (noWriters) {
     note = 'Sign in to Claude Code or Codex on the connected computer.';
     action = checkAgain;
-  } else if (writer && writer.availability !== 'ready') {
-    note =
-      writer.availability === 'unsupported-effort'
-        ? `${writer.label} is unavailable. Choose a supported effort.`
-        : `${writer.label} is unavailable.`;
-    action = project?.walkthroughSettings?.writer ? (
+  } else if (
+    status?.availability === 'missing-model' ||
+    status?.availability === 'unsupported-effort'
+  ) {
+    note = writer.block;
+    const recovery = project?.walkthroughSettings?.writer ? (
       <Button
         variant="outline"
         size="sm"
@@ -112,6 +104,10 @@ export function WalkthroughStart({
         Settings → Changes &amp; Git
       </Link>
     );
+    if (status.availability === 'unsupported-effort') settingsAction = recovery;
+    else action = recovery;
+  } else if (writer.block) {
+    note = writer.block;
   }
   return (
     <header className="flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -125,6 +121,7 @@ export function WalkthroughStart({
         </p>
       )}
       {action}
+      {settingsAction}
     </header>
   );
 }
