@@ -3,7 +3,11 @@ import { NodeServices } from '@effect/platform-node';
 import { Effect } from 'effect';
 import { execFileSync } from 'node:child_process';
 import {
+  closeSync,
+  constants,
+  mkdirSync,
   mkdtempSync,
+  openSync,
   realpathSync,
   rmSync,
   symlinkSync,
@@ -45,6 +49,34 @@ describe('parseGitdirFile', () => {
 });
 
 describe('Effect Git metadata', () => {
+  it('reads regular worktree pointers while a named pipe in the registry has no data', async ({
+    onTestFinished,
+  }) => {
+    const root = mkdtempSync(join(temporaryRoot, 'porcelain-gitdir-pipe-'));
+    onTestFinished(() => rmSync(root, { recursive: true, force: true }));
+    const linked = join(root, 'linked');
+    const administrative = join(root, 'worktrees', 'linked');
+    const pending = join(root, 'worktrees', 'pending');
+    mkdirSync(administrative, { recursive: true });
+    mkdirSync(pending);
+    mkdirSync(linked);
+    writeFileSync(join(administrative, 'gitdir'), `${linked}/.git\n`);
+    const pipe = join(pending, 'gitdir');
+    execFileSync('mkfifo', [pipe]);
+    const writer = openSync(pipe, constants.O_RDWR | constants.O_NONBLOCK);
+    try {
+      const registry = await Effect.runPromise(
+        readWorktreeRegistry(root).pipe(
+          Effect.timeout('1 second'),
+          Effect.provide(NodeServices.layer),
+        ),
+      );
+      expect([...registry]).toEqual([[realpathSync(linked), administrative]]);
+    } finally {
+      closeSync(writer);
+    }
+  });
+
   it('resolves the real linked worktree and refuses an administrative directory outside its registry', async ({
     onTestFinished,
   }) => {
