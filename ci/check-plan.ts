@@ -122,7 +122,7 @@ function rootInput(task: string, path: string): boolean {
           'packages/storage/scripts/native-migration-history.ts',
           'packages/git/src/shared/errors/**',
           'packages/effects/src/worktree-lease.ts',
-          'packages/projects/src/models/**',
+          'packages/{changes,projects}/src/models/**',
           'packages/reviews/src/{models,ports,rules,services}/**',
           'packages/client/src/features/{access,projects}/store.ts',
           'packages/client/src/features/{access,git-actions}/store/**',

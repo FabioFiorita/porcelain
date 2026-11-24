@@ -24,6 +24,10 @@ import { fileURLToPath } from 'node:url';
 import { parse } from 'yaml';
 import { Effect } from 'effect';
 import { Statement } from 'effect/sql';
+import { cruise } from 'dependency-cruiser';
+import extractDepcruiseOptions from 'dependency-cruiser/config-utl/extract-depcruise-options';
+import { checkPlan } from '../ci/check-plan.ts';
+import { runtimePlan } from '../ci/runtime-plan.ts';
 import { domainPackages } from './policy.ts';
 import { typeRuleFindings } from './type-rules.ts';
 import {
@@ -243,6 +247,67 @@ function duplicateFixture(entry, source) {
     };
   } finally {
     rmSync(root, { recursive: true, force: true });
+  }
+}
+
+async function checkCiInputs(entry) {
+  const repository = fileURLToPath(new URL('../', import.meta.url));
+  const manifest = JSON.parse(
+    readFileSync(join(repository, 'package.json'), 'utf8'),
+  );
+  const options = await extractDepcruiseOptions(
+    join(repository, 'architecture/dependency-cruiser.cjs'),
+  );
+  for (const task of entry.nodeTasks) {
+    const script = manifest.scripts[task];
+    match(script, /^node \S+$/, `${task} declares a single Node entry file`);
+    const { output } = await cruise([script.slice('node '.length)], options);
+    const modules = output.modules.filter(
+      ({ source, coreModule }) =>
+        !coreModule && !source.split('/').includes('node_modules'),
+    );
+    const unresolved = modules
+      .flatMap(({ dependencies }) => dependencies)
+      .filter(
+        ({ couldNotResolve, module }) =>
+          couldNotResolve && /^(?:\.|@porcelain\/)/.test(module),
+      );
+    deepStrictEqual(
+      unresolved.map(({ module }) => module),
+      [],
+      `${task} has unresolved repository imports`,
+    );
+    const omitted = modules
+      .filter(({ couldNotResolve }) => !couldNotResolve)
+      .map(({ source }) => source)
+      .filter(
+        (path) =>
+          !checkPlan('static', [path], repository).some(
+            ({ task: name }) => name === task,
+          ),
+      );
+    deepStrictEqual(omitted, [], `Changing these imports must select ${task}`);
+  }
+  const workflow = parse(
+    readFileSync(join(repository, '.github/workflows/ci.yml'), 'utf8'),
+  );
+  for (const job of entry.shellJobs) {
+    const scripts = workflow.jobs[job].steps.flatMap(({ run = '' }) =>
+      [
+        ...run.matchAll(/\bbash\s+(?:\.\/)?(scripts\/[\w/.-]+\.sh)(?=\s|$)/g),
+      ].map(([, path]) => path),
+    );
+    strictEqual(
+      scripts.length > 0,
+      true,
+      `${job} has a repository shell entry point`,
+    );
+    for (const path of scripts)
+      strictEqual(
+        runtimePlan(false, [path], [])[job],
+        true,
+        `Changing ${path} must select the ${job} job`,
+      );
   }
 }
 
@@ -643,6 +708,8 @@ export async function runGuardrailCases(named = []) {
       process.stdout.write('PASS ci-action-pins: actual ci.yml\n');
     } else if (entry.rule === 'ci-affected-selection') {
       ciSelectionFixture(entry);
+    } else if (entry.rule === 'ci-task-inputs') {
+      await checkCiInputs(entry);
     } else if (entry.rule === 'ci-landing-completion') {
       const workflow = parse(
         readFileSync(
