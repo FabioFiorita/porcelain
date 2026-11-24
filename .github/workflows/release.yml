@@ -109,6 +109,10 @@ jobs:
           test -f "$app/Contents/Resources/app-update.yml"
           grep -qx "version: \"$VERSION\"" dist/desktop/latest-mac.yml
           test -f "dist/desktop/Porcelain-$VERSION-arm64-mac.zip"
+      - name: Launch Porcelain from its signed disk image
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: node scripts/check-desktop-release.ts "dist/desktop/Porcelain-$VERSION-arm64.dmg"
       - uses: actions/upload-artifact@v7
         with:
           name: mac

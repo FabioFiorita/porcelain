@@ -1,5 +1,6 @@
 import { Schema } from 'effect';
 import { readServerHealth } from '../../verify-core/health.ts';
+import { disposableMacKeychain } from '@porcelain/desktop/kit/disposable-mac-keychain';
 import { launchOptions, sampleRepository } from '@porcelain/desktop/kit/launch';
 import { electronExecutable, stageDesktop } from '@porcelain/desktop/kit/stage';
 import { ownerStatus } from '@porcelain/server/kit/owner';
@@ -94,6 +95,7 @@ export async function startDesktop(input: {
   let child: ReturnType<NonNullable<typeof electron>['process']> | undefined;
   let awake: ReturnType<typeof spawn> | undefined;
   let stopped: Promise<void> | undefined;
+  let keychain: ReturnType<typeof disposableMacKeychain> | undefined;
   const stop = () =>
     (stopped ??= (async () => {
       if (
@@ -137,7 +139,20 @@ export async function startDesktop(input: {
         await cp(log, join(input.evidenceDirectory, 'server.log'));
       if (awake !== undefined) awake.kill('SIGTERM');
       await rm(workspace, { recursive: true, force: true });
-    })());
+    })().then(
+      () => keychain?.verifyAfterTeardown(),
+      (failure: unknown) => {
+        try {
+          keychain?.verifyAfterTeardown();
+        } catch (error) {
+          throw new AggregateError(
+            [failure, error],
+            'Desktop verifier cleanup failed',
+          );
+        }
+        throw failure;
+      },
+    ));
   input.onStop?.(stop);
   try {
     if (process.platform === 'darwin') {
@@ -165,6 +180,10 @@ export async function startDesktop(input: {
       { ...options.env, HOME: home, XDG_CONFIG_HOME: join(home, '.config') },
       input.codingToolDirectory,
     );
+    if (process.platform === 'darwin') {
+      keychain = disposableMacKeychain(home, options.env);
+      keychain.setup();
+    }
     const launchOptionsFile = join(workspace, 'electron-launch.json');
     await writeFile(
       launchOptionsFile,
