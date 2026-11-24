@@ -6,6 +6,7 @@ import { useIsFocused } from 'expo-router';
 import {
   readRemoteConnectionStatus,
   readingConnection,
+  remoteWritable,
   revalidateRemoteStatus,
 } from '@porcelain/client/access';
 import type {
@@ -57,4 +58,24 @@ export function useReadingConnectionNotice(remote: Remote) {
   const notice = readingConnection(atom);
   useAtomMount(readingAnnouncement(notice));
   return useAtomValue(notice);
+}
+
+const writableWithoutRemote = Atom.make(true);
+
+export function useWritesBlocked(environmentId: string) {
+  const focused = useIsFocused();
+  const entry = useAtomRef(remoteConnectionState).find(
+    (candidate) => candidate.remote.environmentId === environmentId,
+  );
+  return !useAtomValue(
+    entry && focused
+      ? remoteWritable(
+          readRemoteConnectionStatus(
+            accessPlatform,
+            entry.remote,
+            entry.connection,
+          ),
+        )
+      : writableWithoutRemote,
+  );
 }

@@ -19,9 +19,11 @@ export function WalkthroughStatus({
   onUpdate,
   writeBlock,
   writerNotice,
+  updateDisabled = false,
 }: WalkthroughStatusInput & {
   writeBlock?: string | undefined;
   writerNotice?: ReactNode;
+  updateDisabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const progress = walkthroughProgress(run, requesting);
@@ -76,7 +78,7 @@ export function WalkthroughStatus({
           label={failure ? 'Try again' : 'Update walkthrough'}
           variant="tonal"
           size="sm"
-          disabled={Boolean(writeBlock)}
+          disabled={Boolean(writeBlock) || updateDisabled}
           onPress={onUpdate}
         />
       )}

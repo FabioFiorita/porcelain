@@ -22,6 +22,7 @@ export {
   readRemoteConnectionStatus,
   readingConnection,
   remoteWorkspaceNotice,
+  remoteWritable,
   revalidateRemoteStatus,
 } from './queries/environments.ts';
 export {

@@ -1,7 +1,10 @@
 import { useAtomValue } from '@effect/atom-react';
 import { Atom } from 'effect/reactivity';
 import type { RemoteStatus } from '@porcelain/client/access/rules';
-import type { EnvironmentConnection } from '@porcelain/client/access';
+import {
+  remoteWritable,
+  type EnvironmentConnection,
+} from '@porcelain/client/access';
 
 export type Connection = EnvironmentConnection;
 
@@ -11,14 +14,11 @@ export type ConnectionContext = {
 };
 
 const localOnline = Atom.make(true);
-const remoteOnline = Atom.family((status: Atom.Atom<RemoteStatus>) =>
-  status.pipe(Atom.map(({ kind }) => kind === 'online')),
-);
 
 export function workspaceWriteAvailability({
   remoteStatus,
 }: ConnectionContext) {
-  return remoteStatus ? remoteOnline(remoteStatus) : localOnline;
+  return remoteStatus ? remoteWritable(remoteStatus) : localOnline;
 }
 
 export function useWorkspaceWriteBlock(context: ConnectionContext) {

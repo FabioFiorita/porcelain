@@ -1,7 +1,7 @@
 import { Stack } from 'expo-router';
 import type { ReactNode } from 'react';
 import { documentHeading } from '../../shared/rules/document-heading';
-import { topBarItems, type TopBarAction } from './top-bar-items';
+import { useTopBarItems, type TopBarAction } from './top-bar-items';
 import { HeaderTitle } from './header-title';
 import { Screen } from './screen';
 
@@ -56,7 +56,7 @@ export function PageHeader({
   place?: 'screen' | 'pane';
   barItems?: number | undefined;
 }) {
-  const items = topBarItems(actions);
+  const items = useTopBarItems(actions);
   return (
     <>
       {place === 'screen' ? (

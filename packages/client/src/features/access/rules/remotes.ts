@@ -243,6 +243,10 @@ export function remoteStatusNote(status: RemoteStatus): string | undefined {
   }
 }
 
+export function remoteWritesAvailable(status: RemoteStatus) {
+  return status.kind === 'online';
+}
+
 export function remoteWorktreeInterrupted(kind: RemoteStatus['kind']) {
   return kind === 'checking' || kind === 'reconnecting' || kind === 'offline';
 }

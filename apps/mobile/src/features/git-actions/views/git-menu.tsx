@@ -6,6 +6,7 @@ import { Button } from '../../../components/ui/button';
 import { TopBarActions } from '../../../shared/application/top-bar';
 import { useGitMenu } from '../commands/git-menu';
 import type { Workspace } from '../../projects';
+import { useWritesBlocked } from '../../access';
 
 export function GitMenu({
   selection,
@@ -13,6 +14,7 @@ export function GitMenu({
   selection: Pick<Workspace, 'connection' | 'scope'>;
 }) {
   const menu = useGitMenu(selection);
+  const blocked = useWritesBlocked(selection.connection.environmentId);
   return (
     <>
       <TopBarActions
@@ -29,7 +31,7 @@ export function GitMenu({
                 const label = action === 'fetch' ? 'Fetch' : 'Pull';
                 return {
                   label: reason ? `${label} — ${reason}` : label,
-                  disabled: Boolean(reason) || menu.pending(action),
+                  disabled: Boolean(reason) || blocked || menu.pending(action),
                   onPress: () => menu.run(action),
                 };
               }),

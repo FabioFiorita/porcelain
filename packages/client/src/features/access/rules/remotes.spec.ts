@@ -8,6 +8,7 @@ import {
   parseRemotes,
   readingConnectionNotice,
   remoteStatus,
+  remoteWritesAvailable,
   remoteStatusNote,
   serializeRemotes,
   withConnectionRoutes,
@@ -59,6 +60,26 @@ describe('remoteStatus', () => {
     ],
   ])('turns the answer %j into %j', (answer, status) => {
     expect(remoteStatus(remote, answer)).toEqual(status);
+  });
+});
+
+describe('remoteWritesAvailable', () => {
+  it('allows writes only while the computer answers', () => {
+    expect(remoteWritesAvailable({ kind: 'online', name: 'Beelink' })).toBe(
+      true,
+    );
+    expect(
+      (
+        [
+          'checking',
+          'reconnecting',
+          'offline',
+          'needs-pairing',
+          'other-server',
+          'incompatible',
+        ] as const
+      ).filter((kind) => remoteWritesAvailable({ kind })),
+    ).toEqual([]);
   });
 });
 

@@ -7,6 +7,7 @@ export function MessageComposer({
   value,
   placeholder,
   sending = false,
+  disabled = false,
   error,
   onChangeText,
   onSend,
@@ -15,6 +16,7 @@ export function MessageComposer({
   value: string;
   placeholder: string;
   sending?: boolean;
+  disabled?: boolean;
   error?: string | undefined;
   onChangeText: (value: string) => void;
   onSend: () => void;
@@ -45,7 +47,7 @@ export function MessageComposer({
           variant="filled"
           size="sm"
           accessibilityLabel="Send"
-          disabled={!value.trim() || sending}
+          disabled={!value.trim() || sending || disabled}
           pending={sending}
           onPress={onSend}
         />

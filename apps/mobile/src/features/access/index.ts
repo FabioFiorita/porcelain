@@ -6,6 +6,7 @@ export { ScanPairingLinkScreen } from './views/scan-pairing-link-screen';
 export { OpenPairingLink } from './views/open-pairing-link';
 export { ComputerScreen } from './views/computer-screen';
 export { ReadingConnection } from './views/reading-connection';
+export { useWritesBlocked } from './queries/environments';
 export { useReadEnvironments } from './commands/pairing';
 export { useEnvironments, useEnvironmentStorageStatus } from './store';
 
