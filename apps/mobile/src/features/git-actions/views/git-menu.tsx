@@ -76,6 +76,7 @@ export function GitMenu({
             label: menu.running ? 'Check outcome' : 'Retry',
             onPress: menu.running ? menu.checkOutcome : menu.retry,
             pending: Boolean(menu.running) && menu.checking,
+            disabled: !menu.running && blocked,
           }}
         />
       ) : null}

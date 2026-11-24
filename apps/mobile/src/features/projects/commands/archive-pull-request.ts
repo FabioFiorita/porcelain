@@ -58,6 +58,7 @@ export function useArchivePullRequest(input: {
       options: ArchivePullRequestRequest['options'],
       onStart: () => void,
     ) => {
+      if (!allowed()) return;
       onStart();
       void submit({ options });
     },

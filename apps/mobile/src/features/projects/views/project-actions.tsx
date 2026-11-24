@@ -6,6 +6,7 @@ import { projectPath, type Project } from '@porcelain/client/projects/rules';
 import { connectionErrorMessage } from '@porcelain/client/access/rules';
 import { ProjectActionMenu } from './project-action-menu';
 import { useRemoveProject } from '../commands/project-actions';
+import { useWritesBlocked } from '../../access';
 
 export function ProjectActions({
   connection,
@@ -20,6 +21,7 @@ export function ProjectActions({
 }) {
   const router = useRouter();
   const remove = useRemoveProject(connection, project.id);
+  const blocked = useWritesBlocked(connection.environmentId);
   return (
     <ProjectActionMenu
       label={`Project actions: ${project.name} · ${environmentName}`}
@@ -32,6 +34,7 @@ export function ProjectActions({
         {
           id: 'rename',
           label: 'Rename project',
+          disabled: blocked,
           onPress: () =>
             router.navigate({
               pathname: '/rename-project',
@@ -45,6 +48,7 @@ export function ProjectActions({
           id: 'remove',
           label: 'Remove from Porcelain',
           destructive: true,
+          disabled: blocked,
           onPress: () =>
             Alert.alert(
               `Remove ${project.name} from Porcelain?`,

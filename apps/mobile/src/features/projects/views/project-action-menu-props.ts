@@ -5,5 +5,6 @@ export type ProjectActionMenuProps = {
     label: string;
     onPress: () => void;
     destructive?: boolean;
+    disabled?: boolean;
   }[];
 };
