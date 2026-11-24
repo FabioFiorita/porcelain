@@ -139,7 +139,7 @@ jobs:
           require-lockfile: true
       - run: pnpm install --frozen-lockfile
       - name: Verify the desktop renderer stderr contract
-        run: pnpm --filter @porcelain/desktop test:e2e renderer-readiness.e2e.ts --project portable
+        run: pnpm --filter @porcelain/desktop test:e2e window.e2e.ts --project portable --grep 'the app serves its window from a private loopback server'
       - name: Probe the unmodified desktop verifier
         id: stock-verifier
         continue-on-error: true
