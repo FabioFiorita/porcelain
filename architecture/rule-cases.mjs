@@ -6214,6 +6214,41 @@ const shippedNativeMigrations = `'001_adopt': Effect.void, '003_retain': Effect.
 
 export const guardrailCases = [
   {
+    rule: 'repository-sql',
+    valid: 'sql`SELECT id FROM items WHERE ${sql.in("id", [1])}`;',
+    query: 'SELECT id FROM items WHERE "id" IN (?)',
+    cases: [
+      {
+        name: 'rejects a fragment in a variable',
+        source: 'sql`SELECT ${fragment}`;',
+        error:
+          /fixture\.ts:4:.*Put SQL helpers directly inside the query template/,
+      },
+      {
+        name: 'rejects an identifier in a variable',
+        source: 'sql`SELECT ${identifier}`;',
+        error:
+          /fixture\.ts:4:.*Put SQL helpers directly inside the query template/,
+      },
+      {
+        name: 'rejects an unsupported inline helper',
+        source: 'sql`SELECT ${sql.literal("id")}`;',
+        error: /fixture\.ts:4:.*Unsupported SQL interpolation literal/,
+      },
+      {
+        name: 'rejects a raw SQL method',
+        source: 'sql.unsafe("SELECT id FROM items");',
+        error: /fixture\.ts:4:.*Use a SQL template and inline SQL helpers/,
+      },
+      {
+        name: 'rejects a direct SQL constructor call',
+        source: 'sql("id");',
+        error:
+          /fixture\.ts:4:.*Use a SQL template so SQLite can check the query/,
+      },
+    ],
+  },
+  {
     rule: 'native-migration-history',
     shipped: nativeMigrationRegistry(shippedNativeMigrations),
     cases: [
@@ -6368,6 +6403,34 @@ export const guardrailCases = [
         selected: [],
         rules: true,
       },
+      ...['repository-queries', 'typescript-project'].map((name) => ({
+        name: `${name} selects rules`,
+        path: `architecture/${name}.ts`,
+        source: 'export {};',
+        selected: [],
+        rules: true,
+      })),
+      ...[
+        'packages/storage/spec/kit/native-database.ts',
+        'packages/storage/spec/kit/repository-queries.ts',
+        'packages/storage/scripts/native-migration-history.ts',
+        'packages/storage/src/repositories/access/sqlite-device-store.ts',
+        'packages/storage/src/db/migrate.ts',
+        'packages/storage/drizzle/0000_initial.sql',
+      ].map((path) => ({
+        name: `${path} selects rules`,
+        path,
+        source: 'fixture',
+        selected: ['web-e2e', 'storage'],
+        rules: true,
+      })),
+      {
+        name: 'storage dependency source selects rules',
+        path: 'packages/access/src/models/ci-fixture.ts',
+        source: 'export {};',
+        selected: ['web-e2e'],
+        rules: true,
+      },
       {
         name: 'verification manifest selects rules',
         path: '.agents/skills/package.json',
@@ -6515,9 +6578,9 @@ export const guardrailCases = [
     ],
     unitCommand: 'pnpm check:unit --ci',
     webIntegrationShards:
-      "${{ fromJSON(needs.affected.outputs.shards || '[1]') }}",
+      "${{ fromJSON(needs.affected.outputs.browser-shards || '[1]') }}",
     webIntegrationCommand:
-      'pnpm --filter @porcelain/web test:integration --shard=${{ matrix.shard }}/4',
+      'pnpm --filter @porcelain/web test:integration --shard=${{ matrix.shard }}/${{ strategy.job-total }}',
     webE2eShardPlan: "${{ fromJSON(needs.affected.outputs.shards || '[1]') }}",
     webE2eCases: [
       {

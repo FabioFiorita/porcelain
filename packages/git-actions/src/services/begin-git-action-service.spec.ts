@@ -21,7 +21,7 @@ async function begin(store: InMemoryGitActionReceiptStore) {
 it('starts an accepted exact request once and refuses replay after a crash', async () => {
   const receipt = sampleReceipt();
   const store = new InMemoryGitActionReceiptStore();
-  await Effect.runPromise(store.insert(receipt));
+  await Effect.runPromise(store.accept(receipt));
   const service = await begin(store);
   const first = await Effect.runPromise(
     service.execute({

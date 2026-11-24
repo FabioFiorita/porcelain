@@ -41,6 +41,7 @@ export function runtimePlan(
       changed.some((path) => path.startsWith('packages/storage/')),
     package: allRuntime,
     shards: release ? [1, 2, 3, 4] : [1],
+    'browser-shards': release ? [1, 2, 3, 4, 5, 6] : [1],
     integration: [...integration].map(relativeToWeb),
     e2e: [
       ...new Set([

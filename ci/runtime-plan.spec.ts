@@ -19,6 +19,7 @@ it('runs touched browser specs, a separate smoke and storage checks on main', ()
     server: false,
     desktop: false,
     package: false,
+    'browser-shards': [1],
   });
 });
 
@@ -37,6 +38,7 @@ it('runs every runtime job with a browser integration smoke for root Vite config
     storage: true,
     package: true,
     shards: [1],
+    'browser-shards': [1],
     integration: ['spec/integration/changes-branch-base.test.tsx'],
     e2e: ['spec/e2e/access-pairing.e2e.ts'],
   });
@@ -70,6 +72,7 @@ it('requires every runtime suite on promotion even when only documentation chang
     storage: true,
     package: true,
     shards: [1, 2, 3, 4],
+    'browser-shards': [1, 2, 3, 4, 5, 6],
   });
   expect(runtimePlan(false, ['README.md'], ['README.md'])).toMatchObject({
     'web-integration': false,
