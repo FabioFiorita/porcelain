@@ -9,11 +9,15 @@ import { savedState, withState } from './review-verdict.ts';
 const head = 'a'.repeat(40);
 const repository = 'owner/repo';
 const reviewScript = new URL('./review.ts', import.meta.url);
+const markWait = `import { writeFileSync } from 'node:fs';
+export async function setTimeout() {
+  writeFileSync(process.env.MERGE_WAIT_MARKER, '');
+}`;
 const skipWait = `import { registerHooks } from 'node:module';
 registerHooks({
   resolve(specifier, context, next) {
     if (specifier === 'node:timers/promises' && context.parentURL === ${JSON.stringify(reviewScript.href)}) {
-      return next('data:text/javascript,export async function setTimeout() {}', context);
+      return next(${JSON.stringify(`data:text/javascript,${encodeURIComponent(markWait)}`)}, context);
     }
     return next(specifier, context);
   },
@@ -29,7 +33,9 @@ function landing(
     | 'forbidden'
     | 'label-with-active-ci'
     | 'ready-with-active-ci'
+    | 'ci-starts-before-first-merge'
     | 'ci-starts-before-retry'
+    | 'ci-starts-during-retry'
     | 'fork-ci-active'
     | 'other-pr-ci-active'
     | 'deleted-fork'
@@ -45,13 +51,14 @@ function landing(
   const directory = mkdtempSync(join(temporaryRoot, 'porcelain-landing-'));
   const events = join(directory, 'events.json');
   const comment = join(directory, 'comment');
+  const waitMarker = join(directory, 'waited');
   try {
     writeFileSync(events, '[]');
     writeFileSync(comment, '');
     writeFileSync(
       join(directory, 'gh'),
       `#!${process.execPath}
-const { readFileSync, writeFileSync } = require('node:fs');
+const { existsSync, readFileSync, writeFileSync } = require('node:fs');
 const args = process.argv.slice(2);
 const events = JSON.parse(readFileSync(${JSON.stringify(events)}, 'utf8'));
 const record = (event) => {
@@ -82,7 +89,9 @@ if (args[0] === 'pr' && args[1] === 'view') {
     process.exit(0);
   }
   const active = ['label-with-active-ci', 'ready-with-active-ci', 'fork-ci-active', 'other-pr-ci-active', 'workflow-ci-overlap'].includes(scenario)
-    || (scenario === 'ci-starts-before-retry' && blocked);
+    || (scenario === 'ci-starts-before-first-merge' && events.includes('Agent verdict: success'))
+    || (scenario === 'ci-starts-before-retry' && blocked)
+    || (scenario === 'ci-starts-during-retry' && blocked && existsSync(${JSON.stringify(waitMarker)}));
   const activeRun = {
     id: 3, run_attempt: 1, run_started_at: null, created_at: '2026-11-24T01:30:56Z',
     status: scenario === 'ready-with-active-ci' ? 'queued' : 'in_progress',
@@ -168,7 +177,9 @@ if (args[0] === 'pr' && args[1] === 'view') {
             : {}),
           ...([
             'label-with-active-ci',
+            'ci-starts-before-first-merge',
             'ci-starts-before-retry',
+            'ci-starts-during-retry',
             'fork-ci-active',
             'other-pr-ci-active',
             'deleted-fork',
@@ -182,6 +193,7 @@ if (args[0] === 'pr' && args[1] === 'view') {
           GITHUB_SERVER_URL: 'https://github.com',
           GITHUB_RUN_ID: '123',
           MERGE_TOKEN: 'fixture-merge-token',
+          MERGE_WAIT_MARKER: waitMarker,
         },
       },
     );
@@ -226,6 +238,27 @@ describe('landing after a verdict', () => {
     expect(result.output).toContain('### #42: Waiting for CI');
   });
 
+  it('defers when CI starts before the first merge attempt', () => {
+    const result = landing('ci-starts-before-first-merge');
+    expect(result.status).toBe(0);
+    expect(result.events).toEqual([
+      ...passingVerdict,
+      'Agent verdict: pending',
+    ]);
+    expect(result.output).toContain('### #42: Waiting for CI');
+  });
+
+  it('defers when CI starts during the retry delay', () => {
+    const result = landing('ci-starts-during-retry');
+    expect(result.status).toBe(0);
+    expect(result.events).toEqual([
+      ...passingVerdict,
+      'blocked',
+      'Agent verdict: pending',
+    ]);
+    expect(result.output).toContain('### #42: Waiting for CI');
+  });
+
   it('does not defer a label-triggered merge for a different repository on the same commit', () => {
     const result = landing('fork-ci-active');
     expect(result.status).toBe(0);
@@ -255,6 +288,7 @@ describe('landing after a verdict', () => {
     expect(result.events).toEqual([
       'commit checks',
       ...passingVerdict,
+      'commit checks',
       'blocked',
       'commit checks',
       'merged',

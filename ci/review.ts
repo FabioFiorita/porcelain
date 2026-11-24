@@ -329,23 +329,23 @@ const report = (
     url: runUrl,
   });
 };
-const reportCiBlock = () => {
+const reportCiBlock = (candidate: PullRequestView) => {
   const stop = (state: 'pending' | 'failure', description: string) => {
     report(state, description);
     return description;
   };
-  if (view.headRepository === null)
+  if (candidate.headRepository === null)
     return stop('failure', 'The head repository is unavailable');
 
   const { active, latest } = pullRequestCiRuns(repository, {
     number,
-    sha: view.headRefOid,
-    branch: view.headRefName,
-    headRepository: view.headRepository.nameWithOwner,
+    sha: candidate.headRefOid,
+    branch: candidate.headRefName,
+    headRepository: candidate.headRepository.nameWithOwner,
   });
   if (active) return stop('pending', 'Waiting for CI');
   if (!latest)
-    return checkPassed(repository, view.headRefOid, ciCheck)
+    return checkPassed(repository, candidate.headRefOid, ciCheck)
       ? undefined
       : 'CI has not passed on its head yet';
   if (requiredCiJobPassed(repository, latest, ciCheck)) return;
@@ -354,7 +354,7 @@ const reportCiBlock = () => {
   if (latest.conclusion === 'failure') return stop('failure', 'CI failed');
   return stop('failure', `The required CI job ${ciCheck} did not pass`);
 };
-const initialCiBlock = reportCiBlock();
+const initialCiBlock = reportCiBlock(view);
 if (initialCiBlock) {
   writeSummary(number, initialCiBlock);
   process.exit(0);
@@ -501,36 +501,39 @@ try {
     latest.labels.some((label) => label.name === labels.review) === requested &&
     (markedReviewedHead === undefined ||
       latest.labels.some((label) => label.name === labels.reviewed));
-  const land = async () => {
-    let mergeError = merge(repository, view);
-    for (const delay of mergeRetryDelaysMs) {
-      if (!mergeError?.endsWith(`${mergeBlockedMessage}.`)) break;
-      const ciBlock = reportCiBlock();
+  const land = async (initialCandidate: PullRequestView) => {
+    let candidate = initialCandidate;
+    let mergeError: string | undefined;
+    for (const delay of [0, ...mergeRetryDelaysMs]) {
+      if (delay !== 0) {
+        console.log(`GitHub blocked the merge. Checking again in ${delay} ms.`);
+        await sleep(delay);
+        candidate = readView(repository, number);
+        if (sameTarget(candidate) && candidate.state === 'MERGED')
+          return 'merged';
+        if (!unchanged(candidate)) {
+          const reason = 'The pull request changed before it could merge';
+          report('failure', reason);
+          return reason;
+        }
+        const { step } = judge(
+          candidate.body,
+          new Set(candidate.labels.map((label) => label.name)),
+        );
+        if (!step.merge) {
+          report(step.status, step.description);
+          return step.description;
+        }
+      }
+      const ciBlock = reportCiBlock(candidate);
       if (ciBlock) return ciBlock;
-      console.log(`GitHub blocked the merge. Checking again in ${delay} ms.`);
-      await sleep(delay);
-      const candidate = readView(repository, number);
-      if (sameTarget(candidate) && candidate.state === 'MERGED')
-        return 'merged';
-      if (!unchanged(candidate)) {
-        const reason = 'The pull request changed before it could merge';
-        report('failure', reason);
-        return reason;
-      }
-      const { step } = judge(
-        candidate.body,
-        new Set(candidate.labels.map((label) => label.name)),
-      );
-      if (!step.merge) {
-        report(step.status, step.description);
-        return step.description;
-      }
-      mergeError = merge(repository, view);
+      mergeError = merge(repository, candidate);
+      if (!mergeError?.endsWith(`${mergeBlockedMessage}.`)) break;
     }
     if (!mergeError) return 'merged';
     const stillBlocked = mergeError.endsWith(`${mergeBlockedMessage}.`);
     if (stillBlocked) {
-      const ciBlock = reportCiBlock();
+      const ciBlock = reportCiBlock(candidate);
       if (ciBlock) return ciBlock;
     }
     const reason = stillBlocked
@@ -574,7 +577,7 @@ try {
     report('failure', 'The pull request changed before this verdict');
   } else {
     report(settled.status, settled.description);
-    outcome = settled.merge ? await land() : settled.description;
+    outcome = settled.merge ? await land(latest) : settled.description;
   }
 } catch (error) {
   outcome = error instanceof Error ? error.message : String(error);
