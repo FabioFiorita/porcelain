@@ -97,31 +97,44 @@ describe('readingConnectionNotice', () => {
   });
 
   it('keeps one reconnecting title while retries alternate between kinds', () => {
+    const reconnecting = {
+      title: 'Reconnecting to Beelink',
+      interrupted: true,
+      repair: false,
+    };
+    expect(readingConnectionNotice({ kind: 'checking' }, 'Beelink')).toEqual(
+      reconnecting,
+    );
     expect(
-      (['checking', 'reconnecting', 'offline'] as const).map((kind) =>
-        readingConnectionNotice({ kind }, 'Beelink'),
-      ),
-    ).toEqual([
-      { title: 'Reconnecting to Beelink', interrupted: true, repair: false },
-      { title: 'Reconnecting to Beelink', interrupted: true, repair: false },
-      { title: 'Reconnecting to Beelink', interrupted: true, repair: false },
-    ]);
+      readingConnectionNotice({ kind: 'reconnecting' }, 'Beelink'),
+    ).toEqual(reconnecting);
+    expect(readingConnectionNotice({ kind: 'offline' }, 'Beelink')).toEqual(
+      reconnecting,
+    );
   });
 
   it('offers pairing only when the computer refuses this device', () => {
     expect(
-      (['needs-pairing', 'other-server', 'incompatible'] as const).map(
-        (kind) => readingConnectionNotice({ kind }, 'Beelink'),
-      ),
-    ).toEqual([
-      { title: 'Beelink needs pairing', interrupted: false, repair: true },
-      {
-        title: 'Another server answers for Beelink',
-        interrupted: false,
-        repair: false,
-      },
-      { title: 'Beelink needs an update', interrupted: false, repair: false },
-    ]);
+      readingConnectionNotice({ kind: 'needs-pairing' }, 'Beelink'),
+    ).toEqual({
+      title: 'Beelink needs pairing',
+      interrupted: false,
+      repair: true,
+    });
+    expect(
+      readingConnectionNotice({ kind: 'other-server' }, 'Beelink'),
+    ).toEqual({
+      title: 'Another server answers for Beelink',
+      interrupted: false,
+      repair: false,
+    });
+    expect(
+      readingConnectionNotice({ kind: 'incompatible' }, 'Beelink'),
+    ).toEqual({
+      title: 'Beelink needs an update',
+      interrupted: false,
+      repair: false,
+    });
   });
 });
 

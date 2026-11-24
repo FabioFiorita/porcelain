@@ -378,9 +378,12 @@ export function PostSaved({ owner }: Props) {
   const saved = savedSummary(view);
   if (!saved) return null;
   return (
-    <FloatingBar>
+    <FloatingBar
+      action={
+        <PostActions owner={owner} pullRequest={view?.pullRequestNumber} />
+      }
+    >
       <Text variant="secondary">{saved}</Text>
-      <PostActions owner={owner} pullRequest={view?.pullRequestNumber} />
     </FloatingBar>
   );
 }

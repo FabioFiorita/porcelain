@@ -269,7 +269,11 @@ export function readingConnectionNotice(
         repair: false,
       };
     case 'needs-pairing':
-      return { title: `${name} needs pairing`, interrupted: false, repair: true };
+      return {
+        title: `${name} needs pairing`,
+        interrupted: false,
+        repair: true,
+      };
     case 'other-server':
       return {
         title: `Another server answers for ${name}`,

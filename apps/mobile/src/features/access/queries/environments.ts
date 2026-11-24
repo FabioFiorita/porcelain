@@ -45,7 +45,8 @@ const readingNotice = Atom.family(
   ({ status, name }: { status: Atom.Atom<RemoteStatus>; name: string }) =>
     Atom.readable((get) => {
       const notice = readingConnectionNotice(get(status), name);
-      return notice && (!notice.interrupted || get(remoteWorkspaceNotice(status)))
+      return notice &&
+        (!notice.interrupted || get(remoteWorkspaceNotice(status)))
         ? notice
         : undefined;
     }),
