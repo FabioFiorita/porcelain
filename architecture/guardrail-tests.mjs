@@ -374,6 +374,12 @@ function ciSelectionFixture(entry) {
         return output === `${gate}=true`;
       });
       deepStrictEqual(selected, fixture.selected, fixture.name);
+      if (fixture.shards)
+        strictEqual(
+          outputs.find((line) => line.startsWith('shards=')),
+          `shards=${JSON.stringify(fixture.shards)}`,
+          `${fixture.name}: web E2E shard output`,
+        );
       if (fixture.integration)
         strictEqual(
           outputs.find((line) => line.startsWith('integration=')),
@@ -740,7 +746,9 @@ export async function runGuardrailCases(named = []) {
   printf '%s\\n' "$*"
   [[ "$1" != "$REJECT" ]]
 }
-${runBrowser.run.replace('${{ matrix.shard }}', '"$SHARD"')}`;
+${runBrowser.run
+  .replace('${{ matrix.shard }}', '"$SHARD"')
+  .replace('${{ strategy.job-total }}', '"$JOB_TOTAL"')}`;
         const result = spawnSync(
           'bash',
           ['-e', '-o', 'pipefail', '-c', shell],
@@ -749,6 +757,7 @@ ${runBrowser.run.replace('${{ matrix.shard }}', '"$SHARD"')}`;
             env: {
               ...process.env,
               SHARD: fixture.shard,
+              JOB_TOTAL: fixture.jobTotal ?? '1',
               SPECS: JSON.stringify(fixture.specs),
               REJECT: fixture.reject ?? '',
             },
