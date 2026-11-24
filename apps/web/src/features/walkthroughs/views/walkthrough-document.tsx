@@ -367,6 +367,7 @@ function Written({
           document={props}
           writer={writer}
           existingMessage={updateFailure?.failure.message}
+          signedOut={updateFailure?.failure.kind === 'signed_out'}
         />
       }
     />
@@ -505,6 +506,7 @@ function Failed({
           document={document}
           writer={writer}
           existingMessage={copy.message}
+          signedOut={failure.kind === 'signed_out'}
         />
         <Button
           disabled={waiting || Boolean(writeBlock)}

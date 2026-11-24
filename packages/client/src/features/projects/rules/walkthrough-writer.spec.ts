@@ -67,6 +67,7 @@ it('keeps a legacy settings response usable without inferring the writer status'
 it('shows the effort reason once when the run already reported it', () => {
   const check = {
     failed: false,
+    noWriters: false,
     status: walkthroughWriterStatus({
       ...settings,
       availability: 'unsupported-effort',

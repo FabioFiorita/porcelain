@@ -1,5 +1,5 @@
 import { Effect } from 'effect';
-import { AsyncResult, Atom } from 'effect/reactivity';
+import { AsyncResult, Atom, Reactivity } from 'effect/reactivity';
 import type { RuntimeConnection } from '../../../shared/api/connection.ts';
 import { requestApi } from '../../../shared/api/client.ts';
 import { clientRuntime } from '../../../shared/api/runtime.ts';
@@ -21,41 +21,49 @@ export function walkthroughWriterCheck<E>(
 }
 
 const writerSettings = Atom.family((connection: RuntimeConnection) =>
-  Atom.family((projectId: string | undefined) => {
-    const runtime = clientRuntime(connection);
-    const lookup = (refresh?: 'true') =>
-      requestApi(connection, (api) =>
-        api.walkthroughs.readWalkthroughWriterSettings({
-          query: { projectId, refresh },
-        }),
-      );
-    const read = runtime
-      .atom(lookup())
+  Atom.family((projectId: string | undefined) =>
+    clientRuntime(connection)
+      .atom(
+        requestApi(connection, (api) =>
+          api.walkthroughs.readWalkthroughWriterSettings({
+            query: { projectId },
+          }),
+        ),
+      )
       .pipe(
         connection.atoms.withReactivity([
           queryKeys.inventory(connection.environmentId),
+          queryKeys.walkthroughWriterCatalog(connection.environmentId),
         ]),
         Atom.setIdleTTL(0),
-      );
-    const recheck = runtime.fn((_: void, get) =>
-      lookup('true').pipe(
-        Effect.ensuring(Effect.sync(() => get.refresh(read))),
       ),
-    );
-    return { read, recheck };
-  }),
+  ),
 );
 
 export function readWalkthroughWriterSettings(
   connection: RuntimeConnection,
   projectId?: string,
 ) {
-  return writerSettings(connection)(projectId).read;
+  return writerSettings(connection)(projectId);
 }
 
-export function recheckWalkthroughWriterSettings(
-  connection: RuntimeConnection,
-  projectId?: string,
-) {
-  return writerSettings(connection)(projectId).recheck;
+export function refreshWalkthroughWriterCatalog(connection: RuntimeConnection) {
+  return requestApi(connection, (api) =>
+    api.walkthroughs.readWalkthroughWriterSettings({
+      query: { refresh: 'true' },
+    }),
+  ).pipe(
+    Effect.ensuring(
+      Reactivity.invalidate([
+        queryKeys.walkthroughWriterCatalog(connection.environmentId),
+      ]),
+    ),
+  );
 }
+
+export const recheckWalkthroughWriterSettings = Atom.family(
+  (connection: RuntimeConnection) =>
+    clientRuntime(connection).fn((_: void) =>
+      refreshWalkthroughWriterCatalog(connection),
+    ),
+);

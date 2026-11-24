@@ -12,9 +12,7 @@ export function useWalkthroughWriter(document: DocumentProps) {
   const result = useAtomValue(
     readWalkthroughWriterSettings(connection, projectId),
   );
-  const [recheck, run] = useAtom(
-    recheckWalkthroughWriterSettings(connection, projectId),
-  );
+  const [recheck, run] = useAtom(recheckWalkthroughWriterSettings(connection));
   return {
     ...walkthroughWriterCheck(result),
     checking: result.waiting || recheck.waiting,

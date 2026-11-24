@@ -52,15 +52,16 @@ export function WalkthroughStart({
   );
   let settingsAction;
   if (failed || noWriters) {
-    note = failed
-      ? (walkthroughWriterNotice(writer) ?? '')
-      : 'Sign in to Claude Code or Codex on the connected computer.';
+    note = walkthroughWriterNotice(writer) ?? '';
     action = <CheckWalkthroughWriters writer={writer} />;
   } else if (status?.block) {
     note = status.block;
     const recovery = <WalkthroughWriterSettingsAction document={document} />;
     if (status.availability === 'unsupported-effort') settingsAction = recovery;
-    else action = recovery;
+    else {
+      action = <CheckWalkthroughWriters writer={writer} />;
+      settingsAction = recovery;
+    }
   }
   return (
     <header className="flex flex-wrap items-center gap-x-3 gap-y-2">

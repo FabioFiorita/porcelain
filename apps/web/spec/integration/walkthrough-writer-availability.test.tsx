@@ -323,3 +323,104 @@ test('a failed writer check leaves Update usable and can be checked again', asyn
     restore();
   }
 });
+
+test('checks a missing writer again after sign-in without leaving a ready walkthrough', async ({
+  repo,
+  render,
+  codingTool,
+  server,
+}) => {
+  await conversationFixture('pr');
+  const project = await server.project();
+  await repo.walkthroughSettings(project.id, {
+    mode: 'manual',
+    writer: unsupportedWriter,
+  });
+  const { page } = await render.route('/');
+  const update = page.getByRole('button', {
+    name: 'Update walkthrough',
+    exact: true,
+  });
+  await expect.element(update).toBeDisabled();
+  await expect
+    .element(
+      page.getByText('Codex / fixture-model · high is unavailable.', {
+        exact: true,
+      }),
+    )
+    .toBeVisible();
+  await codingTool.codexEffort(true);
+  await page
+    .getByRole('button', {
+      name: 'Check writers again',
+      exact: true,
+    })
+    .click();
+  await expect.element(update).toBeEnabled();
+});
+
+test.for(['default', 'project'] as const)(
+  'refreshes the %s form catalog when saving a stale effort returns 422',
+  async (scope, { codingTool, render, server }) => {
+    await codingTool.codexEffort(true);
+    const project = await server.project();
+    const computer = (await server.inventory()).environment.name;
+    const page =
+      scope === 'default'
+        ? (await render.route('/settings/git')).page
+        : await render.navigator();
+    if (scope === 'project') {
+      await page
+        .getByRole('button', {
+          name: `Project actions: ${project.name} · ${computer}`,
+          exact: true,
+        })
+        .click();
+      await page
+        .getByRole('menuitem', {
+          name: 'Walkthrough settings',
+          exact: true,
+        })
+        .click();
+    }
+    const form =
+      scope === 'default'
+        ? page.getByRole('group', { name: 'Walkthroughs', exact: true })
+        : page.getByRole('dialog', {
+            name: `Walkthroughs for ${project.name}`,
+            exact: true,
+          });
+    const effort = form.getByRole('combobox', {
+      name: 'Walkthrough effort',
+      exact: true,
+    });
+    const save = form.getByRole('button', { name: 'Save', exact: true });
+    await form
+      .getByRole('combobox', { name: 'Walkthrough writer', exact: true })
+      .click();
+    await page
+      .getByRole('option', { name: 'Codex / Fixture model', exact: true })
+      .click();
+    await effort.click();
+    await page.getByRole('option', { name: 'high', exact: true }).click();
+    await expect.element(save).toBeEnabled();
+    await codingTool.codexEffort(false);
+    await save.click();
+    await expect
+      .element(
+        form.getByText(
+          `UnsupportedWalkthroughEffortError: ${unsupportedNote}`,
+          { exact: true },
+        ),
+      )
+      .toBeVisible();
+    await expect.element(save).toBeDisabled();
+    await effort.click();
+    await expect
+      .element(page.getByRole('option', { name: 'medium', exact: true }))
+      .toBeVisible();
+    await expect
+      .element(page.getByRole('option', { name: 'high', exact: true }))
+      .not.toBeInTheDocument();
+  },
+);

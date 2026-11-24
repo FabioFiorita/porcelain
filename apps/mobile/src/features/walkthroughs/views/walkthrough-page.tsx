@@ -4,7 +4,10 @@ import {
   recheckWalkthroughWriterSettings,
   walkthroughWriterCheck,
 } from '@porcelain/client/projects';
-import { walkthroughWriterNotice } from '@porcelain/client/projects/rules';
+import {
+  canRecheckWalkthroughWriters,
+  walkthroughWriterNotice,
+} from '@porcelain/client/projects/rules';
 import { useState, type ComponentRef, type ReactNode } from 'react';
 import { ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -62,9 +65,7 @@ function useWriterCheck(workspace: Workspace) {
   const result = useAtomValue(
     readWalkthroughWriterSettings(connection, projectId),
   );
-  const [recheck, run] = useAtom(
-    recheckWalkthroughWriterSettings(connection, projectId),
-  );
+  const [recheck, run] = useAtom(recheckWalkthroughWriterSettings(connection));
   return {
     ...walkthroughWriterCheck(result),
     checking: result.waiting || recheck.waiting,
@@ -77,16 +78,19 @@ type WriterCheck = ReturnType<typeof useWriterCheck>;
 function WriterNotice({
   writer,
   existingMessage,
+  signedOut,
 }: {
   writer: WriterCheck;
   existingMessage?: string | undefined;
+  signedOut?: boolean | undefined;
 }) {
+  const check = canRecheckWalkthroughWriters(writer, signedOut);
   const message = walkthroughWriterNotice(writer, existingMessage);
-  if (!message && !writer.failed) return null;
+  if (!message && !check) return null;
   return (
     <Box gap={2} className="items-start">
       {message && <Text tone="muted">{message}</Text>}
-      {writer.failed && (
+      {check && (
         <Button
           label="Check writers again"
           size="sm"
@@ -387,6 +391,7 @@ function Written({
           <WriterNotice
             writer={writer}
             existingMessage={updateFailure?.failure.message}
+            signedOut={updateFailure?.failure.kind === 'signed_out'}
           />
         }
       />
@@ -551,7 +556,9 @@ function Unwritten({
           <Button
             label="Write walkthrough"
             pending={waiting}
-            disabled={!writer.status || Boolean(writer.status.block)}
+            disabled={
+              !writer.status || writer.noWriters || Boolean(writer.status.block)
+            }
             onPress={onWrite}
           />
         </Box>
@@ -604,7 +611,11 @@ function Failed({
             {copy.title}
           </Text>
           {copy.message ? <Text tone="muted">{copy.message}</Text> : null}
-          <WriterNotice writer={writer} existingMessage={copy.message} />
+          <WriterNotice
+            writer={writer}
+            existingMessage={copy.message}
+            signedOut={failure.kind === 'signed_out'}
+          />
           <Button
             label="Try again"
             pending={waiting}

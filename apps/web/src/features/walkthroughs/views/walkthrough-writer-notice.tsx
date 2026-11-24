@@ -1,5 +1,8 @@
 import { Link } from '@tanstack/react-router';
-import { walkthroughWriterNotice } from '@porcelain/client/projects/rules';
+import {
+  canRecheckWalkthroughWriters,
+  walkthroughWriterNotice,
+} from '@porcelain/client/projects/rules';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { useLocalConnection } from '@/features/access/index';
 import {
@@ -66,21 +69,22 @@ export function WalkthroughWriterNotice({
   document,
   writer,
   existingMessage,
+  signedOut,
 }: {
   document: DocumentProps;
   writer: WriterCheck;
   existingMessage?: string | undefined;
+  signedOut?: boolean | undefined;
 }) {
-  if (!writer.failed && !writer.status?.block) return null;
+  const check = canRecheckWalkthroughWriters(writer, signedOut);
+  const settings = Boolean(writer.status?.block);
+  if (!check && !settings) return null;
   const note = walkthroughWriterNotice(writer, existingMessage);
   return (
     <div className="flex flex-wrap items-center gap-2 text-caption text-muted-foreground">
       {note && <p role={writer.failed ? 'alert' : undefined}>{note}</p>}
-      {writer.failed ? (
-        <CheckWalkthroughWriters writer={writer} />
-      ) : (
-        <WalkthroughWriterSettingsAction document={document} />
-      )}
+      {check && <CheckWalkthroughWriters writer={writer} />}
+      {settings && <WalkthroughWriterSettingsAction document={document} />}
     </div>
   );
 }
