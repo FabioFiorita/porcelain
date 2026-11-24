@@ -7,6 +7,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuShortcut,
+  lockScrollOutsideMenus,
   menuContentClassName,
 } from '@/components/ui/dropdown-menu';
 
@@ -29,6 +30,7 @@ function ContextMenuContent({
 }: React.ComponentProps<typeof MenuContent>) {
   return (
     <MenuContent
+      ref={lockScrollOutsideMenus}
       data-slot="context-menu-content"
       className={cn(menuContentClassName, className)}
       {...props}

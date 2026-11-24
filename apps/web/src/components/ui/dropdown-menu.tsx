@@ -28,6 +28,29 @@ function DropdownMenu(props: React.ComponentProps<typeof Menu>) {
   return <Menu {...props} />;
 }
 
+function lockScrollOutsideMenus(content: HTMLElement | null) {
+  if (!content) return;
+  const page = content.ownerDocument;
+  const block = (event: Event) => {
+    if (!content.hasAttribute('data-open')) return;
+    const inMenu = event
+      .composedPath()
+      .some(
+        (target) =>
+          target instanceof HTMLElement &&
+          target.getAttribute('role') === 'menu',
+      );
+    if (!inMenu) event.preventDefault();
+  };
+  const options = { capture: true, passive: false };
+  page.addEventListener('wheel', block, options);
+  page.addEventListener('touchmove', block, options);
+  return () => {
+    page.removeEventListener('wheel', block, options);
+    page.removeEventListener('touchmove', block, options);
+  };
+}
+
 function DropdownMenuTrigger(props: React.ComponentProps<typeof MenuTrigger>) {
   return <MenuTrigger data-slot="dropdown-menu-trigger" {...props} />;
 }
@@ -42,6 +65,7 @@ function DropdownMenuContent({
 }: React.ComponentProps<typeof MenuContent>) {
   return (
     <MenuContent
+      ref={lockScrollOutsideMenus}
       data-slot="dropdown-menu-content"
       align={align}
       alignOffset={alignOffset}
@@ -238,6 +262,7 @@ function DropdownMenuShortcut({
 
 export {
   contentClassName as menuContentClassName,
+  lockScrollOutsideMenus,
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
