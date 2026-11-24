@@ -17,7 +17,7 @@ export function FloatingBar({
   return (
     <View
       testID={testID}
-      className={`absolute inset-x-0 z-40 items-center px-4 ${placements[placement]}`}
+      className={`absolute inset-x-0 items-center px-4 ${placements[placement]}`}
       pointerEvents="box-none"
     >
       <View
