@@ -1,4 +1,4 @@
-import { Schema } from 'effect';
+import { Array as Arr, Effect, Schema } from 'effect';
 import { walkthroughBlockRequestSchema } from '@porcelain/contracts/walkthroughs';
 import {
   walkthroughContentSchema,
@@ -41,17 +41,38 @@ export const codexWritingSchema = Schema.Struct({
   ).check(Schema.isMaxLength(8)),
 });
 
-export const claudeWritingSchema = Schema.Struct({
-  ...proseFields,
-  stops: Schema.Array(
-    Schema.Struct({
-      ...stopFields,
-      blocks: Schema.Array(walkthroughBlockRequestSchema).check(
-        Schema.isMaxLength(12),
-      ),
-    }),
-  ).check(Schema.isMaxLength(8)),
-});
+const claudeOutputSchema = <Block extends Schema.Constraint>(block: Block) =>
+  Schema.Struct({
+    ...proseFields,
+    stops: Schema.Array(
+      Schema.Struct({
+        ...stopFields,
+        blocks: Schema.Array(block).check(Schema.isMaxLength(12)),
+      }),
+    ).check(Schema.isMaxLength(8)),
+  });
+export const claudeWritingSchema = claudeOutputSchema(
+  walkthroughBlockRequestSchema,
+);
+const decodeClaudeOutput = Schema.decodeUnknownEffect(
+  claudeOutputSchema(Schema.Unknown),
+);
+const decodeBlockRequest = Schema.decodeUnknownOption(
+  walkthroughBlockRequestSchema,
+  { onExcessProperty: 'error' },
+);
+
+export function decodeClaudeWriting(output: unknown) {
+  return decodeClaudeOutput(output).pipe(
+    Effect.map(({ stops, ...prose }) => ({
+      ...prose,
+      stops: stops.map(({ blocks, ...stop }) => ({
+        ...stop,
+        blocks: Arr.getSomes(blocks.map((block) => decodeBlockRequest(block))),
+      })),
+    })),
+  );
+}
 
 export function writingPrompts(
   job: WalkthroughJob,

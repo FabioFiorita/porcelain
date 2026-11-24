@@ -163,6 +163,43 @@ async function fixture(
     );
   return { folder, result, sessions, answer };
 }
+it('drops invalid Claude block requests while keeping valid blocks in order', async ({
+  onTestFinished,
+}) => {
+  const notes = { kind: 'files', files: [{ path: 'notes.md', note: 'Notes' }] };
+  const glossary = {
+    kind: 'files',
+    files: [{ path: 'glossary.md', note: 'Terms' }],
+  };
+  const answer = {
+    outcome: 'worth_knowing',
+    title: 'Explain the notes',
+    summary: 'Before and after.',
+    growth: [],
+    stops: [
+      {
+        title: 'Keep the guide together',
+        explanation: 'The glossary explains the notes.',
+        blocks: [
+          notes,
+          { kind: 'invented' },
+          { kind: 'files', files: [{ path: 'missing-note.md' }] },
+          glossary,
+        ],
+      },
+    ],
+    onlyInTranscript: [],
+    stillUnclear: [],
+  };
+  const { result } = await fixture(
+    `const resumed=process.argv.includes('--resume'); require('fs').readFileSync(0,'utf8'); console.log(JSON.stringify({structured_output:resumed ? ${JSON.stringify(answer)} : {understood:'A guide',could_not_tell:[]}}));`,
+    onTestFinished,
+  );
+  expect(await result()).toMatchObject({
+    success: { content: { stops: [{ blocks: [notes, glossary] }] } },
+  });
+});
+
 it('keeps Claude sessions across temporary homes without executing developer shell profiles', async ({
   onTestFinished,
 }) => {

@@ -1,8 +1,5 @@
 export {
   WalkthroughsApi,
-  walkthroughContentSchema,
-  walkthroughBlockSchema,
-  type WalkthroughBlock,
   readWalkthroughResponseSchema,
   type StartWalkthroughRequest,
   type ReadWalkthroughResult,
@@ -33,6 +30,9 @@ export {
 } from './conversations.ts';
 
 export {
+  walkthroughContentSchema,
+  walkthroughBlockSchema,
+  type WalkthroughBlock,
   walkthroughBlockRequestSchema,
   type WalkthroughBlockRequest,
 } from '@porcelain/walkthroughs/models';

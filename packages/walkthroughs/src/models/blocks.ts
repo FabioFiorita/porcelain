@@ -45,7 +45,7 @@ const walkthroughAttentionSchema = Schema.Struct({
   note: Schema.String,
   question: Schema.String,
 });
-export const walkthroughCalloutSchema = Schema.Struct({
+const walkthroughCalloutSchema = Schema.Struct({
   kind: Schema.Literal('callout'),
   attention: walkthroughAttentionSchema,
   comparison: Schema.optional(

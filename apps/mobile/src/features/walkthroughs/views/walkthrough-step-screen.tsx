@@ -4,7 +4,6 @@ import { Box } from '../../../components/ui/box';
 import { Empty } from '../../../components/ui/empty';
 import { RichText } from '../../../components/ui/rich-text';
 import { Screen } from '../../../components/ui/screen';
-import { Text } from '../../../components/ui/text';
 import { WorkspaceGate, type Workspace } from '../../projects/index';
 import { ChangesPage } from '../../workspace/index';
 import {
@@ -90,11 +89,6 @@ function StepReader({
               variant="secondary"
               tone="muted"
             />
-            {stop.unsupportedBlocksNotice ? (
-              <Text variant="caption" tone="muted">
-                {stop.unsupportedBlocksNotice}
-              </Text>
-            ) : null}
           </Box>
         ),
         empty: { title: 'No changed files' },

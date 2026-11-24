@@ -1,10 +1,8 @@
-import { Schema, SchemaTransformation } from 'effect';
+import { Schema } from 'effect';
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api';
 import {
   walkthroughRunSchema as domainRunSchema,
-  walkthroughContentSchema as domainContentSchema,
-  walkthroughBlockSchema as domainBlockSchema,
-  walkthroughCalloutSchema,
+  walkthroughContentSchema,
   writerSchema,
   walkthroughModelSchema,
   walkthroughFreshnessSchema,
@@ -35,62 +33,6 @@ import {
   walkthroughConversationParamsSchema,
 } from './conversations.ts';
 import { httpFailure } from '../shared/http-failure.ts';
-function fallbackString<const Value extends string>(value: Value) {
-  return Schema.String.pipe(
-    Schema.decodeTo(
-      Schema.Literal(value),
-      SchemaTransformation.transform<Value, string>({
-        decode: () => value,
-        encode: (known) => known,
-      }),
-    ),
-  );
-}
-const readableCalloutSchema = Schema.Struct({
-  ...walkthroughCalloutSchema.fields,
-  attention: Schema.Struct({
-    ...walkthroughCalloutSchema.fields.attention.fields,
-    kind: fallbackString('decision'),
-  }),
-});
-const unknownBlockSchema = Schema.Struct({ kind: Schema.Literal('unknown') });
-export const walkthroughBlockSchema = Schema.Union([
-  domainBlockSchema,
-  readableCalloutSchema,
-  Schema.Unknown.pipe(
-    Schema.decodeTo(
-      unknownBlockSchema,
-      SchemaTransformation.transform<typeof unknownBlockSchema.Type, unknown>({
-        decode: () => ({ kind: 'unknown' }),
-        encode: (block) => block,
-      }),
-    ),
-  ),
-]);
-export type WalkthroughBlock = typeof walkthroughBlockSchema.Type;
-export const walkthroughContentSchema = Schema.Struct({
-  ...domainContentSchema.fields,
-  version: Schema.Int.check(Schema.isGreaterThan(0)),
-  outcome: Schema.Union([
-    domainContentSchema.fields.outcome,
-    fallbackString('worth_knowing'),
-  ]),
-  growth: Schema.Array(
-    Schema.Struct({
-      ...domainContentSchema.fields.growth.value.fields,
-      change: Schema.Union([
-        domainContentSchema.fields.growth.value.fields.change,
-        fallbackString('changed'),
-      ]),
-    }),
-  ),
-  stops: Schema.Array(
-    Schema.Struct({
-      ...domainContentSchema.fields.stops.value.fields,
-      blocks: Schema.Array(walkthroughBlockSchema),
-    }),
-  ),
-});
 const readySchema = Schema.Struct({
   status: Schema.Literal('ready'),
   content: walkthroughContentSchema,

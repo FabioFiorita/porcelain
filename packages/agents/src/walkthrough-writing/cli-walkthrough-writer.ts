@@ -25,6 +25,7 @@ import {
   answerPrompts,
   claudeWritingSchema,
   codexWritingSchema,
+  decodeClaudeWriting,
   firstPassSchema,
   writingPrompts,
 } from './writing-prompts.ts';
@@ -145,7 +146,7 @@ export const cliWalkthroughWriterLayer = (options: {
             }
             const content =
               mcp === undefined
-                ? yield* Schema.decodeUnknownEffect(claudeWritingSchema)(answer)
+                ? yield* decodeClaudeWriting(answer)
                 : yield* Schema.decodeUnknownEffect(
                     Schema.toCodecJson(codexWritingSchema),
                   )(answer).pipe(

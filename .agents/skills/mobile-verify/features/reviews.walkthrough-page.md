@@ -57,7 +57,6 @@ On tablets with at least 700 units of content width the steps sit beside the pag
 ## How to get to it (user POV)
 
 - Worktrees tab → a worktree. The page opens on Walkthrough only when its current branch has a ready, queued, running or failed run; otherwise Changes opens with Walkthrough one tap away.
-- A step with unsupported blocks shows one quiet notice on the Walkthrough and in the step reader. Its explanation and supported blocks stay readable.
 - Each step's See the code opens [the step's code](reviews.walkthrough-step.md); a screenshot on a step opens [the screenshot](reviews.walkthrough-screenshot.md); See every changed file and See the change open [All changes](reviews.all-changes.md) on Branch. Native Back returns to the same place on the page.
 
 ## Driving it with agent-device

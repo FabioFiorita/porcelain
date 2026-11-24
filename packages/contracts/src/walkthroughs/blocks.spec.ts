@@ -34,113 +34,55 @@ it('exposes recorded check results on the wire and only accepts the commit as a 
   expect(() => decodeRequest(block)).toThrow();
 });
 
-it('reads future content versions without losing steps or reordering unsupported blocks', () => {
-  const result = Schema.decodeUnknownSync(walkthroughContentSchema)({
-    version: 2,
-    outcome: 'worth_knowing',
-    title: 'A future walkthrough',
-    summary: 'Keep the prose.',
-    growth: [],
-    onlyInTranscript: [],
-    stillUnclear: [],
-    stops: [
-      {
-        title: 'A step',
-        explanation: 'Read this step.',
-        blocks: [
-          { kind: 'future', markup: '<p>Ignore this</p>' },
-          { kind: 'files', files: [{ path: 'file.ts', note: 'Owned' }] },
-        ],
-      },
-    ],
-  });
-  expect(result.version).toBe(2);
-  expect(Schema.encodeSync(walkthroughContentSchema)(result).version).toBe(2);
-  expect(result.stops).toEqual([
-    {
-      title: 'A step',
-      explanation: 'Read this step.',
-      blocks: [
-        { kind: 'unknown' },
-        { kind: 'files', files: [{ path: 'file.ts', note: 'Owned' }] },
-      ],
-    },
-  ]);
-});
+const stepWith = (block: object) => [
+  { title: 'A step', explanation: 'Read this step.', blocks: [block] },
+];
 
 it.each([
+  { name: 'an unsupported version', fields: { version: 2 } },
+  { name: 'an unknown outcome', fields: { outcome: 'future_outcome' } },
   {
-    input: { outcome: 'future_outcome' },
-    expected: { outcome: 'worth_knowing' },
-  },
-  {
-    input: {
-      growth: [
-        { change: 'future_change', what: 'Paths', note: 'Keep this detail.' },
-      ],
-    },
-    expected: {
-      growth: [{ change: 'changed', what: 'Paths', note: 'Keep this detail.' }],
+    name: 'an unknown growth change',
+    fields: {
+      growth: [{ change: 'future_change', what: 'Paths', note: 'Moved.' }],
     },
   },
   {
-    input: {
-      stops: [
-        {
-          title: 'A step',
-          explanation: 'Keep this step.',
-          blocks: [
-            {
-              kind: 'callout',
-              attention: {
-                kind: 'future_call',
-                note: 'Readers prefer it.',
-                question: 'Keep it?',
-              },
-              comparison: { columns: ['A', 'B'], rows: [['Keep', 'Remove']] },
-            },
-          ],
+    name: 'an unknown callout kind',
+    fields: {
+      stops: stepWith({
+        kind: 'callout',
+        attention: {
+          kind: 'future_call',
+          note: 'It matters.',
+          question: 'Keep it?',
         },
-      ],
-    },
-    expected: {
-      stops: [
-        {
-          title: 'A step',
-          explanation: 'Keep this step.',
-          blocks: [
-            {
-              kind: 'callout',
-              attention: {
-                kind: 'decision',
-                note: 'Readers prefer it.',
-                question: 'Keep it?',
-              },
-              comparison: { columns: ['A', 'B'], rows: [['Keep', 'Remove']] },
-            },
-          ],
-        },
-      ],
+      }),
     },
   },
-])(
-  'keeps the walkthrough readable with future values in $input',
-  ({ input, expected }) => {
-    const read = Schema.decodeUnknownSync(walkthroughContentSchema)({
-      version: 2,
-      outcome: 'worth_knowing',
-      title: 'A future walkthrough',
-      summary: 'Keep the prose.',
-      growth: [],
-      stops: [],
-      onlyInTranscript: [],
-      stillUnclear: [],
-      ...input,
-    });
-    expect(read).toMatchObject({
-      title: 'A future walkthrough',
-      summary: 'Keep the prose.',
-      ...expected,
-    });
+  {
+    name: 'an unknown block kind',
+    fields: { stops: stepWith({ kind: 'future_block' }) },
   },
-);
+  {
+    name: 'a malformed files block',
+    fields: {
+      stops: stepWith({ kind: 'files', files: [{ path: 'file.ts' }] }),
+    },
+  },
+])('rejects $name in wire content', ({ fields }) => {
+  const content = {
+    version: 1,
+    outcome: 'worth_knowing',
+    title: 'A walkthrough',
+    summary: 'The change.',
+    growth: [],
+    stops: [],
+    onlyInTranscript: [],
+    stillUnclear: [],
+    ...fields,
+  };
+  expect(() =>
+    Schema.decodeUnknownSync(walkthroughContentSchema)(content),
+  ).toThrow();
+});
