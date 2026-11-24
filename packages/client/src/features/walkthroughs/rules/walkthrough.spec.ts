@@ -69,7 +69,6 @@ const stop = ({
     ...excerpts.map((item) => ({ kind: 'excerpt' as const, excerpt: item })),
     ...(files.length > 0 ? [{ kind: 'files' as const, files }] : []),
   ],
-  unsupportedBlocksNotice: undefined,
 });
 
 const attention = {

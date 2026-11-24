@@ -24,10 +24,7 @@ export type WalkthroughExcerpt = Pick<
   readonly span: { readonly startLine: number; readonly endLine: number };
 };
 
-export type WalkthroughComparison = {
-  readonly columns: readonly [string, string];
-  readonly rows: readonly (readonly [string, string])[];
-};
+export type WalkthroughComparison = NonNullable<Callout['comparison']>;
 
 type WalkthroughCallout = {
   readonly attention: Callout['attention'];
@@ -58,42 +55,13 @@ export type WalkthroughStop = {
   readonly explanation: string;
   readonly blocks: readonly StepBlock[];
   readonly callouts: readonly WalkthroughCallout[];
-  readonly unsupportedBlocksNotice: string | undefined;
 };
-
-const UNSUPPORTED = 'Part of this step needs a newer Porcelain to show.';
-const MAX_COMPARISON_ROWS = 6;
 
 function excerptLines(excerpt: Excerpt) {
   const side = excerpt.side === 'old' ? 'Old' : 'New';
   return excerpt.start === excerpt.end
     ? `${side} line ${excerpt.start}`
     : `${side} lines ${excerpt.start}–${excerpt.end}`;
-}
-
-function pair(
-  values: readonly string[],
-): readonly [string, string] | undefined {
-  const [left, right] = values;
-  return values.length === 2 && left !== undefined && right !== undefined
-    ? [left, right]
-    : undefined;
-}
-
-function readComparison(
-  comparison: Callout['comparison'],
-): WalkthroughComparison | undefined | 'unsupported' {
-  if (comparison === undefined) return undefined;
-  const columns = pair(comparison.columns);
-  const rows = comparison.rows.map(pair);
-  if (
-    columns === undefined ||
-    rows.length === 0 ||
-    rows.length > MAX_COMPARISON_ROWS ||
-    rows.some((row) => row === undefined)
-  )
-    return 'unsupported';
-  return { columns, rows: rows.filter((row) => row !== undefined) };
 }
 
 export function readStop({
@@ -103,7 +71,6 @@ export function readStop({
 }: WireStop): WalkthroughStop {
   const shown: StepBlock[] = [];
   const callouts: WalkthroughCallout[] = [];
-  let unsupported = false;
   let screenshots = 0;
   blocks.forEach((block, index) => {
     switch (block.kind) {
@@ -157,17 +124,11 @@ export function readStop({
           },
         });
         return;
-      case 'callout': {
-        const comparison = readComparison(block.comparison);
-        if (comparison === 'unsupported') unsupported = true;
+      case 'callout':
         callouts.push({
           attention: block.attention,
-          comparison: comparison === 'unsupported' ? undefined : comparison,
+          comparison: block.comparison,
         });
-        return;
-      }
-      case 'unknown':
-        unsupported = true;
         return;
     }
   });
@@ -176,7 +137,6 @@ export function readStop({
     explanation,
     blocks: shown,
     callouts,
-    unsupportedBlocksNotice: unsupported ? UNSUPPORTED : undefined,
   };
 }
 

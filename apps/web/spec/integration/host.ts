@@ -1,8 +1,5 @@
 import { walkthroughConversationsFixture } from '../kit/walkthrough-conversations.ts';
-import {
-  fromNewerServer,
-  walkthroughBlocksFixture,
-} from '../kit/walkthrough-blocks.ts';
+import { walkthroughBlocksFixture } from '../kit/walkthrough-blocks.ts';
 import type { IncomingMessage } from 'node:http';
 import { join, resolve } from 'node:path';
 import { temporaryServerBuild } from '@porcelain/server/kit/sandbox';
@@ -245,21 +242,9 @@ const porcelainWalkthroughConversations: BrowserCommand<
   return '';
 };
 
-const porcelainWalkthroughBlocks: BrowserCommand<
-  ['ready' | 'newer-server'],
-  string
-> = async (context, action) => {
-  if (action === 'ready') return walkthroughBlocksFixture(world(context));
-  await context.context.route(
-    '**/api/worktrees/*/walkthrough',
-    async (route) => {
-      const response = await route.fetch();
-      const body = fromNewerServer(await response.json());
-      await route.fulfill({ response, json: body });
-    },
-  );
-  return '';
-};
+const porcelainWalkthroughBlocks: BrowserCommand<[], string> = async (
+  context,
+) => walkthroughBlocksFixture(world(context));
 
 export const hostCommands = {
   porcelainWalkthroughBlocks,

@@ -1,7 +1,6 @@
 import { page as browserPage, userEvent } from 'vite-plus/test/browser';
 import { blocksFixture, expect, test } from './fixtures.tsx';
 
-const NEWER = 'Part of this step needs a newer Porcelain to show.';
 const LABEL_LINE = "export const EMPTY_LABEL = 'No notes yet';";
 const FILTER_LINE = 'return notes.filter((note) => note.includes(query));';
 
@@ -25,7 +24,7 @@ async function ready(page: Page) {
 test('a call shows its comparison as a table, and each excerpt opens its own saved lines', async ({
   render,
 }) => {
-  await blocksFixture('ready');
+  await blocksFixture();
   await browserPage.viewport(1280, 896);
   const page = await ready((await render.route('/')).page);
   const calls = page.getByRole('table');
@@ -98,7 +97,7 @@ test('a call shows its comparison as a table, and each excerpt opens its own sav
 test('files open the file, checks list their results, and screenshots come as a before and after pair', async ({
   render,
 }) => {
-  const head = await blocksFixture('ready');
+  const head = await blocksFixture();
   await browserPage.viewport(1280, 896);
   const app = await render.route('/');
   const page = await ready(app.page);
@@ -178,39 +177,4 @@ test('files open the file, checks list their results, and screenshots come as a 
   await expect
     .poll(() => decodeURIComponent(app.location()))
     .toContain('entry=file:src/results.ts');
-});
-
-test('blocks from a newer Porcelain leave one notice and keep the rest readable', async ({
-  render,
-}) => {
-  await blocksFixture('ready');
-  await blocksFixture('newer-server');
-  await browserPage.viewport(1280, 896);
-  const page = await ready((await render.route('/')).page);
-  const first = stepItem(page, 'Choose the empty search behavior');
-  await expect.element(first.getByText(NEWER, { exact: true })).toBeVisible();
-  await expect
-    .element(page.getByText(NEWER, { exact: true }).nth(1))
-    .not.toBeInTheDocument();
-  await expect
-    .element(
-      first.getByText('An empty query currently returns every note.', {
-        exact: true,
-      }),
-    )
-    .toBeVisible();
-  await expect
-    .element(
-      first.getByRole('button', { name: 'See the lines', exact: true }).nth(1),
-    )
-    .toBeVisible();
-  await expect
-    .element(
-      page.getByRole('heading', {
-        name: 'Should an empty search show every note?',
-        exact: true,
-      }),
-    )
-    .toBeVisible();
-  await expect.element(page.getByRole('table')).not.toBeInTheDocument();
 });

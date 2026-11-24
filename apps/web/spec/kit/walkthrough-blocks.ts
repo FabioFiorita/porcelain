@@ -1,6 +1,4 @@
 import { join } from 'node:path';
-import { Schema } from 'effect';
-import { readWalkthroughResponseSchema } from '@porcelain/contracts/walkthroughs';
 import { mkdir } from 'node:fs/promises';
 import {
   fixtureCheckResults,
@@ -138,46 +136,4 @@ export async function walkthroughBlocksFixture(world: World): Promise<string> {
     },
   );
   return run.headOid;
-}
-
-export function fromNewerServer(json: unknown): unknown {
-  const read = Schema.decodeUnknownSync(readWalkthroughResponseSchema)(json);
-  const run = read.walkthrough;
-  if (run?.state.status !== 'ready') return json;
-  const { content } = run.state;
-  const [first, ...rest] = content.stops;
-  if (!first) return json;
-  return Schema.encodeSync(readWalkthroughResponseSchema)({
-    ...read,
-    walkthrough: {
-      ...run,
-      state: {
-        ...run.state,
-        content: {
-          ...content,
-          version: 2,
-          stops: [
-            {
-              ...first,
-              blocks: [
-                { kind: 'unknown' },
-                ...first.blocks.map((block) =>
-                  block.kind === 'callout'
-                    ? {
-                        ...block,
-                        comparison: {
-                          columns: ['One', 'Two', 'Three'],
-                          rows: [['a', 'b', 'c']],
-                        },
-                      }
-                    : block,
-                ),
-              ],
-            },
-            ...rest,
-          ],
-        },
-      },
-    },
-  });
 }

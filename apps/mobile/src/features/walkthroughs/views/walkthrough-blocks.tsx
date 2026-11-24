@@ -1,4 +1,3 @@
-import { useRouter } from 'expo-router';
 import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { diffLines, focusPatch } from '@porcelain/client/changes/rules';
@@ -24,9 +23,8 @@ import { documentHeading } from '../../../shared/rules/document-heading';
 import { sourceLanguage } from '../../../shared/rules/highlight-code';
 import { DiffView } from '../../documents/index';
 import type { Workspace } from '../../projects/index';
-import { reviewParams } from '../../workspace/index';
-import { fileComparison } from '../rules/file-comparison';
-import { useBranchFileList, useCapturedExcerpt } from '../queries/walkthrough';
+import { useCapturedExcerpt } from '../queries/walkthrough';
+import { useChangedFileOpening } from './changed-file-opening';
 import { WalkthroughProof } from './walkthrough-evidence';
 
 type Files = Extract<StepBlock, { kind: 'files' }>;
@@ -121,22 +119,12 @@ function FileList({
   workspace: Workspace;
   block: Files;
 }) {
-  const router = useRouter();
-  const branch = useBranchFileList(workspace);
-  const { worktree } = useWalkthroughFiles(workspace);
+  const opening = useChangedFileOpening(workspace);
   return (
     <Box gap={2}>
       <Card>
         {block.files.map((file, index) => {
           const { title, subtitle } = documentHeading(file.path);
-          const comparison = fileComparison(
-            {
-              branch: branch.files,
-              branchFailed: branch.failed,
-              worktree,
-            },
-            file.path,
-          );
           return (
             <Box key={file.path}>
               {index > 0 ? <Separator /> : null}
@@ -148,33 +136,13 @@ function FileList({
                 descriptionNumberOfLines={2}
                 accessibilityLabel={`${subtitle ? `${subtitle}/` : ''}${title}: ${file.note}`}
                 leading={<Icon name="file" tone="muted" size="small" />}
-                pending={comparison === undefined && !branch.failed}
-                disabled={comparison === undefined}
-                onPress={() => {
-                  if (comparison)
-                    router.push({
-                      pathname: '/review-file',
-                      params: {
-                        ...reviewParams(workspace.key, comparison),
-                        path: file.path,
-                      },
-                    });
-                }}
+                {...opening.row(file.path)}
               />
             </Box>
           );
         })}
       </Card>
-      {branch.files === undefined && branch.failed ? (
-        <ErrorState
-          message="The changed files could not be read."
-          retry={{
-            label: 'Read the changes again',
-            onPress: branch.retry,
-            pending: branch.waiting,
-          }}
-        />
-      ) : null}
+      {opening.failure}
     </Box>
   );
 }
@@ -276,43 +244,39 @@ export function ComparisonTable({
 }: {
   comparison: WalkthroughComparison;
 }) {
-  const [left, right] = comparison.columns;
   return (
     <Box>
       <Box className="flex-row" gap={3} paddingY={1}>
-        <Box className="flex-1">
-          <RichText
-            text={left}
-            variant="caption"
-            tone="muted"
-            weight="medium"
-          />
-        </Box>
-        <Box className="flex-1">
-          <RichText
-            text={right}
-            variant="caption"
-            tone="muted"
-            weight="medium"
-          />
-        </Box>
+        {comparison.columns.map((column, index) => (
+          <Box key={index} className="flex-1">
+            <RichText
+              text={column}
+              variant="caption"
+              tone="muted"
+              weight="medium"
+            />
+          </Box>
+        ))}
       </Box>
-      {comparison.rows.map(([first, second], index) => (
-        <Box key={index}>
+      {comparison.rows.map((row, rowIndex) => (
+        <Box key={rowIndex}>
           <Separator />
           <Box
             className="flex-row"
             gap={3}
             paddingY={2}
             accessible
-            accessibilityLabel={`${left}: ${first}. ${right}: ${second}.`}
+            accessibilityLabel={row
+              .map(
+                (cell, index) => `${comparison.columns[index] ?? ''}: ${cell}.`,
+              )
+              .join(' ')}
           >
-            <Box className="flex-1">
-              <RichText text={first} variant="secondary" />
-            </Box>
-            <Box className="flex-1">
-              <RichText text={second} variant="secondary" />
-            </Box>
+            {row.map((cell, index) => (
+              <Box key={index} className="flex-1">
+                <RichText text={cell} variant="secondary" />
+              </Box>
+            ))}
           </Box>
         </Box>
       ))}

@@ -62,17 +62,16 @@ describe('readStop', () => {
         comparison: undefined,
       },
     ]);
-    expect(shaped.unsupportedBlocksNotice).toBeUndefined();
   });
 
   it('addresses each excerpt by its saved position, counting every block before it', () => {
     const shaped = step([
       callout,
-      { kind: 'unknown' },
+      { kind: 'files', files: [{ path: 'a.ts', note: 'Owns it.' }] },
       excerpt(2, 2),
       excerpt(4, 9, 'old'),
     ]);
-    expect(shaped.blocks).toEqual([
+    expect(shaped.blocks.filter((block) => block.kind === 'excerpt')).toEqual([
       {
         kind: 'excerpt',
         excerpt: {
@@ -140,7 +139,6 @@ describe('readStop', () => {
         explanation: 'Why it exists.',
         blocks: [],
         callouts: [],
-        unsupportedBlocksNotice: undefined,
       },
     );
   });
@@ -166,45 +164,6 @@ describe('readStop', () => {
         ['More to read', 'Less to read'],
       ],
     });
-  });
-
-  it.each([
-    { columns: ['A', 'B', 'C'], rows: [['1', '2']] },
-    { columns: ['A', 'B'], rows: [] },
-    { columns: ['A', 'B'], rows: Array.from({ length: 7 }, () => ['1', '2']) },
-    { columns: ['A', 'B'], rows: [['1']] },
-  ])(
-    'keeps the call but not a table it cannot draw: $columns, $rows.length rows',
-    (comparison) => {
-      const shaped = step([{ ...callout, comparison }]);
-      expect(shaped.callouts).toEqual([
-        {
-          attention: {
-            kind: 'product',
-            note: 'It matters.',
-            question: 'Keep it?',
-          },
-          comparison: undefined,
-        },
-      ]);
-      expect(shaped.unsupportedBlocksNotice).toBe(
-        'Part of this step needs a newer Porcelain to show.',
-      );
-    },
-  );
-
-  it('says once that part of the step needs a newer Porcelain, with nothing in its place', () => {
-    const shaped = step([
-      { kind: 'unknown' },
-      { kind: 'files', files: [{ path: 'a.ts', note: 'Owns it.' }] },
-      { kind: 'unknown' },
-    ]);
-    expect(shaped.unsupportedBlocksNotice).toBe(
-      'Part of this step needs a newer Porcelain to show.',
-    );
-    expect(shaped.blocks).toEqual([
-      { kind: 'files', files: [{ path: 'a.ts', note: 'Owns it.' }] },
-    ]);
   });
 });
 
