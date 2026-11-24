@@ -12,7 +12,11 @@ import { useToggleReviewed } from '../commands/reviewed';
 import { Badge } from '@/components/ui/badge';
 import { isImagePath } from '@porcelain/client/files/rules';
 import { Button } from '@/components/ui/button';
-import { changeId, selectionKey } from '@porcelain/client/changes/rules';
+import {
+  changeId,
+  changePath,
+  selectionKey,
+} from '@porcelain/client/changes/rules';
 import {
   diffEntry,
   useChangeDiffs,
@@ -224,6 +228,30 @@ export function ReviewCodeDocument({
         : [];
     }),
   );
+  const rendered = new Map(entries.map((entry) => [entry.id, entry.path]));
+  const listed = items.flatMap((item) =>
+    item.comparisons.flatMap((change) => {
+      const id = changeId(change);
+      const path = rendered.get(id);
+      if (path !== undefined) return [{ id, path }];
+      const waiting =
+        change.scope === 'untracked'
+          ? untracked.pending && textOf(change.path) === undefined
+          : change.scope !== 'unmerged' &&
+            change.supported &&
+            diffs.pending &&
+            patchOf(change) === undefined;
+      return waiting
+        ? [
+            {
+              id,
+              path:
+                change.scope === 'untracked' ? item.path : changePath(change),
+            },
+          ]
+        : [];
+    }),
+  );
   const renderedPaths = new Set(entries.map((entry) => entry.path));
   const paneFile =
     interaction.toolbarTarget !== undefined &&
@@ -240,9 +268,9 @@ export function ReviewCodeDocument({
               ...controls,
               open: (path) => {
                 setPendingOmittedPath(undefined);
-                if (!renderedPaths.has(path)) {
-                  setPendingOmittedPath(path);
-                } else controls.open(path);
+                if (listed.some((entry) => entry.path === path)) {
+                  controls.open(path);
+                } else setPendingOmittedPath(path);
               },
             })}
             {failed && (
@@ -294,6 +322,7 @@ export function ReviewCodeDocument({
       context={context}
       interaction={interaction}
       entries={entries}
+      listed={listed}
       column={column}
       {...(footer ? { footer } : {})}
       {...(documentHeader ? { header: documentHeader } : {})}

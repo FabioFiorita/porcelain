@@ -71,6 +71,7 @@ import { type ConnectionContext } from '@/shared/workspace/connection';
 type Props = {
   onReview?: (entry: CodeEntry) => void;
   entries: readonly CodeEntry[];
+  listed?: readonly { id: string; path: string }[];
   scope: ReviewScope;
   context: ConnectionContext;
   interaction: DocumentInteraction;
@@ -123,6 +124,7 @@ export function CodeDocument(props: Props) {
 }
 function CodeSurface({
   entries: given,
+  listed: givenListed,
   scope,
   context: gitContext,
   interaction,
@@ -154,6 +156,10 @@ function CodeSurface({
   const { preferences } = usePreferences();
   const specsApart = useSpecsApart(gitContext.connection);
   const entries = decision ? given : groupSpecPaths(given, specsApart);
+  const listed =
+    givenListed === undefined || decision
+      ? (givenListed ?? entries)
+      : groupSpecPaths(givenListed, specsApart);
   const folds = useCodeFolds(interaction.worktreeId, interaction.entry);
   const scrollOwner = JSON.stringify([
     gitContext.connection.environmentId,
@@ -181,13 +187,18 @@ function CodeSurface({
   };
   const discard = discardSelection(selection?.range);
   const [focusedId, focus] = useState(() => viewer.focused());
+  const [awaitedId, awaitEntry] = useState<CodeEntry['id']>();
   const setFocusedId = (id: CodeEntry['id'] | undefined) => {
+    awaitEntry(undefined);
     focus(id);
     viewer.rememberFocus(id);
   };
   const focused = Math.max(
-    entries.findIndex((entry) => entry.id === focusedId),
+    listed.findIndex((entry) => entry.id === focusedId),
     0,
+  );
+  const focusedEntry = entries.find(
+    (entry) => entry.id === listed[focused]?.id,
   );
   const collapsed = new Set(
     entries
@@ -206,10 +217,15 @@ function CodeSurface({
   const [handledFound, setHandledFound] = useState<number>();
   const [handledFile, setHandledFile] = useState<number>();
   const focusEntry = (index: number) => {
-    const entry = entries[index];
+    const entry = listed[index];
     if (!entry) return;
     setFocusedId(entry.id);
-    viewer.scrollTo({ type: 'item', id: entry.id, align: 'start' });
+    if (entries.some((shown) => shown.id === entry.id))
+      viewer.scrollTo({ type: 'item', id: entry.id, align: 'start' });
+    else awaitEntry(entry.id);
+  };
+  const keepView = () => {
+    if (awaitedId !== undefined) awaitEntry(undefined);
   };
   const byId = new Map(entries.map((entry) => [entry.id, entry]));
   const items: CodeViewItem<never>[] = entries.map((entry) => ({
@@ -295,7 +311,6 @@ function CodeSurface({
   const paneFile =
     interaction.toolbarTarget !== undefined &&
     /^(file|review-file|review-change|change|branch):/.test(interaction.entry);
-  const focusedEntry = entries[focused] ?? entries[0];
   const paneActions =
     paneFile &&
     (focusedEntry ? (
@@ -324,11 +339,11 @@ function CodeSurface({
     (() =>
       header({
         collapse: collapseControl,
-        current: entries[focused]?.path,
+        current: listed[focused]?.path,
         counts: lineCounts(entries),
         open: (path) => {
-          const index = entries.findIndex((entry) => entry.path === path);
-          const entry = entries[index];
+          const index = listed.findIndex((entry) => entry.path === path);
+          const entry = listed[index];
           if (entry) folds.setCollapsed([entry.id], false);
           focusEntry(index);
         },
@@ -338,6 +353,12 @@ function CodeSurface({
     <div
       role="region"
       aria-label="Code content"
+      onWheel={keepView}
+      onTouchMove={keepView}
+      onPointerDown={keepView}
+      onKeyDown={(event) => {
+        if (SCROLL_KEYS.has(event.key)) keepView();
+      }}
       className={cn(
         '@container/code relative flex min-h-0 flex-1 flex-col',
         (decision || column || compactThreads || framed) && 'decision-code',
@@ -349,14 +370,13 @@ function CodeSurface({
       {interaction.toolbarTarget &&
         paneActions &&
         createPortal(paneActions, interaction.toolbarTarget)}
-      {interaction.active && entries.length > 0 && (
+      {interaction.active && listed.length > 0 && (
         <CodeShortcuts
           reviewEnabled={!interaction.entry.startsWith('walkthrough-step:')}
-          next={() => focusEntry(Math.min(focused + 1, entries.length - 1))}
+          next={() => focusEntry(Math.min(focused + 1, listed.length - 1))}
           previous={() => focusEntry(Math.max(focused - 1, 0))}
           review={() => {
-            const entry = entries[focused];
-            if (entry?.review) onToggleReviewed(entry);
+            if (focusedEntry?.review) onToggleReviewed(focusedEntry);
           }}
         />
       )}
@@ -435,6 +455,17 @@ function CodeSurface({
                       DEFAULT_VIRTUAL_FILE_METRICS.diffHeaderHeight)
                   : 0,
               );
+              if (
+                awaitedId !== undefined &&
+                entries.some((entry) => entry.id === awaitedId)
+              ) {
+                handle.scrollTo({
+                  type: 'item',
+                  id: awaitedId,
+                  align: 'start',
+                });
+                awaitEntry(undefined);
+              }
               const requested = interaction.fileTarget;
               const requestedEntry = requested
                 ? entries.find((entry) => entry.path === requested.path)
@@ -572,6 +603,16 @@ function CodeSurface({
     </div>
   );
 }
+
+const SCROLL_KEYS = new Set([
+  'ArrowUp',
+  'ArrowDown',
+  'PageUp',
+  'PageDown',
+  'Home',
+  'End',
+  ' ',
+]);
 
 const COLUMN_GUTTERS =
   'px-[max(--spacing(4),calc((100%-var(--container-reading))/2))] @2xl/pane:px-[max(--spacing(7),calc((100%-var(--container-reading))/2))]';
