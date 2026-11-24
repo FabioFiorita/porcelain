@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: porcelain-release
+  group: porcelain-npm-publish-rehearsal
   cancel-in-progress: false
 
 permissions:
