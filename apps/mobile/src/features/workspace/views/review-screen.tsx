@@ -1,4 +1,9 @@
 import type { ReviewComparison } from '../../../shared/rules/review-comparison';
+import {
+  mobileLayout,
+  profileMobileScreen,
+  startMobileNavigation,
+} from '../../../shared/application/mobile-timing';
 import { Box } from '../../../components/ui/box';
 import { useIsFocused, useRouter } from 'expo-router';
 import { ScrollView } from 'react-native';
@@ -38,10 +43,11 @@ export type ReviewPaneProps = { workspace?: string | undefined };
 export function ReviewPane({ workspace }: ReviewPaneProps) {
   const focused = useIsFocused();
   if (!focused) return null;
-  return (
+  return profileMobileScreen(
+    'changes',
     <WorkspaceGate expectedWorkspace={workspace} frame="pane">
       {(selected) => <PhoneReview key={selected.key} workspace={selected} />}
-    </WorkspaceGate>
+    </WorkspaceGate>,
   );
 }
 
@@ -61,12 +67,13 @@ function PhoneReview({ workspace }: { workspace: Workspace }) {
           params: { ...reviewParams(workspace.key, comparison), path },
         })
       }
-      onAll={() =>
+      onAll={() => {
+        startMobileNavigation('all-changes');
         router.push({
           pathname: '/review-changes',
           params: reviewParams(workspace.key, comparison),
-        })
-      }
+        });
+      }}
     />
   );
 }
@@ -228,7 +235,7 @@ function ChangedFiles({
             testID="review-all-changes"
             onPress={onAll}
           />
-          {files.map((file) => (
+          {files.map((file, index) => (
             <Fragment key={file.path}>
               <Separator inset="leading" />
               <Item
@@ -242,6 +249,9 @@ function ChangedFiles({
                 }
                 accessibilityLabel={`Review ${file.path}, ${changeLabel(changes.files.get(file.path))}, ${file.note}, ${reviewStatusLabel(file.reviewStatus)}`}
                 onPress={() => onFile(file.path)}
+                onLayout={
+                  index === 0 ? mobileLayout('changes-first-file') : undefined
+                }
               />
             </Fragment>
           ))}

@@ -1,26 +1,59 @@
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
-import { randomBytes } from 'node:crypto';
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, rmdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline';
 import { setTimeout } from 'node:timers/promises';
+import { prepareDisposableMacKeychain } from '../apps/desktop/spec/kit/disposable-mac-keychain.ts';
+import { rendererReadyLine } from '../apps/desktop/src/renderer-readiness.ts';
+import { LIMITS } from '../apps/server/src/config/limits.ts';
 
 const image = process.argv[2];
 if (!image) throw new Error('Pass the signed Porcelain disk image');
 
+const hdiutil = '/usr/bin/hdiutil';
+const diskCommandLimit = { timeout: 10_000, killSignal: 'SIGKILL' } as const;
+
+async function detachDiskImage(mount: string): Promise<void> {
+  for (const options of [[], [], ['-force']]) {
+    const result = spawnSync(hdiutil, ['detach', mount, ...options], {
+      stdio: 'inherit',
+      ...diskCommandLimit,
+    });
+    if (result.status === 0) return;
+    if (options.length > 0)
+      throw new Error(`Could not detach the disk image at ${mount}`, {
+        cause: result.error,
+      });
+    await setTimeout(250);
+  }
+}
+
+function waitForExit(
+  exited: Promise<string>,
+  timeout: number,
+): Promise<boolean> {
+  return Promise.race([
+    exited.then(() => true),
+    setTimeout(timeout, false, { ref: false }),
+  ]);
+}
+
 const workspace = mkdtempSync('/tmp/porcelain-release-');
-const mount = join(workspace, 'image');
-const profile = join(workspace, 'profile');
-const projects = join(workspace, 'projects');
-const home = join(workspace, 'home');
+let mount: string | undefined;
 let mounted = false;
+let stop: (() => Promise<void>) | undefined;
+let failed = false;
 
 try {
-  for (const path of [mount, profile, projects, home]) mkdirSync(path);
+  mount = mkdtempSync('/tmp/porcelain-image-');
+  const profile = join(workspace, 'profile');
+  const projects = join(workspace, 'projects');
+  const home = join(workspace, 'home');
+  for (const path of [profile, projects, home]) mkdirSync(path);
   execFileSync(
-    'hdiutil',
+    hdiutil,
     ['attach', '-readonly', '-nobrowse', '-mountpoint', mount, image],
-    { stdio: 'inherit' },
+    { stdio: 'inherit', ...diskCommandLimit, timeout: 30_000 },
   );
   mounted = true;
   const env = {
@@ -28,28 +61,7 @@ try {
     HOME: home,
     PORCELAIN_CODING_TOOL_DIRECTORY: 'none',
   };
-  const keychains = join(home, 'Library', 'Keychains');
-  mkdirSync(keychains, { recursive: true });
-  mkdirSync(join(home, 'Library', 'Preferences'), { recursive: true });
-  const keychain = join(keychains, 'porcelain-smoke.keychain-db');
-  const password = randomBytes(24).toString('hex');
-  for (const args of [
-    ['create-keychain', '-p', password, keychain],
-    ['unlock-keychain', '-p', password, keychain],
-    ['list-keychains', '-d', 'user', '-s', keychain],
-    ['default-keychain', '-d', 'user', '-s', keychain],
-    ['default-keychain', '-d', 'user'],
-  ]) {
-    const result = spawnSync('/usr/bin/security', args, {
-      env,
-      encoding: 'utf8',
-      timeout: 10_000,
-    });
-    if (result.status !== 0)
-      throw new Error(
-        `Disposable Keychain setup failed during ${args[0]}: ${result.error?.message ?? result.stderr.trim()}`,
-      );
-  }
+  prepareDisposableMacKeychain(home, env);
   const app = spawn(
     join(mount, 'Porcelain.app', 'Contents', 'MacOS', 'Porcelain'),
     ['--data-directory', profile, '--project-home', projects],
@@ -62,40 +74,64 @@ try {
     app.once('error', (error) => resolve(error.message));
     app.once('close', (code, signal) => resolve(String(code ?? signal)));
   });
+  stop = async () => {
+    app.kill();
+    if (await waitForExit(exited, LIMITS.desktop.shutdownMs + 5_000)) return;
+    console.error(
+      'Porcelain exceeded its graceful shutdown deadline. Sending SIGKILL.',
+    );
+    app.kill('SIGKILL');
+    if (!(await waitForExit(exited, 5_000)))
+      throw new Error('Porcelain did not exit after SIGKILL');
+  };
   const ready = new Promise<void>((resolve) => {
     createInterface({ input: app.stderr }).on('line', (line) => {
       process.stderr.write(`${line}\n`);
-      if (line === 'Porcelain: renderer ready') resolve();
+      if (line === rendererReadyLine) resolve();
     });
   });
 
-  try {
-    await Promise.race([
-      ready,
-      exited.then((reason) => {
-        throw new Error(
-          `Porcelain exited before its renderer was ready (${reason})`,
-        );
-      }),
-      setTimeout(30_000, undefined, { ref: false }).then(() => {
-        throw new Error(
-          'The mounted Porcelain app did not report renderer readiness',
-        );
-      }),
-    ]);
-    console.log('The mounted Porcelain app reached renderer readiness.');
-  } finally {
-    app.kill();
-    const stopped = await Promise.race([
-      exited.then(() => true),
-      setTimeout(5_000, false, { ref: false }),
-    ]);
-    if (!stopped) {
-      app.kill('SIGKILL');
-      await exited;
-    }
-  }
+  await Promise.race([
+    ready,
+    exited.then((reason) => {
+      throw new Error(
+        `Porcelain exited before its renderer was ready (${reason})`,
+      );
+    }),
+    setTimeout(30_000, undefined, { ref: false }).then(() => {
+      throw new Error(
+        'The mounted Porcelain app did not report renderer readiness',
+      );
+    }),
+  ]);
+  console.log('The mounted Porcelain app reached renderer readiness.');
+} catch (error) {
+  failed = true;
+  throw error;
 } finally {
-  if (mounted) execFileSync('hdiutil', ['detach', mount], { stdio: 'inherit' });
-  rmSync(workspace, { recursive: true, force: true });
+  const cleanupErrors: unknown[] = [];
+  try {
+    await stop?.();
+  } catch (error) {
+    cleanupErrors.push(error);
+  }
+  try {
+    if (mount) {
+      if (mounted) await detachDiskImage(mount);
+      if (existsSync(mount)) rmdirSync(mount);
+    }
+  } catch (error) {
+    cleanupErrors.push(error);
+  }
+  try {
+    rmSync(workspace, { recursive: true, force: true });
+  } catch (error) {
+    cleanupErrors.push(error);
+  }
+  if (cleanupErrors.length > 0) {
+    if (!failed)
+      throw new AggregateError(cleanupErrors, 'Desktop smoke cleanup failed');
+    for (const error of cleanupErrors)
+      console.error('Desktop smoke cleanup failed:', error);
+  }
 }
