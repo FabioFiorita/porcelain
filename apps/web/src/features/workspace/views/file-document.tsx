@@ -198,6 +198,7 @@ function ReadableFileDocument({
     scope,
     connection,
     reviewItem?.statusToken ?? '',
+    reviewItem?.read ?? 0,
     reviewItem ? [{ path, fingerprint: reviewItem.fingerprint }] : [],
     selection ? [selection] : [],
   );
