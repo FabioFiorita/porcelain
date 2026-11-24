@@ -188,7 +188,7 @@ jobs:
           node scripts/verify-dev-mac.ts
 
   release:
-    needs: [version, mac]
+    needs: [version, mac, package]
     if: ${{ needs.version.outputs.publish == 'true' }}
     runs-on: ubuntu-latest
     permissions:
@@ -219,14 +219,10 @@ jobs:
               --generate-notes
           fi
 
-  npm:
-    needs: [version, release]
-    if: ${{ needs.version.outputs.publish == 'true' }}
+  package:
+    needs: version
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    permissions:
-      contents: read
-      id-token: write
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/setup@v3
@@ -236,6 +232,35 @@ jobs:
           require-lockfile: true
       - run: pnpm install --frozen-lockfile
       - run: pnpm build:package
+      - name: Run the packed package before publishing
+        id: package
+        env:
+          PACKAGE_TARBALL_DIRECTORY: ${{ runner.temp }}/checked-package
+          VERSION: ${{ needs.version.outputs.version }}
+        run: bash scripts/check-package.sh
+      - uses: actions/upload-artifact@v7
+        with:
+          name: npm-package
+          path: ${{ steps.package.outputs.tarball }}
+          if-no-files-found: error
+          retention-days: 14
+
+  npm:
+    needs: [version, package, release]
+    if: >-
+      ${{ !cancelled() && needs.version.result == 'success' && needs.package.result == 'success' &&
+        (needs.version.outputs.publish == 'false' ||
+          (needs.version.outputs.publish == 'true' && needs.release.result == 'success')) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          name: npm-package
+          path: ${{ runner.temp }}/checked-package
       - uses: actions/setup-node@v7
         with:
           node-version: 26.13.0
@@ -244,22 +269,33 @@ jobs:
           set -euo pipefail
           npm install --global npm@11.21.0
           npm --version
-      - name: Run the packed package before publishing
-        id: package
+      - name: Publish or rehearse the checked npm tarball
         env:
-          PACKAGE_TARBALL_DIRECTORY: ${{ runner.temp }}/checked-package
-          VERSION: ${{ needs.version.outputs.version }}
-        run: bash scripts/check-package.sh
-      - name: Publish with npm trusted publishing
-        env:
+          PUBLISH: ${{ needs.version.outputs.publish }}
           VERSION: ${{ needs.version.outputs.version }}
         run: |
           set -euo pipefail
-          if npm view --prefer-online "@fabiofiorita/porcelain@$VERSION" version > /dev/null 2>&1; then
-            echo "@fabiofiorita/porcelain@$VERSION is already published; continuing to verification."
-          else
-            npm publish "${{ steps.package.outputs.tarball }}" --provenance --access public
+          shopt -s nullglob
+          tarballs=("$RUNNER_TEMP/checked-package/"*.tgz)
+          if [ "${#tarballs[@]}" != 1 ]; then
+            echo "Expected one checked npm tarball, found ${#tarballs[@]}." >&2
+            exit 1
           fi
+          case "$PUBLISH" in
+            true)
+              if npm view --prefer-online "@fabiofiorita/porcelain@$VERSION" version > /dev/null 2>&1; then
+                echo "@fabiofiorita/porcelain@$VERSION is already published; continuing to verification."
+                exit 0
+              fi
+              publish_args=(--provenance)
+              ;;
+            false)
+              unset ACTIONS_ID_TOKEN_REQUEST_URL ACTIONS_ID_TOKEN_REQUEST_TOKEN
+              publish_args=(--dry-run --force)
+              ;;
+            *) echo "Unknown npm publication mode: $PUBLISH" >&2; exit 1 ;;
+          esac
+          npm publish "${tarballs[0]}" --access public "${publish_args[@]}"
 
   npm-check:
     needs: [version, npm]

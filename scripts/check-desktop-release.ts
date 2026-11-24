@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, rmdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline';
 import { setTimeout } from 'node:timers/promises';
-import { prepareDisposableMacKeychain } from '../apps/desktop/spec/kit/disposable-mac-keychain.ts';
+import { disposableMacKeychain } from '../apps/desktop/spec/kit/disposable-mac-keychain.ts';
 import { rendererReadyLine } from '../apps/desktop/src/renderer-readiness.ts';
 import { LIMITS } from '../apps/server/src/config/limits.ts';
 
@@ -42,6 +42,7 @@ const workspace = mkdtempSync('/tmp/porcelain-release-');
 let mount: string | undefined;
 let mounted = false;
 let stop: (() => Promise<void>) | undefined;
+let keychain: ReturnType<typeof disposableMacKeychain> | undefined;
 let failure: { error: unknown } | undefined;
 
 try {
@@ -61,7 +62,8 @@ try {
     HOME: home,
     PORCELAIN_CODING_TOOL_DIRECTORY: 'none',
   };
-  prepareDisposableMacKeychain(home, env);
+  keychain = disposableMacKeychain(home, env);
+  keychain.setup();
   const app = spawn(
     join(mount, 'Porcelain.app', 'Contents', 'MacOS', 'Porcelain'),
     ['--data-directory', profile, '--project-home', projects],
@@ -125,6 +127,11 @@ try {
 }
 try {
   rmSync(workspace, { recursive: true, force: true });
+} catch (error) {
+  cleanupErrors.push(error);
+}
+try {
+  keychain?.verifyAfterTeardown();
 } catch (error) {
   cleanupErrors.push(error);
 }

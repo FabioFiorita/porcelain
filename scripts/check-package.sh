@@ -4,9 +4,30 @@ set -euo pipefail
 package_directory="$PWD/dist-porcelain"
 tarball_directory="${PACKAGE_TARBALL_DIRECTORY:-$(mktemp -d)}"
 prefix=$(mktemp -d)
+server_pid=
+wait_for_server_exit() {
+  local deadline=$((SECONDS + $1))
+  while kill -0 "$server_pid" 2>/dev/null; do
+    (( SECONDS < deadline )) || return 1
+    sleep 0.25
+  done
+  wait "$server_pid" 2>/dev/null || true
+}
 cleanup() {
+  local status=$?
+  if [[ -n "$server_pid" ]]; then
+    kill "$server_pid" 2>/dev/null || true
+    if ! wait_for_server_exit 15; then
+      kill -KILL "$server_pid" 2>/dev/null || true
+      if ! wait_for_server_exit 5; then
+        echo "The packed Porcelain server did not exit after SIGKILL." >&2
+        if [[ "$status" == 0 ]]; then status=1; fi
+      fi
+    fi
+  fi
   rm -rf "$prefix"
   if [[ -z "${PACKAGE_TARBALL_DIRECTORY:-}" ]]; then rm -rf "$tarball_directory"; fi
+  exit "$status"
 }
 trap cleanup EXIT
 mkdir -p "$tarball_directory"
@@ -17,9 +38,28 @@ npm install --strict-peer-deps --no-audit --no-fund --package-lock=false --prefi
 cd "$prefix"
 export PORCELAIN_DATA_DIRECTORY="$prefix/data"
 export PORCELAIN_PROJECT_HOME="$prefix/projects"
-output=$("$prefix/install/node_modules/.bin/porcelain" --version)
+porcelain="$prefix/install/node_modules/.bin/porcelain"
+output=$("$porcelain" --version)
 printf '%s\n' "$output"
 test "$output" = "porcelain v$VERSION"
+mkdir "$prefix/home" "$PORCELAIN_PROJECT_HOME"
+: > "$prefix/server.log"
+HOME="$prefix/home" "$porcelain" serve --host=127.0.0.1 --port=0 > "$prefix/server.log" 2>&1 &
+server_pid=$!
+address=
+for ((attempt=0; attempt<120; attempt++)); do
+  address=$(sed -n 's/^Porcelain listening at \(http:\/\/127\.0\.0\.1:[0-9][0-9]*\)$/\1/p' "$prefix/server.log")
+  [[ -n "$address" ]] && break
+  kill -0 "$server_pid" 2>/dev/null || break
+  sleep 0.25
+done
+if [[ -z "$address" ]] || ! curl --fail --silent --show-error --max-time 5 "$address/api/health" |
+  jq -e '.status == "ok" and (.environmentId | type == "string" and length > 0)' > /dev/null; then
+  cat "$prefix/server.log" >&2
+  echo "The packed Porcelain server did not return a healthy HTTP response." >&2
+  exit 1
+fi
+echo "The packed Porcelain server returned a healthy HTTP response."
 if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
   printf 'tarball=%s/%s\n' "$tarball_directory" "$tarball" >> "$GITHUB_OUTPUT"
 fi
