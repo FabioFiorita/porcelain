@@ -395,7 +395,7 @@ function mountTree(
     const path = row?.dataset.itemPath;
     const item = path === undefined ? null : model.getItem(path);
     if (!row || !path || !item || row.querySelector('[data-item-rename-input]'))
-      return false;
+      return null;
     const focus = { restore: true };
     const { paths, filter } = read();
     setMenuTarget({
@@ -417,7 +417,7 @@ function mountTree(
         kind: item.isDirectory() ? 'directory' : 'file',
       },
     });
-    return true;
+    return row;
   }
 
   function keyDown(event: KeyboardEvent) {
@@ -461,8 +461,36 @@ function mountTree(
     syncing = false;
     read().onSelect(path, event.altKey);
   }
+  function scrolling() {
+    return Boolean(
+      model
+        .getFileTreeContainer()
+        ?.shadowRoot?.querySelector('[data-is-scrolling]'),
+    );
+  }
   function contextMenu(event: Event) {
-    if (!targetMenu(event)) event.stopPropagation();
+    const row = targetMenu(event);
+    if (!row) {
+      event.stopPropagation();
+      return;
+    }
+    if (!(event instanceof MouseEvent) || event.button === 2 || !scrolling())
+      return;
+    event.preventDefault();
+    event.stopPropagation();
+    const retry = () => {
+      if (!row.isConnected) return;
+      if (scrolling()) frame(retry);
+      else
+        row.dispatchEvent(
+          new MouseEvent('contextmenu', {
+            bubbles: true,
+            cancelable: true,
+            composed: true,
+          }),
+        );
+    };
+    frame(retry);
   }
   host.addEventListener('keydown', keyDown, true);
   host.addEventListener('click', click, true);

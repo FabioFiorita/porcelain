@@ -12,14 +12,13 @@ async function openFolderTree(
   width: number,
   { render, repo, agent }: { render: Render; repo: Repo; agent: Agent },
   rows: readonly string[],
-  committed: boolean,
 ) {
   for (const path of ['alpha', 'beta'])
     await agent.editFile({ kind: 'create', path, entryKind: 'directory' });
   await repo.write('alpha/first.md', 'First folder\n');
   await repo.write('beta/second.md', 'Second folder\n');
   for (const path of rows) await repo.write(path, 'Row\n');
-  if (committed) await repo.commit('Add the tree rows');
+  await repo.commit('Add the tree rows');
   const page = await render.workspace();
   await page.viewport(width, 896);
   if (width === 414) {
@@ -48,7 +47,6 @@ test.for([1280, 414])(
         ),
         last,
       ],
-      false,
     );
 
     await row('beta').click({ button: 'right' });
@@ -56,9 +54,7 @@ test.for([1280, 414])(
     await userEvent.keyboard('{Escape}');
     await expect.element(page.getByRole('menu')).not.toBeInTheDocument();
     await expectInputFocus(row('beta'));
-    await userEvent.keyboard('{End}');
-    await expectInputFocus(row(last));
-    await userEvent.keyboard('{ContextMenu}');
+    await userEvent.keyboard('{End}{ContextMenu}');
     await expect.element(menu(last)).toBeVisible();
     await expect.element(menu(last)).toHaveAttribute('data-open', '');
     await expect
@@ -77,7 +73,6 @@ test.for([1280, 414])(
       width,
       { render, repo, agent },
       [],
-      true,
     );
 
     await row('alpha').click({ button: 'right' });
