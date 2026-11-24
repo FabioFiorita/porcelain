@@ -4,7 +4,6 @@ import {
   generalSettingsSummary,
   REVIEWS_GIT_SETTINGS_SUMMARY,
 } from '@porcelain/client/preferences/rules';
-import { notificationsSummary } from '@porcelain/client/notifications/rules';
 import {
   computersSummary,
   settingsUpdateCount,
@@ -81,8 +80,8 @@ export function SettingsScreen({
           <Item
             testID="settings-notifications"
             title="Notifications"
-            description={notificationsSummary(preferences.notifications)}
-            accessibilityLabel={`Notifications, ${notificationsSummary(preferences.notifications)}`}
+            description="Unavailable"
+            accessibilityLabel="Notifications, Unavailable"
             leading={<Icon name="notifications" tone="muted" />}
             trailing={<Icon name="chevron" tone="muted" />}
             onPress={onOpenNotifications}

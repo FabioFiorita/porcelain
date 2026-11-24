@@ -23,7 +23,6 @@
     "./links/rules": "./src/features/links/rules/index.ts",
     "./preferences": "./src/features/preferences/index.ts",
     "./notifications": "./src/features/notifications/index.ts",
-    "./notifications/rules": "./src/features/notifications/rules/index.ts",
     "./walkthroughs": "./src/features/walkthroughs/index.ts",
     "./walkthroughs/rules": "./src/features/walkthroughs/rules/index.ts",
     "./reviews/rules": "./src/features/links/rules/index.ts"

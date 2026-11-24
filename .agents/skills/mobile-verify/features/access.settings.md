@@ -18,7 +18,6 @@ selectors:
 tests:
   - packages/client/src/features/preferences/rules/settings-summary.spec.ts
   - packages/client/src/features/access/rules/settings-updates.spec.ts
-  - packages/client/src/features/notifications/rules/notifications.spec.ts
 api: []
 ---
 
@@ -34,8 +33,8 @@ Settings is a modal opened from the gear button labelled Settings on the left of
 
 Preconditions: [surface baseline](README.md).
 
-1. Open Settings from the Worktrees header, then try `porcelain.dev://settings`. Settings opens as a modal with four root rows; each pushes a native destination and Back returns. General summarizes theme and long lines (System theme · Scroll long lines), Reviews & Git says Pull, archive and spec files on each computer, Notifications says Off or what is switched on, and Computers shows the paired count plus N update(s) ready only while a computer offers an update this device may install. Change a General preference and return: its summary follows. While saved computers load the row shows no count; unreadable storage says Saved computers could not be read. Root row accessible names begin with General, Reviews & Git, Notifications and Computers, without symbol descriptions. Close Settings returns to the Worktrees stack position that opened it.
-2. Open General and [appearance](preferences.appearance.md); Reviews & Git and [its preferences](preferences.reviews-git.md); Notifications and [its switches](preferences.notifications.md); Computers and [computer management](access.computers.md). Pairing remains on return. Development builds also show Development with Component library.
+1. Open Settings from the Worktrees header, then try `porcelain.dev://settings`. Settings opens as a modal with four root rows; each pushes a native destination and Back returns. General summarizes theme and long lines (System theme · Scroll long lines), Reviews & Git says Pull, archive and spec files on each computer, Notifications says Unavailable, and Computers shows the paired count plus N update(s) ready only while a computer offers an update this device may install. Change a General preference and return: its summary follows. While saved computers load the row shows no count; unreadable storage says Saved computers could not be read. Root row accessible names begin with General, Reviews & Git, Notifications and Computers, without symbol descriptions. Close Settings returns to the Worktrees stack position that opened it.
+2. Open General and [appearance](preferences.appearance.md); Reviews & Git and [its preferences](preferences.reviews-git.md); Notifications and [its availability](preferences.notifications.md); Computers and [computer management](access.computers.md). Pairing remains on return. Development builds also show Development with Component library.
 3. Compare footer version with the installed Expo configuration. No This device page or device ID footer remains. Activate Privacy policy (`settings-privacy-policy`): the system browser opens `https://porcelain.fabiofiorita.com/privacy/`. Return to Porcelain and confirm Settings remains available. A URL-opening failure shows an accessible error in the footer instead of silently failing.
 4. Tablets use the same Settings destinations with platform-native modal chrome. Verify landscape and portrait: rows and About stay bounded, every destination pushes with native Back, and controls remain reachable without overlap.
 

@@ -85,9 +85,7 @@ export {
 } from './review-git-settings.ts';
 export {
   type ClearPushRegistrationInput,
-  type PushKind,
   type SetPushRegistrationInput,
-  type SetPushRegistrationRequest,
   type SetPushRegistrationResponse,
 } from './push-registration.ts';
 export {

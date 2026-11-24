@@ -15,12 +15,10 @@ export const setPushRegistrationResponseSchema = Schema.Struct({
 });
 export const clearPushRegistrationResponseSchema = Schema.Undefined;
 
-export type PushKind = typeof pushKindSchema.Type;
-export type SetPushRegistrationRequest =
-  typeof setPushRegistrationRequestSchema.Type;
-export type SetPushRegistrationInput = SetPushRegistrationRequest & {
-  viewer: Principal;
-};
+export type SetPushRegistrationInput =
+  typeof setPushRegistrationRequestSchema.Type & {
+    viewer: Principal;
+  };
 export type SetPushRegistrationResponse =
   typeof setPushRegistrationResponseSchema.Type;
 export type ClearPushRegistrationInput = { viewer: Principal };

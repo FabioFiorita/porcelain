@@ -1,1 +1,1 @@
-export { syncPushRegistration } from './commands/push-registration.ts';
+export { clearPushRegistration } from './commands/push-registration.ts';
