@@ -253,6 +253,8 @@ export function ReviewCodeDocument({
     }),
   );
   const renderedPaths = new Set(entries.map((entry) => entry.path));
+  if (pendingOmittedPath !== undefined && renderedPaths.has(pendingOmittedPath))
+    setPendingOmittedPath(undefined);
   const paneFile =
     interaction.toolbarTarget !== undefined &&
     /^(file|change|branch):/.test(interaction.entry);
@@ -267,10 +269,11 @@ export function ReviewCodeDocument({
             {header?.({
               ...controls,
               open: (path) => {
-                setPendingOmittedPath(undefined);
-                if (listed.some((entry) => entry.path === path)) {
+                setPendingOmittedPath(
+                  renderedPaths.has(path) ? undefined : path,
+                );
+                if (listed.some((entry) => entry.path === path))
                   controls.open(path);
-                } else setPendingOmittedPath(path);
               },
             })}
             {failed && (
