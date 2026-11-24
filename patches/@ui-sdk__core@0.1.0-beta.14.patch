@@ -21,16 +21,56 @@ index bd7558f73de73a701771aa20ae26bf4657bec83c..c0881e32663fe9463b3c9f160efe93d0
  }
  export {
 diff --git a/dist/foundation/platform/layers.js b/dist/foundation/platform/layers.js
-index a615ec6776ed11da0c1a3426e1ad5d347aa80beb..74ab1f7b4ceb6a5788a049b00c68cd7b2f204543 100644
+index a615ec6776ed11da0c1a3426e1ad5d347aa80beb..db6d45a5aadfe340324737151829c1a3bc5a507e 100644
 --- a/dist/foundation/platform/layers.js
 +++ b/dist/foundation/platform/layers.js
-@@ -142,9 +142,6 @@ function listen(doc, win) {
-         if (layer.modal === false) {
-           continue;
+@@ -139,13 +139,7 @@ function listen(doc, win) {
+         if (insideTree(layer, target, event)) {
+           break;
          }
+-        if (layer.modal === false) {
+-          continue;
+-        }
 -        if (layer.overBackdrop?.(point.x, point.y)) {
 -          consume = true;
 -        }
-         break;
+-        break;
++        continue;
        }
      }
+     return { dismissed, consume };
+diff --git a/dist/foundation/popups/modal.js b/dist/foundation/popups/modal.js
+index 47dad83f7ca53435fd410f48ea9417c694240c86..077ee5a112c36845efa78c33970e77855333f7a9 100644
+--- a/dist/foundation/popups/modal.js
++++ b/dist/foundation/popups/modal.js
+@@ -166,7 +166,8 @@ function guardTouch(modal) {
+     }
+   };
+ }
+-var liveRegions = '[aria-live]:not([aria-live="off"]):not([data-slot="carousel-content"]),[role="status"],[role="alert"],[role="log"],output';
++var liveRegions = "[data-ui-sdk-announcer]";
++var hiddenByModal = /* @__PURE__ */ new WeakSet();
+ function parentOf(node) {
+   const parent = node.parentNode;
+   return parent instanceof ShadowRoot ? parent.host : parent;
+@@ -199,6 +200,10 @@ function applyInert(keep) {
+         const count = shared.inert.get(sibling) ?? (sibling.inert ? Infinity : 0);
+         if (count === 0) {
+           sibling.inert = true;
++          if (!sibling.hasAttribute("aria-hidden")) {
++            sibling.setAttribute("aria-hidden", "true");
++            hiddenByModal.add(sibling);
++          }
+         }
+         if (count !== Infinity) {
+           shared.inert.set(sibling, count + 1);
+@@ -215,6 +220,9 @@ function applyInert(keep) {
+       }
+       if (count <= 1) {
+         el.inert = false;
++        if (hiddenByModal.delete(el)) {
++          el.removeAttribute("aria-hidden");
++        }
+         shared.inert.delete(el);
+       } else {
+         shared.inert.set(el, count - 1);
