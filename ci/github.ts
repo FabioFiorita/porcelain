@@ -146,14 +146,25 @@ export function isCurrentTrustedPullRequest(
   );
 }
 
-const CiJobs = Schema.Struct({
-  jobs: Schema.Array(
-    Schema.Struct({
-      name: Schema.String,
-      conclusion: Schema.NullOr(Schema.String),
-    }),
-  ),
+const Check = Schema.Struct({
+  name: Schema.String,
+  conclusion: Schema.NullOr(Schema.String),
 });
+
+const CiJobs = Schema.Struct({ jobs: Schema.Array(Check) });
+const CheckRuns = Schema.Struct({ check_runs: Schema.Array(Check) });
+const passed = (name: string) => (check: typeof Check.Type) =>
+  check.name === name && check.conclusion === 'success';
+
+export function checkPassed(
+  repository: string,
+  sha: string,
+  name: string,
+): boolean {
+  return pages(CheckRuns, `repos/${repository}/commits/${sha}/check-runs`)
+    .flatMap((page) => page.check_runs)
+    .some(passed(name));
+}
 
 export function requiredCiJobPassed(
   repository: string,
@@ -165,7 +176,7 @@ export function requiredCiJobPassed(
     `repos/${repository}/actions/runs/${run.id}/attempts/${run.run_attempt}/jobs`,
   )
     .flatMap((page) => page.jobs)
-    .some((job) => job.name === name && job.conclusion === 'success');
+    .some(passed(name));
 }
 
 const CiRuns = Schema.Struct({

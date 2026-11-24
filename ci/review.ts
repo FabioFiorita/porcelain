@@ -20,6 +20,7 @@ import {
 } from './review-verdict.ts';
 import {
   changeLabels,
+  checkPassed,
   findComment,
   gh,
   isAncestor,
@@ -343,10 +344,14 @@ const reportCiBlock = () => {
     headRepository: view.headRepository.nameWithOwner,
   });
   if (active) return stop('pending', 'Waiting for CI');
-  if (latest && requiredCiJobPassed(repository, latest, ciCheck)) return;
-  if (latest?.conclusion === 'cancelled')
+  if (!latest)
+    return checkPassed(repository, view.headRefOid, ciCheck)
+      ? undefined
+      : 'CI has not passed on its head yet';
+  if (requiredCiJobPassed(repository, latest, ciCheck)) return;
+  if (latest.conclusion === 'cancelled')
     return stop('failure', 'CI was cancelled');
-  if (latest?.conclusion === 'failure') return stop('failure', 'CI failed');
+  if (latest.conclusion === 'failure') return stop('failure', 'CI failed');
   return stop('failure', `The required CI job ${ciCheck} did not pass`);
 };
 const initialCiBlock = reportCiBlock();

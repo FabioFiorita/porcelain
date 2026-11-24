@@ -6566,6 +6566,10 @@ export const guardrailCases = [
     ],
   },
   {
+    rule: 'ci-landing-completion',
+    workflowRun: { workflows: ['CI'], types: ['completed'] },
+  },
+  {
     rule: 'ci-required-checks',
     dependencyStoreWriter: 'units',
     dependencyStoreReaders: [

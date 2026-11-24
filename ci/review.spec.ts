@@ -33,6 +33,8 @@ function landing(
     | 'fork-ci-active'
     | 'other-pr-ci-active'
     | 'deleted-fork'
+    | 'branch-renamed-after-ci'
+    | 'ci-never-ran'
     | 'workflow-ci-completed'
     | 'workflow-ci-overlap'
     | 'workflow-ci-cancelled'
@@ -60,20 +62,25 @@ const reply = (value) => console.log(JSON.stringify(value));
 const blocked = events.includes('blocked');
 const scenario = ${JSON.stringify(scenario)};
 const head = ${JSON.stringify(head)};
+const branch = scenario === 'branch-renamed-after-ci' ? 'feature-renamed' : 'feature';
 if (args[0] === 'pr' && args[1] === 'view') {
   reply({
     number: 42, title: 'Change a feature', body: '',
     state: blocked && scenario === 'merged-after-refusal' ? 'MERGED' : 'OPEN',
     isDraft: false, baseRefName: 'main', baseRefOid: 'b'.repeat(40),
     headRefOid: blocked && scenario === 'pushed-after-refusal' ? 'c'.repeat(40) : head,
-    headRefName: 'feature', headRepository: scenario === 'deleted-fork' ? null : { nameWithOwner: 'owner/repo' }, changedFiles: 1,
+    headRefName: branch, headRepository: scenario === 'deleted-fork' ? null : { nameWithOwner: 'owner/repo' }, changedFiles: 1,
     author: { login: 'owner' }, isCrossRepository: scenario === 'deleted-fork',
     labels: blocked && scenario === 'held-after-refusal' ? [{ name: 'hold' }] : [],
   });
 } else if (args.at(-1) === 'repos/owner/repo/pulls?state=open&head=owner%3Afeature') {
   reply([[{ number: 42, head: { sha: head }, base: { ref: 'main' } }]]);
-} else if (args.at(-1) === 'repos/owner/repo/actions/workflows/ci.yml/runs?event=pull_request&head_sha=' + head + '&branch=feature') {
+} else if (args.at(-1) === 'repos/owner/repo/actions/workflows/ci.yml/runs?event=pull_request&head_sha=' + head + '&branch=' + branch) {
   if (scenario === 'deleted-fork') throw new Error('A deleted fork has no CI lookup.');
+  if (['branch-renamed-after-ci', 'ci-never-ran'].includes(scenario)) {
+    reply([{ workflow_runs: [] }]);
+    process.exit(0);
+  }
   const active = ['label-with-active-ci', 'ready-with-active-ci', 'fork-ci-active', 'other-pr-ci-active', 'workflow-ci-overlap'].includes(scenario)
     || (scenario === 'ci-starts-before-retry' && blocked);
   const activeRun = {
@@ -108,7 +115,8 @@ if (args[0] === 'pr' && args[1] === 'view') {
 } else if (args.at(-1) === 'repos/owner/repo/pulls/42/files') {
   reply([[{ filename: 'feature.ts' }]]);
 } else if (args.at(-1) === 'repos/owner/repo/commits/' + head + '/check-runs') {
-  reply([{ check_runs: scenario === 'ready-with-active-ci' ? [] :
+  record('commit checks');
+  reply([{ check_runs: ['ci-never-ran', 'ready-with-active-ci'].includes(scenario) ? [] :
     [{ name: 'checks', status: 'completed', conclusion: 'success' }] }]);
 } else if (args.includes('repos/owner/repo/issues/comments/1')) {
   writeFileSync(${JSON.stringify(comment)}, JSON.parse(readFileSync(0, 'utf8')).body);
@@ -151,7 +159,11 @@ if (args[0] === 'pr' && args[1] === 'view') {
           ...(scenario.startsWith('workflow-') ? {} : { PR_NUMBER: '42' }),
           HEAD_OWNER: 'owner',
           HEAD_BRANCH: 'feature',
-          ...(scenario === 'ready-with-active-ci'
+          ...([
+            'ready-with-active-ci',
+            'branch-renamed-after-ci',
+            'ci-never-ran',
+          ].includes(scenario)
             ? { TRIGGER_ACTION: 'ready_for_review' }
             : {}),
           ...([
@@ -234,6 +246,28 @@ describe('landing after a verdict', () => {
     expect(result.events).toEqual(['Agent verdict: failure']);
     expect(result.output).toContain(
       '### #42: The head repository is unavailable',
+    );
+  });
+
+  it('uses the passing commit check after the branch is renamed', () => {
+    const result = landing('branch-renamed-after-ci');
+    expect(result.status).toBe(0);
+    expect(result.events).toEqual([
+      'commit checks',
+      ...passingVerdict,
+      'blocked',
+      'commit checks',
+      'merged',
+    ]);
+    expect(result.output).toContain('### #42: merged');
+  });
+
+  it('skips landing without writing a verdict when CI never ran', () => {
+    const result = landing('ci-never-ran');
+    expect(result.status).toBe(0);
+    expect(result.events).toEqual(['commit checks']);
+    expect(result.output).toContain(
+      '### #42: CI has not passed on its head yet',
     );
   });
 
