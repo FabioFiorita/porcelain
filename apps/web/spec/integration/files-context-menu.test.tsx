@@ -1,43 +1,64 @@
 import { userEvent } from 'vite-plus/test/browser';
-import { expect, expectInputFocus, test } from './fixtures.tsx';
+import {
+  expect,
+  expectInputFocus,
+  test,
+  type Agent,
+  type Render,
+  type Repo,
+} from './fixtures.tsx';
+
+async function openFolderTree(
+  width: number,
+  { render, repo, agent }: { render: Render; repo: Repo; agent: Agent },
+  rows: readonly string[],
+  committed: boolean,
+) {
+  for (const path of ['alpha', 'beta'])
+    await agent.editFile({ kind: 'create', path, entryKind: 'directory' });
+  await repo.write('alpha/first.md', 'First folder\n');
+  await repo.write('beta/second.md', 'Second folder\n');
+  for (const path of rows) await repo.write(path, 'Row\n');
+  if (committed) await repo.commit('Add the tree rows');
+  const page = await render.workspace();
+  await page.viewport(width, 896);
+  if (width === 414) {
+    await page.getByRole('button', { name: 'Review', exact: true }).click();
+    await page.getByRole('tab', { name: 'Files', exact: true }).click();
+  } else await userEvent.keyboard('{Alt>}1{/Alt}');
+  const row = (name: string) =>
+    page.getByRole('treeitem', { name, exact: true, includeHidden: true });
+  const menu = (path: string) =>
+    page.getByRole('menu', { name: `${path} actions`, exact: true });
+  return { page, row, menu };
+}
 
 test.for([1280, 414])(
-  'a file-tree menu keeps keyboard focus and its current folder target at %ipx',
-  async (width, { render, repo, agent, server }) => {
-    await agent.editFile({
-      kind: 'create',
-      path: 'alpha',
-      entryKind: 'directory',
-    });
-    await agent.editFile({
-      kind: 'create',
-      path: 'beta',
-      entryKind: 'directory',
-    });
-    await repo.write('alpha/first.md', 'First folder\n');
-    await repo.write('beta/second.md', 'Second folder\n');
-    await repo.write('guide.md', 'Guide\n');
-    for (let index = 0; index < 40; index++)
-      await repo.write(`row-${String(index).padStart(2, '0')}.md`, 'Row\n');
+  'closing a file-tree menu returns keyboard focus to its row, the last row included, at %ipx',
+  async (width, { render, repo, agent }) => {
     const last = 'z-last-with-a-long-name-that-still-needs-the-correct-menu.md';
-    await repo.write(last, 'Last row\n');
-    const page = await render.workspace();
-    await page.viewport(width, 896);
-    if (width === 414) {
-      await page.getByRole('button', { name: 'Review', exact: true }).click();
-      await page.getByRole('tab', { name: 'Files', exact: true }).click();
-    } else await userEvent.keyboard('{Alt>}1{/Alt}');
-    const row = (name: string) =>
-      page.getByRole('treeitem', { name, exact: true, includeHidden: true });
-    const menu = (path: string) =>
-      page.getByRole('menu', { name: `${path} actions`, exact: true });
+    const { page, row, menu } = await openFolderTree(
+      width,
+      { render, repo, agent },
+      [
+        'guide.md',
+        ...Array.from(
+          { length: 40 },
+          (_, index) => `row-${String(index).padStart(2, '0')}.md`,
+        ),
+        last,
+      ],
+      false,
+    );
 
     await row('beta').click({ button: 'right' });
     await expect.element(menu('beta/')).toHaveFocus();
     await userEvent.keyboard('{Escape}');
     await expect.element(page.getByRole('menu')).not.toBeInTheDocument();
     await expectInputFocus(row('beta'));
-    await userEvent.keyboard('{End}{ContextMenu}');
+    await userEvent.keyboard('{End}');
+    await expectInputFocus(row(last));
+    await userEvent.keyboard('{ContextMenu}');
     await expect.element(menu(last)).toBeVisible();
     await expect.element(menu(last)).toHaveAttribute('data-open', '');
     await expect
@@ -46,7 +67,18 @@ test.for([1280, 414])(
     await userEvent.keyboard('{Escape}');
     await expect.element(page.getByRole('menu')).not.toBeInTheDocument();
     await expectInputFocus(row(last));
-    await userEvent.keyboard('{Home}');
+  },
+);
+
+test.for([1280, 414])(
+  'a file-tree menu opened right after another acts on its own folder at %ipx',
+  async (width, { render, repo, agent, server }) => {
+    const { page, row, menu } = await openFolderTree(
+      width,
+      { render, repo, agent },
+      [],
+      true,
+    );
 
     await row('alpha').click({ button: 'right' });
     await expect.element(menu('alpha/')).toBeVisible();
