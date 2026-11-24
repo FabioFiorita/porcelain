@@ -6822,6 +6822,40 @@ export const guardrailCases = [
     workflowRun: { workflows: ['CI'], types: ['completed'] },
   },
   {
+    rule: 'ci-promotion-reuse',
+    runs: [{ id: 71, run_attempt: 2 }],
+    jobs: [{ name: 'main checks', conclusion: 'success', id: 19 }],
+    cases: [
+      {
+        name: 'reuses the successful aggregate from the matching main attempt',
+        output:
+          'run=https://github.com/example/porcelain/actions/runs/71/attempts/2\n',
+      },
+      { name: 'runs full CI when no successful push matches', runs: [] },
+      {
+        name: 'runs full CI when a legacy push passed affected checks',
+        jobs: [{ name: 'checks', conclusion: 'success', id: 19 }],
+      },
+      {
+        name: 'runs full CI when the main aggregate was cancelled',
+        jobs: [{ name: 'main checks', conclusion: 'cancelled', id: 19 }],
+      },
+      {
+        name: 'runs full CI when release contributes a different tree',
+        differentTree: true,
+      },
+      {
+        name: 'runs full CI when the runs API is unavailable',
+        apiUnavailable: true,
+      },
+      {
+        name: 'rejects a promotion from outside this main branch',
+        valid: false,
+        status: 1,
+      },
+    ],
+  },
+  {
     rule: 'ci-required-checks',
     dependencyStoreWriter: 'units',
     dependencyStoreReaders: [
@@ -6918,6 +6952,19 @@ export const guardrailCases = [
       {
         name: 'all selected jobs succeed, including matrix aggregates',
         status: 0,
+      },
+      {
+        name: 'release checks pass when full CI was reused and the suites were skipped',
+        reusedRun:
+          'https://github.com/example/porcelain/actions/runs/71/attempts/2',
+        status: 0,
+      },
+      {
+        name: 'release checks fail when planning fails despite a reuse output',
+        reusedRun:
+          'https://github.com/example/porcelain/actions/runs/71/attempts/2',
+        results: { affected: 'failure' },
+        status: 1,
       },
       ...[
         ['package', 'package'],

@@ -2,10 +2,11 @@ import {
   deepStrictEqual,
   doesNotMatch,
   match,
+  ok,
   strictEqual,
   throws,
 } from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import {
   mkdirSync,
   chmodSync,
@@ -904,6 +905,75 @@ export async function runGuardrailCases(named = []) {
         /\bworkflow_run\s*\.\s*conclusion\b/,
         'The landing job must reconcile every conclusion of pull request CI.',
       );
+    } else if (entry.rule === 'ci-promotion-reuse') {
+      const workflow = parse(
+        readFileSync(
+          new URL('../.github/workflows/ci.yml', import.meta.url),
+          'utf8',
+        ),
+      );
+      const reuse = workflow.jobs.affected.steps.find(
+        ({ id }) => id === 'reuse',
+      );
+      ok(reuse, 'Promotion must look for full CI from main.');
+      strictEqual(reuse.if, "github.base_ref == 'release'");
+      const head = execFileSync('git', ['rev-parse', 'HEAD'], {
+        encoding: 'utf8',
+      }).trim();
+      const otherTree = execFileSync('git', ['rev-parse', 'HEAD:ci'], {
+        encoding: 'utf8',
+      }).trim();
+      const root = fixtureRoot('porcelain-ci-promotion-');
+      try {
+        for (const fixture of entry.cases) {
+          const output = join(root, 'output');
+          writeFileSync(output, '');
+          const shell = `gh() {
+  local query
+  for query in "$@"; do :; done
+  if [[ "$*" == "api --method GET --paginate repos/example/porcelain/actions/workflows/ci.yml/runs -f event=push -f branch=main -f head_sha=$PROMOTION_HEAD -f status=success --jq "* ]]; then
+    [[ "$RUNS" != null ]] || return 1
+    jq -r "$query" <<< "$RUNS"
+  elif [[ "$*" == "api --paginate repos/example/porcelain/actions/runs/71/attempts/2/jobs --jq "* ]]; then
+    jq -r "$query" <<< "$JOBS"
+  else
+    return 2
+  fi
+}
+${reuse.run}`;
+          const checked = spawnSync(
+            'bash',
+            ['-e', '-o', 'pipefail', '-c', shell],
+            {
+              encoding: 'utf8',
+              env: {
+                ...process.env,
+                GITHUB_OUTPUT: output,
+                GITHUB_REPOSITORY: 'example/porcelain',
+                GITHUB_SERVER_URL: 'https://github.com',
+                VALID_PROMOTION: String(fixture.valid ?? true),
+                PROMOTION_HEAD: fixture.differentTree ? otherTree : head,
+                RUNS: JSON.stringify(
+                  fixture.apiUnavailable
+                    ? null
+                    : { workflow_runs: fixture.runs ?? entry.runs },
+                ),
+                JOBS: JSON.stringify({ jobs: fixture.jobs ?? entry.jobs }),
+              },
+            },
+          );
+          if (checked.error) throw checked.error;
+          strictEqual(checked.status, fixture.status ?? 0, fixture.name);
+          strictEqual(
+            readFileSync(output, 'utf8'),
+            fixture.output ?? '',
+            fixture.name,
+          );
+          process.stdout.write(`PASS ci-promotion-reuse: ${fixture.name}\n`);
+        }
+      } finally {
+        rmSync(root, { recursive: true, force: true });
+      }
     } else if (entry.rule === 'ci-required-checks') {
       const workflow = parse(
         readFileSync(
@@ -935,8 +1005,10 @@ export async function runGuardrailCases(named = []) {
       );
       const writer = workflow.jobs[entry.dependencyStoreWriter];
       strictEqual(writer['runs-on'], 'ubuntu-latest');
-      strictEqual(writer.if, undefined);
-      strictEqual(writer.needs, undefined);
+      for (const job of [writer, workflow.jobs.static]) {
+        strictEqual(job.if, "needs.affected.outputs.reused-run == ''");
+        strictEqual(job.needs, 'affected');
+      }
       strictEqual(writer.strategy, undefined);
       strictEqual(
         installs.find(({ name }) => name === entry.dependencyStoreWriter).step
@@ -967,18 +1039,22 @@ export async function runGuardrailCases(named = []) {
       strictEqual(sharded?.run, entry.webIntegrationCommand);
       strictEqual(
         sharded?.if,
-        "github.base_ref == 'release' || strategy.job-total > 1",
+        "env.RELEASE_LANE == 'true' || strategy.job-total > 1",
       );
       strictEqual(
         integration.steps.find((step) => step.env?.SPECS)?.if,
-        "github.base_ref != 'release' && strategy.job-total == 1",
+        "env.RELEASE_LANE != 'true' && strategy.job-total == 1",
       );
       const browser = workflow.jobs['web-e2e'];
       strictEqual(browser.strategy.matrix.shard, entry.webE2eShardPlan);
       deepStrictEqual(workflow.env, {
-        RELEASE_LANE: "${{ github.base_ref == 'release' }}",
-        DIFF_BASE:
-          '${{ github.event.pull_request.base.sha || github.event.before }}',
+        RELEASE_LANE:
+          "${{ github.event_name == 'push' || github.base_ref == 'release' }}",
+        DIFF_BASE: '${{ github.event.pull_request.base.sha }}',
+      });
+      deepStrictEqual(workflow.concurrency, {
+        group: '${{ github.workflow }}-${{ github.ref }}',
+        'cancel-in-progress': true,
       });
       for (const fixture of entry.webE2eCases) {
         const release = fixture.specs.length === 0;
@@ -986,8 +1062,8 @@ export async function runGuardrailCases(named = []) {
           (step) =>
             step.if ===
             (release
-              ? "github.base_ref == 'release'"
-              : "github.base_ref != 'release'"),
+              ? "env.RELEASE_LANE == 'true'"
+              : "env.RELEASE_LANE != 'true'"),
         );
 
         const shell = `pnpm() {
@@ -1041,6 +1117,11 @@ ${runBrowser.run
         );
       for (const fixture of entry.cases) {
         const needs = structuredClone(entry.needs);
+        if (fixture.reusedRun) {
+          for (const [job, value] of Object.entries(needs))
+            if (job !== 'affected') value.result = 'skipped';
+          needs.affected.outputs = {};
+        }
         for (const [job, result] of Object.entries(fixture.results ?? {}))
           needs[job].result = result;
         Object.assign(needs.affected.outputs, fixture.outputs);
@@ -1057,6 +1138,9 @@ ${runBrowser.run
             env: {
               ...process.env,
               NEEDS: fixture.raw ?? JSON.stringify(needs),
+              REUSED_RUN: fixture.reusedRun ?? '',
+              PLANNING_RESULT: needs.affected?.result ?? '',
+              GITHUB_STEP_SUMMARY: '/dev/null',
             },
           },
         );
