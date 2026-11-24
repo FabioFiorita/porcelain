@@ -166,6 +166,42 @@ export function checkPassed(
     .some((run) => run.name === name && run.conclusion === 'success');
 }
 
+const CiRuns = Schema.Struct({
+  workflow_runs: Schema.Array(
+    Schema.Struct({
+      status: Schema.String,
+      head_repository: Schema.NullOr(
+        Schema.Struct({ full_name: Schema.String }),
+      ),
+      pull_requests: Schema.Array(Schema.Struct({ number: Schema.Int })),
+    }),
+  ),
+});
+
+export function pullRequestCiInProgress(
+  repository: string,
+  pull: { number: number; sha: string; branch: string; headRepository: string },
+): boolean {
+  const query = new URLSearchParams({
+    event: 'pull_request',
+    head_sha: pull.sha,
+    branch: pull.branch,
+  });
+  return pages(
+    CiRuns,
+    `repos/${repository}/actions/workflows/ci.yml/runs?${query.toString()}`,
+  )
+    .flatMap((page) => page.workflow_runs)
+    .some(
+      (run) =>
+        run.status !== 'completed' &&
+        run.head_repository?.full_name.toLowerCase() ===
+          pull.headRepository.toLowerCase() &&
+        (run.pull_requests.length === 0 ||
+          run.pull_requests.some(({ number }) => number === pull.number)),
+    );
+}
+
 export function isAncestor(
   repository: string,
   ancestor: string,
