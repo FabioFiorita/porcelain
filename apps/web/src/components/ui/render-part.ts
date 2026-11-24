@@ -38,4 +38,14 @@ function renderPart({
   );
 }
 
-export { mergeProps, renderPart, type PartElementProps };
+function RenderInto({
+  render,
+  ...props
+}: {
+  render: RenderProp<PartState>;
+  ref?: React.Ref<HTMLElement> | undefined;
+}) {
+  return renderPart({ defaultTagName: 'span', props, render, state: {} });
+}
+
+export { mergeProps, RenderInto, renderPart, type PartElementProps };

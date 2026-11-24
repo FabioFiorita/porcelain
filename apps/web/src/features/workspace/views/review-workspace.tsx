@@ -663,25 +663,27 @@ function PaneView({
         leading={
           index === 0 ? (
             <Tooltip>
-              <TooltipTrigger render={<span className="inline-flex" />}>
-                <SidebarTrigger
-                  ref={(element) => navigationTrigger.attach(element)}
-                  aria-label="Toggle Sidebar"
-                  aria-expanded={
-                    navigatorIsMobile ? navigatorOpenMobile : navigatorOpen
-                  }
-                  aria-keyshortcuts={
-                    detectPlatform() === 'mac' ? 'Meta+B' : 'Control+B'
-                  }
-                  onClick={() => {
-                    if (!navigatorIsMobile && navigatorOpen) {
-                      requestAnimationFrame(() =>
-                        navigationTrigger.element?.focus(),
-                      );
+              <TooltipTrigger
+                render={
+                  <SidebarTrigger
+                    ref={(element) => navigationTrigger.attach(element)}
+                    aria-label="Toggle Sidebar"
+                    aria-expanded={
+                      navigatorIsMobile ? navigatorOpenMobile : navigatorOpen
                     }
-                  }}
-                />
-              </TooltipTrigger>
+                    aria-keyshortcuts={
+                      detectPlatform() === 'mac' ? 'Meta+B' : 'Control+B'
+                    }
+                    onClick={() => {
+                      if (!navigatorIsMobile && navigatorOpen) {
+                        requestAnimationFrame(() =>
+                          navigationTrigger.element?.focus(),
+                        );
+                      }
+                    }}
+                  />
+                }
+              />
               <TooltipContent role="tooltip" className="break-all">
                 Toggle Sidebar{' '}
                 <Kbd>{formatForDisplay(SHORTCUTS.toggleNavigator)}</Kbd>

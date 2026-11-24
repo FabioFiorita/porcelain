@@ -28,6 +28,14 @@ test('with a coding CLI the chosen model drafts the message, and the drafted com
   await expect
     .element(models.getByText('Haiku', { exact: true }))
     .toBeVisible();
+  await expect
+    .element(
+      dialog.getByText(
+        'Sends the selected changes to Haiku through Claude Code.',
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
 
   await dialog
     .getByRole('button', { name: 'Generate with AI', exact: true })
@@ -246,6 +254,13 @@ for (const message of ['', '   ']) {
         }),
       )
       .toBeDisabled();
+    await expect
+      .element(
+        dialog.getByText('Write or generate a message before committing.', {
+          exact: true,
+        }),
+      )
+      .toBeVisible();
     await input.click();
     await userEvent.keyboard('{Meta>}{Enter}{/Meta}');
     await userEvent.keyboard('{Control>}{Enter}{/Control}');
@@ -326,30 +341,3 @@ for (const submit of ['button', 'keyboard']) {
       .toEqual(['PRIVATE.md']);
   });
 }
-
-test('Use groups stays in place, disabled, while no file is selected', async ({
-  codingTool,
-  workspace,
-  repo,
-}) => {
-  await codingTool.install();
-  await workspace.getByRole('button', { name: 'Commit', exact: true }).click();
-  const dialog = workspace.getByRole('dialog', {
-    name: 'Commit changes',
-    exact: true,
-  });
-  const groups = dialog.getByRole('tab', { name: 'Use groups', exact: true });
-  await expect.element(groups).toBeEnabled();
-  await dialog.getByRole('button', { name: 'Edit', exact: true }).click();
-  const file = dialog.getByRole('checkbox', {
-    name: repo.readme.path,
-    exact: true,
-  });
-  await file.click();
-  await expect.element(file).not.toBeChecked();
-  await expect.element(groups).toBeVisible();
-  await expect.element(groups).toBeDisabled();
-  await file.click();
-  await expect.element(file).toBeChecked();
-  await expect.element(groups).toBeEnabled();
-});

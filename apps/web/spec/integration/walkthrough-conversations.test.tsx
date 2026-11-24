@@ -527,3 +527,23 @@ test('keeps a send error with its draft after switching worktrees', async ({
   await expect.element(step).toHaveValue('');
   await expect.element(error).not.toBeInTheDocument();
 });
+
+test('an empty question keeps Send reachable and says it is unavailable', async ({
+  render,
+}) => {
+  await conversationFixture('pr');
+  await browserPage.viewport(1280, 896);
+  const { page } = await render.route('/');
+  const composer = page
+    .getByRole('textbox', { name: 'Decide, or ask about this', exact: true })
+    .first();
+  const send = page.getByRole('button', { name: 'Send', exact: true }).first();
+  await expect.element(send).toHaveAttribute('aria-disabled', 'true');
+  await composer.click();
+  await userEvent.keyboard('{Tab}');
+  await expect.element(send).toHaveFocus();
+  await userEvent.keyboard('{Enter}');
+  await expect.element(composer).toHaveValue('');
+  await composer.fill('Is this boundary needed?');
+  await expect.element(send).not.toHaveAttribute('aria-disabled', 'true');
+});

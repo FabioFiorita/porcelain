@@ -73,22 +73,6 @@ export function CommitForm(
     commitModeBlocker,
     amendModeBlocker,
   } = form;
-  const commitBlocked =
-    commitModeBlocker !== null && commitModeBlocker !== undefined;
-  const modes = [
-    { value: 'single', label: 'Single commit', available: !commitBlocked },
-    {
-      value: 'amend',
-      label: 'Amend last',
-      available: amendModeBlocker === null || amendModeBlocker === undefined,
-    },
-    {
-      value: 'groups',
-      label: 'Use groups',
-      available: !commitBlocked && Boolean(model),
-      ready: commitPaths.length > 0,
-    },
-  ].filter((entry) => entry.available || entry.value === mode);
   return (
     <form
       className="flex min-w-0 flex-col gap-4"
@@ -118,19 +102,42 @@ export function CommitForm(
           tracking={branchTracking(liveBranch ?? undefined, null)}
         />
       </div>
-      {status.inProgress !== 'merge' && modes.length > 1 && (
+      {status.inProgress !== 'merge' && (
         <Tabs value={mode} onValueChange={form.setMode}>
           <TabsList className="w-full">
-            {modes.map((entry) => (
-              <TabsTrigger
-                key={entry.value}
-                value={entry.value}
-                className="flex-1"
-                disabled={working || !entry.available || entry.ready === false}
-              >
-                {entry.label}
-              </TabsTrigger>
-            ))}
+            <TabsTrigger
+              value="single"
+              className="flex-1"
+              disabled={
+                working ||
+                (commitModeBlocker !== null && commitModeBlocker !== undefined)
+              }
+            >
+              Single commit
+            </TabsTrigger>
+            <TabsTrigger
+              value="amend"
+              className="flex-1"
+              disabled={
+                working ||
+                (amendModeBlocker !== null && amendModeBlocker !== undefined)
+              }
+            >
+              Amend last
+            </TabsTrigger>
+            <TabsTrigger
+              value="groups"
+              className="flex-1"
+              disabled={
+                working ||
+                (commitModeBlocker !== null &&
+                  commitModeBlocker !== undefined) ||
+                !model ||
+                !commitPaths.length
+              }
+            >
+              Use groups
+            </TabsTrigger>
           </TabsList>
         </Tabs>
       )}
@@ -157,17 +164,20 @@ export function CommitForm(
       {commitAction === 'commit' && (
         <CommitGeneration form={form} writeBlock={writeBlock} />
       )}
+      {mode !== 'groups' && !form.currentMessage.trim() && (
+        <p className="text-xs text-muted-foreground" role="status">
+          Write or generate a message before committing.
+        </p>
+      )}
       {staleDraft && (
         <p role="alert" className="text-sm text-graph-4">
           The worktree changed since this draft was proposed. Generate it again
           before committing.
         </p>
       )}
-      {commitNote(props, commitAction) && (
-        <p className="text-xs text-muted-foreground">
-          {commitNote(props, commitAction)}
-        </p>
-      )}
+      <p className="text-xs text-muted-foreground">
+        {commitNote(props, commitAction)}
+      </p>
       {receipt && !(error && receiptFailed(receipt)) && (
         <div role="status" className="text-sm">
           <p>{receipt.state}</p>
@@ -334,75 +344,73 @@ function CommitGeneration({
 }) {
   const { models, model } = form;
   const choices = Option.getOrUndefined(AsyncResult.value(models));
+  const chosen = choices?.find((entry) => entry.id === model);
   const reading = !choices && !AsyncResult.isFailure(models);
-  const reason = writeBlock ?? generationNote(form);
-  const blocked = Boolean(writeBlock) || generationBlocked(form);
+  const reason = writeBlock ?? generationReason(form);
   return (
     <div className="flex flex-wrap items-center gap-2">
       <Button
         type="button"
         variant="outline"
         size="sm"
-        disabled={reading || blocked || form.working || form.uncertain}
+        disabled={reading || Boolean(reason) || form.working || form.uncertain}
         aria-description={writeBlock}
         onClick={() => form.generate()}
       >
         <SparklesIcon />
         {form.generator.result.waiting ? 'Generating…' : 'Generate with AI'}
       </Button>
-      {(reading || Boolean(choices?.length)) && (
-        <Select
-          items={
-            choices?.map((entry) => ({
-              value: entry.id,
-              label: entry.label,
-            })) ?? []
-          }
-          value={model ?? null}
-          reselect
-          disabled={!choices?.length || form.working || form.uncertain}
-          onValueChange={form.setModel}
+      <Select
+        items={
+          choices?.map((entry) => ({
+            value: entry.id,
+            label: entry.label,
+          })) ?? []
+        }
+        value={model ?? null}
+        reselect
+        disabled={!choices?.length || form.working || form.uncertain}
+        onValueChange={form.setModel}
+      >
+        <SelectTrigger
+          aria-label="Commit model"
+          className="w-auto max-w-48"
+          size="sm"
         >
-          <SelectTrigger
-            aria-label="Commit model"
-            className="w-auto max-w-48"
-            size="sm"
-          >
-            <SelectValue
-              placeholder={
-                reading || choices?.length
-                  ? 'Choose a model'
-                  : 'No coding CLI available'
-              }
-            />
-          </SelectTrigger>
-          <SelectContent>
-            {groupedCommitModels(
-              choices?.filter((entry) => !entry.id.endsWith(':default')) ?? [],
-            ).map(([provider, entries]) => (
-              <SelectGroup key={provider}>
-                <SelectLabel>{provider}</SelectLabel>
-                {entries.map((entry) => (
-                  <SelectItem key={entry.id} value={entry.id}>
-                    {entry.label}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            ))}
-          </SelectContent>
-        </Select>
-      )}
-      {!reading && reason && (
-        <p className="w-full text-xs text-muted-foreground" role="status">
-          {reason}
-        </p>
-      )}
+          <SelectValue
+            placeholder={
+              reading || choices?.length
+                ? 'Choose a model'
+                : 'No coding CLI available'
+            }
+          />
+        </SelectTrigger>
+        <SelectContent>
+          {groupedCommitModels(
+            choices?.filter((entry) => !entry.id.endsWith(':default')) ?? [],
+          ).map(([provider, entries]) => (
+            <SelectGroup key={provider}>
+              <SelectLabel>{provider}</SelectLabel>
+              {entries.map((entry) => (
+                <SelectItem key={entry.id} value={entry.id}>
+                  {entry.label}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          ))}
+        </SelectContent>
+      </Select>
+      <p className="w-full text-xs text-muted-foreground" role="status">
+        {!reading &&
+          (reason ??
+            `Sends the selected changes to ${chosen?.label} through ${model?.split(':')[0] === 'claude' ? 'Claude Code' : 'Codex'}.`)}
+      </p>
       {AsyncResult.isFailure(form.generator.result) && !form.working && (
         <Button
           type="button"
           variant="outline"
           size="sm"
-          disabled={blocked || form.uncertain}
+          disabled={Boolean(reason) || form.uncertain}
           aria-description={writeBlock}
           onClick={form.generate}
         >
@@ -413,19 +421,17 @@ function CommitGeneration({
   );
 }
 
-function generationNote({ models, model }: CommitFormState) {
-  if (AsyncResult.isFailure(models)) return 'Could not load coding CLI models.';
+function generationReason({ models, model, paths }: CommitFormState) {
+  if (AsyncResult.isFailure(models))
+    return 'Could not load coding CLI models. You can still commit manually.';
   const choices = Option.getOrUndefined(AsyncResult.value(models));
-  if (!choices || model) return null;
-  return choices.some((entry) => !entry.id.endsWith(':default'))
-    ? null
-    : 'No coding CLI available.';
-}
-
-function generationBlocked(form: CommitFormState) {
-  return (
-    generationNote(form) !== null || !form.model || form.paths.length === 0
-  );
+  if (!choices) return null;
+  if (!model && choices.some((entry) => !entry.id.endsWith(':default')))
+    return 'Choose a model to generate a message.';
+  if (!model)
+    return 'No coding CLI available. Write a message to commit manually.';
+  if (!paths.length) return 'Select files to generate a message.';
+  return null;
 }
 
 function groupProposalStatus(error: unknown, working: boolean) {
@@ -611,7 +617,7 @@ function commitNote(
   if (status.inProgress === 'merge') {
     return 'This finishes the merge and commits every staged resolution, including staged files outside your selection.';
   }
-  return null;
+  return 'Selected files use their current contents. Other staged files stay staged.';
 }
 
 function submitLabel({
