@@ -9,6 +9,7 @@ import {
   walkthroughJobSchema,
   type EvidenceAsset,
   type StoredWalkthroughMessage,
+  type WalkthroughChecks,
   type WalkthroughDraft,
   type WalkthroughJob,
 } from '@porcelain/walkthroughs/models';
@@ -281,6 +282,7 @@ else if (endpoint) {
       runId: string,
       step: number,
       assets: readonly EvidenceAsset[],
+      checks?: WalkthroughChecks,
     ) => {
       const directory = join(
         session.projectHome,
@@ -311,6 +313,15 @@ else if (endpoint) {
                             ...stop,
                             blocks: [
                               ...stop.blocks,
+                              ...(checks === undefined
+                                ? []
+                                : [
+                                    {
+                                      kind: 'checks' as const,
+                                      headOid: job.run.headOid,
+                                      ...checks,
+                                    },
+                                  ]),
                               {
                                 kind: 'before_after',
                                 before: {
