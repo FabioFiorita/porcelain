@@ -174,7 +174,7 @@ export function TruncatedText({
   return (
     <Tooltip
       disabled={!disclosed}
-
+      hoverable={false}
       open={disclosed && (selfOpen || ownerOpen)}
       onOpenChange={(open) => {
         setSelfOpen(open);

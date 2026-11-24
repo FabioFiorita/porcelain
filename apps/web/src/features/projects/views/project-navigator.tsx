@@ -244,7 +244,7 @@ export function ProjectNavigator({
               setMenu({ pathname: location.pathname, open })
             }
           >
-            <Tooltip>
+            <Tooltip hoverable={false}>
               <TooltipTrigger
                 render={
                   <DropdownMenuTrigger
@@ -347,7 +347,7 @@ export function ProjectNavigator({
                     }
                     environmentName={source.environmentName}
                   />
-                  <Tooltip>
+                  <Tooltip hoverable={false}>
                     <TooltipTrigger
                       render={
                         <CollapsibleTrigger
@@ -585,7 +585,7 @@ export function ProjectNavigator({
           aria-label="Navigator controls"
           className="navigator-footer flex shrink-0 items-center gap-1 p-2"
         >
-          <Tooltip>
+          <Tooltip hoverable={false}>
             <TooltipTrigger
               render={
                 <Button
@@ -606,7 +606,7 @@ export function ProjectNavigator({
           </Tooltip>
           <div className="ml-auto flex shrink-0 items-center gap-1">
             <UpdatesMenu fallbackFocus={settingsButton} />
-            <Tooltip>
+            <Tooltip hoverable={false}>
               <TooltipTrigger
                 render={
                   <Button

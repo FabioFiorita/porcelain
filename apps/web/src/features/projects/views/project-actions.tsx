@@ -89,7 +89,7 @@ export function ProjectActions({
   ];
   return (
     <DropdownMenu>
-      <Tooltip>
+      <Tooltip hoverable={false}>
         <TooltipTrigger
           render={
             <DropdownMenuTrigger

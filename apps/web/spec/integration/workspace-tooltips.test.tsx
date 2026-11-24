@@ -39,6 +39,26 @@ test('a tooltip stays open while the pointer rests on it', async ({
   render,
 }) => {
   const app = await render.route('/');
+  await app.page.viewport(1280, 896);
+  await app.page
+    .getByRole('navigation', { name: 'Side panel', exact: true })
+    .getByRole('button', { name: 'Changes', exact: true })
+    .hover();
+  const tooltip = app.page.getByRole('tooltip').filter({ hasText: 'Changes' });
+  await expect.element(tooltip).toBeVisible();
+  await tooltip.hover();
+  await expect.element(tooltip).toBeVisible();
+  await app.page
+    .getByRole('tab', { name: 'Review', exact: true })
+    .first()
+    .hover();
+  await expect.element(tooltip).not.toBeInTheDocument();
+});
+
+test('a tab name tooltip lets go when the pointer moves onto it', async ({
+  render,
+}) => {
+  const app = await render.route('/');
   await app.page
     .getByRole('tab', { name: 'Review', exact: true })
     .first()
@@ -47,8 +67,6 @@ test('a tooltip stays open while the pointer rests on it', async ({
     .getByRole('tooltip')
     .filter({ hasText: "The branch's review" });
   await expect.element(tooltip).toBeVisible();
-  await tooltip.hover();
-  await expect.element(tooltip).toBeVisible();
-  await app.page.getByRole('button', { name: 'Commit', exact: true }).hover();
+  await tooltip.hover({ force: true });
   await expect.element(tooltip).not.toBeInTheDocument();
 });
