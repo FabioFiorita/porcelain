@@ -31,7 +31,11 @@ export function WorkspaceGate({
   const { state, read, reading, remote, environments, selection, remembered } =
     useWorkspace();
   const [shown, setShown] = useState<Workspace | undefined>(undefined);
-  if (state.kind === 'selected' && state.workspace !== shown)
+  if (
+    state.kind === 'selected' &&
+    (state.workspace.key !== shown?.key ||
+      state.workspace.connection !== shown.connection)
+  )
     setShown(state.workspace);
   const content = workspaceGateContent({
     state,
