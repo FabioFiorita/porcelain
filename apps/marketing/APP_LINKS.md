@@ -1,4 +1,4 @@
-# Review links
+# App links
 
 The static Astro output is served by Cloudflare Pages, project `porcelain`,
 custom domain `porcelain.fabiofiorita.com`. Live read-only inspection on
@@ -9,12 +9,7 @@ and output `apps/marketing/dist`. There is no deploy workflow in this checkout.
 No deployment was performed for this change.
 
 Pages reads `public/_headers` and `public/_redirects` from the built output.
-The former sets both association files to `application/json`; the latter serves
-the static browser fallback for arbitrary `/open/reviews/<reviewId>` URLs with a
-200 rewrite, retaining the original path and query for validation in the browser.
-Its target is `/open/reviews/`, without `index.html`: Pages redirects explicit
-`index.html` paths to their directory URL, which causes it to reject that rewrite.
-The button only appears after validation and only navigates when pressed.
+Pairing uses the static page at `/open/pair/`.
 
 The AASA file uses the supplied Apple Team ID `9QH8M89WF9` for Preview and
 Production. The Preview/Production Android SHA-256 placeholders in
@@ -54,18 +49,3 @@ Installed apps are already associated with `/open/pair`, so the Camera opens the
 app as soon as a server prints these links. Until the app's router handles
 `/open/pair`, a JavaScript route an app update can deliver, it opens on an
 unmatched route. The browser page needs the marketing deployment.
-
-## Mac app handoff
-
-Validated review links offer Open in Porcelain for Mac through
-`porcelain-desktop://open/reviews/<reviewId>`, retaining environment, host,
-protocol, revision and decision. The release Mac package declares this URL scheme and
-registers it on release startup. Cold launches retain the request until the
-renderer is ready; running instances receive it through `open-url` (macOS) or
-`second-instance`. The renderer uses the existing review route and saved remote
-connection. A link does not pair or authorize an unknown computer.
-
-The existing HTTPS browser action remains available if the Mac app is absent or
-has not been updated. Deploying marketing alone cannot enable handoff in an old
-Mac binary: a new desktop build and marketing deployment are both required.
-Development and signed-verification builds never register as the operating system default.
