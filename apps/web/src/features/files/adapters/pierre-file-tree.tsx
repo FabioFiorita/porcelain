@@ -127,6 +127,7 @@ function mountTree(
   let pendingCreate: { path: string; kind: 'file' | 'directory' } | null = null;
   let handledCreate: number | undefined;
   let handledRename: number | undefined;
+  let queuedMenu: HTMLElement | null = null;
   const frames = new Set<number>();
   function frame(run: () => void) {
     const id = requestAnimationFrame(() => {
@@ -421,6 +422,7 @@ function mountTree(
   }
 
   function keyDown(event: KeyboardEvent) {
+    if (event.key === 'Escape') queuedMenu = null;
     if (event.key === 'F2' && !pendingCreate && !read().writeBlock) {
       const path = model.getFocusedPath();
       if (path) {
@@ -478,25 +480,48 @@ function mountTree(
       return;
     event.preventDefault();
     event.stopPropagation();
+    const path = row.dataset.itemPath;
+    queuedMenu = row;
     const retry = () => {
-      if (!row.isConnected) return;
-      if (scrolling()) frame(retry);
-      else
-        row.dispatchEvent(
-          new MouseEvent('contextmenu', {
-            bubbles: true,
-            cancelable: true,
-            composed: true,
-          }),
-        );
+      if (queuedMenu !== row) return;
+      if (
+        !row.isConnected ||
+        row.dataset.itemPath !== path ||
+        model.getFocusedPath() !== path
+      ) {
+        queuedMenu = null;
+        return;
+      }
+      if (scrolling()) {
+        frame(retry);
+        return;
+      }
+      queuedMenu = null;
+      row.dispatchEvent(
+        new MouseEvent('contextmenu', {
+          bubbles: true,
+          cancelable: true,
+          composed: true,
+        }),
+      );
     };
     frame(retry);
+  }
+  function leave(event: FocusEvent) {
+    if (
+      !(
+        event.relatedTarget instanceof Node &&
+        host.contains(event.relatedTarget)
+      )
+    )
+      queuedMenu = null;
   }
   host.addEventListener('keydown', keyDown, true);
   host.addEventListener('click', click, true);
   host.addEventListener('blur', acceptDefaultName, true);
   host.addEventListener('contextmenu', contextMenu, true);
   host.addEventListener('touchstart', contextMenu, true);
+  host.addEventListener('focusout', leave, true);
   model.render({ containerWrapper: host });
   model.getFileTreeContainer()?.setAttribute('class', 'min-h-0 flex-1');
   model.getFileTreeContainer()?.setAttribute('data-slot', 'file-tree');
@@ -533,6 +558,7 @@ function mountTree(
     host.removeEventListener('blur', acceptDefaultName, true);
     host.removeEventListener('contextmenu', contextMenu, true);
     host.removeEventListener('touchstart', contextMenu, true);
+    host.removeEventListener('focusout', leave, true);
     model.cleanUp();
     host.replaceChildren();
   };

@@ -63,8 +63,37 @@ test.for([1280, 414])(
     await userEvent.keyboard('{Escape}');
     await expect.element(page.getByRole('menu')).not.toBeInTheDocument();
     await expectInputFocus(row(last));
+
+    await userEvent.keyboard('{End}{Home}{ContextMenu}');
+    await expect.element(menu('alpha/')).toHaveAttribute('data-open', '');
+    await expect.element(menu(last)).not.toBeInTheDocument();
+    await userEvent.keyboard('{Escape}');
+    await expectInputFocus(row('alpha'));
   },
 );
+
+test('Escape drops a file-tree menu the keyboard asked for while the tree was still scrolling', async ({
+  render,
+  repo,
+  agent,
+}) => {
+  const last = 'z-last.md';
+  const { page, row } = await openFolderTree(1280, { render, repo, agent }, [
+    ...Array.from(
+      { length: 40 },
+      (_, index) => `row-${String(index).padStart(2, '0')}.md`,
+    ),
+    last,
+  ]);
+  await row('beta').click({ button: 'right' });
+  await userEvent.keyboard('{Escape}');
+  await expectInputFocus(row('beta'));
+  await userEvent.keyboard('{End}{ContextMenu}{Escape}');
+  await expectInputFocus(row(last));
+  await userEvent.keyboard('{ArrowUp}');
+  await expectInputFocus(row('row-39.md'));
+  await expect.element(page.getByRole('menu')).not.toBeInTheDocument();
+});
 
 test.for([1280, 414])(
   'a file-tree menu opened right after another acts on its own folder at %ipx',
