@@ -977,7 +977,11 @@ ${runBrowser.run
         gate.needs.toSorted(),
         Object.keys(entry.needs).toSorted(),
       );
-      strictEqual(gate.if, '${{ always() }}');
+      strictEqual(
+        gate.if,
+        '${{ !cancelled() }}',
+        'The required check must evaluate failed needs in live runs and skip cancelled workflows.',
+      );
       strictEqual(gate.steps[0].env.NEEDS, '${{ toJSON(needs) }}');
       for (const [job, output] of entry.optional)
         strictEqual(
