@@ -14,6 +14,7 @@ export function useChangeDiffs(
   scope: ChangesScope,
   connection: Connection,
   statusToken: string,
+  read: number,
   expectedFiles: readonly ExpectedFile[],
   selections: readonly ChangeSelection[],
 ) {
@@ -21,6 +22,7 @@ export function useChangeDiffs(
     scope,
     connection,
     statusToken,
+    read,
     expectedFiles,
     selections,
   });

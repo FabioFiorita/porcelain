@@ -9,7 +9,7 @@ import type {
   SetReviewedFilesResponse,
 } from '@porcelain/contracts/changes';
 
-export type ChangeList = ReadChangesResponse;
+export type ChangeList = ReadChangesResponse & { readonly read: number };
 type FileChange = ChangeList['changes'][number];
 export type Change = FileChange['comparisons'][number];
 type ChangeDiffs = ReadChangeDiffsResponse;
@@ -23,6 +23,7 @@ export type ReviewChangeItem = FileChange & {
   environmentId: string;
   worktreeId: string;
   statusToken: string;
+  read: number;
   reviewStatus: ReviewStatus;
   mark?: ReviewedMark;
 };
@@ -84,6 +85,7 @@ export function mergeReviewChanges(
         environmentId: list.environmentId,
         worktreeId: list.worktreeId,
         statusToken: list.statusToken,
+        read: list.read,
         reviewStatus: reviewStatus(entry, reviewed.marks),
         ...(mark ? { mark } : {}),
       },

@@ -25,6 +25,7 @@ const worktree: ReviewSnapshot = {
   kind: 'worktree',
   answer: {
     ...{ environmentId: 'env', worktreeId: 'tree', statusToken: 'look' },
+    read: 1,
     ...{ headOid: 'head', inProgress: undefined, mergeHeadOid: undefined },
     branch: undefined,
     changes: [
