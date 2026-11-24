@@ -2,20 +2,21 @@ import { useAtomRefresh, useAtomValue } from '@effect/atom-react';
 import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { readWalkthroughConversations } from '@porcelain/client/walkthroughs';
+import type { WalkthroughRun } from '@porcelain/client/walkthroughs/rules';
 import type { DocumentProps } from '@/features/workspace/index';
 
 export type ConversationScope = Pick<DocumentProps, 'scope' | 'context'> & {
-  runId: string;
+  run: Pick<WalkthroughRun, 'id' | 'branch'>;
 };
 
 export function conversationSelection({
   scope,
   context,
-  runId,
+  run,
 }: ConversationScope) {
   return {
     connection: context.connection,
-    runId,
+    runId: run.id,
     scope: { projectId: scope.projectId, worktreeId: scope.worktreeId },
   };
 }

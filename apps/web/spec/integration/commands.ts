@@ -26,6 +26,9 @@ declare module 'vitest/browser' {
         | 'changed-pr'
         | 'running-update'
         | 'failed-update'
+        | 'reject-send'
+        | 'other-worktree'
+        | 'revision'
         | 'two-branches',
     ) => Promise<string>;
     porcelainCollectGarbage: () => Promise<void>;
