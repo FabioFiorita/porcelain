@@ -56,14 +56,17 @@ export function FilesScreen({
   mode,
   workspace,
   search,
+  nested = false,
 }: {
   mode: ListDetailMode;
   workspace?: string | undefined;
   search?: 'content' | 'top-bar';
+  nested?: boolean;
 }) {
   return (
     <WorkspaceGate
       expectedWorkspace={workspace}
+      nested={nested}
       changed={<Empty title="Another worktree is selected now." />}
     >
       {(selected) => (

@@ -6,6 +6,7 @@ import {
   connectionRouteTitle,
   operationJournalKey,
   parseRemotes,
+  readingConnectionNotice,
   remoteStatus,
   remoteStatusNote,
   serializeRemotes,
@@ -85,6 +86,45 @@ describe('remoteStatusNote', () => {
       remoteStatusNote({ kind: 'checking' }),
       remoteStatusNote({ kind: 'online', name: 'home-server' }),
     ]).toEqual([undefined, undefined]);
+  });
+});
+
+describe('readingConnectionNotice', () => {
+  it('shows nothing while the computer answers', () => {
+    expect(
+      readingConnectionNotice({ kind: 'online', name: 'Beelink' }),
+    ).toBeUndefined();
+  });
+
+  it('keeps one reconnecting title while retries alternate between kinds', () => {
+    const reconnecting = {
+      title: 'Reconnecting',
+      interrupted: true,
+      repair: false,
+    };
+    expect(readingConnectionNotice({ kind: 'checking' })).toEqual(reconnecting);
+    expect(readingConnectionNotice({ kind: 'reconnecting' })).toEqual(
+      reconnecting,
+    );
+    expect(readingConnectionNotice({ kind: 'offline' })).toEqual(reconnecting);
+  });
+
+  it('offers pairing only when the computer refuses this device', () => {
+    expect(readingConnectionNotice({ kind: 'needs-pairing' })).toEqual({
+      title: 'Needs pairing',
+      interrupted: false,
+      repair: true,
+    });
+    expect(readingConnectionNotice({ kind: 'other-server' })).toEqual({
+      title: 'Another server answers',
+      interrupted: false,
+      repair: false,
+    });
+    expect(readingConnectionNotice({ kind: 'incompatible' })).toEqual({
+      title: 'Update needed',
+      interrupted: false,
+      repair: false,
+    });
   });
 });
 

@@ -13,6 +13,8 @@ import {
   type DiffContent,
 } from '@porcelain/client/changes/rules';
 import { Option } from 'effect';
+import { useState } from 'react';
+import { retainedResult } from '../rules/retained-result';
 import { changeEntries } from '../rules/changes-page';
 import { readReviewedFiles } from '@porcelain/client/changes';
 import { WORKTREE_RANGE } from '@porcelain/client/changes/rules';
@@ -77,7 +79,26 @@ export function useReviewSnapshot(
   comparison: ReviewComparison,
 ) {
   const query = snapshots({ workspace, comparison });
-  return { result: useAtomValue(query), refresh: useAtomRefresh(query) };
+  const result = useAtomValue(query);
+  const refresh = useAtomRefresh(query);
+  const identity = JSON.stringify([workspace.scope, comparison]);
+  const [kept, setKept] = useState<{
+    identity: string;
+    value: ReviewSnapshot;
+  }>();
+  const value = AsyncResult.value(result);
+  if (
+    Option.isSome(value) &&
+    (kept?.identity !== identity || kept.value !== value.value)
+  )
+    setKept({ identity, value: value.value });
+  return {
+    result: retainedResult(
+      result,
+      kept?.identity === identity ? kept : undefined,
+    ),
+    refresh,
+  };
 }
 
 export function useReviewMarks(

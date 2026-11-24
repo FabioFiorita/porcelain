@@ -20,6 +20,8 @@ export { remoteConnectionsLayer } from './commands/remote-connections.ts';
 export { pairBrowserSession } from './commands/pairing.ts';
 export {
   readRemoteConnectionStatus,
+  readingConnection,
+  remoteWorkspaceNotice,
   revalidateRemoteStatus,
 } from './queries/environments.ts';
 export {

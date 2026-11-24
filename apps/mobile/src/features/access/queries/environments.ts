@@ -1,12 +1,17 @@
 import { remoteConnectionState } from '../../../shared/application/store';
 import { useAtomValue, useAtomMount, useAtomRef } from '@effect/atom-react';
+import { AccessibilityInfo } from 'react-native';
 import { Atom } from 'effect/reactivity';
 import { useIsFocused } from 'expo-router';
 import {
   readRemoteConnectionStatus,
+  readingConnection,
   revalidateRemoteStatus,
 } from '@porcelain/client/access';
-import type { Remote } from '@porcelain/client/access/rules';
+import type {
+  ReadingConnectionNotice,
+  Remote,
+} from '@porcelain/client/access/rules';
 import { accessPlatform } from '../../../shared/adapters/access-platform';
 
 const focusedRemoteStatus = Atom.family(
@@ -29,6 +34,27 @@ export function useEnvironmentStatus(remote: Remote) {
   const focused = useIsFocused();
   useAtomMount(focusedRemoteStatus({ focused, remote }));
   return {
+    atom,
     status: result,
   };
+}
+
+const readingAnnouncement = Atom.family(
+  (notice: Atom.Atom<ReadingConnectionNotice | undefined>) =>
+    Atom.make((get) => {
+      get.subscribe(
+        notice.pipe(Atom.map((value) => value?.title)),
+        (title) => {
+          if (title) AccessibilityInfo.announceForAccessibility(title);
+        },
+        { immediate: true },
+      );
+    }),
+);
+
+export function useReadingConnectionNotice(remote: Remote) {
+  const { atom } = useEnvironmentStatus(remote);
+  const notice = readingConnection(atom);
+  useAtomMount(readingAnnouncement(notice));
+  return useAtomValue(notice);
 }

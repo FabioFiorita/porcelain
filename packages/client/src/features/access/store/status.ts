@@ -9,3 +9,5 @@ export const statusChanges = Atom.family((_send: AccessPlatformValue['send']) =>
 export const statusRuntime = Atom.family((_platform: AccessPlatformValue) =>
   Atom.context(),
 );
+
+export const reconnectNoticeRuntime = Atom.context();
