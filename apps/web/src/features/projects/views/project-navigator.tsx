@@ -214,6 +214,7 @@ export function ProjectNavigator({
           <InputGroup className="min-w-0 flex-1">
             <InputGroupInput
               autoFocus={isMobile}
+              data-autofocus={isMobile ? '' : undefined}
               type="search"
               aria-label="Search worktrees"
               placeholder="Search"

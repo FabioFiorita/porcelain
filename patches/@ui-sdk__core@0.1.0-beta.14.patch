@@ -20,3 +20,17 @@ index bd7558f73de73a701771aa20ae26bf4657bec83c..c0881e32663fe9463b3c9f160efe93d0
    }, 100);
  }
  export {
+diff --git a/dist/foundation/platform/layers.js b/dist/foundation/platform/layers.js
+index a615ec6776ed11da0c1a3426e1ad5d347aa80beb..74ab1f7b4ceb6a5788a049b00c68cd7b2f204543 100644
+--- a/dist/foundation/platform/layers.js
++++ b/dist/foundation/platform/layers.js
+@@ -142,9 +142,6 @@ function listen(doc, win) {
+         if (layer.modal === false) {
+           continue;
+         }
+-        if (layer.overBackdrop?.(point.x, point.y)) {
+-          consume = true;
+-        }
+         break;
+       }
+     }

@@ -312,9 +312,11 @@ test('forgetting from detail protects an unsavable remote draft and succeeds aft
   await page
     .getByRole('button', { name: 'Forget on this app', exact: true })
     .press('Enter');
-  await expect(page.getByRole('alert')).toHaveText(
-    'Save or discard unsaved file drafts before disconnecting.',
-  );
+  await expect(
+    page
+      .getByRole('dialog', { name: 'Settings', exact: true })
+      .getByRole('alert'),
+  ).toHaveText('Save or discard unsaved file drafts before disconnecting.');
   await expect(page).toHaveURL(
     new RegExp(`/settings/computers/${inventory.environmentId}$`),
   );

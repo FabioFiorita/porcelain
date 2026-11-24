@@ -392,7 +392,11 @@ function CommitGeneration({
             <SelectGroup key={provider}>
               <SelectLabel>{provider}</SelectLabel>
               {entries.map((entry) => (
-                <SelectItem key={entry.id} value={entry.id}>
+                <SelectItem
+                  key={entry.id}
+                  value={entry.id}
+                  onClick={() => form.setModel(entry.id)}
+                >
                   {entry.label}
                 </SelectItem>
               ))}
