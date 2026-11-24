@@ -1,8 +1,12 @@
-import type {
-  StepBlock,
-  WalkthroughComparison,
-  WalkthroughRun,
+import { Option } from 'effect';
+import { AsyncResult } from 'effect/reactivity';
+import {
+  fileOpening,
+  type StepBlock,
+  type WalkthroughComparison,
+  type WalkthroughRun,
 } from '@porcelain/client/walkthroughs/rules';
+import { useBranchChanges, useChanges } from '@/features/changes/index';
 import { recordedChecks } from '@porcelain/client/projects/rules';
 import {
   CheckResultIcon,
@@ -23,25 +27,65 @@ function FileList({
   block: Files;
   document: DocumentProps;
 }) {
+  const branch = useBranchChanges(
+    document.scope,
+    document.context.connection,
+    document.base,
+  ).result;
+  const worktree = useChanges(document.scope, document.context.connection);
+  const read = {
+    branch: Option.getOrUndefined(AsyncResult.value(branch))?.files,
+    branchFailed: AsyncResult.isFailure(branch),
+    worktree: worktree.changes,
+  };
   return (
     <ul aria-label="Files" className="-mx-2 flex flex-col">
       {block.files.map((file) => (
         <li key={file.path}>
-          <button
-            type="button"
-            className="flex w-full flex-col items-start gap-0.5 rounded-md px-2 py-1.5 text-left hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring @3xl:flex-row @3xl:items-baseline @3xl:gap-3"
-            onClick={() => document.onOpen({ kind: 'file', path: file.path })}
-          >
-            <span className="font-mono text-caption wrap-anywhere">
-              {file.path}
-            </span>
-            <span className="text-caption text-muted-foreground">
-              <RichText text={file.note} />
-            </span>
-          </button>
+          <FileButton
+            opening={fileOpening(read, file.path)}
+            path={file.path}
+            note={file.note}
+            document={document}
+          />
         </li>
       ))}
     </ul>
+  );
+}
+
+const OPENINGS = {
+  file: (path: string) => ({ kind: 'file', path }) as const,
+  branch: (path: string) => ({ kind: 'branch-file', path }) as const,
+  worktree: (path: string) => ({ kind: 'change', path }) as const,
+};
+
+function FileButton({
+  opening,
+  path,
+  note,
+  document,
+}: {
+  opening: ReturnType<typeof fileOpening>;
+  path: string;
+  note: string;
+  document: DocumentProps;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={opening === undefined}
+      aria-busy={opening === undefined}
+      className="flex w-full flex-col items-start gap-0.5 rounded-md px-2 py-1.5 text-left hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring disabled:hover:bg-transparent @3xl:flex-row @3xl:items-baseline @3xl:gap-3"
+      onClick={() => {
+        if (opening) document.onOpen(OPENINGS[opening.kind](path));
+      }}
+    >
+      <span className="font-mono text-caption wrap-anywhere">{path}</span>
+      <span className="text-caption text-muted-foreground">
+        <RichText text={note} />
+      </span>
+    </button>
   );
 }
 

@@ -68,3 +68,4 @@ export {
   walkthroughProgress,
   walkthroughFreshnessText,
 } from './progress.ts';
+export { fileComparison, fileOpening } from './file-comparison.ts';

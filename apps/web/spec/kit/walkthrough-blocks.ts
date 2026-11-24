@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, rm } from 'node:fs/promises';
 import {
   fixtureCheckResults,
   fixtureScreenshot,
@@ -10,8 +10,12 @@ import type { World } from './world.ts';
 
 export async function walkthroughBlocksFixture(world: World): Promise<string> {
   const session = await worktreeSession(world, (worktrees) => worktrees[0]);
-  await session.git('branch', 'walkthrough-blocks-base');
   await mkdir(join(session.repository, 'src'), { recursive: true });
+  await session.writeFile('src/legacy.ts', 'export const legacy = true;\n');
+  await session.writeFile('src/obsolete.ts', 'export const obsolete = true;\n');
+  await session.git('add', 'src/legacy.ts', 'src/obsolete.ts');
+  await session.git('commit', '-m', 'Add the old helpers');
+  await session.git('branch', 'walkthrough-blocks-base');
   await session.writeFile(
     'src/search.ts',
     'export function findNotes(notes: readonly string[], query: string) {\n  return notes.filter((note) => note.includes(query));\n}\n',
@@ -24,8 +28,16 @@ export async function walkthroughBlocksFixture(world: World): Promise<string> {
     'src/labels.ts',
     "export const EMPTY_LABEL = 'No notes yet';\n",
   );
-  await session.git('add', 'src/search.ts', 'src/results.ts', 'src/labels.ts');
+  await rm(join(session.repository, 'src/legacy.ts'));
+  await session.git(
+    'add',
+    'src/search.ts',
+    'src/results.ts',
+    'src/labels.ts',
+    'src/legacy.ts',
+  );
   await session.git('commit', '-m', 'Search notes and count them');
+  await rm(join(session.repository, 'src/obsolete.ts'));
   const writer = await scriptedWalkthroughs(
     session,
     world.server.manifestPath,
@@ -97,6 +109,19 @@ export async function walkthroughBlocksFixture(world: World): Promise<string> {
                   path: 'src/results.ts',
                   note: 'Formats the number of matching notes.',
                 },
+              ],
+            },
+          ],
+        },
+        {
+          title: 'Retire the old helpers',
+          explanation: 'Both helpers had no callers left.',
+          blocks: [
+            {
+              kind: 'files',
+              files: [
+                { path: 'src/legacy.ts', note: 'Removed in the branch.' },
+                { path: 'src/obsolete.ts', note: 'Removed locally.' },
               ],
             },
           ],
