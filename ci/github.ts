@@ -7,7 +7,28 @@ const IssueComment = Schema.Struct({
   user: Schema.NullOr(Schema.Struct({ type: Schema.String })),
 });
 
-const PullRequestAuthor = Schema.Struct({ author_association: Schema.String });
+const CommitPull = Schema.Struct({
+  number: Schema.Int,
+  head: Schema.Struct({ sha: Schema.String }),
+  base: Schema.Struct({ ref: Schema.String }),
+});
+
+const CurrentPull = Schema.Struct({
+  author_association: Schema.String,
+  state: Schema.String,
+  draft: Schema.Boolean,
+  head: Schema.Struct({
+    sha: Schema.String,
+    ref: Schema.String,
+    repo: Schema.NullOr(
+      Schema.Struct({ owner: Schema.Struct({ login: Schema.String }) }),
+    ),
+  }),
+  base: Schema.Struct({ ref: Schema.String }),
+});
+
+type WorkflowHead = { sha: string; owner: string; branch: string };
+
 const trustedAssociations = new Set(['OWNER', 'COLLABORATOR']);
 
 export function required(name: string): string {
@@ -87,11 +108,42 @@ export function upsertComment(
   );
 }
 
-export function trustedAuthor(repository: string, number: number): boolean {
-  const pull = Schema.decodeUnknownSync(
-    Schema.fromJsonString(PullRequestAuthor),
-  )(gh(['api', `repos/${repository}/pulls/${number}`]));
-  return trustedAssociations.has(pull.author_association);
+export function resolveWorkflowPullRequest(
+  repository: string,
+  { sha, owner, branch }: WorkflowHead,
+) {
+  if (!sha || !owner || !branch) return undefined;
+  const base =
+    branch === 'main' &&
+    owner.toLowerCase() === repository.split('/')[0]?.toLowerCase()
+      ? 'release'
+      : 'main';
+  return pages(
+    Schema.Array(CommitPull),
+    `repos/${repository}/pulls?state=open&head=${encodeURIComponent(`${owner}:${branch}`)}`,
+  )
+    .flat()
+    .find((pull) => pull.head.sha === sha && pull.base.ref === base);
+}
+
+export function isCurrentTrustedPullRequest(
+  repository: string,
+  number: number,
+  head: WorkflowHead,
+  base: string,
+): boolean {
+  const pull = Schema.decodeUnknownSync(Schema.fromJsonString(CurrentPull))(
+    gh(['api', `repos/${repository}/pulls/${number}`]),
+  );
+  return (
+    trustedAssociations.has(pull.author_association) &&
+    pull.state === 'open' &&
+    !pull.draft &&
+    pull.head.sha === head.sha &&
+    pull.head.ref === head.branch &&
+    pull.head.repo?.owner.login.toLowerCase() === head.owner.toLowerCase() &&
+    pull.base.ref === base
+  );
 }
 
 const CheckRuns = Schema.Struct({

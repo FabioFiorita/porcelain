@@ -1,6 +1,5 @@
 import { judgeReview } from './review-judgment.ts';
 import { readReviewPatch } from './review-patch.ts';
-import { appendFileSync } from 'node:fs';
 import { setTimeout as sleep } from 'node:timers/promises';
 import OpenAI from 'openai';
 import { Schema } from 'effect';
@@ -28,10 +27,11 @@ import {
   labeledOnHead,
   pages,
   required,
+  resolveWorkflowPullRequest,
   setStatus,
   upsertComment,
 } from './github.ts';
-import { decisionModel, dollars, reviewModel } from './openai.ts';
+import { decisionModel, dollars, jobCosts, reviewModel } from './openai.ts';
 
 const reviewDeadlineMs = 15 * 60 * 1000;
 const mergeRetryDelaysMs = [1000, 2000, 4000, 8000];
@@ -60,18 +60,7 @@ const ChangedFile = Schema.Struct({
   previous_filename: Schema.optional(Schema.String),
 });
 
-const CommitPull = Schema.Struct({
-  number: Schema.Int,
-  head: Schema.Struct({ sha: Schema.String }),
-  base: Schema.Struct({ ref: Schema.String }),
-});
-
-const costs: { step: string; dollars: number }[] = [];
-
-function recordCost(step: string, amount: number): void {
-  costs.push({ step, dollars: amount });
-  console.log(`${step} cost $${amount.toFixed(4)}`);
-}
+const costs = jobCosts();
 
 function reviewInstructions(
   view: PullRequestView,
@@ -119,7 +108,7 @@ async function recordSessionCost(client: OpenAI, id: string): Promise<void> {
   for (let attempt = 0; attempt < 4; attempt += 1) {
     const usage = (await client.beta.agents.sessions.retrieve(id)).usage;
     if (usage) {
-      recordCost(
+      costs.record(
         'Reviewer',
         dollars(reviewModel, {
           input: usage.input_tokens,
@@ -131,7 +120,7 @@ async function recordSessionCost(client: OpenAI, id: string): Promise<void> {
     }
     await sleep(2000);
   }
-  console.log('Reviewer cost unknown: the session reported no usage yet');
+  costs.record('Reviewer', undefined);
 }
 
 async function runReview(
@@ -199,23 +188,11 @@ function pullRequestNumber(
 ): number | undefined {
   const given = process.env.PR_NUMBER?.trim();
   if (given) return Number(given);
-  const owner = process.env.HEAD_OWNER?.trim();
-  const branch = process.env.HEAD_BRANCH?.trim();
-  if (!headSha || !owner || !branch) return undefined;
-  return pages(
-    Schema.Array(CommitPull),
-    `repos/${repository}/pulls?state=open&head=${encodeURIComponent(`${owner}:${branch}`)}`,
-  )
-    .flat()
-    .find(
-      (pull) =>
-        pull.head.sha === headSha &&
-        pull.base.ref ===
-          (branch === 'main' &&
-          owner.toLowerCase() === repository.split('/')[0]?.toLowerCase()
-            ? 'release'
-            : 'main'),
-    )?.number;
+  return resolveWorkflowPullRequest(repository, {
+    sha: headSha ?? '',
+    owner: process.env.HEAD_OWNER?.trim() ?? '',
+    branch: process.env.HEAD_BRANCH?.trim() ?? '',
+  })?.number;
 }
 
 function readView(repository: string, number: number): PullRequestView {
@@ -262,15 +239,7 @@ function merge(repository: string, view: PullRequestView): string | undefined {
 }
 
 function writeSummary(number: number, line: string): void {
-  const total = costs.reduce((sum, cost) => sum + cost.dollars, 0);
-  const summary = [
-    `### #${number}: ${line}`,
-    ...costs.map((cost) => `- ${cost.step}: $${cost.dollars.toFixed(4)}`),
-    `- Total: $${total.toFixed(4)}`,
-  ].join('\n');
-  console.log(summary);
-  const file = process.env.GITHUB_STEP_SUMMARY;
-  if (file) appendFileSync(file, `${summary}\n`);
+  costs.summarize(`### #${number}: ${line}`);
 }
 
 const repository = required('GITHUB_REPOSITORY');
@@ -430,7 +399,7 @@ try {
           },
         ],
       });
-      recordCost(
+      costs.record(
         'Decisions API',
         dollars(decisionModel, {
           input: response.usage.input_tokens,

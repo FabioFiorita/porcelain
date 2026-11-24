@@ -27,6 +27,7 @@ export type FailedRun = {
   url: string;
   headSha: string;
   jobs: readonly FailedJob[];
+  omittedJobs: number;
 };
 
 const tailLines = 200;
@@ -54,6 +55,25 @@ export function failureExcerpt(log: string): string {
 
 export const failureCommentMarker = '<!-- porcelain-failure-explanation -->';
 
+function headMarker(headSha: string): string {
+  return `<!-- porcelain-failure-head: ${headSha} -->`;
+}
+
+function explanationTitle(headSha: string): string {
+  return `### CI Explainer: why CI failed on \`${headSha.slice(0, 12)}\``;
+}
+
+export function hasExplanation(
+  body: string | undefined,
+  headSha: string,
+): boolean {
+  if (!body) return false;
+  const identity = body.split('\n\n', 2)[1];
+  return (
+    identity === headMarker(headSha) || identity === explanationTitle(headSha)
+  );
+}
+
 export function explanationComment(
   run: FailedRun,
   explanation: Explanation,
@@ -62,8 +82,14 @@ export function explanationComment(
   const jobUrls = new Map(run.jobs.map((job) => [job.name, job.url]));
   return [
     failureCommentMarker,
-    `### CI Explainer: why CI failed on \`${run.headSha.slice(0, 12)}\``,
+    headMarker(run.headSha),
+    explanationTitle(run.headSha),
     `[The run](${run.url}), explained from its failed job logs. ${explanation.summary}`,
+    ...(run.omittedJobs > 0
+      ? [
+          `This explanation covers the first ${run.jobs.length} failed jobs. Another ${run.omittedJobs} can be inspected in the run.`,
+        ]
+      : []),
     explanation.jobs
       .map((job) => {
         const url = jobUrls.get(job.job);

@@ -1,21 +1,17 @@
 import { describe, expect, it } from 'vite-plus/test';
 import { explanationComment, failureExcerpt } from './failure-explanation.ts';
-import { summaryDollars } from './openai.ts';
+import { dollars, summaryModel } from './openai.ts';
 
 it.each([
   { input: 2_000, cached: 400, written: 200, cost: 0.00217 },
   { input: 273_000, cached: 0, written: 0, cost: 0.54675 },
 ])('estimates the response cost for $input input tokens', (usage) => {
   expect(
-    summaryDollars({
-      input_tokens: usage.input,
-      input_tokens_details: {
-        cached_tokens: usage.cached,
-        cache_write_tokens: usage.written,
-      },
-      output_tokens: 100,
-      output_tokens_details: { reasoning_tokens: 25 },
-      total_tokens: usage.input + 100,
+    dollars(summaryModel, {
+      input: usage.input,
+      cached: usage.cached,
+      written: usage.written,
+      output: 100,
     }),
   ).toBeCloseTo(usage.cost, 9);
 });
@@ -49,6 +45,7 @@ describe('explanationComment', () => {
       {
         url: 'https://github.com/owner/repo/actions/runs/1',
         headSha: 'cce70c472bb6a4c66beac1b4582d6c9cd7de7051',
+        omittedJobs: 0,
         jobs: [
           {
             name: 'web-integration (4)',
