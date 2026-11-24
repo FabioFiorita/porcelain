@@ -92,46 +92,36 @@ describe('remoteStatusNote', () => {
 describe('readingConnectionNotice', () => {
   it('shows nothing while the computer answers', () => {
     expect(
-      readingConnectionNotice({ kind: 'online', name: 'Beelink' }, 'Beelink'),
+      readingConnectionNotice({ kind: 'online', name: 'Beelink' }),
     ).toBeUndefined();
   });
 
   it('keeps one reconnecting title while retries alternate between kinds', () => {
     const reconnecting = {
-      title: 'Reconnecting to Beelink',
+      title: 'Reconnecting',
       interrupted: true,
       repair: false,
     };
-    expect(readingConnectionNotice({ kind: 'checking' }, 'Beelink')).toEqual(
+    expect(readingConnectionNotice({ kind: 'checking' })).toEqual(reconnecting);
+    expect(readingConnectionNotice({ kind: 'reconnecting' })).toEqual(
       reconnecting,
     );
-    expect(
-      readingConnectionNotice({ kind: 'reconnecting' }, 'Beelink'),
-    ).toEqual(reconnecting);
-    expect(readingConnectionNotice({ kind: 'offline' }, 'Beelink')).toEqual(
-      reconnecting,
-    );
+    expect(readingConnectionNotice({ kind: 'offline' })).toEqual(reconnecting);
   });
 
   it('offers pairing only when the computer refuses this device', () => {
-    expect(
-      readingConnectionNotice({ kind: 'needs-pairing' }, 'Beelink'),
-    ).toEqual({
-      title: 'Beelink needs pairing',
+    expect(readingConnectionNotice({ kind: 'needs-pairing' })).toEqual({
+      title: 'Needs pairing',
       interrupted: false,
       repair: true,
     });
-    expect(
-      readingConnectionNotice({ kind: 'other-server' }, 'Beelink'),
-    ).toEqual({
-      title: 'Another server answers for Beelink',
+    expect(readingConnectionNotice({ kind: 'other-server' })).toEqual({
+      title: 'Another server answers',
       interrupted: false,
       repair: false,
     });
-    expect(
-      readingConnectionNotice({ kind: 'incompatible' }, 'Beelink'),
-    ).toEqual({
-      title: 'Beelink needs an update',
+    expect(readingConnectionNotice({ kind: 'incompatible' })).toEqual({
+      title: 'Update needed',
       interrupted: false,
       repair: false,
     });

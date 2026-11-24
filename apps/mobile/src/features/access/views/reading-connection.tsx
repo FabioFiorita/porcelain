@@ -21,7 +21,7 @@ export function ReadingConnection({ remote }: { remote: Remote }) {
           <Button
             label="Pair again"
             size="sm"
-            onPress={() => router.push('/pair-computer')}
+            onPress={() => router.push('/pair-computer', { withAnchor: true })}
           />
         ) : undefined
       }

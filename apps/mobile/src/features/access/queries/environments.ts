@@ -41,15 +41,13 @@ export function useEnvironmentStatus(remote: Remote) {
   };
 }
 
-const readingNotice = Atom.family(
-  ({ status, name }: { status: Atom.Atom<RemoteStatus>; name: string }) =>
-    Atom.readable((get) => {
-      const notice = readingConnectionNotice(get(status), name);
-      return notice &&
-        (!notice.interrupted || get(remoteWorkspaceNotice(status)))
-        ? notice
-        : undefined;
-    }),
+const readingNotice = Atom.family((status: Atom.Atom<RemoteStatus>) =>
+  Atom.readable((get) => {
+    const notice = readingConnectionNotice(get(status));
+    return notice && (!notice.interrupted || get(remoteWorkspaceNotice(status)))
+      ? notice
+      : undefined;
+  }),
 );
 
 const readingAnnouncement = Atom.family(
@@ -67,7 +65,7 @@ const readingAnnouncement = Atom.family(
 
 export function useReadingConnectionNotice(remote: Remote) {
   const { atom } = useEnvironmentStatus(remote);
-  const notice = readingNotice({ status: atom, name: remote.name });
+  const notice = readingNotice(atom);
   useAtomMount(readingAnnouncement(notice));
   return useAtomValue(notice);
 }

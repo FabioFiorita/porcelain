@@ -255,7 +255,6 @@ export type ReadingConnectionNotice = {
 
 export function readingConnectionNotice(
   status: RemoteStatus,
-  name: string,
 ): ReadingConnectionNotice | undefined {
   switch (status.kind) {
     case 'online':
@@ -263,28 +262,16 @@ export function readingConnectionNotice(
     case 'checking':
     case 'reconnecting':
     case 'offline':
-      return {
-        title: `Reconnecting to ${name}`,
-        interrupted: true,
-        repair: false,
-      };
+      return { title: 'Reconnecting', interrupted: true, repair: false };
     case 'needs-pairing':
-      return {
-        title: `${name} needs pairing`,
-        interrupted: false,
-        repair: true,
-      };
+      return { title: 'Needs pairing', interrupted: false, repair: true };
     case 'other-server':
       return {
-        title: `Another server answers for ${name}`,
+        title: 'Another server answers',
         interrupted: false,
         repair: false,
       };
     case 'incompatible':
-      return {
-        title: `${name} needs an update`,
-        interrupted: false,
-        repair: false,
-      };
+      return { title: 'Update needed', interrupted: false, repair: false };
   }
 }
