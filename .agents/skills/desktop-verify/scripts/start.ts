@@ -1,5 +1,6 @@
 import { Schema } from 'effect';
 import { readServerHealth } from '../../verify-core/health.ts';
+import { prepareDisposableMacKeychain } from '@porcelain/desktop/kit/disposable-mac-keychain';
 import { launchOptions, sampleRepository } from '@porcelain/desktop/kit/launch';
 import { electronExecutable, stageDesktop } from '@porcelain/desktop/kit/stage';
 import { ownerStatus } from '@porcelain/server/kit/owner';
@@ -165,6 +166,8 @@ export async function startDesktop(input: {
       { ...options.env, HOME: home, XDG_CONFIG_HOME: join(home, '.config') },
       input.codingToolDirectory,
     );
+    if (process.platform === 'darwin')
+      prepareDisposableMacKeychain(home, options.env);
     const launchOptionsFile = join(workspace, 'electron-launch.json');
     await writeFile(
       launchOptionsFile,
