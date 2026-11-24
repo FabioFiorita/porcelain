@@ -57,7 +57,8 @@ import {
   TooltipTrigger,
   TooltipContent,
 } from '@/components/ui/tooltip';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { cn } from '@/shared/lib/utils';
 import {
   InputGroup,
   InputGroupInput,
@@ -451,22 +452,20 @@ export function ProjectNavigator({
                                     ),
                             }}
                           >
-                            <TruncatedText
-                              text={disclosure}
-                              disclose="always"
-                              renderTrigger={(_label, clip) => (
-                                <div
-                                  data-navigator-card=""
-                                  role="presentation"
-                                  tabIndex={-1}
-                                  className={
-                                    active
-                                      ? 'relative rounded-md bg-card'
-                                      : 'relative rounded-md hover:bg-card'
-                                  }
-                                >
+                            <div
+                              data-navigator-card=""
+                              className={
+                                active
+                                  ? 'relative rounded-md bg-card'
+                                  : 'relative rounded-md hover:bg-card'
+                              }
+                            >
+                              <TruncatedText
+                                text={disclosure}
+                                disclose="always"
+                                renderTrigger={(_label, clip) => (
                                   <Item
-                                    className="absolute inset-0 h-full cursor-pointer"
+                                    className="w-full cursor-pointer text-left"
                                     data-sidebar="menu-button"
                                     size="xs"
                                     aria-label={label}
@@ -479,10 +478,6 @@ export function ProjectNavigator({
                                         disabled={!entry.available}
                                       />
                                     }
-                                  />
-                                  <Item
-                                    size="xs"
-                                    className="pointer-events-none relative"
                                   >
                                     <ItemMedia>
                                       <EntryIcon className="size-3.5 text-muted-foreground" />
@@ -498,24 +493,21 @@ export function ProjectNavigator({
                                         {failed && (
                                           <CircleAlertIcon
                                             className="size-3 shrink-0 text-del-fg"
-                                            aria-label="Checks failed"
+                                            aria-hidden="true"
                                           />
                                         )}
                                         {trailing?.kind === 'pull-request' && (
-                                          <Button
-                                            variant="ghost"
-                                            size="xs"
-                                            className="pointer-events-auto relative shrink-0 cursor-pointer"
-                                            aria-label={`Open PR #${trailing.number} · ${entry.projectName} · ${entry.environmentName} · ${navigatorChecksLabel(review?.checks)}`}
-                                            onClick={() => {
-                                              onOpenPullRequest(entry);
-                                              setOpenMobile(false);
-                                            }}
-                                          >
-                                            <span className="text-2xs text-muted-foreground tabular-nums">
-                                              {trailing.text}
-                                            </span>
-                                          </Button>
+                                          <span
+                                            aria-hidden="true"
+                                            data-trailing={trailing.text}
+                                            className={cn(
+                                              buttonVariants({
+                                                variant: 'ghost',
+                                                size: 'xs',
+                                              }),
+                                              'invisible shrink-0 text-2xs tabular-nums before:content-[attr(data-trailing)]',
+                                            )}
+                                          />
                                         )}
                                         {trailing?.kind === 'changes' && (
                                           <span className="shrink-0 text-2xs text-muted-foreground tabular-nums">
@@ -525,9 +517,25 @@ export function ProjectNavigator({
                                       </div>
                                     </ItemContent>
                                   </Item>
-                                </div>
+                                )}
+                              />
+                              {trailing?.kind === 'pull-request' && (
+                                <Button
+                                  variant="ghost"
+                                  size="xs"
+                                  className="absolute top-1/2 right-2.75 shrink-0 -translate-y-1/2 cursor-pointer"
+                                  aria-label={`Open PR #${trailing.number} · ${entry.projectName} · ${entry.environmentName} · ${navigatorChecksLabel(review?.checks)}`}
+                                  onClick={() => {
+                                    onOpenPullRequest(entry);
+                                    setOpenMobile(false);
+                                  }}
+                                >
+                                  <span className="text-2xs text-muted-foreground tabular-nums">
+                                    {trailing.text}
+                                  </span>
+                                </Button>
                               )}
-                            />
+                            </div>
                           </NavigatorRowMenu>
                         </SidebarMenuItem>
                       );

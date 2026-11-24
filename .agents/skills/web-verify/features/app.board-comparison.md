@@ -122,7 +122,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
           "index": 0
         },
         "app": {
-          "selector": "[data-navigator-card] [data-slot=\"item-content\"] > div:first-child > span:not(:first-child):last-child",
+          "selector": "[data-navigator-card] [data-slot=\"item-content\"] > div:first-child > span:not(:first-child):not([data-trailing]):last-child",
           "index": 0
         },
         "properties": [
