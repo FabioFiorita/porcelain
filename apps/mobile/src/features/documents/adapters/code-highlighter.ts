@@ -39,6 +39,32 @@ export function nextFrame(signal: AbortSignal): Promise<void> {
   });
 }
 
+const languageBundles = new Map(
+  [
+    bash,
+    javascript,
+    typescript,
+    jsx,
+    tsx,
+    json,
+    yaml,
+    python,
+    swift,
+    kotlin,
+    rust,
+    go,
+    html,
+    css,
+    markdown,
+  ]
+    .sort((left, right) => right.length - left.length)
+    .flatMap((bundle) =>
+      bundle.flatMap(({ name, aliases }) =>
+        [name, ...(aliases ?? [])].map((key) => [key, bundle] as const),
+      ),
+    ),
+);
+
 const MAX_BUSY_MS = 8;
 
 export async function createCodeHighlighter(
@@ -53,23 +79,7 @@ export async function createCodeHighlighter(
       colors: theme.colors,
       tokenColors: [...theme.tokenColors],
     })),
-    langs: [
-      bash,
-      javascript,
-      typescript,
-      jsx,
-      tsx,
-      json,
-      yaml,
-      python,
-      swift,
-      kotlin,
-      rust,
-      go,
-      html,
-      css,
-      markdown,
-    ],
+    langs: [],
   });
   return async (
     source: string,
@@ -79,13 +89,17 @@ export async function createCodeHighlighter(
   ): Promise<RenderToken[][]> => {
     if (signal.aborted) return [];
     await yieldToUI(signal);
+    if (signal.aborted) return [];
+    const lang = language?.toLowerCase();
+    const bundle = lang ? languageBundles.get(lang) : undefined;
+    if (lang && bundle && !highlighter.getLoadedLanguages().includes(lang))
+      highlighter.loadLanguageSync(...bundle);
     let grammarState: GrammarState | undefined;
     const tokenize =
-      language &&
-      highlighter.getLoadedLanguages().includes(language.toLowerCase())
+      lang && bundle
         ? (chunk: string) => {
             const tokens = highlighter.codeToTokensBase(chunk, {
-              lang: language.toLowerCase(),
+              lang,
               theme: `pierre-${scheme}`,
               ...(grammarState ? { grammarState } : {}),
             });
