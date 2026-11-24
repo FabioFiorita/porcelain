@@ -1,4 +1,4 @@
-import { useWritesBlocked } from '../../access';
+import { ComputerConnectionNotice, useWritesBlocked } from '../../access';
 import { useState } from 'react';
 import { useAtomRef, useAtomValue, useAtomSet } from '@effect/atom-react';
 import {
@@ -109,6 +109,7 @@ export function WorktreeActionsSheet({
       ) : (
         <Empty title="Worktree unavailable" />
       )}
+      <ComputerConnectionNotice environmentId={environmentId} />
     </Sheet>
   );
 }

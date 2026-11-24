@@ -13,7 +13,7 @@ import { Sheet } from '../../../components/ui/sheet';
 import { Text } from '../../../components/ui/text';
 import { useInventory } from '../queries/inventory';
 import { useRenameProject } from '../commands/project-actions';
-import { useWritesBlocked } from '../../access';
+import { ComputerConnectionNotice, useWritesBlocked } from '../../access';
 
 export function RenameProjectSheet({
   environmentId,
@@ -40,6 +40,7 @@ export function RenameProjectSheet({
       ) : (
         <Empty title="Project unavailable" />
       )}
+      <ComputerConnectionNotice environmentId={environmentId} />
     </Sheet>
   );
 }

@@ -23,7 +23,7 @@ import { Text } from '../../../components/ui/text';
 import { useReviewGitSettings } from '../../preferences';
 import { useInventory } from '../queries/inventory';
 import { useArchivePullRequest } from '../commands/archive-pull-request';
-import { useWritesBlocked } from '../../access';
+import { ComputerConnectionNotice, useWritesBlocked } from '../../access';
 
 type ArchiveTarget = {
   connection: RuntimeConnection;
@@ -97,6 +97,7 @@ export function ArchivePullRequestSheet({
       ) : (
         <ArchiveUnavailable />
       )}
+      <ComputerConnectionNotice environmentId={environmentId} />
     </Sheet>
   );
 }
