@@ -64,6 +64,7 @@ export const readChangeDiffWindow = Atom.family(
       readChangeDiffs({
         connection,
         scope,
+        read,
         input: {
           expectedStatusToken: statusToken,
           expectedFiles: batch.expectedFiles,

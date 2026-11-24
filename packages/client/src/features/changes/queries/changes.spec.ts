@@ -924,3 +924,60 @@ it('a stale diff from a later Changes read refreshes again even when the worktre
   }
   expect(recovery.refreshes()).toBe(4);
 });
+
+it('a diff answered "worktree changed" while the worktree settles back loads after one Changes refresh and stops refreshing', async () => {
+  let changesReads = 0;
+  let diffReads = 0;
+  const subject = fixture((path) => {
+    if (path.endsWith('/diffs')) {
+      diffReads += 1;
+      return Promise.resolve(
+        diffReads === 1 ? staleDiffAnswer() : Response.json(diffSnapshot),
+      );
+    }
+    changesReads += 1;
+    return changesReads > 4
+      ? new Promise<Response>(() => {})
+      : Promise.resolve(Response.json(snapshot));
+  });
+  const loaded = Promise.withResolvers<void>();
+  let following: number | undefined;
+  let stopWindow = () => {};
+  const follow = (read: number) => {
+    if (read === following) return;
+    following = read;
+    stopWindow();
+    stopWindow = subject.registry.subscribe(
+      readChangeDiffWindow({
+        connection: subject.connection,
+        scope,
+        statusToken: snapshot.statusToken,
+        read,
+        expectedFiles: diffInput.expectedFiles,
+        selections: diffInput.selections,
+      }),
+      ({ result }) => {
+        if (AsyncResult.isSuccess(result)) loaded.resolve();
+      },
+      { immediate: true },
+    );
+  };
+  const stopChanges = subject.registry.subscribe(
+    readChanges({ connection: subject.connection, scope }),
+    (result) => {
+      const answer = Option.getOrUndefined(AsyncResult.value(result));
+      if (answer) follow(answer.read);
+    },
+    { immediate: true },
+  );
+  try {
+    await loaded.promise;
+    expect({ changesReads, diffReads }).toEqual({
+      changesReads: 2,
+      diffReads: 2,
+    });
+  } finally {
+    stopWindow();
+    stopChanges();
+  }
+});
