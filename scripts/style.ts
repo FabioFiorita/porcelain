@@ -10,7 +10,6 @@ import {
   generatedRouteTree,
   type StyleRule,
 } from '../architecture/policy.ts';
-import { pinProblems, uiFolder } from '../architecture/shadcn-pins.ts';
 import {
   githubHeadLookupCommand,
   githubHeadLookupMessage,
@@ -24,6 +23,8 @@ import {
   serverDuplicateScope,
   toolingDuplicateScope,
 } from '../architecture/duplicate-policy.ts';
+
+const uiFolder = 'apps/web/src/components/ui';
 
 export async function checkStyle(
   mode: string | undefined,
@@ -669,9 +670,6 @@ export async function checkStyle(
       ...codeOutsideLintRoots(files),
       ...mobileNativeSourceOwnership(files),
       ...config,
-      ...(target === 'web'
-        ? pinProblems('.').map((found) => problem('shadcn-ui-pinned', found))
-        : []),
     ];
     for (const { rule, message } of problems)
       process.stderr.write(`error style(${rule}): ${message}\n`);

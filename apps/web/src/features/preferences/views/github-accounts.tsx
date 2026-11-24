@@ -185,7 +185,6 @@ function ProjectAccount({
             <Button
               size="xs"
               variant="link"
-              nativeButton={false}
               render={
                 <a
                   href={unavailable.action.url}

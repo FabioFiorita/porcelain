@@ -543,7 +543,6 @@ async function styleConfigFixture(entry) {
     const files = {
       'package.json': '{"type":"module"}',
       'architecture/fixture.ts': 'export {};',
-      'architecture/shadcn-pins.json': '{}',
       ...Object.fromEntries(
         [
           'src/fixture.ts',

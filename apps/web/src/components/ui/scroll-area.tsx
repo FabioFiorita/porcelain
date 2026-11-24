@@ -1,27 +1,38 @@
 import * as React from 'react';
-import { ScrollArea as ScrollAreaPrimitive } from '@base-ui/react/scroll-area';
+import {
+  ScrollArea as ScrollAreaRoot,
+  ScrollAreaCorner,
+  ScrollAreaScrollbar,
+  ScrollAreaThumb,
+  ScrollAreaViewport,
+} from '@ui-sdk/react/scroll-area';
 import { cn } from 'cn';
+
+type ClassNamed<Part extends React.ElementType> = Omit<
+  React.ComponentProps<Part>,
+  'className'
+> & { className?: string | undefined };
 
 function ScrollArea({
   className,
   children,
   ...props
-}: ScrollAreaPrimitive.Root.Props) {
+}: ClassNamed<typeof ScrollAreaRoot>) {
   return (
-    <ScrollAreaPrimitive.Root
+    <ScrollAreaRoot
       data-slot="scroll-area"
       className={cn('relative', className)}
       {...props}
     >
-      <ScrollAreaPrimitive.Viewport
+      <ScrollAreaViewport
         data-slot="scroll-area-viewport"
         className="size-full rounded-[inherit] transition-[color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1"
       >
         {children}
-      </ScrollAreaPrimitive.Viewport>
+      </ScrollAreaViewport>
       <ScrollBar />
-      <ScrollAreaPrimitive.Corner />
-    </ScrollAreaPrimitive.Root>
+      <ScrollAreaCorner />
+    </ScrollAreaRoot>
   );
 }
 
@@ -29,9 +40,9 @@ function ScrollBar({
   className,
   orientation = 'vertical',
   ...props
-}: ScrollAreaPrimitive.Scrollbar.Props) {
+}: ClassNamed<typeof ScrollAreaScrollbar>) {
   return (
-    <ScrollAreaPrimitive.Scrollbar
+    <ScrollAreaScrollbar
       data-slot="scroll-area-scrollbar"
       data-orientation={orientation}
       orientation={orientation}
@@ -41,12 +52,12 @@ function ScrollBar({
       )}
       {...props}
     >
-      <ScrollAreaPrimitive.Thumb
+      <ScrollAreaThumb
         data-slot="scroll-area-thumb"
         className="relative flex-1 rounded-full bg-border"
       />
-    </ScrollAreaPrimitive.Scrollbar>
+    </ScrollAreaScrollbar>
   );
 }
 
-export { ScrollArea, ScrollBar };
+export { ScrollArea, ScrollAreaRoot, ScrollAreaViewport, ScrollBar };

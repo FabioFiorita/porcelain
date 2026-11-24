@@ -34,7 +34,7 @@ export function ShortcutsDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        initialFocus="[data-slot=dialog-close]"
+        initialFocus="[data-dialog-close]"
         className="max-h-[85svh] grid-rows-[auto_minmax(0,1fr)] overflow-hidden sm:max-w-xl"
       >
         <DialogHeader className="flex-row items-center text-left">

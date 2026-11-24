@@ -115,6 +115,7 @@ function DialogContent({
         {showCloseButton && (
           <DialogClosePrimitive
             data-slot="dialog-close"
+            data-dialog-close=""
             render={
               <Button
                 variant="ghost"

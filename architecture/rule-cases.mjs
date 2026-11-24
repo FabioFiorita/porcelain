@@ -5105,7 +5105,6 @@ export const ProbeContext = createContext('');
     'apps/desktop/src/main/window.ts',
     'apps/mobile/src/components/ui/probe.tsx',
     'packages/client/src/features/files/store.ts',
-    'apps/web/src/components/ui/custom.tsx',
   ].flatMap((path) => [
     {
       rule: 'react-no-effects-or-refs',
@@ -5137,8 +5136,8 @@ export const ProbeContext = createContext('');
   ]),
   {
     rule: 'react-no-effects-or-refs',
-    path: 'apps/web/src/components/ui/custom.tsx',
-    validPath: 'apps/web/src/components/ui/sidebar.tsx',
+    path: 'apps/web/src/features/files/views/probe-view.tsx',
+    validPath: 'apps/web/src/components/ui/custom.tsx',
     valid:
       "import * as React from 'react'; React.useEffect(subscribe, []); React.useRef(null);",
     invalid: "import { useEffect } from 'react'; useEffect(subscribe, []);",
@@ -5216,6 +5215,15 @@ export const probeController = createDialogController();
   },
   {
     rule: 'web-ui-library-owner',
+    path: 'apps/web/src/features/files/views/probe-view.ts',
+    valid:
+      "export type ProbeProps = import('@/components/ui/button').ButtonProps;",
+    invalid:
+      "export type ProbeProps = import('@base-ui/react/button').Button.Props;",
+    errors: 1,
+  },
+  {
+    rule: 'web-ui-library-owner',
     path: 'apps/web/src/features/files/views/probe-view.tsx',
     valid: "export const probeDialog = () => import('@/components/ui/dialog');",
     invalid: "export const probeDialog = () => import('@ui-sdk/react/dialog');",
@@ -5234,6 +5242,20 @@ export const probeController = createDialogController();
     path: 'apps/web/src/features/files/views/probe-view.tsx',
     valid: 'export const probeDialog = () => import(`@/components/ui/dialog`);',
     invalid: 'export const probeDialog = () => import(`@ui-sdk/react/dialog`);',
+    errors: 1,
+  },
+  {
+    rule: 'web-ui-library-owner',
+    path: 'apps/web/src/components/ui/probe.tsx',
+    valid: "import { Button } from '@ui-sdk/react/button';",
+    invalid: "import { Button } from '@base-ui/react/button';",
+    errors: 1,
+  },
+  {
+    rule: 'web-ui-library-owner',
+    path: 'apps/web/src/components/ui/probe.tsx',
+    valid: "import { mergeProps } from '@ui-sdk/react/primitive';",
+    invalid: "import { useRender } from '@base-ui/react/use-render';",
     errors: 1,
   },
 
@@ -6285,79 +6307,6 @@ const styleConfigCases = [
     missingTool: true,
     status: 1,
     rules: [],
-  },
-  {
-    name: 'a UI SDK wrapper needs no shadcn pin',
-    target: 'web',
-    files: {
-      'apps/web/src/components/ui/dialog.tsx':
-        "import { Dialog } from '@ui-sdk/react/dialog';\nexport { Dialog };",
-    },
-    status: 0,
-    rules: [],
-  },
-  {
-    name: 'a UI SDK-listed file without a UI SDK import is pinned again',
-    target: 'web',
-    files: {
-      'apps/web/src/components/ui/dialog.tsx':
-        "export { Dialog } from '@base-ui/react/dialog';",
-    },
-    status: 1,
-    rules: ['shadcn-ui-pinned'],
-    tokens: [
-      'is listed as UI SDK-owned but imports no value from @ui-sdk/react',
-    ],
-  },
-  {
-    name: 'a type-only UI SDK re-export does not leave the shadcn pins',
-    target: 'web',
-    files: {
-      'apps/web/src/components/ui/dialog.tsx':
-        "export type { DialogProps } from '@ui-sdk/react/dialog';",
-    },
-    status: 1,
-    rules: ['shadcn-ui-pinned'],
-    tokens: [
-      'is listed as UI SDK-owned but imports no value from @ui-sdk/react',
-    ],
-  },
-  {
-    name: 'a type-only named UI SDK import does not leave the shadcn pins',
-    target: 'web',
-    files: {
-      'apps/web/src/components/ui/dialog.tsx':
-        "import { type DialogProps } from '@ui-sdk/react/dialog';\nexport type Probe = DialogProps;",
-    },
-    status: 1,
-    rules: ['shadcn-ui-pinned'],
-    tokens: [
-      'is listed as UI SDK-owned but imports no value from @ui-sdk/react',
-    ],
-  },
-  {
-    name: 'a type-only UI SDK import does not leave the shadcn pins',
-    target: 'web',
-    files: {
-      'apps/web/src/components/ui/dialog.tsx':
-        "import type { DialogProps } from '@ui-sdk/react/dialog';\nexport type Probe = DialogProps;",
-    },
-    status: 1,
-    rules: ['shadcn-ui-pinned'],
-    tokens: [
-      'is listed as UI SDK-owned but imports no value from @ui-sdk/react',
-    ],
-  },
-  {
-    name: 'an unlisted components/ui file still needs a pin',
-    target: 'web',
-    files: {
-      'apps/web/src/components/ui/badge.tsx':
-        "export { Dialog as Badge } from '@ui-sdk/react/dialog';",
-    },
-    status: 1,
-    rules: ['shadcn-ui-pinned'],
-    tokens: ['has no pin in architecture/shadcn-pins.json'],
   },
   ...['server', 'web'].flatMap((target) => [
     {

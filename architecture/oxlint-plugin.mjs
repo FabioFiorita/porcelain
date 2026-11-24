@@ -1799,13 +1799,9 @@ export default {
           const rawWeb =
             target.replace(/\.tsx?$/, '') ===
               'apps/web/src/components/ui/toast' ||
-            /^(?:@ui-sdk\/react\/(?:toast|overlays)(?:\/|$)|@base-ui\/react\/toast(?:\/|$)|sonner(?:\/|$))/.test(
+            /^(?:@ui-sdk\/react\/(?:toast|overlays)(?:\/|$)|sonner(?:\/|$))/.test(
               source,
-            ) ||
-            (source === '@base-ui/react' &&
-              node.specifiers?.some(
-                (specifier) => specifier.imported?.name === 'Toast',
-              ));
+            );
           const rawMobile =
             source === 'react-native' &&
             node.specifiers?.some(

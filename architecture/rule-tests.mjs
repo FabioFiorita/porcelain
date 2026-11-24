@@ -54,7 +54,6 @@ function diagnosticFixture(entry) {
       'architecture/duplicate-policy.ts',
       'architecture/duplicate-ceilings.json',
       'architecture/github-head-lookup.ts',
-      'architecture/shadcn-pins.ts',
     ]) {
       mkdirSync(dirname(join(directory, path)), { recursive: true });
       cpSync(new URL(path, root), join(directory, path));
@@ -321,7 +320,6 @@ for (const path of [
   'architecture/web-rules.mjs',
   'architecture/mobile-rules.mjs',
   'architecture/hollow-tests.mjs',
-  'architecture/shadcn-pins.ts',
   'scripts/style.ts',
 ]) {
   const source = readFileSync(new URL(path, root), 'utf8');

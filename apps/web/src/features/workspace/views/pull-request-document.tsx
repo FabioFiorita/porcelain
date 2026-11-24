@@ -192,7 +192,6 @@ function PullRequestActions({
             <Button
               variant="ghost"
               size="sm"
-              nativeButton={false}
               render={<a href={url} target="_blank" rel="noreferrer" />}
               aria-label="Open on GitHub"
               className=""
@@ -428,7 +427,6 @@ function PullRequestTimelineItem({
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  nativeButton={false}
                   render={
                     <a href={item.url} target="_blank" rel="noreferrer" />
                   }
@@ -666,7 +664,6 @@ function UnavailablePullRequest({
     button = (
       <Button
         variant="outline"
-        nativeButton={false}
         render={<a href={action.url} target="_blank" rel="noreferrer" />}
       >
         <ArrowUpRightIcon />

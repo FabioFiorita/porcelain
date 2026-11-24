@@ -1,6 +1,9 @@
 import * as React from 'react';
-import { mergeProps } from '@base-ui/react/merge-props';
-import { useRender } from '@base-ui/react/use-render';
+import {
+  mergeProps,
+  renderPart,
+  type PartElementProps,
+} from '@/components/ui/render-part';
 import { cn } from 'cn';
 import { ChevronRightIcon, MoreHorizontalIcon } from 'lucide-react';
 
@@ -42,10 +45,10 @@ function BreadcrumbLink({
   className,
   render,
   ...props
-}: useRender.ComponentProps<'a'>) {
-  return useRender({
+}: PartElementProps<'a'>) {
+  return renderPart({
     defaultTagName: 'a',
-    props: mergeProps<'a'>(
+    props: mergeProps(
       {
         className: cn('transition-colors hover:text-foreground', className),
       },

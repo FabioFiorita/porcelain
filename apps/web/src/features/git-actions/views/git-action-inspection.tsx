@@ -327,7 +327,10 @@ function ActionForm({
           </Field>
         )}
         <label className="flex items-center gap-2 text-sm">
-          <Checkbox checked={option} onCheckedChange={setOption} />
+          <Checkbox
+            checked={option}
+            onCheckedChange={(checked) => setOption(checked === true)}
+          />
           {action === 'stash-create'
             ? 'Include untracked files'
             : 'Restore staged changes'}

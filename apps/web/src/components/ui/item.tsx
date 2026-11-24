@@ -1,6 +1,9 @@
 import * as React from 'react';
-import { mergeProps } from '@base-ui/react/merge-props';
-import { useRender } from '@base-ui/react/use-render';
+import {
+  mergeProps,
+  renderPart,
+  type PartElementProps,
+} from '@/components/ui/render-part';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from 'cn';
 
@@ -62,10 +65,10 @@ function Item({
   size = 'default',
   render,
   ...props
-}: useRender.ComponentProps<'div'> & VariantProps<typeof itemVariants>) {
-  return useRender({
+}: PartElementProps<'div'> & VariantProps<typeof itemVariants>) {
+  return renderPart({
     defaultTagName: 'div',
-    props: mergeProps<'div'>(
+    props: mergeProps(
       {
         className: cn(itemVariants({ variant, size, className })),
       },
