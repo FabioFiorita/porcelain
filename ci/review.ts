@@ -34,6 +34,8 @@ import {
 import { decisionModel, dollars, reviewModel } from './openai.ts';
 
 const reviewDeadlineMs = 15 * 60 * 1000;
+const mergeRetryDelaysMs = [1000, 2000, 4000, 8000];
+const mergeBlockedMessage = 'the base branch policy prohibits the merge';
 
 const PullRequestView = Schema.Struct({
   number: Schema.Int,
@@ -250,8 +252,10 @@ function merge(repository: string, view: PullRequestView): string | undefined {
   } catch (error) {
     const stderr =
       error instanceof Error && 'stderr' in error ? String(error.stderr) : '';
+    const lines = stderr.trim().split('\n');
     return (
-      stderr.trim().split('\n').at(-1) ||
+      lines.find((line) => line.endsWith(`${mergeBlockedMessage}.`)) ||
+      lines.at(-1) ||
       (error instanceof Error ? error.message : String(error))
     );
   }
@@ -365,9 +369,9 @@ const fail = (reason: string) => {
   }
 };
 process.once('exit', (code) => {
-  if (code === 0) return;
+  if (code === 0 || summarized) return;
   fail(`exit code ${code}`);
-  if (!summarized) writeSummary(number, `stopped with exit code ${code}`);
+  writeSummary(number, `stopped with exit code ${code}`);
 });
 report('pending', 'Checking landing rules for this commit');
 
@@ -483,15 +487,50 @@ try {
       step: nextStep(assessment, now),
     };
   };
-  const unchanged = (latest: PullRequestView) =>
+  const sameTarget = (latest: PullRequestView) =>
     latest.headRefOid === view.headRefOid &&
-    latest.baseRefName === view.baseRefName &&
+    latest.baseRefName === view.baseRefName;
+  const unchanged = (latest: PullRequestView) =>
+    sameTarget(latest) &&
     (!promotion || latest.baseRefOid === view.baseRefOid) &&
     latest.state === 'OPEN' &&
     !latest.isDraft &&
     latest.labels.some((label) => label.name === labels.review) === requested &&
     (markedReviewedHead === undefined ||
       latest.labels.some((label) => label.name === labels.reviewed));
+  const land = async () => {
+    let mergeError = merge(repository, view);
+    for (const delay of mergeRetryDelaysMs) {
+      if (!mergeError?.endsWith(`${mergeBlockedMessage}.`)) break;
+      console.log(`GitHub blocked the merge. Checking again in ${delay} ms.`);
+      await sleep(delay);
+      const candidate = readView(repository, number);
+      if (sameTarget(candidate) && candidate.state === 'MERGED')
+        return 'merged';
+      if (!unchanged(candidate)) {
+        const reason = 'The pull request changed before it could merge';
+        report('failure', reason);
+        return reason;
+      }
+      const { step } = judge(
+        candidate.body,
+        new Set(candidate.labels.map((label) => label.name)),
+      );
+      if (!step.merge) {
+        report(step.status, step.description);
+        return step.description;
+      }
+      mergeError = merge(repository, view);
+    }
+    if (!mergeError) return 'merged';
+    const stillBlocked = mergeError.endsWith(`${mergeBlockedMessage}.`);
+    const reason = stillBlocked
+      ? `Merge still blocked after retries: ${mergeError}`
+      : `Merging failed: ${mergeError}`;
+    report('failure', reason);
+    if (stillBlocked) process.exitCode = 1;
+    return reason;
+  };
   const before = readView(repository, number);
   const first = unchanged(before)
     ? judge(before.body, new Set(before.labels.map((label) => label.name)))
@@ -526,19 +565,13 @@ try {
     report('failure', 'The pull request changed before this verdict');
   } else {
     report(settled.status, settled.description);
-    const mergeError = settled.merge ? merge(repository, view) : undefined;
-    if (mergeError) report('failure', `Merging failed: ${mergeError}`);
-    outcome = mergeError
-      ? `merge failed: ${mergeError}`
-      : settled.merge
-        ? 'merged'
-        : settled.description;
+    outcome = settled.merge ? await land() : settled.description;
   }
 } catch (error) {
   outcome = error instanceof Error ? error.message : String(error);
   fail(outcome);
   process.exitCode = 1;
 } finally {
-  summarized = true;
   writeSummary(number, outcome);
+  summarized = true;
 }

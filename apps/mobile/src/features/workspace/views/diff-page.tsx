@@ -53,6 +53,7 @@ export function DiffPage<F extends DiffPageFile>({
   part,
   onOpenFile,
   onFocused,
+  onFirstHeadingLayout,
 }: {
   page: string;
   title: string;
@@ -65,6 +66,7 @@ export function DiffPage<F extends DiffPageFile>({
   part: (props: DiffPagePartProps<F>) => ReactNode;
   onOpenFile: (file: F) => void;
   onFocused?: (() => void) | undefined;
+  onFirstHeadingLayout?: (() => void) | undefined;
 }) {
   const reading = useAtomValue(diffPageOpening(page));
   const focused = files.findIndex((file) => file.key === initialFile);
@@ -163,6 +165,8 @@ export function DiffPage<F extends DiffPageFile>({
               renderItem={({ item, index }) => {
                 const file = files[item.file];
                 if (!file) return null;
+                const firstHeadingLayout =
+                  index === 0 ? onFirstHeadingLayout : undefined;
                 const content = part({
                   file,
                   index: item.file,
@@ -172,11 +176,9 @@ export function DiffPage<F extends DiffPageFile>({
                 return (
                   <View
                     collapsable={false}
-                    {...(index === pending
-                      ? {
-                          onLayout: () => aim(index),
-                        }
-                      : {})}
+                    onLayout={
+                      index === pending ? () => aim(index) : firstHeadingLayout
+                    }
                   >
                     {content}
                   </View>
