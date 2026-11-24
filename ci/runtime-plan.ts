@@ -1,5 +1,13 @@
 import { execFileSync } from 'node:child_process';
 
+const packageInputs = [
+  'package.json',
+  'pnpm-lock.yaml',
+  'pnpm-workspace.yaml',
+  'scripts/build-package.ts',
+  'scripts/check-package.sh',
+];
+
 export function runtimePlan(
   release: boolean,
   changed: readonly string[],
@@ -39,7 +47,7 @@ export function runtimePlan(
     storage:
       allRuntime ||
       changed.some((path) => path.startsWith('packages/storage/')),
-    package: allRuntime || changedPaths.has('scripts/check-package.sh'),
+    package: allRuntime || packageInputs.some((path) => changedPaths.has(path)),
     shards: release ? [1, 2, 3, 4] : [1],
     'browser-shards': release ? [1, 2, 3, 4, 5, 6] : [1],
     integration: [...integration].map(relativeToWeb),

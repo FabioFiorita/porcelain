@@ -6480,12 +6480,6 @@ export const guardrailCases = [
         unitProjects: ['@porcelain/desktop'],
       },
       {
-        name: 'packed server verification script selects the package job',
-        path: 'scripts/check-package.sh',
-        source: 'true',
-        selected: ['package'],
-      },
-      {
         name: 'web rule test selects only web unit tests',
         path: 'apps/web/src/features/reviews/rules/ci-fixture.spec.ts',
         source: 'export const fixture = true;',
@@ -6545,7 +6539,10 @@ export const guardrailCases = [
         name: `${path} selects rule fixtures`,
         rules: true,
         path,
-        selected: [],
+        selected:
+          path === 'package.json' || path === 'pnpm-workspace.yaml'
+            ? ['package']
+            : [],
       })),
       ...[
         {
@@ -6574,8 +6571,13 @@ export const guardrailCases = [
   },
   {
     rule: 'ci-task-inputs',
-    nodeTasks: ['test:rules', 'mobile:react-compiler'],
-    shellJobs: ['package'],
+    requiredImports: {
+      'test:rules': ['packages/changes/src/models/index.ts'],
+    },
+    negative: {
+      task: 'test:rules',
+      path: 'packages/changes/src/models/index.ts',
+    },
   },
   {
     rule: 'ci-landing-completion',

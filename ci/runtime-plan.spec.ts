@@ -81,10 +81,13 @@ it('requires every runtime suite on promotion even when only documentation chang
   });
 });
 
-it('runs the package job when its installed-package check changes', () => {
-  expect(runtimePlan(false, ['scripts/check-package.sh'], [])).toMatchObject({
-    package: true,
-    server: false,
-    desktop: false,
-  });
-});
+it.each(['scripts/check-package.sh', 'scripts/build-package.ts'])(
+  'runs the package job when %s changes',
+  (path) => {
+    expect(runtimePlan(false, [path], [])).toMatchObject({
+      package: true,
+      server: false,
+      desktop: false,
+    });
+  },
+);
