@@ -3,6 +3,8 @@ import { Atom } from 'effect/reactivity';
 import type { RuntimeConnection } from '../../../shared/api/connection.ts';
 import { clientRuntime } from '../../../shared/api/runtime.ts';
 
+const RECENT_OBSERVATIONS = 16;
+
 type RecoveryState = {
   readonly attempted: Readonly<Record<string, readonly string[]>>;
   readonly pending: Readonly<Record<string, readonly string[]>>;
@@ -36,7 +38,9 @@ export class ChangedDiffRecovery extends Context.Service<
                     {
                       attempted: {
                         ...current.attempted,
-                        [key]: [...(current.attempted[key] ?? []), token],
+                        [key]: [...(current.attempted[key] ?? []), token].slice(
+                          -RECENT_OBSERVATIONS,
+                        ),
                       },
                       pending: {
                         ...current.pending,

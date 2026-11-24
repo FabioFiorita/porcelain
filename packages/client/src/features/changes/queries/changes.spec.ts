@@ -771,13 +771,49 @@ async function inspectAgain(subject: ReturnType<typeof fixture>) {
   return { state, stop, command };
 }
 
-it('two diff windows of one worktree at different observations each start one stale-diff recovery', async () => {
+function staleRecovery() {
   let inspections = 0;
   const subject = fixture((path) => {
     if (path.endsWith('/diffs')) return Promise.resolve(staleDiffAnswer());
     inspections += 1;
     return new Promise<Response>(() => {});
   });
+  return { subject, inspections: () => inspections };
+}
+
+function recoveryWatch(registry: AtomRegistry.AtomRegistry) {
+  const stops: Array<() => void> = [];
+  const pending = new Map<string, boolean>();
+  const watch = (
+    name: string,
+    window: ReturnType<typeof readChangeDiffWindow>,
+    until: (state: { pending: boolean; attempted: boolean }) => boolean,
+  ) =>
+    new Promise<void>((resolve) => {
+      stops.push(
+        registry.subscribe(
+          window,
+          ({ recovery }) => {
+            const state = Option.getOrUndefined(AsyncResult.value(recovery));
+            pending.set(name, state?.pending ?? false);
+            if (state && until(state)) resolve();
+          },
+          { immediate: true },
+        ),
+      );
+    });
+  return {
+    watch,
+    pendingTogether: (names: readonly string[]) =>
+      names.every((name) => pending.get(name) === true),
+    stop: () => {
+      for (const stop of stops) stop();
+    },
+  };
+}
+
+it('two diff windows of one worktree at different observations each start one stale-diff recovery and stay pending together', async () => {
+  const { subject, inspections } = staleRecovery();
   const windowAt = (statusToken: string) =>
     readChangeDiffWindow({
       connection: subject.connection,
@@ -786,26 +822,51 @@ it('two diff windows of one worktree at different observations each start one st
       expectedFiles: diffInput.expectedFiles,
       selections: diffInput.selections,
     });
-  const recovering = (statusToken: string) =>
-    new Promise<void>((resolve) => {
-      const stop = subject.registry.subscribe(
-        windowAt(statusToken),
-        ({ recovery }) => {
-          if (
-            Option.exists(
-              AsyncResult.value(recovery),
-              (state) => state.attempted,
-            )
-          ) {
-            resolve();
-          }
-        },
-        { immediate: true },
-      );
-      stops.push(stop);
+  const recovery = recoveryWatch(subject.registry);
+  try {
+    await Promise.all([
+      recovery.watch(
+        'first',
+        windowAt('a'.repeat(64)),
+        (state) => state.pending,
+      ),
+      recovery.watch(
+        'second',
+        windowAt('b'.repeat(64)),
+        (state) => state.pending,
+      ),
+    ]);
+    expect(recovery.pendingTogether(['first', 'second'])).toBe(true);
+  } finally {
+    recovery.stop();
+  }
+  expect(inspections()).toBe(2);
+});
+
+it('a stale diff at a status token seen before but with changed file contents starts its own recovery', async () => {
+  const { subject, inspections } = staleRecovery();
+  const windowWith = (fingerprint: string) =>
+    readChangeDiffWindow({
+      connection: subject.connection,
+      scope,
+      statusToken: snapshot.statusToken,
+      expectedFiles: [{ path: 'README.md', fingerprint }],
+      selections: diffInput.selections,
     });
-  const stops: Array<() => void> = [];
-  await Promise.all([recovering('a'.repeat(64)), recovering('b'.repeat(64))]);
-  for (const stop of stops) stop();
-  expect(inspections).toBe(2);
+  const recovery = recoveryWatch(subject.registry);
+  try {
+    await recovery.watch(
+      'earlier',
+      windowWith('c'.repeat(64)),
+      (state) => state.attempted,
+    );
+    await recovery.watch(
+      'later',
+      windowWith('d'.repeat(64)),
+      (state) => state.pending,
+    );
+  } finally {
+    recovery.stop();
+  }
+  expect(inspections()).toBe(2);
 });
