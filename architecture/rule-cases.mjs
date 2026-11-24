@@ -6451,11 +6451,17 @@ export const guardrailCases = [
         source: 'export const fixture = true;',
         selected: ['web-e2e'],
       },
-      { name: 'unchanged selects nothing', selected: [], unitProjects: [] },
+      {
+        name: 'unchanged selects nothing',
+        selected: [],
+        unitProjects: [],
+        shards: [1],
+      },
       {
         name: 'release selects every runtime gate without changed files',
         release: true,
         rules: true,
+        shards: [1, 2, 3, 4],
         selected: [
           'server',
           'web-integration',
@@ -6589,10 +6595,11 @@ export const guardrailCases = [
     webE2eShardPlan: "${{ fromJSON(needs.affected.outputs.shards || '[1]') }}",
     webE2eCases: [
       {
-        name: 'ordinary browser job executes its full shard',
-        shard: '3',
+        name: 'release browser job uses the matrix shard total',
+        shard: '2',
+        jobTotal: '3',
         specs: [],
-        commands: ['--shard=3/4'],
+        commands: ['--shard=2/3'],
         status: 0,
       },
       {
