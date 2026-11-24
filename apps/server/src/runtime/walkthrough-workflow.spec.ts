@@ -78,7 +78,7 @@ it('accepts one durable active run per head, serializes writers, drains foreign 
   await writeFile(
     command,
     '#!/usr/bin/env node\n' +
-      `const fs = require('fs'); fs.writeFileSync('started', String(process.pid)); setInterval(() => {}, 1000);`,
+      `const fs = require('fs'); fs.writeFileSync('started.pid', String(process.pid)); fs.renameSync('started.pid', 'started'); setInterval(() => {}, 1000);`,
     { mode: 0o700 },
   );
   const notices: string[] = [];
@@ -198,6 +198,7 @@ it('accepts one durable active run per head, serializes writers, drains foreign 
   );
   await marker;
   const pid = Number(await readFile(join(repo, 'started'), 'utf8'));
+  expect(Number.isSafeInteger(pid) && pid > 0).toBe(true);
   const statuses = await runtime.runPromise(
     Effect.gen(function* () {
       const store = yield* WalkthroughStore;
@@ -214,8 +215,11 @@ it('accepts one durable active run per head, serializes writers, drains foreign 
     }),
   );
   expect(statuses).toEqual(['running', 'queued']);
+  expect(process.kill(pid, 0)).toBe(true);
   await runtime.dispose();
-  expect(() => process.kill(pid, 0)).toThrow();
+  expect(() => process.kill(pid, 0)).toThrow(
+    expect.objectContaining({ code: 'ESRCH' }),
+  );
   runtime = ManagedRuntime.make(layers);
   const recovered = await runtime.runPromise(
     Effect.gen(function* () {
