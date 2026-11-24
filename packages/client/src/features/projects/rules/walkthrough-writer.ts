@@ -20,8 +20,13 @@ export function walkthroughWriterStatus(
       entry.provider === writer.provider && entry.model === writer.model,
   );
   const provider = writer.provider === 'claude' ? 'Claude' : 'Codex';
+  const availability = !model
+    ? 'missing-model'
+    : model.efforts.includes(writer.effort)
+      ? 'ready'
+      : 'unsupported-effort';
   return {
-    available: model !== undefined,
+    availability,
     label: `${provider} / ${model?.label ?? writer.model} · ${writer.effort}`,
   };
 }

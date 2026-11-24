@@ -66,7 +66,9 @@ export function WalkthroughStart({
   let action = (
     <Button
       size="sm"
-      disabled={Boolean(writeBlock) || waiting || !writer?.available}
+      disabled={
+        Boolean(writeBlock) || waiting || writer?.availability !== 'ready'
+      }
       aria-description={writeBlock}
       onClick={onWrite}
     >
@@ -80,8 +82,11 @@ export function WalkthroughStart({
   } else if (noWriters) {
     note = 'Sign in to Claude Code or Codex on the connected computer.';
     action = checkAgain;
-  } else if (writer && !writer.available) {
-    note = `${writer.label} is unavailable.`;
+  } else if (writer && writer.availability !== 'ready') {
+    note =
+      writer.availability === 'unsupported-effort'
+        ? `${writer.label} is unavailable. Choose a supported effort.`
+        : `${writer.label} is unavailable.`;
     action = project?.walkthroughSettings?.writer ? (
       <Button
         variant="outline"

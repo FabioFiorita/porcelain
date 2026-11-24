@@ -46,4 +46,6 @@ A project with a saved unavailable writer still shows the unavailable warning. C
 
 With an unavailable project override and another available writer, the empty Walkthrough's Project walkthrough settings action opens that project's dialog on its own computer. Choose Use the default, save and independently read inventory: the override is absent, the effective available writer is shown and Write walkthrough is enabled. An unavailable global default instead links to Changes & Git.
 
+With a saved Codex writer whose model is still listed but no longer offers the saved effort, the empty Walkthrough asks for a supported effort before offering Write walkthrough. Follow its settings action, select a listed effort and save. Return to Review and confirm Write walkthrough is enabled.
+
 The default writer uses the same outlined setting row as Spec files and Pull strategy, with its description beside the controls. The shared-computer notice names Changes & Git.
