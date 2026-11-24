@@ -921,6 +921,37 @@ const nativeLaneCases = [
 ];
 
 export default [
+  ...[
+    [
+      'ci/explain-failure.ts',
+      'const pulls = `repos/${repository}/pulls`; gh(["api", `${pulls}?state=open&head=${head}`]);',
+    ],
+    [
+      'ci/explain-failure.ts',
+      'const commit = `repos/${repository}/commits/${sha}`; gh(["api", `${commit}/pulls`]);',
+    ],
+    [
+      'ci/explain-failure.ts',
+      'const options = ["-f", `head=${head}`] as const; gh(["api", pulls, ...options]);',
+    ],
+    [
+      'scripts/pulls.ts',
+      'execFileSync("gh", ["pr", "list", "--head", branch]);',
+    ],
+    ['scripts/pulls.ts', 'spawnSync("gh", ["pr", "list", "-H", branch]);'],
+    [
+      'scripts/pulls.ts',
+      'execSync("gh api repos/owner/repo/pulls --method GET -f head=main");',
+    ],
+  ].map(([path, invalid]) => ({
+    rule: 'ci-pull-request-resolver',
+    path,
+    valid:
+      'const args = ["api", pulls, "-f", "state=open"]; execFileSync("gh", args);',
+    invalid,
+    errors: 1,
+  })),
+
   {
     rule: 'ci-pull-request-resolver',
     path: 'ci/explain-failure.ts',
@@ -5861,6 +5892,15 @@ const styleConfigCases = [
     details: [toolOutput === '{}' ? '{}' : 'SyntaxError'],
   })),
   { name: 'canonical configs and empty source', status: 0, rules: [] },
+  {
+    name: 'shell scripts use the CI pull request resolver',
+    files: {
+      'scripts/resolve-pull.sh': 'gh pr list --head main\n',
+    },
+    status: 1,
+    rules: [],
+    findings: ['porcelain(ci-pull-request-resolver)'],
+  },
   ...[
     ['events-after-lane', 'warning', 1],
     ['use-case-input-is-contract', 'warning', 1],
@@ -6430,20 +6470,6 @@ export const guardrailCases = [
         selected: [],
         rules: true,
       },
-      {
-        name: 'disposable app scripts select the tooling ceiling check',
-        path: '.agents/skills/new-verifier/scripts/ci-fixture.mjs',
-        source: 'export {};',
-        selected: [],
-        rules: true,
-      },
-      {
-        name: 'package spec helpers select the tooling ceiling check',
-        path: 'packages/client/spec/kit/ci-fixture.spec.ts',
-        source: 'export {};',
-        selected: ['web-e2e'],
-        rules: true,
-      },
       ...['repository-queries', 'typescript-project'].map((name) => ({
         name: `${name} selects rules`,
         path: `architecture/${name}.ts`,
@@ -6515,7 +6541,6 @@ export const guardrailCases = [
       },
       {
         name: 'desktop test helpers select their unit project',
-        rules: true,
         path: 'scripts/desktop-ci-fixture.spec.ts',
         source: 'export const fixture = true;',
         selected: [],
@@ -6523,7 +6548,6 @@ export const guardrailCases = [
       },
       {
         name: 'crash collector selects its desktop unit project',
-        rules: true,
         path: 'scripts/collect-desktop-crashes.sh',
         source: 'true',
         selected: [],
@@ -6591,6 +6615,13 @@ export const guardrailCases = [
         path,
         selected: [],
       })),
+      {
+        name: 'duplicate policy edits select rule fixtures',
+        path: 'architecture/duplicate-policy.ts',
+        source: 'export {};',
+        rules: true,
+        selected: [],
+      },
       ...[
         {
           name: 'root Vite configuration selects every runtime gate and the preferred integration smoke',
@@ -7223,15 +7254,23 @@ Effect.runPromise(Effect.provideService(read, WorktreeRead, { assert: () => unde
     valid,
     invalid,
   })),
-  { rule: 'tooling-duplicate-ceiling' },
+  {
+    rule: 'duplicate-ceiling',
+    ceilings: { server: 2, tooling: 1 },
+    source: duplicateFixtureSource,
+  },
   ...[
     ['ci/copy.ts', 'architecture/copy-again.ts'],
     ['scripts/copy.ts', '.agents/skills/new-verifier/scripts/copy-again.ts'],
     ['architecture/copy.mjs', 'scripts/copy-again.mjs'],
     ['packages/new-domain/spec/kit/copy.ts', 'scripts/copy-again.ts'],
+    ['.agents/skills/verify-core/copy.ts', 'scripts/copy-again.ts'],
+    ['apps/server/spec/kit/copy.ts', 'apps/web/spec/kit/copy-again.ts'],
+    ['ci/copy.ts', 'ci/copy-again.spec.ts'],
   ].map(([first, second]) => ({
     rule: 'duplicate-code',
     scope: 'tooling',
+    rejected: !second.endsWith('.spec.ts'),
     first,
     second,
     valid: 'export const label = "Unique";',

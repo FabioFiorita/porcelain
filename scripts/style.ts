@@ -12,7 +12,14 @@ import {
 } from '../architecture/policy.ts';
 import { pinProblems, uiFolder } from '../architecture/shadcn-pins.ts';
 import {
+  githubHeadLookupCommand,
+  githubHeadLookupMessage,
+} from '../architecture/github-head-lookup.ts';
+import {
+  clonesChangedSince,
+  duplicateComparison,
   duplicateScope,
+  raisedDuplicateCeiling,
   scanDuplicates,
   serverDuplicateScope,
   toolingDuplicateScope,
@@ -482,6 +489,7 @@ export async function checkStyle(
   };
   function duplicateFindings(
     scope: ReturnType<typeof duplicateScope>,
+    comparison: ReturnType<typeof duplicateComparison>,
   ): Finding[] {
     const report = scanDuplicates(process.cwd(), scope);
     const total = report.statistics.total;
@@ -489,21 +497,77 @@ export async function checkStyle(
     process.stdout.write(
       `Duplicate code (${scope.name}): ${total.clones} clones, ${total.duplicatedLines} duplicated lines (limit ${scope.ceiling} ${unit}). ${scope.why}\n`,
     );
-    if (!report.exceeded) return [];
     const at = (name: string) => relative('.', name);
-    return report.duplicates.flatMap((clone) =>
-      [
-        [clone.firstFile, clone.secondFile],
-        [clone.secondFile, clone.firstFile],
-      ].map(([here, there]) => ({
-        rule: 'style/duplicate-code',
-        file: at(here?.name ?? ''),
-        line: here?.start ?? 0,
-        column: 0,
-        code: 'error style(duplicate-code)',
-        message: `${clone.lines} lines here repeat ${at(there?.name ?? '')}:${there?.start ?? 0}; ${scope.name} has ${report.count} ${unit}, above its ceiling of ${scope.ceiling}. ${scope.why} Extract the copy into its owner, because duplicated fixes drift between copies.`,
-      })),
-    );
+    const ceilingMessage = (message: string): Finding => ({
+      rule: 'style/duplicate-code',
+      file: 'architecture/duplicate-ceilings.json',
+      line: 1,
+      column: 1,
+      code: 'error style(duplicate-code)',
+      message,
+    });
+    const baseCeiling = raisedDuplicateCeiling(scope, comparison);
+    if (baseCeiling !== undefined)
+      return [
+        ceilingMessage(
+          `Lower the ${scope.name} ceiling to ${baseCeiling} clones or fewer, because the limit cannot increase from the base branch.`,
+        ),
+      ];
+    if (scope.name !== 'client' && report.count < scope.ceiling)
+      process.stdout.write(
+        `Lower the ${scope.name} ceiling in architecture/duplicate-ceilings.json to ${report.count} clones to keep removed copies from returning.\n`,
+      );
+    if (!report.exceeded) return [];
+    let duplicates = report.duplicates;
+    if (scope.name !== 'client') {
+      duplicates = comparison
+        ? clonesChangedSince(process.cwd(), comparison.base, report.duplicates)
+        : [];
+    }
+    return [
+      ceilingMessage(
+        `${scope.name} has ${report.count} clones, above its ceiling of ${scope.ceiling}. ${scope.why}`,
+      ),
+      ...duplicates.flatMap((clone) =>
+        [
+          [clone.firstFile, clone.secondFile],
+          [clone.secondFile, clone.firstFile],
+        ].map(([here, there]) => ({
+          rule: 'style/duplicate-code',
+          file: at(here?.name ?? ''),
+          line: here?.start ?? 0,
+          column: 0,
+          code: 'error style(duplicate-code)',
+          message: `${clone.lines} lines here repeat ${at(there?.name ?? '')}:${there?.start ?? 0}; ${scope.name} has ${report.count} ${unit}, above its ceiling of ${scope.ceiling}. ${scope.why} Extract the copy into its owner, because duplicated fixes drift between copies.`,
+        })),
+      ),
+    ];
+  }
+  function shellGitHubFindings(): Finding[] {
+    if (!existsSync('scripts')) return [];
+    return filesUnder('scripts')
+      .filter((file) => file.endsWith('.sh'))
+      .flatMap((file) => {
+        let line = 1;
+        return readFileSync(file, 'utf8')
+          .split(/(?<!\\)\n/)
+          .flatMap((command) => {
+            const start = line;
+            line += command.split('\n').length;
+            if (!githubHeadLookupCommand(command.replaceAll('\\\n', ' ')))
+              return [];
+            return [
+              {
+                rule: 'porcelain/ci-pull-request-resolver',
+                file,
+                line: start,
+                column: 1,
+                code: 'error porcelain(ci-pull-request-resolver)',
+                message: githubHeadLookupMessage,
+              },
+            ];
+          });
+      });
   }
   async function lint(): Promise<number> {
     const files = roots
@@ -552,7 +616,15 @@ export async function checkStyle(
       target === 'web'
         ? [duplicateScope()]
         : [serverDuplicateScope(), toolingDuplicateScope(process.cwd())];
-    const reported = [...linted, ...duplicateScopes.flatMap(duplicateFindings)];
+    const comparison =
+      target === 'server' ? duplicateComparison(process.cwd()) : undefined;
+    const reported = [
+      ...linted,
+      ...(target === 'server' ? shellGitHubFindings() : []),
+      ...duplicateScopes.flatMap((scope) =>
+        duplicateFindings(scope, comparison),
+      ),
+    ];
     for (const finding of reported)
       process.stdout.write(
         `${finding.file}:${finding.line}:${finding.column}: ${finding.code}: ${finding.message}\n`,

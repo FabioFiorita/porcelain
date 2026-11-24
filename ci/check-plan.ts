@@ -5,7 +5,6 @@ import { globSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { parse } from 'yaml';
-import { toolingDuplicateDirectories } from '../architecture/duplicate-policy.ts';
 
 const staticTasks = [
   'typecheck',
@@ -58,7 +57,6 @@ const matches = (path: string, patterns: readonly string[]) =>
 const verification = '.agents/skills';
 const web = 'apps/web';
 const testFile = /\.(?:spec|test|e2e|integration)\.tsx?$/;
-const toolingInputs = toolingDuplicateDirectories.map((path) => `${path}/**`);
 
 function workspaces(root: string): Workspace[] {
   const workspace = Schema.decodeUnknownSync(workspaceConfig)(
@@ -107,10 +105,12 @@ function affectsDependents(path: string, workspace: Workspace): boolean {
 function rootInput(task: string, path: string): boolean {
   switch (task) {
     case 'test:rules':
-      if (matches(path, toolingInputs)) return true;
       return (
         matches(path, [
+          'architecture/**',
+          'ci/**',
           '.github/workflows/agent-review.yml',
+          'scripts/{style,architecture,feature-maps,feature-api-routes,react-compiler}.ts',
           '**/tsconfig*.json',
           'apps/mobile/babel.config.js',
           'apps/server/spec/kit/route-coverage.ts',
@@ -118,6 +118,7 @@ function rootInput(task: string, path: string): boolean {
           'packages/{access,changes,files,git-actions,projects,reviews}/src/errors/**',
           'packages/{contracts,agents,kernel}/src/**',
           'packages/process/**',
+          'packages/storage/spec/kit/{native-database,repository-queries}.ts',
           'packages/storage/scripts/native-migration-history.ts',
           'packages/git/src/shared/errors/**',
           'packages/effects/src/worktree-lease.ts',
@@ -184,6 +185,8 @@ export function checkPlan(
         'pnpm-{workspace,lock}.yaml',
         'vite.config.ts',
         'ci/check-plan.ts',
+        'architecture/duplicate-policy.ts',
+        'architecture/duplicate-ceilings.json',
         '.github/workflows/ci.yml',
       ]),
     );

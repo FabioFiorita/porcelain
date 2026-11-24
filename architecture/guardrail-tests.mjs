@@ -27,7 +27,10 @@ import { Statement } from 'effect/sql';
 import { domainPackages } from './policy.ts';
 import { typeRuleFindings } from './type-rules.ts';
 import {
+  clonesChangedSince,
+  duplicateComparison,
   duplicateScope,
+  raisedDuplicateCeiling,
   scanDuplicates,
   serverDuplicateScope,
   toolingDuplicateScope,
@@ -345,12 +348,11 @@ function ciSelectionFixture(entry) {
           fixture.unitProjects,
           `${fixture.name}: affected unit projects`,
         );
-      if (fixture.rules !== undefined)
-        strictEqual(
-          plan('static').includes('//#test:rules'),
-          fixture.rules,
-          `${fixture.name}: test:rules affected selection`,
-        );
+      strictEqual(
+        plan('static').includes('//#test:rules'),
+        fixture.rules ?? false,
+        `${fixture.name}: test:rules affected selection`,
+      );
       const outputs = run(
         process.execPath,
         [join(repository, runtimePlanner)],
@@ -595,6 +597,73 @@ function ciActionPinProblems(workflow) {
     }
   }
   return problems;
+}
+
+function duplicateRatchetFixture(entry) {
+  const root = fixtureRoot('porcelain-clone-baseline-');
+  const git = (...args) => {
+    const result = spawnSync('git', args, { cwd: root, encoding: 'utf8' });
+    if (result.error) throw result.error;
+    strictEqual(result.status, 0, result.stderr);
+    return result.stdout.trim();
+  };
+  try {
+    writeFiles(root, {
+      'architecture/duplicate-ceilings.json': JSON.stringify(entry.ceilings),
+      'ci/one.ts': entry.source,
+      'ci/two.ts': entry.source,
+    });
+    git('init', '-q');
+    git('add', '.');
+    git(
+      '-c',
+      'user.name=Duplicate fixture',
+      '-c',
+      'user.email=duplicate@example.invalid',
+      '-c',
+      'commit.gpgsign=false',
+      'commit',
+      '-qm',
+      'Record duplicate baseline',
+    );
+    const comparison = duplicateComparison(root, git('rev-parse', 'HEAD'));
+    deepStrictEqual(comparison.ceilings, entry.ceilings);
+    for (const [name, ceiling] of Object.entries(entry.ceilings)) {
+      strictEqual(
+        raisedDuplicateCeiling({ name, ceiling }, comparison),
+        undefined,
+      );
+      strictEqual(
+        raisedDuplicateCeiling({ name, ceiling: ceiling - 1 }, comparison),
+        undefined,
+      );
+      strictEqual(
+        raisedDuplicateCeiling({ name, ceiling: ceiling + 1 }, comparison),
+        ceiling,
+      );
+    }
+    const scope = { ...toolingDuplicateScope(root), ceiling: 1 };
+    const before = scanDuplicates(root, scope);
+    strictEqual(before.exceeded, false);
+    deepStrictEqual(
+      clonesChangedSince(root, comparison.base, before.duplicates),
+      [],
+    );
+    writeFiles(root, { 'ci/three.ts': entry.source });
+    git('add', 'ci/three.ts');
+    const after = scanDuplicates(root, scope);
+    strictEqual(after.exceeded, true);
+    const added = clonesChangedSince(root, comparison.base, after.duplicates);
+    strictEqual(added.length, 1);
+    strictEqual(
+      [added[0].firstFile, added[0].secondFile].some(
+        ({ name }) => relative(root, name) === 'ci/three.ts',
+      ),
+      true,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 }
 
 export async function runGuardrailCases(named = []) {
@@ -922,15 +991,8 @@ ${runBrowser.run
         false,
         entry.selector,
       );
-    } else if (entry.rule === 'tooling-duplicate-ceiling') {
-      const root = fileURLToPath(new URL('../', import.meta.url));
-      const scope = toolingDuplicateScope(root);
-      const { count } = scanDuplicates(root, scope);
-      strictEqual(
-        count,
-        scope.ceiling,
-        'Keep the tooling copy limit at the measured count; lower the limit when a copy is removed so it cannot return.',
-      );
+    } else if (entry.rule === 'duplicate-ceiling') {
+      duplicateRatchetFixture(entry);
     } else if (entry.rule === 'duplicate-code') {
       deepStrictEqual(duplicateFixture(entry, entry.valid), {
         rejected: false,
