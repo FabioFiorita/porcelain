@@ -633,18 +633,6 @@ it('unmounting a diff window cancels each in-flight batch without disconnecting 
   expect(subject.connection.isClosed()).toBe(false);
 });
 
-function staleDiffAnswer() {
-  return Response.json(
-    {
-      statusCode: 409,
-      error: 'Conflict',
-      message: 'Refresh status and retry inspection',
-      code: 'worktree_changed',
-    },
-    { status: 409 },
-  );
-}
-
 it('a failed stale-diff recovery finishes once per observation and remains independent across connections', async () => {
   const recoveries = [0, 0];
   const settleRecovery = async (index: number) => {
@@ -652,7 +640,18 @@ it('a failed stale-diff recovery finishes once per observation and remains indep
     const pendingReached = Promise.withResolvers<void>();
     const inspection = Promise.withResolvers<Response>();
     const subject = fixture((path) => {
-      if (path.endsWith('/diffs')) return Promise.resolve(staleDiffAnswer());
+      if (path.endsWith('/diffs'))
+        return Promise.resolve(
+          Response.json(
+            {
+              statusCode: 409,
+              error: 'Conflict',
+              message: 'Refresh status and retry inspection',
+              code: 'worktree_changed',
+            },
+            { status: 409 },
+          ),
+        );
       recoveries[index] = (recoveries[index] ?? 0) + 1;
       return inspection.promise;
     });
@@ -770,42 +769,3 @@ async function inspectAgain(subject: ReturnType<typeof fixture>) {
   subject.registry.set(command, undefined);
   return { state, stop, command };
 }
-
-it('two diff windows of one worktree at different observations each start one stale-diff recovery', async () => {
-  let inspections = 0;
-  const subject = fixture((path) => {
-    if (path.endsWith('/diffs')) return Promise.resolve(staleDiffAnswer());
-    inspections += 1;
-    return new Promise<Response>(() => {});
-  });
-  const windowAt = (statusToken: string) =>
-    readChangeDiffWindow({
-      connection: subject.connection,
-      scope,
-      statusToken,
-      expectedFiles: diffInput.expectedFiles,
-      selections: diffInput.selections,
-    });
-  const recovering = (statusToken: string) =>
-    new Promise<void>((resolve) => {
-      const stop = subject.registry.subscribe(
-        windowAt(statusToken),
-        ({ recovery }) => {
-          if (
-            Option.exists(
-              AsyncResult.value(recovery),
-              (state) => state.attempted,
-            )
-          ) {
-            resolve();
-          }
-        },
-        { immediate: true },
-      );
-      stops.push(stop);
-    });
-  const stops: Array<() => void> = [];
-  await Promise.all([recovering('a'.repeat(64)), recovering('b'.repeat(64))]);
-  for (const stop of stops) stop();
-  expect(inspections).toBe(2);
-});

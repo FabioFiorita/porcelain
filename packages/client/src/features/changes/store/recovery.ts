@@ -4,8 +4,8 @@ import type { RuntimeConnection } from '../../../shared/api/connection.ts';
 import { clientRuntime } from '../../../shared/api/runtime.ts';
 
 type RecoveryState = {
-  readonly attempted: Readonly<Record<string, readonly string[]>>;
-  readonly pending: Readonly<Record<string, readonly string[]>>;
+  readonly attempted: Readonly<Record<string, string>>;
+  readonly pending: Readonly<Record<string, string>>;
 };
 export class ChangedDiffRecovery extends Context.Service<
   ChangedDiffRecovery,
@@ -29,19 +29,13 @@ export class ChangedDiffRecovery extends Context.Service<
         begin: Effect.fn('ChangedDiffRecovery.begin')(
           (key: string, token: string) =>
             SubscriptionRef.modify(state, (current) =>
-              current.attempted[key]?.includes(token)
+              current.attempted[key] === token
                 ? ([false, current] as const)
                 : ([
                     true,
                     {
-                      attempted: {
-                        ...current.attempted,
-                        [key]: [...(current.attempted[key] ?? []), token],
-                      },
-                      pending: {
-                        ...current.pending,
-                        [key]: [...(current.pending[key] ?? []), token],
-                      },
+                      attempted: { ...current.attempted, [key]: token },
+                      pending: { ...current.pending, [key]: token },
                     },
                   ] as const),
             ),
@@ -49,12 +43,9 @@ export class ChangedDiffRecovery extends Context.Service<
         finish: Effect.fn('ChangedDiffRecovery.finish')(
           (key: string, token: string) =>
             SubscriptionRef.update(state, (current) => {
-              const tokens = current.pending[key] ?? [];
-              if (!tokens.includes(token)) return current;
-              const remaining = tokens.filter((pending) => pending !== token);
+              if (current.pending[key] !== token) return current;
               const pending = { ...current.pending };
-              if (remaining.length === 0) delete pending[key];
-              else pending[key] = remaining;
+              delete pending[key];
               return { ...current, pending };
             }),
         ),

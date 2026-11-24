@@ -33,8 +33,8 @@ const readDiffRecovery = Atom.family(
         Stream.map((state) => {
           const key = JSON.stringify([scope.projectId, scope.worktreeId]);
           return {
-            pending: state.pending[key]?.includes(statusToken) ?? false,
-            attempted: state.attempted[key]?.includes(statusToken) ?? false,
+            pending: state.pending[key] === statusToken,
+            attempted: state.attempted[key] === statusToken,
           };
         }),
       ),
