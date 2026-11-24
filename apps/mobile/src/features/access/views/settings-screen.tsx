@@ -26,14 +26,12 @@ const DevelopmentSettingsSection = __DEV__
 export function SettingsScreen({
   onOpenGeneral,
   onOpenReviewsGit,
-  onOpenNotifications,
   onOpenComputers,
   onOpenComponentLibrary,
   onOpenShortcuts,
 }: {
   onOpenGeneral: () => void;
   onOpenReviewsGit: () => void;
-  onOpenNotifications: () => void;
   onOpenComputers: () => void;
   onOpenComponentLibrary: () => void;
   onOpenShortcuts?: (() => void) | undefined;
@@ -76,15 +74,6 @@ export function SettingsScreen({
             leading={<Icon name="checklist" tone="muted" />}
             trailing={<Icon name="chevron" tone="muted" />}
             onPress={onOpenReviewsGit}
-          />
-          <Item
-            testID="settings-notifications"
-            title="Notifications"
-            description="Unavailable"
-            accessibilityLabel="Notifications, Unavailable"
-            leading={<Icon name="notifications" tone="muted" />}
-            trailing={<Icon name="chevron" tone="muted" />}
-            onPress={onOpenNotifications}
           />
           {onOpenShortcuts ? (
             <Item

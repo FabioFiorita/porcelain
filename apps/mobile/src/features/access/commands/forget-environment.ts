@@ -3,24 +3,11 @@ import { Atom } from 'effect/reactivity';
 import { useAtom } from '@effect/atom-react';
 import { EnvironmentCommands } from '@porcelain/client/access';
 import type { Remote } from '@porcelain/client/access/rules';
-import { clearPushRegistration } from '@porcelain/client/notifications';
-import {
-  clientRuntime,
-  remoteConnectionState,
-} from '../../../shared/application/store';
-
-const PUSH_CLEAR_TIMEOUT_MS = 3000;
+import { clientRuntime } from '../../../shared/application/store';
 
 const forgetEnvironment = Atom.family((environmentId: string) =>
-  clientRuntime.fn((_: void, get) =>
+  clientRuntime.fn((_: void) =>
     Effect.gen(function* () {
-      const entry = remoteConnectionState.value.find(
-        ({ remote }) => remote.environmentId === environmentId,
-      );
-      if (entry)
-        yield* get
-          .setResult(clearPushRegistration(entry.connection), undefined)
-          .pipe(Effect.timeout(PUSH_CLEAR_TIMEOUT_MS), Effect.ignore);
       const commands = yield* EnvironmentCommands;
       yield* commands.forget(environmentId);
     }),

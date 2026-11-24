@@ -1,6 +1,6 @@
 import { temporaryRoot } from '@porcelain/kernel/test-kit/temporary-root';
 import { NodeServices } from '@effect/platform-node';
-import { Effect, Layer, ManagedRuntime, Schema } from 'effect';
+import { Layer, ManagedRuntime, Schema } from 'effect';
 import {
   walkthroughJobSchema,
   type WalkthroughJob,
@@ -188,34 +188,41 @@ it.each([false, true])(
   },
 );
 
-it('clears retired push kinds before the remaining registration reader decodes stored JSON', async () => {
+it('drops legacy push registrations while preserving the paired device', async () => {
   const directory = mkdtempSync(
     join(temporaryRoot, 'porcelain-push-migration-'),
   );
-  const options = { worktreeIdLength: 32, busyTimeoutMs: 5000 };
-  const open = () =>
-    ManagedRuntime.make(
-      databaseLayer(directory, options).pipe(Layer.provide(NodeServices.layer)),
-    );
+  const filename = join(directory, 'inventory.sqlite');
   try {
     await prepareNativeDatabase(directory, 13);
-    const stored = new DatabaseSync(join(directory, 'inventory.sqlite'));
-    stored.exec(`INSERT INTO devices (id, label, platform, secret_hash, created_at, last_seen_at, route, route_inferred, trusted, can_manage_sharing, can_edit_ways_in) VALUES ('phone', 'Phone', 'ios', 'fixture-hash', '2026-11-10T10:00:00Z', '2026-11-10T10:00:00Z', 'lan', 0, 0, 0, 0);
+    {
+      using old = new DatabaseSync(filename);
+      old.exec(`INSERT INTO devices (id, label, platform, secret_hash, created_at, last_seen_at, route, route_inferred, trusted, can_manage_sharing, can_edit_ways_in) VALUES ('phone', 'Phone', 'ios', 'fixture-hash', '2026-11-10T10:00:00Z', '2026-11-10T10:00:00Z', 'lan', 0, 0, 0, 0);
       INSERT INTO push_registrations (device_id, token, platform, kinds) VALUES ('phone', 'ExponentPushToken[fixture]', 'ios', '["review-ready","agent-reply"]');`);
-    stored.close();
-    const migrated = open();
+    }
+    const migrated = ManagedRuntime.make(
+      databaseLayer(directory, {
+        worktreeIdLength: 32,
+        busyTimeoutMs: 5000,
+      }).pipe(Layer.provide(NodeServices.layer)),
+    );
     try {
-      const sql = await migrated.runPromise(SqlClient.SqlClient);
-      expect(
-        await Effect.runPromise(
-          sql`SELECT device_id, token, kinds FROM push_registrations`,
-        ),
-      ).toEqual([
-        { deviceId: 'phone', token: 'ExponentPushToken[fixture]', kinds: '[]' },
-      ]);
+      await migrated.runPromise(SqlClient.SqlClient);
     } finally {
       await migrated.dispose();
     }
+    using stored = new DatabaseSync(filename);
+    expect(
+      stored
+        .prepare(
+          "SELECT name FROM sqlite_master WHERE name = 'push_registrations'",
+        )
+        .all(),
+    ).toEqual([]);
+    expect(stored.prepare('SELECT id, label FROM devices').all()).toEqual([
+      { id: 'phone', label: 'Phone' },
+    ]);
+    expect(stored.prepare('PRAGMA foreign_key_check').all()).toEqual([]);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }

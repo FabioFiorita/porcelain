@@ -36,6 +36,10 @@ const nativeHistorySchema = Schema.Array(
 );
 
 export const nativeMigrations = Migrator.fromRecord({
+  '018_drop_push_registrations': Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`DROP TABLE push_registrations`;
+  }),
   '017_preserve_reconnected_worktrees': Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     yield* sql`ALTER TABLE worktree_presence ADD COLUMN preserved INTEGER NOT NULL DEFAULT 0 CHECK(preserved IN (0, 1))`;

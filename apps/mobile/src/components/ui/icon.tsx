@@ -45,7 +45,6 @@ const symbols = {
   sliders: { ios: 'slider.horizontal.3', android: 'tune' },
   keyboard: { ios: 'keyboard', android: 'keyboard' },
   checklist: { ios: 'checklist', android: 'checklist' },
-  notifications: { ios: 'bell', android: 'notifications' },
   reviewWaiting: { ios: 'text.badge.checkmark', android: 'rate_review' },
   reviewDone: { ios: 'checkmark.circle', android: 'task_alt' },
   reviewReading: { ios: 'hourglass', android: 'hourglass_empty' },

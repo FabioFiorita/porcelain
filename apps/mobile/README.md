@@ -26,7 +26,7 @@ Connect `FabioFiorita/porcelain` in the project's GitHub settings and set its ba
 
 Ad hoc preview requires Apple signing credentials for `com.fabiofiorita.porcelain.preview` and a provisioning profile that includes each physical iPhone/iPad. Register devices and configure the `preview` profile before running it from the dashboard. Existing provisioning profiles do not automatically gain newly registered devices; regenerate the profile before building for additional devices.
 
-Production uses the existing Porcelain App Store Connect app (`6796720233`, bundle `com.fabiofiorita.porcelain`). Configure its store signing credentials and an EAS-managed App Store Connect submission key before the first production run. For Android, create the Google Play app for `com.fabiofiorita.porcelain` and assign a Google Service Account key for Play Store submissions in EAS Android credentials. This submission key is separate from the Firebase configuration file and FCM push key. Signing and submission credentials belong in EAS, not in Git.
+Production uses the existing Porcelain App Store Connect app (`6796720233`, bundle `com.fabiofiorita.porcelain`). Configure its store signing credentials and an EAS-managed App Store Connect submission key before the first production run. For Android, create the Google Play app for `com.fabiofiorita.porcelain` and assign a Google Service Account key for Play Store submissions in EAS Android credentials. Signing and submission credentials belong in EAS, not in Git.
 
 [Start the first internal release with EAS Submit](https://docs.expo.dev/submit/android/#first-time-submission) once the Play Console app and service account are configured. Check the submitted version code on the internal testing track before relying on automated submissions. Complete the store listing and Play Console setup tasks before promoting a release to public production.
 
@@ -48,26 +48,10 @@ eas workflow:run .eas/workflows/preview.yml --ref main
 eas workflow:run .eas/workflows/production.yml --ref main
 ```
 
-For local Android production builds, pull the production file variables and explicitly supply the Firebase file to EAS CLI so local and hosted runtime fingerprints include the same native configuration:
-
-```sh
-eas env:pull production --non-interactive
-GOOGLE_SERVICES_JSON="$PWD/.eas/.env/GOOGLE_SERVICES_JSON" eas build --platform android --profile production
-```
-
-The generated `.env.local` and `.eas/.env` files stay out of Git. Hosted fingerprint, update and build jobs use the production EAS environment directly. To submit a specific completed Android build:
+To submit a specific completed Android build:
 
 ```sh
 APP_VARIANT=production eas submit --platform android --profile production --id <build-id>
 ```
-
-## Push notifications
-
-Settings → Notifications offers the phone's Expo push token to every paired computer. Computers send no notifications since review publishing was removed; the screen stays until the mobile cleanup. The app and server are complete without credentials: until they exist, the token request fails and the screen says the push key is missing, and the phone registers automatically on a later launch once a token is available.
-
-- **iOS:** run `eas credentials --platform ios` in `apps/mobile`, choose each profile's bundle identifier and set up an Apple Push Notifications key (EAS can generate one). The `expo-notifications` plugin adds the push entitlement, so the next build needs a provisioning profile with Push Notifications; regenerate the ad hoc profile for preview. Rebuild; an OTA update cannot add the entitlement.
-- **Android:** create an Android app for the package in a Firebase project, download its `google-services.json` and provide its path as `GOOGLE_SERVICES_JSON` when building (for EAS, a file environment variable); then upload a Firebase Cloud Messaging V1 service account key in the Expo project's Android credentials. Rebuild the development client.
-
-References: [push notifications setup](https://docs.expo.dev/push-notifications/push-notifications-setup/), [FCM V1 credentials](https://docs.expo.dev/push-notifications/fcm-credentials/), [sending notifications](https://docs.expo.dev/push-notifications/sending-notifications/).
 
 References: [workflow syntax](https://docs.expo.dev/eas/workflows/syntax/), [ad hoc distribution](https://docs.expo.dev/build/internal-distribution/), [iOS submission](https://docs.expo.dev/submit/ios/), [Android submission](https://docs.expo.dev/submit/android/).

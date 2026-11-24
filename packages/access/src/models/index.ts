@@ -56,4 +56,3 @@ export {
   type SaveReviewGitSettingsInput,
 } from './review-git-settings.ts';
 export { environmentIconSchema } from './environment-label.ts';
-export { pushKindSchema, pushPlatformSchema } from './push-notifications.ts';
