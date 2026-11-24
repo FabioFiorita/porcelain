@@ -1,4 +1,6 @@
 import { Effect, FileSystem, Path } from 'effect';
+import { constants } from 'node:fs';
+import { open } from 'node:fs/promises';
 import { isMissing } from '../errors/is-missing.ts';
 
 export function parseGitdirFile(text: string): string | undefined {
@@ -35,14 +37,19 @@ export const readCommonDirectory = Effect.fn('Git.readCommonDirectory')(
 export const readGitdirPointer = Effect.fn('Git.readGitdirPointer')(function* (
   administrativeDirectory: string,
 ) {
-  const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
-  const pointer = yield* fs
-    .readFileString(path.join(administrativeDirectory, 'gitdir'))
-    .pipe(
-      Effect.map((text) => text.trim()),
-      Effect.orElseSucceed(() => ''),
-    );
+  const pointerPath = path.join(administrativeDirectory, 'gitdir');
+  const pointer = yield* Effect.acquireUseRelease(
+    Effect.tryPromise(() =>
+      open(pointerPath, constants.O_RDONLY | constants.O_NONBLOCK),
+    ),
+    (file) =>
+      Effect.tryPromise(async (signal) => {
+        if (!(await file.stat()).isFile()) return '';
+        return (await file.readFile({ encoding: 'utf8', signal })).trim();
+      }),
+    (file) => Effect.tryPromise(() => file.close()),
+  ).pipe(Effect.orElseSucceed(() => ''));
   if (pointer === '') return null;
   return path.resolve(administrativeDirectory, pointer, '..');
 });
