@@ -369,9 +369,7 @@ function CommitGeneration({
         }
         value={model ?? null}
         disabled={!choices?.length || form.working || form.uncertain}
-        onValueChange={(value) => {
-          if (value) form.setModel(value);
-        }}
+        onValueChange={form.setModel}
       >
         <SelectTrigger
           aria-label="Commit model"
@@ -393,11 +391,7 @@ function CommitGeneration({
             <SelectGroup key={provider}>
               <SelectLabel>{provider}</SelectLabel>
               {entries.map((entry) => (
-                <SelectItem
-                  key={entry.id}
-                  value={entry.id}
-                  onClick={() => form.setModel(entry.id)}
-                >
+                <SelectItem key={entry.id} value={entry.id}>
                   {entry.label}
                 </SelectItem>
               ))}

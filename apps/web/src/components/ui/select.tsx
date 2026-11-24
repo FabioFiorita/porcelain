@@ -13,8 +13,40 @@ import {
 import { cn } from 'cn';
 import { ChevronDownIcon, CheckIcon } from 'lucide-react';
 
-function Select<T = string>(props: React.ComponentProps<typeof SelectRoot<T>>) {
-  return <SelectRoot<T> {...props} />;
+function Select<T = string>({
+  value,
+  onValueChange,
+  onOpenChange,
+  ...props
+}: Omit<
+  React.ComponentProps<typeof SelectRoot<T, false>>,
+  'value' | 'onValueChange' | 'multiple' | 'defaultValue'
+> & {
+  value: T | null;
+  onValueChange?: (value: T) => void;
+}) {
+  const [press] = React.useState(() => ({ changed: false }));
+  return (
+    <SelectRoot<T, false>
+      {...props}
+      multiple={false}
+      value={value}
+      onValueChange={(next) => {
+        press.changed = true;
+        if (next !== null) onValueChange?.(next);
+      }}
+      onOpenChange={(open, details) => {
+        if (open) press.changed = false;
+        else if (
+          details.reason === 'item-press' &&
+          !press.changed &&
+          value !== null
+        )
+          onValueChange?.(value);
+        onOpenChange?.(open, details);
+      }}
+    />
+  );
 }
 
 function SelectGroup({
