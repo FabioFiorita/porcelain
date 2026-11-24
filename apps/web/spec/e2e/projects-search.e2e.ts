@@ -187,6 +187,7 @@ test('selecting a search result keeps a conflicted unsaved draft when returning 
     exact: true,
   });
   await expect(editor).toBeVisible();
+  const notices = app.holdLive();
   await repo.write(repo.readme.path, 'Independent disk change\n');
   await replaceEditorContent(
     editor,
@@ -195,6 +196,7 @@ test('selecting a search result keeps a conflicted unsaved draft when returning 
   await expect(
     pairedPage.getByText('Not saving: changed on disk', { exact: true }),
   ).toBeVisible();
+  notices.release();
   await pairedPage
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();

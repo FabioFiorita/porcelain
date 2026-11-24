@@ -289,11 +289,13 @@ test('forgetting from detail protects an unsavable remote draft and succeeds aft
   const editor = page.getByRole('textbox', { name: readme, exact: true });
   await expect(editor).toBeVisible();
   const disk = 'A newer change on the remote disk\n';
+  const notices = app.holdLive();
   await remote.repo.write(readme, disk);
   await replaceEditorContent(editor, 'Keep this unsaved remote draft');
   await expect(
     page.getByText('Not saving: changed on disk', { exact: true }),
   ).toBeVisible();
+  notices.release();
   await page
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
     .click();
