@@ -357,8 +357,9 @@ export function GitButton({
                     );
                     const reason =
                       writeBlock ??
-                      blocker ??
-                      gitActionReason(candidate.id, status);
+                      (blocker
+                        ? undefined
+                        : gitActionReason(candidate.id, status));
                     return (
                       <Tooltip key={candidate.id}>
                         <TooltipTrigger
