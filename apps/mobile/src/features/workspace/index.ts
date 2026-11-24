@@ -13,3 +13,4 @@ export {
 } from './views/diff-page';
 
 export { reviewComparison, reviewParams } from './rules/navigation';
+export { useOpenReviewFile } from './views/open-review-file';

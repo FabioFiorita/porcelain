@@ -1,7 +1,11 @@
+import type { ReadChangesResponse } from '@porcelain/contracts/changes';
+
+type LocalChange =
+  ReadChangesResponse['changes'][number]['comparisons'][number];
 type BranchFile = { readonly path: string; readonly status?: string };
 type LocalFile = {
   readonly path: string;
-  readonly comparisons?: readonly object[];
+  readonly comparisons: readonly LocalChange[];
 };
 
 type ChangedFiles = {
@@ -10,19 +14,27 @@ type ChangedFiles = {
   readonly worktree: readonly LocalFile[];
 };
 
-type Comparison = { kind: 'branch' } | { kind: 'worktree' };
+type Comparison =
+  | { kind: 'branch' }
+  | { kind: 'worktree'; change?: LocalChange | undefined };
 
-const deletedLocally = (file: LocalFile | undefined) =>
-  (file?.comparisons ?? []).some(
-    (comparison) => 'kind' in comparison && comparison.kind === 'deleted',
+function localState(read: ChangedFiles, path: string) {
+  const local = read.worktree.find((file) => file.path === path);
+  const deletion = local?.comparisons.find(
+    (change) => 'kind' in change && change.kind === 'deleted',
   );
+  return {
+    local,
+    deleted: deletion && ({ kind: 'worktree', change: deletion } as const),
+  };
+}
 
 export function fileComparison(
   read: ChangedFiles,
   path: string,
 ): Comparison | undefined {
-  const local = read.worktree.find((file) => file.path === path);
-  if (deletedLocally(local)) return { kind: 'worktree' };
+  const { local, deleted } = localState(read, path);
+  if (deleted) return deleted;
   if (read.branch === undefined)
     return read.branchFailed && local ? { kind: 'worktree' } : undefined;
   return read.branch.some((file) => file.path === path)
@@ -34,10 +46,10 @@ export function fileOpening(
   read: ChangedFiles,
   path: string,
 ): Comparison | { kind: 'file' } | undefined {
-  if (deletedLocally(read.worktree.find((file) => file.path === path)))
-    return { kind: 'worktree' };
+  const { local, deleted } = localState(read, path);
+  if (deleted) return deleted;
   if (read.branch === undefined)
-    return read.branchFailed ? { kind: 'file' } : undefined;
+    return read.branchFailed || local ? { kind: 'file' } : undefined;
   return read.branch.find((file) => file.path === path)?.status === 'deleted'
     ? { kind: 'branch' }
     : { kind: 'file' };

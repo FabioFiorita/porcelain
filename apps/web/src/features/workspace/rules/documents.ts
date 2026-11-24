@@ -132,10 +132,19 @@ export function withDocument(
 
 export type OpenDocument = (
   ref: DocumentRef,
-  options?: { toSide?: boolean; preserveFocus?: boolean; path?: string },
+  options?: {
+    toSide?: boolean;
+    preserveFocus?: boolean;
+    path?: string;
+    entry?: string;
+  },
 ) => void;
 
-export type DocumentFileTarget = { path: string; nonce: number };
+export type DocumentFileTarget = {
+  path: string;
+  entry?: string | undefined;
+  nonce: number;
+};
 
 export type DocumentInteraction = {
   fileTarget?: DocumentFileTarget | undefined;

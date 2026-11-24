@@ -514,7 +514,11 @@ function CodeSurface({
               }
               const requested = interaction.fileTarget;
               const requestedEntry = requested
-                ? entries.find((entry) => entry.path === requested.path)
+                ? entries.find((entry) =>
+                    requested.entry === undefined
+                      ? entry.path === requested.path
+                      : entry.id === requested.entry,
+                  )
                 : undefined;
               if (
                 requested &&

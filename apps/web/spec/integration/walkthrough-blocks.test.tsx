@@ -214,3 +214,67 @@ test('a deleted file opens the comparison that shows its deletion', async ({
     .poll(() => decodeURIComponent(app.location()))
     .toContain('entry=change:src/obsolete.ts');
 });
+
+test('a file trimmed in the index and then deleted opens on its deletion', async ({
+  render,
+}) => {
+  await blocksFixture();
+  await browserPage.viewport(1280, 896);
+  const app = await render.route('/');
+  const page = await ready(app.page);
+  await stepItem(page, 'Retire the old helpers')
+    .getByRole('list', { name: 'Files', exact: true })
+    .getByRole('button', {
+      name: 'src/drafts.ts Trimmed, then removed.',
+      exact: true,
+    })
+    .click();
+  await expect
+    .poll(() => decodeURIComponent(app.location()))
+    .toContain('entry=change:src/drafts.ts');
+  await expect
+    .element(
+      page
+        .getByRole('region', { name: 'Code content', exact: true })
+        .getByText('Kept 1', { exact: true }),
+    )
+    .toBeInViewport();
+});
+
+test('a cited local file opens while the branch is still being compared', async ({
+  render,
+  fetchGate,
+}) => {
+  await blocksFixture();
+  const held = fetchGate.holdNextBranchRead();
+  held.arm();
+  try {
+    await browserPage.viewport(1280, 896);
+    const app = await render.route('/');
+    const page = await ready(app.page);
+    await held.requested;
+    const files = stepItem(page, 'Retire the old helpers').getByRole('list', {
+      name: 'Files',
+      exact: true,
+    });
+    await expect
+      .element(
+        files.getByRole('button', {
+          name: 'src/legacy.ts Removed in the branch.',
+          exact: true,
+        }),
+      )
+      .toBeDisabled();
+    await files
+      .getByRole('button', {
+        name: 'notes/scratch.md A new note.',
+        exact: true,
+      })
+      .click();
+    await expect
+      .poll(() => decodeURIComponent(app.location()))
+      .toContain('entry=file:notes/scratch.md');
+  } finally {
+    held.release();
+  }
+});

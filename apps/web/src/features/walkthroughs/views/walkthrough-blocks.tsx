@@ -8,6 +8,7 @@ import {
 } from '@porcelain/client/walkthroughs/rules';
 import { useBranchChanges, useChanges } from '@/features/changes/index';
 import { recordedChecks } from '@porcelain/client/projects/rules';
+import { changeId } from '@porcelain/client/changes/rules';
 import {
   CheckResultIcon,
   type DocumentProps,
@@ -54,11 +55,20 @@ function FileList({
   );
 }
 
-const OPENINGS = {
-  file: (path: string) => ({ kind: 'file', path }) as const,
-  branch: (path: string) => ({ kind: 'branch-file', path }) as const,
-  worktree: (path: string) => ({ kind: 'change', path }) as const,
-};
+function openFile(
+  document: DocumentProps,
+  path: string,
+  opening: NonNullable<ReturnType<typeof fileOpening>>,
+) {
+  if (opening.kind === 'file') document.onOpen({ kind: 'file', path });
+  else if (opening.kind === 'branch')
+    document.onOpen({ kind: 'branch-file', path });
+  else
+    document.onOpen(
+      { kind: 'change', path },
+      opening.change ? { path, entry: changeId(opening.change) } : undefined,
+    );
+}
 
 function FileButton({
   opening,
@@ -78,7 +88,7 @@ function FileButton({
       aria-busy={opening === undefined}
       className="flex w-full flex-col items-start gap-0.5 rounded-md px-2 py-1.5 text-left hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring disabled:hover:bg-transparent @3xl:flex-row @3xl:items-baseline @3xl:gap-3"
       onClick={() => {
-        if (opening) document.onOpen(OPENINGS[opening.kind](path));
+        if (opening) openFile(document, path, opening);
       }}
     >
       <span className="font-mono text-caption wrap-anywhere">{path}</span>
