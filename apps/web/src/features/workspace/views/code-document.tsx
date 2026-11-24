@@ -72,6 +72,7 @@ type Props = {
   onReview?: (entry: CodeEntry) => void;
   entries: readonly CodeEntry[];
   listed?: readonly { id: string; path: string }[];
+  paths?: readonly string[];
   scope: ReviewScope;
   context: ConnectionContext;
   interaction: DocumentInteraction;
@@ -127,6 +128,7 @@ export function CodeDocument(props: Props) {
 function CodeSurface({
   entries: given,
   listed: givenListed,
+  paths,
   scope,
   context: gitContext,
   interaction,
@@ -190,6 +192,15 @@ function CodeSurface({
   const discard = discardSelection(selection?.range);
   const [focusedId, focus] = useState(() => viewer.focused());
   const [awaitedPath, awaitPath] = useState<string>();
+  if (
+    awaitedPath !== undefined &&
+    (!interaction.active ||
+      !(
+        paths?.includes(awaitedPath) ||
+        listed.some((entry) => entry.path === awaitedPath)
+      ))
+  )
+    awaitPath(undefined);
   const setFocusedId = (id: CodeEntry['id'] | undefined) => {
     awaitPath(undefined);
     focus(id);
@@ -222,8 +233,8 @@ function CodeSurface({
     const entry = listed[index];
     if (!entry) return;
     setFocusedId(entry.id);
-    const shown = entries.find((candidate) => candidate.path === entry.path);
-    if (shown) viewer.scrollTo({ type: 'item', id: shown.id, align: 'start' });
+    if (entries.some((shown) => shown.id === entry.id))
+      viewer.scrollTo({ type: 'item', id: entry.id, align: 'start' });
     else awaitPath(entry.path);
   };
   const keepView = () => {
@@ -353,7 +364,7 @@ function CodeSurface({
           folds.setCollapsed([entry.id], false);
           focusEntry(index);
         },
-        awaiting: awaitedPath,
+        awaiting: interaction.active ? awaitedPath : undefined,
         landed: (path) => {
           if (awaitedPath === path) awaitPath(undefined);
         },
@@ -466,7 +477,7 @@ function CodeSurface({
                   : 0,
               );
               const arrived =
-                awaitedPath === undefined
+                awaitedPath === undefined || !interaction.active
                   ? undefined
                   : entries.find((entry) => entry.path === awaitedPath);
               if (arrived) {

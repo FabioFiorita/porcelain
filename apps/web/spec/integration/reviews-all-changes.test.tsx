@@ -843,3 +843,108 @@ test('a file with a non-text staged change and a text edit lands on its text onc
     held.release();
   }
 });
+
+test('the next file shortcut shows a file staged and unstaged comparison in turn', async ({
+  repo,
+  workspace,
+  reviewLayout,
+}) => {
+  await repo.write('steps.txt', 'Base line\n');
+  await repo.commit('Add steps');
+  const staged = Array.from(
+    { length: 80 },
+    (_, index) => `Staged line ${index + 1}`,
+  ).join('\n');
+  await repo.write('steps.txt', `Base line\n${staged}\n`);
+  await repo.stage('steps.txt');
+  await repo.write('steps.txt', `Base line\n${staged}\nAn unstaged line\n`);
+  await reviewLayout.openAllChanges();
+  const code = workspace.getByRole('region', {
+    name: 'Code content',
+    exact: true,
+  });
+  const unstaged = code.getByText('An unstaged line', { exact: true });
+  await expect
+    .element(code.getByText('Staged line 1', { exact: true }))
+    .toBeInViewport();
+  await userEvent.keyboard('J');
+  await expect.element(unstaged).toBeInViewport();
+});
+
+test('a non-text file read for an inactive pane leaves focus in the pane the developer moved to', async ({
+  render,
+  repo,
+  fetchGate,
+  reviewLayout,
+}) => {
+  await repo.write('logo.png', 'PNG\u0000\u0001binary');
+  await repo.commit('Add a logo');
+  await repo.write('logo.png', 'PNG\u0000\u0002changed');
+  const held = fetchGate.holdNextChangeDiff('logo.png');
+  held.arm();
+  await page.viewport(1440, 900);
+  try {
+    const workspace = await render.workspace();
+    await held.requested;
+    await reviewLayout.openAllChanges();
+    await workspace
+      .getByRole('region', { name: '1 uncommitted change', exact: true })
+      .getByRole('button', { name: /^logo\.png/ })
+      .click();
+    await userEvent.keyboard('{Alt>}1{/Alt}');
+    await workspace
+      .getByRole('treeitem', { name: repo.readme.path, exact: true })
+      .click({ button: 'right' });
+    await workspace.getByRole('menuitem', { name: /Open to the side/ }).click();
+    const right = workspace.getByRole('region', {
+      name: 'Right pane',
+      exact: true,
+    });
+    await expect.element(right).toHaveAttribute('data-focused', 'true');
+    held.release();
+    const omitted = workspace.getByRole('listitem', { name: /^logo\.png: / });
+    await expect.element(omitted).toBeInTheDocument();
+    await expect.element(omitted).not.toHaveFocus();
+    await expect.element(right).toHaveAttribute('data-focused', 'true');
+  } finally {
+    held.release();
+    await page.viewport(414, 896);
+  }
+});
+
+test('a jump to a file that was removed before it was read does not fire when the file comes back', async ({
+  repo,
+  render,
+  fetchGate,
+  reviewLayout,
+}) => {
+  await repo.write('logo.png', 'PNG\u0000\u0001binary');
+  const held = fetchGate.holdNextTextRead('logo.png');
+  held.arm();
+  try {
+    const workspace = await render.workspace();
+    await reviewLayout.openAllChanges();
+    const table = workspace.getByRole('region', {
+      name: '2 uncommitted changes',
+      exact: true,
+    });
+    await held.requested;
+    await table.getByRole('button', { name: /^logo\.png/ }).click();
+    await repo.remove('logo.png');
+    await expect
+      .element(
+        workspace.getByRole('region', {
+          name: '1 uncommitted change',
+          exact: true,
+        }),
+      )
+      .toBeVisible();
+    held.release();
+    await repo.write('logo.png', 'PNG\u0000\u0002again');
+    const omitted = workspace.getByRole('listitem', { name: /^logo\.png: / });
+    await expect.element(omitted).toBeInTheDocument();
+    await expect.element(omitted).not.toHaveFocus();
+  } finally {
+    held.release();
+  }
+});

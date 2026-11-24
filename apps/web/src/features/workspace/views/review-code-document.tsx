@@ -314,6 +314,7 @@ export function ReviewCodeDocument({
       interaction={interaction}
       entries={entries}
       listed={listed}
+      paths={items.map((item) => item.path)}
       column={column}
       {...(footer ? { footer } : {})}
       {...(documentHeader ? { header: documentHeader } : {})}
