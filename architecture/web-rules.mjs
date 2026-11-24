@@ -996,8 +996,7 @@ export const webRules = {
       if (!path.startsWith('apps/web/') && !path.startsWith('apps/desktop/'))
         return {};
       const ui = path.startsWith('apps/web/src/components/ui/');
-      const check = (node) => {
-        const source = sourceOf(node) ?? '';
+      const check = (node, source = sourceOf(node) ?? '') => {
         if (replacedUiModule.test(source))
           context.report({
             node,
@@ -1016,6 +1015,17 @@ export const webRules = {
         ExportAllDeclaration: check,
         ExportNamedDeclaration(node) {
           if (node.source) check(node);
+        },
+        TSImportType(node) {
+          const argument =
+            node.argument?.type === 'TSLiteralType'
+              ? node.argument.literal
+              : (node.argument ?? node.source);
+          if (
+            argument?.type === 'Literal' &&
+            typeof argument.value === 'string'
+          )
+            check(node, argument.value);
         },
       };
     },

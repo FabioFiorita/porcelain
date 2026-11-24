@@ -5215,6 +5215,15 @@ export const probeController = createDialogController();
   },
   {
     rule: 'web-ui-library-owner',
+    path: 'apps/web/src/features/files/views/probe-view.ts',
+    valid:
+      "export type ProbeProps = import('@/components/ui/button').ButtonProps;",
+    invalid:
+      "export type ProbeProps = import('@base-ui/react/button').Button.Props;",
+    errors: 1,
+  },
+  {
+    rule: 'web-ui-library-owner',
     path: 'apps/web/src/features/files/views/probe-view.tsx',
     valid: "export const probeDialog = () => import('@/components/ui/dialog');",
     invalid: "export const probeDialog = () => import('@ui-sdk/react/dialog');",
