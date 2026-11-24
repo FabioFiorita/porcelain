@@ -283,6 +283,11 @@ function Step({
       <p className="text-prose text-foreground-2">
         <RichText text={stop.explanation} />
       </p>
+      {stop.unsupportedBlocksNotice && (
+        <p className="text-caption text-muted-foreground">
+          {stop.unsupportedBlocksNotice}
+        </p>
+      )}
       {stop.checks.map(({ label, text }, index) => (
         <aside key={index} className="rounded-md border p-3">
           <p className="font-mono text-caption text-muted-foreground">

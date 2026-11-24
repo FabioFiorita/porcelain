@@ -67,3 +67,80 @@ it('reads future content versions without losing steps or reordering unsupported
     },
   ]);
 });
+
+it.each([
+  {
+    input: { outcome: 'future_outcome' },
+    expected: { outcome: 'worth_knowing' },
+  },
+  {
+    input: {
+      growth: [
+        { change: 'future_change', what: 'Paths', note: 'Keep this detail.' },
+      ],
+    },
+    expected: {
+      growth: [{ change: 'changed', what: 'Paths', note: 'Keep this detail.' }],
+    },
+  },
+  {
+    input: {
+      stops: [
+        {
+          title: 'A step',
+          explanation: 'Keep this step.',
+          blocks: [
+            {
+              kind: 'callout',
+              attention: {
+                kind: 'future_call',
+                note: 'Readers prefer it.',
+                question: 'Keep it?',
+              },
+              comparison: { columns: ['A', 'B'], rows: [['Keep', 'Remove']] },
+            },
+          ],
+        },
+      ],
+    },
+    expected: {
+      stops: [
+        {
+          title: 'A step',
+          explanation: 'Keep this step.',
+          blocks: [
+            {
+              kind: 'callout',
+              attention: {
+                kind: 'decision',
+                note: 'Readers prefer it.',
+                question: 'Keep it?',
+              },
+              comparison: { columns: ['A', 'B'], rows: [['Keep', 'Remove']] },
+            },
+          ],
+        },
+      ],
+    },
+  },
+])(
+  'keeps the walkthrough readable with future values in $input',
+  ({ input, expected }) => {
+    const read = Schema.decodeUnknownSync(walkthroughContentSchema)({
+      version: 2,
+      outcome: 'worth_knowing',
+      title: 'A future walkthrough',
+      summary: 'Keep the prose.',
+      growth: [],
+      stops: [],
+      onlyInTranscript: [],
+      stillUnclear: [],
+      ...input,
+    });
+    expect(read).toMatchObject({
+      title: 'A future walkthrough',
+      summary: 'Keep the prose.',
+      ...expected,
+    });
+  },
+);

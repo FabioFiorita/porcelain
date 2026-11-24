@@ -16,6 +16,7 @@ export type WalkthroughEvidence = Screenshots['before'];
 export type WalkthroughStop = {
   readonly title: string;
   readonly explanation: string;
+  readonly unsupportedBlocksNotice?: string | undefined;
   readonly callouts: readonly {
     readonly attention: Callout['attention'];
     readonly comparison: readonly string[];
@@ -59,6 +60,9 @@ function readBlockContent(content: BlockContent): WalkthroughContent {
       }));
     return {
       ...stop,
+      unsupportedBlocksNotice: blocks.some((block) => block.kind === 'unknown')
+        ? 'Part of this step needs a newer Porcelain to show.'
+        : undefined,
       callouts,
       checks,
       excerpts: blocks.filter((block) => block.kind === 'diff_excerpt'),

@@ -45,7 +45,7 @@ const walkthroughAttentionSchema = Schema.Struct({
   note: Schema.String,
   question: Schema.String,
 });
-const calloutSchema = Schema.Struct({
+export const walkthroughCalloutSchema = Schema.Struct({
   kind: Schema.Literal('callout'),
   attention: walkthroughAttentionSchema,
   comparison: Schema.optional(
@@ -61,7 +61,7 @@ export const walkthroughBlockRequestSchema = Schema.Union([
   imagesSchema,
   filesSchema,
   checksRequestSchema,
-  calloutSchema,
+  walkthroughCalloutSchema,
 ]);
 
 export const walkthroughBlockSchema = Schema.Union([
@@ -76,7 +76,7 @@ export const walkthroughBlockSchema = Schema.Union([
     ...checksRequestSchema.fields,
     ...walkthroughChecksSchema.fields,
   }),
-  calloutSchema,
+  walkthroughCalloutSchema,
 ]);
 export type WalkthroughBlock = typeof walkthroughBlockSchema.Type;
 export type WalkthroughBlockRequest = typeof walkthroughBlockRequestSchema.Type;

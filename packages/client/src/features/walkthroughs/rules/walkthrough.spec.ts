@@ -626,6 +626,7 @@ describe('walkthrough page rules', () => {
     ({ change: 'added', what, note: 'Note.' }) as const;
 
   it('names each kind of call and each kind of growth', () => {
+    expect(attentionLabel({ ...attention, kind: 'decision' })).toBe('Decision');
     expect(attentionLabel({ ...attention, kind: 'risk' })).toBe(
       'Risk to accept',
     );
@@ -1072,4 +1073,46 @@ it('shows a start failure only before a page exists and retains the failed run i
       failure,
     ),
   ).toBeUndefined();
+});
+
+it('shows one quiet notice on a step with unsupported blocks and keeps its explanation', () => {
+  const ready = run({
+    status: 'ready',
+    content: {
+      ...content(),
+      version: 2,
+      stops: [
+        {
+          title: 'A step',
+          explanation: 'Read this first.',
+          blocks: [{ kind: 'unknown' }, { kind: 'unknown' }],
+        },
+        {
+          title: 'A supported step',
+          explanation: 'No notice needed.',
+          blocks: [],
+        },
+      ],
+    },
+    writtenAt: 'today',
+    durationMs: 1,
+    costUsd: undefined,
+  });
+  const phase = walkthroughPhase({ walkthrough: ready, freshness: 'current' });
+  expect(phase).toMatchObject({
+    kind: 'ready',
+    content: {
+      stops: [
+        {
+          explanation: 'Read this first.',
+          unsupportedBlocksNotice:
+            'Part of this step needs a newer Porcelain to show.',
+        },
+        {
+          explanation: 'No notice needed.',
+          unsupportedBlocksNotice: undefined,
+        },
+      ],
+    },
+  });
 });

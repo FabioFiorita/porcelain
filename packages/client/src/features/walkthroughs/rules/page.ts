@@ -12,6 +12,7 @@ type Attention = WalkthroughStop['callouts'][number]['attention'];
 type Growth = WalkthroughContent['growth'][number];
 
 const ATTENTION_LABELS: Record<Attention['kind'], string> = {
+  decision: 'Decision',
   product: 'Product call',
   contract: 'Contract call',
   tradeoff: 'Tradeoff',

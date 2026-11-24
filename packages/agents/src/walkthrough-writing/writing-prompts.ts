@@ -1,15 +1,13 @@
 import { Schema } from 'effect';
+import { walkthroughBlockRequestSchema } from '@porcelain/contracts/walkthroughs';
 import {
-  walkthroughBlockRequestSchema,
   walkthroughContentSchema,
-} from '@porcelain/contracts/walkthroughs';
-import { capturedChange } from './captured-change.ts';
-import type {
-  WalkthroughContent,
-  WalkthroughEvidence,
-  WalkthroughJob,
-  WalkthroughRun,
+  type WalkthroughContent,
+  type WalkthroughEvidence,
+  type WalkthroughJob,
+  type WalkthroughRun,
 } from '@porcelain/walkthroughs/models';
+import { capturedChange } from './captured-change.ts';
 export const firstPassSchema = Schema.Struct({
   understood: Schema.String,
   could_not_tell: Schema.Array(

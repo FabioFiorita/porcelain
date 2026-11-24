@@ -486,6 +486,11 @@ function Written({
                 </Box>
                 <RichText text={stop.title} variant="headline" />
                 <RichText text={stop.explanation} />
+                {stop.unsupportedBlocksNotice ? (
+                  <Text variant="caption" tone="muted">
+                    {stop.unsupportedBlocksNotice}
+                  </Text>
+                ) : null}
                 {stop.checks.map(({ label, text }, index) => (
                   <Card key={index} gap={1} padding={4}>
                     <Text variant="caption" tone="muted">
