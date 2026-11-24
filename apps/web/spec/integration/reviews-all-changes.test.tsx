@@ -735,3 +735,31 @@ test('All changes preserves readable diffs and retries a failed final window', a
     fetchGate.restore();
   }
 });
+
+test('a non-text file chosen in All changes before its diff arrives is focused once it is read', async ({
+  repo,
+  render,
+  fetchGate,
+  reviewLayout,
+}) => {
+  await repo.write('logo.png', 'PNG\u0000\u0001binary');
+  await repo.commit('Add a logo');
+  await repo.write('logo.png', 'PNG\u0000\u0002changed');
+  const held = fetchGate.holdNextChangeDiff('logo.png');
+  held.arm();
+  try {
+    const workspace = await render.workspace();
+    await held.requested;
+    await reviewLayout.openAllChanges();
+    await workspace
+      .getByRole('region', { name: '1 uncommitted change', exact: true })
+      .getByRole('button', { name: /^logo\.png/ })
+      .click();
+    held.release();
+    const omitted = workspace.getByRole('listitem', { name: /^logo\.png: / });
+    await expect.element(omitted).toHaveFocus();
+    await expect.element(omitted).toBeInViewport();
+  } finally {
+    held.release();
+  }
+});
