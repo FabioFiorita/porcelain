@@ -1,6 +1,6 @@
-import { readFileSync } from 'node:fs';
+import { createReadStream, existsSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { relative } from 'node:path';
+import { relative, resolve, sep } from 'node:path';
 import { Schema } from 'effect';
 import { fileURLToPath } from 'node:url';
 import babel from '@rolldown/plugin-babel';
@@ -24,6 +24,17 @@ const fontFiles = [
   require.resolve('@fontsource-variable/geist-mono/files/geist-mono-latin-wght-normal.woff2'),
 ];
 const webRoot = fileURLToPath(new URL('.', import.meta.url));
+
+function devFontFile(url: string | undefined) {
+  const path = decodeURIComponent((url ?? '').split('?')[0] ?? '');
+  if (!path.endsWith('.woff2')) return null;
+  const file = path.startsWith('/@fs/')
+    ? resolve(path.slice('/@fs'.length))
+    : resolve(webRoot, `.${path}`);
+  return file.includes(`${sep}node_modules${sep}`) && existsSync(file)
+    ? file
+    : null;
+}
 
 const target = process.env.PORCELAIN_API_TARGET;
 const proxy = target
@@ -66,6 +77,22 @@ export default defineConfig({
               },
             };
           }),
+      },
+    },
+    {
+      name: 'porcelain-dev-font-cache',
+      apply: 'serve',
+      configureServer(server) {
+        server.middlewares.use((request, response, next) => {
+          const file = devFontFile(request.url);
+          if (!file) return next();
+          response.setHeader('Content-Type', 'font/woff2');
+          response.setHeader(
+            'Cache-Control',
+            'public, max-age=31536000, immutable',
+          );
+          createReadStream(file).pipe(response);
+        });
       },
     },
     ...(pairing ? [pairing] : []),
