@@ -7,11 +7,13 @@ import {
   keyCommandSync,
 } from '../shared/application/key-commands';
 import { useAppKeyCommands } from './app-key-commands';
+import { gitSuccessNotices } from '../features/git-actions';
 
 export function ShellStartup() {
   useAtomMount(shellStartup);
   useAtomMount(keyCommandSync);
   useAtomMount(keyCommandRouting);
+  useAtomMount(gitSuccessNotices);
   useAppKeyCommands();
   return (
     <Stack

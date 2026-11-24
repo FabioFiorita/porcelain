@@ -9,7 +9,7 @@ import {
   useAtomMount,
   useAtomValue,
 } from '@effect/atom-react';
-import { clipboardNotice } from '../shared/application/clipboard-notice';
+import { notificationNotice } from '../shared/application/notice';
 import { preferenceTheme } from '../features/preferences';
 
 function themeColor(
@@ -29,7 +29,7 @@ export function RootLayout() {
 
 function ThemedShell() {
   useAtomMount(preferenceTheme);
-  const notice = useAtomValue(clipboardNotice);
+  const notice = useAtomValue(notificationNotice);
   const { theme } = useUniwind();
   const [background, foreground, border] = useCSSVariable([
     '--background',
