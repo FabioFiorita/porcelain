@@ -1,58 +1,40 @@
-import { Effect } from 'effect';
+import { Effect, Stream } from 'effect';
 import { expect, it } from 'vite-plus/test';
-import { ChangedDiffRecovery } from './recovery.ts';
+import { ChangedDiffRecovery, worktreeRecovery } from './recovery.ts';
 
-it('attempts recovery only once for an observation, even after it finishes', () => {
-  const result = Effect.runSync(
+const run = <A>(work: Effect.Effect<A, never, ChangedDiffRecovery>) =>
+  Effect.runSync(work.pipe(Effect.provide(ChangedDiffRecovery.layer)));
+
+it('keeps one recovery per worktree: a single refresh at a time, with its produced read and retries', () => {
+  const result = run(
     Effect.gen(function* () {
       const recovery = yield* ChangedDiffRecovery;
-      const first = yield* recovery.begin('worktree/path', 'observation-1');
-      const duplicate = yield* recovery.begin('worktree/path', 'observation-1');
-      yield* recovery.finish('worktree/path', 'observation-1');
-      const repeated = yield* recovery.begin('worktree/path', 'observation-1');
-      return {
-        first,
-        duplicate,
-        repeated,
-        pending: (yield* recovery.state).pending,
-      };
-    }).pipe(Effect.provide(ChangedDiffRecovery.layer)),
+      const read = yield* recovery.stamp('worktree');
+      const started = yield* recovery.begin('worktree', read);
+      const twice = yield* recovery.begin('worktree', read);
+      yield* recovery.stamp('worktree');
+      yield* recovery.produced('worktree');
+      yield* recovery.finish('worktree');
+      const first = yield* recovery.retry('worktree', ['batch']);
+      const again = yield* recovery.retry('worktree', ['batch']);
+      const other = yield* recovery.begin('other', 1);
+      const state = yield* Stream.runHead(recovery.changes);
+      return { started, twice, first, again, other, state };
+    }),
   );
-  expect(result).toEqual({
-    first: true,
-    duplicate: false,
-    repeated: false,
-    pending: {},
+  expect(result).toMatchObject({
+    started: true,
+    twice: false,
+    first: ['batch'],
+    again: [],
+    other: true,
+  });
+  const state = result.state._tag === 'Some' ? result.state.value : {};
+  expect(worktreeRecovery(state, 'worktree')).toEqual({
+    latestRead: 2,
+    running: false,
+    coveredThrough: 1,
+    produced: [2],
+    retried: ['batch'],
   });
 });
-
-it.each([
-  {
-    firstPath: 'worktree/path',
-    firstObservation: 'observation-1',
-    nextPath: 'worktree/path',
-    nextObservation: 'observation-2',
-    pending: { 'worktree/path': 'observation-2' },
-  },
-  {
-    firstPath: 'first/path',
-    firstObservation: 'observation',
-    nextPath: 'second/path',
-    nextObservation: 'observation',
-    pending: { 'second/path': 'observation' },
-  },
-])(
-  'finishing $firstPath at $firstObservation retains $nextPath at $nextObservation',
-  ({ firstPath, firstObservation, nextPath, nextObservation, pending }) => {
-    const result = Effect.runSync(
-      Effect.gen(function* () {
-        const recovery = yield* ChangedDiffRecovery;
-        yield* recovery.begin(firstPath, firstObservation);
-        const accepted = yield* recovery.begin(nextPath, nextObservation);
-        yield* recovery.finish(firstPath, firstObservation);
-        return { accepted, pending: (yield* recovery.state).pending };
-      }).pipe(Effect.provide(ChangedDiffRecovery.layer)),
-    );
-    expect(result).toEqual({ accepted: true, pending });
-  },
-);

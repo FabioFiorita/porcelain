@@ -327,6 +327,7 @@ function windowInput() {
   return {
     scope,
     statusToken: snapshot.statusToken,
+    read: 1,
     expectedFiles,
     selections: expectedFiles.map(({ path }) => ({
       scope: 'unstaged' as const,
@@ -659,6 +660,7 @@ it('a failed stale-diff recovery finishes once per observation and remains indep
       connection: subject.connection,
       scope,
       statusToken: snapshot.statusToken,
+      read: 1,
       expectedFiles: diffInput.expectedFiles,
       selections: diffInput.selections,
     });
@@ -666,10 +668,7 @@ it('a failed stale-diff recovery finishes once per observation and remains indep
     const stop = subject.registry.subscribe(
       window,
       ({ recovery }) => {
-        const pending = Option.exists(
-          AsyncResult.value(recovery),
-          (state) => state.pending,
-        );
+        const pending = recovery.pending;
         if (pending) {
           sawPending = true;
           pendingReached.resolve();
@@ -695,9 +694,7 @@ it('a failed stale-diff recovery finishes once per observation and remains indep
         { suspendOnWaiting: true },
       ).pipe(Effect.exit),
     );
-    const pending = Option.getOrThrow(
-      AsyncResult.value(subject.registry.get(window).recovery),
-    ).pending;
+    const pending = subject.registry.get(window).recovery.pending;
     stop();
     return { outcome: answer._tag, pending };
   };

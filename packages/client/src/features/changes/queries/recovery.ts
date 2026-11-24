@@ -14,30 +14,49 @@ import type {
   RuntimeConnection,
   WorktreeScope,
 } from '../../../shared/api/connection.ts';
-import { ChangedDiffRecovery, recoveryRuntime } from '../store/recovery.ts';
+import {
+  ChangedDiffRecovery,
+  recoveryKey,
+  recoveryRuntime,
+  worktreeRecovery,
+} from '../store/recovery.ts';
+import { diffRecoveryStep, recoveryPending } from '../rules/diff-recovery.ts';
 
-const readDiffRecovery = Atom.family(
+const readWorktreeRecovery = Atom.family(
   ({
     connection,
     scope,
-    statusToken,
   }: {
     connection: RuntimeConnection;
     scope: WorktreeScope;
-    statusToken: string;
   }) =>
     recoveryRuntime(connection).atom(
       Stream.unwrap(
         Effect.map(ChangedDiffRecovery, (recovery) => recovery.changes),
       ).pipe(
-        Stream.map((state) => {
-          const key = JSON.stringify([scope.projectId, scope.worktreeId]);
-          return {
-            pending: state.pending[key] === statusToken,
-            attempted: state.attempted[key] === statusToken,
-          };
-        }),
+        Stream.map((state) => worktreeRecovery(state, recoveryKey(scope))),
       ),
+    ),
+);
+
+const retryStaleBatch = Atom.family(
+  (selection: {
+    connection: RuntimeConnection;
+    scope: WorktreeScope;
+    key: string;
+  }) =>
+    recoveryRuntime(selection.connection).fn(
+      Effect.fn('Changes.retryStaleDiff')(function* (
+        query: ReturnType<typeof readChangeDiffs>,
+        get: Atom.FnContext,
+      ) {
+        const recovery = yield* ChangedDiffRecovery;
+        yield* Effect.yieldNow;
+        const marked = yield* recovery.retry(recoveryKey(selection.scope), [
+          selection.key,
+        ]);
+        if (marked.length > 0) get.refresh(query);
+      }),
     ),
 );
 
@@ -46,47 +65,61 @@ export const readChangeDiffWindow = Atom.family(
     connection: RuntimeConnection;
     scope: WorktreeScope;
     statusToken: string;
+    read: number;
     expectedFiles: readonly ExpectedFile[];
     selections: readonly ChangeSelection[];
   }) => {
-    const { connection, scope, statusToken } = selection;
-    const queries = diffBatches(
+    const { connection, scope, statusToken, read } = selection;
+    const requests = diffBatches(
       selection.expectedFiles,
       selection.selections,
       DIFFS_PER_REQUEST,
-    ).map((batch) =>
-      readChangeDiffs({
-        connection,
-        scope,
-        input: {
-          expectedStatusToken: statusToken,
-          expectedFiles: batch.expectedFiles,
-          selections: batch.selections,
-        },
-      }),
-    );
+    ).map((batch) => {
+      const input = {
+        expectedStatusToken: statusToken,
+        expectedFiles: batch.expectedFiles,
+        selections: batch.selections,
+      };
+      const key = JSON.stringify(input);
+      return {
+        key,
+        query: readChangeDiffs({ connection, scope, input }),
+        retry: retryStaleBatch({ connection, scope, key }),
+      };
+    });
+    const queries = requests.map((request) => request.query);
     const batches = readDiffBatches(queries);
     const window = readCompleteDiffWindow(queries);
     const recover = readCurrentDiffObservation({ connection, scope });
     return Atom.readable(
       (get) => {
         get.mount(recover);
+        for (const request of requests) get.mount(request.retry);
         const results = get(batches);
-        const recovery = get(readDiffRecovery(selection));
-        if (
-          AsyncResult.isSuccess(recovery) &&
-          !recovery.value.attempted &&
-          results.some(
-            (result) =>
-              AsyncResult.isFailure(result) &&
-              isStaleChangeObservation(Cause.squash(result.cause)),
-          )
-        ) {
-          get.set(recover, statusToken);
-        }
+        const recovery = get(readWorktreeRecovery({ connection, scope }));
+        const stale = requests.filter((_, index) => {
+          const result = results[index];
+          return (
+            result !== undefined &&
+            AsyncResult.isFailure(result) &&
+            isStaleChangeObservation(Cause.squash(result.cause))
+          );
+        });
+        const step = AsyncResult.isSuccess(recovery)
+          ? diffRecoveryStep(
+              recovery.value,
+              read,
+              stale.map((request) => request.key),
+            )
+          : ({ kind: 'idle' } as const);
+        if (step.kind === 'recover') get.set(recover, read);
+        if (step.kind === 'retry')
+          for (const request of stale)
+            if (step.batches.includes(request.key))
+              get.set(request.retry, request.query);
         return {
           result: get(window),
-          recovery,
+          recovery: { pending: recoveryPending(step) },
         };
       },
       (refresh) => refresh(batches),

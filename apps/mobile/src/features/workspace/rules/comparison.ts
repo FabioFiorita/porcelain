@@ -1,10 +1,8 @@
-import type {
-  ReadBranchChangesResponse,
-  ReadChangesResponse,
-} from '@porcelain/contracts/changes';
+import type { ReadBranchChangesResponse } from '@porcelain/contracts/changes';
 import {
   branchReviewRange,
   WORKTREE_RANGE,
+  type ChangeList,
   type ReviewRange,
 } from '@porcelain/client/changes/rules';
 import {
@@ -21,7 +19,7 @@ import type { ListReviewedFilesResponse } from '@porcelain/contracts/changes';
 import { AsyncResult } from 'effect/reactivity';
 
 export type ReviewSnapshot =
-  | { kind: 'worktree'; answer: ReadChangesResponse }
+  | { kind: 'worktree'; answer: ChangeList }
   | { kind: 'branch'; answer: ReadBranchChangesResponse };
 export type ReviewFile = {
   path: string;
