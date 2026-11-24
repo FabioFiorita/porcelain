@@ -21,7 +21,10 @@ export const readChangeDiffs = Atom.family(
     connection,
     scope,
     input,
-  }: Selection & { input: ReadChangeDiffsRequest }) =>
+  }: Selection & {
+    input: ReadChangeDiffsRequest;
+    read?: number | undefined;
+  }) =>
     worktreeRead(
       connection,
       scope,
