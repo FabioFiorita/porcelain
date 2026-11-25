@@ -23,12 +23,9 @@ export const readCurrentDiffObservation = Atom.family(
         if (!(yield* recovery.begin(key, read))) return;
         const query = readChanges(selection);
         get.refresh(query);
-        yield* Effect.raceFirst(
-          recovery.produced(key),
-          get
-            .result(query, { suspendOnWaiting: true })
-            .pipe(Effect.andThen(Effect.never)),
-        ).pipe(Effect.ensuring(recovery.finish(key)));
+        yield* recovery
+          .refreshed(key)
+          .pipe(Effect.ensuring(recovery.finish(key)));
       }),
       { concurrent: true },
     ),

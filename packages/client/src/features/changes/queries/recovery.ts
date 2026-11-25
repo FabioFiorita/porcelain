@@ -139,12 +139,16 @@ export const readChangeDiffWindow = Atom.family(
                 ticket: step.ticket,
               });
         const result = get(window);
-        const catchingUp =
-          AsyncResult.isFailure(result) &&
-          !results.some((batch) => AsyncResult.isFailure(batch));
+        const pending =
+          recoveryPending(step) ||
+          (AsyncResult.isFailure(result) &&
+            !results.some((batch) => AsyncResult.isFailure(batch)));
         return {
-          result,
-          recovery: { pending: recoveryPending(step) || catchingUp },
+          result:
+            pending && AsyncResult.isFailure(result)
+              ? AsyncResult.initial(true)
+              : result,
+          recovery: { pending },
         };
       },
       (refresh) => refresh(batches),

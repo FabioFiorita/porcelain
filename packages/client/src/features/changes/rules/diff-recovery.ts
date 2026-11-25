@@ -12,6 +12,7 @@ export type DiffRecovery = {
   readonly running: boolean;
   readonly coveredThrough: number;
   readonly produced: readonly number[];
+  readonly refreshFailed: boolean;
   readonly retried: readonly string[];
   readonly inFlight: readonly string[];
 };
@@ -47,6 +48,7 @@ export const idleDiffRecovery: DiffRecovery = {
   running: false,
   coveredThrough: 0,
   produced: [],
+  refreshFailed: false,
   retried: [],
   inFlight: [],
 };
@@ -80,6 +82,7 @@ export function diffRecoveryStep(
   )
     return { kind: 'wait' };
   if (!recoveryCovers(recovery, read)) return { kind: 'recover' };
+  if (recovery.produced.length === 0) return { kind: 'given-up' };
   const current =
     read < recovery.latestRead
       ? stale.filter((batch) => matchesSnapshot(recovery.snapshot, batch))
@@ -128,9 +131,20 @@ export function beginRecovery(
     running: true,
     coveredThrough: Math.max(recovery.latestRead, read),
     produced: [],
+    refreshFailed: false,
     retried: [],
     inFlight: [],
   };
+}
+
+export function failRead(recovery: DiffRecovery): DiffRecovery {
+  return recovery.running && !recovery.refreshFailed
+    ? { ...recovery, refreshFailed: true }
+    : recovery;
+}
+
+export function refreshSettled(recovery: DiffRecovery) {
+  return recovery.produced.length > 0 || recovery.refreshFailed;
 }
 
 export function finishRecovery(recovery: DiffRecovery): DiffRecovery {
@@ -144,6 +158,7 @@ export function claimRetry(
 ): { readonly recovery: DiffRecovery; readonly marked: readonly string[] } {
   const marked =
     recovery.running ||
+    recovery.produced.length === 0 ||
     recovery.generation !== ticket.generation ||
     recovery.latestRead !== ticket.read
       ? []

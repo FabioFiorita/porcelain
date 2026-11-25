@@ -87,7 +87,9 @@ function diffAnswer(request: DiffRequest) {
 
 function worktree(script: {
   paths?: readonly string[];
-  changes: (read: number) => Snapshot | Promise<Snapshot>;
+  changes: (
+    read: number,
+  ) => Snapshot | 'unavailable' | Promise<Snapshot | 'unavailable'>;
   diff: (request: DiffRequest, attempt: number) => Answer | Promise<Answer>;
 }) {
   const counts = { changes: 0, diffs: 0 };
@@ -119,18 +121,27 @@ function worktree(script: {
     }
     log.push(`changes ${counts.changes}`);
     return Promise.resolve(script.changes(counts.changes)).then((snapshot) =>
-      Response.json({
-        environmentId,
-        worktreeId: scope.worktreeId,
-        headOid: null,
-        inProgress: null,
-        mergeHeadOid: null,
-        branch: null,
-        statusToken: snapshot.statusToken,
-        changes: listed.map((path) =>
-          fileChange(path, snapshot.fingerprint ?? 'c'),
-        ),
-      }),
+      snapshot === 'unavailable'
+        ? Response.json(
+            {
+              statusCode: 500,
+              error: 'Internal Server Error',
+              message: 'Changes could not be read',
+            },
+            { status: 500 },
+          )
+        : Response.json({
+            environmentId,
+            worktreeId: scope.worktreeId,
+            headOid: null,
+            inProgress: null,
+            mergeHeadOid: null,
+            branch: null,
+            statusToken: snapshot.statusToken,
+            changes: listed.map((path) =>
+              fileChange(path, snapshot.fingerprint ?? 'c'),
+            ),
+          }),
     );
   });
   let writes = 0;
@@ -313,7 +324,11 @@ it('a window still on the snapshot before an edit waits for the edited one inste
   server.readAgain();
   await view.loadsAt(3);
   expect(server.counts).toEqual({ changes: 3, diffs: 2 });
-  expect(held.latest()).toEqual({ loaded: false, failed: true, pending: true });
+  expect(held.latest()).toEqual({
+    loaded: false,
+    failed: false,
+    pending: true,
+  });
   expect(server.runaway()).toBe(false);
 });
 
@@ -521,5 +536,37 @@ it('a recovery resends only the stale batch of a window, and only after its refr
     'released',
     'diffs f-200.md',
   ]);
+  expect(server.runaway()).toBe(false);
+});
+
+it('a recovery whose Changes refresh fails settles the window on its failure without resending the diff', async () => {
+  const server = worktree({
+    changes: (read) =>
+      read === 1 ? { statusToken: token('a') } : 'unavailable',
+    diff: (_, attempt) => (attempt === 1 ? 'stale' : 'ok'),
+  });
+  await server.takeReads(1);
+  const window = server.mount({
+    statusToken: token('a'),
+    read: 1,
+    paths: ['README.md'],
+  });
+  await expect
+    .poll(() => window.latest(), settled)
+    .toEqual({ loaded: false, failed: true, pending: false });
+  expect(server.counts).toEqual({ changes: 2, diffs: 1 });
+  expect(server.runaway()).toBe(false);
+});
+
+it('a window reports no failed result while its automatic recovery is pending', async () => {
+  const server = await staleOnceAfterOneRead(['README.md']);
+  const window = server.mount({
+    statusToken: token('a'),
+    read: 1,
+    paths: ['README.md'],
+  });
+  await expect.poll(() => window.latest()?.loaded, settled).toBe(true);
+  expect(window.seen.some((state) => state.pending)).toBe(true);
+  expect(window.seen.filter((state) => state.failed)).toEqual([]);
   expect(server.runaway()).toBe(false);
 });

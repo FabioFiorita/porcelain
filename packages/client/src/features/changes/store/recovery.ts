@@ -9,9 +9,11 @@ import {
   beginRecovery,
   claimRetry,
   type DiffRecovery,
+  failRead,
   finishRecovery,
   idleDiffRecovery,
   type RecoverySnapshot,
+  refreshSettled,
   type RetryTicket,
   settleRetry,
   stampRead,
@@ -36,7 +38,8 @@ export class ChangedDiffRecovery extends Context.Service<
       snapshot: RecoverySnapshot,
     ) => Effect.Effect<number>;
     readonly begin: (key: string, read: number) => Effect.Effect<boolean>;
-    readonly produced: (key: string) => Effect.Effect<void>;
+    readonly failRead: (key: string) => Effect.Effect<void>;
+    readonly refreshed: (key: string) => Effect.Effect<void>;
     readonly finish: (key: string) => Effect.Effect<void>;
     readonly retry: (
       key: string,
@@ -81,10 +84,13 @@ export class ChangedDiffRecovery extends Context.Service<
                 : ([false, current] as const);
             }),
         ),
-        produced: Effect.fn('ChangedDiffRecovery.produced')((key: string) =>
+        failRead: Effect.fn('ChangedDiffRecovery.failRead')((key: string) =>
+          update(key, failRead),
+        ),
+        refreshed: Effect.fn('ChangedDiffRecovery.refreshed')((key: string) =>
           SubscriptionRef.changes(state).pipe(
-            Stream.filter(
-              (current) => worktreeRecovery(current, key).produced.length > 0,
+            Stream.filter((current) =>
+              refreshSettled(worktreeRecovery(current, key)),
             ),
             Stream.runHead,
             Effect.asVoid,

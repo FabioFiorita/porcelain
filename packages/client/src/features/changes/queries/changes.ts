@@ -1,4 +1,4 @@
-import { Effect } from 'effect';
+import { Cause, Effect } from 'effect';
 import { Atom } from 'effect/reactivity';
 import type { WorktreeSelection } from '../../../shared/api/connection.ts';
 import { requestApi } from '../../../shared/api/client.ts';
@@ -28,9 +28,14 @@ export const readChangesSnapshot = Effect.fn('Changes.readSnapshot')(
 const readStampedChanges = Effect.fn('Changes.readStamped')(function* (
   selection: WorktreeSelection,
 ) {
-  const answer = yield* readChangesSnapshot(selection);
   const recovery = yield* ChangedDiffRecovery;
-  const read = yield* recovery.stamp(recoveryKey(selection.scope), {
+  const key = recoveryKey(selection.scope);
+  const answer = yield* readChangesSnapshot(selection).pipe(
+    Effect.tapCause((cause) =>
+      Cause.hasInterruptsOnly(cause) ? Effect.void : recovery.failRead(key),
+    ),
+  );
+  const read = yield* recovery.stamp(key, {
     statusToken: answer.statusToken,
     fingerprints: new Map(
       answer.changes.map((change) => [change.path, change.fingerprint]),
