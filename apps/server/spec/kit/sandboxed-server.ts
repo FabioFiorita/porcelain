@@ -30,13 +30,14 @@ import { FixedNetworkAddressReader } from '../fakes/fixed-network-address-reader
 import { InMemoryRouteListenerRunner } from '../fakes/in-memory-route-listener-runner.ts';
 import { ScriptedServiceUpdateRunner } from '../fakes/scripted-service-update-runner.ts';
 import { ScriptedTunnelProbe } from '../fakes/scripted-tunnel-probe.ts';
-import { composeServer } from '../../src/bootstrap/compose-server.ts';
+import { composeServerWithLiveConnector } from '../../src/bootstrap/compose-server.ts';
 import {
   readServerSettings,
   listenHostSchema,
 } from '../../src/config/server-settings.ts';
 import type { Runtime } from '../../src/ports/runtime.ts';
 import { codingTool } from './coding-tool.ts';
+import { gatedLiveConnector } from './live-retirement-gate.ts';
 const issuedPairingSchema = Schema.Struct({
   grants: Schema.Array(
     Schema.Struct({
@@ -90,7 +91,9 @@ const runtime = ManagedRuntime.make(
 let server: Runtime | undefined;
 const listeningPort = () =>
   Number(new URL(server?.address ?? 'http://127.0.0.1:0').port);
-const startServer = composeServer({
+const startServer = composeServerWithLiveConnector((connector) =>
+  gatedLiveConnector(root, connector),
+)({
   githubReader: ghPullRequestReaderLayer,
   networkAddressReader: () =>
     new FixedNetworkAddressReader(

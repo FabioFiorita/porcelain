@@ -19,7 +19,7 @@ import {
   ProjectFolderReader,
   WorktreeCatalogStore,
 } from '@porcelain/projects/ports';
-import { Context, Duration, Effect, Layer, Clock } from 'effect';
+import { Context, Duration, Effect, Layer, Clock, identity } from 'effect';
 import { storageLayer } from '@porcelain/storage';
 import { NodeServices, NodeHttpClient } from '@effect/platform-node';
 import { cachedDeviceStoreLayer } from '../adapters/access/cached-device-store.ts';
@@ -77,6 +77,7 @@ import { Observability } from '../runtime/observability.ts';
 import { LaneKeys } from '../runtime/lane-keys.ts';
 import { Lanes } from '../runtime/lanes.ts';
 import { LiveConnections } from '../runtime/live-updates/live-connections.ts';
+import type { LiveConnector } from '../ports/live-connector.ts';
 import { WatchWorktrees } from '../runtime/live-updates/watch-worktrees.ts';
 import { AnnounceWorktreeChangeUseCase } from '../use-cases/files/announce-worktree-change.ts';
 import type { ServerSettings } from '../config/server-settings.ts';
@@ -127,6 +128,7 @@ class ServerFoundation extends Context.Service<
 
 function serverResources(
   adapters: RemoteRouteAdapters,
+  liveConnector: (connector: LiveConnector) => LiveConnector,
   host: ServerHost,
   input: Parameters<OpenServer>[0],
 ) {
@@ -446,7 +448,7 @@ function serverResources(
         const network = createNetworkServer({
           application: {
             ...useCases,
-            liveUpdates: liveConnections,
+            liveUpdates: liveConnector(liveConnections),
             worktreeWatches,
             deviceConnections,
             tunnelConnections,
@@ -484,22 +486,29 @@ function serverResources(
 }
 
 const openServerWith =
-  (adapters: RemoteRouteAdapters, host: ServerHost): OpenServer =>
+  (
+    adapters: RemoteRouteAdapters,
+    liveConnector: (connector: LiveConnector) => LiveConnector,
+    host: ServerHost,
+  ): OpenServer =>
   (input) =>
-    openServerResources(serverResources(adapters, host, input));
+    openServerResources(serverResources(adapters, liveConnector, host, input));
 
-export const composeServer =
+export const composeServerWithLiveConnector =
+  (liveConnector: (connector: LiveConnector) => LiveConnector) =>
   (adapters: RemoteRouteAdapters) =>
   (settings: ServerSettings, host: ServerHost) =>
     Effect.gen(function* () {
       const clock = yield* Clock.Clock;
       const ownerContext = yield* Layer.build(socketOwnerProbeLayer);
       return yield* startApplication(settings, {
-        openServer: openServerWith(adapters, host),
+        openServer: openServerWith(adapters, liveConnector, host),
         ownerProbe: Context.get(ownerContext, OwnerProbe),
         clock,
       });
     });
+
+export const composeServer = composeServerWithLiveConnector(identity);
 
 const networkReaders = {
   darwin: (limits: Limits['access']['networkDiscovery']) =>

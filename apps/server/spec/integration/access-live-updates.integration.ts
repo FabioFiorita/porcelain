@@ -16,6 +16,7 @@ import {
 import { gitPath, read, worktreePath } from '../kit/requests.ts';
 import { test } from '../kit/server-test.ts';
 import { liveNotices } from '../kit/live-notices.ts';
+import { holdLiveRetirement } from '../kit/live-retirement-gate.ts';
 import { list, record, text, type Session } from '../kit/session.ts';
 
 async function nextRpcFrame(socket: WebSocket) {
@@ -395,7 +396,7 @@ test.for([
   },
 ])(
   'a pong-responsive peer with $mode cannot stall writers or two healthy viewers and recovers by resubscribing',
-  async ({ mode, requestId }, { session }) => {
+  async ({ mode, requestId }, { session, onTestFinished, signal }) => {
     const healthy = [await watching(session), await watching(session)];
     const issued = await session.read({
       method: 'POST',
@@ -492,25 +493,39 @@ test.for([
           type: 'git-action',
           receipt: { requestId, state: 'succeeded' },
         });
-      for (let index = 0; index < 600; index += 1) {
-        const name = `${mode} ${index % 2 === 0 ? 'A' : 'B'}`;
+      const retirement = await holdLiveRetirement(session.projectHome);
+      onTestFinished(retirement.release);
+      async function renameAndObserve(name: string) {
         const updated = await session.send({
           method: 'PATCH',
           path: `/api/projects/${session.projectId}`,
           body: { name },
         });
+        signal.throwIfAborted();
         expect(updated.status).toBe(200);
         expect(updated.body).toStrictEqual({ id: session.projectId, name });
         for (const connection of healthy)
           expect(await connection.next(inventoryNotice)).toStrictEqual({
             type: 'inventory',
           });
+      }
+      for (let index = 0; index < 600; index += 1) {
+        await renameAndObserve(`${mode} ${index % 2 === 0 ? 'A' : 'B'}`);
         if (index === 0)
           expect(
             stalled.readyState,
             'the peer is still stalled and connected',
           ).toBe(WebSocket.OPEN);
       }
+      expect(retirement.hasPeer(), 'the stalled peer reached retirement').toBe(
+        true,
+      );
+      const nameWhileRetiring = 'Renamed while retirement is held';
+      await renameAndObserve(nameWhileRetiring);
+      expect(stalled.readyState, 'retirement is still held').toBe(
+        WebSocket.OPEN,
+      );
+      await retirement.release();
       await closed;
       const recovered = await watching(session);
       try {
@@ -521,7 +536,7 @@ test.for([
           projects.find((project) => project.id === session.projectId),
         ).toMatchObject({
           id: session.projectId,
-          name: `${mode} B`,
+          name: nameWhileRetiring,
         });
         expect(await receiptOf(session, requestId)).toMatchObject({
           requestId,
