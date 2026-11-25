@@ -36,7 +36,7 @@ const decodeRequest = Schema.decodeUnknownSync(
 );
 type DiffRequest = ReturnType<typeof decodeRequest>;
 type Snapshot = { statusToken: string; fingerprint?: string };
-type Answer = 'stale' | 'ok';
+type Answer = 'stale' | 'unavailable' | 'ok';
 
 function bodyText(body: RequestInit['body']) {
   if (typeof body === 'string') return body;
@@ -115,7 +115,14 @@ function worktree(script: {
         attempts.set(key, attempt);
         log.push(`diffs ${request.expectedFiles[0]?.path ?? ''}`);
         return Promise.resolve(script.diff(request, attempt)).then((answer) =>
-          answer === 'stale' ? staleAnswer() : diffAnswer(request),
+          answer === 'ok'
+            ? diffAnswer(request)
+            : answer === 'stale'
+              ? staleAnswer()
+              : Response.json(
+                  { statusCode: 500, error: 'Internal Server Error' },
+                  { status: 500 },
+                ),
         );
       }
       counts.changes += 1;
@@ -668,5 +675,33 @@ it('a retry pressed after automatic recovery is spent refreshes Changes and load
   view.window()?.retry();
   await view.loadsAt(3);
   expect(server.counts).toEqual({ changes: 3, diffs: 4 });
+  expect(server.runaway()).toBe(false);
+});
+
+it('one retry rereads a window’s stale and unavailable batches together once Changes is read again', async () => {
+  const paths = Array.from(
+    { length: 201 },
+    (_, index) => `f-${String(index).padStart(3, '0')}.md`,
+  );
+  const server = worktree({
+    paths,
+    changes: () => ({ statusToken: token('a') }),
+    diff: (request, attempt) => {
+      if (request.expectedFiles.some((file) => file.path === 'f-200.md'))
+        return attempt === 1 ? 'unavailable' : 'ok';
+      return attempt <= 2 ? 'stale' : 'ok';
+    },
+  });
+  await server.takeReads(1);
+  const window = server.mount({ statusToken: token('a'), read: 1, paths });
+  await expect
+    .poll(() => window.latest(), settled)
+    .toEqual({ loaded: false, failed: true, pending: false });
+  expect(server.counts).toEqual({ changes: 2, diffs: 3 });
+  window.retry();
+  await expect
+    .poll(() => window.latest(), settled)
+    .toEqual({ loaded: true, failed: false, pending: false });
+  expect(server.counts).toEqual({ changes: 3, diffs: 5 });
   expect(server.runaway()).toBe(false);
 });
