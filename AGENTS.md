@@ -90,7 +90,7 @@ Work on your own branch from `main`, in your own worktree, one concern per pull 
 
 Feature PRs into `main` run affected static and unit checks, changed browser specs, a browser smoke test for web or shared runtime changes, and the migration check for storage changes. After green CI, the Decisions API checks whether the owner needs to decide. Routine owner-authored changes merge automatically. Keep a PR in draft or add `hold` to defer landing.
 
-Every push to `main` runs full static, unit, server, browser and desktop suites, mobile exports, migrations and package checks. The `main checks` result reports failures after landing. A newer push cancels any older run still in progress.
+Every push to `main` runs full static, unit, server, browser and desktop suites, mobile exports, migrations and package checks. The `main checks` result reports failures after landing. Each push to `main` finishes its own run, so a failure points at the merge that caused it. A newer push to a pull request cancels that pull request's older run.
 
 Promote `main` into `release` with a PR. The `release checks` gate reuses a successful `main checks` run for the exact PR head when the promotion merge has the same tree. Otherwise it runs the same full suites on the promotion merge. The hosted agent reviews the accumulated changes on the promotion PR. Address findings on main. Promotion preserves main’s history. Only an explicit version tag publishes the qualified commit.
 

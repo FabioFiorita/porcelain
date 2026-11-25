@@ -1053,8 +1053,9 @@ ${reuse.run}`;
         DIFF_BASE: '${{ github.event.pull_request.base.sha }}',
       });
       deepStrictEqual(workflow.concurrency, {
-        group: '${{ github.workflow }}-${{ github.ref }}',
-        'cancel-in-progress': true,
+        group:
+          '${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}',
+        'cancel-in-progress': "${{ github.event_name == 'pull_request' }}",
       });
       for (const fixture of entry.webE2eCases) {
         const release = fixture.specs.length === 0;
