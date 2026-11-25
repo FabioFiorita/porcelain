@@ -24,12 +24,6 @@ export class ReadPreviewAssetsService extends Context.Service<
     Effect.gen(function* () {
       const fileReaderCapability = yield* FileReader;
       const optionsCapability = yield* ReadPreviewAssetsOptions;
-      function operationServable(directory: string, path: string): boolean {
-        return (
-          isRelativePath(path, optionsCapability.maxPathLength) &&
-          (directory === '' || path.startsWith(`${directory}/`))
-        );
-      }
       const operationRead = Effect.fn('ReadPreviewAssetsService.read')(
         function* (
           input: FileReadInput,
@@ -44,9 +38,6 @@ export class ReadPreviewAssetsService extends Context.Service<
         execute: Effect.fn('ReadPreviewAssetsService.execute')(function* (
           input: ReadPreviewAssetsInput,
         ): Effect.fn.Return<ReadPreviewAssetsResult, never, WorktreeRead> {
-          const directory = input.document.includes('/')
-            ? input.document.slice(0, input.document.lastIndexOf('/'))
-            : '';
           const assets: PreviewAsset[] = [];
           let remaining = optionsCapability.maxTotalBytes;
           for (const path of new Set(input.paths)) {
@@ -54,7 +45,7 @@ export class ReadPreviewAssetsService extends Context.Service<
             const bytes =
               mediaType === undefined ||
               remaining <= 0 ||
-              !operationServable(directory, path)
+              !isRelativePath(path, optionsCapability.maxPathLength)
                 ? undefined
                 : yield* operationRead({
                     worktreeId: input.worktreeId,

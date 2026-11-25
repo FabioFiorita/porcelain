@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 import type { ContextMenuItem, GitStatusEntry } from '@pierre/trees';
 import type { FileTreeEntry } from '@porcelain/client/files/rules';
 import { useAtomRef, useAtomSet, useAtomValue } from '@effect/atom-react';
+import { atomRegistry } from '@/shared/store';
 import {
   readTextFile,
   retainFileDraft,
@@ -209,3 +210,31 @@ export const diskChangeObservation = Atom.family(
         Effect.runFork(draft.noticeDiskChange(viewer, fingerprint));
     }),
 );
+
+const readerPlaces = Atom.family((_document: string) =>
+  Atom.make<{ scrollTop: number; anchor: string }>({
+    scrollTop: 0,
+    anchor: '',
+  }).pipe(Atom.keepAlive),
+);
+
+export function useReaderPlaces() {
+  const registry = useAtomValue(atomRegistry);
+  return {
+    place: (document: string) => registry.get(readerPlaces(document)),
+    clearAnchor: (document: string) =>
+      registry.set(readerPlaces(document), {
+        ...registry.get(readerPlaces(document)),
+        anchor: '',
+      }),
+    rememberScroll: (document: string, scrollTop: number) =>
+      registry.set(readerPlaces(document), {
+        ...registry.get(readerPlaces(document)),
+        scrollTop,
+      }),
+    openAt: (document: string, anchor: string) =>
+      registry.set(readerPlaces(document), { scrollTop: 0, anchor }),
+  };
+}
+
+export const noAsset = Atom.make<undefined>(undefined);

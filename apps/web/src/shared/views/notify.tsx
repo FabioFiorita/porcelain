@@ -39,6 +39,7 @@ export function dismissNotice(id: string) {
 export type CopyTarget =
   | 'address'
   | 'brief'
+  | 'code'
   | 'command'
   | 'commit id'
   | 'commit message'

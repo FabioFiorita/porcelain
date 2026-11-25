@@ -19,6 +19,8 @@ export type PreviewAssetFailure =
 export type HtmlPreview = {
   readonly html: string;
   readonly missing: readonly string[];
+  readonly links: readonly string[];
+  readonly nonce: string;
 };
 
 export class HtmlPreviewUnavailable extends Schema.TaggedError<HtmlPreviewUnavailable>()(

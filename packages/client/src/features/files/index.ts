@@ -23,6 +23,7 @@ export {
 export type { FileDraftWriteFailure } from './ports/file-draft-writer.ts';
 
 export { readHtmlPreview } from './queries/html-preview.ts';
+export { readPreviewAsset } from './queries/preview-asset.ts';
 export {
   HtmlPreviewPlatform,
   HtmlPreviewUnavailable,
