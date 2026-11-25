@@ -5,6 +5,14 @@ export type ComparisonRead = {
 
 const retained = (read: ComparisonRead) => read.shown && !read.current;
 
+export function comparisonRead(
+  read: ComparisonRead & { readonly unsupported: boolean },
+): ComparisonRead {
+  return read.unsupported
+    ? { shown: false, current: false }
+    : { shown: read.shown, current: read.current };
+}
+
 export function fileReviewable(file: readonly ComparisonRead[]) {
   return !file.some(retained);
 }

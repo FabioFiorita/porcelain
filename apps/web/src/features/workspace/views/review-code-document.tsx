@@ -45,6 +45,7 @@ import {
 import { ReservedCode } from './reserved-code';
 import { fileReviewControl, ReviewedControl } from './reviewed-control';
 import {
+  comparisonRead,
   comparisonWrites,
   type ComparisonRead,
   fileReviewable,
@@ -180,10 +181,11 @@ export function ReviewCodeDocument({
           shown: textOf(change.path) !== undefined,
           current: untracked.contents.has(change.path),
         }
-      : {
+      : comparisonRead({
+          unsupported: change.scope !== 'unmerged' && !change.supported,
           shown: patchOf(change) !== undefined,
           current: livePatch(change) !== undefined,
-        };
+        });
   const notes = new Map(files.map((file) => [file.path, file.note]));
   const unrenderable = items.flatMap((item) => {
     const reasons = item.comparisons.flatMap((change) => {

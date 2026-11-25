@@ -1,5 +1,9 @@
 import { expect, it } from 'vite-plus/test';
-import { comparisonWrites, type ComparisonRead } from './comparison-writes';
+import {
+  comparisonRead,
+  comparisonWrites,
+  type ComparisonRead,
+} from './comparison-writes';
 
 const current = { shown: true, current: true };
 const retained = { shown: true, current: false };
@@ -50,4 +54,9 @@ it('a retained staged deletion beside current untracked text withholds the file 
     review: false,
   });
   expect(comparisonWrites(file, retained)).toEqual(closed);
+});
+
+it('an unsupported comparison whose cached diff outlived a failed refresh is never retained, so its file stays reviewable', () => {
+  const read = comparisonRead({ unsupported: true, ...retained });
+  expect(comparisonWrites([read], read)).toEqual(open);
 });
