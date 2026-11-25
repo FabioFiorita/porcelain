@@ -248,6 +248,7 @@ function WorktreeDiff(
     connection: workspace.connection,
     scope: workspace.scope,
     statusToken: snapshot.answer.statusToken,
+    read: snapshot.answer.read,
     expectedFiles: [
       { path: file.path, fingerprint: file.fingerprint ?? undefined },
     ],
