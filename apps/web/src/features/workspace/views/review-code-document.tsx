@@ -169,6 +169,10 @@ export function ReviewCodeDocument({
     !untracked.pending &&
     ((diffs.failed && (expanding || kept.size === 0)) ||
       (untracked.failed && (expanding || keptText.size === 0)));
+  const isCurrent = (change: Change) =>
+    change.scope === 'untracked'
+      ? textOf(change.path) === undefined || untracked.contents.has(change.path)
+      : patchOf(change) === undefined || livePatch(change) !== undefined;
   const notes = new Map(files.map((file) => [file.path, file.note]));
   const unrenderable = items.flatMap((item) => {
     const reasons = item.comparisons.flatMap((change) => {
@@ -185,21 +189,16 @@ export function ReviewCodeDocument({
         return [`Content omitted: ${omissionReason(content.reason)}`];
       return diffEntry(change, content) ? [] : ['No single-file textual patch'];
     });
-    const current = item.comparisons.every((change) =>
-      change.scope === 'untracked'
-        ? textOf(change.path) === undefined ||
-          untracked.contents.has(change.path)
-        : patchOf(change) === undefined || livePatch(change) !== undefined,
-    );
+    const current = item.comparisons.every(isCurrent);
     return reasons.length > 0 ? [{ item, reasons, current }] : [];
   });
   const entries = items.flatMap((item): CodeEntry[] =>
     item.comparisons.flatMap((change): CodeEntry[] => {
-      const review = fileReviewControl(scope, context, item);
+      const current = isCurrent(change);
+      const review = fileReviewControl(scope, context, item, current);
       if (change.scope === 'untracked') {
         const text = textOf(change.path);
         if (text === undefined) return [];
-        const current = untracked.contents.has(change.path);
         return [
           {
             ...fileEntry(
@@ -208,7 +207,8 @@ export function ReviewCodeDocument({
               text,
               notes.get(item.path) ?? 'untracked',
             ),
-            ...(current ? { review } : {}),
+            current,
+            review,
           },
         ];
       }
@@ -216,13 +216,14 @@ export function ReviewCodeDocument({
       const content = focusedDiff(patchOf(change), focus?.[item.path]);
       const entry = content ? diffEntry(change, content) : null;
       const note = notes.get(item.path);
-      const current = livePatch(change) !== undefined;
       return entry
         ? [
             {
               ...entry,
               ...(note ? { note } : {}),
-              ...(current ? { review, discardScope: change.scope } : {}),
+              current,
+              review,
+              discardScope: change.scope,
             },
           ]
         : [];
@@ -308,6 +309,7 @@ export function ReviewCodeDocument({
             scope={scope}
             context={context}
             item={omittedFile}
+            current={unrenderable[0]?.current ?? true}
             active={interaction.active}
           >
             {headerActions}
@@ -439,13 +441,14 @@ function OmittedChanges({
             >
               {omittedReasonText(reasons)}
             </Badge>
-            {!paneFile && current && !renderedPaths.has(item.path) && (
+            {!paneFile && !renderedPaths.has(item.path) && (
               <ReviewedControl
                 scope={scope}
                 context={context}
                 path={item.path}
                 fingerprint={item.fingerprint}
                 status={item.reviewStatus}
+                current={current}
                 compact={Boolean(item.fingerprint)}
               />
             )}
@@ -460,21 +463,23 @@ function OmittedActions({
   scope,
   context,
   item,
+  current,
   active,
   children,
 }: {
   scope: ReviewScope;
   context: ConnectionContext;
   item: ReviewChangeItem;
+  current: boolean;
   active: boolean;
   children: ReactNode;
 }) {
   const review = useToggleReviewed(scope, context, (notice) => notify(notice));
-  const target = fileReviewControl(scope, context, item);
+  const target = fileReviewControl(scope, context, item, current);
   const hotkeysEnabled = useHotkeysEnabled();
   const toggle = () => review.toggle(target);
   useHotkey(SHORTCUTS.toggleReviewed, toggle, {
-    enabled: hotkeysEnabled && active,
+    enabled: hotkeysEnabled && active && current,
     ignoreInputs: true,
   });
   return (
@@ -485,7 +490,7 @@ function OmittedActions({
         icon={target.reviewed ? CheckIcon : SquareIcon}
         shortcut={SHORTCUTS.toggleReviewed}
         description={review.writeBlock}
-        disabled={Boolean(review.writeBlock) || !target.fingerprint}
+        disabled={Boolean(review.writeBlock) || !current || !target.fingerprint}
         pressed={target.reviewed}
         onClick={toggle}
       />

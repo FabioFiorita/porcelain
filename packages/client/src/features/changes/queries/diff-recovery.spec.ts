@@ -615,28 +615,39 @@ it('a window mounted on its own recovers through a delayed Changes refresh', asy
   expect(server.runaway()).toBe(false);
 });
 
-it('a visible patch that goes stale stays visible, as pending, while its recovery refresh is held', async () => {
+it('a visible patch that goes stale stays visible, as pending, through its held refresh and held retry', async () => {
   const refresh = Promise.withResolvers<Snapshot>();
+  const retried = Promise.withResolvers<Answer>();
   const server = worktree({
     changes: (read) =>
       read === 1 ? { statusToken: token('a') } : refresh.promise,
-    diff: (_, attempt) => (attempt === 2 ? 'stale' : 'ok'),
+    diff: (_, attempt) =>
+      attempt === 1 ? 'ok' : attempt === 2 ? 'stale' : retried.promise,
   });
   await server.takeReads(1);
   const window = server.mountReadme();
   await expect.poll(() => window.latest()?.loaded, settled).toBe(true);
+  const retained = () => [window.latest(), window.patch()];
+  const pending = [
+    { loaded: true, failed: false, pending: true },
+    'README.md patch',
+  ];
   window.reread();
   await expect
     .poll(() => server.counts, settled)
     .toEqual({ changes: 2, diffs: 2 });
-  expect(window.latest()).toEqual({
-    loaded: true,
-    failed: false,
-    pending: true,
-  });
-  expect(window.patch()).toBe('README.md patch');
-  await answerRefresh(refresh, window);
-  expect(window.patch()).toBe('README.md patch');
-  expect(server.counts).toEqual({ changes: 2, diffs: 3 });
+  expect(retained()).toEqual(pending);
+  refresh.resolve({ statusToken: token('a') });
+  await expect
+    .poll(() => server.counts, settled)
+    .toEqual({ changes: 2, diffs: 3 });
+  expect(retained()).toEqual(pending);
+  retried.resolve('ok');
+  await expect
+    .poll(retained, settled)
+    .toEqual([
+      { loaded: true, failed: false, pending: false },
+      'README.md patch',
+    ]);
   expect(server.runaway()).toBe(false);
 });

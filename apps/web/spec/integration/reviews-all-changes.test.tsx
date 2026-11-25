@@ -555,7 +555,7 @@ test('a failed branch comparison never reads as no changes in Review', async ({
     .toBeVisible();
 });
 
-test('Review offers no review or discard on a patch it is still replacing', async ({
+test('Review keeps the review control of a patch it is still replacing, disabled', async ({
   repo,
   render,
   fetchGate,
@@ -581,18 +581,18 @@ test('Review offers no review or discard on a patch it is still replacing', asyn
     await expect
       .element(local.getByText('A change to review.', { exact: true }))
       .toBeVisible();
-    await expect.element(mark).not.toBeInTheDocument();
+    await expect.element(mark).toBeDisabled();
     held.release();
     await expect
       .element(local.getByText('A newer edit.', { exact: true }))
       .toBeVisible();
-    await expect.element(mark).toBeVisible();
+    await expect.element(mark).toBeEnabled();
   } finally {
     held.release();
   }
 });
 
-test('Review offers no review on a non-text file whose new patch is still being read', async ({
+test('Review keeps the review control of a non-text file whose new patch is still being read, disabled', async ({
   repo,
   render,
   fetchGate,
@@ -618,7 +618,7 @@ test('Review offers no review on a non-text file whose new patch is still being 
     await repo.write('data.bin', 'text after\n');
     await held.requested;
     await expect.element(omitted).toBeVisible();
-    await expect.element(mark).not.toBeInTheDocument();
+    await expect.element(mark).toBeDisabled();
     held.release();
     await expect
       .element(local.getByText('text after', { exact: true }))
