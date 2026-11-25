@@ -7,6 +7,7 @@ type CodeReview = {
   control: ReactNode;
   reviewed?: boolean;
   stale?: boolean;
+  current?: boolean;
   fingerprint?: string | null;
 };
 
@@ -18,6 +19,7 @@ export type CodeEntry =
       fileDiff: FileDiffMetadata;
       version: number;
       note?: string;
+      current?: boolean;
       discardScope?: 'staged' | 'unstaged';
       review?: CodeReview;
     }
@@ -28,6 +30,7 @@ export type CodeEntry =
       contents: string;
       version: number;
       note?: string;
+      current?: boolean;
       discardScope?: 'staged' | 'unstaged';
       review?: CodeReview;
     };

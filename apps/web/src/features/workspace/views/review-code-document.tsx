@@ -44,6 +44,12 @@ import {
 } from './code-document';
 import { ReservedCode } from './reserved-code';
 import { fileReviewControl, ReviewedControl } from './reviewed-control';
+import {
+  comparisonRead,
+  comparisonWrites,
+  type ComparisonRead,
+  fileReviewable,
+} from '../rules/comparison-writes';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
 export function ReviewCodeDocument({
@@ -93,6 +99,7 @@ export function ReviewCodeDocument({
     scope,
     connection,
     statusToken,
+    items[0]?.read ?? 0,
     items.flatMap((item) =>
       item.comparisons.some(
         (change) => change.scope === 'staged' || change.scope === 'unstaged',
@@ -146,15 +153,17 @@ export function ReviewCodeDocument({
   const [kept, setKept] = useState(diffs.diffs);
   if (!diffs.pending && !diffs.failed && kept !== diffs.diffs)
     setKept(diffs.diffs);
-  const livePatch = (change: Change): DiffContent | undefined => {
+  const shownPatch = (change: Change): DiffContent | undefined => {
     const selection = diffSelection(change);
     return selection ? diffs.diffs.get(selectionKey(selection)) : undefined;
   };
+  const livePatch = (change: Change): DiffContent | undefined =>
+    diffs.recovering ? undefined : shownPatch(change);
   const patchOf = (change: Change): DiffContent | undefined => {
     const selection = diffSelection(change);
     if (!selection) return undefined;
     return (
-      livePatch(change) ??
+      shownPatch(change) ??
       (keepLoaded || diffs.failed
         ? kept.get(selectionKey(selection))
         : undefined)
@@ -166,6 +175,17 @@ export function ReviewCodeDocument({
     !untracked.pending &&
     ((diffs.failed && (expanding || kept.size === 0)) ||
       (untracked.failed && (expanding || keptText.size === 0)));
+  const readOf = (change: Change): ComparisonRead =>
+    change.scope === 'untracked'
+      ? {
+          shown: textOf(change.path) !== undefined,
+          current: untracked.contents.has(change.path),
+        }
+      : comparisonRead({
+          unsupported: change.scope !== 'unmerged' && !change.supported,
+          shown: patchOf(change) !== undefined,
+          current: livePatch(change) !== undefined,
+        });
   const notes = new Map(files.map((file) => [file.path, file.note]));
   const unrenderable = items.flatMap((item) => {
     const reasons = item.comparisons.flatMap((change) => {
@@ -182,21 +202,19 @@ export function ReviewCodeDocument({
         return [`Content omitted: ${omissionReason(content.reason)}`];
       return diffEntry(change, content) ? [] : ['No single-file textual patch'];
     });
-    const current = item.comparisons.every((change) =>
-      change.scope === 'untracked'
-        ? textOf(change.path) === undefined ||
-          untracked.contents.has(change.path)
-        : patchOf(change) === undefined || livePatch(change) !== undefined,
-    );
+    const current = fileReviewable(item.comparisons.map(readOf));
     return reasons.length > 0 ? [{ item, reasons, current }] : [];
   });
   const entries = items.flatMap((item): CodeEntry[] =>
     item.comparisons.flatMap((change): CodeEntry[] => {
-      const review = fileReviewControl(scope, context, item);
+      const writes = comparisonWrites(
+        item.comparisons.map(readOf),
+        readOf(change),
+      );
+      const review = fileReviewControl(scope, context, item, writes.review);
       if (change.scope === 'untracked') {
         const text = textOf(change.path);
         if (text === undefined) return [];
-        const current = untracked.contents.has(change.path);
         return [
           {
             ...fileEntry(
@@ -205,7 +223,8 @@ export function ReviewCodeDocument({
               text,
               notes.get(item.path) ?? 'untracked',
             ),
-            ...(current ? { review } : {}),
+            current: writes.discard,
+            review,
           },
         ];
       }
@@ -213,13 +232,14 @@ export function ReviewCodeDocument({
       const content = focusedDiff(patchOf(change), focus?.[item.path]);
       const entry = content ? diffEntry(change, content) : null;
       const note = notes.get(item.path);
-      const current = livePatch(change) !== undefined;
       return entry
         ? [
             {
               ...entry,
               ...(note ? { note } : {}),
-              ...(current ? { review, discardScope: change.scope } : {}),
+              current: writes.discard,
+              review,
+              discardScope: change.scope,
             },
           ]
         : [];
@@ -305,6 +325,7 @@ export function ReviewCodeDocument({
             scope={scope}
             context={context}
             item={omittedFile}
+            current={unrenderable[0]?.current ?? true}
             active={interaction.active}
           >
             {headerActions}
@@ -436,13 +457,14 @@ function OmittedChanges({
             >
               {omittedReasonText(reasons)}
             </Badge>
-            {!paneFile && current && !renderedPaths.has(item.path) && (
+            {!paneFile && !renderedPaths.has(item.path) && (
               <ReviewedControl
                 scope={scope}
                 context={context}
                 path={item.path}
                 fingerprint={item.fingerprint}
                 status={item.reviewStatus}
+                current={current}
                 compact={Boolean(item.fingerprint)}
               />
             )}
@@ -457,21 +479,23 @@ function OmittedActions({
   scope,
   context,
   item,
+  current,
   active,
   children,
 }: {
   scope: ReviewScope;
   context: ConnectionContext;
   item: ReviewChangeItem;
+  current: boolean;
   active: boolean;
   children: ReactNode;
 }) {
   const review = useToggleReviewed(scope, context, (notice) => notify(notice));
-  const target = fileReviewControl(scope, context, item);
+  const target = fileReviewControl(scope, context, item, current);
   const hotkeysEnabled = useHotkeysEnabled();
   const toggle = () => review.toggle(target);
   useHotkey(SHORTCUTS.toggleReviewed, toggle, {
-    enabled: hotkeysEnabled && active,
+    enabled: hotkeysEnabled && active && current,
     ignoreInputs: true,
   });
   return (
@@ -482,7 +506,7 @@ function OmittedActions({
         icon={target.reviewed ? CheckIcon : SquareIcon}
         shortcut={SHORTCUTS.toggleReviewed}
         description={review.writeBlock}
-        disabled={Boolean(review.writeBlock) || !target.fingerprint}
+        disabled={Boolean(review.writeBlock) || !current || !target.fingerprint}
         pressed={target.reviewed}
         onClick={toggle}
       />

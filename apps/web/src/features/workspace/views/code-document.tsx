@@ -123,7 +123,7 @@ export function CodeDocument(props: Props) {
         {...props}
         writeBlock={review.writeBlock}
         onToggleReviewed={(entry) => {
-          if (review.writeBlock) return;
+          if (review.writeBlock || entry.review?.current === false) return;
           if (props.onReview) props.onReview(entry);
           else review.toggle(entry.review);
         }}
@@ -358,7 +358,11 @@ function CodeSurface({
             icon={focusedEntry?.review?.reviewed ? CheckIcon : SquareIcon}
             shortcut={SHORTCUTS.toggleReviewed}
             description={writeBlock}
-            disabled={Boolean(writeBlock) || !focusedEntry?.review?.fingerprint}
+            disabled={
+              Boolean(writeBlock) ||
+              focusedEntry.review.current === false ||
+              !focusedEntry.review.fingerprint
+            }
             pressed={focusedEntry?.review?.reviewed}
             onClick={() => {
               if (focusedEntry) onToggleReviewed(focusedEntry);
@@ -433,20 +437,22 @@ function CodeSurface({
           Code changed since these lines were selected. Select lines again.
         </p>
       )}
-      {discard && selectedEntry?.discardScope && (
-        <div className="absolute bottom-3 left-3 z-10 rounded-lg border bg-popover p-2">
-          <DiscardButton
-            scope={scope}
-            context={gitContext}
-            path={selectedEntry.path}
-            hunk={{
-              scope: selectedEntry.discardScope,
-              ...discard,
-            }}
-            variant="compact"
-          />
-        </div>
-      )}
+      {discard &&
+        selectedEntry?.discardScope &&
+        selectedEntry.current !== false && (
+          <div className="absolute bottom-3 left-3 z-10 rounded-lg border bg-popover p-2">
+            <DiscardButton
+              scope={scope}
+              context={gitContext}
+              path={selectedEntry.path}
+              hunk={{
+                scope: selectedEntry.discardScope,
+                ...discard,
+              }}
+              variant="compact"
+            />
+          </div>
+        )}
       {toolbar
         ? toolbar(collapseControl)
         : !column &&

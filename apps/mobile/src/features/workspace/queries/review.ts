@@ -155,15 +155,21 @@ export const changePageDiffs = Atom.family(
     comparison: ReviewComparison;
     keys: readonly string[];
   }) => {
-    const source: { query: Atom.Atom<unknown> | undefined } = {
-      query: undefined,
-    };
-    return Atom.readable(
+    const source: {
+      query: Atom.Atom<unknown> | undefined;
+      window: ReturnType<typeof readChangeDiffWindow> | undefined;
+    } = { query: undefined, window: undefined };
+    return Atom.writable(
       (get): ChunkDiffs => {
+        source.window = undefined;
         const current = chunkDiffs(
           (query) => {
             source.query = query;
             return get(query);
+          },
+          (window) => {
+            source.window = window;
+            return get(source.window);
           },
           get(snapshots({ workspace, comparison })),
           workspace,
@@ -174,6 +180,10 @@ export const changePageDiffs = Atom.family(
           Option.getOrUndefined(get.self<ChunkDiffs>()),
         );
       },
+      (ctx, _: void) => {
+        if (source.window) ctx.set(source.window, undefined);
+        else ctx.refreshSelf();
+      },
       (refresh) =>
         refresh(source.query ?? snapshots({ workspace, comparison })),
     );
@@ -182,6 +192,9 @@ export const changePageDiffs = Atom.family(
 
 function chunkDiffs(
   get: <A>(query: Atom.Atom<A>) => A,
+  getWindow: (
+    window: ReturnType<typeof readChangeDiffWindow>,
+  ) => Atom.Type<ReturnType<typeof readChangeDiffWindow>>,
   snapshot: AsyncResult.AsyncResult<ReviewSnapshot, unknown>,
   workspace: Pick<Workspace, 'connection' | 'scope'>,
   keys: readonly string[],
@@ -216,21 +229,21 @@ function chunkDiffs(
     entry.read.kind === 'diff' ? [{ entry, read: entry.read }] : [],
   );
   if (diffs.length === 0) return AsyncResult.success(new Map());
-  const window = get(
-    readChangeDiffWindow({
-      ...input,
-      statusToken: snapshot.value.answer.statusToken,
-      expectedFiles: [
-        ...new Map(
-          diffs.map(({ entry, read }) => [
-            entry.path,
-            { path: entry.path, fingerprint: read.fingerprint },
-          ]),
-        ).values(),
-      ],
-      selections: diffs.map(({ read }) => read.selection),
-    }),
-  );
+  const windowAtom = readChangeDiffWindow({
+    ...input,
+    statusToken: snapshot.value.answer.statusToken,
+    read: snapshot.value.answer.read,
+    expectedFiles: [
+      ...new Map(
+        diffs.map(({ entry, read }) => [
+          entry.path,
+          { path: entry.path, fingerprint: read.fingerprint },
+        ]),
+      ).values(),
+    ],
+    selections: diffs.map(({ read }) => read.selection),
+  });
+  const window = getWindow(windowAtom);
   return AsyncResult.map(
     window.result,
     (contents) =>

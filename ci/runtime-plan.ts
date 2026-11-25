@@ -108,14 +108,15 @@ export function runtimePlan(
 }
 
 if (import.meta.main) {
-  const base = process.env.DIFF_BASE;
-  if (!base || !/^[0-9a-f]{40}$/.test(base))
-    throw new Error('Missing CI base commit');
+  const release = process.env.RELEASE_LANE === 'true';
   const files = (args: string[]) =>
     execFileSync('git', args, { encoding: 'utf8' }).split('\0').filter(Boolean);
-  const plan = runtimePlan(
-    process.env.RELEASE_LANE === 'true',
-    files([
+  let changed: string[] = [];
+  if (!release) {
+    const base = process.env.DIFF_BASE;
+    if (!base || !/^[0-9a-f]{40}$/.test(base))
+      throw new Error('Missing CI base commit');
+    changed = files([
       'diff',
       '--no-renames',
       '--name-only',
@@ -124,7 +125,11 @@ if (import.meta.main) {
       base,
       'HEAD',
       '--',
-    ]),
+    ]);
+  }
+  const plan = runtimePlan(
+    release,
+    changed,
     files([
       'ls-tree',
       '-r',

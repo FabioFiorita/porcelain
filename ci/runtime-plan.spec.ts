@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import { expect, it } from 'vite-plus/test';
 import { runtimePlan } from './runtime-plan.ts';
 
@@ -79,6 +80,17 @@ it('requires every runtime suite on promotion even when only documentation chang
     'web-e2e': false,
     storage: false,
   });
+});
+
+it('prints the full runtime plan without a comparison commit', () => {
+  const result = spawnSync(process.execPath, ['ci/runtime-plan.ts'], {
+    encoding: 'utf8',
+    env: { ...process.env, RELEASE_LANE: 'true', DIFF_BASE: '' },
+  });
+  expect(result.status, result.stderr).toBe(0);
+  expect(result.stdout).toContain('shards=[1,2,3,4]\n');
+  expect(result.stdout).toContain('browser-shards=[1,2,3,4,5,6]\n');
+  expect(result.stdout).toContain('desktop=true\n');
 });
 
 it.each(['scripts/check-package.sh', 'scripts/build-package.ts'])(

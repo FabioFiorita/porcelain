@@ -6,7 +6,12 @@ import { Box } from '../../../components/ui/box';
 import { usePreferences } from '../../preferences/index';
 import { useIsFocused } from 'expo-router';
 import { View } from 'react-native';
-import { useAtom, useAtomValue, useAtomRefresh } from '@effect/atom-react';
+import {
+  useAtom,
+  useAtomRefresh,
+  useAtomSet,
+  useAtomValue,
+} from '@effect/atom-react';
 import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import {
@@ -248,13 +253,14 @@ function WorktreeDiff(
     connection: workspace.connection,
     scope: workspace.scope,
     statusToken: snapshot.answer.statusToken,
+    read: snapshot.answer.read,
     expectedFiles: [
       { path: file.path, fingerprint: file.fingerprint ?? undefined },
     ],
     selections: selection ? [selection] : [],
   });
   const window = useAtomValue(query);
-  const refresh = useAtomRefresh(query);
+  const refresh = useAtomSet(query);
   const diffs = Option.getOrUndefined(AsyncResult.value(window.result));
   if (!diffs)
     return <ReviewReadState result={window.result} refresh={refresh} />;

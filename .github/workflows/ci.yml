@@ -8,21 +8,25 @@ on:
     branches: [main]
 
 env:
-  RELEASE_LANE: ${{ github.base_ref == 'release' }}
-  DIFF_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+  RELEASE_LANE: ${{ github.event_name == 'push' || github.base_ref == 'release' }}
+  DIFF_BASE: ${{ github.event.pull_request.base.sha }}
 
 permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   affected:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: read
+      actions: read
     outputs:
+      reused-run: ${{ steps.reuse.outputs.run }}
       server: ${{ steps.affected.outputs.server }}
       web-integration: ${{ steps.affected.outputs.web-integration }}
       web-e2e: ${{ steps.affected.outputs.web-e2e }}
@@ -38,23 +42,54 @@ jobs:
         with:
           fetch-depth: 0
           filter: blob:none
+          persist-credentials: false
+      - name: Reuse full CI from main
+        id: reuse
+        if: github.base_ref == 'release'
+        env:
+          VALID_PROMOTION: ${{ github.head_ref == 'main' && github.event.pull_request.head.repo.full_name == github.repository }}
+          PROMOTION_HEAD: ${{ github.event.pull_request.head.sha }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [[ "$VALID_PROMOTION" != true ]]; then
+            echo 'Promote the main branch of this repository into release.' >&2
+            exit 1
+          fi
+          main_tree=$(git rev-parse "${PROMOTION_HEAD}^{tree}")
+          if [[ "$(git rev-parse 'HEAD^{tree}')" != "$main_tree" ]]; then
+            echo 'The promotion merge has a different tree. Running full CI on the merge.'
+            exit 0
+          fi
+          if ! runs=$(gh api --method GET --paginate "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs" \
+            -f event=push -f branch=main -f head_sha="$PROMOTION_HEAD" -f status=success \
+            --jq '.workflow_runs[] | [.id, .run_attempt] | @tsv'); then
+            echo '::warning::Could not look up main CI. Running full CI on the promotion.'
+            exit 0
+          fi
+          while read -r id attempt; do
+            [[ -n "$id" ]] || continue
+            if check=$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/runs/$id/attempts/$attempt/jobs" \
+              --jq '.jobs[] | select(.name == "main checks" and .conclusion == "success") | .id') &&
+              [[ -n "$check" ]]; then
+              echo "run=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$id/attempts/$attempt" >> "$GITHUB_OUTPUT"
+              break
+            fi
+          done <<< "$runs"
       - uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3
+        if: steps.reuse.outputs.run == ''
         with:
           runtime: node@26.13.0
           cache: false
           require-lockfile: true
       - name: Select checks for this lane
         id: affected
-        env:
-          VALID_PROMOTION: ${{ github.head_ref == 'main' && github.event.pull_request.head.repo.full_name == github.repository }}
+        if: steps.reuse.outputs.run == ''
         run: |
-          if [[ "$RELEASE_LANE" == true && "$VALID_PROMOTION" != true ]]; then
-            echo 'Promote the main branch of this repository into release.' >&2
-            exit 1
-          fi
           node ci/runtime-plan.ts >> "$GITHUB_OUTPUT"
 
   static:
+    needs: affected
+    if: needs.affected.outputs.reused-run == ''
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -72,6 +107,8 @@ jobs:
       - run: pnpm check:static --ci
 
   units:
+    needs: affected
+    if: needs.affected.outputs.reused-run == ''
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -88,7 +125,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm check:unit --ci
       - name: Verify production mobile exports
-        if: github.base_ref == 'release'
+        if: env.RELEASE_LANE == 'true'
         run: pnpm exec vp run @porcelain/mobile#build
 
   package:
@@ -166,9 +203,9 @@ jobs:
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
       - run: bwrap --ro-bind / / --dev /dev --proc /proc --unshare-pid --unshare-ipc --unshare-net --new-session --die-with-parent -- true
       - run: pnpm exec playwright install --only-shell chromium
-      - if: github.base_ref == 'release' || strategy.job-total > 1
+      - if: env.RELEASE_LANE == 'true' || strategy.job-total > 1
         run: pnpm --filter @porcelain/web test:integration --shard=${{ matrix.shard }}/${{ strategy.job-total }}
-      - if: github.base_ref != 'release' && strategy.job-total == 1
+      - if: env.RELEASE_LANE != 'true' && strategy.job-total == 1
         env:
           SPECS: ${{ needs.affected.outputs.integration }}
         run: |
@@ -208,9 +245,9 @@ jobs:
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
       - run: bwrap --ro-bind / / --dev /dev --proc /proc --unshare-pid --unshare-ipc --unshare-net --new-session --die-with-parent -- true
       - run: pnpm exec playwright install --only-shell chromium
-      - if: github.base_ref == 'release'
+      - if: env.RELEASE_LANE == 'true'
         run: pnpm --filter @porcelain/web test:e2e --shard=${{ matrix.shard }}/${{ strategy.job-total }}
-      - if: github.base_ref != 'release'
+      - if: env.RELEASE_LANE != 'true'
         env:
           SPECS: ${{ needs.affected.outputs.e2e }}
         run: |
@@ -296,7 +333,7 @@ jobs:
           path: ${{ runner.temp }}/desktop-e2e-crashes/
 
   checks:
-    name: ${{ github.base_ref == 'release' && 'release checks' || 'checks' }}
+    name: ${{ github.event_name == 'push' && 'main checks' || github.base_ref == 'release' && 'release checks' || 'checks' }}
     needs:
       [
         affected,
@@ -314,6 +351,10 @@ jobs:
     steps:
       - name: Require every selected check to succeed
         run: |
+          if [[ -n "$REUSED_RUN" && "$PLANNING_RESULT" == success ]]; then
+            echo "Reused full CI from [main]($REUSED_RUN)." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
           if ! jq -e -n --argjson needs "$NEEDS" '
             {
               "package": "package",
@@ -337,3 +378,5 @@ jobs:
           fi
         env:
           NEEDS: ${{ toJSON(needs) }}
+          REUSED_RUN: ${{ needs.affected.outputs.reused-run }}
+          PLANNING_RESULT: ${{ needs.affected.result }}

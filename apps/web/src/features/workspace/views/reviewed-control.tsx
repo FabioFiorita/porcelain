@@ -60,12 +60,14 @@ export function fileReviewControl(
   scope: ReviewScope,
   context: ConnectionContext,
   item: ReviewChangeItem,
+  current = true,
 ) {
   return {
     path: item.path,
     fingerprint: item.fingerprint ?? null,
     reviewed: item.reviewStatus === 'reviewed',
     stale: item.reviewStatus === 'stale',
+    current,
     control: (
       <ReviewedControl
         key={`review:${item.path}`}
@@ -74,6 +76,7 @@ export function fileReviewControl(
         path={item.path}
         fingerprint={item.fingerprint}
         status={item.reviewStatus}
+        current={current}
         compact
       />
     ),
@@ -86,6 +89,7 @@ export function ReviewedControl({
   path,
   fingerprint,
   status,
+  current = true,
   compact = false,
   range = WORKTREE_RANGE,
 }: {
@@ -94,6 +98,7 @@ export function ReviewedControl({
   path: string;
   fingerprint: string | null | undefined;
   status: ReviewStatus;
+  current?: boolean;
   compact?: boolean;
   range?: ReviewRange;
 }) {
@@ -126,7 +131,7 @@ export function ReviewedControl({
               size={compact ? 'icon-xs' : 'xs'}
               variant={reviewed ? 'ghost' : 'outline'}
               aria-pressed={reviewed}
-              disabled={pending || Boolean(writeBlock)}
+              disabled={pending || Boolean(writeBlock) || !current}
               aria-description={writeBlock}
               aria-label={label}
               onClick={() => {
