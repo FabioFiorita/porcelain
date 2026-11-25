@@ -174,16 +174,16 @@ export function ReviewCodeDocument({
     !untracked.pending &&
     ((diffs.failed && (expanding || kept.size === 0)) ||
       (untracked.failed && (expanding || keptText.size === 0)));
-  const readOf = (change: Change): ComparisonRead => {
-    if (change.scope === 'untracked') {
-      if (untracked.contents.has(change.path)) return 'current';
-      if (textOf(change.path) !== undefined) return 'retained';
-      return untracked.pending || untracked.failed ? 'missing' : 'current';
-    }
-    if (change.scope === 'unmerged' || !change.supported) return 'never-read';
-    if (livePatch(change) !== undefined) return 'current';
-    return patchOf(change) === undefined ? 'missing' : 'retained';
-  };
+  const readOf = (change: Change): ComparisonRead =>
+    change.scope === 'untracked'
+      ? {
+          shown: textOf(change.path) !== undefined,
+          current: untracked.contents.has(change.path),
+        }
+      : {
+          shown: patchOf(change) !== undefined,
+          current: livePatch(change) !== undefined,
+        };
   const notes = new Map(files.map((file) => [file.path, file.note]));
   const unrenderable = items.flatMap((item) => {
     const reasons = item.comparisons.flatMap((change) => {

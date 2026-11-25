@@ -1,10 +1,12 @@
-export type ComparisonRead = 'current' | 'retained' | 'missing' | 'never-read';
+export type ComparisonRead = {
+  readonly shown: boolean;
+  readonly current: boolean;
+};
 
-const settled = (read: ComparisonRead) =>
-  read === 'current' || read === 'never-read';
+const retained = (read: ComparisonRead) => read.shown && !read.current;
 
 export function fileReviewable(file: readonly ComparisonRead[]) {
-  return file.every(settled);
+  return !file.some(retained);
 }
 
 export function comparisonWrites(
@@ -12,7 +14,7 @@ export function comparisonWrites(
   comparison: ComparisonRead,
 ) {
   return {
-    discard: comparison === 'current',
+    discard: !retained(comparison),
     review: fileReviewable(file),
   };
 }
