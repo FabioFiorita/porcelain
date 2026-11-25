@@ -32,6 +32,7 @@ export function useChangeDiffs(
       ? result.value
       : new Map<string, DiffContent>(),
     pending: AsyncResult.isInitial(result) || recovering,
+    recovering,
     failed: AsyncResult.isFailure(result),
     retry: useAtomRefresh(window),
   };

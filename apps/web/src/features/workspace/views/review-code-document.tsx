@@ -147,15 +147,17 @@ export function ReviewCodeDocument({
   const [kept, setKept] = useState(diffs.diffs);
   if (!diffs.pending && !diffs.failed && kept !== diffs.diffs)
     setKept(diffs.diffs);
-  const livePatch = (change: Change): DiffContent | undefined => {
+  const shownPatch = (change: Change): DiffContent | undefined => {
     const selection = diffSelection(change);
     return selection ? diffs.diffs.get(selectionKey(selection)) : undefined;
   };
+  const livePatch = (change: Change): DiffContent | undefined =>
+    diffs.recovering ? undefined : shownPatch(change);
   const patchOf = (change: Change): DiffContent | undefined => {
     const selection = diffSelection(change);
     if (!selection) return undefined;
     return (
-      livePatch(change) ??
+      shownPatch(change) ??
       (keepLoaded || diffs.failed
         ? kept.get(selectionKey(selection))
         : undefined)

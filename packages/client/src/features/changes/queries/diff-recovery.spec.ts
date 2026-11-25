@@ -189,6 +189,7 @@ function worktree(script: {
       ...files(input.paths, input.fingerprint),
     });
     const seen: { loaded: boolean; failed: boolean; pending: boolean }[] = [];
+    const patches: (string | undefined)[] = [];
     const stop = subject.registry.subscribe(
       window,
       ({ result, recovery }) => {
@@ -197,12 +198,22 @@ function worktree(script: {
           failed: AsyncResult.isFailure(result),
           pending: recovery.pending,
         });
+        patches.push(
+          AsyncResult.isSuccess(result)
+            ? [...result.value.values()]
+                .map((content) =>
+                  content.kind === 'text' ? content.patch : '',
+                )
+                .join('\n')
+            : undefined,
+        );
       },
       { immediate: true },
     );
     stops.add(stop);
     return {
       latest: () => seen.at(-1),
+      patch: () => patches.at(-1),
       seen,
       reread: () => subject.registry.refresh(window),
       stop: () => {
@@ -271,6 +282,16 @@ function worktree(script: {
     },
     stopAll,
   };
+}
+
+async function answerRefresh(
+  refresh: PromiseWithResolvers<Snapshot>,
+  window: ReturnType<ReturnType<typeof worktree>['mount']>,
+) {
+  refresh.resolve({ statusToken: token('a') });
+  await expect
+    .poll(() => window.latest(), settled)
+    .toEqual({ loaded: true, failed: false, pending: false });
 }
 
 async function staleOnceAfterOneRead(paths: readonly string[]) {
@@ -589,32 +610,33 @@ it('a window mounted on its own recovers through a delayed Changes refresh', asy
   server.stopReading();
   const window = server.mountReadme();
   await expect.poll(() => server.counts.changes, settled).toBe(2);
-  refresh.resolve({ statusToken: token('a') });
-  await expect
-    .poll(() => window.latest(), settled)
-    .toEqual({ loaded: true, failed: false, pending: false });
+  await answerRefresh(refresh, window);
   expect(server.counts).toEqual({ changes: 2, diffs: 2 });
   expect(server.runaway()).toBe(false);
 });
 
-it('a visible patch that goes stale stays visible while its recovery runs', async () => {
+it('a visible patch that goes stale stays visible, as pending, while its recovery refresh is held', async () => {
+  const refresh = Promise.withResolvers<Snapshot>();
   const server = worktree({
-    changes: () => ({ statusToken: token('a') }),
+    changes: (read) =>
+      read === 1 ? { statusToken: token('a') } : refresh.promise,
     diff: (_, attempt) => (attempt === 2 ? 'stale' : 'ok'),
   });
   await server.takeReads(1);
   const window = server.mountReadme();
   await expect.poll(() => window.latest()?.loaded, settled).toBe(true);
-  const shown = window.seen.length;
   window.reread();
   await expect
     .poll(() => server.counts, settled)
-    .toEqual({ changes: 2, diffs: 3 });
-  await expect
-    .poll(() => window.latest(), settled)
-    .toEqual({ loaded: true, failed: false, pending: false });
-  const during = window.seen.slice(shown);
-  expect(during.some((state) => state.pending)).toBe(true);
-  expect(during.filter((state) => !state.loaded)).toEqual([]);
+    .toEqual({ changes: 2, diffs: 2 });
+  expect(window.latest()).toEqual({
+    loaded: true,
+    failed: false,
+    pending: true,
+  });
+  expect(window.patch()).toBe('README.md patch');
+  await answerRefresh(refresh, window);
+  expect(window.patch()).toBe('README.md patch');
+  expect(server.counts).toEqual({ changes: 2, diffs: 3 });
   expect(server.runaway()).toBe(false);
 });
