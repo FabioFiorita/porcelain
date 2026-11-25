@@ -23,7 +23,8 @@ const afterReads = (count: number) => {
     recovery = stampRead(recovery, original);
   return recovery;
 };
-const started = beginRecovery(afterReads(2), 1);
+const automatic = (read: number) => ({ read, asked: false });
+const started = beginRecovery(afterReads(2), automatic(1));
 if (!started) throw new Error('A recovery should start at an uncovered read');
 const finished = { ...stampRead(started, original), running: false };
 const ticket = { generation: 1, read: 3 };
@@ -168,10 +169,13 @@ it('a recovery covers every read received before it started and forgets retries 
     coveredThrough: 2,
     generation: 1,
   });
-  expect(beginRecovery(finished, 2)).toBeUndefined();
-  expect(beginRecovery(finished, 3)).toBeUndefined();
+  expect(beginRecovery(finished, automatic(2))).toBeUndefined();
+  expect(beginRecovery(finished, automatic(3))).toBeUndefined();
   expect(
-    beginRecovery(stampRead(stampRead(claimed, original), original), 5),
+    beginRecovery(
+      stampRead(stampRead(claimed, original), original),
+      automatic(5),
+    ),
   ).toMatchObject({
     running: true,
     coveredThrough: 5,
@@ -194,7 +198,7 @@ it.each([
     situation: 'a newer recovery has finished',
     recovery: {
       ...stampRead(
-        beginRecovery(stampRead(finished, original), 4) ?? finished,
+        beginRecovery(stampRead(finished, original), automatic(4)) ?? finished,
         original,
       ),
       running: false,
@@ -230,4 +234,15 @@ it('records a Changes read and its contents, and marks it produced only while a 
     produced: [],
   });
   expect(finished).toMatchObject({ latestRead: 3, produced: [3] });
+});
+
+it('a retry the user asks for starts a recovery even for a covered read, but never beside a running one', () => {
+  const spent = settleRetry(claimed, ticket, 'batch');
+  expect(beginRecovery(spent, automatic(3))).toBeUndefined();
+  expect(beginRecovery(spent, { read: 3, asked: true })).toMatchObject({
+    running: true,
+    generation: 2,
+    retried: [],
+  });
+  expect(beginRecovery(started, { read: 2, asked: true })).toBeUndefined();
 });

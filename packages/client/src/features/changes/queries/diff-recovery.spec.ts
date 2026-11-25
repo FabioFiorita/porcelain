@@ -216,6 +216,7 @@ function worktree(script: {
       patch: () => patches.at(-1),
       seen,
       reread: () => subject.registry.refresh(window),
+      retry: () => subject.registry.set(window, undefined),
       stop: () => {
         stop();
         stops.delete(stop);
@@ -649,5 +650,23 @@ it('a visible patch that goes stale stays visible, as pending, through its held 
       { loaded: true, failed: false, pending: false },
       'README.md patch',
     ]);
+  expect(server.runaway()).toBe(false);
+});
+
+it('a retry pressed after automatic recovery is spent refreshes Changes and loads the current diff', async () => {
+  const tokens = ['a', 'b', 'c'];
+  const server = worktree({
+    changes: (read) => ({ statusToken: token(tokens[read - 1] ?? 'c') }),
+    diff: (request) =>
+      request.expectedStatusToken === token('c') ? 'ok' : 'stale',
+  });
+  const view = server.follow(['README.md']);
+  await expect
+    .poll(() => view.window()?.latest(), settled)
+    .toEqual({ loaded: false, failed: true, pending: false });
+  expect([view.read(), server.counts]).toEqual([2, { changes: 2, diffs: 3 }]);
+  view.window()?.retry();
+  await view.loadsAt(3);
+  expect(server.counts).toEqual({ changes: 3, diffs: 4 });
   expect(server.runaway()).toBe(false);
 });

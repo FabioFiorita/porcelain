@@ -11,15 +11,15 @@ it('keeps one recovery per worktree: a single refresh at a time, with its produc
     Effect.gen(function* () {
       const recovery = yield* ChangedDiffRecovery;
       const read = yield* recovery.stamp('worktree', snapshot);
-      const started = yield* recovery.begin('worktree', read);
-      const twice = yield* recovery.begin('worktree', read);
+      const started = yield* recovery.begin('worktree', { read, asked: false });
+      const twice = yield* recovery.begin('worktree', { read, asked: false });
       yield* recovery.stamp('worktree', snapshot);
       yield* recovery.finish('worktree');
       const ticket = { generation: 1, read: 2 };
       const first = yield* recovery.retry('worktree', ticket, ['batch']);
       const again = yield* recovery.retry('worktree', ticket, ['batch']);
       yield* recovery.settle('worktree', ticket, 'batch');
-      const other = yield* recovery.begin('other', 1);
+      const other = yield* recovery.begin('other', { read: 1, asked: false });
       const state = yield* Stream.runHead(recovery.changes);
       return { started, twice, first, again, other, state };
     }),
@@ -48,17 +48,17 @@ it('does not spend a retry authorized by one recovery once the next has begun', 
   const result = run(
     Effect.gen(function* () {
       const recovery = yield* ChangedDiffRecovery;
-      yield* recovery.begin(
-        'worktree',
-        yield* recovery.stamp('worktree', snapshot),
-      );
+      yield* recovery.begin('worktree', {
+        read: yield* recovery.stamp('worktree', snapshot),
+        asked: false,
+      });
       yield* recovery.stamp('worktree', snapshot);
       yield* recovery.finish('worktree');
       const authorized = { generation: 1, read: 2 };
-      yield* recovery.begin(
-        'worktree',
-        yield* recovery.stamp('worktree', snapshot),
-      );
+      yield* recovery.begin('worktree', {
+        read: yield* recovery.stamp('worktree', snapshot),
+        asked: false,
+      });
       const during = yield* recovery.retry('worktree', authorized, ['batch']);
       yield* recovery.stamp('worktree', snapshot);
       yield* recovery.finish('worktree');
@@ -79,7 +79,7 @@ it('spends no retry on a recovery that ended without a new snapshot', () => {
     Effect.gen(function* () {
       const recovery = yield* ChangedDiffRecovery;
       const read = yield* recovery.stamp('worktree', snapshot);
-      yield* recovery.begin('worktree', read);
+      yield* recovery.begin('worktree', { read, asked: false });
       yield* recovery.finish('worktree');
       return yield* recovery.retry('worktree', { generation: 1, read: 1 }, [
         'batch',
