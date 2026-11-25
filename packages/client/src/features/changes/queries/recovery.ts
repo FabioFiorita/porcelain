@@ -106,8 +106,11 @@ export const readChangeDiffWindow = Atom.family(
     const batches = readDiffBatches(queries);
     const window = readCompleteDiffWindow(queries);
     const recover = readCurrentDiffObservation({ connection, scope });
-    const reread = Atom.fn((_: void, get: Atom.FnContext) =>
-      Effect.sync(() => get.refresh(batches)),
+    const reread = Atom.fn(
+      (failed: readonly (typeof queries)[number][], get: Atom.FnContext) =>
+        Effect.sync(() => {
+          for (const query of failed) get.refresh(query);
+        }),
     );
     const staleOf = (
       results: readonly AsyncResult.AsyncResult<unknown, unknown>[],
@@ -163,9 +166,21 @@ export const readChangeDiffWindow = Atom.family(
         };
       },
       (ctx, _: void) => {
-        if (staleOf(ctx.get(batches)).length > 0)
-          ctx.set(recover, { read, asked: true });
-        else ctx.set(reread, undefined);
+        const results = ctx.get(batches);
+        const stale = staleOf(results).map((batch) => batch.key);
+        if (stale.length === 0) return ctx.set(reread, queries);
+        ctx.set(recover, { read, asked: true });
+        ctx.set(
+          reread,
+          requests.flatMap((request, index) => {
+            const result = results[index];
+            return result !== undefined &&
+              AsyncResult.isFailure(result) &&
+              !stale.includes(request.key)
+              ? [request.query]
+              : [];
+          }),
+        );
       },
       (refresh) => refresh(batches),
     ).pipe(Atom.setIdleTTL(0));
