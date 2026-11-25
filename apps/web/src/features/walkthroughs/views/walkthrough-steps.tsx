@@ -300,6 +300,7 @@ function StepCard({
           <StepBlocks
             blocks={stop.blocks}
             step={step}
+            title={plainText(stop.title)}
             run={run}
             document={props}
           />

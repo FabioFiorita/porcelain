@@ -1,5 +1,11 @@
 import { useId, useState, type KeyboardEvent } from 'react';
-import { ChevronRightIcon } from 'lucide-react';
+import {
+  ChevronRightIcon,
+  MessageSquareIcon,
+  MessageSquarePlusIcon,
+} from 'lucide-react';
+import { commentsAt } from '@porcelain/client/comments/rules';
+import { CommentThread, useComments } from '@/features/comments/index';
 import {
   diagramConnections,
   diagramNeighbours,
@@ -139,17 +145,76 @@ function DiagramFile({
   );
 }
 
+function NodeComments({
+  document,
+  title,
+  node,
+}: {
+  document: DocumentProps;
+  title: string;
+  node: string;
+}) {
+  const owner = { scope: document.scope, context: document.context };
+  const { view } = useComments(owner);
+  const [composing, setComposing] = useState(false);
+  const drafts = commentsAt(
+    view,
+    (anchor) =>
+      anchor.kind === 'node' && anchor.title === title && anchor.node === node,
+  );
+  return (
+    <div className="flex flex-col gap-2">
+      <CommentThread
+        owner={owner}
+        drafts={drafts}
+        anchor={{ kind: 'node', title, node }}
+        composing={composing}
+        onClose={() => setComposing(false)}
+      />
+      {!composing && (
+        <span>
+          <Button size="sm" variant="ghost" onClick={() => setComposing(true)}>
+            <MessageSquarePlusIcon data-icon="inline-start" />
+            Comment on {node}
+          </Button>
+        </span>
+      )}
+    </div>
+  );
+}
+
+function useNodeCommentCounts(document: DocumentProps, title: string) {
+  const { view } = useComments({
+    scope: document.scope,
+    context: document.context,
+  });
+  const counts = new Map<string, number>();
+  for (const comment of commentsAt(
+    view,
+    (anchor) => anchor.kind === 'node' && anchor.title === title,
+  ))
+    if (comment.anchor.kind === 'node')
+      counts.set(
+        comment.anchor.node,
+        (counts.get(comment.anchor.node) ?? 0) + 1,
+      );
+  return counts;
+}
+
 export function WalkthroughDiagram({
   diagram,
   document,
   runId,
   step,
+  title,
 }: {
   diagram: StepDiagram;
   document: DocumentProps;
   runId: string;
   step: number;
+  title: string;
 }) {
+  const commented = useNodeCommentCounts(document, title);
   const { frame, width } = useFrameWidth();
   const geometry = layoutDiagram(
     diagram,
@@ -319,6 +384,12 @@ export function WalkthroughDiagram({
                           node.mark === 'unchanged' && 'text-foreground-2',
                         )}
                       />
+                      {commented.has(node.label) && (
+                        <MessageSquareIcon
+                          aria-label={`${commented.get(node.label)} comments`}
+                          className="size-3 shrink-0 self-center text-muted-foreground"
+                        />
+                      )}
                       {node.anchor && (
                         <ChevronRightIcon
                           aria-hidden
@@ -408,7 +479,7 @@ export function WalkthroughDiagram({
         </div>
       </div>
       {chosenNode?.anchor && (
-        <div id={detail} className="min-w-0">
+        <div id={detail} className="flex min-w-0 flex-col gap-2">
           {chosenNode.anchor.kind === 'lines' ? (
             <WalkthroughExcerpt
               key={chosenNode.id}
@@ -425,6 +496,12 @@ export function WalkthroughDiagram({
               note={chosenNode.note}
             />
           )}
+          <NodeComments
+            key={`comments:${chosenNode.id}`}
+            document={document}
+            title={title}
+            node={chosenNode.label}
+          />
         </div>
       )}
     </figure>

@@ -201,3 +201,15 @@ export const PIERRE_FILE_CSS = `
   padding-top: var(--spacing) !important;
 }
 `;
+
+export const PIERRE_COMMENT_CSS = `
+[data-utility-button] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  border-radius: 4px;
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+}
+[data-utility-button]:hover { background-color: var(--primary); }
+`;

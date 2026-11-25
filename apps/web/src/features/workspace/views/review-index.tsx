@@ -30,6 +30,7 @@ import {
 
 import { type BranchFileGrouping, BranchIndex } from './branch-index';
 import { ChangeRow } from './change-row';
+import { useFileComments } from '@/features/comments/index';
 import { worktreeChangeMarks } from '@porcelain/client/files/rules';
 
 import { isSpecPath } from '@porcelain/client/changes/rules';
@@ -156,6 +157,7 @@ function LayersView({
   const reviewed = useToggleReviewed(scope, context, (notice) =>
     notify(notice),
   );
+  const comments = useFileComments({ scope, context });
   const [discard, setDiscard] = useState<{
     path: string;
     nonce: number;
@@ -202,6 +204,8 @@ function LayersView({
       onOpen={onOpen}
       sideLabel={sideLabel}
       writeBlock={reviewed.writeBlock}
+      commentCount={comments.counts.get(path)}
+      onComment={() => comments.comment(path)}
       canReview={
         changeByPath.get(path)?.fingerprint !== null &&
         changeByPath.get(path)?.fingerprint !== undefined
@@ -234,6 +238,8 @@ function LayersView({
             total={paths.length}
           />
         )}
+        {comments.summary}
+        {comments.dialogs}
         {navigation()}
         {!Grouping && paths.length === 0 && (
           <p className="px-2 py-1 text-caption text-muted-foreground">

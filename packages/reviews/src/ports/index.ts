@@ -3,3 +3,5 @@ export { GitHubReader } from './github-reader.ts';
 export { ReviewedFileStore } from './reviewed-file-store.ts';
 export { SetReviewedFilesOptions } from './set-reviewed-files-options.ts';
 export { GitHubPullRequestMerger } from './github-pull-request-merger.ts';
+export { DraftCommentStore } from './draft-comment-store.ts';
+export { PullRequestReviewer } from './pull-request-reviewer.ts';

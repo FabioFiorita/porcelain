@@ -1,5 +1,8 @@
 import { useState, type ComponentProps, type ReactNode } from 'react';
-import { GitBranchIcon } from 'lucide-react';
+import { GitBranchIcon, MessageSquareIcon } from 'lucide-react';
+import { commentCountsByPath, commentsAt } from '@porcelain/client/comments/rules';
+import { useComments } from '@/features/comments/index';
+import type { ReviewScope } from '@porcelain/client/changes/rules';
 import {
   groupFilesByStep,
   plainText,
@@ -28,23 +31,44 @@ import {
 type BranchSlot = ComponentProps<BranchFileGrouping>;
 type UncommittedSlot = ComponentProps<UncommittedFileGrouping>;
 
+function useStepComments(scope: ReviewScope, context: ConnectionContext) {
+  const { view } = useComments({ scope, context });
+  const byPath = commentCountsByPath(view);
+  return (stop: StepFiles<{ path: string }>) => {
+    const title = plainText(stop.stop.title);
+    return (
+      stop.files.reduce((sum, file) => sum + (byPath.get(file.path) ?? 0), 0) +
+      commentsAt(
+        view,
+        (anchor) =>
+          (anchor.kind === 'step' || anchor.kind === 'node') &&
+          anchor.title === title,
+      ).length
+    );
+  };
+}
+
 function StepList<File>({
   steps,
   activeEntry,
   onOpen,
   row,
+  comments,
 }: {
   steps: readonly StepFiles<File>[];
   activeEntry: string | undefined;
   onOpen: OpenDocument;
   row: (file: File) => ReactNode;
+  comments: (step: StepFiles<File>) => number;
 }) {
   const [open, setOpen] = useState<number | null>(null);
   if (steps.length === 0) return null;
   return (
     <div className="mt-1 flex flex-col">
       <p className="px-2 pt-2 pb-1 text-2xs text-muted-foreground">By step</p>
-      {steps.map(({ stop, step, files }) => {
+      {steps.map((entry) => {
+        const { stop, step, files } = entry;
+        const commented = comments(entry);
         const document = { kind: 'walkthrough-step', step } as const;
         const active = activeEntry === entryKey(document);
         return (
@@ -71,6 +95,17 @@ function StepList<File>({
                   aria-label="Your call"
                   className="size-1.5 shrink-0 rounded-full bg-foreground"
                 />
+              )}
+              {commented > 0 && (
+                <span
+                  aria-label={
+                    commented === 1 ? '1 comment' : `${commented} comments`
+                  }
+                  className="flex shrink-0 items-center gap-0.5 text-2xs text-muted-foreground tabular-nums"
+                >
+                  <MessageSquareIcon aria-hidden className="size-3" />
+                  {commented}
+                </span>
               )}
               <span className="ml-auto text-2xs text-muted-foreground tabular-nums">
                 {files.length}
@@ -133,6 +168,7 @@ function BranchSteps({
   onOpen,
 }: BranchSlot) {
   const ready = useWalkthroughContent(scope, context);
+  const comments = useStepComments(scope, context);
   if (!ready || ready.content.stops.length === 0) return <>{items.map(row)}</>;
   const grouped = groupFilesByStep(ready.content, items);
   return (
@@ -142,6 +178,7 @@ function BranchSteps({
         activeEntry={activeEntry}
         onOpen={onOpen}
         row={row}
+        comments={comments}
       />
       <NotInWalkthrough files={grouped.outside} row={row} context={context} />
     </>
@@ -159,6 +196,7 @@ function UncommittedSteps({
 }: UncommittedSlot) {
   const ready = useWalkthroughContent(scope, context);
   const renames = useBranchRenames(scope, context, base);
+  const comments = useStepComments(scope, context);
   if (paths.length === 0)
     return (
       <p className="p-3 text-sm text-muted-foreground">
@@ -198,6 +236,7 @@ function UncommittedSteps({
           activeEntry={activeEntry}
           onOpen={onOpen}
           row={(file) => row(file.path)}
+          comments={comments}
         />
       )}
       <NotInWalkthrough

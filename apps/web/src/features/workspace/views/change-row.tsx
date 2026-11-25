@@ -1,5 +1,5 @@
 import { TruncatedText } from '@/shared/views/truncated-text';
-import { CheckIcon } from 'lucide-react';
+import { CheckIcon, MessageSquareIcon } from 'lucide-react';
 import {
   changeStatusMarks,
   type ChangeStatus,
@@ -33,6 +33,8 @@ export function ChangeRow({
   writeBlock,
   onDiscard,
   indented = false,
+  commentCount = 0,
+  onComment,
 }: {
   path: string;
   document: DocumentRef;
@@ -48,6 +50,8 @@ export function ChangeRow({
   writeBlock?: string | undefined;
   onDiscard?: () => void;
   indented?: boolean;
+  commentCount?: number | undefined;
+  onComment?: () => void;
 }) {
   const label = `${basename(path)}${scopes.length > 0 ? ` · ${scopes.join(' + ')}` : ''}`;
   const act = (id: ReviewSidebarAction['id']) => {
@@ -73,6 +77,9 @@ export function ChangeRow({
       case 'discard':
         onDiscard?.();
         break;
+      case 'comment':
+        onComment?.();
+        break;
     }
   };
   return (
@@ -84,6 +91,7 @@ export function ChangeRow({
         canReview,
         sideLabel,
         canDiscard: onDiscard !== undefined,
+        canComment: onComment !== undefined,
       })}
       writeBlock={writeBlock}
       onAction={act}
@@ -112,6 +120,17 @@ export function ChangeRow({
             />
             <FileTreeIcon path={path} className="size-3.5 shrink-0" />
             <TruncatedText className="min-w-0 flex-1" text={basename(path)} />
+            {commentCount > 0 && (
+              <span
+                aria-label={
+                  commentCount === 1 ? '1 comment' : `${commentCount} comments`
+                }
+                className="flex shrink-0 items-center gap-0.5 text-2xs text-muted-foreground tabular-nums"
+              >
+                <MessageSquareIcon aria-hidden className="size-3" />
+                {commentCount}
+              </span>
+            )}
           </button>
           {menu}
         </div>

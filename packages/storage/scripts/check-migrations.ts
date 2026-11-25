@@ -7,6 +7,7 @@ import { NodeRuntime, NodeServices } from '@effect/platform-node';
 import { databaseLayer } from '../src/db/connection.ts';
 import { readLegacyMigrations } from '../src/db/migrate.ts';
 import { DeviceRow } from '../src/db/models/devices.ts';
+import { DraftCommentRow } from '../src/db/models/draft-comments.ts';
 import { EnvironmentIconRow } from '../src/db/models/environment-icon.ts';
 import { EnvironmentNameRow } from '../src/db/models/environment-name.ts';
 import { EnvironmentRow } from '../src/db/models/environment.ts';
@@ -31,6 +32,7 @@ const nativeRegistry = fileURLToPath(
 const models = [
   GitHubAccountRow,
   DeviceRow,
+  DraftCommentRow,
   EnvironmentIconRow,
   EnvironmentNameRow,
   EnvironmentRow,

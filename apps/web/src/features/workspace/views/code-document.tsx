@@ -38,6 +38,7 @@ import {
   PIERRE_SURFACE_CSS,
   PIERRE_THEME,
   PIERRE_HIGHLIGHTER,
+  PIERRE_COMMENT_CSS,
 } from '@/shared/lib/pierre';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import {
@@ -67,6 +68,22 @@ import type { ReviewRange } from '@porcelain/client/changes/rules';
 import { useCodeFolds, useCodeViewScroll } from '../store';
 
 import { type ConnectionContext } from '@/shared/workspace/connection';
+import {
+  CommentThread,
+  commentRange,
+  diffLineText,
+  fileLineText,
+  useComments,
+  type LineRange,
+} from '@/features/comments/index';
+import type { DraftComment } from '@porcelain/client/comments/rules';
+
+type CommentNote = {
+  side: LineRange['side'];
+  line: number;
+  drafts: DraftComment[];
+  composing?: LineRange;
+};
 
 type Props = {
   onReview?: (entry: CodeEntry) => void;
@@ -94,6 +111,7 @@ type Props = {
   column?: boolean;
   readingColumn?: boolean;
   framed?: boolean;
+  comments?: boolean;
 };
 export type ListedComparison = {
   id: string;
@@ -116,20 +134,33 @@ export function CodeDocument(props: Props) {
     (notice) => notify(notice),
     props.range,
   );
-  return (
-    <>
-      <CodeSurface
-        key={JSON.stringify([props.interaction.entry, props.range])}
-        {...props}
-        writeBlock={review.writeBlock}
-        onToggleReviewed={(entry) => {
-          if (review.writeBlock || entry.review?.current === false) return;
-          if (props.onReview) props.onReview(entry);
-          else review.toggle(entry.review);
-        }}
-      />
-    </>
+  const surface = {
+    ...props,
+    writeBlock: review.writeBlock,
+    onToggleReviewed: (entry: CodeEntry) => {
+      if (review.writeBlock || entry.review?.current === false) return;
+      if (props.onReview) props.onReview(entry);
+      else review.toggle(entry.review);
+    },
+  };
+  const key = JSON.stringify([props.interaction.entry, props.range]);
+  return props.comments ? (
+    <CommentedSurface key={key} {...surface} />
+  ) : (
+    <CodeSurface key={key} {...surface} />
   );
+}
+function CommentedSurface(
+  props: Props & {
+    writeBlock: string | undefined;
+    onToggleReviewed: (entry: CodeEntry) => void;
+  },
+) {
+  const { view } = useComments({ scope: props.scope, context: props.context });
+  const drafts = (view?.comments ?? []).filter(
+    (comment) => comment.publication.status === 'draft',
+  );
+  return <CodeSurface {...props} commentDrafts={drafts} />;
 }
 function CodeSurface({
   entries: given,
@@ -158,10 +189,15 @@ function CodeSurface({
   range,
   onToggleReviewed,
   writeBlock,
+  commentDrafts,
 }: Props & {
   writeBlock: string | undefined;
   onToggleReviewed: (entry: CodeEntry) => void;
+  commentDrafts?: readonly DraftComment[];
 }) {
+  const [composer, setComposer] = useState<
+    (LineRange & { id: string }) | null
+  >(null);
   const { dark } = useTheme();
   const { preferences } = usePreferences();
   const specsApart = useSpecsApart(gitContext.connection);
@@ -264,14 +300,58 @@ function CodeSurface({
     if (awaited !== undefined) awaitJump(undefined);
   };
   const byId = new Map(entries.map((entry) => [entry.id, entry]));
-  const items: CodeViewItem<never>[] = entries.map((entry) => ({
-    id: entry.id,
-    collapsed: collapsed.has(entry.id),
-    version: contentVersion(
-      JSON.stringify([entry.version, collapsed.has(entry.id)]),
-    ),
-    ...codeTarget(entry),
-  }));
+  const notesFor = (entry: CodeEntry): CommentNote[] => {
+    if (commentDrafts === undefined) return [];
+    const notes = new Map<string, CommentNote>();
+    const note = (side: LineRange['side'], line: number) => {
+      const key = `${side}:${line}`;
+      const found = notes.get(key) ?? { side, line, drafts: [] };
+      notes.set(key, found);
+      return found;
+    };
+    for (const draft of commentDrafts) {
+      const anchor = draft.anchor;
+      if (anchor.kind !== 'lines' || anchor.path !== entry.path) continue;
+      if (entry.kind === 'file' && anchor.side !== 'additions') continue;
+      note(anchor.side, anchor.end).drafts.push(draft);
+    }
+    if (composer?.id === entry.id)
+      note(composer.side, composer.end).composing = {
+        side: composer.side,
+        start: composer.start,
+        end: composer.end,
+      };
+    return [...notes.values()];
+  };
+  const items: CodeViewItem<CommentNote>[] = entries.map((entry) => {
+    const notes = notesFor(entry);
+    const shared = {
+      id: entry.id,
+      collapsed: collapsed.has(entry.id),
+      version: contentVersion(
+        JSON.stringify([entry.version, collapsed.has(entry.id), notes]),
+      ),
+    };
+    const target = codeTarget(entry);
+    return target.type === 'diff'
+      ? {
+          ...shared,
+          ...target,
+          annotations: notes.map((note) => ({
+            side: note.side,
+            lineNumber: note.line,
+            metadata: note,
+          })),
+        }
+      : {
+          ...shared,
+          ...target,
+          annotations: notes.map((note) => ({
+            lineNumber: note.line,
+            metadata: note,
+          })),
+        };
+  });
   const specEntries = entries.filter((entry) => isSpecPath(entry.path));
   const specCount = new Set(specEntries.map((entry) => entry.path)).size;
   const firstSpecId = specEntries[0]?.id;
@@ -281,7 +361,7 @@ function CodeSurface({
       firstReviewEntryByPath.set(entry.review.path, entry.id);
   }
   const paddingBottom = fullHeight || footer ? 12 : 160;
-  const options: CodeViewReactOptions<never, undefined> = {
+  const options: CodeViewReactOptions<CommentNote, undefined> = {
     preferredHighlighter: PIERRE_HIGHLIGHTER,
     theme:
       decision || column || compactThreads || framed
@@ -295,11 +375,18 @@ function CodeSurface({
     stickyHeaders: !disableFileHeader && !fullHeight,
     disableFileHeader: disableFileHeader || compactHeight,
     enableLineSelection: true,
-    enableGutterUtility: false,
+    enableGutterUtility: commentDrafts !== undefined,
+    onGutterUtilityClick: (range, context) => {
+      const lines = commentRange(range);
+      if (!lines || commentDrafts === undefined) return;
+      if (context.item.type === 'file' && lines.side !== 'additions') return;
+      folds.setCollapsed([context.item.id], false);
+      setComposer({ id: context.item.id, ...lines });
+    },
     onLineClick: (_, context) => setFocusedId(context.item.id),
     onLineNumberClick: (_, context) => setFocusedId(context.item.id),
     lineHoverHighlight: 'number',
-    unsafeCSS: `${compactThreads ? '[data-line-annotation]:has([data-file-thread-marker]) { margin-left: 0; }' : ''}${fileChangeBars(fileDiff)}${decision || column || framed ? PIERRE_DECISION_CSS : ''}${column ? PIERRE_CHANGES_HEADER_CSS : ''}${PIERRE_SURFACE_CSS}${disableFileHeader || compactHeight ? '[data-code] { padding-top: 0 !important; }' : PIERRE_HEADER_CSS}${compactThreads ? PIERRE_FILE_CSS : ''}${compactHeight ? '[data-diffs-header], pre { border: 0; border-radius: 0; }' : ''}`,
+    unsafeCSS: `${compactThreads ? '[data-line-annotation]:has([data-file-thread-marker]) { margin-left: 0; }' : ''}${fileChangeBars(fileDiff)}${decision || column || framed ? PIERRE_DECISION_CSS : ''}${column ? PIERRE_CHANGES_HEADER_CSS : ''}${PIERRE_SURFACE_CSS}${commentDrafts === undefined ? '' : PIERRE_COMMENT_CSS}${disableFileHeader || compactHeight ? '[data-code] { padding-top: 0 !important; }' : PIERRE_HEADER_CSS}${compactThreads ? PIERRE_FILE_CSS : ''}${compactHeight ? '[data-diffs-header], pre { border: 0; border-radius: 0; }' : ''}`,
     ...(column
       ? { itemMetrics: { lineHeight: 22, diffHeaderHeight: 41 } }
       : {}),
@@ -566,6 +653,38 @@ function CodeSurface({
           onSelectedLinesChange={(next) => {
             setSelection(next);
             if (next) setFocusedId(next.id);
+          }}
+          renderAnnotation={(...[annotation]) => {
+            const note = annotation.metadata;
+            const entry = entries.find(
+              (candidate) => candidate.id === composer?.id,
+            );
+            const composing = note.composing;
+            const anchor =
+              composing && entry
+                ? {
+                    kind: 'lines' as const,
+                    path: entry.path,
+                    ...composing,
+                    text:
+                      entry.kind === 'diff'
+                        ? diffLineText(entry.fileDiff, composing)
+                        : fileLineText(entry.contents, composing),
+                  }
+                : undefined;
+            return (
+              <CommentThread
+                owner={{ scope, context: gitContext }}
+                drafts={note.drafts}
+                anchor={anchor}
+                composing={composing !== undefined}
+                onClose={() => {
+                  setComposer(null);
+                  setSelection(null);
+                }}
+                className="mx-3 my-2 max-w-[min(100%,48rem)]"
+              />
+            );
           }}
           renderHeaderMetadata={(item) => {
             const entry = byId.get(item.id);

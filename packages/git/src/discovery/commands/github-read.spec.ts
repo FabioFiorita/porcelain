@@ -11,6 +11,7 @@ import {
   listGitHubAccounts,
   mergeGitHubPullRequest,
   postGitHubIssueComment,
+  postGitHubPullRequestReview,
   readGitHubApi,
 } from './github-read.ts';
 async function fixture(onCleanup: (fn: () => Promise<void> | void) => void) {
@@ -40,6 +41,7 @@ fs.appendFileSync(${JSON.stringify(calls)}, JSON.stringify({ args, token: proces
 if (args[0] === 'auth' && args[1] === 'status') { console.log('["personal","work"]'); }
 else if (args[0] === 'auth') { console.log('secret-' + args.at(-1)); }
 else if (args.includes('repos/o/r/issues/7/comments')) { fs.writeFileSync(${JSON.stringify(join(folder, 'posted'))}, fs.readFileSync(0)); console.log('{"html_url":"https://github.com/o/r/pull/7#issuecomment-1"}'); }
+else if (args.includes('repos/o/r/pulls/7/reviews')) { fs.writeFileSync(${JSON.stringify(join(folder, 'review'))}, fs.readFileSync(0)); console.log('{"id":9,"html_url":"https://github.com/o/r/pull/7#pullrequestreview-9"}'); }
 else if (args.includes('repos/o/r/pulls/7/merge') && mode === 'ok') { fs.writeFileSync(${JSON.stringify(join(folder, 'posted'))}, fs.readFileSync(0)); console.log('{"sha":"abc","merged":true,"message":"Pull Request successfully merged"}'); }
 else if (args.includes('repos/o/r/pulls/7/merge') && mode === 'blocked') { console.error('gh: Required status check "unit" is expected. (HTTP 405)'); process.exitCode = 1; }
 else if (args.includes('repos/o/r/pulls/7/merge') && mode === 'moved') { console.error('gh: Head branch was modified. Review and try the merge again. (HTTP 409)'); process.exitCode = 1; }
@@ -215,3 +217,70 @@ it.each([
     expect(JSON.stringify(result)).not.toContain('secret-work');
   },
 );
+
+it('posts one COMMENT review at the given commit with single and multi-line comments on their side', async ({
+  onTestFinished,
+}) => {
+  const f = await fixture(onTestFinished);
+  expect(
+    await run(
+      postGitHubPullRequestReview(
+        {
+          account: 'work',
+          owner: 'o',
+          repo: 'r',
+          number: 7,
+          commitId: 'abc123',
+          body: 'Summary',
+          comments: [
+            { path: 'src/a.ts', side: 'RIGHT', line: 4, body: 'One line' },
+            {
+              path: 'src/b.ts',
+              side: 'LEFT',
+              startLine: 2,
+              line: 3,
+              body: 'Removed range',
+            },
+          ],
+        },
+        gitLimits,
+      ),
+    ),
+  ).toBe('https://github.com/o/r/pull/7#pullrequestreview-9');
+  expect(JSON.parse(await readFile(join(f.folder, 'review'), 'utf8'))).toEqual(
+    {
+      commit_id: 'abc123',
+      event: 'COMMENT',
+      body: 'Summary',
+      comments: [
+        { path: 'src/a.ts', side: 'RIGHT', line: 4, body: 'One line' },
+        {
+          path: 'src/b.ts',
+          side: 'LEFT',
+          line: 3,
+          body: 'Removed range',
+          start_line: 2,
+          start_side: 'LEFT',
+        },
+      ],
+    },
+  );
+  const reviewCall = (await readFile(f.calls, 'utf8'))
+    .trim()
+    .split('\n')
+    .map((line) => JSON.parse(line) as { args: string[]; token: string })
+    .find((call) => call.args.includes('repos/o/r/pulls/7/reviews'));
+  expect(reviewCall).toEqual({
+    args: [
+      'api',
+      '--hostname',
+      'github.com',
+      'repos/o/r/pulls/7/reviews',
+      '--method',
+      'POST',
+      '--input',
+      '-',
+    ],
+    token: 'secret-work',
+  });
+});

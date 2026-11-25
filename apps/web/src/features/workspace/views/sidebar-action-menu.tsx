@@ -15,6 +15,7 @@ import {
   FileDiffIcon,
   FileIcon,
   HistoryIcon,
+  MessageSquarePlusIcon,
   Undo2Icon,
   type LucideIcon,
 } from 'lucide-react';
@@ -36,6 +37,7 @@ import {
 const icons: Record<ReviewSidebarAction['id'], LucideIcon> = {
   open: FileDiffIcon,
   review: CheckIcon,
+  comment: MessageSquarePlusIcon,
   'open-to-side': Columns2Icon,
   'open-file': FileIcon,
   timeline: HistoryIcon,

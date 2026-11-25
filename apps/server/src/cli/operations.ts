@@ -18,6 +18,7 @@ import { runServiceCommand } from './service.ts';
 import { cliPackageRoot } from './package-version.ts';
 import { shareRemoteAccess } from './share-command.ts';
 import { reportStatus } from './status.ts';
+import { printComments } from './comments-command.ts';
 import type {
   ServiceSettings,
   ShareAction,
@@ -42,6 +43,7 @@ export class CliHost extends Context.Service<
     readonly stdout: (message: string) => void;
     readonly stderr: (message: string) => void;
     readonly prepareWebRoot: Effect.Effect<string> | undefined;
+    readonly currentDirectory: string;
   }
 >()('@porcelain/server/CliHost') {}
 
@@ -69,6 +71,9 @@ export class CliOperations extends Context.Service<
       settings: StatusSettings & { readonly action: ShareAction },
     ) => Effect.Effect<number, OwnerRequestError>;
     readonly service: (settings: ServiceSettings) => Effect.Effect<void>;
+    readonly comments: (
+      settings: StatusSettings & { readonly json: boolean },
+    ) => Effect.Effect<void, OwnerRequestError>;
   }
 >()('@porcelain/server/CliOperations') {
   static readonly layer = Layer.effect(
@@ -157,6 +162,16 @@ export class CliOperations extends Context.Service<
             limits,
           ),
         ),
+        comments: Effect.fn('Cli.comments')(function* (settings) {
+          const directory = yield* fs
+            .realPath(host.currentDirectory)
+            .pipe(Effect.orElseSucceed(() => host.currentDirectory));
+          yield* printComments(
+            { dataDirectory: settings.dataDirectory, directory, json: settings.json },
+            stdout,
+            limits,
+          );
+        }),
         service: Effect.fn('Cli.service')((settings) =>
           runServiceCommand(settings, {
             homeDirectory,

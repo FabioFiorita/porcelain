@@ -6,6 +6,7 @@ import { GitActionsApi } from '../git-actions/api.ts';
 import { ProjectsApi } from '../projects/api.ts';
 import { ReviewedFilesApi } from '../changes/reviewed-api.ts';
 import { PullRequestsApi } from '../projects/pull-requests-api.ts';
+import { CommentsApi } from '../comments/api.ts';
 import { porcelainApi } from './http-api.ts';
 
 export class PorcelainClientApi extends porcelainApi
@@ -16,4 +17,5 @@ export class PorcelainClientApi extends porcelainApi
   .addHttpApi(ChangesApi)
   .addHttpApi(ReviewedFilesApi)
   .addHttpApi(PullRequestsApi)
-  .addHttpApi(GitActionsApi) {}
+  .addHttpApi(GitActionsApi)
+  .addHttpApi(CommentsApi) {}

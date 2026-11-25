@@ -3,9 +3,10 @@ import type { RunGitActionResponse } from '@porcelain/contracts/git-actions';
 
 const WITH_WALKTHROUGH = ['walkthrough', 'walkthrough-conversations'];
 const CHANGE_SURFACES = {
-  files: ['walkthrough'],
-  git: WITH_WALKTHROUGH,
+  files: ['walkthrough', 'comments'],
+  git: [...WITH_WALKTHROUGH, 'comments'],
   reviewed: ['reviewed'],
+  comments: ['comments'],
 } as const;
 
 export function noticeSurfaces(notice: LiveNotice) {

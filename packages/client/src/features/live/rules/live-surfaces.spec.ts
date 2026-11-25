@@ -6,13 +6,18 @@ const worktreeId = 'w'.repeat(32);
 const scope = { projectId, worktreeId };
 
 describe('walkthrough notices', () => {
-  it('rechecks content freshness on file edits without refetching conversations', () => {
+  it('rechecks content freshness and outdated comments on file edits without refetching conversations', () => {
     expect(
       noticeSurfaces({ type: 'worktree', change: 'files', ...scope }),
     ).toEqual({
       scope,
-      surfaces: new Set(['walkthrough']),
+      surfaces: new Set(['walkthrough', 'comments']),
     });
+  });
+  it('refreshes only the comments when a comment changed', () => {
+    expect(
+      noticeSurfaces({ type: 'worktree', change: 'comments', ...scope }),
+    ).toEqual({ scope, surfaces: new Set(['comments']) });
   });
   it('refreshes the walkthrough and its conversations when its run changed', () => {
     expect(
@@ -41,7 +46,9 @@ describe('walkthrough notices', () => {
         worktreeId,
         change: 'git',
       })?.surfaces,
-    ).toEqual(new Set(['walkthrough', 'walkthrough-conversations']));
+    ).toEqual(
+      new Set(['walkthrough', 'walkthrough-conversations', 'comments']),
+    );
   });
 });
 

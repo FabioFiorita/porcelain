@@ -325,6 +325,7 @@ function BranchDiffs({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <CodeDocument
+        comments
         fullHeight={fullHeight}
         readingColumn={!single && !singleHeader}
         scope={scope}

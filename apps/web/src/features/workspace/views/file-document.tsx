@@ -389,6 +389,7 @@ function ReadableFileDocument({
             {commands}
           </FileHeading>
           <CodeDocument
+            comments
             disableFileHeader
             compactThreads
             fileDiff={diff}

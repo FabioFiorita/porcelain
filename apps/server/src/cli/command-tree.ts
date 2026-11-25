@@ -298,6 +298,22 @@ const help = Command.make(
     }),
 );
 
+const comments = Command.make(
+  'comments',
+  { json: Flag.Boolean('json').pipe(Flag.withDefault(false)) },
+  Effect.fn('Cli.commentsCommand')(function* (input) {
+    const operations = yield* CliOperations;
+    yield* operations.comments({
+      dataDirectory: yield* dataDirectoryFor(yield* directory),
+      json: input.json,
+    });
+  }),
+).pipe(
+  Command.withDescription(
+    'Print the open review comments for the worktree in this directory (Markdown, or JSON with --json)',
+  ),
+);
+
 export const porcelainCommand = rootConfiguration.pipe(
   Command.withHandler(serveHandler),
   Command.withDescription(
@@ -309,6 +325,7 @@ export const porcelainCommand = rootConfiguration.pipe(
     pair,
     devices,
     revoke,
+    comments,
     trustCommand('trust', true),
     trustCommand('untrust', false),
     share,

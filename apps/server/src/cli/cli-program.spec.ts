@@ -30,6 +30,7 @@ function agentCli(
     trust: (input) => record('trust', input),
     share: (input) => record('share', input).pipe(Effect.as(0)),
     service: (input) => record('service', input),
+    comments: (input) => record('comments', input),
   });
   const console: Console.Console = {
     ...globalThis.console,
@@ -172,6 +173,29 @@ it.effect('keeps a failed revoke observable through the exit code', () =>
       {
         operation: 'revoke',
         input: { dataDirectory: '/home/agent/.porcelain', id: 'missing-id' },
+      },
+    ]);
+  }),
+);
+
+it.effect('prints review comments as Markdown, or JSON with a flag', () =>
+  Effect.gen(function* () {
+    const markdown = yield* agentCli(['comments']);
+    const json = yield* agentCli([
+      'comments',
+      '--json',
+      '--data-directory',
+      '/tmp/agent-data',
+    ]);
+    expect([markdown.code, json.code]).toEqual([0, 0]);
+    expect([...markdown.calls, ...json.calls]).toEqual([
+      {
+        operation: 'comments',
+        input: { dataDirectory: '/home/agent/.porcelain', json: false },
+      },
+      {
+        operation: 'comments',
+        input: { dataDirectory: '/tmp/agent-data', json: true },
       },
     ]);
   }),

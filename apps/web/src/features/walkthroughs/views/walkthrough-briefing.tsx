@@ -213,10 +213,12 @@ export function Briefing({
   run,
   content,
   onJump,
+  comments,
 }: {
   run: WalkthroughRun;
   content: WalkthroughContent;
   onJump: Jump;
+  comments?: ReactNode;
 }) {
   const calls = walkthroughCalls(content).length;
   return (
@@ -227,6 +229,7 @@ export function Briefing({
       <BriefingRow label="Verified">
         <Verified run={run} content={content} onJump={onJump} />
       </BriefingRow>
+      {comments && <BriefingRow label="Comments">{comments}</BriefingRow>}
     </BriefingRows>
   );
 }

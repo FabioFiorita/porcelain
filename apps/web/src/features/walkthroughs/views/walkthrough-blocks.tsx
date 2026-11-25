@@ -151,11 +151,13 @@ function CheckList({ block }: { block: Checks }) {
 export function StepBlocks({
   blocks,
   step,
+  title,
   run,
   document,
 }: {
   blocks: readonly StepBlock[];
   step: number;
+  title: string;
   run: WalkthroughRun;
   document: DocumentProps;
 }) {
@@ -193,6 +195,7 @@ export function StepBlocks({
             document={document}
             runId={run.id}
             step={step}
+            title={title}
           />
         );
     }

@@ -176,6 +176,65 @@ export const postGitHubIssueComment = Effect.fn('Git.postGitHubIssueComment')(
   },
 );
 
+export const postGitHubPullRequestReview = Effect.fn(
+  'Git.postGitHubPullRequestReview',
+)(function* (
+  input: {
+    account: string;
+    owner: string;
+    repo: string;
+    number: number;
+    commitId: string;
+    body: string;
+    comments: readonly {
+      path: string;
+      side: 'LEFT' | 'RIGHT';
+      startLine?: number | undefined;
+      line: number;
+      body: string;
+    }[];
+  },
+  limits: GitLimits,
+) {
+  const token = yield* githubToken(input.account, limits);
+  const response = yield* output(
+    [
+      'api',
+      '--hostname',
+      'github.com',
+      `repos/${encodeURIComponent(input.owner)}/${encodeURIComponent(input.repo)}/pulls/${input.number}/reviews`,
+      '--method',
+      'POST',
+      '--input',
+      '-',
+    ],
+    limits,
+    token,
+    JSON.stringify({
+      commit_id: input.commitId,
+      event: 'COMMENT',
+      body: input.body,
+      comments: input.comments.map((comment) => ({
+        path: comment.path,
+        side: comment.side,
+        line: comment.line,
+        body: comment.body,
+        ...(comment.startLine === undefined
+          ? {}
+          : { start_line: comment.startLine, start_side: comment.side }),
+      })),
+    }),
+  );
+  const decoded = yield* Schema.decodeEffect(githubCommentSchema)(
+    response,
+  ).pipe(
+    Effect.mapError(
+      () => new GitHubCommandError({ reason: 'invalid-response' }),
+    ),
+  );
+  return decoded.html_url;
+});
+
 export const readGitHubApi = Effect.fn('Git.readGitHubApi')(function* (
   input: {
     account: string;

@@ -19,6 +19,7 @@ import {
   type WalkthroughContent,
   type WalkthroughFailure,
   type WalkthroughRun,
+  plainText,
 } from '@porcelain/client/walkthroughs/rules';
 import { Button } from '@/components/ui/button';
 import {
@@ -40,6 +41,7 @@ import {
 } from './walkthrough-conversation';
 import { WalkthroughStatus } from './walkthrough-status';
 import { Briefing, scrollToTarget } from './walkthrough-briefing';
+import { CommentsSummary } from '@/features/comments/index';
 import { WalkthroughSteps, type Conversation } from './walkthrough-steps';
 import { WalkthroughStart } from './walkthrough-start';
 import { useWalkthroughWriter } from '../queries/writer';
@@ -228,6 +230,7 @@ function Written({
         owner={owner}
         title={title}
         call={kind === 'call'}
+        {...(kind === 'step' ? { stepTitle: plainText(title) } : {})}
       />
     );
   };
@@ -262,7 +265,12 @@ function Written({
           </p>
           {status}
         </header>
-        <Briefing run={run} content={content} onJump={scrollToTarget} />
+        <Briefing
+          run={run}
+          content={content}
+          onJump={scrollToTarget}
+          comments={<CommentsSummary owner={props} />}
+        />
         <ReviewCode
           document={props}
           entry="review:all"
@@ -286,7 +294,12 @@ function Written({
         </p>
         {status}
       </header>
-      <Briefing run={run} content={content} onJump={scrollToTarget} />
+      <Briefing
+          run={run}
+          content={content}
+          onJump={scrollToTarget}
+          comments={<CommentsSummary owner={props} />}
+        />
       {content.growth.length > 0 && <Growth content={content} />}
       <WalkthroughSteps
         content={content}

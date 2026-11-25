@@ -42,6 +42,7 @@ export type CopyTarget =
   | 'command'
   | 'commit id'
   | 'commit message'
+  | 'comments'
   | 'device ID'
   | 'draft'
   | 'full path'

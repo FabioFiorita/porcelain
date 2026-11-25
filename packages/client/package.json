@@ -23,7 +23,9 @@
     "./links/rules": "./src/features/links/rules/index.ts",
     "./preferences": "./src/features/preferences/index.ts",
     "./walkthroughs": "./src/features/walkthroughs/index.ts",
-    "./walkthroughs/rules": "./src/features/walkthroughs/rules/index.ts"
+    "./walkthroughs/rules": "./src/features/walkthroughs/rules/index.ts",
+    "./comments": "./src/features/comments/index.ts",
+    "./comments/rules": "./src/features/comments/rules/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.spec.json",

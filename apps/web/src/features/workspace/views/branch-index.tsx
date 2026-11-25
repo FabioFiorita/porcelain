@@ -19,6 +19,7 @@ import { BranchBasePicker } from './branch-base-picker';
 import { branchChangeStatus } from '@porcelain/client/files/rules';
 import { ReviewedCount, SidebarDocumentRow } from './sidebar-section';
 import { ChangeRow } from './change-row';
+import { useFileComments } from '@/features/comments/index';
 import { groupSpecPaths } from '@porcelain/client/changes/rules';
 import { useSpecsApart } from '@/features/preferences/index';
 import { type ConnectionContext } from '@/shared/workspace/connection';
@@ -132,6 +133,7 @@ function BranchFileList({
   const specsApart = useSpecsApart(context.connection);
   const range = branchReviewRange(branch);
   const marks = useReviewedMarks(scope, context, range);
+  const comments = useFileComments({ scope, context });
   const reviewed = useToggleReviewed(
     scope,
     context,
@@ -161,6 +163,8 @@ function BranchFileList({
       onOpen={onOpen}
       sideLabel={sideLabel}
       writeBlock={reviewed.writeBlock}
+      commentCount={comments.counts.get(item.path)}
+      onComment={() => comments.comment(item.path)}
       canReview={item.fingerprint !== null && item.fingerprint !== undefined}
       onReview={() =>
         reviewed.toggle({
@@ -181,6 +185,8 @@ function BranchFileList({
           total={items.length}
           label={`${commits} on ${head} since ${refLabel(branch.base.ref)}`}
         />
+        {comments.summary}
+        {comments.dialogs}
         <SidebarDocumentRow
           label={allLabel}
           active={activeEntry === entryKey(BRANCH)}

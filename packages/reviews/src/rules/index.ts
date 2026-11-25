@@ -5,3 +5,15 @@ export {
   mapPullRequestChecks,
   recentPullRequestCutoff,
 } from './pull-request.ts';
+export {
+  anchoredText,
+  commentLocation,
+  confirmedReview,
+  draftCommentsMarkdown,
+  draftOutdated,
+  openDraftCount,
+  outdatedCheckPaths,
+  patchLines,
+  planPullRequestReview,
+  reviewBody,
+} from './draft-comments.ts';

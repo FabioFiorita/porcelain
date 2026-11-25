@@ -1,4 +1,12 @@
 import { useState } from 'react';
+import {
+  CommentThread,
+  commentRange,
+  diffLineText,
+  useComments,
+  type LineRange,
+} from '@/features/comments/index';
+import type { DraftComment } from '@porcelain/client/comments/rules';
 import { FileDiff } from '@pierre/diffs/react';
 import { AsyncResult } from 'effect/reactivity';
 import { ChevronRightIcon } from 'lucide-react';
@@ -7,6 +15,7 @@ import { useTheme } from '@/features/preferences/index';
 import type { DocumentProps } from '@/features/workspace/index';
 import {
   PIERRE_HIGHLIGHTER,
+  PIERRE_COMMENT_CSS,
   PIERRE_SURFACE_CSS,
   PIERRE_THEME,
 } from '@/shared/lib/pierre';
@@ -35,6 +44,9 @@ function CapturedLines({ document, runId, step, excerpt }: ExcerptProps) {
     excerpt.node,
   );
   const { dark } = useTheme();
+  const owner = { scope: document.scope, context: document.context };
+  const { view } = useComments(owner);
+  const [composing, setComposing] = useState<LineRange>();
   if (AsyncResult.isInitial(result))
     return (
       <div className="px-3 py-2">
@@ -72,17 +84,68 @@ function CapturedLines({ document, runId, step, excerpt }: ExcerptProps) {
       </div>
     );
   const side = excerpt.side === 'old' ? 'deletions' : 'additions';
+  const notes = new Map<
+    string,
+    { side: LineRange['side']; line: number; drafts: DraftComment[] }
+  >();
+  const note = (at: LineRange['side'], line: number) => {
+    const key = `${at}:${line}`;
+    const found = notes.get(key) ?? { side: at, line, drafts: [] };
+    notes.set(key, found);
+    return found;
+  };
+  for (const draft of view?.comments ?? []) {
+    const anchor = draft.anchor;
+    if (
+      draft.publication.status === 'draft' &&
+      anchor.kind === 'lines' &&
+      anchor.path === excerpt.path
+    )
+      note(anchor.side, anchor.end).drafts.push(draft);
+  }
+  if (composing) note(composing.side, composing.end);
   return (
-    <FileDiff
+    <FileDiff<{ side: LineRange['side']; line: number; drafts: DraftComment[] }>
       fileDiff={file}
+      lineAnnotations={[...notes.values()].map((entry) => ({
+        side: entry.side,
+        lineNumber: entry.line,
+        metadata: entry,
+      }))}
+      renderAnnotation={(annotation) => {
+        const entry = annotation.metadata;
+        const open =
+          composing?.side === entry.side && composing.end === entry.line;
+        return (
+          <CommentThread
+            owner={owner}
+            drafts={entry.drafts}
+            anchor={
+              open
+                ? {
+                    kind: 'lines',
+                    path: excerpt.path,
+                    ...composing,
+                    text: diffLineText(file, composing),
+                  }
+                : undefined
+            }
+            composing={open}
+            onClose={() => setComposing(undefined)}
+            className="mx-3 my-2"
+          />
+        );
+      }}
       options={{
         preferredHighlighter: PIERRE_HIGHLIGHTER,
         theme: PIERRE_THEME,
         themeType: dark ? 'dark' : 'light',
         overflow: 'wrap',
         disableFileHeader: true,
-        unsafeCSS: PIERRE_SURFACE_CSS,
+        unsafeCSS: `${PIERRE_SURFACE_CSS}${PIERRE_COMMENT_CSS}`,
         diffStyle: 'unified',
+        enableGutterUtility: true,
+        onGutterUtilityClick: (range) => setComposing(commentRange(range)),
       }}
       selectedLines={{
         start: excerpt.start,

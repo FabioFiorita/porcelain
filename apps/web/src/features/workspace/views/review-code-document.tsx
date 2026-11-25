@@ -318,6 +318,7 @@ export function ReviewCodeDocument({
     return <ReservedCode count={items.length} />;
   return (
     <CodeDocument
+      comments
       fullHeight={fullHeight}
       emptyActions={
         omittedFile ? (

@@ -7,12 +7,16 @@ import { requestPolicy } from '../hooks/request-policy.ts';
 
 export type OwnerUseCases = {
   access: { routes: { owner: HttpApplication } };
+  comments: { owner: HttpApplication };
 };
 export function ownerScope(options: {
   boundary: RequestBoundary;
   application: OwnerUseCases;
 }) {
-  return options.application.access.routes.owner.pipe(
+  return Layer.mergeAll(
+    options.application.access.routes.owner,
+    options.application.comments.owner,
+  ).pipe(
     Layer.provide(requestPolicy(Effect.void).combine(options.boundary).layer),
     Layer.provide(HttpRouter.middleware(preventCaching).layer),
   );

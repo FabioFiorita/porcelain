@@ -11,6 +11,7 @@ export {
   listGitHubAccounts,
   mergeGitHubPullRequest,
   postGitHubIssueComment,
+  postGitHubPullRequestReview,
   readGitHubApi,
 } from './commands/github-read.ts';
 

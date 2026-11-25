@@ -43,6 +43,12 @@ import {
   type ConversationScope,
 } from '../queries/conversations';
 import { RichText } from './rich-text';
+import { commentsAt } from '@porcelain/client/comments/rules';
+import {
+  DraftCard,
+  useCommentCommands,
+  useComments,
+} from '@/features/comments/index';
 
 type Props = { owner: ConversationScope };
 
@@ -227,11 +233,15 @@ function Composer({
   title,
   placement,
   placeholder,
+  onComment,
 }: Props & {
   title: string;
   placement: WalkthroughDraftPlacement;
   placeholder: string;
+  onComment?: ((text: string) => Promise<unknown>) | undefined;
 }) {
+  const [commenting, setCommenting] = useState(false);
+  const [commentFailure, setCommentFailure] = useState<string>();
   const writeBlock = useWorkspaceWriteBlock(owner.context);
   const {
     text,
@@ -242,6 +252,22 @@ function Composer({
   } = useSendMessage(owner, title, placement);
   const send = () => {
     if (!writeBlock) submit();
+  };
+  const comment = () => {
+    const trimmed = text.trim();
+    if (!onComment || !trimmed || writeBlock || commenting) return;
+    setCommenting(true);
+    setCommentFailure(undefined);
+    onComment(trimmed).then(
+      () => {
+        setCommenting(false);
+        change('');
+      },
+      () => {
+        setCommenting(false);
+        setCommentFailure('The comment was not saved. Try again.');
+      },
+    );
   };
   return (
     <>
@@ -266,33 +292,65 @@ function Composer({
           }}
         />
         <InputGroupAddon align="inline-end">
+          {onComment && (
+            <InputGroupButton
+              size="xs"
+              variant="outline"
+              focusableWhenDisabled
+              disabled={!text.trim() || commenting || Boolean(writeBlock)}
+              aria-description={writeBlock}
+              onClick={comment}
+            >
+              Comment
+            </InputGroupButton>
+          )}
           <Tooltip>
             <TooltipTrigger
               render={
                 <InputGroupButton
-                  size="icon-xs"
+                  size={onComment ? 'xs' : 'icon-xs'}
                   variant="default"
-                  aria-label="Send"
+                  aria-label={onComment ? 'Ask' : 'Send'}
                   focusableWhenDisabled
                   disabled={!text.trim() || waiting || Boolean(writeBlock)}
                   aria-description={writeBlock}
 
                   onClick={send}
                 >
+                  {onComment && 'Ask'}
                   <ArrowUpIcon />
                 </InputGroupButton>
               }
             />
-            <TooltipContent>Send</TooltipContent>
+            <TooltipContent>
+              {onComment ? 'Ask the Walkthrough agent' : 'Send'}
+            </TooltipContent>
           </Tooltip>
         </InputGroupAddon>
       </InputGroup>
-      {failure && (
+      {(failure ?? commentFailure) && (
         <p role="alert" className="text-caption text-destructive">
-          {failure}
+          {failure ?? commentFailure}
         </p>
       )}
     </>
+  );
+}
+
+function StepDrafts({ owner, title }: Props & { title: string }) {
+  const commentOwner = { scope: owner.scope, context: owner.context };
+  const { view } = useComments(commentOwner);
+  const drafts = commentsAt(
+    view,
+    (anchor) => anchor.kind === 'step' && anchor.title === title,
+  );
+  if (drafts.length === 0) return null;
+  return (
+    <div className="flex flex-col gap-2">
+      {drafts.map((comment) => (
+        <DraftCard key={comment.id} owner={commentOwner} comment={comment} />
+      ))}
+    </div>
   );
 }
 
@@ -300,8 +358,13 @@ export function WalkthroughConversation({
   owner,
   title,
   call,
-}: Props & { title: string; call: boolean }) {
+  stepTitle,
+}: Props & { title: string; call: boolean; stepTitle?: string }) {
   const { view, failed, refresh } = useConversations(owner);
+  const comments = useCommentCommands({
+    scope: owner.scope,
+    context: owner.context,
+  });
   const conversations = stopConversations(view, title);
   return (
     <div className="flex flex-col gap-3">
@@ -327,11 +390,29 @@ export function WalkthroughConversation({
           </MessageGroup>
         </div>
       )}
+      {stepTitle !== undefined && (
+        <StepDrafts owner={owner} title={stepTitle} />
+      )}
       <Composer
         owner={owner}
         title={title}
         placement={call ? 'call' : 'step'}
-        placeholder={call ? 'Decide, or ask about this' : 'Ask about this step'}
+        placeholder={
+          stepTitle !== undefined
+            ? 'Comment on this step, or ask the agent'
+            : call
+              ? 'Decide, or ask about this'
+              : 'Ask about this step'
+        }
+        onComment={
+          stepTitle === undefined
+            ? undefined
+            : (text) =>
+                comments.add.run({
+                  anchor: { kind: 'step', title: stepTitle },
+                  text,
+                })
+        }
       />
     </div>
   );
