@@ -8,6 +8,7 @@ import type { useBranchChanges } from '@/features/changes/index';
 import { notify } from '@/shared/views/notify';
 import { useToggleReviewed } from '../commands/reviewed';
 import { useReviewedMarks } from '../queries/reviewed';
+import { useDiffFocus } from '../store';
 import { counted } from '@porcelain/client/changes/rules';
 import { BRANCH, entryKey, type OpenDocument } from '../rules/documents';
 import {
@@ -134,6 +135,7 @@ function BranchFileList({
   const range = branchReviewRange(branch);
   const marks = useReviewedMarks(scope, context, range);
   const comments = useFileComments({ scope, context });
+  const current = useDiffFocus(scope.worktreeId, activeEntry);
   const reviewed = useToggleReviewed(
     scope,
     context,
@@ -160,6 +162,7 @@ function BranchFileList({
       active={
         activeEntry === entryKey({ kind: 'branch-file', path: item.path })
       }
+      current={current === item.path}
       onOpen={onOpen}
       sideLabel={sideLabel}
       writeBlock={reviewed.writeBlock}

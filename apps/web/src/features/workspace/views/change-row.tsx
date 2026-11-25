@@ -16,7 +16,7 @@ import {
 import { SidebarActionMenu } from './sidebar-action-menu';
 
 export const ROW =
-  'flex w-full min-w-0 items-center gap-1.5 rounded-lg px-2 py-1 text-left text-[length:var(--text-caption)] transition-colors hover:bg-accent aria-pressed:bg-accent aria-pressed:font-medium';
+  'flex h-7 w-full min-w-0 items-center gap-1.5 rounded-md px-2 text-left text-caption transition-colors hover:bg-accent aria-pressed:bg-accent aria-pressed:font-medium';
 
 export function ChangeRow({
   path,
@@ -26,6 +26,7 @@ export function ChangeRow({
   changeStatus,
   reviewStatus,
   active,
+  current = false,
   onOpen,
   sideLabel,
   onReview,
@@ -43,6 +44,7 @@ export function ChangeRow({
   changeStatus: ChangeStatus | undefined;
   reviewStatus: ReviewStatus | undefined;
   active: boolean;
+  current?: boolean;
   onOpen: OpenDocument;
   sideLabel: string;
   onReview: () => void;
@@ -100,7 +102,16 @@ export function ChangeRow({
         <div className="flex min-w-0 items-center">
           <button
             type="button"
+            ref={(row) => {
+              if (!row) return;
+              if (!current) delete row.dataset.revealed;
+              else if (row.dataset.revealed === undefined) {
+                row.dataset.revealed = '';
+                row.scrollIntoView({ block: 'nearest' });
+              }
+            }}
             aria-pressed={active}
+            aria-current={current ? 'location' : undefined}
             aria-label={label}
             aria-description={changeDescription(changeStatus, reviewStatus)}
             title={
@@ -110,7 +121,7 @@ export function ChangeRow({
               ROW,
               'flex-1 text-muted-foreground',
               indented && 'pl-7',
-              active && 'bg-accent font-medium text-foreground',
+              (active || current) && 'bg-accent font-medium text-foreground',
             )}
             onClick={(event) => onOpen(document, { toSide: event.altKey })}
           >

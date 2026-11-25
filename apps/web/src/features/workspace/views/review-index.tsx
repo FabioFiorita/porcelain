@@ -29,6 +29,7 @@ import {
 } from '@porcelain/client/changes/rules';
 
 import { type BranchFileGrouping, BranchIndex } from './branch-index';
+import { useDiffFocus } from '../store';
 import { ChangeRow } from './change-row';
 import { useFileComments } from '@/features/comments/index';
 import { worktreeChangeMarks } from '@porcelain/client/files/rules';
@@ -158,6 +159,7 @@ function LayersView({
     notify(notice),
   );
   const comments = useFileComments({ scope, context });
+  const current = useDiffFocus(scope.worktreeId, activeEntry);
   const [discard, setDiscard] = useState<{
     path: string;
     nonce: number;
@@ -201,6 +203,7 @@ function LayersView({
       ]}
       reviewStatus={changeByPath.get(path)?.reviewStatus}
       active={activeEntry === entryKey({ kind: 'change', path })}
+      current={current === path}
       onOpen={onOpen}
       sideLabel={sideLabel}
       writeBlock={reviewed.writeBlock}

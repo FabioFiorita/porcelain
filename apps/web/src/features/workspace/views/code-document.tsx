@@ -65,7 +65,11 @@ import { groupSpecPaths, isSpecPath } from '@porcelain/client/changes/rules';
 import type { DocumentInteraction } from '../rules/documents';
 import { type ReviewScope } from '@porcelain/client/changes/rules';
 import type { ReviewRange } from '@porcelain/client/changes/rules';
-import { useCodeFolds, useCodeViewScroll } from '../store';
+import {
+  useCodeFolds,
+  useCodeViewScroll,
+  usePublishDiffFocus,
+} from '../store';
 
 import { type ConnectionContext } from '@/shared/workspace/connection';
 import {
@@ -272,6 +276,36 @@ function CodeSurface({
   const focusedEntry = entries.find(
     (entry) => entry.id === listed[focused]?.id,
   );
+  const focusedPath = listed[focused]?.path;
+  usePublishDiffFocus(
+    interaction.active && focusedPath !== undefined && listed.length > 1
+      ? {
+          worktreeId: interaction.worktreeId,
+          entry: interaction.entry,
+          path: focusedPath,
+        }
+      : undefined,
+  );
+  const followScroll = (view: ScrolledView) => {
+    const top = view.getScrollTop();
+    const atEnd = top + view.getHeight() >= view.getScrollHeight() - 1;
+    if (awaited !== undefined || atEnd) return;
+    const line = top + FOLLOW_SLACK;
+    let inView: string | undefined;
+    for (const item of view.getRenderedItems()) {
+      const itemTop = view.getTopForItem(item.id);
+      if (itemTop !== undefined && itemTop <= line) inView = item.id;
+    }
+    if (inView === undefined && top === 0) inView = listed[0]?.id;
+    if (
+      inView === undefined ||
+      inView === listed[focused]?.id ||
+      !listed.some((entry) => entry.id === inView)
+    )
+      return;
+    focus(inView);
+    viewer.rememberFocus(inView);
+  };
   const collapsed = new Set(
     entries
       .filter((entry) =>
@@ -648,7 +682,10 @@ function CodeSurface({
             };
           }}
           items={items}
-          onScroll={viewer.rememberPosition}
+          onScroll={(scrollTop, view) => {
+            viewer.rememberPosition(scrollTop);
+            followScroll(view);
+          }}
           selectedLines={selection}
           onSelectedLinesChange={(next) => {
             setSelection(next);
@@ -778,6 +815,16 @@ function CodeSurface({
     </div>
   );
 }
+
+const FOLLOW_SLACK = 8;
+
+type ScrolledView = {
+  getScrollTop(): number;
+  getHeight(): number;
+  getScrollHeight(): number;
+  getRenderedItems(): readonly { id: string }[];
+  getTopForItem(id: string): number | undefined;
+};
 
 const SCROLL_KEYS = new Set([
   'ArrowUp',

@@ -7,7 +7,7 @@ import {
   type PartElementProps,
 } from '@/components/ui/render-part';
 import { cva, type VariantProps } from 'class-variance-authority';
-import { cn } from 'cn';
+import { cn } from '@/shared/lib/utils';
 
 import { useIsMobile } from '@/shared/hooks/use-mobile';
 import { Button } from '@/components/ui/button';

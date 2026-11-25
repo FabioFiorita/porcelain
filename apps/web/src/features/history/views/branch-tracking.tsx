@@ -13,7 +13,7 @@ export function BranchTracking({
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <div className="flex min-w-0 items-baseline gap-2">
           <TruncatedText
-            className="min-w-0 flex-1 font-mono text-caption font-medium text-foreground"
+            className="min-w-0 font-mono text-caption font-medium text-foreground"
             text={tracking.name}
           />
           {tracking.counts !== null && (

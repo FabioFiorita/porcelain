@@ -10,7 +10,8 @@ import {
   createAlertDialogController,
   type AlertDialogController,
 } from '@ui-sdk/react/alert-dialog';
-import { cn } from 'cn';
+import { cn } from '@/shared/lib/utils';
+import { pageRoot } from '@/components/ui/page-root';
 import { Button } from '@/components/ui/button';
 import {
   focusMarkedField,
@@ -38,6 +39,7 @@ function AlertDialog<Payload = unknown>({
   return (
     <AlertDialogRoot
       data-slot="alert-dialog"
+      container={pageRoot()}
       {...(controller === undefined ? {} : { controller })}
       onOpenChange={(open, details) => {
         if (open && controller) setPayload(controller.getPayload());
@@ -94,7 +96,7 @@ function AlertDialogContent({
         data-slot="alert-dialog-content"
         data-size={size}
         className={cn(
-          'group/alert-dialog-content data-closed:pointer-events-none fixed top-1/2 left-1/2 m-0 grid w-full -translate-x-1/2 -translate-y-1/2 gap-3 rounded-xl bg-popover p-4 text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none backdrop:bg-transparent data-[size=default]:max-w-xs data-[size=sm]:max-w-64 data-[size=default]:sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95',
+          'group/alert-dialog-content data-closed:pointer-events-none fixed top-1/2 left-1/2 m-0 grid w-full -translate-x-1/2 -translate-y-1/2 gap-3 rounded-xl bg-popover p-4 text-xs/relaxed text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none backdrop:bg-transparent data-[size=default]:max-w-xs data-[size=sm]:max-w-64 data-[size=default]:sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95',
           className,
         )}
         {...props}

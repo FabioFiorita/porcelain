@@ -8,7 +8,6 @@ import { AsyncResult } from 'effect/reactivity';
 import { useAtom } from '@effect/atom-react';
 import { Option } from 'effect';
 import { type ReactNode, useState } from 'react';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DIFF_WINDOW_FILES } from '@/config/limits';
 import { type BranchFile, branchRange } from '@porcelain/client/changes/rules';
@@ -18,7 +17,6 @@ import {
   useBranchDiffs,
   useReviewOverview,
 } from '@/features/changes/index';
-import { shortOid } from '@porcelain/client/history/rules';
 import type { CodeEntry } from '../adapters/code-entries';
 import { useReviewedMarks } from '../queries/reviewed';
 import type { DocumentInteraction, OpenDocument } from '../rules/documents';
@@ -371,10 +369,9 @@ function BranchDiffs({
             );
           return (
             <DocumentToolbar
-              target={interaction.toolbarTarget}
-              barActions={null}
-              title="Branch"
-              subtitle={`${counted(items.length, 'file')} changed`}
+              inline
+              title={`${branch.head.branch ? refLabel(branch.head.branch) : 'This commit'} since ${refLabel(branch.base)}`}
+              subtitle={`${counted(items.length, 'file')} · ${counted(branch.commits, 'commit')}`}
             >
               {collapseControl}
               <MarkAllReviewed
@@ -388,8 +385,6 @@ function BranchDiffs({
         }}
         header={() => (
           <BranchHeader
-            branch={branch}
-            single={single}
             singleHeader={singleHeader}
             uncommitted={uncommitted}
             omitted={omitted}
@@ -411,8 +406,6 @@ function BranchDiffs({
 }
 
 function BranchHeader({
-  branch,
-  single,
   singleHeader,
   uncommitted,
   omitted,
@@ -421,13 +414,6 @@ function BranchHeader({
   onRetry,
   control,
 }: {
-  branch: {
-    base: string;
-    head: { oid: string; branch: string | undefined };
-    mergeBaseOid: string;
-    commits: number;
-  };
-  single: boolean;
   singleHeader: boolean;
   uncommitted: number;
   omitted: readonly BranchChangeItem[];
@@ -436,37 +422,18 @@ function BranchHeader({
   onRetry: () => void;
   control: (item: BranchChangeItem) => ReactNode;
 }) {
-  const head =
-    branch.head.branch === null || branch.head.branch === undefined
-      ? 'This commit'
-      : refLabel(branch.head.branch);
-  if (singleHeader && !failed && omitted.length === 0) return null;
+  const note = uncommitted > 0 && !singleHeader;
+  if (!note && !failed && omitted.length === 0) return null;
   return (
-    <section className="mx-4 mt-3 rounded-xl border px-4 py-3">
-      {!single && !singleHeader && (
-        <>
-          <h2 className="text-sm font-semibold">
-            {head} since {refLabel(branch.base)}
-          </h2>
-          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-2xs text-muted-foreground">
-            <span>{counted(branch.commits, 'commit')}</span>
-            <span>
-              from{' '}
-              <span className="font-mono">{shortOid(branch.mergeBaseOid)}</span>{' '}
-              to <span className="font-mono">{shortOid(branch.head.oid)}</span>
-            </span>
-            <Badge variant="secondary">{refLabel(branch.base)}</Badge>
-          </div>
-        </>
-      )}
-      {uncommitted > 0 && !singleHeader && (
-        <p className="mt-1 text-2xs text-muted-foreground">
+    <section className="mx-4 mt-3 flex flex-col gap-3">
+      {note && (
+        <p className="text-2xs text-muted-foreground">
           Uncommitted changes are not part of the branch review. Review them
           under Uncommitted.
         </p>
       )}
       {failed && (
-        <p className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+        <p className="flex items-center gap-2 text-xs text-muted-foreground">
           Some patches could not be read.
           <Button size="xs" variant="outline" onClick={onRetry}>
             Try again
@@ -475,7 +442,7 @@ function BranchHeader({
       )}
       {omitted.length > 0 && (
         <ul
-          className="mt-3 space-y-1.5"
+          className="space-y-1.5"
           aria-label="Changes without code preview"
         >
           {omitted.map((item) => (

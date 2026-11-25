@@ -6,7 +6,7 @@ import {
   SliderThumb,
   SliderTrack,
 } from '@ui-sdk/react/slider';
-import { cn } from 'cn';
+import { cn } from '@/shared/lib/utils';
 
 function Slider({
   className,

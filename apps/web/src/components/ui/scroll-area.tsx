@@ -6,7 +6,7 @@ import {
   ScrollAreaThumb,
   ScrollAreaViewport,
 } from '@ui-sdk/react/scroll-area';
-import { cn } from 'cn';
+import { cn } from '@/shared/lib/utils';
 
 type ClassNamed<Part extends React.ElementType> = Omit<
   React.ComponentProps<Part>,

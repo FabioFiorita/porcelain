@@ -187,6 +187,36 @@ export function useCodeViewScroll(owner: string) {
   };
 }
 
+const diffFocus = Atom.family(
+  (_document: { worktreeId: string; entry: string }) =>
+    Atom.make<string | null>(null).pipe(Atom.keepAlive),
+);
+const diffFocusOwner = Atom.family(
+  (input: { worktreeId: string; entry: string; path: string }) =>
+    Atom.make((get) => {
+      const focus = diffFocus({
+        worktreeId: input.worktreeId,
+        entry: input.entry,
+      });
+      get.set(focus, input.path);
+      get.addFinalizer(() => {
+        if (get.registry.get(focus) === input.path)
+          get.registry.set(focus, null);
+      });
+    }),
+);
+const noDiffFocus = Atom.make(null);
+export function usePublishDiffFocus(
+  input: { worktreeId: string; entry: string; path: string } | undefined,
+) {
+  useAtomMount(input ? diffFocusOwner(input) : noDiffFocus);
+}
+export function useDiffFocus(worktreeId: string, entry: string | undefined) {
+  return (
+    useAtomValue(diffFocus({ worktreeId, entry: entry ?? '' })) ?? undefined
+  );
+}
+
 export { tabs as tabLayoutState };
 
 const reviewPanelOpen = Atom.kvs({

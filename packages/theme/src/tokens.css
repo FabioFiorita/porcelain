@@ -1,6 +1,6 @@
 @theme inline {
   --text-2xs: 0.6875rem;
-  --text-caption: 0.78125rem;
+  --text-caption: 0.75rem;
   --text-ui: 0.8125rem;
 
   --color-graph-1: var(--graph-1);

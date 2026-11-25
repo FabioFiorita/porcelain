@@ -5,7 +5,8 @@ import {
   TooltipContent as TooltipContentPrimitive,
   TooltipTrigger as TooltipTriggerPrimitive,
 } from '@ui-sdk/react/tooltip';
-import { cn } from 'cn';
+import { cn } from '@/shared/lib/utils';
+import { pageRoot } from '@/components/ui/page-root';
 
 type TooltipPointer = {
   silence: (silent: boolean) => void;
@@ -136,7 +137,7 @@ function TooltipContent({
     <TooltipContentPrimitive
       data-slot="tooltip-content"
       data-pass-through={pressing || !hoverable ? '' : undefined}
-      container={typeof document === 'undefined' ? null : document.body}
+      container={pageRoot()}
       side={side}
       sideOffset={sideOffset}
       align={align}

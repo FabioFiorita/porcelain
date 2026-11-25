@@ -30,7 +30,7 @@ export function FileHeading({
     >
       <TruncatedText
         text={path}
-        className="min-w-0 font-mono text-[length:var(--text-caption)] leading-4 text-muted-foreground"
+        className="min-w-0 font-mono text-caption leading-4 text-muted-foreground"
         render={<h1 />}
       >
         {parts.length > 0 && (

@@ -468,7 +468,7 @@ export function ProjectNavigator({
                                 disclose="always"
                                 renderTrigger={(_label, clip) => (
                                   <Item
-                                    className="w-full cursor-pointer py-1.5 text-left text-[length:var(--text-ui)] leading-4.5"
+                                    className="w-full cursor-pointer py-1.5 text-left text-ui leading-4.5"
                                     data-sidebar="menu-button"
                                     size="xs"
                                     aria-label={label}
@@ -499,7 +499,6 @@ export function ProjectNavigator({
                                             aria-hidden="true"
                                           />
                                         )}
-                                        <NavigatorRowAge entry={entry} />
                                       </div>
                                       <NavigatorRowMeta
                                         entry={entry}
@@ -635,16 +634,6 @@ export function ProjectNavigator({
   );
 }
 
-function NavigatorRowAge({ entry }: { entry: NavigatorEntry }) {
-  const touched = navigatorTouchedAt(entry);
-  if (!touched) return null;
-  return (
-    <span className="shrink-0 text-2xs text-muted-foreground tabular-nums">
-      {relativeTime(touched, undefined, 'narrow')}
-    </span>
-  );
-}
-
 function NavigatorRowMeta({
   entry,
   pullRequest,
@@ -657,10 +646,15 @@ function NavigatorRowMeta({
   const detail = [branch, changes === '—' ? undefined : changes]
     .filter(Boolean)
     .join(' · ');
-  if (!detail && pullRequest === undefined) return null;
+  const touched = navigatorTouchedAt(entry);
   return (
-    <div className="flex min-w-0 items-center gap-2 text-2xs leading-4 text-muted-foreground">
+    <div className="flex h-4 min-w-0 items-center gap-2 text-2xs leading-4 text-muted-foreground">
       <TruncatedText className="min-w-0 flex-1" text={detail} />
+      {touched && (
+        <span className="shrink-0 tabular-nums">
+          {relativeTime(touched, undefined, 'narrow')}
+        </span>
+      )}
       {pullRequest !== undefined && (
         <span
           aria-hidden="true"

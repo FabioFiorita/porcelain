@@ -1,7 +1,7 @@
 import { type ReactNode, useId } from 'react';
 import { createPortal } from 'react-dom';
 import { useAtomSet, useAtomValue } from '@effect/atom-react';
-import { cn } from 'cn';
+import { cn } from '@/shared/lib/utils';
 import { pendingRegions } from '@/shared/store';
 import { PENDING_DELAY_MS, PENDING_GRACE_MS } from '@/config/limits';
 import { Spinner } from '@/components/ui/spinner';

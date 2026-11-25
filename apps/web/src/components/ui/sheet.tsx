@@ -8,7 +8,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@ui-sdk/react/dialog';
-import { cn } from 'cn';
+import { cn } from '@/shared/lib/utils';
+import { pageRoot } from '@/components/ui/page-root';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -18,7 +19,7 @@ import {
 import { XIcon } from 'lucide-react';
 
 function Sheet(props: React.ComponentProps<typeof SheetRoot>) {
-  return <SheetRoot data-slot="sheet" {...props} />;
+  return <SheetRoot data-slot="sheet" container={pageRoot()} {...props} />;
 }
 
 function SheetTrigger(props: React.ComponentProps<typeof DialogTrigger>) {

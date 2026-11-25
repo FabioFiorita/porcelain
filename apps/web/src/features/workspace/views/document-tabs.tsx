@@ -197,7 +197,7 @@ export function DocumentTabs({
     <div
       data-pane-bar=""
       className={cn(
-        'relative flex h-12 shrink-0 items-center gap-1.5 border-b px-2.5 text-[length:var(--text-ui)] leading-[1.4]',
+        'relative flex h-12 shrink-0 items-center gap-1.5 border-b px-2.5 text-ui',
         side !== null && side !== undefined && 'gap-2',
       )}
     >

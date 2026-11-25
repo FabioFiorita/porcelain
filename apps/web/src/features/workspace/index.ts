@@ -6,7 +6,11 @@ export * from './rules/tab-strip';
 export { SidebarDocumentRow } from './views/sidebar-section';
 export { CheckResultIcon } from './views/pull-request-parts';
 
-export { firstDocumentTitle, firstDocumentTitleOwner } from './store';
+export {
+  firstDocumentTitle,
+  firstDocumentTitleOwner,
+  useReviewPanelOpen,
+} from './store';
 
 export { ReviewBoundary } from './views/review-boundary';
 
