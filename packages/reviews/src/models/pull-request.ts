@@ -261,3 +261,213 @@ export const pullChecksResultSchema = Schema.Literals([
   'none',
 ]);
 export type PullChecksResult = typeof pullChecksResultSchema.Type;
+
+const githubStepSchema = Schema.Struct({
+  number: Schema.Int,
+  name: Schema.String,
+  status: Schema.String,
+  conclusion: Schema.optional(Schema.NullOr(Schema.String)),
+  startedAt: Schema.optional(Schema.NullOr(Schema.String)),
+  completedAt: Schema.optional(Schema.NullOr(Schema.String)),
+});
+const githubAnnotationSchema = Schema.Struct({
+  annotationLevel: Schema.optional(Schema.NullOr(Schema.String)),
+  message: Schema.String,
+  path: Schema.optional(Schema.NullOr(Schema.String)),
+  title: Schema.optional(Schema.NullOr(Schema.String)),
+  location: Schema.optional(
+    Schema.NullOr(
+      Schema.Struct({ start: Schema.Struct({ line: Schema.Int }) }),
+    ),
+  ),
+});
+const githubStatusCheckSchema = Schema.Union([
+  Schema.Struct({
+    __typename: Schema.Literal('CheckRun'),
+    databaseId: Schema.optional(Schema.NullOr(Schema.Int)),
+    name: Schema.String,
+    status: Schema.String,
+    conclusion: Schema.NullOr(Schema.String),
+    detailsUrl: Schema.NullOr(Schema.String),
+    startedAt: Schema.optional(Schema.NullOr(Schema.String)),
+    completedAt: Schema.optional(Schema.NullOr(Schema.String)),
+    isRequired: Schema.optional(Schema.Boolean),
+    title: Schema.optional(Schema.NullOr(Schema.String)),
+    summary: Schema.optional(Schema.NullOr(Schema.String)),
+    checkSuite: Schema.optional(
+      Schema.NullOr(
+        Schema.Struct({
+          app: Schema.optional(
+            Schema.NullOr(
+              Schema.Struct({
+                name: Schema.optional(Schema.NullOr(Schema.String)),
+                slug: Schema.optional(Schema.NullOr(Schema.String)),
+              }),
+            ),
+          ),
+          workflowRun: Schema.optional(
+            Schema.NullOr(
+              Schema.Struct({
+                databaseId: Schema.optional(Schema.NullOr(Schema.Int)),
+                workflow: Schema.optional(
+                  Schema.NullOr(Schema.Struct({ name: Schema.String })),
+                ),
+              }),
+            ),
+          ),
+        }),
+      ),
+    ),
+    steps: Schema.optional(
+      Schema.NullOr(Schema.Struct({ nodes: Schema.Array(githubStepSchema) })),
+    ),
+    annotations: Schema.optional(
+      Schema.NullOr(
+        Schema.Struct({ nodes: Schema.Array(githubAnnotationSchema) }),
+      ),
+    ),
+  }),
+  Schema.Struct({
+    __typename: Schema.Literal('StatusContext'),
+    context: Schema.String,
+    state: Schema.String,
+    targetUrl: Schema.NullOr(Schema.String),
+    description: Schema.optional(Schema.NullOr(Schema.String)),
+    isRequired: Schema.optional(Schema.Boolean),
+  }),
+]);
+const githubReviewerSchema = Schema.Struct({
+  requestedReviewer: Schema.NullOr(
+    Schema.Struct({
+      login: Schema.optional(Schema.String),
+      name: Schema.optional(Schema.String),
+      slug: Schema.optional(Schema.String),
+    }),
+  ),
+});
+export const githubPullStatusSchema = Schema.Struct({
+  number: Schema.Int,
+  state: Schema.Literals(['OPEN', 'CLOSED', 'MERGED']),
+  isDraft: Schema.Boolean,
+  headRefOid: Schema.String,
+  mergeable: Schema.String,
+  mergeStateStatus: Schema.optional(Schema.NullOr(Schema.String)),
+  reviewDecision: Schema.optional(Schema.NullOr(Schema.String)),
+  reviewRequests: Schema.optional(
+    Schema.NullOr(Schema.Struct({ nodes: Schema.Array(githubReviewerSchema) })),
+  ),
+  commits: Schema.Struct({
+    nodes: Schema.Array(
+      Schema.Struct({
+        commit: Schema.Struct({
+          statusCheckRollup: Schema.NullOr(
+            Schema.Struct({
+              state: Schema.String,
+              contexts: Schema.Struct({
+                nodes: Schema.Array(githubStatusCheckSchema),
+                pageInfo: pageInfoSchema,
+              }),
+            }),
+          ),
+        }),
+      }),
+    ),
+  }),
+});
+export type GitHubPullStatus = typeof githubPullStatusSchema.Type & {
+  readonly viewerPermission: string | undefined;
+};
+
+const pullCheckStepSchema = Schema.Struct({
+  number: Schema.Int,
+  name: Schema.String,
+  status: Schema.String,
+  conclusion: Schema.optional(Schema.String),
+  startedAt: Schema.optional(Schema.String),
+  completedAt: Schema.optional(Schema.String),
+});
+const pullCheckAnnotationSchema = Schema.Struct({
+  level: Schema.String,
+  message: Schema.String,
+  title: Schema.optional(Schema.String),
+  path: Schema.optional(Schema.String),
+  line: Schema.optional(Schema.Int),
+});
+export const pullCheckDetailSchema = Schema.Struct({
+  key: Schema.String,
+  kind: Schema.Literals(['actions', 'check', 'status']),
+  name: Schema.String,
+  status: Schema.String,
+  conclusion: Schema.optional(Schema.String),
+  detailsUrl: Schema.optional(Schema.String),
+  startedAt: Schema.optional(Schema.String),
+  completedAt: Schema.optional(Schema.String),
+  group: Schema.String,
+  runId: Schema.optional(Schema.Int),
+  jobId: Schema.optional(Schema.Int),
+  required: Schema.Boolean,
+  summary: Schema.optional(Schema.String),
+  steps: Schema.Array(pullCheckStepSchema),
+  annotations: Schema.Array(pullCheckAnnotationSchema),
+});
+export type PullCheckDetail = typeof pullCheckDetailSchema.Type;
+export const pullRequestStatusSchema = Schema.Struct({
+  number: Schema.Int,
+  state: Schema.Literals(['open', 'closed', 'merged']),
+  draft: Schema.Boolean,
+  headSha: Schema.String,
+  mergeable: Schema.String,
+  mergeState: Schema.optional(Schema.String),
+  reviewDecision: Schema.optional(Schema.String),
+  requestedReviewers: Schema.Array(Schema.String),
+  canRerun: Schema.Boolean,
+  checks: Schema.Array(pullCheckDetailSchema),
+  checksTruncated: Schema.Boolean,
+  checksSummary: Schema.optional(Schema.String),
+});
+export type PullRequestStatus = typeof pullRequestStatusSchema.Type;
+
+export const checkLogLineSchema = Schema.Struct({
+  text: Schema.String,
+  level: Schema.Literals(['plain', 'error', 'warning', 'group', 'command']),
+});
+export type CheckLogLine = typeof checkLogLineSchema.Type;
+export const checkLogExcerptSchema = Schema.Struct({
+  source: Schema.Literals(['step', 'job']),
+  lines: Schema.Array(checkLogLineSchema),
+  omitted: Schema.Int,
+});
+export type CheckLogExcerpt = typeof checkLogExcerptSchema.Type;
+export const checkLogUnavailableReasonSchema = Schema.Literals([
+  'gh-not-installed',
+  'no-accounts',
+  'no-access',
+  'not-github',
+  'rate-limited',
+  'offline',
+  'invalid-response',
+  'pull-request-not-found',
+  'log-missing',
+  'log-too-large',
+]);
+export type CheckLogUnavailableReason =
+  typeof checkLogUnavailableReasonSchema.Type;
+
+export const pullRequestRerunTargetSchema = Schema.Union([
+  Schema.Struct({ kind: Schema.Literal('failed-jobs'), runId: Schema.Int }),
+  Schema.Struct({ kind: Schema.Literal('job'), jobId: Schema.Int }),
+]);
+export type PullRequestRerunTarget = typeof pullRequestRerunTargetSchema.Type;
+export const pullRequestActionRefusalSchema = Schema.Literals([
+  'refused',
+  'head-changed',
+  'not-rerunnable',
+  'gh-not-installed',
+  'no-accounts',
+  'no-access',
+  'not-github',
+  'rate-limited',
+  'offline',
+  'invalid-response',
+  'pull-request-not-found',
+]);

@@ -67,3 +67,4 @@ export {
 } from './walkthrough-writer.ts';
 
 export * from './pull-request.ts';
+export * from './pull-request-checks.ts';

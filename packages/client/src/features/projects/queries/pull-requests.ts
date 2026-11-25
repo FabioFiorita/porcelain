@@ -69,3 +69,26 @@ export const readProjectGitHubAccount = Atom.family((input: ProjectInput) =>
     }),
   ).pipe(retainRead),
 );
+export const readProjectCheckLog = Atom.family(
+  (
+    input: PullInput & {
+      jobId: number;
+      from?: string | undefined;
+      to?: string | undefined;
+    },
+  ) =>
+    clientRuntime(input.connection)
+      .atom(
+        requestApi(input.connection, (api) =>
+          api.pullRequests.readProjectCheckLog({
+            params: {
+              projectId: input.projectId,
+              number: input.number,
+              jobId: input.jobId,
+            },
+            query: { from: input.from, to: input.to },
+          }),
+        ),
+      )
+      .pipe(Atom.setIdleTTL(0)),
+);

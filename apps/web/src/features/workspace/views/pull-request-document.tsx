@@ -2,39 +2,32 @@ import { useAtomRefresh, useAtomValue } from '@effect/atom-react';
 import { useNavigate } from '@tanstack/react-router';
 import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
-import { createPortal } from 'react-dom';
-import type { ReactNode } from 'react';
+import { createPortal, flushSync } from 'react-dom';
+import { useState, type ReactNode } from 'react';
 import { File } from '@pierre/diffs/react';
 import {
   ArrowLeftIcon,
   ArrowUpRightIcon,
   FileCodeIcon,
   GitPullRequestIcon,
-  LockKeyholeIcon,
   SettingsIcon,
 } from 'lucide-react';
-import {
-  ArchivePullRequest,
-  MergePullRequest,
-} from '@/features/projects/index';
+import { ArchivePullRequest } from '@/features/projects/index';
 import { readProjectPullRequest } from '@porcelain/client/projects';
 import type { PullRequestRead } from '@porcelain/client/projects/rules';
 import {
   githubUnavailable,
-  pullCheckDuration,
-  pullCheckTone,
-  pullRequestChecks,
+  pullRequestBlockers,
   pullRequestConversation,
-  pullRequestMergeable,
   pullRequestRepository,
   pullReviewState,
+  type PullRequestRerunTarget,
 } from '@porcelain/client/projects/rules';
-import { shortOid } from '@porcelain/client/history/rules';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useTheme } from '@/features/preferences/index';
 import { PIERRE_THEME, PIERRE_HIGHLIGHTER } from '@/shared/lib/pierre';
-import { Button, buttonVariants } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import {
   Tooltip,
   TooltipContent,
@@ -50,12 +43,20 @@ import {
 } from '@/shared/views/state-notice';
 import { TruncatedText } from '@/shared/views/truncated-text';
 import type { ConnectionContext } from '@/shared/workspace/connection';
+import type { DocumentRef } from '../rules/documents';
+import { Dot, PullStatePill } from './pull-request-parts';
 import {
-  CheckResultIcon,
-  ChecksStatus,
-  Dot,
-  PullStatePill,
-} from './pull-request-parts';
+  checkRowSelector,
+  PullRequestChecks,
+  sectionHeading,
+} from './pull-request-checks';
+import { PullRequestDecision } from './pull-request-decision';
+import { PullRequestComposer } from './pull-request-composer';
+import { useRerunChecks } from '../commands/pull-request-actions';
+import {
+  useBranchStanding,
+  usePullRequestStatus,
+} from '../queries/pull-request-status';
 
 type PullRequest = Extract<
   PullRequestRead,
@@ -70,6 +71,8 @@ type Props = {
   toolbarTarget?: HTMLElement | null | undefined;
   onBack: () => void;
   onFile?: ((path: string) => void) | undefined;
+  checkout?: { projectId: string; worktreeId: string } | undefined;
+  onOpen?: ((document: DocumentRef) => void) | undefined;
 };
 
 const reviewStateBadges = {
@@ -85,6 +88,8 @@ export function PullRequestDocument({
   toolbarTarget,
   onBack,
   onFile,
+  checkout,
+  onOpen,
 }: Props) {
   const query = readProjectPullRequest({
     connection: context.connection,
@@ -132,60 +137,47 @@ export function PullRequestDocument({
         className="mx-auto w-full max-w-280 min-w-0 px-4 pt-9 pb-12 text-ui @min-3xl/pr:px-7"
       >
         <PullRequestHeader pull={pull} />
-        <div className="mt-7 flex min-w-0 flex-col gap-x-11 gap-y-7 @min-4xl/pr:flex-row">
-          <div className="min-w-0 flex-1">
-            <section aria-label="Description">
-              <div className={sectionHeading}>
-                <h2>Description</h2>
-                <div className="ml-auto flex min-w-0 items-center gap-1.5 font-normal">
-                  {pull.author && <TruncatedText text={`by ${pull.author}`} />}
-                  {pull.author && pull.createdAt && <Dot />}
-                  {pull.createdAt && (
-                    <time dateTime={pull.createdAt}>
-                      {timeAgo(pull.createdAt)}
-                    </time>
-                  )}
-                </div>
-              </div>
-              {pull.description.trim() ? (
-                <MarkdownView
-                  text={pull.description}
-                  className="pt-3.5 text-(length:--text-prose) leading-6 wrap-anywhere text-foreground-2 [&_h1]:text-foreground [&_h2]:text-foreground [&_h3]:text-base [&_h3]:leading-6 [&_h3]:text-foreground [&_code]:text-ui [&_code]:leading-5 [&_p]:leading-6 [&_p]:mt-1 [&_p]:mb-0 [&_ul]:mt-2 [&_ul]:mb-0 [&_ol]:mt-2 [&_ol]:mb-0 [&_li]:my-0 [&_h1]:mb-0 [&_h2]:mb-0 [&_h3]:mb-0 [&_h1]:tracking-pr-subheading [&_h2]:tracking-pr-subheading [&_h3]:tracking-pr-subheading [&_code]:rounded-sm [&_code]:px-1.25 [&_code]:py-px [&_code]:ring-1 [&_code]:ring-border [&_code]:ring-inset"
-                />
-              ) : (
-                <p className="pt-3.5 text-ui text-muted-foreground">
-                  No description provided.
-                </p>
+        <PullRequestLive
+          pull={pull}
+          context={context}
+          projectId={projectId}
+          number={number}
+          checkout={checkout}
+          onOpen={onOpen}
+        />
+        <section aria-label="Description" className="mt-8 min-w-0">
+          <div className={sectionHeading}>
+            <h2>Description</h2>
+            <div className="ml-auto flex min-w-0 items-center gap-1.5 font-normal">
+              {pull.author && <TruncatedText text={`by ${pull.author}`} />}
+              {pull.author && pull.createdAt && <Dot />}
+              {pull.createdAt && (
+                <time dateTime={pull.createdAt}>{timeAgo(pull.createdAt)}</time>
               )}
-            </section>
-            <PullRequestConversation
-              pull={pull}
-              onBack={onBack}
-              onFile={onFile}
-            />
+            </div>
           </div>
-          <aside
-            aria-label="Checks and details"
-            className="min-w-0 shrink-0 @min-4xl/pr:w-68"
-          >
-            <PullRequestChecks pull={pull} />
-            {pull.state === 'open' && (
-              <MergePullRequest
-                context={context}
-                projectId={projectId}
-                pull={pull}
-                className="mt-3"
-              />
-            )}
-          </aside>
-        </div>
+          {pull.description.trim() ? (
+            <MarkdownView
+              text={pull.description}
+              className="pt-3 text-(length:--text-prose) leading-6 wrap-anywhere text-foreground-2 [&_h1]:text-foreground [&_h2]:text-foreground [&_h3]:text-base [&_h3]:leading-6 [&_h3]:text-foreground [&_code]:text-ui [&_code]:leading-5 [&_p]:leading-6 [&_p]:mt-1 [&_p]:mb-0 [&_ul]:mt-2 [&_ul]:mb-0 [&_ol]:mt-2 [&_ol]:mb-0 [&_li]:my-0 [&_h1]:mb-0 [&_h2]:mb-0 [&_h3]:mb-0 [&_h1]:tracking-pr-subheading [&_h2]:tracking-pr-subheading [&_h3]:tracking-pr-subheading [&_code]:rounded-sm [&_code]:px-1.25 [&_code]:py-px [&_code]:ring-1 [&_code]:ring-border [&_code]:ring-inset"
+            />
+          ) : (
+            <p className="pt-3 text-ui text-muted-foreground">
+              No description provided.
+            </p>
+          )}
+        </section>
+        <PullRequestConversation
+          pull={pull}
+          context={context}
+          projectId={projectId}
+          onBack={onBack}
+          onFile={onFile}
+        />
       </article>
     </div>
   );
 }
-
-const sectionHeading =
-  'flex min-h-6 min-w-0 flex-wrap items-center gap-x-2 gap-y-1 border-b pb-1.5 text-xs leading-4 font-medium text-muted-foreground';
 
 function PullRequestActions({
   url,
@@ -310,36 +302,36 @@ function PullRequestHeader({ pull }: { pull: PullRequest }) {
 
 function PullRequestConversation({
   pull,
+  context,
+  projectId,
   onBack,
   onFile,
 }: {
   pull: PullRequest;
+  context: ConnectionContext;
+  projectId: string;
   onBack: () => void;
   onFile: Props['onFile'];
 }) {
   return (
-    <section aria-label="Conversation on GitHub" className="mt-7 min-w-0">
+    <section aria-label="Conversation on GitHub" className="mt-8 min-w-0">
       <div className={sectionHeading}>
         <h2>Conversation</h2>
         <span className="font-normal tabular-nums">{pull.timeline.length}</span>
         <a
-          href={`${pull.url}#issue-comment-box`}
+          href={pull.url}
           target="_blank"
           rel="noreferrer"
-          className="ml-auto inline-flex max-w-full min-w-0 flex-wrap items-center gap-1 font-normal outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+          className="ml-auto inline-flex max-w-full min-w-0 items-center gap-1 font-normal outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <LockKeyholeIcon aria-hidden="true" className="size-3 shrink-0" />
-          <span>
-            Comments on GitHub ·{' '}
-            <span className="font-medium text-foreground">reply there</span>
-          </span>
+          On GitHub
           <ArrowUpRightIcon aria-hidden="true" className="size-3 shrink-0" />
         </a>
       </div>
       {pull.timeline.length > 0 ? (
         <ol
           aria-label="Timeline"
-          className="relative mt-3.5 flex min-w-0 flex-col gap-4 before:absolute before:top-4 before:bottom-2.5 before:left-2.5 before:w-px before:bg-border"
+          className="relative mt-3 flex min-w-0 flex-col gap-4 before:absolute before:top-4 before:bottom-2.5 before:left-2.5 before:w-px before:bg-border"
         >
           {pullRequestConversation(pull.timeline).map(({ item, comments }) => (
             <PullRequestTimelineItem key={item.id} item={item} onFile={onFile}>
@@ -361,10 +353,15 @@ function PullRequestConversation({
           ))}
         </ol>
       ) : (
-        <p className="pt-3.5 text-ui text-muted-foreground">
+        <p className="pt-3 text-ui text-muted-foreground">
           No comments or reviews on GitHub yet.
         </p>
       )}
+      <PullRequestComposer
+        context={context}
+        projectId={projectId}
+        number={pull.number}
+      />
       {pull.truncated && (
         <p className="mt-3 text-xs text-muted-foreground">
           Some labels or conversation items are not shown. Open on GitHub to see
@@ -521,111 +518,6 @@ function PullRequestTimelineItem({
   );
 }
 
-function PullRequestChecks({ pull }: { pull: PullRequest }) {
-  const checks = pullRequestChecks(
-    pull.checks,
-    pull.checksTruncated,
-    pull.checksSummary,
-  );
-  const mergeable = pullRequestMergeable(pull.mergeable);
-  return (
-    <>
-      <section aria-label="GitHub checks">
-        <div className={sectionHeading}>
-          <h2>Checks</h2>
-          <ChecksStatus
-            tone={checks.tone}
-            label={
-              checks.tone === 'passed'
-                ? `${pull.checks.length}${pull.checksTruncated ? '+' : ''} passed`
-                : checks.label
-            }
-            className="ml-auto text-foreground tabular-nums"
-          />
-        </div>
-        {pull.checks.length === 0 ? (
-          <p className="pt-3 text-ui text-muted-foreground">
-            No checks reported by GitHub.
-          </p>
-        ) : (
-          <ul className="mt-1" aria-label="Pull request checks">
-            {pull.checks.map((check, index) => {
-              const tone = pullCheckTone(check);
-              const duration = pullCheckDuration(check.durationMs);
-              return (
-                <li
-                  key={`${check.name}:${index}`}
-                  className="flex h-7 min-w-0 items-center gap-2 text-ui leading-4.5"
-                >
-                  <CheckResultIcon tone={tone} />
-                  <TruncatedText text={check.name} className="min-w-0 flex-1" />
-                  {duration && (
-                    <span className="shrink-0 text-xs leading-4 text-muted-foreground tabular-nums">
-                      {duration}
-                    </span>
-                  )}
-                  {check.detailsUrl && (
-                    <Tooltip>
-                      <TooltipTrigger
-                        render={
-                          <a
-                            href={check.detailsUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            aria-label={`Details for ${check.name} on GitHub`}
-                            className={buttonVariants({
-                              variant: 'ghost',
-                              size: 'sm',
-                            })}
-                          />
-                        }
-                      >
-                        Details
-                        <ArrowUpRightIcon
-                          aria-hidden="true"
-                          className="size-2.75"
-                        />
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        Details for {check.name} on GitHub
-                      </TooltipContent>
-                    </Tooltip>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        )}
-        {pull.checksTruncated && (
-          <p className="mt-2 text-xs text-muted-foreground">
-            More checks are available on GitHub.
-          </p>
-        )}
-      </section>
-      <dl aria-label="Merge" className="mt-5 border-y text-ui leading-4.5">
-        <div className="flex h-7 min-w-0 items-center gap-2">
-          <dt className="text-muted-foreground">Head</dt>
-          <dd className="ml-auto min-w-0 font-mono text-caption font-medium">
-            <TruncatedText text={pull.headSha} disclose="always">
-              {shortOid(pull.headSha)}
-            </TruncatedText>
-          </dd>
-        </div>
-        <div className="flex h-7 items-center gap-2 border-t">
-          <dt className="text-muted-foreground">Mergeable</dt>
-          <dd className="ml-auto font-medium">
-            <ChecksStatus
-              tone={mergeable.tone}
-              label={mergeable.label}
-              className="gap-1.5"
-            />
-          </dd>
-        </div>
-      </dl>
-    </>
-  );
-}
-
 function UnavailablePullRequest({
   reason,
   retrying,
@@ -674,4 +566,146 @@ function timeAgo(time: string) {
   return Number.isFinite(Date.parse(time))
     ? relativeTime(time)
     : 'unknown time';
+}
+
+function PullRequestLive({
+  pull,
+  context,
+  projectId,
+  number,
+  checkout,
+  onOpen,
+}: {
+  pull: PullRequest;
+  context: ConnectionContext;
+  projectId: string;
+  number: number;
+  checkout: Props['checkout'];
+  onOpen: Props['onOpen'];
+}) {
+  const { connection } = context;
+  const { status, problem, reading, refresh, pendingReruns } =
+    usePullRequestStatus(connection, projectId, number);
+  const [open, setOpen] = useState<ReadonlySet<string>>(() => new Set());
+  const toggle = (key: string, value?: boolean) =>
+    setOpen((current) => {
+      const next = new Set(current);
+      if (value ?? !next.has(key)) next.add(key);
+      else next.delete(key);
+      return next;
+    });
+  const focusCheck = (key: string) => {
+    const check = status?.checks.find((entry) => entry.key === key);
+    flushSync(() =>
+      setOpen((current) => {
+        const next = new Set(current);
+        next.add(key);
+        if (check?.kind === 'actions' && check.runId !== undefined)
+          next.add(`passed:run:${check.runId}`);
+        return next;
+      }),
+    );
+    const row = document.querySelector<HTMLElement>(checkRowSelector(key));
+    row?.scrollIntoView({ block: 'center' });
+    row?.focus();
+  };
+  const rerun = useRerunChecks(connection, projectId, number);
+  const onRerun = (target: PullRequestRerunTarget, keys: readonly string[]) => {
+    if (status) void rerun.rerun(status, target, keys);
+  };
+  const standing = useBranchStanding(connection, checkout);
+  const blockers = status ? pullRequestBlockers(status, pull.baseBranch) : [];
+  const openStep = onOpen
+    ? (step: number) => onOpen({ kind: 'walkthrough-step', step })
+    : undefined;
+  return (
+    <>
+      <PullRequestDecision
+        pull={pull}
+        status={status}
+        context={context}
+        projectId={projectId}
+        blockers={blockers}
+        walkthrough={
+          standing.walkthroughHead && onOpen
+            ? {
+                headOid: standing.walkthroughHead,
+                onOpen: () => onOpen({ kind: 'review' }),
+              }
+            : undefined
+        }
+        changedSinceReview={standing.changedSinceReview}
+        onOpenFile={
+          onOpen ? (path) => onOpen({ kind: 'branch-file', path }) : undefined
+        }
+        onFocusCheck={focusCheck}
+      />
+      {status && problem && (
+        <ChecksProblem
+          problem={problem}
+          reading={reading}
+          onRetry={refresh}
+          stale
+        />
+      )}
+      {status ? (
+        <PullRequestChecks
+          status={status}
+          connection={connection}
+          projectId={projectId}
+          number={number}
+          controller={{ open, toggle }}
+          pendingReruns={pendingReruns}
+          rerunning={rerun.pending}
+          onRerun={onRerun}
+          citations={standing.citations}
+          onOpenStep={openStep}
+        />
+      ) : (
+        <section aria-label="Checks" className="mt-8 min-w-0">
+          <div className={sectionHeading}>
+            <h2>Checks</h2>
+          </div>
+          {problem && (
+            <ChecksProblem
+              problem={problem}
+              reading={reading}
+              onRetry={refresh}
+              stale={false}
+            />
+          )}
+        </section>
+      )}
+    </>
+  );
+}
+
+function ChecksProblem({
+  problem,
+  reading,
+  onRetry,
+  stale,
+}: {
+  problem: NonNullable<ReturnType<typeof usePullRequestStatus>['problem']>;
+  reading: boolean;
+  onRetry: () => void;
+  stale: boolean;
+}) {
+  const reason =
+    problem === 'failed'
+      ? 'The checks could not be read.'
+      : githubUnavailable(problem).description;
+  return (
+    <p
+      role="status"
+      className="mt-3 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-ui text-muted-foreground"
+    >
+      <span className="min-w-0">
+        {stale ? `Showing the last read. ${reason}` : reason}
+      </span>
+      <Button variant="outline" size="sm" disabled={reading} onClick={onRetry}>
+        Try again
+      </Button>
+    </p>
+  );
 }

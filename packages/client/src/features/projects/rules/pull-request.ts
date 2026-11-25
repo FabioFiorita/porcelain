@@ -159,12 +159,6 @@ export function pullRequestChecks(
   };
 }
 
-export function pullCheckTone(
-  check: PullCheck,
-): Exclude<PullChecksTone, 'none'> {
-  return checkOutcome(check);
-}
-
 export function pullRequestRollup(summary: string | undefined): {
   tone: PullChecksTone;
   label: string;
@@ -342,16 +336,6 @@ export function pullRequestNumber(url: string): number | undefined {
 
 export function pullRequestRepository(url: string): string | undefined {
   return /^https:\/\/github\.com\/([^/]+\/[^/]+)\/pull\//.exec(url)?.[1];
-}
-
-export function pullCheckDuration(
-  durationMs: number | undefined,
-): string | undefined {
-  if (durationMs === undefined) return undefined;
-  const seconds = Math.floor(durationMs / 1000);
-  return seconds < 60
-    ? `${seconds}s`
-    : `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
 }
 
 export function pullRequestConversation(

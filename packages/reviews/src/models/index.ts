@@ -11,11 +11,25 @@ export {
   pullChecksResultSchema,
   pullRequestMergeMethodSchema,
   pullRequestMergeRefusalSchema,
+  githubPullStatusSchema,
+  pullRequestStatusSchema,
+  pullCheckDetailSchema,
+  checkLogExcerptSchema,
+  checkLogUnavailableReasonSchema,
+  pullRequestRerunTargetSchema,
+  pullRequestActionRefusalSchema,
 } from './pull-request.ts';
 export type {
   GitHubRepository,
   GitHubAccountResult,
   PullRequestMergeMethod,
+  GitHubPullStatus,
+  PullRequestStatus,
+  PullCheckDetail,
+  CheckLogExcerpt,
+  CheckLogLine,
+  CheckLogUnavailableReason,
+  PullRequestRerunTarget,
 } from './pull-request.ts';
 export {
   commentSideSchema,

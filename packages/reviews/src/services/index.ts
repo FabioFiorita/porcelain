@@ -13,3 +13,7 @@ export { ListDraftCommentsService } from './list-draft-comments-service.ts';
 export { PreviewPullRequestReviewService } from './preview-pull-request-review-service.ts';
 export { PublishPullRequestReviewService } from './publish-pull-request-review-service.ts';
 export { SaveDraftCommentService } from './save-draft-comment-service.ts';
+export { ReadGitHubPullStatusService } from './read-github-pull-status-service.ts';
+export { ReadGitHubCheckLogService } from './read-github-check-log-service.ts';
+export { RerunGitHubChecksService } from './rerun-github-checks-service.ts';
+export { CommentOnGitHubPullRequestService } from './comment-on-github-pull-request-service.ts';

@@ -4,8 +4,8 @@ import type { CodeViewLineSelection } from '@pierre/diffs';
 import { atomRegistry } from '@/shared/store';
 import { DIFF_WINDOW_FILES } from '@/config/limits';
 import { useAtomSet, useAtomValue, useAtomMount } from '@effect/atom-react';
-import { Atom } from 'effect/reactivity';
-import { Option, Schema, SchemaGetter } from 'effect';
+import { Atom, AsyncResult } from 'effect/reactivity';
+import { Clock, Option, Schema, SchemaGetter, Stream } from 'effect';
 import { storageRuntime } from '@/shared/adapters/storage';
 import { parseCodeFolds, withFolds } from './rules/code-folds';
 import { type Pane, parseTabLayout } from './rules/tab-strip';
@@ -221,3 +221,21 @@ export const firstDocumentTitleOwner = Atom.family(
       });
     }),
 );
+
+const stillClock = Atom.make(AsyncResult.success<number>(0));
+const tickingClock = Atom.make(
+  Stream.fromEffect(Clock.currentTimeMillis).pipe(
+    Stream.concat(
+      Stream.tick('1 second').pipe(
+        Stream.mapEffect(() => Clock.currentTimeMillis),
+      ),
+    ),
+  ),
+);
+
+export function useSecondsClock(ticking: boolean) {
+  const value = useAtomValue<AsyncResult.AsyncResult<number, unknown>>(
+    ticking ? tickingClock : stillClock,
+  );
+  return Option.getOrElse(AsyncResult.value(value), () => 0);
+}

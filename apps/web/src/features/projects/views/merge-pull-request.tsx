@@ -48,6 +48,7 @@ export function MergePullRequest({
   pull,
   review,
   label = 'Merge',
+  showBlock = true,
   className,
 }: {
   context: ConnectionContext;
@@ -55,6 +56,7 @@ export function MergePullRequest({
   pull: PullRequest;
   review?: PullRequestMergeReview | undefined;
   label?: string;
+  showBlock?: boolean;
   className?: string;
 }) {
   const reasonId = useId();
@@ -94,7 +96,10 @@ export function MergePullRequest({
       {block && (
         <p
           id={reasonId}
-          className="min-w-0 text-ui leading-4.5 text-muted-foreground"
+          className={cn(
+            'min-w-0 text-ui leading-4.5 text-muted-foreground',
+            !showBlock && 'sr-only',
+          )}
         >
           {block}
         </p>

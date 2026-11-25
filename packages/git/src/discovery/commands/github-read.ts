@@ -21,6 +21,7 @@ const invoke = Effect.fn('Git.githubInvoke')(function* (
   limits: GitLimits,
   token?: Redacted.Redacted<string>,
   stdin?: string,
+  budget?: { maxBytes: number; timeoutMs: number },
 ) {
   const env = { ...process.env };
   for (const name of [
@@ -40,8 +41,8 @@ const invoke = Effect.fn('Git.githubInvoke')(function* (
     args,
     env,
     stdin,
-    maxBytes: Math.min(limits.outputBytes, 4 * 1024 * 1024),
-    timeoutMs: limits.readTimeoutMs,
+    maxBytes: budget?.maxBytes ?? Math.min(limits.outputBytes, 4 * 1024 * 1024),
+    timeoutMs: budget?.timeoutMs ?? limits.readTimeoutMs,
     processGroup: limits.processGroup,
   }).pipe(
     Effect.mapError(
@@ -54,7 +55,7 @@ const invoke = Effect.fn('Git.githubInvoke')(function* (
   );
   if (result.stopped === 'deadline' || !result.groupStopped)
     return yield* new GitHubCommandError({ reason: 'offline' });
-  if (result.stopped === 'output-limit')
+  if (result.stopped === 'output-limit' && budget === undefined)
     return yield* new GitHubCommandError({ reason: 'invalid-response' });
   return result;
 });
@@ -338,5 +339,97 @@ export const mergeGitHubPullRequest = Effect.fn('Git.mergeGitHubPullRequest')(
         detail: '',
       });
     return decoded.sha;
+  },
+);
+
+const JOB_LOG_BYTES = 16 * 1024 * 1024;
+const JOB_LOG_TIMEOUT_MS = 60_000;
+
+export const readGitHubJobLog = Effect.fn('Git.readGitHubJobLog')(function* (
+  input: { account: string; owner: string; repo: string; jobId: number },
+  limits: GitLimits,
+) {
+  const token = yield* githubToken(input.account, limits);
+  const result = yield* invoke(
+    [
+      'api',
+      '--hostname',
+      'github.com',
+      `repos/${encodeURIComponent(input.owner)}/${encodeURIComponent(input.repo)}/actions/jobs/${input.jobId}/logs`,
+      '--method',
+      'GET',
+    ],
+    limits,
+    token,
+    undefined,
+    { maxBytes: JOB_LOG_BYTES, timeoutMs: JOB_LOG_TIMEOUT_MS },
+  );
+  if (result.stopped === 'output-limit')
+    return { kind: 'log-too-large' as const };
+  if (result.exitCode !== 0) {
+    const stderr = result.stderr.toString('utf8');
+    if (/HTTP (404|410)/.test(stderr)) return { kind: 'log-missing' as const };
+    return yield* new GitHubCommandError({ reason: failureReason(stderr) });
+  }
+  const text = result.stdout.toString('utf8');
+  if (text.includes(Redacted.value(token)))
+    return yield* new GitHubCommandError({ reason: 'invalid-response' });
+  return { kind: 'log' as const, text };
+});
+
+class GitHubWriteRefusedError extends Schema.TaggedError<GitHubWriteRefusedError>()(
+  'GitHubWriteRefusedError',
+  { detail: Schema.String },
+) {}
+
+function githubWriteRefusal(stderr: string, token: Redacted.Redacted<string>) {
+  const line = stderr
+    .split('\n')
+    .map((text) => text.trim())
+    .find((text) => /\(HTTP 4(0[0-9]|22)\)$/.test(text));
+  if (!line || /\(HTTP 429\)$/.test(line)) return undefined;
+  if (/rate limit/i.test(line)) return undefined;
+  const detail = line
+    .replace(/^gh:\s*/, '')
+    .replace(/\s*\(HTTP 4\d\d\)$/, '')
+    .slice(0, 300);
+  return new GitHubWriteRefusedError({
+    detail: detail.includes(Redacted.value(token)) ? '' : detail,
+  });
+}
+
+export const rerunGitHubActions = Effect.fn('Git.rerunGitHubActions')(
+  function* (
+    input: {
+      account: string;
+      owner: string;
+      repo: string;
+      target:
+        | { kind: 'failed-jobs'; runId: number }
+        | { kind: 'job'; jobId: number };
+    },
+    limits: GitLimits,
+  ) {
+    const token = yield* githubToken(input.account, limits);
+    const root = `repos/${encodeURIComponent(input.owner)}/${encodeURIComponent(input.repo)}/actions`;
+    const result = yield* invoke(
+      [
+        'api',
+        '--hostname',
+        'github.com',
+        input.target.kind === 'job'
+          ? `${root}/jobs/${input.target.jobId}/rerun`
+          : `${root}/runs/${input.target.runId}/rerun-failed-jobs`,
+        '--method',
+        'POST',
+      ],
+      limits,
+      token,
+    );
+    if (result.exitCode === 0) return;
+    const stderr = result.stderr.toString('utf8');
+    const refusal = githubWriteRefusal(stderr, token);
+    if (refusal) return yield* refusal;
+    return yield* new GitHubCommandError({ reason: failureReason(stderr) });
   },
 );

@@ -4,8 +4,6 @@ import {
   pullRequestChecks,
   pullRequestConversation,
   type PullRequestRead,
-  pullCheckDuration,
-  pullCheckTone,
   pullRequestMergeable,
   pullRequestMergeBlock,
   pullRequestMergeMethods,
@@ -121,17 +119,6 @@ it('reads the number and repository from a pull request link', () => {
 });
 
 it.each([
-  [undefined, undefined],
-  [0, '0s'],
-  [4000, '4s'],
-  [108000, '1m 48s'],
-  [59999, '59s'],
-  [3600000, '60m 0s'],
-] as const)('formats check duration %s', (duration, expected) => {
-  expect(pullCheckDuration(duration)).toBe(expected);
-});
-
-it.each([
   'FAILURE',
   'ERROR',
   'CANCELLED',
@@ -187,16 +174,6 @@ it.each([
     expect(pullRequestChecks([passed], true, summary)).toEqual(expected);
   },
 );
-
-it.each([
-  [passed, 'passed'],
-  [failed, 'failed'],
-  [running, 'running'],
-  [{ ...failed, conclusion: 'STALE' }, 'failed'],
-  [{ ...passed, conclusion: 'EXPECTED' }, 'running'],
-] as const)('reports the individual check %j as %s', (check, expected) => {
-  expect(pullCheckTone(check)).toBe(expected);
-});
 
 it('counts a required status that has not reported as running', () => {
   expect(

@@ -216,9 +216,7 @@ function PullRequestSourceDocument({
     document.projectId,
     document.number,
   );
-  const openSource = (
-    entry: { kind: 'review' } | { kind: 'file'; path: string },
-  ) => {
+  const openSource = (entry: DocumentRef) => {
     if (!checkout) {
       void navigate({ to: '/' });
       return;
@@ -248,6 +246,8 @@ function PullRequestSourceDocument({
       onFile={
         checkout ? (path) => openSource({ kind: 'file', path }) : undefined
       }
+      checkout={checkout}
+      onOpen={checkout ? openSource : undefined}
     />
   );
 }

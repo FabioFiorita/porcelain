@@ -5,3 +5,4 @@ export { PullRequestMergeRefusedError } from './pull-request-merge-refused-error
 export { DraftCommentNotFoundError } from './draft-comment-not-found-error.ts';
 export { PullRequestReviewFailedError } from './pull-request-review-failed-error.ts';
 export { ReviewChangedError } from './review-changed-error.ts';
+export { PullRequestActionRefusedError } from './pull-request-action-refused-error.ts';

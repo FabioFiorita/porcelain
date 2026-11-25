@@ -2,7 +2,7 @@ import {
   GitHubPullRequestNotFoundError,
   GitHubReadError,
 } from '@porcelain/reviews/errors';
-import { Effect, Layer, Schema } from 'effect';
+import { Clock, Effect, Layer, Ref, Schema } from 'effect';
 import {
   captureGitPlatform,
   listGitHubAccounts,
@@ -44,6 +44,8 @@ const checksSchema = Schema.Struct({
     }),
   }),
 });
+const ACCOUNTS_TTL_MS = 60_000;
+const ACCESS_TTL_MS = 10 * 60_000;
 const listQuery = `query PullRequestList($owner: String!, $repo: String!, $cursor: String) {
   repository(owner: $owner, name: $repo) {
     open: pullRequests(first: 50, after: $cursor, states: [OPEN], orderBy: {field: UPDATED_AT, direction: DESC}) { nodes { ${SUMMARY_FIELDS} ${ROLLUP_FIELDS} } pageInfo { hasNextPage endCursor } }
@@ -99,6 +101,11 @@ export const ghPullRequestReaderLayer = (limits: Limits['git']) =>
     GitHubReader,
     Effect.gen(function* () {
       const provide = yield* captureGitPlatform();
+      const knownAccounts = yield* Ref.make<
+        | { readonly at: number; readonly accounts: readonly string[] }
+        | undefined
+      >(undefined);
+      const readable = yield* Ref.make(new Map<string, number>());
       const api = Effect.fn('GitHubReader.api')(function* (
         input: Parameters<typeof readGitHubApi>[0],
       ) {
@@ -137,13 +144,28 @@ export const ghPullRequestReaderLayer = (limits: Limits['git']) =>
         return decoded.data.repository;
       });
       return GitHubReader.of({
-        accounts: () =>
-          listGitHubAccounts(limits).pipe(
+        accounts: Effect.fn('GitHubReader.accounts')(function* () {
+          const now = yield* Clock.currentTimeMillis;
+          const cached = yield* Ref.get(knownAccounts);
+          if (cached && now - cached.at < ACCOUNTS_TTL_MS)
+            return cached.accounts;
+          const accounts = yield* listGitHubAccounts(limits).pipe(
             provide,
             Effect.mapError(unavailable),
-          ),
-        canRead: (input) =>
-          api({
+          );
+          yield* Ref.set(
+            knownAccounts,
+            accounts.length > 0 ? { at: now, accounts } : undefined,
+          );
+          return accounts;
+        }),
+        canRead: Effect.fn('GitHubReader.canRead')(function* (input) {
+          const key =
+            `${input.account}\n${input.owner}/${input.repo}`.toLowerCase();
+          const now = yield* Clock.currentTimeMillis;
+          const seen = (yield* Ref.get(readable)).get(key);
+          if (seen !== undefined && now - seen < ACCESS_TTL_MS) return true;
+          const allowed = yield* api({
             account: input.account,
             endpoint: `repos/${encodeURIComponent(input.owner)}/${encodeURIComponent(input.repo)}`,
           }).pipe(
@@ -153,7 +175,15 @@ export const ghPullRequestReaderLayer = (limits: Limits['git']) =>
               (error) => error.reason === 'no-access',
               () => Effect.succeed(false),
             ),
-          ),
+          );
+          yield* Ref.update(readable, (entries) => {
+            const next = new Map(entries);
+            if (allowed) next.set(key, now);
+            else next.delete(key);
+            return next;
+          });
+          return allowed;
+        }),
         read: (input) =>
           readPull(input, detailQuery, detailSchema).pipe(
             Effect.flatMap(({ pullRequest, ...repository }) =>
