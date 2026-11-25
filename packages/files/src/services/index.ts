@@ -13,3 +13,4 @@ export {
   ReadTextFileService,
   type ReadTextFileFailure,
 } from './read-text-file-service.ts';
+export { ReadPreviewFileService } from './read-preview-file-service.ts';

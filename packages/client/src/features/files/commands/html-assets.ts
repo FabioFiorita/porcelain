@@ -5,6 +5,7 @@ import {
 } from '../../../config/limits.ts';
 import { Effect } from 'effect';
 import type { ReadFileAssetResponse as AssetResponse } from '@porcelain/contracts/files';
+import type { PreviewAssetSource } from '../ports/html-preview-platform.ts';
 function decode(asset: AssetResponse) {
   return new TextDecoder().decode(
     Uint8Array.from(atob(asset.base64), (character) => character.charCodeAt(0)),
@@ -12,14 +13,12 @@ function decode(asset: AssetResponse) {
 }
 
 export const collectHtmlAssets = Effect.fn('HtmlPreview.collectAssets')(
-  function* <E>(
+  function* <A extends PreviewAssetSource, E>(
     initial: string[],
-    readAssets: (
-      paths: string[],
-    ) => Effect.Effect<Map<string, AssetResponse | null>, E>,
+    readAssets: (paths: string[]) => Effect.Effect<Map<string, A | null>, E>,
     cssReferences: (css: string, path: string) => string[],
   ) {
-    const assets = new Map<string, AssetResponse | null>();
+    const assets = new Map<string, A | null>();
     let bytes = 0;
     let wanted = initial;
     for (let round = 0; round < FILE_PREVIEW_MAX_ROUNDS; round += 1) {
@@ -40,6 +39,10 @@ export const collectHtmlAssets = Effect.fn('HtmlPreview.collectAssets')(
         const asset = answered.get(candidate) ?? null;
         if (asset === null) {
           assets.set(candidate, null);
+          continue;
+        }
+        if ('url' in asset) {
+          assets.set(candidate, asset);
           continue;
         }
         bytes += asset.base64.length;

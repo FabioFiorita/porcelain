@@ -1,6 +1,9 @@
 import { Effect } from 'effect';
 import { collectHtmlAssets } from '@porcelain/client/files';
-import type { PreviewAssetFailure } from '@porcelain/client/files';
+import type {
+  PreviewAssetFailure,
+  PreviewAssetSource,
+} from '@porcelain/client/files';
 import { PREVIEW_BRIDGE_SCRIPT } from '@porcelain/client/files/rules';
 import { repositoryReference } from '@porcelain/client/links/rules';
 import type { ReadFileAssetResponse as AssetResponse } from '@porcelain/contracts/files';
@@ -10,7 +13,7 @@ import { assetUrl } from '../rules/html-assets';
 
 type ReadAssets = (
   paths: string[],
-) => Effect.Effect<Map<string, AssetResponse | null>, PreviewAssetFailure>;
+) => Effect.Effect<Map<string, PreviewAssetSource | null>, PreviewAssetFailure>;
 
 const STYLE_REFERENCE =
   /url\(\s*(['"]?)([^)'"]+)\1\s*\)|@import\s+(?:url\(\s*)?(['"])([^'"]+)\3\s*\)?\s*([^;]*);?/g;
@@ -18,19 +21,30 @@ const STYLE_REFERENCE =
 const PREVIEW_POLICY =
   "default-src 'none'; script-src 'unsafe-inline' data:; style-src 'unsafe-inline' data:; img-src data: blob:; media-src data: blob:; font-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'; frame-src 'none'";
 
+function previewPolicy(mediaSources: readonly string[]) {
+  const sources = mediaSources.join(' ');
+  return mediaSources.length === 0
+    ? PREVIEW_POLICY
+    : PREVIEW_POLICY.replace(
+        'img-src data: blob:;',
+        `img-src data: blob: ${sources};`,
+      ).replace('media-src data: blob:;', `media-src data: blob: ${sources};`);
+}
+
 const MEDIA =
   'img[src], script[src], source[src], video[src], audio[src], track[src], video[poster], image[href], input[type="image"][src]';
 
 export function htmlFrameDocument(
   html: string,
   scripts: { run: true } | { run: false; nonce: string },
+  mediaSources: readonly string[],
 ) {
   const document = window.document.implementation.createHTMLDocument();
   const policy = document.createElement('meta');
   policy.httpEquiv = 'Content-Security-Policy';
   policy.content = scripts.run
-    ? PREVIEW_POLICY
-    : PREVIEW_POLICY.replace(
+    ? previewPolicy(mediaSources)
+    : previewPolicy(mediaSources).replace(
         "script-src 'unsafe-inline' data:",
         `script-src 'nonce-${scripts.nonce}'`,
       );
@@ -52,7 +66,7 @@ export function htmlFrameDocument(
 export const inlineHtmlAssets = Effect.fn('BrowserHtmlPreview.inlineAssets')(
   function* (html: string, path: string, readAssets: ReadAssets) {
     const failures = new Set<string>();
-    let assets = new Map<string, AssetResponse | null>();
+    let assets = new Map<string, PreviewAssetSource | null>();
     let expanded = 0;
 
     function resolve(value: string, parent: string) {
@@ -96,7 +110,7 @@ export const inlineHtmlAssets = Effect.fn('BrowserHtmlPreview.inlineAssets')(
       const resolved = resolve(value, parent);
       if (resolved === null) return '';
       const asset = assets.get(resolved.path);
-      if (!asset || asset.mediaType !== 'text/css')
+      if (!asset || 'url' in asset || asset.mediaType !== 'text/css')
         throw new Error('Unavailable');
       if (ancestors.includes(resolved.path))
         throw new Error('Circular stylesheet');
@@ -113,7 +127,7 @@ export const inlineHtmlAssets = Effect.fn('BrowserHtmlPreview.inlineAssets')(
         const resolved = resolve(value, parent);
         if (resolved === null) return value;
         const asset = assets.get(resolved.path);
-        if (!asset || asset.mediaType === 'text/css')
+        if (!asset || ('mediaType' in asset && asset.mediaType === 'text/css'))
           throw new Error('Unavailable');
         const url = assetUrl(asset) + resolved.hash;
         budget(url.length);
@@ -264,7 +278,16 @@ export const inlineHtmlAssets = Effect.fn('BrowserHtmlPreview.inlineAssets')(
 
     const policy = document.createElement('meta');
     policy.httpEquiv = 'Content-Security-Policy';
-    policy.content = PREVIEW_POLICY;
+    const mediaSources = [
+      ...new Set(
+        [...assets.values()].flatMap((asset) => {
+          if (!asset || !('url' in asset)) return [];
+          const url = new URL(asset.url);
+          return [`${url.protocol}//${url.host}${url.pathname}`];
+        }),
+      ),
+    ];
+    policy.content = previewPolicy(mediaSources);
     const nonce = crypto.randomUUID();
     const bridge = document.createElement('script');
     bridge.setAttribute('nonce', nonce);
@@ -275,6 +298,7 @@ export const inlineHtmlAssets = Effect.fn('BrowserHtmlPreview.inlineAssets')(
       missing: [...failures],
       links: [...written],
       nonce,
+      mediaSources,
     };
   },
 );

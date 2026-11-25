@@ -9,11 +9,13 @@ export function HtmlFrame({
   className,
   onLink,
   scripts,
+  mediaSources = [],
 }: {
   html: string;
   title: string;
   className?: string;
   onLink?: (href: string) => void;
+  mediaSources?: readonly string[];
   scripts: Parameters<typeof htmlFrameDocument>[1];
 }) {
   const { dark } = useTheme();
@@ -34,7 +36,7 @@ export function HtmlFrame({
       aria-label={title}
       sandbox="allow-scripts"
       referrerPolicy="no-referrer"
-      srcDoc={htmlFrameDocument(html, scripts)}
+      srcDoc={htmlFrameDocument(html, scripts, mediaSources)}
       style={{ colorScheme: dark ? 'dark' : 'light' }}
       className={cn(
         'block min-h-128 w-full border-0 bg-transparent',

@@ -31,23 +31,25 @@ export const readHtmlPreview = Atom.family(
     scope,
     path,
     html,
+    streamMedia = false,
     platform,
   }: {
     connection: RuntimeConnection;
     scope: WorktreeScope;
     path: string;
     html: string;
+    streamMedia?: boolean;
     platform: Layer.Layer<HtmlPreviewPlatform>;
   }) =>
     worktreeRead(
       connection,
       scope,
-      ['html-preview', path, html],
+      ['html-preview', path, html, streamMedia],
       Effect.gen(function* () {
         const renderer = yield* HtmlPreviewPlatform;
         const assets = yield* readPreviewAssets(connection);
         return yield* renderer.render(html, path, (paths) =>
-          assets.read(scope, path, paths),
+          assets.read(scope, path, paths, streamMedia),
         );
       }),
       previewRuntime({ connection, platform }),

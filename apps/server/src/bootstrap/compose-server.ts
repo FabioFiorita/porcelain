@@ -448,7 +448,8 @@ function serverResources(
         const useCases = {
           access,
           projects: projects.routes,
-          files,
+          files: files.routes,
+          previewFileTickets: files.tickets,
           changes: changes.routes,
           reviews: Layer.mergeAll(reviews.routes, comments.routes),
           gitActions: gitActions.routes,

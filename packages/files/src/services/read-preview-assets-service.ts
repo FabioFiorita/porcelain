@@ -9,7 +9,10 @@ import {
   type ReadPreviewAssetsResult,
 } from '../models/read-preview-assets.ts';
 import { FileReader } from '../ports/file-reader.ts';
-import { assetMediaType } from '../rules/asset-media-type.ts';
+import {
+  assetMediaType,
+  isStreamedPreviewMedia,
+} from '../rules/asset-media-type.ts';
 
 export class ReadPreviewAssetsService extends Context.Service<
   ReadPreviewAssetsService,
@@ -42,6 +45,18 @@ export class ReadPreviewAssetsService extends Context.Service<
           let remaining = optionsCapability.maxTotalBytes;
           for (const path of new Set(input.paths)) {
             const mediaType = assetMediaType(path);
+            if (
+              input.canStream &&
+              mediaType &&
+              isStreamedPreviewMedia(mediaType)
+            ) {
+              assets.push(
+                (yield* input.canStream(path))
+                  ? { kind: 'stream', path }
+                  : { kind: 'unavailable', path },
+              );
+              continue;
+            }
             const bytes =
               mediaType === undefined ||
               remaining <= 0 ||

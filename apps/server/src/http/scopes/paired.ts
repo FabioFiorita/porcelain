@@ -1,3 +1,5 @@
+import type { HttpRouter } from 'effect/http';
+import type { RequestContext } from '../request-context.ts';
 import type { RequestBoundary } from '../server-factory.ts';
 import { Effect, Layer } from 'effect';
 import type { Limits } from '../../config/limits.ts';
@@ -14,6 +16,7 @@ import {
   requireSharingManagement,
   type SharingManagementOptions,
 } from '../hooks/sharing-management.ts';
+import type { PreviewFileTickets } from '../hooks/preview-file-ticket.ts';
 import { requestPolicy } from '../hooks/request-policy.ts';
 
 export type PairedUseCases = {
@@ -28,7 +31,13 @@ export type PairedUseCases = {
       };
     };
   projects: HttpApplication;
-  files: HttpApplication;
+  files: Layer.Layer<
+    never,
+    never,
+    | Layer.Services<HttpApplication>
+    | HttpRouter.Request<'Requires', RequestContext>
+  >;
+  previewFileTickets: PreviewFileTickets;
   changes: HttpApplication;
   reviews: HttpApplication;
   gitActions: HttpApplication;
@@ -40,9 +49,13 @@ export function pairedScope(options: {
   limits: Limits;
 }) {
   const { application, limits } = options;
-  const authenticated = authenticate(application, {
-    cookieMaxAgeSeconds: limits.access.device.cookieMaxAgeSeconds,
-  });
+  const authenticated = authenticate(
+    application,
+    {
+      cookieMaxAgeSeconds: limits.access.device.cookieMaxAgeSeconds,
+    },
+    application.previewFileTickets,
+  );
   return Layer.mergeAll(
     application.access.routes.sharing.pipe(
       Layer.provide(

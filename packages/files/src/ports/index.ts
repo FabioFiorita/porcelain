@@ -9,3 +9,4 @@ export { ListDirectoryOptions } from './list-directory-options.ts';
 export { ReadFileAssetOptions } from './read-file-asset-options.ts';
 export { ReadPreviewAssetsOptions } from './read-preview-assets-options.ts';
 export { ReadTextFileOptions } from './read-text-file-options.ts';
+export { PreviewFileReader } from './preview-file-reader.ts';

@@ -23,19 +23,21 @@ export const readPreviewAsset = Atom.family(
     scope,
     document,
     path,
+    streamMedia,
   }: {
     connection: RuntimeConnection;
     scope: WorktreeScope;
     document: string;
     path: string;
+    streamMedia: boolean;
   }) =>
     worktreeRead(
       connection,
       scope,
-      ['preview-asset', document, path],
+      ['preview-asset', document, path, streamMedia],
       Effect.gen(function* () {
         const assets = yield* readPreviewAssets(connection);
-        const answer = yield* assets.read(scope, document, [path]);
+        const answer = yield* assets.read(scope, document, [path], streamMedia);
         return answer.get(path) ?? null;
       }),
       assetRuntime(connection),

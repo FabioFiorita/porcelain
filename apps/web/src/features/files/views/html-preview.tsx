@@ -210,6 +210,7 @@ function PreviewPage({
       <HtmlFrame
         key={`${loads}:${scripts?.run === true}`}
         html={document.html}
+        mediaSources={document.mediaSources ?? []}
         scripts={
           scripts?.run === true
             ? { run: true }

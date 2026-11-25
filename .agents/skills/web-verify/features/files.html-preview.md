@@ -6,18 +6,19 @@ selectors:
   - 'Preview'
   - 'Source'
   - 'HTML preview'
-  - 'Some assets could not be loaded: '
+  - 'Not loaded: '
 tests:
   - apps/web/spec/integration/files-html-preview.test.tsx
   - apps/web/spec/e2e/files-html-preview.e2e.ts
 api:
   - GET /api/worktrees/:worktreeId/text
   - POST /api/worktrees/:worktreeId/preview-assets
+  - GET /api/worktrees/:worktreeId/preview-file
 ---
 
 # files.html-preview
 
-An HTML page opened from the file tree renders in a sandboxed frame with its local images inlined as `data:` URLs, names every reference it could not load, and switches to its source.
+An HTML page opened from the file tree renders in a sandboxed frame with its repository images and media served through file-scoped preview URLs. Stylesheets, fonts and supported scripts are inlined. The preview names unavailable references and switches to its source.
 
 ## How to get to it (user POV)
 
@@ -42,22 +43,22 @@ printf '<!doctype html><html><body><h1>Preview heading</h1><img src="logo.svg" a
 1. Navigate to `/`, click button `Review`, click tab `Files`
    Expect: treeitems "page.html" and "logo.svg".
 2. Click treeitem `page.html`
-   Expect: the sheet closes; tab "page.html" selected; tab "Preview" selected (`[selected]`) and tab "Source"; the paragraph starting "Sandboxed preview: scripts run"; status "Some assets could not be loaded: missing.png. This preview supports local static assets." (it names `missing.png` only, never `logo.svg`); an iframe titled "page.html HTML preview" (some accessibility snapshots omit its content).
+   Expect: the sheet closes; tab "page.html" selected; tab "Preview" selected (`[selected]`) and tab "Source"; status "Not loaded: missing.png" (it names `missing.png` only, never `logo.svg`); an iframe titled "page.html HTML preview" (some accessibility snapshots omit its content).
 3. Capture a screenshot
    Expect: the heading "Preview heading" and a teal 48 px square inside the frame.
 4. Inspect HTTP traffic
-   Expect: `GET /api/worktrees/<id>/text?path=page.html` answered 200 and `POST /api/worktrees/<id>/preview-assets` answered 200; no request to `logo.svg` or `missing.png` itself (the frame loads nothing from the network).
+   Expect: `GET /api/worktrees/<id>/text?path=page.html` answered 200 and `POST /api/worktrees/<id>/preview-assets` answered 200; a `GET /api/worktrees/<id>/preview-file` for `logo.svg` answered 200, and no media GET for `missing.png`.
 
 ### 2. Switching to Source shows the markup instead of the preview
 
 1. Click tab `Source`
-   Expect: tab "Source" selected; the code shows `<!doctype html><html><body><h1>Preview heading</h1>…`; the "Some assets could not be loaded" status and the iframe are gone.
+   Expect: tab "Source" selected; the code shows `<!doctype html><html><body><h1>Preview heading</h1>…`; the "Not loaded" status and the iframe are gone.
 2. Click tab `Preview`
    Expect: the `iframe` and the status about `missing.png` again.
 
 ### Observable proof
 
-Capture missing.png notice, inlined teal logo and only preview-assets POST traffic; Source shows raw markup.
+Capture the missing.png notice, the teal logo and its streamed GET. Add a video larger than 10 MiB and verify playback, a seek and a 206 response. Source shows raw markup.
 
 Automated coverage: `files-html-preview.test.tsx`.
 
@@ -80,5 +81,6 @@ Automated navigation and interaction coverage: `files-html-preview.e2e.ts`.
 ## Gotchas
 
 - While assets are read the panel shows nothing for 400 ms, then one small spinner labelled "Preparing the preview".
-- A trusted outer frame embeds the document in a second `srcdoc` frame. Both are sandboxed (`allow-scripts` only, no same origin). The outer document's `frame-src 'none'` blocks the inner frame's network navigation, and its inherited resource CSP allows only `data:` and `blob:` images. Preview scripts cannot access or weaken the outer policy. External URLs and references outside the page's folder are reported as missing, not fetched.
+- A trusted outer frame embeds the document in a second `srcdoc` frame. Both are sandboxed (`allow-scripts` only, no same origin). The outer document's `frame-src 'none'` blocks the inner frame's network navigation, and its inherited image and media policies allow inline URLs and the specific preview-file endpoint for the worktree. That endpoint validates the file ticket on every request. Preview scripts cannot access or weaken the outer policy. External URLs and references that leave the repository are reported as missing.
 - The display default is a per-browser preference: if an earlier feature in this instance set Documents open as to Source in Settings, the page opens on "Source"; click "Preview".
+- The desktop app keeps HTML media inline because its custom protocol refuses requests from an opaque iframe origin.

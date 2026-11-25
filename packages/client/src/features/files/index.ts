@@ -29,4 +29,7 @@ export {
   HtmlPreviewUnavailable,
 } from './ports/html-preview-platform.ts';
 export { collectHtmlAssets } from './commands/html-assets.ts';
-export type { PreviewAssetFailure } from './ports/html-preview-platform.ts';
+export type {
+  PreviewAssetFailure,
+  PreviewAssetSource,
+} from './ports/html-preview-platform.ts';
