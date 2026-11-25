@@ -44,7 +44,11 @@ import {
 } from './code-document';
 import { ReservedCode } from './reserved-code';
 import { fileReviewControl, ReviewedControl } from './reviewed-control';
-import { comparisonWrites } from '../rules/comparison-writes';
+import {
+  comparisonWrites,
+  type ComparisonRead,
+  fileReviewable,
+} from '../rules/comparison-writes';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
 export function ReviewCodeDocument({
@@ -170,10 +174,16 @@ export function ReviewCodeDocument({
     !untracked.pending &&
     ((diffs.failed && (expanding || kept.size === 0)) ||
       (untracked.failed && (expanding || keptText.size === 0)));
-  const isCurrent = (change: Change) =>
-    change.scope === 'untracked'
-      ? textOf(change.path) === undefined || untracked.contents.has(change.path)
-      : patchOf(change) === undefined || livePatch(change) !== undefined;
+  const readOf = (change: Change): ComparisonRead => {
+    if (change.scope === 'untracked') {
+      if (untracked.contents.has(change.path)) return 'current';
+      if (textOf(change.path) !== undefined) return 'retained';
+      return untracked.pending || untracked.failed ? 'missing' : 'current';
+    }
+    if (change.scope === 'unmerged' || !change.supported) return 'never-read';
+    if (livePatch(change) !== undefined) return 'current';
+    return patchOf(change) === undefined ? 'missing' : 'retained';
+  };
   const notes = new Map(files.map((file) => [file.path, file.note]));
   const unrenderable = items.flatMap((item) => {
     const reasons = item.comparisons.flatMap((change) => {
@@ -190,12 +200,15 @@ export function ReviewCodeDocument({
         return [`Content omitted: ${omissionReason(content.reason)}`];
       return diffEntry(change, content) ? [] : ['No single-file textual patch'];
     });
-    const current = item.comparisons.every(isCurrent);
+    const current = fileReviewable(item.comparisons.map(readOf));
     return reasons.length > 0 ? [{ item, reasons, current }] : [];
   });
   const entries = items.flatMap((item): CodeEntry[] =>
     item.comparisons.flatMap((change): CodeEntry[] => {
-      const writes = comparisonWrites(item.comparisons, change, isCurrent);
+      const writes = comparisonWrites(
+        item.comparisons.map(readOf),
+        readOf(change),
+      );
       const review = fileReviewControl(scope, context, item, writes.review);
       if (change.scope === 'untracked') {
         const text = textOf(change.path);
