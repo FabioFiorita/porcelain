@@ -7,6 +7,7 @@ type CodeReview = {
   control: ReactNode;
   reviewed?: boolean;
   stale?: boolean;
+  current?: boolean;
   fingerprint?: string | null;
 };
 

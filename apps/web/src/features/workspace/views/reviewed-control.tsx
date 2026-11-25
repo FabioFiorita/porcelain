@@ -67,6 +67,7 @@ export function fileReviewControl(
     fingerprint: item.fingerprint ?? null,
     reviewed: item.reviewStatus === 'reviewed',
     stale: item.reviewStatus === 'stale',
+    current,
     control: (
       <ReviewedControl
         key={`review:${item.path}`}

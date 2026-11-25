@@ -44,6 +44,7 @@ import {
 } from './code-document';
 import { ReservedCode } from './reserved-code';
 import { fileReviewControl, ReviewedControl } from './reviewed-control';
+import { comparisonWrites } from '../rules/comparison-writes';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
 export function ReviewCodeDocument({
@@ -194,8 +195,8 @@ export function ReviewCodeDocument({
   });
   const entries = items.flatMap((item): CodeEntry[] =>
     item.comparisons.flatMap((change): CodeEntry[] => {
-      const current = isCurrent(change);
-      const review = fileReviewControl(scope, context, item, current);
+      const writes = comparisonWrites(item.comparisons, change, isCurrent);
+      const review = fileReviewControl(scope, context, item, writes.review);
       if (change.scope === 'untracked') {
         const text = textOf(change.path);
         if (text === undefined) return [];
@@ -207,7 +208,7 @@ export function ReviewCodeDocument({
               text,
               notes.get(item.path) ?? 'untracked',
             ),
-            current,
+            current: writes.discard,
             review,
           },
         ];
@@ -221,7 +222,7 @@ export function ReviewCodeDocument({
             {
               ...entry,
               ...(note ? { note } : {}),
-              current,
+              current: writes.discard,
               review,
               discardScope: change.scope,
             },

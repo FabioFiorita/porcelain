@@ -123,7 +123,7 @@ export function CodeDocument(props: Props) {
         {...props}
         writeBlock={review.writeBlock}
         onToggleReviewed={(entry) => {
-          if (review.writeBlock || entry.current === false) return;
+          if (review.writeBlock || entry.review?.current === false) return;
           if (props.onReview) props.onReview(entry);
           else review.toggle(entry.review);
         }}
@@ -360,7 +360,7 @@ function CodeSurface({
             description={writeBlock}
             disabled={
               Boolean(writeBlock) ||
-              focusedEntry.current === false ||
+              focusedEntry.review.current === false ||
               !focusedEntry.review.fingerprint
             }
             pressed={focusedEntry?.review?.reviewed}
