@@ -1,12 +1,14 @@
 import {
   HISTORY_GRAPH_DOT_RADIUS,
   HISTORY_GRAPH_DOT_STROKE_WIDTH,
-  HISTORY_GRAPH_INSET,
   HISTORY_GRAPH_MERGE_RADIUS,
   HISTORY_GRAPH_STROKE_WIDTH,
-  HISTORY_LANE_WIDTH,
 } from '@/config/limits';
-import type { GraphRow } from '../rules/graph';
+import {
+  laneX as gutterX,
+  type GraphGutter,
+  type GraphRow,
+} from '../rules/graph';
 
 const LANE_CLASSES = [
   'text-graph-1',
@@ -17,7 +19,6 @@ const LANE_CLASSES = [
   'text-graph-6',
 ];
 
-const laneX = (lane: number) => HISTORY_GRAPH_INSET + lane * HISTORY_LANE_WIDTH;
 const laneClass = (lane: number) =>
   LANE_CLASSES[lane % LANE_CLASSES.length] ?? LANE_CLASSES[0];
 
@@ -25,11 +26,14 @@ export function HistoryGraph({
   rows,
   width,
   rowHeight,
+  gutter,
 }: {
   rows: readonly GraphRow[];
   width: number;
   rowHeight: number;
+  gutter: GraphGutter;
 }) {
+  const laneX = (lane: number) => gutterX(lane, gutter);
   return (
     <svg
       aria-hidden="true"
@@ -77,7 +81,7 @@ export function HistoryGraph({
                 fill="none"
                 stroke="currentColor"
                 strokeWidth={HISTORY_GRAPH_STROKE_WIDTH}
-                className={laneClass(lane)}
+                className={laneClass(Math.min(lane, gutter.lastLane))}
               />
             ))}
             <circle
@@ -87,7 +91,7 @@ export function HistoryGraph({
               fill={merge ? 'var(--card)' : 'currentColor'}
               stroke="currentColor"
               strokeWidth={HISTORY_GRAPH_DOT_STROKE_WIDTH}
-              className={laneClass(row.lane)}
+              className={laneClass(Math.min(row.lane, gutter.lastLane))}
             />
           </g>
         );

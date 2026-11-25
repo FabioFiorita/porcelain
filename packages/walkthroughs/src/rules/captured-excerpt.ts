@@ -8,6 +8,7 @@ export function capturedExcerpt(
   job: WalkthroughJob,
   step: number,
   block?: number,
+  node?: string,
 ) {
   if (job.run.state.status !== 'ready') return undefined;
   const blocks = job.run.state.content.stops[step - 1]?.blocks;
@@ -15,6 +16,12 @@ export function capturedExcerpt(
     block === undefined
       ? blocks?.find((item) => item.kind === 'diff_excerpt')
       : blocks?.[block - 1];
+  if (excerpt?.kind === 'diagram') {
+    const anchor = excerpt.nodes.find((item) => item.id === node)?.anchor;
+    return anchor?.lines === undefined
+      ? undefined
+      : capturedDiffHunk(job.patch, { path: anchor.path, ...anchor.lines });
+  }
   if (excerpt?.kind !== 'diff_excerpt') return undefined;
   return capturedDiffHunk(job.patch, excerpt);
 }

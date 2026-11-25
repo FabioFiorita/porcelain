@@ -13,6 +13,9 @@ import {
 import {
   selectedWalkthroughWriter,
   canSaveWalkthroughWriter,
+  resolvedWalkthroughWriterKey,
+  walkthroughWriterKeyModel,
+  walkthroughWriterMenu,
   walkthroughWriterStatus,
   unsupportedWalkthroughEffortMessage,
   type Project,
@@ -26,6 +29,7 @@ import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -121,9 +125,12 @@ function WriterForm({
       project: project !== undefined,
       models: settings.models,
     });
+  const menu = walkthroughWriterMenu(settings.models);
   const form = useForm({
     defaultValues: {
-      writer: current ? `${current.provider}:${current.model}` : 'default',
+      writer: current
+        ? resolvedWalkthroughWriterKey(current, settings.models)
+        : 'default',
       effort: current?.effort ?? settings.writer.effort,
       mode: project?.walkthroughSettings?.mode ?? 'manual',
     },
@@ -152,11 +159,15 @@ function WriterForm({
             {(field) => {
               const selected = settings.models.find(
                 (model) =>
-                  `${model.provider}:${model.model}` === field.state.value,
+                  `${model.provider}:${model.model}` ===
+                  walkthroughWriterKeyModel(field.state.value),
               );
+              const latest = menu
+                .flatMap((group) => group.latest)
+                .find((item) => item.key === field.state.value);
               let label = `${current?.provider} / ${current?.model} (unavailable)`;
               if (selected)
-                label = `${selected.provider === 'claude' ? 'Claude' : 'Codex'} / ${selected.label}`;
+                label = `${selected.provider === 'claude' ? 'Claude' : 'Codex'} / ${latest ? `${latest.label} · ${latest.model}` : selected.label}`;
               if (field.state.value === 'default')
                 label = `Use the default · ${defaultStatus.label}`;
               return (
@@ -169,7 +180,9 @@ function WriterForm({
                       if (value === null) return;
                       field.handleChange(value);
                       const model = settings.models.find(
-                        (model) => `${model.provider}:${model.model}` === value,
+                        (model) =>
+                          `${model.provider}:${model.model}` ===
+                          walkthroughWriterKeyModel(value),
                       );
                       form.setFieldValue(
                         'effort',
@@ -195,14 +208,19 @@ function WriterForm({
                           {label}
                         </SelectItem>
                       )}
-                      {settings.models.map((model) => (
-                        <SelectItem
-                          key={`${model.provider}:${model.model}`}
-                          value={`${model.provider}:${model.model}`}
-                        >
-                          {model.provider === 'claude' ? 'Claude' : 'Codex'} /{' '}
-                          {model.label}
-                        </SelectItem>
+                      {menu.map((group) => (
+                        <SelectGroup key={group.provider}>
+                          {group.latest.map((item) => (
+                            <SelectItem key={item.key} value={item.key}>
+                              {group.label} / {item.label} · {item.model}
+                            </SelectItem>
+                          ))}
+                          {group.exact.map((item) => (
+                            <SelectItem key={item.key} value={item.key}>
+                              {group.label} / {item.label}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
                       ))}
                     </SelectContent>
                   </Select>
@@ -219,7 +237,9 @@ function WriterForm({
           <form.Subscribe selector={(state) => state.values.writer}>
             {(writer) => {
               const model = settings.models.find(
-                (model) => `${model.provider}:${model.model}` === writer,
+                (model) =>
+                  `${model.provider}:${model.model}` ===
+                  walkthroughWriterKeyModel(writer),
               );
               return (
                 <form.Field name="effort">

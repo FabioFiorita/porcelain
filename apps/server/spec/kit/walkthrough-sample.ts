@@ -33,6 +33,14 @@ export async function prepareWalkthroughSample(
   await execute('git', ['commit', '-m', 'Describe the search results'], {
     cwd: repository,
   });
+  await writeFile(
+    join(repository, 'src/search-view.ts'),
+    "import { findNotes } from './search';\nimport { resultLabel } from './results';\n\nexport function renderSearch(notes: readonly string[], query: string) {\n  const matches = findNotes(notes, query);\n  return { heading: resultLabel(matches.length), items: matches };\n}\n",
+  );
+  await execute('git', ['add', 'src/search-view.ts'], { cwd: repository });
+  await execute('git', ['commit', '-m', 'Show the search results'], {
+    cwd: repository,
+  });
 }
 
 export async function seedWalkthroughSample(
@@ -69,10 +77,16 @@ export async function seedWalkthroughSample(
       {
         worktreePath: repository,
         patch: snapshot.patch,
-        files: ['README.md', 'src/search.ts', 'src/results.ts'].map((path) => ({
-          path,
-          hunks: [{ oldStart: 0, oldEnd: 0, newStart: 1, newEnd: 3 }],
-        })),
+        files: [
+          ...['README.md', 'src/search.ts', 'src/results.ts'].map((path) => ({
+            path,
+            hunks: [{ oldStart: 0, oldEnd: 0, newStart: 1, newEnd: 3 }],
+          })),
+          {
+            path: 'src/search-view.ts',
+            hunks: [{ oldStart: 0, oldEnd: 0, newStart: 1, newEnd: 7 }],
+          },
+        ],
         run: {
           ...ids,
           id: 'sample-walkthrough',
@@ -134,6 +148,49 @@ export async function seedWalkthroughSample(
                       },
                     },
                     {
+                      kind: 'diagram',
+                      title: 'An empty query, end to end',
+                      layout: 'sequence',
+                      nodes: [
+                        {
+                          id: 'view',
+                          label: 'renderSearch',
+                          kind: 'function',
+                          mark: 'added',
+                          anchor: {
+                            path: 'src/search-view.ts',
+                            lines: { side: 'new', start: 4, end: 7 },
+                          },
+                        },
+                        {
+                          id: 'search',
+                          label: 'findNotes',
+                          kind: 'function',
+                          mark: 'added',
+                          anchor: {
+                            path: 'src/search.ts',
+                            lines: { side: 'new', start: 1, end: 3 },
+                          },
+                        },
+                        {
+                          id: 'label',
+                          label: 'resultLabel',
+                          kind: 'function',
+                          mark: 'added',
+                          anchor: {
+                            path: 'src/results.ts',
+                            lines: { side: 'new', start: 1, end: 3 },
+                          },
+                        },
+                      ],
+                      edges: [
+                        { from: 'view', to: 'search', label: 'query ""' },
+                        { from: 'search', to: 'view', label: 'every note' },
+                        { from: 'view', to: 'label', label: 'matches.length' },
+                        { from: 'label', to: 'view', label: '"3 notes found"' },
+                      ],
+                    },
+                    {
                       kind: 'diff_excerpt',
                       contentTreeOid: snapshot.treeOid,
                       headOid,
@@ -157,11 +214,63 @@ export async function seedWalkthroughSample(
                     'The result label lives separately from matching so presentation can change without changing which notes appear.',
                   blocks: [
                     {
+                      kind: 'diagram',
+                      title: 'Matching and wording stay apart',
+                      layout: 'flow',
+                      nodes: [
+                        {
+                          id: 'view',
+                          label: 'search-view.ts',
+                          kind: 'file',
+                          note: 'Builds the heading and the list',
+                          mark: 'added',
+                          anchor: { path: 'src/search-view.ts' },
+                        },
+                        {
+                          id: 'search',
+                          label: 'findNotes',
+                          kind: 'function',
+                          note: 'Case-insensitive title match',
+                          mark: 'added',
+                          anchor: {
+                            path: 'src/search.ts',
+                            lines: { side: 'new', start: 1, end: 3 },
+                          },
+                        },
+                        {
+                          id: 'label',
+                          label: 'resultLabel',
+                          kind: 'function',
+                          note: 'Formats “N notes found”',
+                          mark: 'added',
+                          anchor: {
+                            path: 'src/results.ts',
+                            lines: { side: 'new', start: 1, end: 3 },
+                          },
+                        },
+                        {
+                          id: 'notes',
+                          label: 'notes: readonly string[]',
+                          kind: 'type',
+                          note: 'Passed in by the caller',
+                        },
+                      ],
+                      edges: [
+                        { from: 'view', to: 'search', label: 'calls' },
+                        { from: 'view', to: 'label', label: 'passes count' },
+                        { from: 'search', to: 'notes', label: 'filters' },
+                      ],
+                    },
+                    {
                       kind: 'files',
                       files: [
                         {
                           path: 'src/results.ts',
                           note: 'Formats the number of matching notes.',
+                        },
+                        {
+                          path: 'src/search-view.ts',
+                          note: 'Puts the count above the matches.',
                         },
                       ],
                     },

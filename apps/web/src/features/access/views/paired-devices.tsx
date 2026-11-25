@@ -16,10 +16,10 @@ import {
   ItemActions,
   ItemContent,
   ItemDescription,
-  ItemGroup,
   ItemMedia,
   ItemTitle,
 } from '@/components/ui/item';
+import { SettingsGroup } from '@/shared/views/settings-section';
 import { Switch } from '@/components/ui/switch';
 import {
   useRevokeAccess,
@@ -58,11 +58,10 @@ export function PairedDevices({
   const answer = access;
   return (
     <div className="flex flex-col gap-2">
-      <ItemGroup role="list" aria-label="Paired devices and links">
+      <SettingsGroup aria-label="Paired devices and links">
         {answer.devices.map((device) => (
           <Item
             key={device.id}
-            variant="outline"
             size="sm"
             role="listitem"
             aria-label={device.label}
@@ -70,7 +69,7 @@ export function PairedDevices({
             <ItemMedia variant="icon">
               {deviceIcons[deviceKind(device.platform)]}
             </ItemMedia>
-            <ItemContent className="basis-48">
+            <ItemContent className="min-w-0 basis-56">
               <ItemTitle className="flex-wrap">
                 {device.label}
                 {device.current && (
@@ -118,22 +117,23 @@ export function PairedDevices({
                   />
                 )}
               </div>
-              {!device.current && (
-                <RevokeControl
-                  disabled={disabled}
-                  connection={connection}
-                  id={device.id}
-                  label={device.label}
-                  cancelLink={false}
-                />
-              )}
+              <div className="flex min-w-17 flex-col items-end gap-1">
+                {!device.current && (
+                  <RevokeControl
+                    disabled={disabled}
+                    connection={connection}
+                    id={device.id}
+                    label={device.label}
+                    cancelLink={false}
+                  />
+                )}
+              </div>
             </ItemActions>
           </Item>
         ))}
         {answer.grants.map((grant) => (
           <Item
             key={grant.id}
-            variant="outline"
             size="sm"
             role="listitem"
             aria-label={grant.label}
@@ -152,22 +152,26 @@ export function PairedDevices({
               </ItemDescription>
             </ItemContent>
             <ItemActions>
-              <RevokeControl
-                disabled={disabled}
-                connection={connection}
-                id={grant.id}
-                label={grant.label}
-                cancelLink
-              />
+              <div className="flex min-w-17 flex-col items-end gap-1">
+                <RevokeControl
+                  disabled={disabled}
+                  connection={connection}
+                  id={grant.id}
+                  label={grant.label}
+                  cancelLink
+                />
+              </div>
             </ItemActions>
           </Item>
         ))}
-      </ItemGroup>
+      </SettingsGroup>
       <p className="text-xs leading-4.5 text-muted-foreground">
         Each device has separate access. Revoking signs it out.
       </p>
       <Collapsible>
-        <CollapsibleTrigger render={<Button size="sm" variant="ghost" />}>
+        <CollapsibleTrigger
+          render={<Button size="sm" variant="ghost" className="-ml-2 w-fit" />}
+        >
           About device permissions
         </CollapsibleTrigger>
         <CollapsibleContent>
@@ -290,7 +294,6 @@ function RevokeControl({
       <Button
         size="sm"
         variant="outline"
-        className="ml-1"
         aria-label={
           cancelLink ? `Cancel the link for ${label}` : `Revoke ${label}`
         }

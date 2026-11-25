@@ -11,13 +11,7 @@ import type { PreferenceChange } from '@porcelain/client/preferences';
 import type { ReviewGitSettings } from '@porcelain/client/preferences';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import {
-  Field,
-  FieldDescription,
-  FieldLabel,
-  FieldLegend,
-  FieldSet,
-} from '@/components/ui/field';
+import { Field, FieldDescription, FieldLabel } from '@/components/ui/field';
 import {
   Select,
   SelectContent,
@@ -41,15 +35,16 @@ import {
   ItemActions,
   ItemContent,
   ItemDescription,
-  ItemGroup,
   ItemTitle,
 } from '@/components/ui/item';
-import { Separator } from '@/components/ui/separator';
 import { useState, type ReactNode } from 'react';
 import { CheckIcon } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { SettingsHeading } from '@/shared/views/settings-heading';
+import {
+  SettingsGroup,
+  SettingsSection,
+} from '@/shared/views/settings-section';
 import { usePreferences } from '../store';
 import { WalkthroughSettings } from './walkthrough-settings';
 import { GitHubAccounts } from './github-accounts';
@@ -74,7 +69,7 @@ function SettingItem({
   children: ReactNode;
 }) {
   return (
-    <Item variant="outline">
+    <Item>
       <ItemContent className="min-w-0">
         <ItemTitle>{label}</ItemTitle>
         {description && <ItemDescription>{description}</ItemDescription>}
@@ -307,9 +302,8 @@ function ReviewGitSettingsForm({
           <AlertDescription>{failure}</AlertDescription>
         </Alert>
       )}
-      <FieldSet>
-        <FieldLegend variant="label">Changes</FieldLegend>
-        <ItemGroup>
+      <SettingsSection id="changes" title="Changes">
+        <SettingsGroup>
           <SwitchItem
             label="Spec files"
             description="Group specs separately and start them collapsed, in the changed files."
@@ -317,11 +311,10 @@ function ReviewGitSettingsForm({
             disabled={!editable}
             onChange={(collapseSpecs) => change({ collapseSpecs })}
           />
-        </ItemGroup>
-      </FieldSet>
-      <FieldSet>
-        <FieldLegend variant="label">Git</FieldLegend>
-        <ItemGroup>
+        </SettingsGroup>
+      </SettingsSection>
+      <SettingsSection id="git" title="Git">
+        <SettingsGroup>
           <ChoiceItem
             label="Pull strategy"
             value={settings?.pullStrategy}
@@ -332,16 +325,15 @@ function ReviewGitSettingsForm({
             ]}
             onChange={(pullStrategy) => change({ pullStrategy })}
           />
-        </ItemGroup>
-      </FieldSet>
+        </SettingsGroup>
+      </SettingsSection>
       <WalkthroughSettings connection={connection} />
       <GitHubAccounts connection={connection} />
-      <FieldSet id="archive-settings" className="scroll-mt-4">
-        <FieldLegend variant="label">When archiving</FieldLegend>
+      <SettingsSection id="archive-settings" title="When archiving">
         <FieldDescription>
           Archive asks you to confirm these deletions before running them.
         </FieldDescription>
-        <ItemGroup>
+        <SettingsGroup>
           {archiveSettings.map(({ key, label, description }) => (
             <SwitchItem
               key={key}
@@ -352,8 +344,8 @@ function ReviewGitSettingsForm({
               onChange={(checked) => change({ [key]: checked })}
             />
           ))}
-        </ItemGroup>
-      </FieldSet>
+        </SettingsGroup>
+      </SettingsSection>
     </>
   );
 }
@@ -368,8 +360,10 @@ function ComputerPicker({
   onSelect: (id: string) => void;
 }) {
   return (
-    <Field>
-      <FieldLabel htmlFor="settings-computer">Computer</FieldLabel>
+    <Field orientation="horizontal" className="w-fit max-w-full">
+      <FieldLabel htmlFor="settings-computer" className="shrink-0">
+        Computer
+      </FieldLabel>
       <Select
         items={computers.map((computer) => ({
           value: computer.id,
@@ -380,7 +374,10 @@ function ComputerPicker({
           if (typeof value === 'string') onSelect(value);
         }}
       >
-        <SelectTrigger id="settings-computer" className="w-full min-w-0">
+        <SelectTrigger
+          id="settings-computer"
+          className="w-60 max-w-full min-w-0"
+        >
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -391,75 +388,65 @@ function ComputerPicker({
           ))}
         </SelectContent>
       </Select>
-      <FieldDescription>
-        Each computer keeps its own Changes &amp; Git settings.
-      </FieldDescription>
     </Field>
   );
 }
 
 export function GeneralSettings() {
   return (
-    <div className="flex flex-col">
-      <SettingsHeading section="Settings" title="General" />
-      <div className="mt-8 flex flex-col gap-7">
-        <FieldSet>
-          <FieldLegend variant="label">Appearance</FieldLegend>
-          <ItemGroup>
-            <Choice
-              label="Theme"
-              description="System follows your operating system."
-              name="appearance"
-              options={[
-                { value: 'system', label: 'System' },
-                { value: 'light', label: 'Light' },
-                { value: 'dark', label: 'Dark' },
-              ]}
-            />
-          </ItemGroup>
-        </FieldSet>
-        <FieldSet>
-          <FieldLegend variant="label">Code</FieldLegend>
-          <ItemGroup>
-            <Choice
-              label="Diff layout"
-              description="Split shows old and new side by side."
-              name="diffStyle"
-              options={[
-                { value: 'unified', label: 'Unified' },
-                { value: 'split', label: 'Split' },
-              ]}
-            />
-            <Separator />
-            <Choice
-              label="Long lines"
-              name="lineOverflow"
-              options={[
-                { value: 'scroll', label: 'Scroll' },
-                { value: 'wrap', label: 'Wrap long lines' },
-              ]}
-            />
-          </ItemGroup>
-        </FieldSet>
-        <FieldSet>
-          <FieldLegend variant="label">Documents</FieldLegend>
-          <ItemGroup>
-            <Choice
-              label="Documents open as"
-              description="Markdown and HTML. You can switch per file; HTML previews run in a sandbox with no access to Porcelain."
-              name="documentsDefault"
-              options={[
-                { value: 'rendered', label: 'Rendered' },
-                { value: 'source', label: 'Source' },
-              ]}
-            />
-          </ItemGroup>
-        </FieldSet>
-      </div>
-      <p className="mt-4 text-xs text-muted-foreground">
+    <>
+      <SettingsSection id="appearance" title="Appearance">
+        <SettingsGroup>
+          <Choice
+            label="Theme"
+            description="System follows your operating system."
+            name="appearance"
+            options={[
+              { value: 'system', label: 'System' },
+              { value: 'light', label: 'Light' },
+              { value: 'dark', label: 'Dark' },
+            ]}
+          />
+        </SettingsGroup>
+      </SettingsSection>
+      <SettingsSection id="code" title="Code">
+        <SettingsGroup>
+          <Choice
+            label="Diff layout"
+            description="Split shows old and new side by side."
+            name="diffStyle"
+            options={[
+              { value: 'unified', label: 'Unified' },
+              { value: 'split', label: 'Split' },
+            ]}
+          />
+          <Choice
+            label="Long lines"
+            name="lineOverflow"
+            options={[
+              { value: 'scroll', label: 'Scroll' },
+              { value: 'wrap', label: 'Wrap long lines' },
+            ]}
+          />
+        </SettingsGroup>
+      </SettingsSection>
+      <SettingsSection id="documents" title="Documents">
+        <SettingsGroup>
+          <Choice
+            label="Documents open as"
+            description="Markdown and HTML. You can switch per file; HTML previews run in a sandbox with no access to Porcelain."
+            name="documentsDefault"
+            options={[
+              { value: 'rendered', label: 'Rendered' },
+              { value: 'source', label: 'Source' },
+            ]}
+          />
+        </SettingsGroup>
+      </SettingsSection>
+      <p className="text-xs text-muted-foreground">
         These preferences are saved on this device.
       </p>
-    </div>
+    </>
   );
 }
 
@@ -492,7 +479,6 @@ export function ReviewsGitSettings() {
     computers.find((entry) => entry.id === chosen) ?? computers[0];
   return (
     <>
-      <SettingsHeading section="Settings" title="Changes & Git" />
       {computers.length > 1 && (
         <ComputerPicker
           computers={computers}

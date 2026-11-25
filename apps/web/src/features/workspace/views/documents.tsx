@@ -14,7 +14,11 @@ import { FileIcon, HistoryIcon } from 'lucide-react';
 import { BarAction } from '@/shared/workspace/bar-action';
 import { Button } from '@/components/ui/button';
 
-import { CommitGraph, FileTimeline } from '@/features/history/index';
+import {
+  CommitGraph,
+  FileTimeline,
+  RecentHistory,
+} from '@/features/history/index';
 import { DiscardButton } from '@/features/git-actions/index';
 import { useChanges } from '@/features/changes/index';
 
@@ -335,6 +339,8 @@ export function PlainChangesDocument({
   context,
   interaction,
   onBrowse,
+  onOpen,
+  sideLabel,
   specsOnly = false,
   only,
   heading,
@@ -381,7 +387,15 @@ export function PlainChangesDocument({
       </div>
     );
   if (!specsOnly && changes.length === 0)
-    return <NoChanges onBrowse={onBrowse} />;
+    return (
+      <NoChanges
+        scope={scope}
+        context={context}
+        onBrowse={onBrowse}
+        onOpen={onOpen}
+        sideLabel={sideLabel}
+      />
+    );
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <ReviewCodeDocument
@@ -445,21 +459,41 @@ export function PlainChangesDocument({
   );
 }
 
-export function NoChanges({ onBrowse }: Pick<DocumentProps, 'onBrowse'>) {
+export function NoChanges({
+  scope,
+  context,
+  onBrowse,
+  onOpen,
+  sideLabel,
+}: Pick<
+  DocumentProps,
+  'scope' | 'context' | 'onBrowse' | 'onOpen' | 'sideLabel'
+>) {
   return (
-    <div className="mx-auto w-full max-w-xl">
-      <StateNotice
-        message="No changes to review."
-        action={
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={(event) => onBrowse('files', event.currentTarget)}
-          >
-            Files <Kbd>{formatForDisplay(SHORTCUTS.surfaceFiles)}</Kbd>
-          </Button>
-        }
-      />
+    <div className="h-full overflow-y-auto">
+      <div className="mx-auto w-full max-w-(--container-commit) px-4 py-6">
+        <RecentHistory
+          scope={scope}
+          connection={context.connection}
+          sideLabel={sideLabel}
+          onOpenCommit={(oid, toSide) =>
+            onOpen({ kind: 'commit', oid }, { toSide: toSide === true })
+          }
+          onOpenGraph={() => onOpen({ kind: 'graph' })}
+          status={
+            <div className="flex items-center gap-2 text-caption text-muted-foreground">
+              <span>No changes to review.</span>
+              <Button
+                variant="ghost"
+                size="xs"
+                onClick={(event) => onBrowse('files', event.currentTarget)}
+              >
+                Files <Kbd>{formatForDisplay(SHORTCUTS.surfaceFiles)}</Kbd>
+              </Button>
+            </div>
+          }
+        />
+      </div>
     </div>
   );
 }

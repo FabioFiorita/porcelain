@@ -3,7 +3,6 @@ import { type ReactNode, useState } from 'react';
 import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import {
-  attentionLabel,
   failureCopy,
   foldedGrowth,
   foldedNotSaid,
@@ -12,17 +11,14 @@ import {
   initialWriteFailure,
   reviewCodeSections,
   eagerSections,
-  walkthroughCalls,
   walkthroughMeta,
   walkthroughEvidenceNotice,
   acknowledgedWalkthrough,
   walkthroughPhase,
-  walkthroughVerdict,
   type ReviewCode as ReviewCodeFiles,
   type WalkthroughContent,
   type WalkthroughFailure,
   type WalkthroughRun,
-  type WalkthroughStop,
 } from '@porcelain/client/walkthroughs/rules';
 import { Button } from '@/components/ui/button';
 import {
@@ -43,19 +39,15 @@ import {
   PostSaved,
 } from './walkthrough-conversation';
 import { WalkthroughStatus } from './walkthrough-status';
-import { ComparisonTable, StepBlocks } from './walkthrough-blocks';
+import { Briefing, scrollToTarget } from './walkthrough-briefing';
+import { WalkthroughSteps, type Conversation } from './walkthrough-steps';
 import { WalkthroughStart } from './walkthrough-start';
 import { useWalkthroughWriter } from '../queries/writer';
 import { WalkthroughWriterNotice } from './walkthrough-writer-notice';
+import { WalkthroughWriterMenu } from './walkthrough-writer-menu';
+import { WalkthroughMerge } from './walkthrough-merge';
 import { ReviewCode } from './walkthrough-code-document';
 import { DIFF_WINDOW_FILES } from '@/config/limits';
-
-const scrollToId = (id: string) =>
-  document
-    .getElementById(id)
-    ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-
-const stepId = (step: number) => `walkthrough-step-${step}`;
 
 function Column({ children }: { children: ReactNode }) {
   return (
@@ -68,14 +60,22 @@ function Column({ children }: { children: ReactNode }) {
 function Meta({
   run,
   content,
+  writer,
 }: {
   run: WalkthroughRun;
   content?: WalkthroughContent;
+  writer?: ReturnType<typeof useWalkthroughWriter> | undefined;
 }) {
+  const model =
+    writer?.settings?.models.find(
+      (entry) =>
+        entry.provider === run.writer.provider &&
+        entry.model === run.writer.model,
+    )?.label ?? run.writer.model;
   return (
     <p className="whitespace-pre-line font-mono text-caption text-muted-foreground">
-      {walkthroughMeta(run, content)}
-      {walkthroughEvidenceNotice(run)
+      {walkthroughMeta(run, content, content ? model : undefined)}
+      {!content && walkthroughEvidenceNotice(run)
         ? `\n${walkthroughEvidenceNotice(run)}`
         : ''}
     </p>
@@ -84,11 +84,8 @@ function Meta({
 
 function Headline({ content }: { content: WalkthroughContent }) {
   return (
-    <h1 className="text-subpage-title font-semibold tracking-tight text-balance @3xl:text-page-title">
-      <span className="text-muted-foreground">
-        {content.title.replace(/\.$/, '')}.
-      </span>{' '}
-      {walkthroughVerdict(content)}
+    <h1 className="text-subpage-title font-semibold tracking-tight text-balance">
+      <RichText text={content.title.replace(/\.$/, '')} />
     </h1>
   );
 }
@@ -189,109 +186,6 @@ function NotSaid({ content }: { content: WalkthroughContent }) {
   );
 }
 
-function Calls({
-  content,
-  conversation,
-}: {
-  content: WalkthroughContent;
-  conversation: Conversation | undefined;
-}) {
-  const calls = walkthroughCalls(content);
-  if (calls.length === 0) return null;
-  return (
-    <section id="your-calls" className="flex scroll-mt-6 flex-col gap-3">
-      {calls.map(({ attention, comparison, step, callIndex }) => (
-        <article
-          key={`${step}:${callIndex}`}
-          className="flex flex-col gap-3 rounded-xl border bg-card p-4 @3xl:p-5"
-        >
-          <div className="flex items-baseline justify-between gap-3 text-caption text-muted-foreground">
-            <span>{attentionLabel(attention)}</span>
-            <button
-              type="button"
-              className="hover:text-foreground"
-              onClick={() => scrollToId(stepId(step))}
-            >
-              Step {step}
-            </button>
-          </div>
-          <h2 className="text-section font-semibold text-pretty">
-            <RichText text={attention.question} />
-          </h2>
-          <p className="text-prose text-foreground-2">
-            <RichText text={attention.note} />
-          </p>
-          {comparison && <ComparisonTable comparison={comparison} />}
-          {callIndex === 0 && conversation?.({ kind: 'call', step })}
-        </article>
-      ))}
-    </section>
-  );
-}
-
-type Conversation = (target: {
-  kind: 'call' | 'step';
-  step: number;
-}) => ReactNode;
-
-function Step({
-  stop,
-  step,
-  run,
-  props,
-  code,
-  branch,
-  eager,
-  conversation,
-}: {
-  stop: WalkthroughStop;
-  step: number;
-  run: WalkthroughRun;
-  props: DocumentProps;
-  code: ReviewCodeFiles | undefined;
-  branch: ComparedBranch | undefined;
-  eager: boolean;
-  conversation: Conversation | undefined;
-}) {
-  return (
-    <li
-      id={stepId(step)}
-      className="flex scroll-mt-6 flex-col gap-2.5 border-t pt-5"
-    >
-      <p className="whitespace-pre-line font-mono text-caption text-muted-foreground">
-        Step {step}
-        {stop.callouts.length > 0 && (
-          <button
-            type="button"
-            className="ml-2 text-foreground hover:underline"
-            onClick={() => scrollToId('your-calls')}
-          >
-            Your call
-          </button>
-        )}
-      </p>
-      <h2 className="text-lg leading-6 font-semibold text-pretty">
-        <RichText text={stop.title} />
-      </h2>
-      <p className="text-prose text-foreground-2">
-        <RichText text={stop.explanation} />
-      </p>
-      <StepBlocks blocks={stop.blocks} step={step} run={run} document={props} />
-      {code && (
-        <ReviewCode
-          document={props}
-          entry={`review:step-${step}`}
-          code={code}
-          branch={branch}
-          eager={eager}
-          label={`Step ${step}`}
-        />
-      )}
-      {conversation?.({ kind: 'step', step })}
-    </li>
-  );
-}
-
 function Written({
   run,
   content,
@@ -322,6 +216,10 @@ function Written({
     | undefined;
 }) {
   const owner = { ...props, run };
+  const outsideCount = new Set([
+    ...(code.branch ? code.sections.outside.branch : []),
+    ...code.sections.outside.worktree,
+  ]).size;
   const conversation: Conversation = ({ kind, step }) => {
     const title = content.stops[step - 1]!.title;
     return (
@@ -342,6 +240,7 @@ function Written({
       failure={updateFailure}
       onUpdate={onUpdate}
       writeBlock={writeBlock}
+      writerMenu={<WalkthroughWriterMenu document={props} writer={writer} />}
       writerNotice={
         <WalkthroughWriterNotice
           document={props}
@@ -356,13 +255,14 @@ function Written({
     return (
       <Column>
         <header className="flex flex-col gap-3">
-          <Meta run={run} content={content} />
+          <Meta run={run} content={content} writer={writer} />
           <Headline content={content} />
           <p className="text-prose text-foreground-2">
             <RichText text={content.summary} />
           </p>
           {status}
         </header>
+        <Briefing run={run} content={content} onJump={scrollToTarget} />
         <ReviewCode
           document={props}
           entry="review:all"
@@ -373,35 +273,32 @@ function Written({
         />
         <EarlierComments owner={owner} titles={[]} />
         <PostSaved owner={owner} />
+        <WalkthroughMerge document={props} run={run} content={content} />
       </Column>
     );
   return (
     <Column>
       <header className="flex flex-col gap-3">
-        <Meta run={run} content={content} />
+        <Meta run={run} content={content} writer={writer} />
         <Headline content={content} />
         <p className="text-prose text-foreground-2">
           <RichText text={content.summary} />
         </p>
         {status}
       </header>
-      <Calls content={content} conversation={conversation} />
+      <Briefing run={run} content={content} onJump={scrollToTarget} />
       {content.growth.length > 0 && <Growth content={content} />}
-      <ol className="flex flex-col gap-10">
-        {content.stops.map((stop, index) => (
-          <Step
-            key={index}
-            stop={stop}
-            step={index + 1}
-            run={run}
-            props={props}
-            code={code.sections.steps[index]}
-            branch={code.branch}
-            eager={code.eager.steps[index] ?? true}
-            conversation={conversation}
-          />
-        ))}
-      </ol>
+      <WalkthroughSteps
+        content={content}
+        run={run}
+        props={props}
+        code={code.sections.steps}
+        branch={code.branch}
+        eager={code.eager.steps}
+        outside={outsideCount}
+        conversation={conversation}
+        onJump={scrollToTarget}
+      />
       <NotSaid content={content} />
       <EarlierComments
         owner={owner}
@@ -414,7 +311,7 @@ function Written({
         >
           <h2
             id="review-not-covered"
-            className="text-lg leading-6 font-semibold text-pretty"
+            className="text-section font-semibold text-pretty"
           >
             Not covered by the steps
           </h2>
@@ -429,6 +326,7 @@ function Written({
         </section>
       )}
       <PostSaved owner={owner} />
+      <WalkthroughMerge document={props} run={run} content={content} />
     </Column>
   );
 }
@@ -554,6 +452,7 @@ export function ReviewDocument(props: DocumentProps) {
     observedPhase && observedPhase.kind !== 'unwritten'
       ? observedPhase.run
       : undefined,
+    writer.next,
   );
   const phase = read
     ? walkthroughPhase(acknowledgedWalkthrough(read, write.accepted))

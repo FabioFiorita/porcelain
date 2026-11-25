@@ -14,9 +14,9 @@ const buttonGroupVariants = cva(
     variants: {
       orientation: {
         horizontal:
-          '*:data-slot:rounded-r-none [&>[data-slot]:not(:has(~[data-slot]))]:rounded-r-md! [&>[data-slot]~[data-slot]]:rounded-l-none [&>[data-slot]~[data-slot]]:border-l-0',
+          '[&>[data-slot]:not([data-slot$=-content])]:rounded-r-none [&>[data-slot]:not([data-slot$=-content]):not(:has(~[data-slot]:not([data-slot$=-content])))]:rounded-r-md! [&>[data-slot]~[data-slot]:not([data-slot$=-content])]:rounded-l-none [&>[data-slot]~[data-slot]:not([data-slot$=-content])]:border-l-0',
         vertical:
-          'flex-col *:data-slot:rounded-b-none [&>[data-slot]:not(:has(~[data-slot]))]:rounded-b-md! [&>[data-slot]~[data-slot]]:rounded-t-none [&>[data-slot]~[data-slot]]:border-t-0',
+          'flex-col [&>[data-slot]:not([data-slot$=-content])]:rounded-b-none [&>[data-slot]:not([data-slot$=-content]):not(:has(~[data-slot]:not([data-slot$=-content])))]:rounded-b-md! [&>[data-slot]~[data-slot]:not([data-slot$=-content])]:rounded-t-none [&>[data-slot]~[data-slot]:not([data-slot$=-content])]:border-t-0',
       },
     },
     defaultVariants: {

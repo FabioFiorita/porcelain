@@ -123,6 +123,10 @@ export const PIERRE_DECISION_CSS = `
 ${PIERRE_CARD_CSS}`;
 
 export const PIERRE_HEADER_CSS = `
+pre {
+  margin-inline: calc(var(--spacing) * 4);
+  border-radius: var(--radius-md);
+}
 @media (max-width: 720px) {
   [data-header-content] {
     flex: 1 1 auto;
@@ -141,6 +145,11 @@ export const PIERRE_SURFACE_CSS = `
 :host {
   --diffs-light-bg: var(--card) !important;
   --diffs-dark-bg: var(--card) !important;
+}
+
+::selection {
+  background: color-mix(in oklab, var(--foreground) 14%, transparent);
+  color: inherit;
 }
 
 * {

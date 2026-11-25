@@ -16,9 +16,11 @@ export function WalkthroughStatus({
   onUpdate,
   writeBlock,
   writerNotice,
+  writerMenu,
 }: WalkthroughStatusInput & {
   writeBlock?: string | undefined;
   writerNotice?: ReactNode;
+  writerMenu?: ReactNode;
 }) {
   const progress = walkthroughProgress(run, requesting);
   if (
@@ -50,17 +52,20 @@ export function WalkthroughStatus({
           )}
         </p>
         {writerNotice}
-        {onUpdate && (
-          <Button
-            size="sm"
-            variant={behind ? 'outline' : 'ghost'}
-            disabled={Boolean(writeBlock)}
-            aria-description={writeBlock}
-            onClick={onUpdate}
-          >
-            Update walkthrough
-          </Button>
-        )}
+        <div className="flex min-w-0 items-center gap-1">
+          {writerMenu}
+          {onUpdate && (
+            <Button
+              size="sm"
+              variant={behind ? 'outline' : 'ghost'}
+              disabled={Boolean(writeBlock)}
+              aria-description={writeBlock}
+              onClick={onUpdate}
+            >
+              Update walkthrough
+            </Button>
+          )}
+        </div>
       </section>
     );
   }
@@ -74,15 +79,18 @@ export function WalkthroughStatus({
           {progress.label}
         </p>
         {!progress.active && onUpdate && (
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={Boolean(writeBlock)}
-            aria-description={writeBlock}
-            onClick={onUpdate}
-          >
-            {failure ? 'Try again' : 'Update walkthrough'}
-          </Button>
+          <div className="flex min-w-0 items-center gap-1">
+            {writerMenu}
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={Boolean(writeBlock)}
+              aria-description={writeBlock}
+              onClick={onUpdate}
+            >
+              {failure ? 'Try again' : 'Update walkthrough'}
+            </Button>
+          </div>
         )}
       </div>
       {!progress.active && writerNotice}

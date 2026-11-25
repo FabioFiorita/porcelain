@@ -2,6 +2,7 @@ export { GitHubAccountPreferenceService } from './github-account-preference-serv
 export { InvalidateReviewedMarksService } from './invalidate-reviewed-marks-service.ts';
 export { ListGitHubPullRequestsService } from './list-github-pull-requests-service.ts';
 export { ListReviewedFilesService } from './list-reviewed-files-service.ts';
+export { MergeGitHubPullRequestService } from './merge-github-pull-request-service.ts';
 export { ReadGitHubPullChecksService } from './read-github-pull-checks-service.ts';
 export { ReadGitHubPullRequestService } from './read-github-pull-request-service.ts';
 export { RemoveReviewedFilesService } from './remove-reviewed-files-service.ts';

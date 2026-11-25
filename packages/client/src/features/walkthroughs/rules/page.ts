@@ -67,6 +67,7 @@ export function foldedNotSaid(content: WalkthroughContent, open: boolean) {
 export function walkthroughMeta(
   run: WalkthroughRun,
   content?: WalkthroughContent,
+  writerModel?: string,
 ) {
   const files = content ? walkthroughFileCount(content) : 0;
   return [
@@ -75,6 +76,9 @@ export function walkthroughMeta(
       : [`#${run.pullRequestNumber}`]),
     ...(files > 0 ? [files === 1 ? '1 file' : `${files} files`] : []),
     `written for ${run.headOid.slice(0, SHORT_OID)}${run.includesUncommitted ? ' and uncommitted work' : ''}`,
+    ...(writerModel === undefined
+      ? []
+      : [`by ${writerModel} ${run.writer.effort}`]),
   ].join(' · ');
 }
 

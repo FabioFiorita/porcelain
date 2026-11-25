@@ -77,15 +77,15 @@ type NavigatorOrder = Pick<
   NavigatorEntry,
   'key' | 'name' | 'main' | 'headCommittedAt' | 'uncommittedChangedAt'
 >;
-function touchedAt(entry: NavigatorOrder) {
+export function navigatorTouchedAt(entry: NavigatorOrder) {
   const times = [entry.headCommittedAt, entry.uncommittedChangedAt].filter(
     (time) => time !== undefined,
   );
   return times.length === 0 ? undefined : times.sort().at(-1);
 }
 export function navigatorWorktreeOrder(a: NavigatorOrder, b: NavigatorOrder) {
-  const aTouched = touchedAt(a);
-  const bTouched = touchedAt(b);
+  const aTouched = navigatorTouchedAt(a);
+  const bTouched = navigatorTouchedAt(b);
   return (
     Number(b.main) - Number(a.main) ||
     Number(bTouched !== undefined) - Number(aTouched !== undefined) ||

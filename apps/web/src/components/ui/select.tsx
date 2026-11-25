@@ -119,6 +119,7 @@ function SelectContent({
     <SelectContentPrimitive
       data-slot="select-content"
       data-align-trigger={alignItemWithTrigger}
+      container={typeof document === 'undefined' ? null : document.body}
       side={side}
       sideOffset={sideOffset}
       align={align}

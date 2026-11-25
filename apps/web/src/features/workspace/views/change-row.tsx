@@ -1,4 +1,5 @@
 import { TruncatedText } from '@/shared/views/truncated-text';
+import { CheckIcon } from 'lucide-react';
 import {
   changeStatusMarks,
   type ChangeStatus,
@@ -15,7 +16,7 @@ import {
 import { SidebarActionMenu } from './sidebar-action-menu';
 
 export const ROW =
-  'flex w-full min-w-0 items-center gap-1.5 rounded-lg px-2 py-1 text-left text-caption transition-colors hover:bg-accent aria-pressed:bg-accent aria-pressed:font-medium';
+  'flex w-full min-w-0 items-center gap-1.5 rounded-lg px-2 py-1 text-left text-[length:var(--text-caption)] transition-colors hover:bg-accent aria-pressed:bg-accent aria-pressed:font-medium';
 
 export function ChangeRow({
   path,
@@ -110,14 +111,7 @@ export function ChangeRow({
               reviewStatus={reviewStatus}
             />
             <FileTreeIcon path={path} className="size-3.5 shrink-0" />
-            <TruncatedText
-              className={cn(
-                'min-w-0 flex-1 ',
-                reviewStatus === 'reviewed' &&
-                  'line-through decoration-muted-foreground/40',
-              )}
-              text={basename(path)}
-            />
+            <TruncatedText className="min-w-0 flex-1" text={basename(path)} />
           </button>
           {menu}
         </div>
@@ -144,16 +138,20 @@ function ChangeStatusIcon({
       data-change-status={status}
       title={label}
     >
-      <span
-        className={cn(
-          'size-1.5 rounded-full',
-          status === undefined && 'bg-muted-foreground/60',
-          (status === 'added' || status === 'untracked') && 'bg-graph-2',
-          status === 'modified' && 'bg-graph-4',
-          status === 'deleted' && 'bg-destructive',
-          status === 'renamed' && 'bg-graph-1',
-        )}
-      />
+      {normalized === 'reviewed' ? (
+        <CheckIcon aria-hidden="true" className="size-3 text-add-fg" />
+      ) : (
+        <span
+          className={cn(
+            'size-1.5 rounded-full',
+            status === undefined && 'bg-muted-foreground/60',
+            (status === 'added' || status === 'untracked') && 'bg-graph-2',
+            status === 'modified' && 'bg-graph-4',
+            status === 'deleted' && 'bg-destructive',
+            status === 'renamed' && 'bg-graph-1',
+          )}
+        />
+      )}
     </span>
   );
 }

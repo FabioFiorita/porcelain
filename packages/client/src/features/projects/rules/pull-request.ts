@@ -253,6 +253,78 @@ export function pullRequestMergeable(mergeable: string): {
   return { label: 'Not known yet', tone: 'none' };
 }
 
+export type PullRequestMergeMethod = 'merge' | 'squash' | 'rebase';
+
+const mergeMethodLabels: Record<PullRequestMergeMethod, string> = {
+  merge: 'Create a merge commit',
+  squash: 'Squash and merge',
+  rebase: 'Rebase and merge',
+};
+
+export function pullRequestMergeMethods(pull: {
+  readonly mergeMethods?: readonly PullRequestMergeMethod[] | undefined;
+}) {
+  return (pull.mergeMethods ?? ['merge', 'squash', 'rebase']).map((method) => ({
+    method,
+    label: mergeMethodLabels[method],
+  }));
+}
+
+export function mergeFailureMessage(error: unknown) {
+  return error instanceof Error && error.message
+    ? error.message
+    : 'The merge could not be completed. Check the pull request before trying again.';
+}
+
+export type PullRequestMergeReview = {
+  readonly headOid: string;
+  readonly unansweredCallStep: number | 'reading' | 'unreadable' | undefined;
+};
+
+export function pullRequestMergeBlock(
+  pull: Pick<
+    LinkedPullRequest,
+    | 'state'
+    | 'draft'
+    | 'mergeable'
+    | 'checks'
+    | 'checksTruncated'
+    | 'checksSummary'
+    | 'baseBranch'
+    | 'headSha'
+  > & {
+    readonly mergeMethods?: readonly PullRequestMergeMethod[] | undefined;
+  },
+  review?: PullRequestMergeReview,
+): string | undefined {
+  if (pull.state === 'merged') return 'Already merged.';
+  if (pull.state === 'closed') return 'This pull request is closed.';
+  if (pull.draft) return 'It is a draft. Mark it ready for review on GitHub.';
+  if (pull.mergeMethods?.length === 0)
+    return 'This repository allows no merge method.';
+  if (pull.mergeable === 'CONFLICTING')
+    return `It conflicts with ${pull.baseBranch}.`;
+  const checks = pullRequestChecks(
+    pull.checks,
+    pull.checksTruncated,
+    pull.checksSummary,
+  );
+  if (checks.tone === 'failed' || checks.tone === 'running')
+    return checks.tone === 'failed'
+      ? `${checks.label.replace(/^Checks failing$/, 'Checks are failing')}.`
+      : `${checks.label.replace(/^Checks running$/, 'Checks are still running')}.`;
+  if (!review) return undefined;
+  if (review.headOid !== pull.headSha)
+    return `The walkthrough covers ${review.headOid.slice(0, 7)}; the pull request is at ${pull.headSha.slice(0, 7)}.`;
+  if (review.unansweredCallStep === 'reading')
+    return 'Reading your replies to the calls.';
+  if (review.unansweredCallStep === 'unreadable')
+    return 'Your replies to the calls could not be read.';
+  if (review.unansweredCallStep !== undefined)
+    return `Your call in step ${review.unansweredCallStep} has no reply yet.`;
+  return undefined;
+}
+
 export function pullReviewState(
   state: string | undefined,
 ): { label: string; tone: 'passed' | 'failed' | 'none' } | undefined {

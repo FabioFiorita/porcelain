@@ -1,7 +1,7 @@
 import { Cause, Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import type { ReactNode } from 'react';
-import { FieldLegend, FieldSet } from '@/components/ui/field';
+import { SettingsSection } from '@/shared/views/settings-section';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
@@ -51,11 +51,10 @@ export function WaysInGate({
 
 export function WaysIn({ connection }: { connection: Connection }) {
   return (
-    <FieldSet id="ways-in" className="relative">
-      <FieldLegend variant="label">Ways in</FieldLegend>
+    <SettingsSection id="ways-in" title="Ways in">
       <WaysInGate connection={connection}>
         {(remote) => <RemoteRoutes connection={connection} remote={remote} />}
       </WaysInGate>
-    </FieldSet>
+    </SettingsSection>
   );
 }

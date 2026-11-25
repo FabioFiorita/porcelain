@@ -15,6 +15,24 @@ export const githubUnavailableSchema = Schema.Struct({
   reason: githubUnavailableReasonSchema,
 });
 export type GitHubRepository = { owner: string; repo: string };
+export const pullRequestMergeMethodSchema = Schema.Literals([
+  'merge',
+  'squash',
+  'rebase',
+]);
+export type PullRequestMergeMethod = typeof pullRequestMergeMethodSchema.Type;
+export const pullRequestMergeRefusalSchema = Schema.Literals([
+  'not-mergeable',
+  'head-changed',
+  'gh-not-installed',
+  'no-accounts',
+  'no-access',
+  'not-github',
+  'rate-limited',
+  'offline',
+  'invalid-response',
+  'pull-request-not-found',
+]);
 const githubChoiceSchema = Schema.Struct({
   account: Schema.String,
   source: Schema.Literals(['detected', 'overridden']),
@@ -116,6 +134,9 @@ export const githubPullRequestSchema = Schema.Struct({
     Schema.NullOr(Schema.Struct({ url: Schema.String })),
   ),
   mergeable: Schema.String,
+  allowedMergeMethods: Schema.optional(
+    Schema.Array(pullRequestMergeMethodSchema),
+  ),
   labels: Schema.Struct({
     nodes: Schema.Array(
       Schema.Struct({ name: Schema.String, color: Schema.String }),
@@ -199,6 +220,7 @@ export const pullRequestSchema = Schema.Struct({
   headSha: Schema.String,
   headRepository: Schema.optional(Schema.String),
   mergeable: Schema.String,
+  mergeMethods: Schema.optional(Schema.Array(pullRequestMergeMethodSchema)),
   labels: Schema.Array(
     Schema.Struct({ name: Schema.String, color: Schema.String }),
   ),

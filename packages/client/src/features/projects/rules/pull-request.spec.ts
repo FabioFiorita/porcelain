@@ -7,6 +7,8 @@ import {
   pullCheckDuration,
   pullCheckTone,
   pullRequestMergeable,
+  pullRequestMergeBlock,
+  pullRequestMergeMethods,
   pullRequestNumber,
   pullRequestRepository,
   pullRequestRollup,
@@ -301,4 +303,78 @@ it('names each recorded check result and the commit it ran on', () => {
   });
   expect(recorded('PENDING', []).label).toBe('Checks running at abcdef1');
   expect(recorded('SOMETHING_NEW', []).label).toBe('Checks at abcdef1');
+});
+
+const mergeablePull = {
+  state: 'open',
+  draft: false,
+  mergeable: 'MERGEABLE',
+  checks: [passed],
+  checksTruncated: false,
+  checksSummary: 'SUCCESS',
+  baseBranch: 'main',
+  headSha: '653d8396c7c1b6a503c3096d3f46a0f45cf33ca8',
+} as const;
+
+it.each([
+  [{}, undefined],
+  [{ state: 'closed' }, 'This pull request is closed.'],
+  [{ draft: true }, 'It is a draft. Mark it ready for review on GitHub.'],
+  [{ mergeMethods: [] }, 'This repository allows no merge method.'],
+  [{ mergeable: 'CONFLICTING' }, 'It conflicts with main.'],
+  [{ mergeable: 'UNKNOWN' }, undefined],
+  [{ checks: [passed, failed] }, '1 of 2 checks failed.'],
+  [{ checks: [passed, running, pending] }, '2 of 3 checks running.'],
+  [
+    { checks: [passed], checksTruncated: true, checksSummary: 'PENDING' },
+    'Checks are still running.',
+  ],
+] as const)('explains why %o cannot merge', (change, reason) => {
+  expect(pullRequestMergeBlock({ ...mergeablePull, ...change })).toBe(reason);
+});
+
+it('asks the walkthrough to cover the head that would merge and every call to have a reply', () => {
+  expect(
+    pullRequestMergeBlock(mergeablePull, {
+      headOid: mergeablePull.headSha,
+      unansweredCallStep: undefined,
+    }),
+  ).toBeUndefined();
+  expect(
+    pullRequestMergeBlock(mergeablePull, {
+      headOid: 'ba370399bd1b3ac1a2c5a1d0f00df00df00df00d',
+      unansweredCallStep: undefined,
+    }),
+  ).toBe('The walkthrough covers ba37039; the pull request is at 653d839.');
+  expect(
+    pullRequestMergeBlock(mergeablePull, {
+      headOid: mergeablePull.headSha,
+      unansweredCallStep: 2,
+    }),
+  ).toBe('Your call in step 2 has no reply yet.');
+  expect(
+    pullRequestMergeBlock(mergeablePull, {
+      headOid: mergeablePull.headSha,
+      unansweredCallStep: 'reading',
+    }),
+  ).toBe('Reading your replies to the calls.');
+  expect(
+    pullRequestMergeBlock(
+      { ...mergeablePull, checks: [failed] },
+      { headOid: mergeablePull.headSha, unansweredCallStep: 2 },
+    ),
+  ).toBe('1 of 1 check failed.');
+});
+
+it('offers the merge methods the repository allows, or all three when unknown', () => {
+  expect(
+    pullRequestMergeMethods({ mergeMethods: ['squash'] }).map(
+      ({ label }) => label,
+    ),
+  ).toEqual(['Squash and merge']);
+  expect(pullRequestMergeMethods({}).map(({ method }) => method)).toEqual([
+    'merge',
+    'squash',
+    'rebase',
+  ]);
 });

@@ -17,7 +17,7 @@ import {
 import { branchReviewRange } from '@porcelain/client/changes/rules';
 import { BranchBasePicker } from './branch-base-picker';
 import { branchChangeStatus } from '@porcelain/client/files/rules';
-import { SidebarDocumentRow } from './sidebar-section';
+import { ReviewedCount, SidebarDocumentRow } from './sidebar-section';
 import { ChangeRow } from './change-row';
 import { groupSpecPaths } from '@porcelain/client/changes/rules';
 import { useSpecsApart } from '@/features/preferences/index';
@@ -55,7 +55,7 @@ export function BranchIndex({
 }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="shrink-0 px-2 pt-2">
+      <div className="shrink-0 px-2.5 pt-2">
         <BranchBasePicker
           scope={scope}
           connection={context.connection}
@@ -173,10 +173,14 @@ function BranchFileList({
   );
   return (
     <ScrollArea className="h-0 min-h-0 flex-1">
-      <div className="p-2 pr-3">
-        <p className="px-2 pb-1.5 text-2xs text-muted-foreground">
-          {commits} on {head} since {refLabel(branch.base.ref)}
-        </p>
+      <div className="px-2.5 pt-2 pb-3">
+        <ReviewedCount
+          reviewed={
+            items.filter((item) => item.reviewStatus === 'reviewed').length
+          }
+          total={items.length}
+          label={`${commits} on ${head} since ${refLabel(branch.base.ref)}`}
+        />
         <SidebarDocumentRow
           label={allLabel}
           active={activeEntry === entryKey(BRANCH)}
@@ -190,7 +194,7 @@ function BranchFileList({
           </span>
         </SidebarDocumentRow>
         {items.length === 0 && (
-          <p className="p-3 text-sm text-muted-foreground">
+          <p className="px-2 py-1 text-caption text-muted-foreground">
             No changes since {refLabel(branch.base.ref)}
           </p>
         )}

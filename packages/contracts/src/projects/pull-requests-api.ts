@@ -2,6 +2,7 @@ import {
   archivePullRequestRequestSchema,
   archivePullRequestResponseSchema,
 } from '@porcelain/projects/models';
+import { PullRequestMergeRefusedError } from '@porcelain/reviews/errors';
 import { HttpApiEndpoint, HttpApiGroup } from 'effect/http-api';
 import { porcelainApi } from '../shared/http-api.ts';
 import { PairedRequest } from '../shared/http-caller.ts';
@@ -18,6 +19,8 @@ import {
   setGitHubAccountRequestSchema,
   readPullRequestResponseSchema,
   readPullChecksResponseSchema,
+  mergePullRequestRequestSchema,
+  mergePullRequestResponseSchema,
 } from './pull-requests.ts';
 
 export class PullRequestsApi extends porcelainApi.add(
@@ -85,6 +88,22 @@ export class PullRequestsApi extends porcelainApi.add(
           error: [
             httpFailure(ProjectNotFoundError, 'NotFound'),
             httpFailure(BranchArchiveRefusedError, 'Conflict', {
+              message: { fromError: true },
+            }),
+          ],
+        },
+      ),
+      HttpApiEndpoint.post(
+        'mergePullRequest',
+        '/api/projects/:projectId/pull-requests/:number/merge',
+        {
+          disableCodecs: true,
+          params: projectPullRequestParamsSchema,
+          payload: mergePullRequestRequestSchema,
+          success: mergePullRequestResponseSchema,
+          error: [
+            httpFailure(ProjectNotFoundError, 'NotFound'),
+            httpFailure(PullRequestMergeRefusedError, 'Conflict', {
               message: { fromError: true },
             }),
           ],

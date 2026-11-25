@@ -9,6 +9,7 @@ export { captureGitPlatform } from './capture-platform.ts';
 
 export {
   listGitHubAccounts,
+  mergeGitHubPullRequest,
   postGitHubIssueComment,
   readGitHubApi,
 } from './commands/github-read.ts';

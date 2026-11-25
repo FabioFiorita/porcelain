@@ -10,23 +10,24 @@ import {
 } from '@porcelain/client/access/rules';
 import { CopyIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { FieldLegend, FieldSet } from '@/components/ui/field';
 import {
   Item,
   ItemActions,
   ItemContent,
   ItemDescription,
-  ItemGroup,
   ItemTitle,
 } from '@/components/ui/item';
+import {
+  SettingsGroup,
+  SettingsSection,
+} from '@/shared/views/settings-section';
 import { copyText } from '@/shared/workspace/copy';
 
 export function SavedWaysIn({ remote }: { remote: Remote }) {
   const routes = connectionRoutes(remote);
   return (
-    <FieldSet>
-      <FieldLegend variant="label">Saved connections</FieldLegend>
-      <ItemGroup>
+    <SettingsSection id="saved-connections" title="Saved connections">
+      <SettingsGroup>
         {routes.map(({ address }) => (
           <Item key={address}>
             <ItemContent>
@@ -55,10 +56,7 @@ export function SavedWaysIn({ remote }: { remote: Remote }) {
             </ItemActions>
           </Item>
         ))}
-      </ItemGroup>
-      <p className="text-xs text-muted-foreground">
-        The addresses this app tries, in order, to reach that computer.
-      </p>
-    </FieldSet>
+      </SettingsGroup>
+    </SettingsSection>
   );
 }

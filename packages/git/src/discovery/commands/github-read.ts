@@ -16,7 +16,7 @@ class GitHubCommandError extends Schema.TaggedError<GitHubCommandError>()(
   },
 ) {}
 
-const output = Effect.fn('Git.githubOutput')(function* (
+const invoke = Effect.fn('Git.githubInvoke')(function* (
   args: readonly string[],
   limits: GitLimits,
   token?: Redacted.Redacted<string>,
@@ -56,22 +56,39 @@ const output = Effect.fn('Git.githubOutput')(function* (
     return yield* new GitHubCommandError({ reason: 'offline' });
   if (result.stopped === 'output-limit')
     return yield* new GitHubCommandError({ reason: 'invalid-response' });
-  if (result.exitCode !== 0) {
-    const message = result.stderr.toString('utf8').toLowerCase();
-    const reason =
-      message.includes('rate limit') ||
-      message.includes('rate_limit') ||
-      message.includes('http 429')
-        ? 'rate-limited'
-        : message.includes('could not resolve to a pullrequest')
-          ? 'not-found'
-          : message.includes('http 40') ||
-              message.includes('could not resolve to a repository') ||
-              message.includes('not logged')
-            ? 'no-access'
-            : 'offline';
-    return yield* new GitHubCommandError({ reason });
-  }
+  return result;
+});
+
+function failureReason(stderr: string) {
+  const message = stderr.toLowerCase();
+  if (
+    message.includes('rate limit') ||
+    message.includes('rate_limit') ||
+    message.includes('http 429')
+  )
+    return 'rate-limited';
+  if (message.includes('could not resolve to a pullrequest'))
+    return 'not-found';
+  if (
+    message.includes('http 40') ||
+    message.includes('could not resolve to a repository') ||
+    message.includes('not logged')
+  )
+    return 'no-access';
+  return 'offline';
+}
+
+const output = Effect.fn('Git.githubOutput')(function* (
+  args: readonly string[],
+  limits: GitLimits,
+  token?: Redacted.Redacted<string>,
+  stdin?: string,
+) {
+  const result = yield* invoke(args, limits, token, stdin);
+  if (result.exitCode !== 0)
+    return yield* new GitHubCommandError({
+      reason: failureReason(result.stderr.toString('utf8')),
+    });
   const text = result.stdout.toString('utf8');
   if (token !== undefined && text.includes(Redacted.value(token)))
     return yield* new GitHubCommandError({ reason: 'invalid-response' });
@@ -183,3 +200,84 @@ export const readGitHubApi = Effect.fn('Git.readGitHubApi')(function* (
   }
   return yield* output(args, limits, token);
 });
+
+class GitHubMergeRefusedError extends Schema.TaggedError<GitHubMergeRefusedError>()(
+  'GitHubMergeRefusedError',
+  {
+    reason: Schema.Literals(['not-mergeable', 'head-changed']),
+    detail: Schema.String,
+  },
+) {}
+
+const githubMergeSchema = Schema.fromJsonString(
+  Schema.Struct({
+    merged: Schema.Boolean,
+    sha: Schema.optional(Schema.String),
+  }),
+);
+
+function githubRefusal(stderr: string, token: Redacted.Redacted<string>) {
+  const line = stderr
+    .split('\n')
+    .map((text) => text.trim())
+    .find((text) => /\(HTTP 40[59]\)$/.test(text));
+  if (!line) return undefined;
+  const detail = line
+    .replace(/^gh:\s*/, '')
+    .replace(/\s*\(HTTP 40[59]\)$/, '')
+    .slice(0, 300);
+  return new GitHubMergeRefusedError({
+    reason: line.endsWith('(HTTP 409)') ? 'head-changed' : 'not-mergeable',
+    detail: detail.includes(Redacted.value(token)) ? '' : detail,
+  });
+}
+
+export const mergeGitHubPullRequest = Effect.fn('Git.mergeGitHubPullRequest')(
+  function* (
+    input: {
+      account: string;
+      owner: string;
+      repo: string;
+      number: number;
+      method: 'merge' | 'squash' | 'rebase';
+      headSha: string;
+    },
+    limits: GitLimits,
+  ) {
+    const token = yield* githubToken(input.account, limits);
+    const result = yield* invoke(
+      [
+        'api',
+        '--hostname',
+        'github.com',
+        `repos/${encodeURIComponent(input.owner)}/${encodeURIComponent(input.repo)}/pulls/${input.number}/merge`,
+        '--method',
+        'PUT',
+        '--input',
+        '-',
+      ],
+      limits,
+      token,
+      JSON.stringify({ merge_method: input.method, sha: input.headSha }),
+    );
+    if (result.exitCode !== 0) {
+      const stderr = result.stderr.toString('utf8');
+      const refusal = githubRefusal(stderr, token);
+      if (refusal) return yield* refusal;
+      return yield* new GitHubCommandError({ reason: failureReason(stderr) });
+    }
+    const decoded = yield* Schema.decodeEffect(githubMergeSchema)(
+      result.stdout.toString('utf8'),
+    ).pipe(
+      Effect.mapError(
+        () => new GitHubCommandError({ reason: 'invalid-response' }),
+      ),
+    );
+    if (!decoded.merged)
+      return yield* new GitHubMergeRefusedError({
+        reason: 'not-mergeable',
+        detail: '',
+      });
+    return decoded.sha;
+  },
+);

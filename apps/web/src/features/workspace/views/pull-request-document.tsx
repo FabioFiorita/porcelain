@@ -13,7 +13,10 @@ import {
   LockKeyholeIcon,
   SettingsIcon,
 } from 'lucide-react';
-import { ArchivePullRequest } from '@/features/projects/index';
+import {
+  ArchivePullRequest,
+  MergePullRequest,
+} from '@/features/projects/index';
 import { readProjectPullRequest } from '@porcelain/client/projects';
 import type { PullRequestRead } from '@porcelain/client/projects/rules';
 import {
@@ -166,6 +169,14 @@ export function PullRequestDocument({
             className="min-w-0 shrink-0 @min-4xl/pr:w-68"
           >
             <PullRequestChecks pull={pull} />
+            {pull.state === 'open' && (
+              <MergePullRequest
+                context={context}
+                projectId={projectId}
+                pull={pull}
+                className="mt-3"
+              />
+            )}
           </aside>
         </div>
       </article>

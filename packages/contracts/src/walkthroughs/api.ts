@@ -75,6 +75,7 @@ const readWalkthroughQuerySchema = Schema.Struct({
   excerptBlock: Schema.optional(
     Schema.NumberFromString.check(Schema.isInt(), Schema.isGreaterThan(0)),
   ),
+  excerptNode: Schema.optional(Schema.String),
 });
 export type ReadWalkthroughQuery = typeof readWalkthroughQuerySchema.Type;
 export const readWalkthroughResponseSchema = Schema.Struct({

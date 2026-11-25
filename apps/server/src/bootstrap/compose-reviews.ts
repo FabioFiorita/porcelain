@@ -2,6 +2,7 @@ import { Context, Effect, Layer, Clock } from 'effect';
 import type { ghPullRequestReaderLayer } from '../adapters/reviews/gh-pull-request-reader.ts';
 import { gitProjectRepositoryReaderLayer } from '../adapters/projects/git-project-repository-reader.ts';
 import { gitBranchArchiverLayer } from '../adapters/projects/git-branch-archiver.ts';
+import { ghPullRequestMergerLayer } from '../adapters/reviews/gh-pull-request-merger.ts';
 import { CacheWalkthroughPullTitlesService } from '@porcelain/walkthroughs/services';
 import { WalkthroughStore } from '@porcelain/walkthroughs/ports';
 import {
@@ -15,6 +16,7 @@ import {
   ReadGitHubPullRequestService,
   ReadGitHubPullChecksService,
   ListGitHubPullRequestsService,
+  MergeGitHubPullRequestService,
   SetReviewedFilesService,
   ListReviewedFilesService,
   RemoveReviewedFilesService,
@@ -47,6 +49,7 @@ import { ReadProjectGitHubTargetUseCase } from '../use-cases/projects/read-proje
 import { ReadProjectPullRequestUseCase } from '../use-cases/projects/read-project-pull-request.ts';
 import { ReadProjectPullChecksUseCase } from '../use-cases/projects/read-project-pull-checks.ts';
 import { ArchivePullRequestUseCase } from '../use-cases/projects/archive-pull-request.ts';
+import { MergePullRequestUseCase } from '../use-cases/projects/merge-pull-request.ts';
 import { ReadProjectGitHubAccountUseCase } from '../use-cases/reviews/read-project-github-account.ts';
 import { ListProjectPullRequestsUseCase } from '../use-cases/reviews/list-project-pull-requests.ts';
 import { ListReviewedFilesUseCase } from '../use-cases/reviews/list-reviewed-files.ts';
@@ -74,6 +77,7 @@ export function composeReviews(
   const ports = Layer.mergeAll(
     dependencies.githubReader(context.settings.limits.git),
     gitBranchArchiverLayer(context.settings.limits.git),
+    ghPullRequestMergerLayer(context.settings.limits.git),
     ReadRepositoryOriginService.layer.pipe(
       Layer.provide(
         gitProjectRepositoryReaderLayer(context.settings.limits.git),
@@ -109,6 +113,7 @@ export function composeReviews(
     ReadGitHubPullRequestService.layer,
     ReadGitHubPullChecksService.layer,
     ListGitHubPullRequestsService.layer,
+    MergeGitHubPullRequestService.layer,
     CacheWalkthroughPullTitlesService.layer,
     CheckProjectService.layer,
     WorktreeAccess.layer,
@@ -145,9 +150,10 @@ export function composeReviews(
     ReadProjectPullRequestUseCasePort,
     ReadProjectPullRequestUseCase,
   ).pipe(Layer.provideMerge(operations));
-  const application = ArchivePullRequestUseCase.layer.pipe(
-    Layer.provideMerge(readPull),
-  );
+  const application = Layer.mergeAll(
+    ArchivePullRequestUseCase.layer,
+    MergePullRequestUseCase.layer,
+  ).pipe(Layer.provideMerge(readPull));
   return Effect.gen(function* () {
     const runtime = yield* Layer.build(application);
     const useCases = {
@@ -157,6 +163,7 @@ export function composeReviews(
       ),
       readProjectPullChecks: Context.get(runtime, ReadProjectPullChecksUseCase),
       archivePullRequest: Context.get(runtime, ArchivePullRequestUseCase),
+      mergePullRequest: Context.get(runtime, MergePullRequestUseCase),
       readProjectGitHubAccount: Context.get(
         runtime,
         ReadProjectGitHubAccountUseCase,

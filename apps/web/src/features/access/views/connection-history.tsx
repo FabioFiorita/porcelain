@@ -28,7 +28,9 @@ export function ConnectionHistory({
 
   return (
     <Collapsible>
-      <CollapsibleTrigger render={<Button variant="ghost" size="sm" />}>
+      <CollapsibleTrigger
+        render={<Button variant="ghost" size="sm" className="-ml-2 w-fit" />}
+      >
         Connection history
       </CollapsibleTrigger>
       <CollapsibleContent>

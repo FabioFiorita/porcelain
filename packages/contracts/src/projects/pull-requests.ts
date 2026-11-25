@@ -6,6 +6,7 @@ import {
   pullRequestSchema,
   pullRequestSummarySchema,
   pullChecksResultSchema,
+  pullRequestMergeMethodSchema,
 } from '@porcelain/reviews/models';
 export const readPullRequestResponseSchema = Schema.Union([
   Schema.Struct({
@@ -66,3 +67,15 @@ export const projectPullRequestParamsSchema = Schema.Struct({
 });
 export type ProjectPullRequestParams =
   typeof projectPullRequestParamsSchema.Type;
+
+export const mergePullRequestRequestSchema = Schema.Struct({
+  method: pullRequestMergeMethodSchema,
+  headSha: Schema.String.check(Schema.isPattern(/^[0-9a-f]{40}$/)),
+});
+export type MergePullRequestRequest = typeof mergePullRequestRequestSchema.Type;
+export const mergePullRequestResponseSchema = Schema.Struct({
+  merged: Schema.Literal(true),
+});
+export type MergePullRequestResponse =
+  typeof mergePullRequestResponseSchema.Type;
+export type { PullRequestMergeMethod } from '@porcelain/reviews/models';

@@ -1,17 +1,8 @@
 import { useState } from 'react';
 import { FileDiff } from '@pierre/diffs/react';
 import { AsyncResult } from 'effect/reactivity';
-import { ArrowLeftIcon, ArrowDownRightIcon } from 'lucide-react';
+import { ChevronRightIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
 import { useTheme } from '@/features/preferences/index';
 import type { DocumentProps } from '@/features/workspace/index';
 import {
@@ -19,11 +10,13 @@ import {
   PIERRE_SURFACE_CSS,
   PIERRE_THEME,
 } from '@/shared/lib/pierre';
+import { cn } from '@/shared/lib/utils';
 import { PendingSpinner } from '@/shared/views/state-notice';
 import type { WalkthroughExcerpt as Excerpt } from '@porcelain/client/walkthroughs/rules';
 import { capturedExcerpt } from '../adapters/captured-excerpt';
 import { useCapturedWalkthroughPatch } from '../queries/walkthrough';
 import { RichText } from './rich-text';
+import { useCitedFiles } from './cited-files';
 
 type ExcerptProps = {
   document: DocumentProps;
@@ -39,14 +32,19 @@ function CapturedLines({ document, runId, step, excerpt }: ExcerptProps) {
     runId,
     step,
     excerpt.position,
+    excerpt.node,
   );
   const { dark } = useTheme();
   if (AsyncResult.isInitial(result))
-    return <PendingSpinner label="Loading captured lines" />;
+    return (
+      <div className="px-3 py-2">
+        <PendingSpinner label="Loading captured lines" />
+      </div>
+    );
   if (AsyncResult.isFailure(result))
     return (
       <div
-        className="flex flex-wrap items-center gap-2 text-prose"
+        className="flex flex-wrap items-center gap-2 px-3 py-2 text-ui"
         role="alert"
       >
         <p>The captured diff could not be read.</p>
@@ -62,85 +60,88 @@ function CapturedLines({ document, runId, step, excerpt }: ExcerptProps) {
       : undefined;
   if (!file)
     return (
-      <div className="flex flex-col items-start gap-3 text-prose">
+      <div className="flex flex-wrap items-center gap-2 px-3 py-2 text-ui">
         <p>These lines are unavailable in the saved walkthrough.</p>
-        <DialogClose
-          render={<Button variant="outline" size="sm" />}
+        <Button
+          variant="outline"
+          size="sm"
           onClick={() => document.onOpen({ kind: 'walkthrough-step', step })}
         >
           Open step code
-        </DialogClose>
+        </Button>
       </div>
     );
   const side = excerpt.side === 'old' ? 'deletions' : 'additions';
   return (
-    <div className="min-w-0 overflow-auto rounded-lg border">
-      <FileDiff
-        fileDiff={file}
-        options={{
-          preferredHighlighter: PIERRE_HIGHLIGHTER,
-          theme: PIERRE_THEME,
-          themeType: dark ? 'dark' : 'light',
-          overflow: 'wrap',
-          disableFileHeader: true,
-          unsafeCSS: PIERRE_SURFACE_CSS,
-          diffStyle: 'unified',
-        }}
-        selectedLines={{
-          start: excerpt.start,
-          end: excerpt.end,
-          side,
-          endSide: side,
-        }}
-      />
-    </div>
+    <FileDiff
+      fileDiff={file}
+      options={{
+        preferredHighlighter: PIERRE_HIGHLIGHTER,
+        theme: PIERRE_THEME,
+        themeType: dark ? 'dark' : 'light',
+        overflow: 'wrap',
+        disableFileHeader: true,
+        unsafeCSS: PIERRE_SURFACE_CSS,
+        diffStyle: 'unified',
+      }}
+      selectedLines={{
+        start: excerpt.start,
+        end: excerpt.end,
+        side,
+        endSide: side,
+      }}
+    />
   );
 }
 
 export function WalkthroughExcerpt(props: ExcerptProps) {
-  const [open, setOpen] = useState(false);
-  const { excerpt } = props;
+  const [open, setOpen] = useState(true);
+  const { excerpt, document } = props;
+  const cited = useCitedFiles(document, []);
+  const opening = cited.opening(excerpt.path);
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <DialogTrigger
-          render={<Button size="sm" variant="outline" />}
-          aria-description={`${excerpt.path} · ${excerpt.lines}`}
-        >
-          <ArrowDownRightIcon />
-          See the lines
-        </DialogTrigger>
-        <span className="min-w-0 font-mono text-caption text-muted-foreground wrap-anywhere">
-          {excerpt.path} · {excerpt.lines}
-        </span>
-      </div>
-      <DialogContent
-        className="max-h-[calc(100dvh-2rem)] overflow-auto sm:max-w-2xl"
-        showCloseButton={false}
-      >
-        <DialogHeader className="min-w-0">
-          <DialogClose
-            render={
-              <Button size="sm" variant="ghost" className="-ml-2 self-start" />
-            }
-          >
-            <ArrowLeftIcon />
-            Back to step
-          </DialogClose>
-          <DialogTitle>Captured diff</DialogTitle>
-          <DialogDescription>
-            <span className="font-mono break-all">
-              {excerpt.path} · {excerpt.lines}
-            </span>
-          </DialogDescription>
-          {excerpt.caption && (
-            <p className="text-prose">
-              <RichText text={excerpt.caption} />
-            </p>
+    <figure className="flex min-w-0 flex-col gap-1.5">
+      {excerpt.caption && (
+        <figcaption className="text-ui text-foreground-2">
+          <RichText text={excerpt.caption} />
+        </figcaption>
+      )}
+      <div className="min-w-0 overflow-hidden rounded-md border">
+        <div
+          className={cn(
+            'flex min-h-8 items-center gap-1 bg-muted/50 pr-1',
+            open && 'border-b',
           )}
-        </DialogHeader>
+        >
+          <button
+            type="button"
+            aria-expanded={open}
+            aria-label={`${open ? 'Hide' : 'Show'} the lines: ${excerpt.path} · ${excerpt.lines}`}
+            onClick={() => setOpen(!open)}
+            className="flex min-w-0 flex-1 items-center gap-1.5 self-stretch px-2 py-1 text-left font-mono text-caption text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+          >
+            <ChevronRightIcon
+              aria-hidden
+              className={cn('size-3.5 shrink-0', open && 'rotate-90')}
+            />
+            <span className="flex min-w-0 flex-wrap items-baseline gap-x-1.5">
+              <span className="text-foreground wrap-anywhere">
+                {excerpt.path}
+              </span>
+              <span>{excerpt.lines}</span>
+            </span>
+          </button>
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={opening === undefined}
+            onClick={() => cited.open(excerpt.path)}
+          >
+            Open file
+          </Button>
+        </div>
         {open && <CapturedLines {...props} />}
-      </DialogContent>
-    </Dialog>
+      </div>
+    </figure>
   );
 }

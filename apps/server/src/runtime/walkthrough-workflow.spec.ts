@@ -106,7 +106,7 @@ it('accepts one durable active run per head, serializes writers, drains foreign 
       Layer.mergeAll(
         database,
         cliWalkthroughWriterLayer({ processGroup, command }).pipe(
-          Layer.provide(
+          Layer.provideMerge(
             Layer.succeed(WalkthroughModelReader, {
               read: () =>
                 Effect.succeed([
@@ -321,7 +321,7 @@ it.each(['signed_out', 'other'] as const)(
               busyTimeoutMs: 5000,
             }).pipe(Layer.provide(NodeServices.layer)),
             cliWalkthroughWriterLayer({ processGroup, command }).pipe(
-              Layer.provide(
+              Layer.provideMerge(
                 Layer.succeed(WalkthroughModelReader, {
                   read: () =>
                     Effect.succeed([

@@ -8,5 +8,11 @@ export {
   pullRequestSchema,
   githubPullChecksSchema,
   pullChecksResultSchema,
+  pullRequestMergeMethodSchema,
+  pullRequestMergeRefusalSchema,
 } from './pull-request.ts';
-export type { GitHubRepository, GitHubAccountResult } from './pull-request.ts';
+export type {
+  GitHubRepository,
+  GitHubAccountResult,
+  PullRequestMergeMethod,
+} from './pull-request.ts';

@@ -1,9 +1,11 @@
 import type { Connection } from '@/shared/workspace/connection';
 import { WalkthroughWriterForm } from './walkthrough-writer-form';
-import { FieldSet, FieldLegend } from '@/components/ui/field';
+import {
+  SettingsGroup,
+  SettingsSection,
+} from '@/shared/views/settings-section';
 import {
   Item,
-  ItemGroup,
   ItemContent,
   ItemTitle,
   ItemDescription,
@@ -15,11 +17,10 @@ export function WalkthroughSettings({
   connection: Connection;
 }) {
   return (
-    <FieldSet>
-      <FieldLegend variant="label">Walkthroughs</FieldLegend>
-      <ItemGroup>
-        <Item variant="outline">
-          <ItemContent className="min-w-0">
+    <SettingsSection id="walkthroughs" title="Walkthroughs">
+      <SettingsGroup>
+        <Item>
+          <ItemContent className="min-w-0 basis-72">
             <ItemTitle>Default walkthrough writer</ItemTitle>
             <ItemDescription>
               Saved on this computer for manual and automatic walkthroughs. Each
@@ -31,7 +32,7 @@ export function WalkthroughSettings({
             <WalkthroughWriterForm connection={connection} />
           </ItemActions>
         </Item>
-      </ItemGroup>
-    </FieldSet>
+      </SettingsGroup>
+    </SettingsSection>
   );
 }

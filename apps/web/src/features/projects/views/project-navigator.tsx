@@ -5,6 +5,7 @@ import {
 } from '@porcelain/client/projects/rules';
 import { TruncatedText } from '@/shared/views/truncated-text';
 import { NavigatorRowMenu } from './navigator-row-menu';
+import { relativeTime } from '@/shared/lib/relative-time';
 import { formatForDisplay } from '@tanstack/react-hotkeys';
 import { Kbd } from '@/components/ui/kbd';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
@@ -33,9 +34,11 @@ import {
   emptyNavigatorFilter,
   navigatorEntryLabel,
   navigatorEntrySelected,
+  navigatorCardChangesLabel,
   navigatorChecksLabel,
   navigatorRowTitle,
   navigatorRowTrailing,
+  navigatorTouchedAt,
   navigatorVisibleRows,
   type NavigatorEntry,
 } from '@porcelain/client/projects/rules';
@@ -465,7 +468,7 @@ export function ProjectNavigator({
                                 disclose="always"
                                 renderTrigger={(_label, clip) => (
                                   <Item
-                                    className="w-full cursor-pointer text-left"
+                                    className="w-full cursor-pointer py-1.5 text-left text-[length:var(--text-ui)] leading-4.5"
                                     data-sidebar="menu-button"
                                     size="xs"
                                     aria-label={label}
@@ -479,8 +482,8 @@ export function ProjectNavigator({
                                       />
                                     }
                                   >
-                                    <ItemMedia>
-                                      <EntryIcon className="size-3.5 text-muted-foreground" />
+                                    <ItemMedia className="self-start">
+                                      <EntryIcon className="mt-0.5 size-3.5 text-muted-foreground" />
                                     </ItemMedia>
                                     <ItemContent className="min-w-0">
                                       <div className="flex min-w-0 items-center gap-1">
@@ -496,25 +499,16 @@ export function ProjectNavigator({
                                             aria-hidden="true"
                                           />
                                         )}
-                                        {trailing?.kind === 'pull-request' && (
-                                          <span
-                                            aria-hidden="true"
-                                            data-trailing={trailing.text}
-                                            className={cn(
-                                              buttonVariants({
-                                                variant: 'ghost',
-                                                size: 'xs',
-                                              }),
-                                              'invisible shrink-0 text-2xs tabular-nums before:content-[attr(data-trailing)]',
-                                            )}
-                                          />
-                                        )}
-                                        {trailing?.kind === 'changes' && (
-                                          <span className="shrink-0 text-2xs text-muted-foreground tabular-nums">
-                                            {trailing.text}
-                                          </span>
-                                        )}
+                                        <NavigatorRowAge entry={entry} />
                                       </div>
+                                      <NavigatorRowMeta
+                                        entry={entry}
+                                        pullRequest={
+                                          trailing?.kind === 'pull-request'
+                                            ? trailing.text
+                                            : undefined
+                                        }
+                                      />
                                     </ItemContent>
                                   </Item>
                                 )}
@@ -523,7 +517,7 @@ export function ProjectNavigator({
                                 <Button
                                   variant="ghost"
                                   size="xs"
-                                  className="absolute top-1/2 right-2.75 shrink-0 -translate-y-1/2 cursor-pointer"
+                                  className="absolute right-0.5 bottom-1 shrink-0 cursor-pointer"
                                   aria-label={`Open PR #${trailing.number} · ${entry.projectName} · ${entry.environmentName} · ${navigatorChecksLabel(review?.checks)}`}
                                   onClick={() => {
                                     onOpenPullRequest(entry);
@@ -550,7 +544,7 @@ export function ProjectNavigator({
                             setShowingAll(source.key, shown.more > 0)
                           }
                         >
-                          <span className="text-muted-foreground">
+                          <span className="text-2xs text-muted-foreground">
                             {shown.more > 0
                               ? `Show ${shown.more} more`
                               : 'Show less'}
@@ -637,6 +631,47 @@ export function ProjectNavigator({
       </Sidebar>
       <DeleteWorktreeDialog />
       <SwitchWorktreeBranchDialog />
+    </div>
+  );
+}
+
+function NavigatorRowAge({ entry }: { entry: NavigatorEntry }) {
+  const touched = navigatorTouchedAt(entry);
+  if (!touched) return null;
+  return (
+    <span className="shrink-0 text-2xs text-muted-foreground tabular-nums">
+      {relativeTime(touched, undefined, 'narrow')}
+    </span>
+  );
+}
+
+function NavigatorRowMeta({
+  entry,
+  pullRequest,
+}: {
+  entry: NavigatorEntry;
+  pullRequest: string | undefined;
+}) {
+  const branch = entry.displayTitle === undefined ? undefined : entry.branch;
+  const changes = navigatorCardChangesLabel(entry.changes);
+  const detail = [branch, changes === '—' ? undefined : changes]
+    .filter(Boolean)
+    .join(' · ');
+  if (!detail && pullRequest === undefined) return null;
+  return (
+    <div className="flex min-w-0 items-center gap-2 text-2xs leading-4 text-muted-foreground">
+      <TruncatedText className="min-w-0 flex-1" text={detail} />
+      {pullRequest !== undefined && (
+        <span
+          aria-hidden="true"
+          className={cn(
+            buttonVariants({ variant: 'ghost', size: 'xs' }),
+            'invisible h-4 shrink-0 text-2xs tabular-nums',
+          )}
+        >
+          {pullRequest}
+        </span>
+      )}
     </div>
   );
 }

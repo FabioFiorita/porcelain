@@ -7,7 +7,11 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { type ChangeScope } from '@/shared/workspace/search';
 import { SegmentedTabs } from './segmented-tabs';
 import { useChanges } from '@/features/changes/index';
-import { SidebarGroup, SidebarDocumentRow } from './sidebar-section';
+import {
+  ReviewedCount,
+  SidebarGroup,
+  SidebarDocumentRow,
+} from './sidebar-section';
 import { useToggleReviewed } from '../commands/reviewed';
 
 import { usePrefetchReviewed, useReviewChangeItems } from '../queries/reviewed';
@@ -220,9 +224,21 @@ function LayersView({
   return (
     <ScrollArea className="h-0 min-h-0 flex-1">
       <div className="px-2.5 pt-2 pb-3">
+        {paths.length > 0 && (
+          <ReviewedCount
+            reviewed={
+              paths.filter(
+                (path) => changeByPath.get(path)?.reviewStatus === 'reviewed',
+              ).length
+            }
+            total={paths.length}
+          />
+        )}
         {navigation()}
         {!Grouping && paths.length === 0 && (
-          <p className="p-3 text-sm text-muted-foreground">No changes</p>
+          <p className="px-2 py-1 text-caption text-muted-foreground">
+            No changes
+          </p>
         )}
         {!Grouping && mainPaths.length > 0 && (
           <SidebarGroup

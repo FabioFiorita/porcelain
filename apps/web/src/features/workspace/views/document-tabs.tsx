@@ -6,6 +6,7 @@ import { Option } from 'effect';
 import type { HistoryScope } from '@porcelain/client/history/rules';
 import type { Connection } from '@/shared/workspace/connection';
 import { TruncatedText } from '@/shared/views/truncated-text';
+import { WindowDragRegion } from '@/shared/views/window-drag-region';
 import { formatForDisplay } from '@tanstack/react-hotkeys';
 import {
   Columns2Icon,
@@ -196,10 +197,11 @@ export function DocumentTabs({
     <div
       data-pane-bar=""
       className={cn(
-        'flex h-12 shrink-0 items-center gap-1.5 border-b px-2.5 text-[length:var(--text-ui)] leading-[1.4]',
+        'relative flex h-12 shrink-0 items-center gap-1.5 border-b px-2.5 text-[length:var(--text-ui)] leading-[1.4]',
         side !== null && side !== undefined && 'gap-2',
       )}
     >
+      <WindowDragRegion />
       {leading !== null && leading !== undefined && (
         <div className="flex shrink-0 items-center">{leading}</div>
       )}
@@ -365,7 +367,7 @@ export function DocumentTabs({
         </DropdownMenu>
       )}
       {trailing !== null && trailing !== undefined && (
-        <div className="ml-1 flex shrink-0 items-center gap-0.5 border-l pl-2">
+        <div className="relative flex shrink-0 items-center gap-1">
           {trailing}
         </div>
       )}
@@ -417,10 +419,7 @@ function DocumentTab({
         }}
       >
         <TruncatedText
-          className={cn(
-            'min-w-0 flex-1',
-            tabKey.startsWith('file:') && 'italic',
-          )}
+          className="min-w-0 flex-1"
           text={pinned ? `${tabHint} · pinned` : tabHint}
           disclose="always"
           renderTrigger={(label) => (

@@ -73,6 +73,34 @@ export function walkthroughCalls(content: WalkthroughContent) {
   );
 }
 
+export function unansweredCallStep(
+  content: WalkthroughContent,
+  conversations:
+    | readonly {
+        readonly anchor: { readonly kind: string; readonly title?: string };
+        readonly messages: readonly { readonly author: string }[];
+      }[]
+    | undefined,
+  failed = false,
+): number | 'reading' | 'unreadable' | undefined {
+  if (walkthroughCalls(content).length === 0) return undefined;
+  if (!conversations) return failed ? 'unreadable' : 'reading';
+  const answered = new Set(
+    conversations
+      .filter(
+        (conversation) =>
+          conversation.anchor.kind === 'stop' &&
+          conversation.messages.some(
+            (message) => message.author === 'developer',
+          ),
+      )
+      .map((conversation) => conversation.anchor.title),
+  );
+  return walkthroughCalls(content).find(
+    (call) => !answered.has(call.stop.title),
+  )?.step;
+}
+
 export function walkthroughVerdict(content: WalkthroughContent) {
   const calls = walkthroughCalls(content).length;
   if (content.outcome === 'nothing') return 'Nothing needs you.';
@@ -218,6 +246,7 @@ export function walkthroughStartRequest(input: {
   branch: string | undefined;
   displayedRun: Pick<WalkthroughRun, 'pullRequestNumber'> | undefined;
   base?: string | undefined;
+  writer?: StartWalkthroughRequest['writer'];
 }): StartWalkthroughRequest {
   const listed =
     input.branch === undefined
@@ -229,6 +258,7 @@ export function walkthroughStartRequest(input: {
   return {
     ...(input.base === undefined ? {} : { base: input.base }),
     ...(pullRequestNumber === undefined ? {} : { pullRequestNumber }),
+    ...(input.writer === undefined ? {} : { writer: input.writer }),
   };
 }
 

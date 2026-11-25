@@ -2,7 +2,10 @@ import { createAlertDialogController } from '@/components/ui/alert-dialog';
 import { createDialogController } from '@/components/ui/dialog';
 import type { NavigatorEntry } from '@porcelain/client/projects/rules';
 import type { ConnectionContext } from '@/shared/workspace/connection';
-import type { ArchivePullRequestRequest } from '@porcelain/contracts/projects';
+import type {
+  ArchivePullRequestRequest,
+  PullRequestMergeMethod,
+} from '@porcelain/contracts/projects';
 import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
 
 type Project = ReadInventoryResponse['projects'][number];
@@ -25,6 +28,17 @@ export const archivePullRequestDialog = createAlertDialogController<{
   options: ArchivePullRequestRequest['options'];
   requestId: string;
   beforeLeave: () => void;
+}>();
+
+export const mergePullRequestDialog = createAlertDialogController<{
+  context: ConnectionContext;
+  projectId: string;
+  number: number;
+  headSha: string;
+  headBranch: string;
+  baseBranch: string;
+  methods: readonly PullRequestMergeMethod[];
+  requestId: string;
 }>();
 
 export const deleteWorktreeDialog = createAlertDialogController<{

@@ -7,13 +7,42 @@
 @custom-variant light (&:not(.dark));
 @custom-variant dark (&:is(.dark, .dark *));
 
+::selection {
+  background: color-mix(in oklab, var(--foreground) 14%, transparent);
+  color: inherit;
+}
+
 .desktop-shell .desktop-sidebar-header {
   padding-left: 82px;
+}
+
+.window-drag-region {
+  display: none;
+}
+
+.desktop-shell .window-drag-region {
+  display: block;
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
   app-region: drag;
 }
 
 .desktop-shell
-  :is(button, input, textarea, select, a, [role='button'], [role='separator']) {
+  :is(
+    button,
+    input,
+    textarea,
+    select,
+    a,
+    [role='button'],
+    [role='separator'],
+    [role='tab'],
+    [role='menu'],
+    [role='listbox'],
+    [role='dialog'],
+    [role='tooltip']
+  ) {
   app-region: no-drag;
 }
 
@@ -251,11 +280,5 @@
       [data-slot='input-group-control']
     ) {
     font-size: var(--text-base);
-  }
-}
-
-@media (min-width: 64rem) {
-  .settings-computer > :not(aside) {
-    grid-column: 1;
   }
 }

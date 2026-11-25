@@ -28,6 +28,8 @@ const blockTools = {
     'Show recorded PR check results for the captured head. Supply only the exact head commit.',
   callout:
     'Place a decision or risk as text. Supply a question and why it matters. Use a short two-column comparison when it helps.',
+  diagram:
+    'Draw how changed parts relate, as nodes and edges, only when a call path, data flow or responsibility changed. Anchor nodes to changed files and captured lines. Draw nothing the diff does not show; in a sequence, edge order is time.',
 } satisfies Record<WalkthroughBlockRequest['kind'], string>;
 
 export const openWalkthroughMcp = Effect.fn('WalkthroughWriter.openMcp')(

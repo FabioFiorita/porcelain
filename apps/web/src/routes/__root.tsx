@@ -1,6 +1,9 @@
 import type { AtomRegistry } from 'effect/reactivity';
 import { createRootRouteWithContext, Outlet } from '@tanstack/react-router';
-import { ArchivePullRequestDialog } from '@/features/projects/index';
+import {
+  ArchivePullRequestDialog,
+  MergePullRequestDialog,
+} from '@/features/projects/index';
 import { ThemeProvider } from '@/features/preferences/index';
 import { PendingIndicator } from '@/shared/views/state-notice';
 
@@ -16,6 +19,7 @@ function RootLayout() {
       <Outlet />
       <PendingIndicator />
       <ArchivePullRequestDialog />
+      <MergePullRequestDialog />
     </ThemeProvider>
   );
 }

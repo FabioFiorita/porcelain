@@ -111,3 +111,20 @@ export function SidebarGroup({
     </section>
   );
 }
+
+export function ReviewedCount({
+  reviewed,
+  total,
+  label,
+}: {
+  reviewed: number;
+  total: number;
+  label?: string;
+}) {
+  return (
+    <p className="flex min-w-0 items-baseline gap-2 px-2 pb-1.5 text-2xs text-muted-foreground tabular-nums">
+      <TruncatedText className="min-w-0 flex-1" text={label ?? ''} />
+      <span className="shrink-0">{`${reviewed} of ${total} reviewed`}</span>
+    </p>
+  );
+}

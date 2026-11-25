@@ -6,6 +6,7 @@ import { requestBody } from '../../hooks/request-body.ts';
 import type { ReadProjectPullRequestUseCase } from '../../../use-cases/projects/read-project-pull-request.ts';
 import type { ReadProjectPullChecksUseCase } from '../../../use-cases/projects/read-project-pull-checks.ts';
 import type { ArchivePullRequestUseCase } from '../../../use-cases/projects/archive-pull-request.ts';
+import type { MergePullRequestUseCase } from '../../../use-cases/projects/merge-pull-request.ts';
 import type { ReadProjectGitHubAccountUseCase } from '../../../use-cases/reviews/read-project-github-account.ts';
 import type { ListProjectPullRequestsUseCase } from '../../../use-cases/reviews/list-project-pull-requests.ts';
 type UseCases = {
@@ -16,6 +17,7 @@ type UseCases = {
     typeof ReadProjectPullChecksUseCase
   >;
   archivePullRequest: Context.Service.Shape<typeof ArchivePullRequestUseCase>;
+  mergePullRequest: Context.Service.Shape<typeof MergePullRequestUseCase>;
   readProjectGitHubAccount: Context.Service.Shape<
     typeof ReadProjectGitHubAccountUseCase
   >;
@@ -37,6 +39,9 @@ export function pullRequestsRoutes(useCases: UseCases) {
         )
         .handle('archivePullRequest', ({ params, payload }) =>
           useCases.archivePullRequest.execute({ ...params, ...payload }),
+        )
+        .handle('mergePullRequest', ({ params, payload }) =>
+          useCases.mergePullRequest.execute({ ...params, ...payload }),
         )
         .handle('listProjectPullRequests', ({ params }) =>
           useCases.listProjectPullRequests.execute(params),

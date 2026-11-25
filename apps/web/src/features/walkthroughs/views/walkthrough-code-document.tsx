@@ -9,6 +9,7 @@ import {
   type ReviewCode as ReviewCodeFiles,
 } from '@porcelain/client/walkthroughs/rules';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/shared/lib/utils';
 import {
   BranchDocument,
   StepReviewed,
@@ -94,6 +95,7 @@ export function ReviewCode({
   label,
   branch,
   eager,
+  bleed = '-mx-5 @3xl:-mx-8',
 }: {
   document: DocumentProps;
   entry: string;
@@ -101,6 +103,7 @@ export function ReviewCode({
   label: string;
   branch: ComparedBranch | undefined;
   eager: boolean;
+  bleed?: string;
 }) {
   const [shown, setShown] = useState(DIFF_WINDOW_FILES);
   const [near, setNear] = useState(eager);
@@ -113,7 +116,7 @@ export function ReviewCode({
         role="group"
         aria-label={`Code: ${label}`}
         ref={whenNear(() => setNear(true))}
-        className="-mx-5 flex flex-col gap-2 @3xl:-mx-8"
+        className={cn('flex flex-col gap-2', bleed)}
       >
         <FileNames title="Branch" paths={committed} />
         <FileNames title="Uncommitted" paths={code.worktree.slice(0, shown)} />
@@ -131,7 +134,7 @@ export function ReviewCode({
     <div
       role="group"
       aria-label={`Code: ${label}`}
-      className="-mx-5 flex flex-col gap-2 @3xl:-mx-8"
+      className={cn('flex flex-col gap-2', bleed)}
     >
       {committed.length > 0 && (
         <section aria-label={`${label}: branch`} className="flex flex-col">

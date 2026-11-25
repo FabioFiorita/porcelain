@@ -5,11 +5,18 @@ import {
   RELATIVE_TIME_MONTHS_PER_YEAR,
 } from '../../config/limits.ts';
 
-const formatter = new Intl.RelativeTimeFormat('en', { numeric: 'always' });
+const formatters = {
+  long: new Intl.RelativeTimeFormat('en', { numeric: 'always' }),
+  narrow: new Intl.RelativeTimeFormat('en', {
+    numeric: 'always',
+    style: 'narrow',
+  }),
+};
 
 export function relativeTime(
   iso: string,
   now: DateTime.DateTime = DateTime.nowUnsafe(),
+  style: keyof typeof formatters = 'long',
 ): string {
   const instant = DateTime.makeUnsafe(iso);
   const future = DateTime.isGreaterThan(instant, now);
@@ -44,5 +51,5 @@ export function relativeTime(
     unit = 'year';
     amount = Math.round(calendarDays / RELATIVE_TIME_DAYS_PER_YEAR);
   }
-  return formatter.format(future ? amount : -amount, unit);
+  return formatters[style].format(future ? amount : -amount, unit);
 }

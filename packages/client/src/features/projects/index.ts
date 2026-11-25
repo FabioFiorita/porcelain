@@ -62,4 +62,7 @@ export {
   readProjectGitHubAccount,
 } from './queries/pull-requests.ts';
 export { setProjectGitHubAccount } from './commands/github-account.ts';
-export { archivePullRequest } from './commands/pull-requests.ts';
+export {
+  archivePullRequest,
+  mergePullRequest,
+} from './commands/pull-requests.ts';

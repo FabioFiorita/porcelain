@@ -4,6 +4,8 @@ selectors:
   - 'Open on GitHub'
   - 'Archive'
   - 'Archive pull request?'
+  - 'Merge'
+  - 'Merge pull request #'
   - 'Back to the worktree'
 tests:
   - apps/desktop/spec/e2e/images.e2e.ts
@@ -13,6 +15,7 @@ tests:
 api:
   - GET /api/projects/:projectId/pull-requests/:number
   - POST /api/projects/:projectId/pull-requests/:number/archive
+  - POST /api/projects/:projectId/pull-requests/:number/merge
 ---
 
 # projects.pull-request-document
@@ -24,6 +27,8 @@ Use the disposable GitHub fixture in `apps/web/spec/kit/archive-fixture.ts`, wit
 A conversation source link opens the PR branch's current available checkout. Move that branch to another checkout and verify the new checkout and original source. If no checkout holds the branch, the document remains readable and has no source-opening button; it never opens another branch's file.
 
 In Porcelain Dev, open a PR with HTTPS image attachments and check that the description shows the images, including inside expanded evidence disclosures. Retain a screenshot and verify nonzero natural image dimensions. GitHub private attachments use the signed image URLs returned with the PR; use fresh URLs for this journey. The desktop image policy admits HTTPS sources as well as app, data and blob images.
+
+Merge appears on an open PR under its checks, with one line beside it when it cannot merge (draft, conflicts, failing or running checks, offline computer). The dialog offers the methods the repository allows and sends the head the page read; after a merge the page shows Merged and Archive. To drive it, extend a fake `gh` like the one in `apps/web/spec/kit/archive-fixture.ts` so it answers `repos/<owner>/<repo>/pulls/<n>/merge` (`--method PUT`, JSON body on stdin) and then reports the PR as merged. Never merge a real pull request from a verification run.
 
 Archive appears only on a merged or closed PR. A same-named branch from another head repository, a different upstream or unrelated commits refuses with a plain message and no deletion. Preview discloses the entire folder deletion including ignored files. Cancel preserves it. Locked folders show a plain failure; dirty files and unpublished commits require acknowledgement. Confirm deletion only in disposable fixtures, read back Git and filesystem state, and verify navigation and reload reach a surviving worktree.
 

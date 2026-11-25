@@ -6,6 +6,7 @@ import {
   writerEffortSchema,
   type WalkthroughModel,
 } from '@porcelain/walkthroughs/models';
+import { codexModelFamily } from '@porcelain/walkthroughs/rules';
 import { findExecutable } from './find-executable.ts';
 import { claudeEnvironment } from './claude-environment.ts';
 import { readBoundedText } from '../../commit-planning/commands/read-bounded-text.ts';
@@ -67,6 +68,7 @@ export const installedModels = Effect.fn('Agents.installedModels')(
           provider,
           model: 'claude-opus-5-5',
           label: 'Opus 5.5',
+          family: 'Opus',
           efforts: claudeEffortSchema.literals,
           defaultEffort: 'high' as const,
         },
@@ -74,6 +76,7 @@ export const installedModels = Effect.fn('Agents.installedModels')(
           provider,
           model: 'sonnet',
           label: 'Sonnet',
+          family: 'Sonnet',
           efforts: claudeEffortSchema.literals,
           defaultEffort: 'high' as const,
         },
@@ -81,6 +84,7 @@ export const installedModels = Effect.fn('Agents.installedModels')(
           provider,
           model: 'haiku',
           label: 'Haiku',
+          family: 'Haiku',
           efforts: claudeEffortSchema.literals,
           defaultEffort: 'high' as const,
         },
@@ -100,6 +104,7 @@ export const installedModels = Effect.fn('Agents.installedModels')(
         provider,
         model: model.slug,
         label: model.display_name,
+        family: codexModelFamily(model.slug),
         efforts:
           model.supported_reasoning_levels?.map((level) => level.effort) ?? [],
         defaultEffort: model.default_reasoning_level ?? 'medium',

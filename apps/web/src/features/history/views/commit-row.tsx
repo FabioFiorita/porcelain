@@ -106,10 +106,7 @@ export function CommitRow({
               type="button"
               aria-pressed={selected}
               onClick={select}
-              className={cn(
-                'block min-w-0 text-left before:absolute before:inset-0 before:rounded-lg',
-                refs.length > 0 ? 'max-w-3/5' : 'flex-1',
-              )}
+              className="block min-w-0 flex-1 text-left before:absolute before:inset-0 before:rounded-lg"
             >
               {subject}
               <span
@@ -127,7 +124,7 @@ export function CommitRow({
               )}
             </button>
             {refs.length > 0 && (
-              <div className="flex h-4.5 min-w-0 flex-1 flex-col justify-center">
+              <div className="flex h-4.5 max-w-2/5 min-w-0 shrink-0 flex-col justify-center">
                 <CommitRefs
                   refs={refs}
                   current={current}
@@ -146,7 +143,7 @@ export function CommitRow({
                 type="button"
                 aria-pressed={selected}
                 onClick={select}
-                className="flex max-w-3/5 min-w-0 shrink-0 items-center text-left before:absolute before:inset-0 before:rounded-lg"
+                className="flex min-w-0 items-center text-left before:absolute before:inset-0 before:rounded-lg"
               >
                 {subject}
                 <span className="sr-only">
@@ -154,7 +151,7 @@ export function CommitRow({
                 </span>
               </button>
               {headBadge}
-              <div className="min-w-0 flex-1 overflow-hidden">
+              <div className="max-w-2/5 min-w-0 shrink-0 overflow-hidden">
                 {refs.length > 0 && (
                   <CommitRefs
                     refs={refs}

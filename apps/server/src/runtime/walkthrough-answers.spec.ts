@@ -116,7 +116,7 @@ async function fixture(
         Layer.mergeAll(
           database,
           cliWalkthroughWriterLayer({ processGroup, command }).pipe(
-            Layer.provide(
+            Layer.provideMerge(
               Layer.succeed(WalkthroughModelReader, {
                 read: () =>
                   Effect.succeed([

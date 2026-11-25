@@ -710,7 +710,7 @@ function PaneView({
               data-pane-controls=""
               role="toolbar"
               aria-label="Document controls"
-              className="flex items-center gap-1"
+              className="flex items-center gap-1 empty:hidden"
             >
               {activeDocument?.kind === 'branch' && !firstDocument.guided && (
                 <BranchBasePicker

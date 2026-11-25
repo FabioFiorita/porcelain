@@ -1,7 +1,10 @@
-import type {
-  WalkthroughModel,
-  WalkthroughWriterChoice,
+import { Schema } from 'effect';
+import {
+  claudeEffortSchema,
+  type WalkthroughModel,
+  type WalkthroughWriterChoice,
 } from '../models/walkthrough.ts';
+const isClaudeEffort = Schema.is(claudeEffortSchema);
 export const builtInWalkthroughWriter: WalkthroughWriterChoice = {
   provider: 'claude',
   model: 'claude-opus-5-5',
@@ -42,4 +45,37 @@ export function unsupportedWalkthroughEffort(
       label: availability.model.label,
       effort: writer.effort,
     };
+}
+
+export function codexModelFamily(slug: string) {
+  const family = /^gpt-\d+(?:\.\d+)*-([a-z]+)$/.exec(slug)?.[1];
+  return family && `${family.charAt(0).toUpperCase()}${family.slice(1)}`;
+}
+
+export function latestWalkthroughWriter(
+  writer: WalkthroughWriterChoice,
+  models: readonly WalkthroughModel[],
+): WalkthroughWriterChoice {
+  if (writer.latest === undefined) return writer;
+  const newest = models.find(
+    (model) =>
+      model.provider === writer.provider && model.family === writer.latest,
+  );
+  if (!newest) return writer;
+  const effort = newest.efforts.includes(writer.effort)
+    ? writer.effort
+    : newest.defaultEffort;
+  return newest.provider === 'claude'
+    ? {
+        provider: 'claude',
+        model: newest.model,
+        effort: isClaudeEffort(effort) ? effort : 'high',
+        latest: writer.latest,
+      }
+    : {
+        provider: 'codex',
+        model: newest.model,
+        effort,
+        latest: writer.latest,
+      };
 }

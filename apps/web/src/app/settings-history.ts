@@ -36,6 +36,14 @@ export function recordSettingsSession(
   history.replace(href, { ...state, settings: session });
 }
 
+export function replaceSettingsEntry(
+  history: History,
+  href: string,
+  session: SettingsSession,
+) {
+  history.replace(href, { ...history.location.state, settings: session });
+}
+
 export function goThen(history: History, steps: number, then: () => void) {
   if (steps === 0) {
     then();

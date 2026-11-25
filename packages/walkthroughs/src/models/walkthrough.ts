@@ -24,16 +24,19 @@ const codexEffortSchema = Schema.Literals([
 ]);
 export const writerEffortSchema = codexEffortSchema;
 const modelNameSchema = Schema.String;
+const latestFamilySchema = Schema.optional(Schema.String);
 export const writerSchema = Schema.Union([
   Schema.Struct({
     provider: Schema.Literal('claude'),
     model: modelNameSchema,
     effort: claudeEffortSchema,
+    latest: latestFamilySchema,
   }),
   Schema.Struct({
     provider: Schema.Literal('codex'),
     model: modelNameSchema,
     effort: codexEffortSchema,
+    latest: latestFamilySchema,
   }),
 ]);
 export type WalkthroughWriterChoice = typeof writerSchema.Type;
@@ -41,6 +44,7 @@ export const walkthroughModelSchema = Schema.Struct({
   provider: Schema.Literals(['claude', 'codex']),
   model: modelNameSchema,
   label: Schema.String,
+  family: Schema.optional(Schema.String),
   efforts: Schema.Array(writerEffortSchema),
   defaultEffort: writerEffortSchema,
 });

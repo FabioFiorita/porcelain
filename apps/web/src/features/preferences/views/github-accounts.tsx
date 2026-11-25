@@ -14,14 +14,17 @@ import { TruncatedText } from '@/shared/views/truncated-text';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { FieldDescription, FieldLegend, FieldSet } from '@/components/ui/field';
+import { FieldDescription } from '@/components/ui/field';
 import {
   Item,
   ItemActions,
   ItemContent,
-  ItemGroup,
   ItemTitle,
 } from '@/components/ui/item';
+import {
+  SettingsGroup,
+  SettingsSection,
+} from '@/shared/views/settings-section';
 import {
   Select,
   SelectContent,
@@ -38,15 +41,12 @@ import {
 export function GitHubAccounts({ connection }: { connection: Connection }) {
   const { projects, failed, retry } = useGitHubAccountProjects(connection);
   return (
-    <FieldSet>
-      <FieldLegend variant="label">
-        GitHub account for pull requests
-      </FieldLegend>
+    <SettingsSection id="github" title="GitHub account for pull requests">
       <FieldDescription>
         By default, Porcelain uses a signed-in account with access to the
         repository. Your choice applies to every device using this computer.
       </FieldDescription>
-      <ItemGroup>
+      <SettingsGroup>
         {projects?.map((project) => (
           <ProjectAccount
             key={project.id}
@@ -55,14 +55,14 @@ export function GitHubAccounts({ connection }: { connection: Connection }) {
           />
         ))}
         {projects !== undefined && projects.length > 0 && (
-          <p className="hidden py-3 text-ui text-muted-foreground only:block">
+          <p className="hidden px-3 py-2.5 text-ui text-muted-foreground only:block">
             No project has a GitHub remote.
           </p>
         )}
         {projects === undefined && failed && (
           <p
             role="alert"
-            className="flex items-center gap-2 py-3 text-ui text-muted-foreground"
+            className="flex items-center gap-2 px-3 py-2.5 text-ui text-muted-foreground"
           >
             Could not read this computer’s projects.
             <Button size="xs" variant="outline" onClick={retry}>
@@ -71,12 +71,12 @@ export function GitHubAccounts({ connection }: { connection: Connection }) {
           </p>
         )}
         {projects?.length === 0 && (
-          <p className="py-3 text-ui text-muted-foreground">
+          <p className="px-3 py-2.5 text-ui text-muted-foreground">
             Add a project to choose its GitHub account.
           </p>
         )}
-      </ItemGroup>
-    </FieldSet>
+      </SettingsGroup>
+    </SettingsSection>
   );
 }
 
@@ -110,7 +110,7 @@ function ProjectAccount({
       : unavailable?.description;
   const resetLabel = `Use the detected account for ${project.name}`;
   return (
-    <Item variant="outline">
+    <Item>
       <ItemContent className="min-w-0">
         <ItemTitle className="max-w-full min-w-0">
           <TruncatedText text={project.name} />

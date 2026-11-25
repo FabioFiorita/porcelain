@@ -12,12 +12,11 @@ import {
   ItemActions,
   ItemContent,
   ItemFooter,
-  ItemGroup,
   ItemTitle,
 } from '@/components/ui/item';
 import { ChevronDownIcon, CopyIcon, ShieldAlertIcon } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -28,6 +27,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { copyText } from '@/shared/workspace/copy';
+import { SettingsGroup } from '@/shared/views/settings-section';
 import { submitForm } from '@/shared/lib/submit-form';
 import { useSetRemoteAccess } from '../commands/share';
 import { connectionErrorMessage } from '@porcelain/client/access/rules';
@@ -161,7 +161,7 @@ function RouteRow({
   const [open, setOpen] = useState(false);
   const encrypted = name !== 'lan' || route.status.kind !== 'on';
   return (
-    <Item variant="outline">
+    <Item>
       <Collapsible
         open={open || (setup?.open ?? false)}
         onOpenChange={setOpen}
@@ -267,33 +267,29 @@ function LocalNetworkSettings({
             : `Uses ${networkName(here)}.`}
         </p>
       )}
-      <div className="settings-margin-note lg:absolute lg:top-0 lg:left-full lg:ml-8 lg:w-62">
-        <span
-          aria-hidden
-          className="absolute top-6.5 -left-6.5 hidden size-1.5 rounded-full bg-warn lg:block"
-        />
-        <span
-          aria-hidden
-          className="absolute top-7.25 -left-5 hidden h-px w-5 bg-warn-border lg:block"
-        />
-        <Alert role="note" aria-label="Local network warning">
-          <AlertTitle>
-            <ShieldAlertIcon aria-hidden />
-            Not encrypted
-          </AlertTitle>
-          <AlertDescription>
-            <p>Devices on this network can read the connection.</p>
-            <Collapsible>
-              <CollapsibleTrigger render={<Button size="sm" variant="ghost" />}>
-                Details
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <p>{localNetworkNote(remote)}</p>
-                <p>{LOCAL_NETWORK_WARNING}</p>
-              </CollapsibleContent>
-            </Collapsible>
-          </AlertDescription>
-        </Alert>
+      <div
+        role="note"
+        aria-label="Local network warning"
+        className="text-xs leading-4.5"
+      >
+        <Collapsible>
+          <div className="flex flex-wrap items-center gap-x-1.5">
+            <ShieldAlertIcon aria-hidden className="size-3.5 text-warn" />
+            <span className="font-medium text-warn">Not encrypted</span>
+            <span className="text-muted-foreground">
+              Devices on this network can read the connection.
+            </span>
+            <CollapsibleTrigger render={<Button size="sm" variant="ghost" />}>
+              Details
+            </CollapsibleTrigger>
+          </div>
+          <CollapsibleContent>
+            <div className="flex flex-col gap-1 pt-1 pl-5 text-muted-foreground">
+              <p>{localNetworkNote(remote)}</p>
+              <p>{LOCAL_NETWORK_WARNING}</p>
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
       </div>
     </>
   );
@@ -461,7 +457,7 @@ export function RemoteRoutes({
     save({ expected: remote.editing.fingerprint, change: edit });
   return (
     <>
-      <ItemGroup>
+      <SettingsGroup>
         <RouteRow
           name="lan"
           route={remote.routes.lan}
@@ -513,7 +509,7 @@ export function RemoteRoutes({
             onChange={setRemote}
           />
         </RouteRow>
-      </ItemGroup>
+      </SettingsGroup>
       {AsyncResult.isFailure(change) && (
         <Alert variant="destructive">
           <AlertDescription>

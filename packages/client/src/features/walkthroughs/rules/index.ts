@@ -7,6 +7,7 @@ export {
   richParts,
   stopPaths,
   walkthroughCalls,
+  unansweredCallStep,
   walkthroughFailureCopy,
   walkthroughTabTitle,
   walkthroughPhase,
@@ -19,7 +20,10 @@ export {
 } from './walkthrough.ts';
 export {
   stepScreenshots,
+  type DiagramEdge,
+  type DiagramNode,
   type StepBlock,
+  type StepDiagram,
   type WalkthroughComparison,
   type WalkthroughEvidence,
   type WalkthroughExcerpt,
@@ -69,3 +73,13 @@ export {
   walkthroughFreshnessText,
 } from './progress.ts';
 export { fileComparison, fileOpening } from './file-comparison.ts';
+export {
+  diagramConnections,
+  diagramNeighbours,
+  diagramStep,
+  layoutDiagram,
+  type DiagramGeometry,
+  type DiagramKey,
+  type DiagramMeasure,
+  type DiagramPlacement,
+} from './diagram-layout.ts';

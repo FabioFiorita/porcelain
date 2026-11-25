@@ -4,7 +4,12 @@ import {
   HISTORY_ROW_HEIGHT,
 } from '@/config/limits';
 import { historyBoundary } from '@porcelain/client/history/rules';
-import { historyGraphWidth, layoutGraph } from '../rules/graph';
+import {
+  FULL_GUTTER,
+  PANEL_GUTTER,
+  historyGraphWidth,
+  layoutGraph,
+} from '../rules/graph';
 import { AsyncResult } from 'effect/reactivity';
 import { Button } from '@/components/ui/button';
 import { PendingSpinner } from '@/shared/views/state-notice';
@@ -33,7 +38,8 @@ export function GraphRows({
   sideLabel: string;
 }) {
   const rows = layoutGraph(history.commits);
-  const width = historyGraphWidth(rows);
+  const gutter = layout === 'stacked' ? PANEL_GUTTER : FULL_GUTTER;
+  const width = historyGraphWidth(rows, gutter);
   const rowHeight =
     layout === 'columns' ? HISTORY_GRAPH_ROW_HEIGHT : HISTORY_ROW_HEIGHT;
   const tip = history.snapshot?.tipOid;
@@ -93,7 +99,12 @@ export function GraphRows({
           </li>
         ))}
       </ol>
-      <HistoryGraph rows={rows} width={width} rowHeight={rowHeight} />
+      <HistoryGraph
+        rows={rows}
+        width={width}
+        rowHeight={rowHeight}
+        gutter={gutter}
+      />
       <div style={{ paddingLeft: width }}>
         <HistoryEnd history={history} />
       </div>

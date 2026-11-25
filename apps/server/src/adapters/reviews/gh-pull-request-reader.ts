@@ -23,7 +23,7 @@ const CHECK_FIELDS = `commits(last: 1) { nodes { commit { statusCheckRollup { st
     nodes { __typename ... on CheckRun { name status conclusion detailsUrl startedAt completedAt } ... on StatusContext { context state targetUrl } } ${PAGE}
   } } } } }`;
 const detailQuery = `query PullRequestRead($owner: String!, $repo: String!, $number: Int!) {
-  repository(owner: $owner, name: $repo) { pullRequest(number: $number) {
+  repository(owner: $owner, name: $repo) { mergeCommitAllowed squashMergeAllowed rebaseMergeAllowed pullRequest(number: $number) {
     ${SUMMARY_FIELDS} ${CHECK_FIELDS} body createdAt baseRefName headRefOid headRepository { url } mergeable bodyHTML
     labels(first: 50) { nodes { name color } ${PAGE} }
     comments(first: 50) { nodes { id author { login avatarUrl(size: 48) } createdAt body url } ${PAGE} }
@@ -65,10 +65,27 @@ const listSchema = Schema.Struct({
 const detailSchema = Schema.Struct({
   data: Schema.Struct({
     repository: Schema.Struct({
+      mergeCommitAllowed: Schema.optional(Schema.Boolean),
+      squashMergeAllowed: Schema.optional(Schema.Boolean),
+      rebaseMergeAllowed: Schema.optional(Schema.Boolean),
       pullRequest: Schema.NullOr(githubPullRequestSchema),
     }),
   }),
 });
+
+function allowedMergeMethods(repository: {
+  readonly mergeCommitAllowed?: boolean | undefined;
+  readonly squashMergeAllowed?: boolean | undefined;
+  readonly rebaseMergeAllowed?: boolean | undefined;
+}) {
+  const allowed = [
+    ['merge', repository.mergeCommitAllowed],
+    ['squash', repository.squashMergeAllowed],
+    ['rebase', repository.rebaseMergeAllowed],
+  ] as const;
+  if (allowed.some(([, value]) => value === undefined)) return undefined;
+  return allowed.filter(([, value]) => value).map(([method]) => method);
+}
 
 const unavailable = (error: {
   readonly reason: GitHubReadError['reason'] | 'not-found';
@@ -87,14 +104,12 @@ export const ghPullRequestReaderLayer = (limits: Limits['git']) =>
       ) {
         return yield* readGitHubApi(input, limits).pipe(provide);
       });
-      const readPull = Effect.fn('GitHubReader.readPull')(function* <T>(
+      const readPull = Effect.fn('GitHubReader.readPull')(function* <
+        R extends { readonly pullRequest: unknown },
+      >(
         input: Parameters<GitHubReader['read']>[0],
         query: string,
-        schema: Schema.Codec<{
-          readonly data: {
-            readonly repository: { readonly pullRequest: T | null };
-          };
-        }>,
+        schema: Schema.Codec<{ readonly data: { readonly repository: R } }>,
       ) {
         const json = yield* api({
           account: input.account,
@@ -119,10 +134,7 @@ export const ghPullRequestReaderLayer = (limits: Limits['git']) =>
             () => new GitHubReadError({ reason: 'invalid-response' }),
           ),
         );
-        const pullRequest = decoded.data.repository.pullRequest;
-        if (pullRequest === null)
-          return yield* new GitHubPullRequestNotFoundError();
-        return pullRequest;
+        return decoded.data.repository;
       });
       return GitHubReader.of({
         accounts: () =>
@@ -142,8 +154,25 @@ export const ghPullRequestReaderLayer = (limits: Limits['git']) =>
               () => Effect.succeed(false),
             ),
           ),
-        read: (input) => readPull(input, detailQuery, detailSchema),
-        checks: (input) => readPull(input, CHECKS_QUERY, checksSchema),
+        read: (input) =>
+          readPull(input, detailQuery, detailSchema).pipe(
+            Effect.flatMap(({ pullRequest, ...repository }) =>
+              pullRequest === null
+                ? Effect.fail(new GitHubPullRequestNotFoundError())
+                : Effect.succeed({
+                    ...pullRequest,
+                    allowedMergeMethods: allowedMergeMethods(repository),
+                  }),
+            ),
+          ),
+        checks: (input) =>
+          readPull(input, CHECKS_QUERY, checksSchema).pipe(
+            Effect.flatMap(({ pullRequest }) =>
+              pullRequest === null
+                ? Effect.fail(new GitHubPullRequestNotFoundError())
+                : Effect.succeed(pullRequest),
+            ),
+          ),
         list: Effect.fn('GitHubReader.list')(function* (input) {
           const open: (typeof githubPullSummarySchema.Type)[] = [];
           let cursor: string | undefined;
