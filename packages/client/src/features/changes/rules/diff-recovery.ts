@@ -118,11 +118,21 @@ export function stampRead(
   };
 }
 
+export type RecoveryRequest = {
+  readonly read: number;
+  readonly asked: boolean;
+};
+
 export function beginRecovery(
   recovery: DiffRecovery,
-  read: number,
+  request: RecoveryRequest,
 ): DiffRecovery | undefined {
-  if (recovery.running || recoveryCovers(recovery, read)) return undefined;
+  if (
+    recovery.running ||
+    (!request.asked && recoveryCovers(recovery, request.read))
+  )
+    return undefined;
+  const read = request.read;
   return {
     ...recovery,
     generation: recovery.generation + 1,

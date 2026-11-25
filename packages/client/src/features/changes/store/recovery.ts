@@ -11,6 +11,7 @@ import {
   type DiffRecovery,
   finishRecovery,
   idleDiffRecovery,
+  type RecoveryRequest,
   type RecoverySnapshot,
   type RetryTicket,
   settleRetry,
@@ -35,7 +36,10 @@ export class ChangedDiffRecovery extends Context.Service<
       key: string,
       snapshot: RecoverySnapshot,
     ) => Effect.Effect<number>;
-    readonly begin: (key: string, read: number) => Effect.Effect<boolean>;
+    readonly begin: (
+      key: string,
+      request: RecoveryRequest,
+    ) => Effect.Effect<boolean>;
     readonly finish: (key: string) => Effect.Effect<void>;
     readonly retry: (
       key: string,
@@ -72,9 +76,12 @@ export class ChangedDiffRecovery extends Context.Service<
             }),
         ),
         begin: Effect.fn('ChangedDiffRecovery.begin')(
-          (key: string, read: number) =>
+          (key: string, request: RecoveryRequest) =>
             SubscriptionRef.modify(state, (current) => {
-              const next = beginRecovery(worktreeRecovery(current, key), read);
+              const next = beginRecovery(
+                worktreeRecovery(current, key),
+                request,
+              );
               return next
                 ? ([true, { ...current, [key]: next }] as const)
                 : ([false, current] as const);

@@ -1,5 +1,5 @@
 import { AsyncResult } from 'effect/reactivity';
-import { useAtomRefresh, useAtomValue } from '@effect/atom-react';
+import { useAtomSet, useAtomValue } from '@effect/atom-react';
 import { readChangeDiffWindow } from '@porcelain/client/changes';
 import type {
   ChangesScope,
@@ -34,6 +34,6 @@ export function useChangeDiffs(
     pending: AsyncResult.isInitial(result) || recovering,
     recovering,
     failed: AsyncResult.isFailure(result),
-    retry: useAtomRefresh(window),
+    retry: useAtomSet(window),
   };
 }

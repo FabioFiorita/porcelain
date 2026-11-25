@@ -10,17 +10,18 @@ import {
   recoveryRuntime,
 } from '../store/recovery.ts';
 import { readChanges } from './changes.ts';
+import type { RecoveryRequest } from '../rules/diff-recovery.ts';
 
 export const readCurrentDiffObservation = Atom.family(
   (selection: { connection: RuntimeConnection; scope: WorktreeScope }) =>
     recoveryRuntime(selection.connection).fn(
       Effect.fn('Changes.recoverDiffs')(function* (
-        read: number,
+        request: RecoveryRequest,
         get: Atom.FnContext,
       ) {
         const recovery = yield* ChangedDiffRecovery;
         const key = recoveryKey(selection.scope);
-        if (!(yield* recovery.begin(key, read))) return;
+        if (!(yield* recovery.begin(key, request))) return;
         const query = readChanges(selection);
         const settled = yield* Deferred.make<void>();
         let refreshing = false;

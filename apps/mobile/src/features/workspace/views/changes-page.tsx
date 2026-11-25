@@ -1,4 +1,4 @@
-import { useAtomRefresh, useAtomValue } from '@effect/atom-react';
+import { useAtomRefresh, useAtomSet, useAtomValue } from '@effect/atom-react';
 import type { ReactNode } from 'react';
 import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
@@ -232,7 +232,7 @@ function ChangePart(props: ChangePartProps) {
 function ChunkPart({ workspace, comparison, keys, ...props }: ChangePartProps) {
   const query = changePageDiffs({ workspace, comparison, keys });
   const result = useAtomValue(query);
-  const refresh = useAtomRefresh(query);
+  const refresh = useAtomSet(query);
   return (
     <DiffPagePart
       {...props}

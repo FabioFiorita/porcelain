@@ -106,31 +106,39 @@ export const readChangeDiffWindow = Atom.family(
     const batches = readDiffBatches(queries);
     const window = readCompleteDiffWindow(queries);
     const recover = readCurrentDiffObservation({ connection, scope });
-    return Atom.readable(
+    const reread = Atom.fn((_: void, get: Atom.FnContext) =>
+      Effect.sync(() => get.refresh(batches)),
+    );
+    const staleOf = (
+      results: readonly AsyncResult.AsyncResult<unknown, unknown>[],
+    ) =>
+      requests.flatMap((request, index) => {
+        const result = results[index];
+        return result !== undefined &&
+          AsyncResult.isFailure(result) &&
+          isStaleChangeObservation(Cause.squash(result.cause))
+          ? [
+              {
+                key: request.key,
+                statusToken: request.input.expectedStatusToken,
+                expectedFiles: request.input.expectedFiles,
+                waiting: result.waiting,
+              },
+            ]
+          : [];
+      });
+    return Atom.writable(
       (get) => {
         get.mount(recover);
+        get.mount(reread);
         for (const request of requests) get.mount(request.retry);
         const results = get(batches);
         const recovery = get(readWorktreeRecovery({ connection, scope }));
-        const stale = requests.flatMap((request, index) => {
-          const result = results[index];
-          return result !== undefined &&
-            AsyncResult.isFailure(result) &&
-            isStaleChangeObservation(Cause.squash(result.cause))
-            ? [
-                {
-                  key: request.key,
-                  statusToken: request.input.expectedStatusToken,
-                  expectedFiles: request.input.expectedFiles,
-                  waiting: result.waiting,
-                },
-              ]
-            : [];
-        });
+        const stale = staleOf(results);
         const step = AsyncResult.isSuccess(recovery)
           ? diffRecoveryStep(recovery.value, read, stale)
           : ({ kind: 'idle' } as const);
-        if (step.kind === 'recover') get.set(recover, read);
+        if (step.kind === 'recover') get.set(recover, { read, asked: false });
         if (step.kind === 'retry')
           for (const request of requests)
             if (step.batches.includes(request.key))
@@ -153,6 +161,11 @@ export const readChangeDiffWindow = Atom.family(
               : result,
           recovery: { pending },
         };
+      },
+      (ctx, _: void) => {
+        if (staleOf(ctx.get(batches)).length > 0)
+          ctx.set(recover, { read, asked: true });
+        else ctx.set(reread, undefined);
       },
       (refresh) => refresh(batches),
     ).pipe(Atom.setIdleTTL(0));
