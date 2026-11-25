@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, Stream, SubscriptionRef } from 'effect';
+import { Context, Effect, Layer, type Stream, SubscriptionRef } from 'effect';
 import { Atom } from 'effect/reactivity';
 import type {
   RuntimeConnection,
@@ -9,11 +9,9 @@ import {
   beginRecovery,
   claimRetry,
   type DiffRecovery,
-  failRead,
   finishRecovery,
   idleDiffRecovery,
   type RecoverySnapshot,
-  refreshSettled,
   type RetryTicket,
   settleRetry,
   stampRead,
@@ -38,8 +36,6 @@ export class ChangedDiffRecovery extends Context.Service<
       snapshot: RecoverySnapshot,
     ) => Effect.Effect<number>;
     readonly begin: (key: string, read: number) => Effect.Effect<boolean>;
-    readonly failRead: (key: string) => Effect.Effect<void>;
-    readonly refreshed: (key: string) => Effect.Effect<void>;
     readonly finish: (key: string) => Effect.Effect<void>;
     readonly retry: (
       key: string,
@@ -83,18 +79,6 @@ export class ChangedDiffRecovery extends Context.Service<
                 ? ([true, { ...current, [key]: next }] as const)
                 : ([false, current] as const);
             }),
-        ),
-        failRead: Effect.fn('ChangedDiffRecovery.failRead')((key: string) =>
-          update(key, failRead),
-        ),
-        refreshed: Effect.fn('ChangedDiffRecovery.refreshed')((key: string) =>
-          SubscriptionRef.changes(state).pipe(
-            Stream.filter((current) =>
-              refreshSettled(worktreeRecovery(current, key)),
-            ),
-            Stream.runHead,
-            Effect.asVoid,
-          ),
         ),
         finish: Effect.fn('ChangedDiffRecovery.finish')((key: string) =>
           update(key, finishRecovery),

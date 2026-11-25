@@ -3,7 +3,6 @@ import {
   beginRecovery,
   claimRetry,
   diffRecoveryStep,
-  failRead,
   finishRecovery,
   idleDiffRecovery,
   recoveryPending,
@@ -115,8 +114,8 @@ it.each([
     pending: true,
   },
   {
-    situation: 'the recovery covering the read failed to refresh Changes',
-    recovery: finishRecovery(failRead(started)),
+    situation: 'the recovery covering the read ended without a new snapshot',
+    recovery: finishRecovery(started),
     read: 2,
     stale: [batch()],
     step: { kind: 'given-up' },
@@ -209,8 +208,8 @@ it.each([
   expect(claimRetry(recovery, ticket, ['batch']).marked).toEqual([]);
 });
 
-it('refuses a retry from a recovery that failed to refresh Changes', () => {
-  const failed = finishRecovery(failRead(started));
+it('refuses a retry from a recovery that ended without a new snapshot', () => {
+  const failed = finishRecovery(started);
   expect(
     claimRetry(failed, { generation: 1, read: failed.latestRead }, ['batch'])
       .marked,
@@ -222,14 +221,6 @@ it('settles an automatic retry only for the recovery that claimed it', () => {
   expect(
     settleRetry(claimed, { generation: 2, read: 3 }, 'batch').inFlight,
   ).toEqual(['batch']);
-});
-
-it('records a failed Changes read only while a recovery is running', () => {
-  expect(failRead(idleDiffRecovery).refreshFailed).toBe(false);
-  expect(failRead(started).refreshFailed).toBe(true);
-  expect(beginRecovery(finishRecovery(failRead(started)), 3)).toMatchObject({
-    refreshFailed: false,
-  });
 });
 
 it('records a Changes read and its contents, and marks it produced only while a recovery is running', () => {

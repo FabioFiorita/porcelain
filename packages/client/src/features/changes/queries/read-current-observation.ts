@@ -1,5 +1,5 @@
-import { Effect } from 'effect';
-import { Atom } from 'effect/reactivity';
+import { Deferred, Effect } from 'effect';
+import { Atom, AsyncResult } from 'effect/reactivity';
 import type {
   RuntimeConnection,
   WorktreeScope,
@@ -22,10 +22,24 @@ export const readCurrentDiffObservation = Atom.family(
         const key = recoveryKey(selection.scope);
         if (!(yield* recovery.begin(key, read))) return;
         const query = readChanges(selection);
+        const settled = yield* Deferred.make<void>();
+        let refreshing = false;
         get.refresh(query);
-        yield* recovery
-          .refreshed(key)
-          .pipe(Effect.ensuring(recovery.finish(key)));
+        yield* Effect.acquireUseRelease(
+          Effect.sync(() =>
+            get.registry.subscribe(
+              query,
+              (result) => {
+                if (AsyncResult.isInitial(result) || result.waiting)
+                  refreshing = true;
+                else if (refreshing) Deferred.doneUnsafe(settled, Effect.void);
+              },
+              { immediate: true },
+            ),
+          ),
+          () => Deferred.await(settled),
+          (stop) => Effect.sync(stop),
+        ).pipe(Effect.ensuring(recovery.finish(key)));
       }),
       { concurrent: true },
     ),

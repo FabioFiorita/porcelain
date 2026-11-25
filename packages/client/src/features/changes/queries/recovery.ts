@@ -1,4 +1,4 @@
-import { Cause, Effect, Stream } from 'effect';
+import { Cause, Effect, Option, Stream } from 'effect';
 import { Atom, AsyncResult } from 'effect/reactivity';
 import { DIFFS_PER_REQUEST } from '@porcelain/contracts/shared';
 import { isStaleChangeObservation } from '../../../shared/api/stale-answer.ts';
@@ -146,7 +146,10 @@ export const readChangeDiffWindow = Atom.family(
         return {
           result:
             pending && AsyncResult.isFailure(result)
-              ? AsyncResult.initial(true)
+              ? Option.match(result.previousSuccess, {
+                  onNone: () => AsyncResult.initial(true),
+                  onSome: (previous) => AsyncResult.waiting(previous),
+                })
               : result,
           recovery: { pending },
         };

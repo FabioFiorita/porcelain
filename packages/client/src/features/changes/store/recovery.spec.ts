@@ -14,7 +14,6 @@ it('keeps one recovery per worktree: a single refresh at a time, with its produc
       const started = yield* recovery.begin('worktree', read);
       const twice = yield* recovery.begin('worktree', read);
       yield* recovery.stamp('worktree', snapshot);
-      yield* recovery.refreshed('worktree');
       yield* recovery.finish('worktree');
       const ticket = { generation: 1, read: 2 };
       const first = yield* recovery.retry('worktree', ticket, ['batch']);
@@ -40,7 +39,6 @@ it('keeps one recovery per worktree: a single refresh at a time, with its produc
     running: false,
     coveredThrough: 1,
     produced: [2],
-    refreshFailed: false,
     retried: ['batch'],
     inFlight: [],
   });
@@ -76,14 +74,12 @@ it('does not spend a retry authorized by one recovery once the next has begun', 
   expect(result).toEqual({ during: [], after: [], renewed: ['batch'] });
 });
 
-it('ends a recovery whose Changes refresh fails, and spends no retry on it', () => {
+it('spends no retry on a recovery that ended without a new snapshot', () => {
   const result = run(
     Effect.gen(function* () {
       const recovery = yield* ChangedDiffRecovery;
       const read = yield* recovery.stamp('worktree', snapshot);
       yield* recovery.begin('worktree', read);
-      yield* recovery.failRead('worktree');
-      yield* recovery.refreshed('worktree');
       yield* recovery.finish('worktree');
       return yield* recovery.retry('worktree', { generation: 1, read: 1 }, [
         'batch',
