@@ -21,7 +21,7 @@ The codebase is the example. Copy the nearest feature's shape, and extract a sec
 
 1. **Killing by pattern.** Stop only processes you started, by the PID you captured; the verification CLIs stop their own instances. Your own agent's command line contains the worktree path, and other worktrees run on the same machine.
 2. **Touching the installed app.** Never build, install or launch the installed Porcelain app or service, and never point a test at its data. Development uses disposable instances and `pnpm dev --desktop` (Porcelain Dev, with its own profile).
-3. **Running whole suites locally.** Use focused local checks. The release lane runs every runtime suite. A full local run has exhausted these machines before.
+3. **Running whole suites locally.** Use focused local checks. CI on main runs every runtime suite. A full local run has exhausted these machines before.
 
 ## Hit every surface
 
@@ -90,7 +90,9 @@ Work on your own branch from `main`, in your own worktree, one concern per pull 
 
 Feature PRs into `main` run affected static and unit checks, changed browser specs, a browser smoke test for web or shared runtime changes, and the migration check for storage changes. After green CI, the Decisions API checks whether the owner needs to decide. Routine owner-authored changes merge automatically. Keep a PR in draft or add `hold` to defer landing.
 
-Promote `main` into `release` with a PR. This lane runs full static, unit, server, browser and desktop suites, mobile exports, migrations and package checks. The hosted agent reviews the accumulated changes. Address findings on main. Promotion preserves main’s history. Only an explicit version tag publishes the qualified commit.
+Every push to `main` runs full static, unit, server, browser and desktop suites, mobile exports, migrations and package checks. The `main checks` result reports failures after landing. A newer push cancels any older run still in progress.
+
+Promote `main` into `release` with a PR. The `release checks` gate reuses a successful `main checks` run for the exact PR head when the promotion merge has the same tree. Otherwise it runs the same full suites on the promotion merge. The hosted agent reviews the accumulated changes on the promotion PR. Address findings on main. Promotion preserves main’s history. Only an explicit version tag publishes the qualified commit.
 
 The workflow reuses a completed decision or review for the same candidate. Failed CI on an eligible trusted, open, non-draft PR gets an explanation for its current head when it has failed jobs to explain. A maintainer can request an additional hosted review on a feature PR with `agent-review`. Verify `agent-fixes` findings. A local verification marked `reviewed` can satisfy an optional feature review; a release requires its hosted review.
 
