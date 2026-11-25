@@ -1,6 +1,6 @@
 import type { WalkthroughDraftPlacement } from '@porcelain/client/walkthroughs';
 import { useWorkspaceWriteBlock } from '@/shared/workspace/connection';
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import {
   Tooltip,
   TooltipTrigger,
@@ -10,14 +10,9 @@ import { ArrowUpIcon } from 'lucide-react';
 import {
   developerTurns,
   earlierConversations,
-  postControls,
-  postedCommentLabel,
-  postLabels,
-  savedSummary,
   stopConversations,
   type AgentMessage,
   type Conversation,
-  type DeveloperMessage,
 } from '@porcelain/client/walkthroughs/rules';
 import { Bubble, BubbleContent } from '@/components/ui/bubble';
 import { Button } from '@/components/ui/button';
@@ -34,7 +29,7 @@ import {
   InputGroupButton,
 } from '@/components/ui/input-group';
 import {
-  usePostActions,
+  useAddToReview,
   useRetryAnswer,
   useSendMessage,
 } from '../commands/conversations';
@@ -52,92 +47,16 @@ import {
 
 type Props = { owner: ConversationScope };
 
-function PostActions({
-  owner,
-  message,
-  number,
-}: Props & { message?: DeveloperMessage; number: number | undefined }) {
-  const { notice, waiting, copy, save, post } = usePostActions(owner, message);
-  const state = postControls(message);
-  const action = number === undefined ? copy : post;
-  const writeBlock = useWorkspaceWriteBlock(owner.context);
-  const postBlock = number === undefined ? undefined : writeBlock;
-  const labels = postLabels(number);
-  return (
-    <div className="flex flex-col gap-2">
-      {state === 'posted' && message?.post.status === 'posted' ? (
-        <a
-          className="text-caption text-muted-foreground hover:underline"
-          href={message.post.url}
-          target="_blank"
-          rel="noreferrer"
-        >
-          {postedCommentLabel(message.post.url)}
-        </a>
-      ) : null}
-      {state === 'saved' && (
-        <span className="flex items-center gap-2 text-caption text-muted-foreground">
-          Saved for later
-          <Button
-            variant="link"
-            size="sm"
-            disabled={waiting || Boolean(writeBlock)}
-            aria-description={writeBlock}
-            onClick={() => save(false)}
-          >
-            Undo
-          </Button>
-        </span>
-      )}
-      {state === 'available' && (
-        <span className="flex flex-wrap items-center gap-3">
-          <Button
-            size="sm"
-            variant={message ? 'outline' : 'default'}
-
-            disabled={waiting || Boolean(postBlock)}
-            aria-description={postBlock}
-            onClick={action}
-          >
-            {message ? labels.single : labels.together}
-          </Button>
-          {message && (
-            <Button
-              variant="link"
-              size="sm"
-              disabled={waiting || Boolean(writeBlock)}
-              aria-description={writeBlock}
-              onClick={() => save(true)}
-            >
-              Save for later
-            </Button>
-          )}
-        </span>
-      )}
-      {notice && (
-        <div role="status" className="text-caption text-muted-foreground">
-          {notice.text}
-          {notice.copy && (
-            <Button
-              variant="link"
-              size="sm"
-              disabled={waiting}
-              onClick={() => copy()}
-            >
-              Copy
-            </Button>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
 function AgentReply({
   message,
-  children,
+  question,
+  stepTitle,
   owner,
-}: Props & { message: AgentMessage; children: ReactNode }) {
+}: Props & {
+  message: AgentMessage;
+  question: string;
+  stepTitle: string | undefined;
+}) {
   const [open, setOpen] = useState(false);
   const [clipped, setClipped] = useState(false);
   const [attach] = useState(() => (element: HTMLSpanElement | null) => {
@@ -188,7 +107,13 @@ function AgentReply({
               Try again
             </Button>
           )}
-          {children}
+          {state.status === 'answered' && stepTitle !== undefined && (
+            <AddToReview
+              owner={owner}
+              stepTitle={stepTitle}
+              text={reviewText(question, state.text)}
+            />
+          )}
         </div>
         {failure && <p role="alert">{failure}</p>}
       </MessageContent>
@@ -196,36 +121,69 @@ function AgentReply({
   );
 }
 
+function reviewText(question: string, answer: string) {
+  return `> ${question.replaceAll('\n', '\n> ')}\n\n${answer}`;
+}
+
+function AddToReview({
+  owner,
+  stepTitle,
+  text,
+}: Props & { stepTitle: string; text: string }) {
+  const review = useAddToReview(owner, stepTitle);
+  const writeBlock = useWorkspaceWriteBlock(owner.context);
+  if (review.added)
+    return (
+      <span role="status" className="text-caption text-muted-foreground">
+        Added to the review
+      </span>
+    );
+  return (
+    <>
+      <Button
+        variant="link"
+        size="sm"
+        disabled={review.waiting || Boolean(writeBlock)}
+        aria-description={writeBlock}
+        onClick={() => review.add(text)}
+      >
+        Add to review
+      </Button>
+      {review.failure && (
+        <span role="alert" className="text-caption text-destructive">
+          {review.failure}
+        </span>
+      )}
+    </>
+  );
+}
+
 function Messages({
   conversation,
   owner,
-  number,
-}: Props & { conversation: Conversation; number: number | undefined }) {
-  return developerTurns(conversation).map(({ message, reply }) => {
-    const controls = (
-      <PostActions owner={owner} message={message} number={number} />
-    );
-    return (
-      <div key={message.id} className="flex flex-col gap-3">
-        <Message align="end">
-          <MessageContent>
-            <Bubble align="end" variant="secondary">
-              <BubbleContent className="whitespace-pre-wrap">
-                <RichText text={message.text} />
-              </BubbleContent>
-            </Bubble>
-          </MessageContent>
-        </Message>
-        {reply ? (
-          <AgentReply owner={owner} message={reply}>
-            {controls}
-          </AgentReply>
-        ) : (
-          <div className="flex justify-end">{controls}</div>
-        )}
-      </div>
-    );
-  });
+  stepTitle,
+}: Props & { conversation: Conversation; stepTitle: string | undefined }) {
+  return developerTurns(conversation).map(({ message, reply }) => (
+    <div key={message.id} className="flex flex-col gap-3">
+      <Message align="end">
+        <MessageContent>
+          <Bubble align="end" variant="secondary">
+            <BubbleContent className="whitespace-pre-wrap">
+              <RichText text={message.text} />
+            </BubbleContent>
+          </Bubble>
+        </MessageContent>
+      </Message>
+      {reply && (
+        <AgentReply
+          owner={owner}
+          message={reply}
+          question={message.text}
+          stepTitle={stepTitle}
+        />
+      )}
+    </div>
+  ));
 }
 
 function Composer({
@@ -357,9 +315,8 @@ function StepDrafts({ owner, title }: Props & { title: string }) {
 export function WalkthroughConversation({
   owner,
   title,
-  call,
   stepTitle,
-}: Props & { title: string; call: boolean; stepTitle?: string }) {
+}: Props & { title: string; stepTitle: string }) {
   const { view, failed, refresh } = useConversations(owner);
   const comments = useCommentCommands({
     scope: owner.scope,
@@ -384,34 +341,23 @@ export function WalkthroughConversation({
                 key={conversation.runId}
                 owner={owner}
                 conversation={conversation}
-                number={view?.pullRequestNumber}
+                stepTitle={stepTitle}
               />
             ))}
           </MessageGroup>
         </div>
       )}
-      {stepTitle !== undefined && (
-        <StepDrafts owner={owner} title={stepTitle} />
-      )}
+      <StepDrafts owner={owner} title={stepTitle} />
       <Composer
         owner={owner}
         title={title}
-        placement={call ? 'call' : 'step'}
-        placeholder={
-          stepTitle !== undefined
-            ? 'Comment on this step, or ask the agent'
-            : call
-              ? 'Decide, or ask about this'
-              : 'Ask about this step'
-        }
-        onComment={
-          stepTitle === undefined
-            ? undefined
-            : (text) =>
-                comments.add.run({
-                  anchor: { kind: 'step', title: stepTitle },
-                  text,
-                })
+        placement="step"
+        placeholder="Comment on this step, or ask the agent"
+        onComment={(text) =>
+          comments.add.run({
+            anchor: { kind: 'step', title: stepTitle },
+            text,
+          })
         }
       />
     </div>
@@ -434,24 +380,10 @@ export function EarlierComments({
             key={`${conversation.runId}:${index}`}
             owner={owner}
             conversation={conversation}
-            number={view?.pullRequestNumber}
+            stepTitle={undefined}
           />
         ))}
       </MessageGroup>
     </section>
-  );
-}
-
-export function PostSaved({ owner }: Props) {
-  const { view } = useConversations(owner);
-  const saved = savedSummary(view);
-  if (!saved) return null;
-  return (
-    <div className="sticky bottom-4 z-30 flex justify-center">
-      <div className="flex flex-wrap items-center justify-center gap-3 rounded-full border bg-popover py-1.5 pr-1.5 pl-4 text-ui shadow-sm">
-        <span>{saved}</span>
-        <PostActions owner={owner} number={view?.pullRequestNumber} />
-      </div>
-    </div>
   );
 }

@@ -7,6 +7,9 @@ import {
 } from '@porcelain/walkthroughs/ports';
 import {
   answerStateSchema,
+  callDeciderSchema,
+  type CallDecision,
+  type CallTarget,
   walkthroughJobSchema,
   walkthroughSettingsSchema,
   writerSchema,
@@ -40,6 +43,23 @@ const postState = (row: MessageRow): PostState =>
     : row.postStatus === 'saved'
       ? { status: 'saved' }
       : { status: 'none' };
+type DecisionRow = {
+  step: number;
+  call: number;
+  option: string | null;
+  decidedBy: string;
+  decidedAt: string;
+};
+const decodeDecider = Schema.decodeUnknownSync(
+  Schema.fromJsonString(callDeciderSchema),
+);
+const decision = (row: DecisionRow): CallDecision => ({
+  step: row.step,
+  call: row.call,
+  ...(row.option === null ? {} : { option: row.option }),
+  decidedBy: decodeDecider(row.decidedBy),
+  decidedAt: row.decidedAt,
+});
 const decodeWriter = Schema.decodeUnknownSync(
   Schema.fromJsonString(writerSchema),
 );
@@ -343,6 +363,30 @@ export const sqliteWalkthroughStoreLayer = Layer.effectContext(
             Effect.orDie,
           );
         return rows.length === 1;
+      }),
+      listDecisions: Effect.fn('WalkthroughStore.listDecisions')(function* (
+        worktreeId: string,
+        runId: string,
+      ) {
+        const rows =
+          yield* sql<DecisionRow>`SELECT step, call, option, decided_by, decided_at FROM walkthrough_decisions WHERE worktree_id = ${worktreeId} AND run_id = ${runId} ORDER BY step, call`.pipe(
+            Effect.orDie,
+          );
+        return rows.map(decision);
+      }),
+      saveDecision: Effect.fn('WalkthroughStore.saveDecision')(function* (
+        target: CallTarget,
+        value: Omit<CallDecision, 'step' | 'call'> | undefined,
+      ) {
+        if (value === undefined) {
+          yield* sql`DELETE FROM walkthrough_decisions WHERE worktree_id = ${target.worktreeId} AND run_id = ${target.runId} AND step = ${target.step} AND call = ${target.call}`.pipe(
+            Effect.orDie,
+          );
+          return;
+        }
+        yield* sql`INSERT INTO walkthrough_decisions (run_id, worktree_id, step, call, option, decided_by, decided_at) VALUES (${target.runId}, ${target.worktreeId}, ${target.step}, ${target.call}, ${value.option ?? null}, ${JSON.stringify(value.decidedBy)}, ${value.decidedAt}) ON CONFLICT (run_id, step, call) DO UPDATE SET option = excluded.option, decided_by = excluded.decided_by, decided_at = excluded.decided_at`.pipe(
+          Effect.orDie,
+        );
       }),
       saveForLater: Effect.fn('WalkthroughStore.saveForLater')(function* (
         worktreeId: string,

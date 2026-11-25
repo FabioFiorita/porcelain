@@ -10,6 +10,7 @@ export {
   firstDocumentTitle,
   firstDocumentTitleOwner,
   useReviewPanelOpen,
+  pullRequestCheckFocus,
 } from './store';
 
 export { ReviewBoundary } from './views/review-boundary';

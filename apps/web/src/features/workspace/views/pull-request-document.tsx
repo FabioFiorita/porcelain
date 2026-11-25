@@ -1,4 +1,4 @@
-import { useAtomRefresh, useAtomValue } from '@effect/atom-react';
+import { useAtom, useAtomRefresh, useAtomValue } from '@effect/atom-react';
 import { useNavigate } from '@tanstack/react-router';
 import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
@@ -52,6 +52,9 @@ import {
 } from './pull-request-checks';
 import { PullRequestDecision } from './pull-request-decision';
 import { PullRequestComposer } from './pull-request-composer';
+import { PullRequestReviewNotes } from './pull-request-review-notes';
+import { pullRequestCheckFocus } from '../store';
+import { PublishReviewButton } from '@/features/comments/index';
 import { useRerunChecks } from '../commands/pull-request-actions';
 import {
   useBranchStanding,
@@ -171,6 +174,7 @@ export function PullRequestDocument({
           pull={pull}
           context={context}
           projectId={projectId}
+          checkout={checkout}
           onBack={onBack}
           onFile={onFile}
         />
@@ -304,12 +308,14 @@ function PullRequestConversation({
   pull,
   context,
   projectId,
+  checkout,
   onBack,
   onFile,
 }: {
   pull: PullRequest;
   context: ConnectionContext;
   projectId: string;
+  checkout: Props['checkout'];
   onBack: () => void;
   onFile: Props['onFile'];
 }) {
@@ -361,6 +367,11 @@ function PullRequestConversation({
         context={context}
         projectId={projectId}
         number={pull.number}
+        reviewAction={
+          checkout && (
+            <PublishReviewButton owner={{ scope: checkout, context }} />
+          )
+        }
       />
       {pull.truncated && (
         <p className="mt-3 text-xs text-muted-foreground">
@@ -609,6 +620,13 @@ function PullRequestLive({
     row?.scrollIntoView({ block: 'center' });
     row?.focus();
   };
+  const [focusTarget, setFocusTarget] = useAtom(pullRequestCheckFocus);
+  const focused =
+    status &&
+    focusTarget?.projectId === projectId &&
+    focusTarget.number === number
+      ? status.checks.find((check) => check.name === focusTarget.name)
+      : undefined;
   const rerun = useRerunChecks(connection, projectId, number);
   const onRerun = (target: PullRequestRerunTarget, keys: readonly string[]) => {
     if (status) void rerun.rerun(status, target, keys);
@@ -620,6 +638,18 @@ function PullRequestLive({
     : undefined;
   return (
     <>
+      {focused && (
+        <span
+          hidden
+          ref={(element) => {
+            if (element)
+              queueMicrotask(() => {
+                setFocusTarget(undefined);
+                focusCheck(focused.key);
+              });
+          }}
+        />
+      )}
       <PullRequestDecision
         pull={pull}
         status={status}
@@ -635,6 +665,16 @@ function PullRequestLive({
             : undefined
         }
         changedSinceReview={standing.changedSinceReview}
+        notes={
+          checkout && (
+            <PullRequestReviewNotes
+              checkout={checkout}
+              context={context}
+              walkthrough={standing.walkthrough}
+              onOpenStep={openStep}
+            />
+          )
+        }
         onOpenFile={
           onOpen ? (path) => onOpen({ kind: 'branch-file', path }) : undefined
         }

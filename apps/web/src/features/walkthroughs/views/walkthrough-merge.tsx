@@ -1,12 +1,5 @@
-import { useAtomValue } from '@effect/atom-react';
-import { Option } from 'effect';
-import { AsyncResult } from 'effect/reactivity';
 import {
-  readProjectPullRequest,
-  readProjectPullRequests,
-} from '@porcelain/client/projects';
-import {
-  unansweredCallStep,
+  undecidedCallStep,
   type WalkthroughContent,
   type WalkthroughRun,
 } from '@porcelain/client/walkthroughs/rules';
@@ -16,6 +9,7 @@ import {
 } from '@/features/projects/index';
 import type { DocumentProps } from '@/features/workspace/index';
 import { useConversations } from '../queries/conversations';
+import { useWalkthroughPull } from '../queries/pull';
 
 export function WalkthroughMerge({
   document,
@@ -26,51 +20,12 @@ export function WalkthroughMerge({
   run: WalkthroughRun;
   content: WalkthroughContent;
 }) {
-  const { connection } = document.context;
   const { projectId } = document.scope;
-  const pulls = Option.getOrUndefined(
-    AsyncResult.value(
-      useAtomValue(readProjectPullRequests({ connection, projectId })),
-    ),
-  );
-  const listed = pulls?.kind === 'available' ? pulls.pullRequests : [];
-  const branch = listed.filter((pull) => pull.headBranch === run.branch);
-  const pull =
-    branch.find((entry) => entry.state === 'open') ??
-    listed.find((entry) => entry.number === run.pullRequestNumber) ??
-    branch[0];
-  if (!pull) return null;
-  return (
-    <MergeRow
-      document={document}
-      run={run}
-      content={content}
-      number={pull.number}
-    />
-  );
-}
-
-function MergeRow({
-  document,
-  run,
-  content,
-  number,
-}: {
-  document: DocumentProps;
-  run: WalkthroughRun;
-  content: WalkthroughContent;
-  number: number;
-}) {
-  const { connection } = document.context;
-  const { projectId } = document.scope;
-  const read = Option.getOrUndefined(
-    AsyncResult.value(
-      useAtomValue(readProjectPullRequest({ connection, projectId, number })),
-    ),
-  );
+  const found = useWalkthroughPull(document, run);
   const { view, failed } = useConversations({ ...document, run });
-  if (read?.kind !== 'available') return null;
-  const pull = read.pullRequest;
+  const pull = found?.detail;
+  if (!found || !pull) return null;
+  const number = found.number;
   return (
     <section
       aria-label={`Pull request #${number}`}
@@ -84,9 +39,9 @@ function MergeRow({
           label={`Merge #${number}`}
           review={{
             headOid: run.headOid,
-            unansweredCallStep: unansweredCallStep(
+            undecidedCallStep: undecidedCallStep(
               content,
-              view?.conversations,
+              view?.decisions,
               failed,
             ),
           }}

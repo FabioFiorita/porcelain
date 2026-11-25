@@ -37,6 +37,7 @@ const conversations = (messageIds: readonly string[]) =>
         },
       ],
     })),
+    decisions: [],
   }) satisfies Omit<WalkthroughConversationsResponse, 'pullRequestNumber'> & {
     pullRequestNumber: null;
   };

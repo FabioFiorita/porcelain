@@ -1,6 +1,5 @@
 import { Clock, Context, DateTime, Effect, Layer } from 'effect';
-import type { GitHubReadError } from '../errors/github-read-error.ts';
-import type { PullRequestReviewFailedError } from '../errors/pull-request-review-failed-error.ts';
+import { PullRequestReviewFailedError } from '../errors/pull-request-review-failed-error.ts';
 import { ReviewChangedError } from '../errors/review-changed-error.ts';
 import type {
   DraftCommentView,
@@ -14,15 +13,30 @@ import {
   planPullRequestReview,
 } from '../rules/draft-comments.ts';
 
+function failure(problem: string) {
+  return Effect.fail(
+    new PullRequestReviewFailedError({
+      message:
+        problem === 'no-pull-request'
+          ? 'This branch has no open pull request.'
+          : problem === 'github-read'
+            ? 'GitHub could not be read. Check your connection and try again.'
+            : 'GitHub is not available for this project right now.',
+    }),
+  );
+}
+
 export class PublishPullRequestReviewService extends Context.Service<
   PublishPullRequestReviewService,
   {
     readonly execute: (input: {
       readonly worktreeId: string;
-      readonly target: GitHubRepository & {
-        readonly account: string;
-        readonly number: number;
-      };
+      readonly target:
+        | (GitHubRepository & {
+            readonly account: string;
+            readonly number: number;
+          })
+        | { readonly unavailable: string };
       readonly comments: readonly DraftCommentView[];
       readonly confirmed: {
         readonly headOid: string;
@@ -31,7 +45,7 @@ export class PublishPullRequestReviewService extends Context.Service<
       };
     }) => Effect.Effect<
       PostedReview,
-      GitHubReadError | PullRequestReviewFailedError | ReviewChangedError
+      PullRequestReviewFailedError | ReviewChangedError
     >;
   }
 >()('@porcelain/reviews/PublishPullRequestReviewService') {
@@ -44,7 +58,16 @@ export class PublishPullRequestReviewService extends Context.Service<
       return {
         execute: Effect.fn('PublishPullRequestReviewService.execute')(
           function* (input) {
-            const diff = yield* reviewer.diff(input.target);
+            const target = input.target;
+            if ('unavailable' in target)
+              return yield* failure(target.unavailable);
+            const diff = yield* reviewer
+              .diff(target)
+              .pipe(
+                Effect.catchTag('GitHubReadError', () =>
+                  failure('github-read'),
+                ),
+              );
             if (diff.headOid !== input.confirmed.headOid)
               return yield* new ReviewChangedError({
                 message:
@@ -60,7 +83,7 @@ export class PublishPullRequestReviewService extends Context.Service<
                   'The comments changed since this preview. Review them again before posting.',
               });
             const posted = yield* reviewer.post({
-              ...input.target,
+              ...target,
               commitId: diff.headOid,
               body: review.body,
               comments: review.comments,

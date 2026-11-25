@@ -18,6 +18,7 @@ import { WalkthroughDiagram } from './walkthrough-diagram';
 import { WalkthroughProof } from './walkthrough-evidence';
 import { useCitedFiles, type FileSize } from './cited-files';
 import { EvidenceBox } from './evidence-box';
+import type { WalkthroughPull } from '../queries/pull';
 
 type Files = Extract<StepBlock, { kind: 'files' }>;
 type Checks = Extract<StepBlock, { kind: 'checks' }>;
@@ -113,8 +114,12 @@ export function checksTone(checks: Checks['checks']): Tone {
   return pullRequestRollup(checks.state).tone;
 }
 
-function CheckList({ block }: { block: Checks }) {
+function CheckList({ block, pull }: { block: Checks; pull: WalkthroughPull }) {
   const checks = recordedChecks(block.checks);
+  const moved =
+    pull?.detail && pull.detail.headSha !== block.checks.headOid
+      ? pull.detail.headSha.slice(0, 7)
+      : undefined;
   return (
     <EvidenceBox
       label={checks.label}
@@ -122,20 +127,31 @@ function CheckList({ block }: { block: Checks }) {
         <>
           <CheckResultIcon tone={checksTone(block.checks)} />
           <span className="font-mono">{checks.label}</span>
+          {moved && pull && (
+            <span className="ml-auto text-warn">
+              #{pull.number} is now at{' '}
+              <span className="font-mono">{moved}</span>
+            </span>
+          )}
         </>
       }
     >
       <ul className="flex flex-col py-1">
         {checks.results.map((result, index) => (
-          <li
-            key={`${result.name}:${index}`}
-            className="flex h-7 min-w-0 items-center gap-2 px-3 text-ui"
-          >
-            <CheckResultIcon tone={result.tone} label={result.label} />
-            <TruncatedText text={result.name} className="min-w-0 flex-1" />
-            <span className="shrink-0 text-caption text-muted-foreground">
-              {result.detail ?? result.label}
-            </span>
+          <li key={`${result.name}:${index}`}>
+            <button
+              type="button"
+              disabled={!pull}
+              title={pull ? `Open on #${pull.number}` : undefined}
+              onClick={() => pull?.openCheck(result.name)}
+              className="flex h-7 w-full min-w-0 items-center gap-2 px-3 text-left text-ui hover:bg-muted focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring disabled:hover:bg-transparent"
+            >
+              <CheckResultIcon tone={result.tone} label={result.label} />
+              <TruncatedText text={result.name} className="min-w-0 flex-1" />
+              <span className="shrink-0 text-caption text-muted-foreground">
+                {result.detail ?? result.label}
+              </span>
+            </button>
           </li>
         ))}
       </ul>
@@ -154,12 +170,16 @@ export function StepBlocks({
   title,
   run,
   document,
+  pull,
+  linesInFullDiff = false,
 }: {
+  pull: WalkthroughPull;
   blocks: readonly StepBlock[];
   step: number;
   title: string;
   run: WalkthroughRun;
   document: DocumentProps;
+  linesInFullDiff?: boolean;
 }) {
   return blocks.map((block, index) => {
     switch (block.kind) {
@@ -171,6 +191,7 @@ export function StepBlocks({
             runId={run.id}
             step={step}
             excerpt={block.excerpt}
+            inFullDiff={linesInFullDiff}
           />
         );
       case 'images':
@@ -186,7 +207,7 @@ export function StepBlocks({
       case 'files':
         return <FileList key={index} block={block} document={document} />;
       case 'checks':
-        return <CheckList key={index} block={block} />;
+        return <CheckList key={index} block={block} pull={pull} />;
       case 'diagram':
         return (
           <WalkthroughDiagram

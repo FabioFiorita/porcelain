@@ -4,16 +4,18 @@ import { expect, test, conversationFixture } from './fixtures.tsx';
 const reply =
   'Keep the retry beside its owner. The local boundary is deliberate.';
 
-test('asks, preserves a draft through an answer, saves two, and posts them together once', async ({
+test('asks, preserves a draft through an answer, and adds the answer to the review as a draft comment', async ({
   render,
 }) => {
   await conversationFixture('pr');
   await browserPage.viewport(1280, 896);
   const { page } = await render.route('/');
-  const composer = page.getByRole('textbox', {
-    name: 'Decide, or ask about this',
-    exact: true,
-  });
+  const composer = page
+    .getByRole('textbox', {
+      name: 'Comment on this step, or ask the agent',
+      exact: true,
+    })
+    .first();
   await composer.fill('  Keep this boundary.  ');
   await userEvent.keyboard('{Enter}');
   await composer.fill('An unfinished thought');
@@ -22,86 +24,31 @@ test('asks, preserves a draft through an answer, saves two, and posts them toget
     .toBeVisible();
   await expect.element(composer).toHaveValue('An unfinished thought');
   await expect
-    .element(
-      page.getByRole('button', { name: 'Read all', exact: true }).first(),
-    )
+    .element(page.getByRole('button', { name: 'Save for later', exact: true }))
     .not.toBeInTheDocument();
   await page
-    .getByRole('button', { name: 'Save for later', exact: true })
+    .getByRole('button', { name: 'Add to review', exact: true })
     .first()
     .click();
   await expect
-    .element(page.getByText('1 comment saved', { exact: true }))
+    .element(page.getByText('Added to the review', { exact: true }))
     .toBeVisible();
   await expect
-    .element(
-      page.getByRole('button', { name: 'Ask about this', exact: true }).first(),
-    )
-    .not.toBeInTheDocument();
-  const step = page
-    .getByRole('textbox', { name: 'Ask about this step', exact: true })
-    .last();
-  await expect.element(step).toBeVisible();
-  await step.fill('Handle failures here.');
-  await userEvent.keyboard('{Enter}');
-  await expect
-    .element(page.getByText(reply, { exact: true }).last())
+    .element(page.getByText('1 comment not posted', { exact: true }))
     .toBeVisible();
-  await page
-    .getByRole('button', { name: 'Save for later', exact: true })
-    .last()
-    .click();
-  await expect
-    .element(page.getByText('2 comments saved', { exact: true }))
-    .toBeVisible();
-  await page
-    .getByRole('button', { name: 'Post together on #423', exact: true })
-    .dblClick();
-  await expect
-    .element(
-      page.getByRole('link', { name: 'Posted on #423', exact: true }).first(),
-    )
-    .toBeVisible();
-  const posts = () => conversationFixture('posts');
-  await expect
-    .poll(async () => (await posts()).trim().split('\n'))
-    .toHaveLength(1);
-  await expect.poll(posts).toContain('Keep this boundary.');
-  await expect.poll(posts).toContain('Handle failures here.');
-  await expect.poll(posts).toContain('Keep the retry beside its owner.');
-  await conversationFixture('moved');
-  await composer.fill('Keep the boundary explicit.');
-  await userEvent.keyboard('{Enter}');
-  await page
-    .getByRole('button', { name: 'Post on #423', exact: true })
-    .first()
-    .click();
-  await expect
-    .element(
-      page
-        .getByRole('status')
-        .filter({ hasText: 'Nothing was posted. Copy the brief instead.' }),
-    )
-    .toBeVisible();
-  await page.getByRole('button', { name: 'Copy', exact: true }).click();
-  await expect
-    .element(page.getByText('Copied brief', { exact: true }))
-    .toBeVisible();
-  await expect
-    .poll(async () => (await posts()).trim().split('\n'))
-    .toHaveLength(1);
+  await expect.poll(() => conversationFixture('posts')).toBe('');
 });
 
-test('a failed answer can be retried and a walkthrough without a PR copies its brief', async ({
-  render,
-}) => {
+test('a failed answer can be retried', async ({ render }) => {
   await conversationFixture('no-pr');
   await conversationFixture('fail');
   const { page } = await render.route('/');
-  const composer = page.getByRole('textbox', {
-    name: 'Decide, or ask about this',
-    exact: true,
-  });
+  const composer = page
+    .getByRole('textbox', {
+      name: 'Comment on this step, or ask the agent',
+      exact: true,
+    })
+    .first();
   await composer.fill('Why here?');
   await userEvent.keyboard('{Enter}');
   await expect
@@ -122,121 +69,6 @@ test('a failed answer can be retried and a walkthrough without a PR copies its b
   await expect
     .element(page.getByText(reply, { exact: true }).first())
     .toBeVisible();
-  await page
-    .getByRole('button', { name: 'Copy as prompt', exact: true })
-    .first()
-    .click();
-  await expect
-    .element(page.getByText('Copied brief', { exact: true }))
-    .toBeVisible();
-  await expect
-    .element(
-      page
-        .getByRole('region', { name: 'Notifications', exact: true })
-        .filter({ hasText: 'Copied brief' }),
-    )
-    .toMatchTextContent(/^Copied brief$/);
-  await expect.poll(() => conversationFixture('posts')).toBe('');
-});
-
-test('retained comments on a short PR page remain readable, undoable and postable', async ({
-  render,
-}) => {
-  await conversationFixture('short-pr');
-  const { page } = await render.route('/');
-  await expect
-    .element(
-      page.getByRole('heading', { name: 'Earlier comments', exact: true }),
-    )
-    .toBeVisible();
-  await expect
-    .element(page.getByText('Keep the original boundary.', { exact: true }))
-    .toBeVisible();
-  await expect
-    .element(
-      page
-        .getByText('The original boundary still matters.', { exact: true })
-        .first(),
-    )
-    .toBeVisible();
-  await expect
-    .element(page.getByText('1 comment saved', { exact: true }))
-    .toBeVisible();
-  await page.getByRole('button', { name: 'Undo', exact: true }).click();
-  await expect
-    .element(page.getByText('1 comment saved', { exact: true }))
-    .not.toBeInTheDocument();
-  await page
-    .getByRole('button', { name: 'Save for later', exact: true })
-    .click();
-  await page
-    .getByRole('button', { name: 'Post together on #424', exact: true })
-    .click();
-  await expect
-    .poll(() => conversationFixture('posts'))
-    .toContain('Keep the original boundary.');
-});
-
-test('retained comments on a short page without a PR can be copied together', async ({
-  render,
-}) => {
-  await conversationFixture('short-copy');
-  const { page } = await render.route('/');
-  await expect
-    .element(
-      page.getByRole('heading', { name: 'Earlier comments', exact: true }),
-    )
-    .toBeVisible();
-  await expect
-    .element(page.getByText('Keep the original boundary.', { exact: true }))
-    .toBeVisible();
-  await expect
-    .element(page.getByRole('button', { name: 'Undo', exact: true }))
-    .toBeVisible();
-  await page.getByRole('button', { name: 'Undo', exact: true }).click();
-  await expect
-    .element(page.getByRole('button', { name: 'Copy as prompt', exact: true }))
-    .toBeVisible();
-  await page
-    .getByRole('button', { name: 'Save for later', exact: true })
-    .click();
-  await page
-    .getByRole('button', { name: 'Copy together', exact: true })
-    .click();
-  await expect
-    .element(page.getByText('Copied brief', { exact: true }))
-    .toBeVisible();
-  await expect
-    .element(
-      page
-        .getByRole('region', { name: 'Notifications', exact: true })
-        .filter({ hasText: 'Copied brief' }),
-    )
-    .toMatchTextContent(/^Copied brief$/);
-  await expect.poll(() => conversationFixture('posts')).toBe('');
-});
-
-test('a posted comment keeps its original pull request number when the latest walkthrough names another PR', async ({
-  render,
-}) => {
-  await conversationFixture('changed-pr');
-  const { page } = await render.route('/');
-  await expect
-    .element(
-      page.getByRole('button', { name: 'Post together on #424', exact: true }),
-    )
-    .toBeVisible();
-  await expect
-    .element(
-      page.getByRole('link', { name: 'Posted on #423', exact: true }).first(),
-    )
-    .toHaveAttribute(
-      'href',
-      'https://github.com/example/sample/pull/423#issuecomment-1',
-    );
-  await expect
-    .element(page.getByRole('link', { name: 'Posted on #424', exact: true }))
-    .not.toBeInTheDocument();
 });
 
 for (const { scenario, notice } of [
@@ -246,7 +78,7 @@ for (const { scenario, notice } of [
     notice: 'Sign in to Codex again with codex login, then try again.',
   },
 ] as const) {
-  test(`a ${scenario} keeps the ready page conversations, composer and saved bar`, async ({
+  test(`a ${scenario} keeps the ready page conversations and composer`, async ({
     render,
     server,
   }) => {
@@ -297,17 +129,6 @@ for (const { scenario, notice } of [
       )
       .toBeVisible();
     await expect
-      .element(page.getByText('1 comment saved', { exact: true }))
-      .toBeVisible();
-    await expect
-      .element(
-        page.getByRole('button', {
-          name: 'Post together on #423',
-          exact: true,
-        }),
-      )
-      .toBeVisible();
-    await expect
       .poll(
         async () =>
           (await server.inventory()).projects
@@ -318,10 +139,12 @@ for (const { scenario, notice } of [
             )?.walkthroughTitle,
       )
       .toBe('Keep retries beside their owner');
-    const composer = page.getByRole('textbox', {
-      name: 'Decide, or ask about this',
-      exact: true,
-    });
+    const composer = page
+      .getByRole('textbox', {
+        name: 'Comment on this step, or ask the agent',
+        exact: true,
+      })
+      .first();
     await composer.fill('A comment on the retained page.');
     await userEvent.keyboard('{Enter}');
     await expect
@@ -337,14 +160,6 @@ for (const { scenario, notice } of [
     await expect
       .poll(async () => (await server.walkthrough()).attempt?.state.status)
       .toBe(scenario === 'running-update' ? 'running' : 'failed');
-    await expect
-      .element(
-        page.getByRole('button', {
-          name: 'Post together on #423',
-          exact: true,
-        }),
-      )
-      .toBeVisible();
   });
 }
 
@@ -361,10 +176,12 @@ test('switching branches shows the displayed walkthrough conversations and never
   await expect
     .element(page.getByText('Only branch B', { exact: true }))
     .not.toBeInTheDocument();
-  const composer = page.getByRole('textbox', {
-    name: 'Decide, or ask about this',
-    exact: true,
-  });
+  const composer = page
+    .getByRole('textbox', {
+      name: 'Comment on this step, or ask the agent',
+      exact: true,
+    })
+    .first();
   await composer.fill(question);
   await repo.switch('conversation-branch-b');
   await expect
@@ -377,11 +194,6 @@ test('switching branches shows the displayed walkthrough conversations and never
   await expect
     .element(page.getByText('Only branch A', { exact: true }))
     .not.toBeInTheDocument();
-  await expect
-    .element(
-      page.getByRole('button', { name: 'Post together on #424', exact: true }),
-    )
-    .toBeVisible();
   await repo.switch('main');
   await expect
     .element(
@@ -420,7 +232,10 @@ test('keeps a question in its original step and worktree', async ({
       .filter({
         has: page.getByRole('heading', { name: title, exact: true }),
       })
-      .getByRole('textbox', { name: 'Ask about this step', exact: true });
+      .getByRole('textbox', {
+        name: 'Comment on this step, or ask the agent',
+        exact: true,
+      });
   const originalStep = step('Failure handling');
 
   await sidebar.getByRole('button', { name: /Main worktree/ }).click();
@@ -443,24 +258,6 @@ test('keeps a question in its original step and worktree', async ({
   await expect.element(originalStep).toHaveValue(question);
 });
 
-test('keeps call and step drafts separate for the same title', async ({
-  render,
-}) => {
-  await conversationFixture('pr');
-  const { page } = await render.route('/');
-  const call = page.getByRole('textbox', {
-    name: 'Decide, or ask about this',
-    exact: true,
-  });
-  const step = page
-    .getByRole('textbox', { name: 'Ask about this step', exact: true })
-    .first();
-  await call.fill(question);
-  await expect.element(step).toHaveValue('');
-  await step.fill('Where are retries scheduled?');
-  await expect.element(call).toHaveValue(question);
-});
-
 test('keeps a step draft when a new walkthrough retains its title', async ({
   render,
   repo,
@@ -469,7 +266,10 @@ test('keeps a step draft when a new walkthrough retains its title', async ({
   await conversationFixture('pr');
   const { page } = await render.route('/');
   const step = page
-    .getByRole('textbox', { name: 'Ask about this step', exact: true })
+    .getByRole('textbox', {
+      name: 'Comment on this step, or ask the agent',
+      exact: true,
+    })
     .last();
   const error = page.getByText('Finished walkthrough or step not found', {
     exact: true,
@@ -506,7 +306,10 @@ test('keeps a send error with its draft after switching worktrees', async ({
     exact: true,
   });
   const step = page
-    .getByRole('textbox', { name: 'Ask about this step', exact: true })
+    .getByRole('textbox', {
+      name: 'Comment on this step, or ask the agent',
+      exact: true,
+    })
     .last();
   const error = page.getByText('Finished walkthrough or step not found', {
     exact: true,
@@ -528,19 +331,22 @@ test('keeps a send error with its draft after switching worktrees', async ({
   await expect.element(error).not.toBeInTheDocument();
 });
 
-test('an empty question keeps Send reachable and says it is unavailable', async ({
+test('an empty question keeps Ask reachable and says it is unavailable', async ({
   render,
 }) => {
   await conversationFixture('pr');
   await browserPage.viewport(1280, 896);
   const { page } = await render.route('/');
   const composer = page
-    .getByRole('textbox', { name: 'Decide, or ask about this', exact: true })
+    .getByRole('textbox', {
+      name: 'Comment on this step, or ask the agent',
+      exact: true,
+    })
     .first();
-  const send = page.getByRole('button', { name: 'Send', exact: true }).first();
+  const send = page.getByRole('button', { name: 'Ask', exact: true }).first();
   await expect.element(send).toHaveAttribute('aria-disabled', 'true');
   await composer.click();
-  await userEvent.keyboard('{Tab}');
+  await userEvent.keyboard('{Tab}{Tab}');
   await expect.element(send).toHaveFocus();
   await userEvent.keyboard('{Enter}');
   await expect.element(composer).toHaveValue('');

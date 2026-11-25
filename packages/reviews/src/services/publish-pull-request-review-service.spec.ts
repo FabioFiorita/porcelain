@@ -164,4 +164,25 @@ describe('PublishPullRequestReviewService', () => {
     expect(JSON.stringify(exit)).toContain('ReviewChangedError');
     expect(posted).toEqual([]);
   });
+
+  it('refuses with a plain message when the branch has no open pull request, posting nothing', async () => {
+    const { posted, service, comments } = await setup();
+    const exit = await Effect.runPromiseExit(
+      service.execute({
+        worktreeId,
+        target: { unavailable: 'no-pull-request' },
+        comments,
+        confirmed: {
+          headOid: HEAD,
+          summary: '',
+          bodies: { inline: 'x', step: 'y' },
+        },
+      }),
+    );
+    expect(JSON.stringify(exit)).toContain('PullRequestReviewFailedError');
+    expect(JSON.stringify(exit)).toContain(
+      'This branch has no open pull request.',
+    );
+    expect(posted).toEqual([]);
+  });
 });

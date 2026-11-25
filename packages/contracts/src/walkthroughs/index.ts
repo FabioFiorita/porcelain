@@ -26,6 +26,8 @@ export {
   type WalkthroughConversationsResponse,
   type AddWalkthroughMessageRequest,
   type SaveWalkthroughMessageRequest,
+  type DecideWalkthroughCallRequest,
+  type DecideWalkthroughCallInput,
   type WalkthroughMessageParams,
   type WalkthroughConversationParams,
   type WalkthroughPostInput,

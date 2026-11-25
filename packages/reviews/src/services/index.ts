@@ -17,3 +17,4 @@ export { ReadGitHubPullStatusService } from './read-github-pull-status-service.t
 export { ReadGitHubCheckLogService } from './read-github-check-log-service.ts';
 export { RerunGitHubChecksService } from './rerun-github-checks-service.ts';
 export { CommentOnGitHubPullRequestService } from './comment-on-github-pull-request-service.ts';
+export { ListCommentedPathsService } from './list-commented-paths-service.ts';

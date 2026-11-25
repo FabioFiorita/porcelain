@@ -73,31 +73,33 @@ export function walkthroughCalls(content: WalkthroughContent) {
   );
 }
 
-export function unansweredCallStep(
+type Decided = { readonly step: number; readonly call: number };
+
+const isDecided = (decisions: readonly Decided[], step: number, call: number) =>
+  decisions.some((entry) => entry.step === step && entry.call === call);
+
+export function callDecisionProgress(
   content: WalkthroughContent,
-  conversations:
-    | readonly {
-        readonly anchor: { readonly kind: string; readonly title?: string };
-        readonly messages: readonly { readonly author: string }[];
-      }[]
-    | undefined,
+  decisions: readonly Decided[] | undefined,
+) {
+  const calls = walkthroughCalls(content);
+  return {
+    total: calls.length,
+    decided: calls.filter((call) =>
+      isDecided(decisions ?? [], call.step, call.callIndex),
+    ).length,
+  };
+}
+
+export function undecidedCallStep(
+  content: WalkthroughContent,
+  decisions: readonly Decided[] | undefined,
   failed = false,
 ): number | 'reading' | 'unreadable' | undefined {
   if (walkthroughCalls(content).length === 0) return undefined;
-  if (!conversations) return failed ? 'unreadable' : 'reading';
-  const answered = new Set(
-    conversations
-      .filter(
-        (conversation) =>
-          conversation.anchor.kind === 'stop' &&
-          conversation.messages.some(
-            (message) => message.author === 'developer',
-          ),
-      )
-      .map((conversation) => conversation.anchor.title),
-  );
+  if (!decisions) return failed ? 'unreadable' : 'reading';
   return walkthroughCalls(content).find(
-    (call) => !answered.has(call.stop.title),
+    (call) => !isDecided(decisions, call.step, call.callIndex),
   )?.step;
 }
 

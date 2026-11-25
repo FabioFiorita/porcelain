@@ -2,21 +2,14 @@ import { useWorkspaceWriteBlock } from '@/shared/workspace/connection';
 import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { refLabel } from '@porcelain/client/history/rules';
-import { walkthroughWriterNotice } from '@porcelain/client/projects/rules';
-import { Button } from '@/components/ui/button';
 import {
   useBranchBases,
   useBranchChanges,
   useChanges,
 } from '@/features/changes/index';
-import { BriefingRow, BriefingRows } from './walkthrough-briefing';
 import type { DocumentProps } from '@/features/workspace/index';
 import type { useWalkthroughWriter } from '../queries/writer';
-import { WalkthroughWriterMenu } from './walkthrough-writer-menu';
-import {
-  CheckWalkthroughWriters,
-  WalkthroughWriterSettingsAction,
-} from './walkthrough-writer-notice';
+import { WalkthroughWriterRow } from './walkthrough-writer-notice';
 
 export function WalkthroughStart({
   document,
@@ -53,29 +46,7 @@ export function WalkthroughStart({
     files: branch?.files.length,
     uncommitted,
   });
-  let note = status ? '' : 'Checking the Walkthrough writer…';
-  let action = (
-    <Button
-      disabled={Boolean(writeBlock) || status === undefined || waiting}
-      aria-description={writeBlock}
-      onClick={onWrite}
-    >
-      Write walkthrough
-    </Button>
-  );
-  let settingsAction;
-  if (failed || noWriters) {
-    note = walkthroughWriterNotice(writer) ?? '';
-    action = <CheckWalkthroughWriters writer={writer} />;
-  } else if (status?.block) {
-    note = status.block;
-    const recovery = <WalkthroughWriterSettingsAction document={document} />;
-    if (status.availability === 'unsupported-effort') settingsAction = recovery;
-    else {
-      action = <CheckWalkthroughWriters writer={writer} />;
-      settingsAction = recovery;
-    }
-  }
+  const checking = status === undefined && !failed && !noWriters;
   return (
     <section
       aria-labelledby="walkthrough-start"
@@ -90,42 +61,38 @@ export function WalkthroughStart({
         </h1>
         {reads && <p className="text-prose text-foreground-2">{reads}</p>}
       </header>
-      <BriefingRows label="What the walkthrough adds">
-        <BriefingRow label="Your calls">
-          <p className="py-1 text-ui">
-            Decisions only you can make, each linked to its step.
-          </p>
-        </BriefingRow>
-        <BriefingRow label="Verified">
-          <p className="py-1 text-ui">
-            Pull request checks and screenshots at the commit it reads, when the
-            branch has a pull request.
-          </p>
-        </BriefingRow>
-        <BriefingRow label="Steps">
-          <p className="py-1 text-ui">
-            The change in reading order, every claim beside its lines.
-          </p>
-        </BriefingRow>
-      </BriefingRows>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        {action}
-        {!failed && !noWriters && (
-          <WalkthroughWriterMenu document={document} writer={writer} />
-        )}
-        {note && (
-          <p
-            role={failed ? 'alert' : undefined}
-            className="min-w-0 text-ui text-muted-foreground"
-          >
-            {note}
-          </p>
-        )}
-        {settingsAction}
-      </div>
+      <WalkthroughWriterRow
+        document={document}
+        writer={writer}
+        actionFirst
+        action={{
+          label: 'Write walkthrough',
+          variant: 'default',
+          disabled: Boolean(writeBlock) || checking || waiting,
+          description: writeBlock,
+          onClick: onWrite,
+        }}
+      />
+      <dl
+        aria-label="What the walkthrough adds"
+        className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-caption"
+      >
+        {ADDS.map(([label, detail]) => (
+          <div key={label} className="contents">
+            <dt className="text-foreground-2">{label}</dt>
+            <dd className="text-muted-foreground">{detail}</dd>
+          </div>
+        ))}
+      </dl>
     </section>
   );
 }
+
+const ADDS = [
+  ['Your calls', 'Decisions only you can make, each linked to its step.'],
+  ['Verified', 'Pull request checks and screenshots at the commit it reads.'],
+  ['Steps', 'The change in reading order, every claim beside its lines.'],
+] as const;
 
 function count(value: number, one: string, many: string) {
   return value === 1 ? `1 ${one}` : `${value} ${many}`;

@@ -272,7 +272,7 @@ export function mergeFailureMessage(error: unknown) {
 
 export type PullRequestMergeReview = {
   readonly headOid: string;
-  readonly unansweredCallStep: number | 'reading' | 'unreadable' | undefined;
+  readonly undecidedCallStep: number | 'reading' | 'unreadable' | undefined;
 };
 
 export function pullRequestMergeBlock(
@@ -310,12 +310,12 @@ export function pullRequestMergeBlock(
   if (!review) return undefined;
   if (review.headOid !== pull.headSha)
     return `The walkthrough covers ${review.headOid.slice(0, 7)}; the pull request is at ${pull.headSha.slice(0, 7)}.`;
-  if (review.unansweredCallStep === 'reading')
-    return 'Reading your replies to the calls.';
-  if (review.unansweredCallStep === 'unreadable')
-    return 'Your replies to the calls could not be read.';
-  if (review.unansweredCallStep !== undefined)
-    return `Your call in step ${review.unansweredCallStep} has no reply yet.`;
+  if (review.undecidedCallStep === 'reading')
+    return 'Reading your decisions on the calls.';
+  if (review.undecidedCallStep === 'unreadable')
+    return 'Your decisions on the calls could not be read.';
+  if (review.undecidedCallStep !== undefined)
+    return `Your call in step ${review.undecidedCallStep} is not decided yet.`;
   return undefined;
 }
 

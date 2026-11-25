@@ -4,8 +4,8 @@ import {
   walkthroughFailureCopy,
   type WalkthroughStatusInput,
 } from '@porcelain/client/walkthroughs/rules';
-import { Button } from '@/components/ui/button';
 import type { ReactNode } from 'react';
+import type { WriterAction } from './walkthrough-writer-notice';
 
 export function WalkthroughStatus({
   run,
@@ -15,12 +15,10 @@ export function WalkthroughStatus({
   failure,
   onUpdate,
   writeBlock,
-  writerNotice,
-  writerMenu,
+  controls,
 }: WalkthroughStatusInput & {
   writeBlock?: string | undefined;
-  writerNotice?: ReactNode;
-  writerMenu?: ReactNode;
+  controls?: ((action: WriterAction) => ReactNode) | undefined;
 }) {
   const progress = walkthroughProgress(run, requesting);
   if (
@@ -51,21 +49,14 @@ export function WalkthroughStatus({
             </>
           )}
         </p>
-        {writerNotice}
-        <div className="flex min-w-0 items-center gap-1">
-          {writerMenu}
-          {onUpdate && (
-            <Button
-              size="sm"
-              variant={behind ? 'outline' : 'ghost'}
-              disabled={Boolean(writeBlock)}
-              aria-description={writeBlock}
-              onClick={onUpdate}
-            >
-              Update walkthrough
-            </Button>
-          )}
-        </div>
+        {onUpdate &&
+          controls?.({
+            label: 'Update walkthrough',
+            variant: behind ? 'outline' : 'ghost',
+            disabled: Boolean(writeBlock),
+            description: writeBlock,
+            onClick: onUpdate,
+          })}
       </section>
     );
   }
@@ -78,22 +69,15 @@ export function WalkthroughStatus({
         <p role="status" className="font-medium">
           {progress.label}
         </p>
-        {!progress.active && onUpdate && (
-          <div className="flex min-w-0 items-center gap-1">
-            {writerMenu}
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={Boolean(writeBlock)}
-              aria-description={writeBlock}
-              onClick={onUpdate}
-            >
-              {failure ? 'Try again' : 'Update walkthrough'}
-            </Button>
-          </div>
-        )}
+        {!progress.active &&
+          onUpdate &&
+          controls?.({
+            label: failure ? 'Try again' : 'Update walkthrough',
+            disabled: Boolean(writeBlock),
+            description: writeBlock,
+            onClick: onUpdate,
+          })}
       </div>
-      {!progress.active && writerNotice}
       {run.state.status === 'ready' && (
         <p className="text-caption text-muted-foreground">
           Last written{' '}

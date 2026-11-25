@@ -11,6 +11,7 @@ import {
   UnsupportedWalkthroughEffortError,
   WalkthroughFailedError,
   WalkthroughAssetNotFoundError,
+  WalkthroughCallNotFoundError,
   WalkthroughMessageNotFoundError,
   WalkthroughPostFailedError,
   WalkthroughRepositoryChangedError,
@@ -24,6 +25,8 @@ import { worktreeFailures } from '../shared/worktree-failures.ts';
 import { gitReadFailures } from '../shared/git-read-failures.ts';
 import {
   addWalkthroughMessageRequestSchema,
+  decideWalkthroughCallRequestSchema,
+  walkthroughCallParamsSchema,
   postWalkthroughMessagesResponseSchema,
   readWalkthroughBriefQuery,
   saveWalkthroughMessageRequestSchema,
@@ -224,6 +227,21 @@ export class WalkthroughsApi extends porcelainApi.add(
             ...worktreeFailures,
             httpFailure(WalkthroughTargetNotFoundError, 'NotFound'),
             httpFailure(WalkthroughMessageNotFoundError, 'NotFound'),
+          ],
+        },
+      ),
+      HttpApiEndpoint.put(
+        'decideWalkthroughCall',
+        '/api/worktrees/:worktreeId/walkthrough/:runId/calls/:step/:call/decision',
+        {
+          disableCodecs: true,
+          params: walkthroughCallParamsSchema,
+          payload: decideWalkthroughCallRequestSchema,
+          success: walkthroughConversationsResponseSchema,
+          error: [
+            ...worktreeFailures,
+            httpFailure(WalkthroughTargetNotFoundError, 'NotFound'),
+            httpFailure(WalkthroughCallNotFoundError, 'NotFound'),
           ],
         },
       ),

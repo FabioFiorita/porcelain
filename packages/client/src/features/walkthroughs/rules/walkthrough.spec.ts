@@ -17,7 +17,8 @@ import {
   walkthroughTabTitle,
   walkthroughVerdict,
   walkthroughCalls,
-  unansweredCallStep,
+  undecidedCallStep,
+  callDecisionProgress,
   type WalkthroughContent,
   type WalkthroughRead,
   type WalkthroughRun,
@@ -1086,7 +1087,7 @@ it('shows a start failure only before a page exists and retains the failed run i
   ).toBeUndefined();
 });
 
-describe('unansweredCallStep', () => {
+describe('undecidedCallStep', () => {
   const calls = content({
     stops: [
       { ...stop(), title: 'Read the list' },
@@ -1095,41 +1096,51 @@ describe('unansweredCallStep', () => {
         title: 'Choose empty search',
       },
       {
-        ...stop({ callouts: [{ attention, comparison: undefined }] }),
+        ...stop({
+          callouts: [
+            { attention, comparison: undefined },
+            { attention, comparison: undefined },
+          ],
+        }),
         title: 'Name the count',
       },
     ],
   });
-  const said = (title: string, author: 'developer' | 'agent') => ({
-    anchor: { kind: 'stop', title },
-    messages: [{ author }],
-  });
 
-  it('names the first call step without a reply from the developer', () => {
-    expect(unansweredCallStep(calls, [])).toBe(2);
+  it('names the first step with a call nobody marked decided', () => {
+    expect(undecidedCallStep(calls, [])).toBe(2);
+    expect(undecidedCallStep(calls, [{ step: 2, call: 0 }])).toBe(3);
     expect(
-      unansweredCallStep(calls, [said('Choose empty search', 'agent')]),
-    ).toBe(2);
-    expect(
-      unansweredCallStep(calls, [said('Choose empty search', 'developer')]),
+      undecidedCallStep(calls, [
+        { step: 2, call: 0 },
+        { step: 3, call: 0 },
+      ]),
     ).toBe(3);
   });
 
-  it('waits for the replies before calling the calls settled', () => {
-    expect(unansweredCallStep(calls, undefined)).toBe('reading');
-    expect(unansweredCallStep(calls, undefined, true)).toBe('unreadable');
-    expect(unansweredCallStep(content({ stops: [stop()] }), undefined)).toBe(
+  it('waits for the decisions before calling the calls settled', () => {
+    expect(undecidedCallStep(calls, undefined)).toBe('reading');
+    expect(undecidedCallStep(calls, undefined, true)).toBe('unreadable');
+    expect(undecidedCallStep(content({ stops: [stop()] }), undefined)).toBe(
       undefined,
     );
   });
 
-  it('is settled once every call has a reply', () => {
-    expect(
-      unansweredCallStep(calls, [
-        said('Choose empty search', 'developer'),
-        said('Name the count', 'developer'),
-        said('Read the list', 'agent'),
-      ]),
-    ).toBeUndefined();
+  it('is settled once every call is decided, and counts them', () => {
+    const all = [
+      { step: 2, call: 0 },
+      { step: 3, call: 0 },
+      { step: 3, call: 1 },
+    ];
+    expect(undecidedCallStep(calls, all)).toBeUndefined();
+    expect(callDecisionProgress(calls, all)).toEqual({ total: 3, decided: 3 });
+    expect(callDecisionProgress(calls, [{ step: 3, call: 1 }])).toEqual({
+      total: 3,
+      decided: 1,
+    });
+    expect(callDecisionProgress(calls, [{ step: 1, call: 0 }])).toEqual({
+      total: 3,
+      decided: 0,
+    });
   });
 });

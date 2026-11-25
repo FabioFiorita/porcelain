@@ -8,6 +8,7 @@ import type {
   WalkthroughMessage,
 } from '../models/conversation.ts';
 import type { WalkthroughRun } from '../models/walkthrough.ts';
+import type { CallDecision } from '../models/decision.ts';
 
 function stopsOf(run: WalkthroughRun | undefined) {
   return run?.state.status === 'ready' ? run.state.content.stops : [];
@@ -37,6 +38,7 @@ function messagesOf(
 export function conversationsView(
   readyRuns: readonly WalkthroughRun[],
   messages: readonly StoredWalkthroughMessage[],
+  decisions: readonly CallDecision[] = [],
 ): WalkthroughConversationsView {
   const latest = readyRuns.at(-1);
   const current = new Set(stopsOf(latest).map((stop) => stop.title));
@@ -67,6 +69,7 @@ export function conversationsView(
     runId: latest?.id,
     pullRequestNumber: latest?.pullRequestNumber,
     conversations: [...grouped.values()],
+    decisions,
   };
 }
 

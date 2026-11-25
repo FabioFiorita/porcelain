@@ -51,6 +51,7 @@ const tableLanes: Readonly<
   GitActionReceiptStore: { any: ['receipts', 'repository'] },
   WalkthroughStore: { any: ['walkthroughs', 'repository'] },
   ReviewedFileStore: { any: repositoryTables },
+  DraftCommentStore: { any: repositoryTables },
   FilePreferenceStore: { any: ['project'] },
   InventoryStore: { any: ['inventory'] },
   GitHubAccountStore: { any: ['project'] },

@@ -9,15 +9,16 @@ import {
   type WalkthroughRun,
   type WalkthroughStop,
 } from '@porcelain/client/walkthroughs/rules';
-import { Kbd, KbdGroup } from '@/components/ui/kbd';
 import type { ComparedBranch, DocumentProps } from '@/features/workspace/index';
 import { cn } from '@/shared/lib/utils';
 import { TruncatedText } from '@/shared/views/truncated-text';
 import { useHotkeysEnabled } from '@/shared/hooks/use-hotkeys-enabled';
+import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import { RichText } from './rich-text';
 import { ComparisonTable, StepBlocks } from './walkthrough-blocks';
 import { ReviewCode } from './walkthrough-code-document';
 import { StepButton } from './step-button';
+import type { WalkthroughPull } from '../queries/pull';
 import {
   callId,
   scrollToTarget,
@@ -25,9 +26,12 @@ import {
   type Jump,
 } from './walkthrough-briefing';
 
-export type Conversation = (target: {
-  kind: 'call' | 'step';
+export type Conversation = (target: { step: number }) => ReactNode;
+
+export type Decision = (target: {
   step: number;
+  index: number;
+  comparison: WalkthroughStop['callouts'][number]['comparison'];
 }) => ReactNode;
 
 const RAIL_OFFSET = 60;
@@ -56,30 +60,6 @@ function trackSteps(onStep: (step: number) => void) {
     root.addEventListener('scroll', update, { passive: true });
     return () => root.removeEventListener('scroll', update);
   };
-}
-
-function StepNode({
-  step,
-  call,
-  current,
-}: {
-  step: number;
-  call: boolean;
-  current: boolean;
-}) {
-  return (
-    <span
-      className={cn(
-        'grid size-6 shrink-0 place-items-center rounded-full border font-mono text-2xs tabular-nums',
-        call
-          ? 'border-warn-border bg-warn-soft text-warn'
-          : 'bg-background text-muted-foreground',
-        current && 'border-foreground text-foreground',
-      )}
-    >
-      {step}
-    </span>
-  );
 }
 
 function StepRail({
@@ -111,25 +91,6 @@ function StepRail({
           className="min-w-0 flex-1 font-medium"
         />
       </p>
-      <ol className="hidden items-center gap-1 @xl:flex">
-        {stops.map((entry, index) => (
-          <li key={index}>
-            <button
-              type="button"
-              aria-label={`Step ${index + 1}: ${plainText(entry.title)}`}
-              aria-current={current === index + 1 ? 'step' : undefined}
-              onClick={() => onJump(stepId(index + 1))}
-              className="rounded-full focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
-            >
-              <StepNode
-                step={index + 1}
-                call={entry.callouts.length > 0}
-                current={current === index + 1}
-              />
-            </button>
-          </li>
-        ))}
-      </ol>
       {outside > 0 && (
         <button
           type="button"
@@ -142,20 +103,18 @@ function StepRail({
       <span className="flex shrink-0 items-center">
         <StepButton
           label="Previous step"
+          shortcut="K"
           icon={<ChevronUpIcon />}
           disabled={current <= 1}
           onClick={() => onStep(-1)}
         />
         <StepButton
           label="Next step"
+          shortcut="J"
           icon={<ChevronDownIcon />}
           disabled={current >= stops.length}
           onClick={() => onStep(1)}
         />
-        <KbdGroup aria-hidden className="ml-1 hidden @2xl:inline-flex">
-          <Kbd>J</Kbd>
-          <Kbd>K</Kbd>
-        </KbdGroup>
       </span>
     </nav>
   );
@@ -164,18 +123,18 @@ function StepRail({
 function CallPanel({
   stop,
   step,
-  conversation,
+  decision,
 }: {
   stop: WalkthroughStop;
   step: number;
-  conversation: Conversation | undefined;
+  decision: Decision | undefined;
 }) {
   return stop.callouts.map(({ attention, comparison }, index) => (
     <section
       key={index}
       id={callId(step, index)}
-      aria-label={attentionLabel(attention)}
-      className="flex flex-col gap-2.5 rounded-md border border-warn-border bg-warn-soft/60 p-3"
+      aria-label={`Your call: ${attentionLabel(attention)}`}
+      className="flex flex-col gap-2 border-l-2 border-warn pl-4"
     >
       <p className="text-caption font-medium text-warn">
         Your call · {attentionLabel(attention)}
@@ -187,35 +146,38 @@ function CallPanel({
         <RichText text={attention.note} />
       </p>
       {comparison && <ComparisonTable comparison={comparison} />}
-      {index === 0 && conversation?.({ kind: 'call', step })}
+      {decision?.({ step, index, comparison })}
     </section>
   ));
 }
 
-function StepCode({
+function FullDiff({
   props,
   code,
   branch,
   eager,
   step,
+  open,
+  onOpen,
 }: {
   props: DocumentProps;
   code: ReviewCodeFiles;
   branch: ComparedBranch | undefined;
   eager: boolean;
   step: number;
+  open: boolean;
+  onOpen: (open: boolean) => void;
 }) {
-  const [open, setOpen] = useState(false);
   const files = new Set([...(branch ? code.branch : []), ...code.worktree])
     .size;
   if (files === 0) return null;
   return (
-    <div className="border-t">
+    <div className="flex flex-col">
       <button
         type="button"
         aria-expanded={open}
-        onClick={() => setOpen(!open)}
-        className="flex h-9 w-full items-center gap-1.5 px-4 text-left text-caption text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+        onClick={() => onOpen(!open)}
+        className="-mx-2 flex h-8 items-center gap-1.5 self-start rounded-md px-2 text-left text-caption text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
       >
         <ChevronRightIcon
           aria-hidden
@@ -227,17 +189,15 @@ function StepCode({
         </span>
       </button>
       {open && (
-        <div className="border-t">
-          <ReviewCode
-            document={props}
-            entry={`review:step-${step}`}
-            code={code}
-            branch={branch}
-            eager={eager}
-            label={`Step ${step}`}
-            bleed=""
-          />
-        </div>
+        <ReviewCode
+          document={props}
+          entry={`review:step-${step}`}
+          code={code}
+          branch={branch}
+          eager={eager}
+          label={`Step ${step}`}
+          bleed=""
+        />
       )}
     </div>
   );
@@ -246,88 +206,100 @@ function StepCode({
 function StepCard({
   stop,
   step,
-  last,
-  current,
   run,
   props,
   code,
   branch,
   eager,
   conversation,
+  decision,
+  pull,
 }: {
+  pull: WalkthroughPull;
   stop: WalkthroughStop;
   step: number;
-  last: boolean;
-  current: boolean;
   run: WalkthroughRun;
   props: DocumentProps;
   code: ReviewCodeFiles | undefined;
   branch: ComparedBranch | undefined;
   eager: boolean;
   conversation: Conversation | undefined;
+  decision: Decision | undefined;
 }) {
-  const call = stop.callouts.length > 0;
+  const [diffOpen, setDiffOpen] = useState(false);
   return (
-    <li
-      id={stepId(step)}
-      className="grid grid-cols-[1.5rem_minmax(0,1fr)] gap-x-3"
-    >
-      <div aria-hidden className="flex flex-col items-center pt-3.5">
-        <StepNode step={step} call={call} current={current} />
-        {!last && <span className="mt-1 w-px flex-1 bg-border" />}
-      </div>
+    <li id={stepId(step)} className="border-t py-6 first:border-t-0 first:pt-5">
       <article
         aria-labelledby={`${stepId(step)}-title`}
-        className={cn(
-          'mb-5 flex min-w-0 flex-col overflow-hidden rounded-lg border bg-card',
-          call && 'border-warn-border',
-        )}
+        className="flex min-w-0 flex-col gap-4"
       >
-        <div className="flex flex-col gap-3 p-4">
-          <header className="flex flex-col gap-1">
-            <h2
-              id={`${stepId(step)}-title`}
-              className="text-section font-semibold text-pretty"
-            >
-              <span className="sr-only">Step {step}: </span>
+        <header className="flex flex-col gap-1">
+          <h2
+            id={`${stepId(step)}-title`}
+            className="flex gap-2.5 text-section font-semibold text-pretty"
+          >
+            <span className="shrink-0 font-normal text-muted-foreground tabular-nums">
+              <span className="sr-only">Step </span>
+              {step}
+              <span className="sr-only">: </span>
+            </span>
+            <span className="min-w-0">
               <RichText text={stop.title} />
-            </h2>
-            <p className="text-prose text-foreground-2">
-              <RichText text={stop.explanation} />
-            </p>
-          </header>
-          <CallPanel stop={stop} step={step} conversation={conversation} />
-          <StepBlocks
-            blocks={stop.blocks}
-            step={step}
-            title={plainText(stop.title)}
-            run={run}
-            document={props}
-          />
-        </div>
+            </span>
+          </h2>
+          <p className="text-prose text-foreground-2">
+            <RichText text={stop.explanation} />
+          </p>
+        </header>
+        <CallPanel stop={stop} step={step} decision={decision} />
+        <StepBlocks
+          blocks={stop.blocks}
+          step={step}
+          title={plainText(stop.title)}
+          run={run}
+          document={props}
+          pull={pull}
+          linesInFullDiff={diffOpen}
+        />
         {code && (
-          <StepCode
+          <FullDiff
             props={props}
             code={code}
             branch={branch}
             eager={eager}
             step={step}
+            open={diffOpen}
+            onOpen={setDiffOpen}
           />
         )}
-        {conversation && (
-          <div className="border-t px-4 py-3">
-            {conversation({ kind: 'step', step })}
-          </div>
-        )}
+        {conversation?.({ step })}
       </article>
     </li>
   );
 }
 
-function StepKeys({ onStep }: { onStep: (delta: 1 | -1) => void }) {
+function StepKeys({
+  onStep,
+  onComment,
+}: {
+  onStep: (delta: 1 | -1) => void;
+  onComment: () => void;
+}) {
   useHotkey('J', () => onStep(1), { ignoreInputs: true });
   useHotkey('K', () => onStep(-1), { ignoreInputs: true });
+  useHotkey(SHORTCUTS.comment, onComment, {
+    ignoreInputs: true,
+    preventDefault: true,
+  });
   return null;
+}
+
+function focusStepComposer(step: number) {
+  const box = document
+    .getElementById(stepId(step))
+    ?.querySelector<HTMLTextAreaElement>('textarea');
+  box?.scrollIntoView({ block: 'center' });
+  box?.focus();
 }
 
 export function WalkthroughSteps({
@@ -339,8 +311,11 @@ export function WalkthroughSteps({
   eager,
   outside,
   conversation,
+  decision,
+  pull,
   onJump,
 }: {
+  pull: WalkthroughPull;
   content: WalkthroughContent;
   run: WalkthroughRun;
   props: DocumentProps;
@@ -349,6 +324,7 @@ export function WalkthroughSteps({
   eager: readonly boolean[];
   outside: number;
   conversation: Conversation | undefined;
+  decision?: Decision | undefined;
   onJump: Jump;
 }) {
   const [current, setCurrent] = useState(0);
@@ -365,10 +341,15 @@ export function WalkthroughSteps({
   return (
     <section
       aria-label="Steps"
-      aria-keyshortcuts="J K"
+      aria-keyshortcuts="J K C"
       className="flex flex-col"
     >
-      {hotkeys && <StepKeys onStep={(delta) => step(delta, 'auto')} />}
+      {hotkeys && (
+        <StepKeys
+          onStep={(delta) => step(delta, 'auto')}
+          onComment={() => focusStepComposer(Math.max(current, 1))}
+        />
+      )}
       <StepRail
         stops={content.stops}
         current={current}
@@ -376,20 +357,20 @@ export function WalkthroughSteps({
         onStep={step}
         onJump={onJump}
       />
-      <ol ref={trackSteps(setCurrent)} className="flex flex-col pt-5">
+      <ol ref={trackSteps(setCurrent)} className="flex flex-col">
         {content.stops.map((stop, index) => (
           <StepCard
             key={index}
             stop={stop}
             step={index + 1}
-            last={index === total - 1}
-            current={current === index + 1}
             run={run}
             props={props}
             code={code[index]}
             branch={branch}
             eager={eager[index] ?? true}
             conversation={conversation}
+            decision={decision}
+            pull={pull}
           />
         ))}
       </ol>

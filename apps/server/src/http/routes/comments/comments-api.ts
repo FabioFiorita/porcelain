@@ -5,13 +5,15 @@ import { handlerAudit } from '../../diagnostics.ts';
 import { requestBody } from '../../hooks/request-body.ts';
 import type { ListCommentsUseCase } from '../../../use-cases/comments/list-comments.ts';
 import type { ChangeCommentUseCase } from '../../../use-cases/comments/change-comment.ts';
-import type { CommentReviewUseCase } from '../../../use-cases/comments/comment-review.ts';
+import type { PreviewCommentReviewUseCase } from '../../../use-cases/comments/preview-comment-review.ts';
+import type { PublishCommentReviewUseCase } from '../../../use-cases/comments/publish-comment-review.ts';
 import type { ReadOwnerCommentsUseCase } from '../../../use-cases/comments/read-owner-comments.ts';
 
 type UseCases = {
   listComments: Context.Service.Shape<typeof ListCommentsUseCase>;
   changeComment: Context.Service.Shape<typeof ChangeCommentUseCase>;
-  commentReview: Context.Service.Shape<typeof CommentReviewUseCase>;
+  previewReview: Context.Service.Shape<typeof PreviewCommentReviewUseCase>;
+  publishReview: Context.Service.Shape<typeof PublishCommentReviewUseCase>;
   readOwnerComments: Context.Service.Shape<typeof ReadOwnerCommentsUseCase>;
 };
 
@@ -40,10 +42,10 @@ export function commentsRoutes(useCases: UseCases) {
         }),
       )
       .handle('previewCommentReview', ({ params }) =>
-        useCases.commentReview.preview(params),
+        useCases.previewReview.execute(params),
       )
       .handle('publishCommentReview', ({ params, payload }) =>
-        useCases.commentReview.publish({ ...params, ...payload }),
+        useCases.publishReview.execute({ ...params, ...payload }),
       ),
   );
   return HttpApiBuilder.layer(CommentsApi).pipe(

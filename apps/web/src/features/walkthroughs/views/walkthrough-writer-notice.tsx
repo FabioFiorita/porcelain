@@ -12,14 +12,19 @@ import {
 import type { DocumentProps } from '@/features/workspace/index';
 import { PendingButton } from '@/shared/views/pending-button';
 import type { useWalkthroughWriter } from '../queries/writer';
+import { WalkthroughWriterMenu } from './walkthrough-writer-menu';
 
 type WriterCheck = ReturnType<typeof useWalkthroughWriter>;
 
-export function WalkthroughWriterSettingsAction({
-  document,
-}: {
-  document: DocumentProps;
-}) {
+export type WriterAction = {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean | undefined;
+  description?: string | undefined;
+  variant?: 'default' | 'outline' | 'ghost' | undefined;
+};
+
+function SettingsAction({ document }: { document: DocumentProps }) {
   const { connection } = document.context;
   const local = useLocalConnection();
   const project = useInventory(connection).projects.find(
@@ -27,7 +32,7 @@ export function WalkthroughWriterSettingsAction({
   );
   return project?.walkthroughSettings?.writer ? (
     <Button
-      variant="outline"
+      variant="ghost"
       size="sm"
       onClick={() =>
         void walkthroughSettingsDialog.open({
@@ -47,46 +52,69 @@ export function WalkthroughWriterSettingsAction({
     <Link
       to="/settings/$section"
       params={{ section: 'git' }}
-      className={buttonVariants({ variant: 'outline', size: 'sm' })}
+      className={buttonVariants({ variant: 'ghost', size: 'sm' })}
     >
       Settings → Changes &amp; Git
     </Link>
   );
 }
 
-export function CheckWalkthroughWriters({ writer }: { writer: WriterCheck }) {
-  return (
-    <PendingButton
-      pending={writer.checking}
-      variant="outline"
-      size="sm"
-      onClick={writer.refresh}
-    >
-      Check writers again
-    </PendingButton>
-  );
-}
-
-export function WalkthroughWriterNotice({
+export function WalkthroughWriterRow({
   document,
   writer,
+  action,
   existingMessage,
   signedOut,
+  actionFirst = false,
 }: {
   document: DocumentProps;
   writer: WriterCheck;
+  actionFirst?: boolean;
+  action?: WriterAction | undefined;
   existingMessage?: string | undefined;
   signedOut?: boolean | undefined;
 }) {
-  const check = canRecheckWalkthroughWriters(writer, signedOut);
-  const settings = Boolean(writer.status?.block);
-  if (!check && !settings) return null;
-  const note = walkthroughWriterNotice(writer, existingMessage);
+  const unavailable = writer.noWriters || Boolean(writer.status?.block);
+  const recheck = canRecheckWalkthroughWriters(writer, signedOut);
+  const reason = walkthroughWriterNotice(writer, existingMessage);
+  const settings =
+    !writer.noWriters && !writer.failed && Boolean(writer.status?.block);
   return (
-    <div className="flex flex-wrap items-center gap-2 text-caption text-muted-foreground">
-      {note && <p role={writer.failed ? 'alert' : undefined}>{note}</p>}
-      {check && <CheckWalkthroughWriters writer={writer} />}
-      {settings && <WalkthroughWriterSettingsAction document={document} />}
+    <div className="flex min-w-0 flex-wrap items-center gap-x-1 gap-y-1">
+      {!writer.noWriters && (
+        <WalkthroughWriterMenu document={document} writer={writer} />
+      )}
+      {reason && (
+        <p
+          role={writer.failed ? 'alert' : undefined}
+          className="min-w-0 px-1 text-caption text-muted-foreground"
+        >
+          {reason}
+        </p>
+      )}
+      {recheck && (
+        <PendingButton
+          pending={writer.checking}
+          variant="ghost"
+          size="sm"
+          onClick={writer.refresh}
+        >
+          Check writers again
+        </PendingButton>
+      )}
+      {settings && <SettingsAction document={document} />}
+      {action && !unavailable && (
+        <Button
+          size="sm"
+          variant={action.variant ?? 'outline'}
+          className={actionFirst ? 'order-first mr-1' : undefined}
+          disabled={action.disabled}
+          aria-description={action.description}
+          onClick={action.onClick}
+        >
+          {action.label}
+        </Button>
+      )}
     </div>
   );
 }

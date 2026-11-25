@@ -15,7 +15,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { PendingSpinner } from '@/shared/views/state-notice';
 import { copyText } from '@/shared/workspace/copy';
@@ -66,9 +65,7 @@ function ReviewComment({
         <span className="min-w-0 truncate font-mono text-foreground-2">
           {location}
         </span>
-        {note && (
-          <span className="shrink-0 text-muted-foreground">{note}</span>
-        )}
+        {note && <span className="shrink-0 text-muted-foreground">{note}</span>}
       </span>
       <Textarea
         value={value}
@@ -150,15 +147,6 @@ function ReviewStep({
             onChange={(event) => setSummary(event.target.value)}
           />
         </label>
-        <div className="flex items-center gap-2 text-ui text-muted-foreground">
-          <Switch
-            disabled
-            checked={false}
-            aria-label="Combine with the writer model"
-          />
-          Combine with the writer model
-          <span className="text-caption">· not available yet</span>
-        </div>
         {preview.inline.length > 0 && (
           <section className="flex flex-col gap-2">
             <h3 className="text-caption font-medium text-muted-foreground">
@@ -348,8 +336,8 @@ function ListStep({
         )}
         {view && open.length === 0 && (
           <p className="text-ui text-muted-foreground">
-            No open comments. Add one from any diff line, file, step or
-            diagram node.
+            No open comments. Add one from any diff line, file, step or diagram
+            node.
           </p>
         )}
         {open.map((comment) => (
@@ -457,14 +445,4 @@ export function CommentsDialog({
       </DialogContent>
     </Dialog>
   );
-}
-
-export function useCommentsDialog(owner: CommentOwner) {
-  const [open, setOpen] = useState(false);
-  return {
-    open: () => setOpen(true),
-    dialog: (
-      <CommentsDialog owner={owner} open={open} onOpenChange={setOpen} />
-    ),
-  };
 }

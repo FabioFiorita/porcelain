@@ -310,35 +310,35 @@ it.each([
   expect(pullRequestMergeBlock({ ...mergeablePull, ...change })).toBe(reason);
 });
 
-it('asks the walkthrough to cover the head that would merge and every call to have a reply', () => {
+it('asks the walkthrough to cover the head that would merge and every call to be decided', () => {
   expect(
     pullRequestMergeBlock(mergeablePull, {
       headOid: mergeablePull.headSha,
-      unansweredCallStep: undefined,
+      undecidedCallStep: undefined,
     }),
   ).toBeUndefined();
   expect(
     pullRequestMergeBlock(mergeablePull, {
       headOid: 'ba370399bd1b3ac1a2c5a1d0f00df00df00df00d',
-      unansweredCallStep: undefined,
+      undecidedCallStep: undefined,
     }),
   ).toBe('The walkthrough covers ba37039; the pull request is at 653d839.');
   expect(
     pullRequestMergeBlock(mergeablePull, {
       headOid: mergeablePull.headSha,
-      unansweredCallStep: 2,
+      undecidedCallStep: 2,
     }),
-  ).toBe('Your call in step 2 has no reply yet.');
+  ).toBe('Your call in step 2 is not decided yet.');
   expect(
     pullRequestMergeBlock(mergeablePull, {
       headOid: mergeablePull.headSha,
-      unansweredCallStep: 'reading',
+      undecidedCallStep: 'reading',
     }),
-  ).toBe('Reading your replies to the calls.');
+  ).toBe('Reading your decisions on the calls.');
   expect(
     pullRequestMergeBlock(
       { ...mergeablePull, checks: [failed] },
-      { headOid: mergeablePull.headSha, unansweredCallStep: 2 },
+      { headOid: mergeablePull.headSha, undecidedCallStep: 2 },
     ),
   ).toBe('1 of 1 check failed.');
 });

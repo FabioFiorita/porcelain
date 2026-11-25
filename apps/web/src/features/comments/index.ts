@@ -5,7 +5,6 @@ export {
   CommentThread,
   DraftCard,
 } from './views/comment-thread';
-export { CommentsDialog, useCommentsDialog } from './views/comments-dialog';
 export {
   commentRange,
   diffLineText,
@@ -14,3 +13,7 @@ export {
 } from './adapters/diff-lines';
 export { useFileComments } from './views/file-comments';
 export { CommentsSummary } from './views/comments-summary';
+export {
+  PublishReviewButton,
+  useUnpublishedCount,
+} from './views/publish-review';

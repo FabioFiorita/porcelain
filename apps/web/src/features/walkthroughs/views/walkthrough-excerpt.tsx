@@ -157,8 +157,12 @@ function CapturedLines({ document, runId, step, excerpt }: ExcerptProps) {
   );
 }
 
-export function WalkthroughExcerpt(props: ExcerptProps) {
-  const [open, setOpen] = useState(true);
+export function WalkthroughExcerpt({
+  inFullDiff = false,
+  ...props
+}: ExcerptProps & { inFullDiff?: boolean }) {
+  const [expanded, setOpen] = useState(true);
+  const open = expanded && !inFullDiff;
   const { excerpt, document } = props;
   const cited = useCitedFiles(document, []);
   const opening = cited.opening(excerpt.path);
@@ -179,8 +183,9 @@ export function WalkthroughExcerpt(props: ExcerptProps) {
           <button
             type="button"
             aria-expanded={open}
+            disabled={inFullDiff}
             aria-label={`${open ? 'Hide' : 'Show'} the lines: ${excerpt.path} · ${excerpt.lines}`}
-            onClick={() => setOpen(!open)}
+            onClick={() => setOpen(!expanded)}
             className="flex min-w-0 flex-1 items-center gap-1.5 self-stretch px-2 py-1 text-left font-mono text-caption text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
           >
             <ChevronRightIcon
@@ -192,6 +197,9 @@ export function WalkthroughExcerpt(props: ExcerptProps) {
                 {excerpt.path}
               </span>
               <span>{excerpt.lines}</span>
+              {inFullDiff && (
+                <span className="font-sans">· in the full diff below</span>
+              )}
             </span>
           </button>
           <Button

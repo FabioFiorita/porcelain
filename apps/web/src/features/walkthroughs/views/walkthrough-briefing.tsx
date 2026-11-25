@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
-import { ImagesIcon } from 'lucide-react';
+import { CheckIcon, ImagesIcon } from 'lucide-react';
 import {
   attentionLabel,
+  callDecisionProgress,
   walkthroughCalls,
   walkthroughEvidenceNotice,
   type WalkthroughContent,
@@ -11,6 +12,17 @@ import { recordedChecks } from '@porcelain/client/projects/rules';
 import { CheckResultIcon } from '@/features/workspace/index';
 import { RichText } from './rich-text';
 import { checksTone } from './walkthrough-blocks';
+import {
+  useConversations,
+  type ConversationScope,
+} from '../queries/conversations';
+import type { WalkthroughPull } from '../queries/pull';
+
+type Decided = {
+  readonly step: number;
+  readonly call: number;
+  readonly option?: string | undefined;
+};
 
 export type Jump = (id: string) => void;
 
@@ -45,16 +57,21 @@ function stepsLabel(steps: readonly number[]) {
     : `Steps ${unique.join(', ')}`;
 }
 
-export function BriefingRow({
+function BriefingRow({
   label,
+  detail,
   children,
 }: {
   label: string;
+  detail?: string | undefined;
   children: ReactNode;
 }) {
   return (
     <div className="grid gap-x-4 gap-y-1 border-t py-2.5 first:border-t-0 @xl:grid-cols-[7rem_minmax(0,1fr)]">
-      <dt className="pt-1 text-caption text-muted-foreground">{label}</dt>
+      <dt className="flex flex-col pt-1 text-caption text-muted-foreground">
+        {label}
+        {detail && <span className="tabular-nums">{detail}</span>}
+      </dt>
       <dd className="flex min-w-0 flex-col">{children}</dd>
     </div>
   );
@@ -87,9 +104,11 @@ function Line({
 
 function Calls({
   content,
+  decisions,
   onJump,
 }: {
   content: WalkthroughContent;
+  decisions: readonly Decided[] | undefined;
   onJump: Jump;
 }) {
   const calls = walkthroughCalls(content);
@@ -99,29 +118,71 @@ function Calls({
         Nothing needs your decision.
       </p>
     );
-  return calls.map(({ attention, step, callIndex }) => (
-    <Line
-      key={`${step}:${callIndex}`}
-      target={`Step ${step}`}
-      onClick={() => onJump(callId(step, callIndex))}
+  return calls.map(({ attention, step, callIndex }) => {
+    const decided = decisions?.find(
+      (entry) => entry.step === step && entry.call === callIndex,
+    );
+    return (
+      <Line
+        key={`${step}:${callIndex}`}
+        target={`Step ${step}`}
+        onClick={() => onJump(callId(step, callIndex))}
+      >
+        {decided ? (
+          <CheckIcon
+            aria-label="Decided"
+            className="size-3.5 shrink-0 self-center text-add-fg"
+          />
+        ) : (
+          <span className="shrink-0 text-caption text-warn">
+            {attentionLabel(attention)}
+          </span>
+        )}
+        <span className="min-w-0 font-medium text-pretty">
+          <RichText text={attention.question} />
+          {decided?.option && (
+            <span className="font-normal text-muted-foreground">
+              {' '}
+              · {decided.option}
+            </span>
+          )}
+        </span>
+      </Line>
+    );
+  });
+}
+
+function CheckLink({
+  name,
+  label,
+  pull,
+}: {
+  name: string;
+  label: string;
+  pull: WalkthroughPull;
+}) {
+  if (!pull) return <span>{name}</span>;
+  return (
+    <button
+      type="button"
+      title={`${label} · open on #${pull.number}`}
+      onClick={() => pull.openCheck(name)}
+      className="rounded-sm underline decoration-border underline-offset-2 hover:decoration-foreground focus-visible:outline-2 focus-visible:outline-ring"
     >
-      <span className="shrink-0 text-caption text-warn">
-        {attentionLabel(attention)}
-      </span>
-      <span className="min-w-0 font-medium text-pretty">
-        <RichText text={attention.question} />
-      </span>
-    </Line>
-  ));
+      {name}
+    </button>
+  );
 }
 
 function Verified({
   run,
   content,
+  pull,
   onJump,
 }: {
   run: WalkthroughRun;
   content: WalkthroughContent;
+  pull: WalkthroughPull;
   onJump: Jump;
 }) {
   const checks = content.stops.flatMap((stop, index) =>
@@ -139,25 +200,52 @@ function Verified({
     <>
       {checks.map(({ block, step }) => {
         const recorded = recordedChecks(block.checks);
-        const count = recorded.results.length;
+        const moved =
+          pull?.detail && pull.detail.headSha !== block.checks.headOid
+            ? pull.detail.headSha.slice(0, 7)
+            : undefined;
         return (
-          <Line
+          <div
             key={`checks:${step}`}
-            target={`Step ${step}`}
-            onClick={() => onJump(stepId(step))}
+            className="flex min-h-7 items-baseline gap-2 py-1 text-ui"
           >
             <span className="self-center">
               <CheckResultIcon tone={checksTone(block.checks)} />
             </span>
-            <span className="min-w-0">
+            <span className="min-w-0 flex-1 text-pretty">
               {recorded.label}
-              <span className="text-muted-foreground">
-                {' · '}
-                {count === 1 ? '1 check' : `${count} checks`}
-                {recorded.more && ' and more on the pull request'}
-              </span>
+              <span className="text-muted-foreground">: </span>
+              {recorded.results.map((result, index) => (
+                <span key={`${result.name}:${index}`}>
+                  <CheckLink
+                    name={result.name}
+                    label={result.label}
+                    pull={pull}
+                  />
+                  {index < recorded.results.length - 1 && (
+                    <span className="text-muted-foreground">, </span>
+                  )}
+                </span>
+              ))}
+              {recorded.more && (
+                <span className="text-muted-foreground"> and more</span>
+              )}
+              {moved && pull && (
+                <span className="text-warn">
+                  {' '}
+                  · #{pull.number} is now at{' '}
+                  <span className="font-mono text-caption">{moved}</span>
+                </span>
+              )}
             </span>
-          </Line>
+            <button
+              type="button"
+              onClick={() => onJump(stepId(step))}
+              className="shrink-0 rounded-sm text-caption text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+            >
+              Step {step}
+            </button>
+          </div>
         );
       })}
       {pairs.length > 0 && (
@@ -187,12 +275,7 @@ function Verified({
   );
 }
 
-function callsLabel(calls: number) {
-  if (calls === 1) return 'Your call';
-  return calls === 0 ? 'Your calls' : `Your calls · ${calls}`;
-}
-
-export function BriefingRows({
+function BriefingRows({
   label,
   children,
 }: {
@@ -212,23 +295,38 @@ export function BriefingRows({
 export function Briefing({
   run,
   content,
+  owner,
+  pull,
   onJump,
+  notSaid,
   comments,
 }: {
   run: WalkthroughRun;
   content: WalkthroughContent;
+  owner: ConversationScope;
+  pull: WalkthroughPull;
   onJump: Jump;
+  notSaid?: ReactNode;
   comments?: ReactNode;
 }) {
-  const calls = walkthroughCalls(content).length;
+  const { view } = useConversations(owner);
+  const progress = callDecisionProgress(content, view?.decisions);
   return (
     <BriefingRows label="Before you merge">
-      <BriefingRow label={callsLabel(calls)}>
-        <Calls content={content} onJump={onJump} />
+      <BriefingRow
+        label={progress.total === 1 ? 'Your call' : 'Your calls'}
+        detail={
+          progress.total === 0
+            ? undefined
+            : `${progress.decided} of ${progress.total} decided`
+        }
+      >
+        <Calls content={content} decisions={view?.decisions} onJump={onJump} />
       </BriefingRow>
       <BriefingRow label="Verified">
-        <Verified run={run} content={content} onJump={onJump} />
+        <Verified run={run} content={content} pull={pull} onJump={onJump} />
       </BriefingRow>
+      {notSaid && <BriefingRow label="Not verified">{notSaid}</BriefingRow>}
       {comments && <BriefingRow label="Comments">{comments}</BriefingRow>}
     </BriefingRows>
   );

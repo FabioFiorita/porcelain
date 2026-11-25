@@ -183,7 +183,7 @@ const unsupportedWriter = {
 } as const;
 const unsupportedNote = "Fixture model doesn't support high effort.";
 
-test('disables Write and Save until the saved effort is changed', async ({
+test('hides Write and disables Save until the saved effort is changed', async ({
   repo,
   render,
   codingTool,
@@ -205,7 +205,7 @@ test('disables Write and Save until the saved effort is changed', async ({
   await expect
     .element(page.getByText(unsupportedNote, { exact: true }))
     .toBeVisible();
-  await expect.element(write).toBeDisabled();
+  await expect.element(write).not.toBeInTheDocument();
   await page
     .getByRole('button', { name: 'Project walkthrough settings', exact: true })
     .click();
@@ -236,7 +236,7 @@ test.for([
   ['pr', 'Update walkthrough'],
   ['failed-update', 'Try again'],
 ] as const)(
-  'blocks the %s writer action when the saved effort disappears',
+  'hides the %s writer action when the saved effort disappears',
   async ([scenario, button], { repo, render, codingTool, server }) => {
     await conversationFixture(scenario);
     const project = await server.project();
@@ -248,11 +248,11 @@ test.for([
     await codingTool.codexEffort(false);
     const { page } = await render.route('/');
     await expect
-      .element(page.getByRole('button', { name: button, exact: true }))
-      .toBeDisabled();
-    await expect
       .element(page.getByText(unsupportedNote, { exact: true }))
       .toBeVisible();
+    await expect
+      .element(page.getByRole('button', { name: button, exact: true }))
+      .not.toBeInTheDocument();
     await page
       .getByRole('button', {
         name: 'Project walkthrough settings',
@@ -341,7 +341,7 @@ test('checks a missing writer again after sign-in without leaving a ready walkth
     name: 'Update walkthrough',
     exact: true,
   });
-  await expect.element(update).toBeDisabled();
+  await expect.element(update).not.toBeInTheDocument();
   await expect
     .element(
       page.getByText('Codex / fixture-model · high is unavailable.', {

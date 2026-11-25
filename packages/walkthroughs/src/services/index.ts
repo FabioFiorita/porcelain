@@ -24,3 +24,4 @@ export { PlanWalkthroughPostService } from './plan-walkthrough-post-service.ts';
 export { PostWalkthroughMessagesService } from './post-walkthrough-messages-service.ts';
 
 export { ReadWalkthroughTargetService } from './read-walkthrough-target-service.ts';
+export { DecideWalkthroughCallService } from './decide-walkthrough-call-service.ts';

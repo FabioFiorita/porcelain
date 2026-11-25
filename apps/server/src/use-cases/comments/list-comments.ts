@@ -2,8 +2,10 @@ import { Context, Effect, Layer } from 'effect';
 import type { GitIoFailure } from '@porcelain/git/errors';
 import { ReadWorktreeStatusService } from '@porcelain/changes/services';
 import { ReadTextFileService } from '@porcelain/files/services';
-import { DraftCommentStore } from '@porcelain/reviews/ports';
-import { ListDraftCommentsService } from '@porcelain/reviews/services';
+import {
+  ListCommentedPathsService,
+  ListDraftCommentsService,
+} from '@porcelain/reviews/services';
 import type { CommentsResponse } from '@porcelain/contracts/comments';
 import type { WorktreeParams } from '@porcelain/contracts/shared';
 import { WorktreeAccess } from '../../runtime/worktree-access.ts';
@@ -25,8 +27,8 @@ export class ListCommentsUseCase extends Context.Service<
       const capabilities = {
         status: yield* ReadWorktreeStatusService,
         texts: yield* ReadTextFileService,
+        paths: yield* ListCommentedPathsService,
         list: yield* ListDraftCommentsService,
-        store: yield* DraftCommentStore,
       };
       return {
         execute: Effect.fn('ListCommentsUseCase.execute')(function* (input) {

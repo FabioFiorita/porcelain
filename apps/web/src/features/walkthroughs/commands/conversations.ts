@@ -1,10 +1,5 @@
 import { useState } from 'react';
-import { copyText } from '@/shared/workspace/copy';
-import {
-  conversationFailure,
-  postOutcome,
-  type DeveloperMessage,
-} from '@porcelain/client/walkthroughs/rules';
+import { conversationFailure } from '@porcelain/client/walkthroughs/rules';
 import { useAtom } from '@effect/atom-react';
 import { type Atom } from 'effect/reactivity';
 import {
@@ -14,6 +9,7 @@ import {
   walkthroughDraftBinding,
   type WalkthroughDraftPlacement,
 } from '@porcelain/client/walkthroughs';
+import { useCommentCommands } from '@/features/comments/index';
 import {
   conversationSelection,
   type ConversationScope,
@@ -29,55 +25,6 @@ function useConversationCommands(props: ConversationScope) {
   );
   return {
     retry: useCommand(commands.retryAnswer),
-    save: useCommand(commands.saveMessage),
-    post: useCommand(commands.postMessage),
-    postSaved: useCommand(commands.postSavedMessages),
-    brief: useCommand(commands.readBrief),
-  };
-}
-
-export function usePostActions(
-  owner: ConversationScope,
-  message: DeveloperMessage | undefined,
-) {
-  const commands = useConversationCommands(owner);
-  const [notice, setNotice] = useState<{ text: string; copy: boolean }>();
-  const waiting =
-    commands.post.waiting ||
-    commands.postSaved.waiting ||
-    commands.save.waiting ||
-    commands.brief.waiting;
-  const failed = (error: unknown) => setNotice(conversationFailure(error));
-  const copy = () =>
-    void commands.brief.run(message?.id).then((text) => {
-      if (text) copyText(text, 'brief');
-    }, failed);
-  const save = (saved: boolean) => {
-    if (message)
-      void commands.save.run({ messageId: message.id, saved }).catch(failed);
-  };
-  const post = () => {
-    setNotice(undefined);
-    const pending = message
-      ? commands.post.run(message.id)
-      : commands.postSaved.run(undefined);
-    void pending.then((result) => {
-      const outcome = postOutcome(result);
-      if (outcome.kind === 'brief') copyText(outcome.text, 'brief');
-      if (outcome.kind === 'still-saved')
-        setNotice({
-          text: `Still saved: ${outcome.messages.map((item) => item.text).join('; ')}. These comments belong to a different repository.`,
-          copy: false,
-        });
-    }, failed);
-  };
-
-  return {
-    notice,
-    waiting,
-    copy,
-    save,
-    post,
   };
 }
 
@@ -108,4 +55,55 @@ export function useSendMessage(
     useCommand(walkthroughConversationCommands(selection).addMessage),
     { runId: selection.runId, title },
   );
+}
+
+export function useDecideCall(owner: ConversationScope) {
+  const decide = useCommand(
+    walkthroughConversationCommands(conversationSelection(owner)).decideCall,
+  );
+  const [failure, setFailure] = useState<string>();
+  return {
+    failure,
+    waiting: decide.waiting,
+    decide: (input: {
+      step: number;
+      call: number;
+      decided: boolean;
+      option?: string | undefined;
+    }) => {
+      setFailure(undefined);
+      const payload = input.decided
+        ? {
+            decided: true as const,
+            ...(input.option === undefined ? {} : { option: input.option }),
+          }
+        : { decided: false as const };
+      void decide
+        .run({ step: input.step, call: input.call, ...payload })
+        .catch((error: unknown) => setFailure(conversationFailure(error).text));
+    },
+  };
+}
+
+export function useAddToReview(owner: ConversationScope, stepTitle: string) {
+  const commands = useCommentCommands({
+    scope: owner.scope,
+    context: owner.context,
+  });
+  const [added, setAdded] = useState(false);
+  const [failure, setFailure] = useState<string>();
+  return {
+    added,
+    failure,
+    waiting: commands.add.waiting,
+    add: (text: string) => {
+      setFailure(undefined);
+      void commands.add
+        .run({ anchor: { kind: 'step', title: stepTitle }, text })
+        .then(
+          () => setAdded(true),
+          () => setFailure('The comment was not saved. Try again.'),
+        );
+    },
+  };
 }

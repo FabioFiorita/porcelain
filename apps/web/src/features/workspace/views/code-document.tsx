@@ -199,9 +199,9 @@ function CodeSurface({
   onToggleReviewed: (entry: CodeEntry) => void;
   commentDrafts?: readonly DraftComment[];
 }) {
-  const [composer, setComposer] = useState<
-    (LineRange & { id: string }) | null
-  >(null);
+  const [composer, setComposer] = useState<(LineRange & { id: string }) | null>(
+    null,
+  );
   const { dark } = useTheme();
   const { preferences } = usePreferences();
   const specsApart = useSpecsApart(gitContext.connection);
@@ -548,6 +548,14 @@ function CodeSurface({
           review={() => {
             if (focusedEntry?.review) onToggleReviewed(focusedEntry);
           }}
+          comment={() => {
+            const lines = selection ? commentRange(selection.range) : null;
+            if (!selection || !lines || commentDrafts === undefined) return;
+            const entry = entries.find((item) => item.id === selection.id);
+            if (entry?.kind === 'file' && lines.side !== 'additions') return;
+            folds.setCollapsed([selection.id], false);
+            setComposer({ id: selection.id, ...lines });
+          }}
         />
       )}
       {staleSelection && (
@@ -844,15 +852,18 @@ function CodeShortcuts({
   next,
   previous,
   review,
+  comment,
 }: {
   reviewEnabled: boolean;
   next: () => void;
   previous: () => void;
   review: () => void;
+  comment: () => void;
 }) {
   const options = { ignoreInputs: true };
   useHotkey(SHORTCUTS.nextFile, next, options);
   useHotkey(SHORTCUTS.previousFile, previous, options);
+  useHotkey(SHORTCUTS.comment, comment, options);
   return reviewEnabled ? <FileReviewShortcut review={review} /> : null;
 }
 

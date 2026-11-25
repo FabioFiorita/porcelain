@@ -5,6 +5,7 @@ import { ReadTextFileService } from '@porcelain/files/services';
 import { DraftCommentStore } from '@porcelain/reviews/ports';
 import {
   EditDraftCommentService,
+  ListCommentedPathsService,
   ListDraftCommentsService,
   PreviewPullRequestReviewService,
   PublishPullRequestReviewService,
@@ -16,13 +17,15 @@ import { WorktreeConsistencyProbe } from '../ports/worktree-consistency-probe.ts
 import { EventPublisher } from '../ports/event-publisher.ts';
 import { ListProjectPullRequestsUseCasePort } from '../ports/list-project-pull-requests-use-case-port.ts';
 import { ReadInventoryUseCasePort } from '../ports/read-inventory-use-case-port.ts';
+import { ListCommentsUseCasePort } from '../ports/list-comments-use-case-port.ts';
 import { ResolveProjectGitHubUseCasePort } from '../ports/resolve-project-github-use-case-port.ts';
 import { Lanes } from '../runtime/lanes.ts';
 import { LaneKeys } from '../runtime/lane-keys.ts';
 import { WorktreeAccess } from '../runtime/worktree-access.ts';
 import { ListCommentsUseCase } from '../use-cases/comments/list-comments.ts';
 import { ChangeCommentUseCase } from '../use-cases/comments/change-comment.ts';
-import { CommentReviewUseCase } from '../use-cases/comments/comment-review.ts';
+import { PreviewCommentReviewUseCase } from '../use-cases/comments/preview-comment-review.ts';
+import { PublishCommentReviewUseCase } from '../use-cases/comments/publish-comment-review.ts';
 import { ReadOwnerCommentsUseCase } from '../use-cases/comments/read-owner-comments.ts';
 import {
   commentsRoutes,
@@ -73,21 +76,26 @@ export function composeComments(
     SaveDraftCommentService.layer,
     EditDraftCommentService.layer,
     ListDraftCommentsService.layer,
+    ListCommentedPathsService.layer,
     PreviewPullRequestReviewService.layer,
     PublishPullRequestReviewService.layer,
   ).pipe(Layer.provideMerge(ports));
   const list = ListCommentsUseCase.layer.pipe(Layer.provideMerge(services));
   const application = Layer.mergeAll(
     ChangeCommentUseCase.layer,
-    CommentReviewUseCase.layer,
-    ReadOwnerCommentsUseCase.layer,
+    PreviewCommentReviewUseCase.layer,
+    PublishCommentReviewUseCase.layer,
+    ReadOwnerCommentsUseCase.layer.pipe(
+      Layer.provide(Layer.effect(ListCommentsUseCasePort, ListCommentsUseCase)),
+    ),
   ).pipe(Layer.provideMerge(list));
   return Effect.gen(function* () {
     const runtime = yield* Layer.build(application);
     const useCases = {
       listComments: Context.get(runtime, ListCommentsUseCase),
       changeComment: Context.get(runtime, ChangeCommentUseCase),
-      commentReview: Context.get(runtime, CommentReviewUseCase),
+      previewReview: Context.get(runtime, PreviewCommentReviewUseCase),
+      publishReview: Context.get(runtime, PublishCommentReviewUseCase),
       readOwnerComments: Context.get(runtime, ReadOwnerCommentsUseCase),
     };
     return {
@@ -96,4 +104,3 @@ export function composeComments(
     };
   });
 }
-

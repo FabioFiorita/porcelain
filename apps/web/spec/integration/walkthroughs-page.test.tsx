@@ -91,12 +91,7 @@ test('a developer writes a walkthrough, watches it run and reads each step with 
     .element(page.getByText('Kept by hand for now.', { exact: true }))
     .toBeVisible();
   await expect
-    .element(
-      page.getByRole('heading', {
-        name: "What the code doesn't say",
-        exact: true,
-      }),
-    )
+    .element(page.getByText('Not verified', { exact: true }))
     .toBeVisible();
   await expect
     .element(page.getByText('Whether the notes should move.', { exact: true }))
@@ -121,7 +116,7 @@ test('a developer writes a walkthrough, watches it run and reads each step with 
   await expect
     .element(
       notesStep.getByRole('textbox', {
-        name: 'Ask about this step',
+        name: 'Comment on this step, or ask the agent',
         exact: true,
       }),
     )

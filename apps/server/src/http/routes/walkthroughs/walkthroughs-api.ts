@@ -8,6 +8,7 @@ import { Layer, Effect, type Context } from 'effect';
 import { HttpApiBuilder } from 'effect/http-api';
 import { HttpServerResponse } from 'effect/http';
 import { WalkthroughsApi } from '@porcelain/contracts/walkthroughs';
+import { RequestCaller } from '@porcelain/contracts/shared';
 import type {
   WalkthroughConversationsResult,
   WalkthroughPostResult,
@@ -21,6 +22,7 @@ import type { ListWalkthroughConversationsUseCase } from '../../../use-cases/wal
 import type { AddWalkthroughMessageUseCase } from '../../../use-cases/walkthroughs/add-walkthrough-message.ts';
 import type { RetryWalkthroughAnswerUseCase } from '../../../use-cases/walkthroughs/retry-walkthrough-answer.ts';
 import type { SaveWalkthroughMessageUseCase } from '../../../use-cases/walkthroughs/save-walkthrough-message.ts';
+import type { DecideWalkthroughCallUseCase } from '../../../use-cases/walkthroughs/decide-walkthrough-call.ts';
 import type { PostWalkthroughMessagesUseCase } from '../../../use-cases/walkthroughs/post-walkthrough-messages.ts';
 import type { ReadWalkthroughBriefUseCase } from '../../../use-cases/walkthroughs/read-walkthrough-brief.ts';
 export function walkthroughsRoutes(useCases: {
@@ -39,6 +41,7 @@ export function walkthroughsRoutes(useCases: {
   addMessage: Context.Service.Shape<typeof AddWalkthroughMessageUseCase>;
   retryAnswer: Context.Service.Shape<typeof RetryWalkthroughAnswerUseCase>;
   saveMessage: Context.Service.Shape<typeof SaveWalkthroughMessageUseCase>;
+  decideCall: Context.Service.Shape<typeof DecideWalkthroughCallUseCase>;
   postMessages: Context.Service.Shape<typeof PostWalkthroughMessagesUseCase>;
   brief: Context.Service.Shape<typeof ReadWalkthroughBriefUseCase>;
 }) {
@@ -106,6 +109,17 @@ export function walkthroughsRoutes(useCases: {
           useCases.retryAnswer
             .execute(params)
             .pipe(Effect.map(presentWalkthroughConversations)),
+        )
+        .handle('decideWalkthroughCall', ({ params, payload }) =>
+          Effect.gen(function* () {
+            const caller = yield* RequestCaller;
+            const view = yield* useCases.decideCall.execute({
+              ...params,
+              ...payload,
+              caller,
+            });
+            return presentWalkthroughConversations(view);
+          }),
         )
         .handle('saveWalkthroughMessage', ({ params, payload }) =>
           useCases.saveMessage

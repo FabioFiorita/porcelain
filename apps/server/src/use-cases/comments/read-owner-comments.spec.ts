@@ -2,7 +2,7 @@ import { Effect, Exit, Layer } from 'effect';
 import { expect, it } from 'vite-plus/test';
 import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
 import { ReadInventoryUseCasePort } from '../../ports/read-inventory-use-case-port.ts';
-import { ListCommentsUseCase } from './list-comments.ts';
+import { ListCommentsUseCasePort } from '../../ports/list-comments-use-case-port.ts';
 import { ReadOwnerCommentsUseCase } from './read-owner-comments.ts';
 
 const worktree = (id: string, path: string) => ({
@@ -39,7 +39,7 @@ function read(path: string) {
         Layer.succeed(ReadInventoryUseCasePort, {
           execute: () => Effect.succeed(inventory),
         }),
-        Layer.succeed(ListCommentsUseCase, {
+        Layer.succeed(ListCommentsUseCasePort, {
           execute: (input) =>
             Effect.sync(() => {
               asked.push(input.worktreeId);

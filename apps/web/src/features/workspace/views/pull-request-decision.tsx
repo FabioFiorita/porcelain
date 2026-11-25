@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { FileDiffIcon } from 'lucide-react';
 import {
   pullRequestMergeable,
@@ -30,6 +31,22 @@ export type WalkthroughStanding = {
   readonly onOpen: () => void;
 };
 
+export function DecisionNote({
+  children,
+  action,
+}: {
+  children: ReactNode;
+  action?: ReactNode;
+}) {
+  return (
+    <li className="flex min-h-7 min-w-0 items-center gap-2 text-ui leading-4.5">
+      <StateIcon state="pending" />
+      <span className="min-w-0 py-1 wrap-anywhere">{children}</span>
+      {action}
+    </li>
+  );
+}
+
 export function PullRequestDecision({
   pull,
   status,
@@ -38,9 +55,11 @@ export function PullRequestDecision({
   blockers,
   walkthrough,
   changedSinceReview,
+  notes,
   onOpenFile,
   onFocusCheck,
 }: {
+  notes?: ReactNode;
   pull: PullRequest;
   status: PullStatus | undefined;
   context: ConnectionContext;
@@ -132,6 +151,7 @@ export function PullRequestDecision({
               </Button>
             </li>
           )}
+          {notes}
         </ul>
       )}
       {changedSinceReview.length > 0 && (

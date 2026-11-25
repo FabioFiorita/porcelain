@@ -269,3 +269,7 @@ export function useSecondsClock(ticking: boolean) {
   );
   return Option.getOrElse(AsyncResult.value(value), () => 0);
 }
+
+export const pullRequestCheckFocus = Atom.make<
+  { projectId: string; number: number; name: string } | undefined
+>(undefined).pipe(Atom.keepAlive);

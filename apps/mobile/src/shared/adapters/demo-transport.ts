@@ -476,6 +476,7 @@ export function createDemoTransport(): Transport {
       runId: demoWalkthrough.id,
       pullRequestNumber: undefined,
       conversations,
+      decisions: [],
     });
     if (path === `${conversationPath}/messages` && method === 'POST') {
       const value = Schema.decodeUnknownSync(questionInput)(body);

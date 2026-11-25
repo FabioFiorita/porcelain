@@ -3,9 +3,9 @@ import type { GitIoFailure } from '@porcelain/git/errors';
 import { ReadWorktreeStatusService } from '@porcelain/changes/services';
 import { ReadTextFileService } from '@porcelain/files/services';
 import type { DraftCommentNotFoundError } from '@porcelain/reviews/errors';
-import { DraftCommentStore } from '@porcelain/reviews/ports';
 import {
   EditDraftCommentService,
+  ListCommentedPathsService,
   ListDraftCommentsService,
   SaveDraftCommentService,
 } from '@porcelain/reviews/services';
@@ -45,8 +45,8 @@ export class ChangeCommentUseCase extends Context.Service<
       const capabilities = {
         status: yield* ReadWorktreeStatusService,
         texts: yield* ReadTextFileService,
+        paths: yield* ListCommentedPathsService,
         list: yield* ListDraftCommentsService,
-        store: yield* DraftCommentStore,
       };
       return {
         execute: Effect.fn('ChangeCommentUseCase.execute')(function* (input) {

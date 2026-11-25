@@ -33,27 +33,31 @@ import { StateFailure, StateSpinner } from '@/shared/views/state-notice';
 import { useHeldWhileHidden } from '@/shared/hooks/use-held-while-hidden';
 import { useStartWalkthrough } from '../commands/start-walkthrough';
 import { useWalkthrough } from '../queries/walkthrough';
+import { useWalkthroughPull } from '../queries/pull';
 import { RichText } from './rich-text';
 import {
   WalkthroughConversation,
   EarlierComments,
-  PostSaved,
 } from './walkthrough-conversation';
 import { WalkthroughStatus } from './walkthrough-status';
 import { Briefing, scrollToTarget } from './walkthrough-briefing';
 import { CommentsSummary } from '@/features/comments/index';
-import { WalkthroughSteps, type Conversation } from './walkthrough-steps';
+import {
+  WalkthroughSteps,
+  type Conversation,
+  type Decision,
+} from './walkthrough-steps';
+import { CallDecision } from './walkthrough-decision';
 import { WalkthroughStart } from './walkthrough-start';
 import { useWalkthroughWriter } from '../queries/writer';
-import { WalkthroughWriterNotice } from './walkthrough-writer-notice';
-import { WalkthroughWriterMenu } from './walkthrough-writer-menu';
+import { WalkthroughWriterRow } from './walkthrough-writer-notice';
 import { WalkthroughMerge } from './walkthrough-merge';
 import { ReviewCode } from './walkthrough-code-document';
 import { DIFF_WINDOW_FILES } from '@/config/limits';
 
 function Column({ children }: { children: ReactNode }) {
   return (
-    <div className="mx-auto flex w-full max-w-180 flex-col gap-10 px-5 py-8 @3xl:px-8 @3xl:py-12">
+    <div className="mx-auto flex w-full max-w-192 flex-col gap-10 px-5 py-8 @3xl:px-8 @3xl:py-12">
       {children}
     </div>
   );
@@ -159,32 +163,28 @@ function Growth({ content }: { content: WalkthroughContent }) {
 }
 
 function NotSaid({ content }: { content: WalkthroughContent }) {
-  const { explained, unclear, total, more } = useFolded((open) =>
+  const { explained, unclear, more } = useFolded((open) =>
     foldedNotSaid(content, open),
   );
-  if (total === 0) return null;
   return (
-    <section className="flex flex-col gap-2 border-t pt-5">
-      <h2 className="text-ui font-semibold">What the code doesn&apos;t say</h2>
-      <ul className="flex flex-col gap-2 text-prose">
+    <>
+      <ul className="flex flex-col gap-1 py-1 text-ui">
+        {unclear.map((item, index) => (
+          <li key={`${index}:${item}`}>
+            <RichText text={item} />
+          </li>
+        ))}
         {explained.map((item, index) => (
           <li key={`${index}:${item.point}`}>
-            <span>
-              <RichText text={item.point} />
-            </span>{' '}
-            <span className="text-foreground-2">
+            <RichText text={item.point} />{' '}
+            <span className="text-muted-foreground">
               <RichText text={item.answer} />
             </span>
           </li>
         ))}
-        {unclear.map((item, index) => (
-          <li key={`${index}:${item}`} className="text-foreground-2">
-            <RichText text={item} />
-          </li>
-        ))}
       </ul>
       {more}
-    </section>
+    </>
   );
 }
 
@@ -218,22 +218,34 @@ function Written({
     | undefined;
 }) {
   const owner = { ...props, run };
+  const pull = useWalkthroughPull(props, run);
+  const notSaid =
+    foldedNotSaid(content, false).total > 0 ? (
+      <NotSaid content={content} />
+    ) : undefined;
   const outsideCount = new Set([
     ...(code.branch ? code.sections.outside.branch : []),
     ...code.sections.outside.worktree,
   ]).size;
-  const conversation: Conversation = ({ kind, step }) => {
+  const conversation: Conversation = ({ step }) => {
     const title = content.stops[step - 1]!.title;
     return (
       <WalkthroughConversation
         key={title}
         owner={owner}
         title={title}
-        call={kind === 'call'}
-        {...(kind === 'step' ? { stepTitle: plainText(title) } : {})}
+        stepTitle={plainText(title)}
       />
     );
   };
+  const decision: Decision = ({ step, index, comparison }) => (
+    <CallDecision
+      owner={owner}
+      step={step}
+      index={index}
+      comparison={comparison}
+    />
+  );
   const status = (
     <WalkthroughStatus
       run={progressRun}
@@ -243,15 +255,15 @@ function Written({
       failure={updateFailure}
       onUpdate={onUpdate}
       writeBlock={writeBlock}
-      writerMenu={<WalkthroughWriterMenu document={props} writer={writer} />}
-      writerNotice={
-        <WalkthroughWriterNotice
+      controls={(action) => (
+        <WalkthroughWriterRow
           document={props}
           writer={writer}
+          action={action}
           existingMessage={updateFailure?.failure.message}
           signedOut={updateFailure?.failure.kind === 'signed_out'}
         />
-      }
+      )}
     />
   );
   if (content.outcome === 'nothing')
@@ -268,6 +280,9 @@ function Written({
         <Briefing
           run={run}
           content={content}
+          owner={owner}
+          pull={pull}
+          notSaid={notSaid}
           onJump={scrollToTarget}
           comments={<CommentsSummary owner={props} />}
         />
@@ -280,7 +295,6 @@ function Written({
           label="Every changed file"
         />
         <EarlierComments owner={owner} titles={[]} />
-        <PostSaved owner={owner} />
         <WalkthroughMerge document={props} run={run} content={content} />
       </Column>
     );
@@ -295,11 +309,14 @@ function Written({
         {status}
       </header>
       <Briefing
-          run={run}
-          content={content}
-          onJump={scrollToTarget}
-          comments={<CommentsSummary owner={props} />}
-        />
+        run={run}
+        content={content}
+        owner={owner}
+        pull={pull}
+        notSaid={notSaid}
+        onJump={scrollToTarget}
+        comments={<CommentsSummary owner={props} />}
+      />
       {content.growth.length > 0 && <Growth content={content} />}
       <WalkthroughSteps
         content={content}
@@ -310,9 +327,10 @@ function Written({
         eager={code.eager.steps}
         outside={outsideCount}
         conversation={conversation}
+        decision={decision}
+        pull={pull}
         onJump={scrollToTarget}
       />
-      <NotSaid content={content} />
       <EarlierComments
         owner={owner}
         titles={content.stops.map((stop) => stop.title)}
@@ -338,7 +356,6 @@ function Written({
           />
         </section>
       )}
-      <PostSaved owner={owner} />
       <WalkthroughMerge document={props} run={run} content={content} />
     </Column>
   );
@@ -392,19 +409,19 @@ function Failed({
         {copy.message && (
           <p className="text-prose text-foreground-2">{copy.message}</p>
         )}
-        <WalkthroughWriterNotice
+        <WalkthroughWriterRow
           document={document}
           writer={writer}
           existingMessage={copy.message}
           signedOut={failure.kind === 'signed_out'}
+          action={{
+            label: 'Try again',
+            variant: 'default',
+            disabled: waiting || Boolean(writeBlock),
+            description: writeBlock,
+            onClick: onRetry,
+          }}
         />
-        <Button
-          disabled={waiting || Boolean(writeBlock)}
-          aria-description={writeBlock}
-          onClick={onRetry}
-        >
-          Try again
-        </Button>
       </header>
       {children}
     </Column>

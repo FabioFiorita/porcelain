@@ -36,6 +36,19 @@ const nativeHistorySchema = Schema.Array(
 );
 
 export const nativeMigrations = Migrator.fromRecord({
+  '021_walkthrough_decisions': Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`CREATE TABLE walkthrough_decisions (
+      run_id TEXT NOT NULL REFERENCES walkthrough_runs(id) ON DELETE CASCADE,
+      worktree_id TEXT NOT NULL,
+      step INTEGER NOT NULL,
+      call INTEGER NOT NULL,
+      option TEXT,
+      decided_by TEXT NOT NULL CHECK(json_valid(decided_by)),
+      decided_at TEXT NOT NULL,
+      PRIMARY KEY (run_id, step, call)
+    )`;
+  }),
   '020_draft_comments': Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     yield* sql`CREATE TABLE draft_comments (
