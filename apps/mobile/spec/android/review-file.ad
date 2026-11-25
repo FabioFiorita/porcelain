@@ -1,0 +1,13 @@
+back
+wait 'id="settings-computers"' 30000
+back
+wait text Worktrees 30000
+wait text 'Main worktree' 30000
+find text 'Main worktree' click
+wait 'id="worktree-screen"' 30000
+wait text 'Review README.md' 30000
+find text 'Review README.md' click
+wait text 'A change to review.' 30000
+wait 'label="Mark reviewed" enabled=true' 30000
+press 'label="Mark reviewed"'
+wait 'label="Unmark reviewed"' 30000
