@@ -114,9 +114,12 @@ export function DiscardButton({
         <AlertDialogHeader>
           <AlertDialogTitle>Discard {what}?</AlertDialogTitle>
           <AlertDialogDescription>
-            {hunk
-              ? 'Select one complete changed hunk. Only that hunk is reverted; partial selections are refused. A recovery copy is saved first.'
-              : 'The file goes back to the last commit. You can restore the changes.'}
+            {discardDescription(
+              hunk !== undefined && hunk !== null,
+              file?.comparisons.some(
+                (comparison) => comparison.scope === 'untracked',
+              ) ?? false,
+            )}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <TruncatedText
@@ -194,4 +197,11 @@ function discardLabel(variant: 'button' | 'compact' | 'quiet') {
     return <span className="max-narrow:sr-only">Discard</span>;
   if (variant === 'compact') return 'Discard selection';
   return 'Discard';
+}
+
+function discardDescription(hunk: boolean, untracked: boolean) {
+  if (hunk)
+    return 'Select one complete changed hunk. Only that hunk is reverted; partial selections are refused. A recovery copy is saved first.';
+  if (untracked) return 'The new file is deleted. You can restore it.';
+  return 'The file goes back to the last commit. You can restore the changes.';
 }

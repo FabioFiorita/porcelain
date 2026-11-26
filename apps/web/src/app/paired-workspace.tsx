@@ -273,11 +273,12 @@ function RemoteStatusGate({
         showRemoteNotice={interrupted && showNotice}
       />
     );
-  if (status.kind === 'checking') return <WorkspacePending />;
   return (
     <ConnectedWorkspace
       remote={remote}
-      unavailable={status}
+      {...(status.kind === 'checking'
+        ? { connecting: true }
+        : { unavailable: status })}
       background={shown.background}
     />
   );

@@ -69,6 +69,8 @@ function textOf(node: ReactNode): string {
   return '';
 }
 
+const PLAIN_LANGUAGES = new Set(['text', 'plaintext', 'plain', 'txt']);
+
 function CodeBlock({
   language,
   children,
@@ -83,7 +85,7 @@ function CodeBlock({
     <figure className="group/code my-4 min-w-0 overflow-hidden rounded-lg border bg-card">
       <figcaption className="flex h-8 items-center justify-between gap-2 border-b bg-muted/50 pr-1 pl-3 font-mono text-2xs text-muted-foreground">
         <span className="whitespace-nowrap">
-          {language}
+          {PLAIN_LANGUAGES.has(language) ? '' : language}
           {language === 'mermaid' && (
             <span className="font-sans"> · diagram shown as source</span>
           )}

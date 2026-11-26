@@ -79,6 +79,11 @@ test('a reopened stash dialog starts fresh instead of showing the previous run',
     await expect
       .element(dialog.getByText('succeeded', { exact: true }))
       .toBeVisible();
+    await expect
+      .element(
+        dialog.getByRole('button', { name: 'Check outcome', exact: true }),
+      )
+      .not.toBeInTheDocument();
     await userEvent.keyboard('{Escape}');
     await expect.element(dialog).not.toBeInTheDocument();
   };

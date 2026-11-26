@@ -199,13 +199,14 @@ test('a commit the worktree has moved past since the draft is refused, and a new
 
   await generate.click();
   await expect.element(uncovered).toBeVisible();
+  await expect.element(generate).toBeEnabled();
   await expect
     .element(dialog.getByRole('button', { name: 'Try again', exact: true }))
-    .toBeVisible();
+    .not.toBeInTheDocument();
 
   await dialog.getByRole('button', { name: 'Edit', exact: true }).click();
   await dialog.getByRole('checkbox', { name: later, exact: true }).click();
-  await dialog.getByRole('button', { name: 'Try again', exact: true }).click();
+  await generate.click();
   await expect.element(uncovered).not.toBeInTheDocument();
   await commit.click();
   await expect

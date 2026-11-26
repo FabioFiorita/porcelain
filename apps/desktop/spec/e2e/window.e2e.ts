@@ -138,7 +138,10 @@ test('the app serves its window from a private loopback server that refuses othe
     .toContain('Porcelain: renderer ready');
   const policy = (await responsePolicy(page, '/'))?.split('; ') ?? [];
   expect(policy).toContain("connect-src 'self' http: https: ws: wss:");
-  expect(policy).toContain("script-src 'self'");
+  expect(policy).toContainEqual(
+    expect.stringMatching(/^script-src 'self' 'sha256-[A-Za-z0-9+/]{43}='$/),
+  );
+  expect(policy).toContain("media-src 'self' data: blob:");
 
   const server = await app.server();
   expect(new URL(server.address).hostname).toBe('127.0.0.1');

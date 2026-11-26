@@ -3,6 +3,7 @@ import { readWalkthroughPull } from '@porcelain/client/walkthroughs';
 import type { WalkthroughRun } from '@porcelain/client/walkthroughs/rules';
 import {
   pullRequestCheckFocus,
+  pullRequestDocument,
   type DocumentProps,
 } from '@/features/workspace/index';
 
@@ -30,12 +31,14 @@ export function useWalkthroughPull(
           ? undefined
           : { projectId, number: pull.number, name },
       );
-      document.onOpen({
-        kind: 'pull-request',
-        projectId,
-        number: pull.number,
-        environmentId: connection.environmentId,
-      });
+      document.onOpen(
+        pullRequestDocument({
+          projectId,
+          number: pull.number,
+          environmentId: connection.environmentId,
+          shownOn: connection.environmentId,
+        }),
+      );
     },
   };
 }

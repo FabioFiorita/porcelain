@@ -123,10 +123,6 @@ export const PIERRE_DECISION_CSS = `
 ${PIERRE_CARD_CSS}`;
 
 export const PIERRE_HEADER_CSS = `
-pre {
-  margin-inline: calc(var(--spacing) * 4);
-  border-radius: var(--radius-md);
-}
 @media (max-width: 720px) {
   [data-header-content] {
     flex: 1 1 auto;
@@ -138,6 +134,16 @@ pre {
     min-width: 0;
     overflow: hidden;
   }
+}
+`;
+
+export const PIERRE_INSET_CSS = `
+[data-diffs-header] {
+  padding-inline: calc(var(--spacing) * 4);
+}
+pre {
+  margin-inline: calc(var(--spacing) * 4);
+  border-radius: var(--radius-md);
 }
 `;
 
@@ -192,10 +198,13 @@ export const PIERRE_FILE_CSS = `
 }
 [data-column-number] {
   min-width: calc(var(--spacing) * 12);
-  padding-inline: 0 calc(var(--spacing) * 3);
+  padding-inline: 0 calc(var(--spacing) * 5);
+}
+[data-column-number] [data-line-number-content] {
+  margin-inline-end: 0;
 }
 [data-code] [data-line] {
-  padding-inline-start: calc(var(--spacing) * 3);
+  padding-inline-start: calc(var(--spacing) * 2);
 }
 [data-code] {
   padding-top: var(--spacing) !important;
@@ -209,8 +218,17 @@ export const PIERRE_COMMENT_CSS = `
   height: 16px;
   margin: 0;
   border-radius: 4px;
-  background-color: var(--primary);
-  color: var(--primary-foreground);
+  background-color: var(--card);
+  color: var(--muted-foreground);
+  box-shadow: inset 0 0 0 1px var(--border);
 }
-[data-utility-button]:hover { background-color: var(--primary); }
+[data-utility-button]:hover {
+  background-color: var(--accent);
+  color: var(--foreground);
+}
+@media (hover: hover) {
+  :host(:not(:hover)) [data-utility-button]:not(:focus-visible) {
+    opacity: 0;
+  }
+}
 `;

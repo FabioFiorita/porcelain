@@ -13,6 +13,7 @@ export {
   expectationFor,
   gitErrorMessage,
   receiptFailed,
+  receiptSettled,
   type GitNotice,
 } from './feedback.ts';
 export {

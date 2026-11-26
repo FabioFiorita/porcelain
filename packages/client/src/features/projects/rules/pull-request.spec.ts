@@ -93,7 +93,7 @@ it.each([
 
 it('sends a missing account to Settings by name', () => {
   expect(githubUnavailable('no-access').description).toBe(
-    'The chosen or detected GitHub account cannot open this repository. Choose another account or reset the choice in Settings › Reviews & Git.',
+    'The chosen or detected GitHub account cannot open this repository. Choose another account or reset the choice in Settings › Changes & Git.',
   );
 });
 
