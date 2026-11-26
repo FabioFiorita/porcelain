@@ -9,7 +9,7 @@ test('closing an editor saves its draft and reopening starts a fresh editor sess
   const path = repo.readme.path;
   const openEditor = async () => {
     await workspace
-      .getByRole('button', { name: 'Review', exact: true })
+      .getByRole('button', { name: 'Side panel', exact: true })
       .click();
     await workspace.getByRole('tab', { name: 'Files', exact: true }).click();
     const file = workspace.getByRole('treeitem', { name: path, exact: true });
@@ -51,7 +51,9 @@ test('an editor keeps its draft ownership while the file opens in another pane',
   repo,
 }) => {
   const path = repo.readme.path;
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await workspace.getByRole('tab', { name: 'Files', exact: true }).click();
   const file = workspace.getByRole('treeitem', { name: path, exact: true });
   await expect.element(file).toBeVisible();
@@ -85,7 +87,9 @@ test('two file editors keep one save shortcut owner while pane focus changes', a
   tabShortcuts,
 }) => {
   await repo.write('other.md', '# Other editor\n');
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await workspace.getByRole('tab', { name: 'Files', exact: true }).click();
   await workspace
     .getByRole('treeitem', { name: repo.readme.path, exact: true })
@@ -106,7 +110,7 @@ test('two file editors keep one save shortcut owner while pane focus changes', a
     exact: true,
   });
   await left.getByRole('button', { name: 'Edit', exact: true }).click();
-  await right.getByRole('button', { name: 'Review', exact: true }).click();
+  await right.getByRole('button', { name: 'Side panel', exact: true }).click();
   await workspace.getByRole('tab', { name: 'Files', exact: true }).click();
   await workspace
     .getByRole('treeitem', { name: 'other.md', exact: true })

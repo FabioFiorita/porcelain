@@ -16,6 +16,7 @@ export function registerDesktopScheme() {
         standard: true,
         secure: true,
         supportFetchAPI: true,
+        stream: true,
         corsEnabled: true,
       },
     },

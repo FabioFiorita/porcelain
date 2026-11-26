@@ -13,6 +13,7 @@ import {
   type NavigatorPullRequest,
   navigatorFilterSections,
   navigatorEntrySelected,
+  nameEnd,
   navigatorWorktreeOrder,
   type NavigatorEntry,
 } from './worktree-navigator.ts';
@@ -118,7 +119,7 @@ it.each<{
   {
     pullRequest: { state: 'available', number: 770, merged: true },
     changes: { state: 'available', count: 0 },
-    text: '#770 merged',
+    text: '#770',
   },
   {
     pullRequest: { state: 'none' },
@@ -142,6 +143,15 @@ it.each<{
   },
 ])('ends a row with one value: $text', ({ pullRequest, changes, text }) => {
   expect(navigatorRowTrailing({ pullRequest, changes })?.text).toBe(text);
+});
+
+it('marks a merged pull request apart from its number so the branch keeps the room', () => {
+  expect(
+    navigatorRowTrailing({
+      pullRequest: { state: 'available', number: 770, merged: true },
+      changes: { state: 'available', count: 0 },
+    }),
+  ).toEqual({ kind: 'pull-request', number: 770, merged: true, text: '#770' });
 });
 
 it('keeps the branch, place and state in the accessible name while the row shows only its title', () => {
@@ -327,4 +337,15 @@ it('keeps the main worktree first, then the most recently touched by commit or u
     'catalog-only',
     'unborn',
   ]);
+});
+
+it.each([
+  ['fix/interview-engine-persistence', '-persistence'],
+  ['feature/note-search', '/note-search'],
+  ['chore/update-docs', '/update-docs'],
+  ['main', 'main'],
+  ['averyveryverylongbranchname', 'rylongbranchname'],
+])('keeps the distinguishing end of %s', (name, end) => {
+  expect(nameEnd(name)).toBe(end);
+  expect(name.endsWith(end)).toBe(true);
 });

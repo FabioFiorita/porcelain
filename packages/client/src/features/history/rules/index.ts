@@ -19,3 +19,4 @@ export {
   branchTracking,
 } from './presentation.ts';
 export { type HistoryScope } from './connection.ts';
+export { relativeTime } from './relative-time.ts';

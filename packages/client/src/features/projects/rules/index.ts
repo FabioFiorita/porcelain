@@ -22,11 +22,13 @@ export {
 export {
   emptyNavigatorFilter,
   navigatorCardChangesLabel,
+  nameEnd,
   navigatorChecksLabel,
   navigatorEntryLabel,
   navigatorEntrySelected,
   navigatorRowTitle,
   navigatorRowTrailing,
+  navigatorTouchedAt,
   navigatorVisibleRows,
   type NavigatorFilterSection,
   type NavigatorEntry,
@@ -53,6 +55,18 @@ export {
   type WriterSettings,
 } from './walkthrough-writer.ts';
 
-export { canSaveWalkthroughWriter } from './walkthrough-writer.ts';
+export {
+  canSaveWalkthroughWriter,
+  chooseWalkthroughWriter,
+  resolvedWalkthroughWriterKey,
+  walkthroughWriterKeyModel,
+  walkthroughWriterChoiceStatus,
+  walkthroughWriterKey,
+  walkthroughWriterLabel,
+  walkthroughWriterMenu,
+  withWalkthroughEffort,
+} from './walkthrough-writer.ts';
 
 export * from './pull-request.ts';
+export * from './pull-request-checks.ts';
+export * from './merge-readiness.ts';

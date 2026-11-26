@@ -27,6 +27,10 @@ export class OperationStore extends Context.Service<
       key: string,
       operation: Operation | null,
     ) => Effect.Effect<void, ConnectionError>;
+    readonly clear: (
+      key: string,
+      missingRequestId?: string,
+    ) => Effect.Effect<boolean, ConnectionError>;
     readonly accept: (
       receipt: Receipt,
     ) => Effect.Effect<boolean, ConnectionError>;

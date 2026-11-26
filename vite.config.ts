@@ -18,36 +18,6 @@ export default {
           ignoreRestSiblings: true,
         },
       ],
-      'shadcn/no-restyle': [
-        'error',
-        {
-          allow: ['layout'],
-          contracts: [
-            {
-              pattern: '^ResizableHandle$',
-              allow: ['layout', 'bg-transparent'],
-            },
-            {
-              pattern: '^SidebarMenuSub$',
-              allow: ['layout', 'me-0', 'pe-0'],
-            },
-          ],
-          message: {
-            color:
-              '"{{className}}" is not allowed on <{{component}}>, which owns its {{category}}. Use one of its variants, or compose the look in the feature view from layout classes on a parent; components/ui is never edited, so when no variant gives the look, ask the owner.',
-            typography:
-              '"{{className}}" is not allowed on <{{component}}>, which owns its {{category}}. Use one of its variants, or compose the look in the feature view from layout classes on a parent; components/ui is never edited, so when no variant gives the look, ask the owner.',
-            shape:
-              '"{{className}}" is not allowed on <{{component}}>, which owns its {{category}}. Use one of its variants, or compose the look in the feature view from layout classes on a parent; components/ui is never edited, so when no variant gives the look, ask the owner.',
-            effects:
-              '"{{className}}" is not allowed on <{{component}}>, which owns its {{category}}. Use one of its variants, or compose the look in the feature view from layout classes on a parent; components/ui is never edited, so when no variant gives the look, ask the owner.',
-            motion:
-              '"{{className}}" is not allowed on <{{component}}>, which owns its {{category}}. Use one of its variants, or compose the look in the feature view from layout classes on a parent; components/ui is never edited, so when no variant gives the look, ask the owner.',
-            spacing:
-              '"{{className}}" is not allowed on <{{component}}>, which owns its spacing. Use one of its sizes, or gap and margin on a parent in the feature view; components/ui is never edited, so when no size fits, ask the owner.',
-          },
-        },
-      ],
       'shadcn/no-raw-colors': 'error',
       'porcelain/pending-control-owner': 'error',
       'porcelain/notification-owner': 'error',

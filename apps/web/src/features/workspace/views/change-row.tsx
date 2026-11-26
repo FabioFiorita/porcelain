@@ -1,4 +1,12 @@
+import type { ReactNode } from 'react';
 import { TruncatedText } from '@/shared/views/truncated-text';
+import { CheckIcon, MessageSquareIcon } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import {
   changeStatusMarks,
   type ChangeStatus,
@@ -14,8 +22,13 @@ import {
 } from '@porcelain/client/changes/rules';
 import { SidebarActionMenu } from './sidebar-action-menu';
 
+export type ChangeRowExtra = {
+  readonly trailing?: ReactNode;
+  readonly tick?: boolean;
+};
+
 export const ROW =
-  'flex w-full min-w-0 items-center gap-1.5 rounded-lg px-2 py-1 text-left text-caption transition-colors hover:bg-accent aria-pressed:bg-accent aria-pressed:font-medium';
+  'flex h-7 w-full min-w-0 items-center gap-1.5 rounded-md px-2 text-left text-caption transition-colors outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring/60 aria-pressed:bg-selection aria-pressed:font-medium aria-pressed:text-foreground';
 
 export function ChangeRow({
   path,
@@ -25,6 +38,7 @@ export function ChangeRow({
   changeStatus,
   reviewStatus,
   active,
+  current = false,
   onOpen,
   sideLabel,
   onReview,
@@ -32,7 +46,11 @@ export function ChangeRow({
   writeBlock,
   onDiscard,
   indented = false,
-}: {
+  commentCount = 0,
+  onComment,
+  trailing,
+  tick = false,
+}: ChangeRowExtra & {
   path: string;
   document: DocumentRef;
   note: string | undefined;
@@ -40,6 +58,7 @@ export function ChangeRow({
   changeStatus: ChangeStatus | undefined;
   reviewStatus: ReviewStatus | undefined;
   active: boolean;
+  current?: boolean;
   onOpen: OpenDocument;
   sideLabel: string;
   onReview: () => void;
@@ -47,6 +66,8 @@ export function ChangeRow({
   writeBlock?: string | undefined;
   onDiscard?: () => void;
   indented?: boolean;
+  commentCount?: number | undefined;
+  onComment?: () => void;
 }) {
   const label = `${basename(path)}${scopes.length > 0 ? ` · ${scopes.join(' + ')}` : ''}`;
   const act = (id: ReviewSidebarAction['id']) => {
@@ -72,6 +93,9 @@ export function ChangeRow({
       case 'discard':
         onDiscard?.();
         break;
+      case 'comment':
+        onComment?.();
+        break;
     }
   };
   return (
@@ -83,6 +107,7 @@ export function ChangeRow({
         canReview,
         sideLabel,
         canDiscard: onDiscard !== undefined,
+        canComment: onComment !== undefined,
       })}
       writeBlock={writeBlock}
       onAction={act}
@@ -91,7 +116,16 @@ export function ChangeRow({
         <div className="flex min-w-0 items-center">
           <button
             type="button"
+            ref={(row) => {
+              if (!row) return;
+              if (!current) delete row.dataset.revealed;
+              else if (row.dataset.revealed === undefined) {
+                row.dataset.revealed = '';
+                row.scrollIntoView({ block: 'nearest' });
+              }
+            }}
             aria-pressed={active}
+            aria-current={current ? 'location' : undefined}
             aria-label={label}
             aria-description={changeDescription(changeStatus, reviewStatus)}
             title={
@@ -101,24 +135,41 @@ export function ChangeRow({
               ROW,
               'flex-1 text-muted-foreground',
               indented && 'pl-7',
-              active && 'bg-accent font-medium text-foreground',
+              active
+                ? 'bg-selection font-medium text-foreground'
+                : current && 'bg-accent text-foreground',
             )}
             onClick={(event) => onOpen(document, { toSide: event.altKey })}
           >
             <ChangeStatusIcon
               status={changeStatus}
               reviewStatus={reviewStatus}
+              tick={tick}
             />
             <FileTreeIcon path={path} className="size-3.5 shrink-0" />
-            <TruncatedText
-              className={cn(
-                'min-w-0 flex-1 ',
-                reviewStatus === 'reviewed' &&
-                  'line-through decoration-muted-foreground/40',
-              )}
-              text={basename(path)}
-            />
+            <TruncatedText className="min-w-0 flex-1" text={basename(path)} />
+            {commentCount > 0 && (
+              <span
+                aria-label={
+                  commentCount === 1 ? '1 comment' : `${commentCount} comments`
+                }
+                className="flex shrink-0 items-center gap-0.5 text-2xs text-muted-foreground tabular-nums"
+              >
+                <MessageSquareIcon aria-hidden className="size-3" />
+                {commentCount}
+              </span>
+            )}
+            {trailing}
           </button>
+          {tick && (
+            <ReviewTick
+              path={path}
+              status={reviewStatus}
+              canReview={canReview}
+              writeBlock={writeBlock}
+              onReview={onReview}
+            />
+          )}
           {menu}
         </div>
       )}
@@ -126,12 +177,49 @@ export function ChangeRow({
   );
 }
 
+function ReviewTick({
+  path,
+  status,
+  canReview,
+  writeBlock,
+  onReview,
+}: {
+  path: string;
+  status: ReviewStatus | undefined;
+  canReview: boolean;
+  writeBlock: string | undefined;
+  onReview: () => void;
+}) {
+  let hint = status === 'stale' ? 'Changed since reviewed' : 'Mark as reviewed';
+  if (!canReview) hint = 'This file cannot be marked reviewed';
+  if (writeBlock) hint = writeBlock;
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Checkbox
+            className="mx-1.5"
+            checked={status === 'reviewed'}
+            aria-label={`${path} reviewed`}
+            aria-description={hint}
+            disabled={!canReview || Boolean(writeBlock)}
+            onCheckedChange={onReview}
+          />
+        }
+      />
+      <TooltipContent role="tooltip">{hint}</TooltipContent>
+    </Tooltip>
+  );
+}
+
 function ChangeStatusIcon({
   status,
   reviewStatus,
+  tick,
 }: {
   status: ChangeStatus | undefined;
   reviewStatus: ReviewStatus | undefined;
+  tick: boolean;
 }) {
   const normalized = reviewStatus ?? 'unreviewed';
   const label = changeDescription(status, reviewStatus);
@@ -144,16 +232,20 @@ function ChangeStatusIcon({
       data-change-status={status}
       title={label}
     >
-      <span
-        className={cn(
-          'size-1.5 rounded-full',
-          status === undefined && 'bg-muted-foreground/60',
-          (status === 'added' || status === 'untracked') && 'bg-graph-2',
-          status === 'modified' && 'bg-graph-4',
-          status === 'deleted' && 'bg-destructive',
-          status === 'renamed' && 'bg-graph-1',
-        )}
-      />
+      {normalized === 'reviewed' && !tick ? (
+        <CheckIcon aria-hidden="true" className="size-3 text-add-fg" />
+      ) : (
+        <span
+          className={cn(
+            'size-1.5 rounded-full',
+            status === undefined && 'bg-muted-foreground/60',
+            (status === 'added' || status === 'untracked') && 'bg-graph-2',
+            status === 'modified' && 'bg-graph-4',
+            status === 'deleted' && 'bg-destructive',
+            status === 'renamed' && 'bg-graph-1',
+          )}
+        />
+      )}
     </span>
   );
 }

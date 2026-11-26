@@ -8,7 +8,12 @@ export type ProjectChangedNotice = {
 
 export type WorktreeChangedNotice = {
   worktreeId: string;
-  change: 'reviewed' | 'git' | 'walkthrough' | 'walkthrough-conversations';
+  change:
+    | 'reviewed'
+    | 'git'
+    | 'comments'
+    | 'walkthrough'
+    | 'walkthrough-conversations';
 };
 
 export type FilesChangedNotice = {

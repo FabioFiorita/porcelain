@@ -1,6 +1,7 @@
 ---
 route: /
 selectors:
+  - 'Side panel'
   - 'Review'
   - 'Discard changes to'
   - 'Discard'
@@ -40,12 +41,12 @@ a fresh instance has README.md modified ("# Sample repository\n\nA change to rev
 
 ### Case 1: discard returns the file to the last commit, and Restore brings the change back
 
-1. Navigate to `/`, then click button `Review`
+1. Navigate to `/`, then click button `Side panel`
    Expect: the review sheet with button "README.md · unstaged".
 2. Click button `README.md · unstaged`
    Expect: the sheet closes; a README.md change document with button "Discard changes to README.md".
 3. Click button `Discard changes to README.md`
-   Expect: alertdialog "Discard README.md?" reading "The file goes back to the last commit. You can restore the changes."; buttons "Cancel" and "Discard".
+   Expect: alertdialog "Discard README.md?" reading "The file goes back to the last commit. You can restore the changes." (for an untracked file: "The new file is deleted. You can restore it."); buttons "Cancel" and "Discard".
 4. Click button `Discard`
    Expect: the alertdialog is gone; in region "Notifications", dialog "Discarded README.md" with button "Restore"; the document reads "This change is no longer present."; the Git button in group "Git controls" now reads "Apply stash" (the discarded change is kept as a stash until Restore). Disk: `cat "$REPO/README.md"` prints `# Sample repository`.
 5. Click button `Restore` (within 10 s of step 4)
@@ -55,11 +56,11 @@ a fresh instance has README.md modified ("# Sample repository\n\nA change to rev
 
 Fresh instance, or after case 1's Restore.
 
-1. Navigate to `/`, click button `Review`, click button `README.md · unstaged`, click button `Discard changes to README.md`
+1. Navigate to `/`, click button `Side panel`, click button `README.md · unstaged`, click button `Discard changes to README.md`
    Expect: alertdialog "Discard README.md?".
 2. On disk, with the dialog open: `printf 'Changed on disk after the discard dialog opened\n' > "$REPO/README.md"`
 3. Click button `Discard`
-   Expect: an alert in the alertdialog reads "changed since looked Look at the diff again before discarding."; the "Cancel" button is now named `Look again` and the "Discard" button is gone. Disk: `cat "$REPO/README.md"` prints `Changed on disk after the discard dialog opened`.
+   Expect: an alert in the alertdialog reads "The files changed after you looked at them. Look at the diff again before discarding."; the "Cancel" button is now named `Look again` and the "Discard" button is gone. Disk: `cat "$REPO/README.md"` prints `Changed on disk after the discard dialog opened`.
 4. Click button `Look again`
    Expect: the alertdialog closes; the change document shows the newer text.
 

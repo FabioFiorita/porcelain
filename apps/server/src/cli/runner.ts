@@ -74,6 +74,7 @@ type CliOptions = {
   readonly stdout?: (message: string) => void;
   readonly stderr?: (message: string) => void;
   readonly prepareWebRoot?: Effect.Effect<string>;
+  readonly currentDirectory?: string;
 };
 
 export function createCliRunner(
@@ -105,6 +106,7 @@ export function createCliRunner(
           stdout,
           stderr,
           prepareWebRoot: options.prepareWebRoot,
+          currentDirectory: options.currentDirectory ?? process.cwd(),
         };
       }),
     ).pipe(Layer.provide(runtime));

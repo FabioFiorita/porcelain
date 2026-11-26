@@ -26,6 +26,7 @@ export class ResolveProjectGitHubUseCase extends Context.Service<
     readonly execute: (input: {
       projectId: string;
       override?: { account: string | undefined };
+      fresh?: true;
     }) => Effect.Effect<
       {
         repository: GitHubRepository | undefined;
@@ -86,7 +87,11 @@ export class ResolveProjectGitHubUseCase extends Context.Service<
                 },
               };
             const selection = yield* lanes.unqueued(() =>
-              select.execute({ ...repository, preference }),
+              select.execute({
+                ...repository,
+                preference,
+                ...(input.fresh ? { fresh: input.fresh } : {}),
+              }),
             );
             const detected = selection.choice;
             if (detected?.source === 'detected')

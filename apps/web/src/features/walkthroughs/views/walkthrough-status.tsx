@@ -4,23 +4,39 @@ import {
   walkthroughFailureCopy,
   type WalkthroughStatusInput,
 } from '@porcelain/client/walkthroughs/rules';
-import { Button } from '@/components/ui/button';
 import type { ReactNode } from 'react';
+import { CheckIcon } from 'lucide-react';
+import { cn } from '@/shared/lib/utils';
+import type { WriterAction } from './walkthrough-writer-notice';
+
+export function WalkthroughFailureLine({
+  copy,
+}: {
+  copy: ReturnType<typeof walkthroughFailureCopy>;
+}) {
+  return (
+    <p role="alert" className="min-w-0 flex-1 basis-64 font-medium text-pretty">
+      {copy.title}
+      {copy.message && ` ${copy.message}`}
+    </p>
+  );
+}
 
 export function WalkthroughStatus({
   run,
   requesting = false,
+  first = false,
   reused = false,
   freshness,
   failure,
   onUpdate,
   writeBlock,
-  writerNotice,
+  controls,
 }: WalkthroughStatusInput & {
   writeBlock?: string | undefined;
-  writerNotice?: ReactNode;
+  controls?: ((action: WriterAction) => ReactNode) | undefined;
 }) {
-  const progress = walkthroughProgress(run, requesting);
+  const progress = walkthroughProgress(run, requesting, first);
   if (
     run.state.status === 'ready' &&
     !progress.active &&
@@ -49,18 +65,14 @@ export function WalkthroughStatus({
             </>
           )}
         </p>
-        {writerNotice}
-        {onUpdate && (
-          <Button
-            size="sm"
-            variant={behind ? 'outline' : 'ghost'}
-            disabled={Boolean(writeBlock)}
-            aria-description={writeBlock}
-            onClick={onUpdate}
-          >
-            Update walkthrough
-          </Button>
-        )}
+        {onUpdate &&
+          controls?.({
+            label: 'Update walkthrough',
+            variant: behind ? 'outline' : 'ghost',
+            disabled: Boolean(writeBlock),
+            description: writeBlock,
+            onClick: onUpdate,
+          })}
       </section>
     );
   }
@@ -70,22 +82,24 @@ export function WalkthroughStatus({
       className="flex flex-col gap-3 rounded-lg border p-4 text-ui"
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p role="status" className="font-medium">
-          {progress.label}
-        </p>
-        {!progress.active && onUpdate && (
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={Boolean(writeBlock)}
-            aria-description={writeBlock}
-            onClick={onUpdate}
-          >
-            {failure ? 'Try again' : 'Update walkthrough'}
-          </Button>
+        {failure && !progress.active ? (
+          <WalkthroughFailureLine
+            copy={walkthroughFailureCopy(failure.failure, failure.writer)}
+          />
+        ) : (
+          <p role="status" className="font-medium">
+            {progress.label}
+          </p>
         )}
+        {!progress.active &&
+          onUpdate &&
+          controls?.({
+            label: failure ? 'Try again' : 'Update walkthrough',
+            disabled: Boolean(writeBlock),
+            description: writeBlock,
+            onClick: onUpdate,
+          })}
       </div>
-      {!progress.active && writerNotice}
       {run.state.status === 'ready' && (
         <p className="text-caption text-muted-foreground">
           Last written{' '}
@@ -109,24 +123,42 @@ export function WalkthroughStatus({
         className="h-1.5 overflow-hidden rounded-full bg-muted"
       >
         <div
-          className="h-full bg-primary"
+          className={cn(
+            'h-full',
+            run.state.status === 'failed' ? 'bg-destructive' : 'bg-primary',
+          )}
           style={{ width: `${(progress.completed / progress.total) * 100}%` }}
         />
       </div>
       <ol
         aria-label="Update stages"
-        className="flex flex-wrap gap-x-3 gap-y-1 text-caption text-muted-foreground"
+        className="flex flex-wrap gap-x-4 gap-y-1 text-caption text-muted-foreground"
       >
-        {progress.steps.map((step, index) => (
-          <li
-            key={step}
-            aria-current={
-              !requesting && index === progress.completed ? 'step' : undefined
-            }
-          >
-            {index + 1}. {step}
-          </li>
-        ))}
+        {progress.steps.map((step, index) => {
+          const current = !requesting && index === progress.completed;
+          const done = index < progress.completed;
+          return (
+            <li
+              key={step}
+              aria-current={current ? 'step' : undefined}
+              className={cn(
+                'flex items-center gap-1',
+                current && 'font-medium text-foreground',
+                current && run.state.status === 'failed' && 'text-destructive',
+              )}
+            >
+              {done ? (
+                <CheckIcon
+                  aria-label="Done"
+                  className="size-3 shrink-0 text-add-fg"
+                />
+              ) : (
+                <span className="tabular-nums">{index + 1}.</span>
+              )}
+              {step}
+            </li>
+          );
+        })}
       </ol>
       {requesting && <p>Sending the request and capturing the current work.</p>}
       {freshness &&
@@ -137,16 +169,9 @@ export function WalkthroughStatus({
               : walkthroughFreshnessText(freshness)}
           </p>
         )}
-      {failure && (
-        <p role="alert">
-          {walkthroughFailureCopy(failure.failure, failure.writer).title}
-          {failure.failure.kind !== 'signed_out' &&
-            ` ${failure.failure.message}`}
-        </p>
-      )}
       <details>
         <summary className="cursor-pointer text-muted-foreground">
-          Update log
+          Writing log
         </summary>
         <ol className="mt-2 flex flex-col gap-2 text-caption text-foreground-2">
           {progress.entries.map((entry, index) => (
@@ -159,7 +184,7 @@ export function WalkthroughStatus({
           ))}
           {progress.entries.length === 0 && (
             <li>
-              This walkthrough predates the update log. Its recorded status is
+              This walkthrough predates the writing log. Its recorded status is
               shown above.
             </li>
           )}

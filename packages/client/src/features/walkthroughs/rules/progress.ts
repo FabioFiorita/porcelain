@@ -44,7 +44,11 @@ export function acknowledgedWalkthrough(
   return { walkthrough: accepted, freshness: 'unknown' };
 }
 
-export function walkthroughProgress(run: WalkthroughRun, requesting: boolean) {
+export function walkthroughProgress(
+  run: WalkthroughRun,
+  requesting: boolean,
+  first = false,
+) {
   const entries = run.progress ?? [];
   const last = entries.at(-1);
   const stage =
@@ -68,7 +72,11 @@ export function walkthroughProgress(run: WalkthroughRun, requesting: boolean) {
           STAGES.findIndex((item) => item === stage),
         );
   return {
-    label: requesting ? 'Requesting update' : LABELS[stage],
+    label: requesting
+      ? 'Requesting update'
+      : first && stage === 'failed'
+        ? 'Writing failed'
+        : LABELS[stage],
     completed: requesting ? 0 : completed,
     total: STAGES.length - 1,
     entries,
@@ -112,6 +120,7 @@ export function acknowledgedWalkthroughPhase(
 export type WalkthroughStatusInput = {
   run: WalkthroughRun;
   requesting?: boolean;
+  first?: boolean;
   reused?: boolean;
   freshness?: WalkthroughRead['freshness'] | undefined;
   failure?: UpdateFailure | undefined;

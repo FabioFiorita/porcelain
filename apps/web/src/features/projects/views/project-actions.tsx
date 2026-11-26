@@ -107,7 +107,7 @@ export function ProjectActions({
         </TooltipTrigger>
         <TooltipContent>Project actions</TooltipContent>
       </Tooltip>
-      <DropdownMenuContent className="w-56 max-w-[calc(100vw-2rem)]">
+      <DropdownMenuContent>
         <DropdownMenuGroup>
           {!project.available && (
             <DropdownMenuLabel>

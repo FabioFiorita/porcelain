@@ -41,6 +41,7 @@ export const gitActionReceiptSchema = Schema.Struct({
       'DEADLINE_EXCEEDED',
       'OUTCOME_UNKNOWN',
       'PROCESS_GROUP_UNCONFIRMED',
+      'TOO_MANY_CHANGES',
     ]),
   ),
   message: Schema.optional(Schema.String),

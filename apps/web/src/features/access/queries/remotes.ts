@@ -1,9 +1,18 @@
+import { Stream } from 'effect';
 import { Atom } from 'effect/reactivity';
 import type { RemoteStatus } from '@porcelain/client/access/rules';
 import { useAtomValue } from '@effect/atom-react';
-import { readRemoteConnectionStatus } from '@porcelain/client/access';
+import {
+  readRemoteConnectionStatus,
+  type RemoteConnection,
+} from '@porcelain/client/access';
+import {
+  collectWorktreeSnapshots,
+  readWorktreeSnapshot,
+} from '@porcelain/client/projects';
 import type { Remote } from '@porcelain/client/access/rules';
 import {
+  environmentRuntime,
   pairingPlatform,
   remoteConnectionState,
   useRemoteConnection,
@@ -40,4 +49,12 @@ export const shownRemoteWorkspace = Atom.family((_environmentId: string) =>
 
 export const rememberRemoteWorkspace = Atom.family((environmentId: string) =>
   Atom.make((get) => get.set(shownRemoteWorkspace(environmentId), true)),
+);
+
+export const remoteWorktreeSnapshots = collectWorktreeSnapshots(
+  Atom.family((computer: RemoteConnection) =>
+    environmentRuntime
+      .atom(Stream.unwrap(readWorktreeSnapshot(computer)))
+      .pipe(Atom.setIdleTTL(0)),
+  ),
 );

@@ -22,6 +22,7 @@ import {
   filePreferenceActions,
   filePreferenceEntries,
   quickOpenPath,
+  omittedEntriesText,
 } from '@porcelain/client/files/rules';
 import {
   FileTree,
@@ -383,6 +384,18 @@ function FilesNavigationView({ selected, mode, search }: FilesNavigationProps) {
           }}
         />
       ) : null}
+      {searching
+        ? null
+        : data.flatMap((directory) => {
+            const note = omittedEntriesText(directory);
+            return note
+              ? [
+                  <Text key={note} variant="caption" tone="muted">
+                    {note}
+                  </Text>,
+                ]
+              : [];
+          })}
       {searching && !pathData && AsyncResult.isFailure(paths.result) ? (
         <ErrorState
           message={fileErrorMessage(Cause.squash(paths.result.cause))}
@@ -423,7 +436,13 @@ function FilesNavigationView({ selected, mode, search }: FilesNavigationProps) {
       const value = result
         ? Option.getOrUndefined(AsyncResult.value(result))
         : undefined;
-      if (value) return { path, status: 'loaded', entries: value.entries };
+      if (value)
+        return {
+          path,
+          status: 'loaded',
+          entries: value.entries,
+          omitted: value.omitted,
+        };
       return {
         path,
         status:

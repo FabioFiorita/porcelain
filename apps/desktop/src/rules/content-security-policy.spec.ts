@@ -2,12 +2,20 @@ import { describe, expect, it } from 'vite-plus/test';
 import { desktopContentSecurityPolicy } from './content-security-policy.ts';
 
 describe('desktop content security policy', () => {
-  it('plays only app media and its own blobs', () => {
+  it('plays app media, its own blobs and media a file preview inlined', () => {
     expect(
       desktopContentSecurityPolicy('built')
         .split('; ')
         .find((directive) => directive.startsWith('media-src ')),
-    ).toBe("media-src 'self' blob:");
+    ).toBe("media-src 'self' data: blob:");
+  });
+
+  it('runs no inline script in the built app except the file preview link bridge', () => {
+    expect(
+      desktopContentSecurityPolicy('built')
+        .split('; ')
+        .find((directive) => directive.startsWith('script-src ')),
+    ).toMatch(/^script-src 'self' 'sha256-[A-Za-z0-9+/]{43}='$/);
   });
 
   it('allows connections to user-entered HTTP and HTTPS computers and their WS and WSS live sockets', () => {
@@ -34,11 +42,11 @@ describe('desktop content security policy', () => {
           (directive) =>
             !directive.startsWith('connect-src ') &&
             !directive.startsWith('frame-src ') &&
-            !directive.startsWith('media-src '),
+            !directive.startsWith('media-src ') &&
+            !directive.startsWith('script-src '),
         ),
     ).toEqual([
       "default-src 'self'",
-      "script-src 'self'",
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https:",
       "font-src 'self' data:",
@@ -53,13 +61,13 @@ describe('desktop content security policy', () => {
       desktopContentSecurityPolicy('built')
         .split('; ')
         .map((directive) =>
-          directive === "script-src 'self'"
+          directive.startsWith('script-src ')
             ? "script-src 'self' 'unsafe-inline'"
             : directive,
         ),
     );
     expect(desktopContentSecurityPolicy('development')).toBe(
-      "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' blob:; font-src 'self' data:; connect-src 'self' http: https: ws: wss:; frame-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'",
+      "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' http: https: ws: wss:; frame-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'",
     );
   });
 });

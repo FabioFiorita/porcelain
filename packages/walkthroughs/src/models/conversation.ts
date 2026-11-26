@@ -3,6 +3,7 @@ import {
   walkthroughFailureSchema,
   type WalkthroughRun,
 } from './walkthrough.ts';
+import type { CallDecision } from './decision.ts';
 
 export const answerStateSchema = Schema.Union([
   Schema.Struct({ status: Schema.Literal('answering') }),
@@ -67,6 +68,7 @@ export type WalkthroughConversationsView = {
   readonly runId: string | undefined;
   readonly pullRequestNumber: number | undefined;
   readonly conversations: readonly WalkthroughConversation[];
+  readonly decisions: readonly CallDecision[];
 };
 export type PostSelection =
   | { readonly kind: 'message'; readonly messageId: string }

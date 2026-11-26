@@ -45,12 +45,21 @@ export function deviceKind(platform: string): DeviceKind {
 
 const waysInList = new Intl.ListFormat('en-GB', { type: 'conjunction' });
 
-export function computerSummary(remote: RemoteAccess, devices: number) {
-  const ways = remoteRouteNames
-    .filter((name) => remote.routes[name].status.kind === 'on')
-    .map((name) => remoteRouteTitles[name]);
-  return [
-    ways.length === 0 ? 'No way in on' : waysInList.format(ways),
-    counted(devices, 'device'),
-  ].join(' · ');
+export function computerReach(remote: RemoteAccess, devices: number) {
+  const titles = (kind: 'on' | 'starting') =>
+    remoteRouteNames
+      .filter((name) => remote.routes[name].status.kind === kind)
+      .map((name) => remoteRouteTitles[name]);
+  const on = titles('on');
+  const starting = titles('starting');
+  let reach = 'Other devices cannot reach it yet.';
+  if (on.length > 0)
+    reach = `Other devices reach it over ${waysInList.format(on)}.`;
+  else if (starting.length > 0)
+    reach = `${waysInList.format(starting)} ${starting.length === 1 ? 'is' : 'are'} starting.`;
+  return {
+    devices: counted(devices, 'paired device'),
+    reach,
+    unreachable: on.length === 0 && starting.length === 0,
+  };
 }

@@ -606,16 +606,24 @@ async function pendingLifecycle() {
   };
 }
 
+function statusFromLiveSession(
+  subject: Awaited<ReturnType<typeof lifecycleFixture>>,
+  state: ReturnType<typeof liveSessionState>,
+) {
+  return readRemoteConnectionStatus(subject.platform, remote, {
+    liveUpdates: {
+      state,
+      retry: () => undefined,
+      connect: () => Effect.die('Reading status must not own a live session'),
+    },
+  });
+}
+
 it('uses the live session as connection truth when independent HTTP probes fail, and exposes recovery and revocation', async () => {
   const subject = await lifecycleFixture({ outage: true });
   const state = liveSessionState();
   state.set('connected');
-  const atom = readRemoteConnectionStatus(subject.platform, remote, {
-    liveUpdates: {
-      state,
-      connect: () => Effect.die('Reading status must not own a live session'),
-    },
-  });
+  const atom = statusFromLiveSession(subject, state);
   const stop = subject.registry.mount(atom);
   await subject.flush();
   expect(subject.status()).toEqual({ kind: 'offline' });
@@ -631,6 +639,24 @@ it('uses the live session as connection truth when independent HTTP probes fail,
   expect(subject.registry.get(atom)).toEqual({ kind: 'offline' });
   stop();
   subject.stop();
+});
+
+it('shows a computer whose initial live handshake failed as offline even when HTTP answers', async () => {
+  const subject = await lifecycleFixture();
+  const state = liveSessionState();
+  state.set('connecting');
+  const atom = statusFromLiveSession(subject, state);
+  const stop = subject.registry.mount(atom);
+  try {
+    await subject.flush();
+    expect(subject.status().kind).toBe('online');
+    expect(subject.registry.get(atom)).toEqual({ kind: 'checking' });
+    state.set('unavailable');
+    expect(subject.registry.get(atom)).toEqual({ kind: 'offline' });
+  } finally {
+    stop();
+    subject.stop();
+  }
 });
 
 it('shows Reconnecting on the reading screen only after the computer stays away two seconds, and refusals at once', async () => {

@@ -13,7 +13,10 @@ import {
   expectationFor,
   gitErrorMessage,
 } from '@porcelain/client/git-actions/rules';
-import { lookAgainGitAction } from '@porcelain/client/git-actions';
+import {
+  GitOperationStateError,
+  lookAgainGitAction,
+} from '@porcelain/client/git-actions';
 import { useGitAction } from './run-action';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
@@ -46,13 +49,34 @@ export function useActionForm(
   const uncertain = Boolean(git.operation && !git.canStartNew);
   const failure = (result: AsyncResult.AsyncResult<unknown, unknown>) =>
     AsyncResult.isFailure(result) ? Cause.squash(result.cause) : null;
+  const recoveryError = failure(git.recovered);
+  const missingRequestId =
+    recoveryError instanceof GitOperationStateError &&
+    recoveryError.reason === 'receipt-unavailable' &&
+    recoveryError.requestId === git.operation?.requestId
+      ? recoveryError.requestId
+      : undefined;
+  const readLook = onLookAgain
+    ? Effect.tryPromise({
+        try: onLookAgain,
+        catch: (cause) => new Cause.UnknownError(cause, gitErrorMessage(cause)),
+      })
+    : Effect.void;
   return {
+    clearUnconfirmed: missingRequestId
+      ? () => {
+          void reread({
+            read: readLook,
+            startNew: git.startNew(missingRequestId),
+          });
+        }
+      : undefined,
     operation: git.operation,
     messageLimit: COMMIT_MESSAGE_BYTES,
     outcome: git.operation?.receipt,
     busy,
     uncertain,
-    error: failure(git.execution) ?? failure(look) ?? failure(git.recovered),
+    error: failure(look) ?? recoveryError ?? failure(git.execution),
     onSubmit: (input: ActionInput) => {
       if (busy || uncertain) return;
       onBusy(true);
@@ -79,11 +103,7 @@ export function useActionForm(
       if (!onLookAgain || busy) return;
       git.reset();
       void reread({
-        read: Effect.tryPromise({
-          try: onLookAgain,
-          catch: (cause) =>
-            new Cause.UnknownError(cause, gitErrorMessage(cause)),
-        }),
+        read: readLook,
         startNew: git.startNew(),
       });
     },

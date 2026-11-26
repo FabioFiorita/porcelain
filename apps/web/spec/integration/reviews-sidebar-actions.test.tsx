@@ -6,7 +6,9 @@ test('review groups collapse and expand all from their context menu and keyboard
   repo,
 }) => {
   await repo.write('phone-otp.spec.ts', 'test fixture\n');
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await workspace
     .getByRole('complementary', { name: 'Review sidebar', exact: true })
     .getByRole('tab', { name: 'Changes', exact: true })

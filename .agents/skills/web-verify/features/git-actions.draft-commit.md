@@ -1,22 +1,21 @@
 ---
 route: /
 selectors:
-  - "Commit"
-  - "Commit changes"
-  - "Commit model"
-  - "Generate with AI"
-  - "Message"
-  - "Commit selected files"
-  - "succeeded"
-  - "Use groups"
-  - "Proposing commits"
-  - "Message for commit"
-  - "Commit groups in order"
-  - " · committed"
-  - "Look again"
-  - "Edit"
-  - "Excluded"
-  - "Try again"
+  - 'Commit'
+  - 'Commit changes'
+  - 'Commit model'
+  - 'Generate with AI'
+  - 'Message'
+  - 'Commit selected files'
+  - 'succeeded'
+  - 'Use groups'
+  - 'Proposing commits'
+  - 'Message for commit'
+  - 'Commit groups in order'
+  - ' · committed'
+  - 'Look again'
+  - 'Edit'
+  - 'Excluded'
 tests:
   - apps/web/spec/integration/git-actions-draft-commit.test.tsx
 api:
@@ -50,7 +49,7 @@ Required instance mode: `--coding-tool`.
 1. Navigate to `/`, then click button `Commit`
    Expect: dialog "Commit changes" with tabs "Single commit" [selected], "Amend last", "Use groups"; "Files (1 of 1)" with README.md; button "Generate with AI" and combobox "Commit model" (a shadcn Select; opening it lists "Sonnet" and "Haiku" under "claude").
 2. Click combobox named `Commit model`, then option named `Haiku`, then click button `Generate with AI`
-   Expect: the combobox displays "Haiku"; textbox "Message" holds "Explain the change to review in the README" (the submit button reads "Generating…" meanwhile).
+   Expect: the combobox displays "Haiku"; textbox "Message" holds "Explain the change to review in the README" (the Generate button reads "Generating…" meanwhile; the submit keeps its label, disabled).
 3. Review and optionally edit Message. The current HEAD is unchanged until clicking Commit. Click button `Commit selected files`, then wait for 'succeeded'
    Expect: a status reads "succeeded". Disk: `git -C "$REPO" log -1 --format=%s` prints `Explain the change to review in the README`.
 4. Press `Escape`
@@ -59,11 +58,13 @@ Required instance mode: `--coding-tool`.
 ### Case 2: Use groups drafts one commit per group, and committing lands them in order
 
 Setup on disk (fresh instance), then wait for the UI:
+
 ```sh
 git -C "$REPO" add --all && git -C "$REPO" -c user.name='Porcelain Verification' -c user.email=verify@example.invalid commit -m "Commit the sample change first"
 printf 'README.md drafted in groups\n' > "$REPO/README.md"
 printf 'NOTES.md drafted in groups\n' > "$REPO/NOTES.md"
 ```
+
 Then Wait for button named `Mark NOTES.md as reviewed` and wait for button named `Mark README.md as reviewed`.
 
 1. Click button `Commit`
@@ -79,10 +80,12 @@ Then Wait for button named `Mark NOTES.md as reviewed` and wait for button named
 ### Case 3: a commit the worktree moved past since the draft is refused, and a new draft must cover every selected file
 
 Setup on disk (fresh instance):
+
 ```sh
 git -C "$REPO" add --all && git -C "$REPO" -c user.name='Porcelain Verification' -c user.email=verify@example.invalid commit -m "Commit the sample change first"
 printf 'Changed before the draft\n' > "$REPO/README.md"
 ```
+
 Then Wait for button named `Mark README.md as reviewed`.
 
 1. Click button `Commit`, click button `Generate with AI`, then wait for 'Explain the change to review in the README'
@@ -90,14 +93,14 @@ Then Wait for button named `Mark README.md as reviewed`.
 2. On disk, with the dialog open:
    `printf 'Changed after the draft\n' > "$REPO/README.md"; printf 'Written after the draft\n' > "$REPO/LATER.md"`
 3. Click button `Commit selected files`, then wait for button `Look again`
-   Expect: alert "changed since looked"; button "Look again". Disk: `git -C "$REPO" status --porcelain` prints ` M README.md` and `?? LATER.md`; newest commit still "Commit the sample change first".
+   Expect: alert "The files changed after you looked at them."; button "Look again". Disk: `git -C "$REPO" status --porcelain` prints ` M README.md` and `?? LATER.md`; newest commit still "Commit the sample change first".
 4. Click button `Look again`
    Expect: "Files (2 of 2)" with "LATER.md changed" and "README.md modified".
 5. Click button `Generate with AI`, then wait for '/did not cover/'
-   Expect: alert "The generated groups did not cover the selected files. Generate again or write the message manually.", with a Try again button, beside the stale alert "The worktree changed since this draft was proposed. Generate it again before committing." (the message still holds the first draft).
+   Expect: alert "The generated groups did not cover the selected files. Generate again or write the message manually." and no separate Try again button (Generate with AI is the retry), beside the stale alert "The worktree changed since this draft was proposed. Generate it again before committing." (the message still holds the first draft).
 6. Click button `Edit`, then click checkbox named `LATER.md`
    Expect: checkbox "LATER.md" unchecked and its row reading "LATER.md Excluded"; "Files (1 of 2)".
-7. Click button `Try again`
+7. Click button `Generate with AI`
    Expect: both alerts are gone; Message holds "Explain the change to review in the README".
 8. Click button `Commit selected files`, then wait for 'succeeded'
    Expect: status "succeeded". Disk: `git -C "$REPO" log -1 --format=%s` prints `Explain the change to review in the README`; `git -C "$REPO" status --porcelain` prints only `?? LATER.md`.

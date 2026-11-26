@@ -2,24 +2,28 @@ export {
   groupFilesByStep,
   walkthroughCodeScopes,
   reviewCodeSections,
+  reviewCodeCount,
+  reviewCodeIn,
   eagerSections,
   plainText,
   richParts,
   stopPaths,
   walkthroughCalls,
+  callDecisionProgress,
   walkthroughFailureCopy,
   walkthroughTabTitle,
   walkthroughPhase,
   walkthroughVerdict,
   type ReviewCode,
-  type StepFiles,
   type WalkthroughContent,
   type WalkthroughFailure,
   type WalkthroughRun,
 } from './walkthrough.ts';
 export {
   stepScreenshots,
+  type DiagramNode,
   type StepBlock,
+  type StepDiagram,
   type WalkthroughComparison,
   type WalkthroughEvidence,
   type WalkthroughExcerpt,
@@ -51,6 +55,14 @@ export {
 export { worktreeOpening, type WorktreeOpening } from './opening.ts';
 export {
   attentionLabel,
+  NEEDS_A_COMMIT,
+  callChoices,
+  callState,
+  type CallState,
+  decisionPlace,
+  stepCallState,
+  callDeciding,
+  screenshotClaim,
   failureCopy,
   readyUpdate,
   initialWriteFailure,
@@ -58,6 +70,8 @@ export {
   foldedNotSaid,
   growthSign,
   walkthroughMeta,
+  type MetaFiles,
+  walkthroughScope,
   walkthroughEvidenceNotice,
 } from './page.ts';
 
@@ -69,3 +83,11 @@ export {
   walkthroughFreshnessText,
 } from './progress.ts';
 export { fileComparison, fileOpening } from './file-comparison.ts';
+export {
+  diagramConnections,
+  diagramNeighbours,
+  diagramStep,
+  layoutDiagram,
+  type DiagramKey,
+  type DiagramMeasure,
+} from './diagram-layout.ts';

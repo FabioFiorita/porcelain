@@ -24,14 +24,14 @@ test('a failed background status read keeps the row’s last count and shows no 
   const mainCard = sidebar.getByRole('listitem').filter({
     has: page.getByRole('button', { name: /Main worktree/ }),
   });
-  await expect(mainCard).toHaveText(/\d+ files?$/);
-  const shown = (await mainCard.textContent()) ?? '';
+  const count = mainCard.getByText(/^\d+ uncommitted$/);
+  await expect(count).toHaveText('2 uncommitted');
   const restore = await live.failWorktreeStatusRead(other.id);
   try {
     const failed = live.worktreeStatusFailed(main.id);
     await repo.write('quiet-two.md', 'Two\n');
     await failed;
-    await expect(mainCard).toHaveText(shown);
+    await expect(count).toHaveText('2 uncommitted');
     await expect(page.getByRole('dialog')).toHaveCount(0);
     await expect(sidebar.getByRole('status')).toHaveCount(0);
     await expect(
@@ -41,6 +41,5 @@ test('a failed background status read keeps the row’s last count and shows no 
     await restore();
   }
   await repo.write('quiet-three.md', 'Three\n');
-  await expect(mainCard).not.toHaveText(shown);
-  await expect(mainCard).toHaveText(/\d+ files$/);
+  await expect(count).toHaveText('4 uncommitted');
 });

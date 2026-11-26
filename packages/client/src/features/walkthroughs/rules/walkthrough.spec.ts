@@ -4,6 +4,8 @@ import {
   firstDocument,
   walkthroughCodeScopes,
   reviewCodeSections,
+  reviewCodeCount,
+  reviewCodeIn,
   eagerSections,
   groupFilesByStep,
   plainText,
@@ -17,6 +19,8 @@ import {
   walkthroughTabTitle,
   walkthroughVerdict,
   walkthroughCalls,
+  undecidedCallStep,
+  callDecisionProgress,
   type WalkthroughContent,
   type WalkthroughRead,
   type WalkthroughRun,
@@ -26,6 +30,14 @@ import { worktreeOpening } from './opening.ts';
 import { readingOf } from '../queries/reading.ts';
 import {
   attentionLabel,
+  callChoices,
+  callDeciding,
+  callsNeedingCommit,
+  callState,
+  decidedAgainstChange,
+  decisionPlace,
+  stepCallState,
+  screenshotClaim,
   failureCopy,
   foldedGrowth,
   foldedNotSaid,
@@ -33,6 +45,7 @@ import {
   readyUpdate,
   initialWriteFailure,
   walkthroughMeta,
+  walkthroughScope,
   walkthroughEvidenceNotice,
 } from './page.ts';
 import {
@@ -681,9 +694,51 @@ describe('walkthrough page rules', () => {
         }),
       ),
     ).toBe('#423 · 2 files · written for bbbbbbb');
+    expect(
+      walkthroughMeta(written, content({ stops: [] }), undefined, {
+        committed: ['a.ts', 'b.ts', 'c.ts'],
+        uncommitted: ['README.md', 'docs.md', 'c.ts'],
+      }),
+    ).toBe('#423 · 5 files, 2 uncommitted · written for bbbbbbb');
+    expect(
+      walkthroughMeta(written, content({ stops: [] }), undefined, null),
+    ).toBe('#423 · written for bbbbbbb');
     expect(walkthroughMeta(run({ status: 'running' }))).toBe(
       'written for bbbbbbb',
     );
+    expect(
+      walkthroughMeta(
+        run({ status: 'running' }),
+        content({ stops: [] }),
+        'Opus 5.5',
+      ),
+    ).toBe('written for bbbbbbb · by Opus 5.5 · high effort');
+  });
+
+  it('names uncommitted files outside the pull request and files no step covers', () => {
+    expect(
+      walkthroughScope({
+        uncommitted: ['README.md', 'docs/search.md'],
+        uncovered: ['docs/search.md'],
+        pullRequest: 57,
+        checkedCommit: 'abcdef1234',
+      }),
+    ).toEqual({
+      uncommitted:
+        'README.md and search.md are uncommitted, so not in #57. The checks cover abcdef1 only.',
+      uncovered: 'No step covers search.md.',
+    });
+    expect(
+      walkthroughScope({
+        uncommitted: ['a.ts', 'b.ts', 'c.ts', 'd.ts', 'e.ts'],
+        uncovered: [],
+        pullRequest: undefined,
+        checkedCommit: undefined,
+      }),
+    ).toEqual({
+      uncommitted: 'a.ts, b.ts, c.ts and 2 more are uncommitted.',
+      uncovered: undefined,
+    });
   });
 
   it('keeps the ready page while an update runs, and blames the failed attempt’s writer', () => {
@@ -1042,6 +1097,9 @@ describe('walkthrough update status', () => {
       active: false,
     });
     expect(status.entries.at(-1)?.message).toBe('Writer disconnected.');
+    expect(walkthroughProgress(stopped, false, true).label).toBe(
+      'Writing failed',
+    );
     expect(walkthroughProgress(saved(), false)).toMatchObject({
       label: 'Walkthrough saved',
       completed: 5,
@@ -1083,4 +1141,283 @@ it('shows a start failure only before a page exists and retains the failed run i
       failure,
     ),
   ).toBeUndefined();
+});
+
+describe('undecidedCallStep', () => {
+  const calls = content({
+    stops: [
+      { ...stop(), title: 'Read the list' },
+      {
+        ...stop({ callouts: [{ attention, comparison: undefined }] }),
+        title: 'Choose empty search',
+      },
+      {
+        ...stop({
+          callouts: [
+            { attention, comparison: undefined },
+            { attention, comparison: undefined },
+          ],
+        }),
+        title: 'Name the count',
+      },
+    ],
+  });
+
+  it('names the first step with a call nobody marked decided', () => {
+    expect(undecidedCallStep(calls, [])).toBe(2);
+    expect(undecidedCallStep(calls, [{ step: 2, call: 0 }])).toBe(3);
+    expect(
+      undecidedCallStep(calls, [
+        { step: 2, call: 0 },
+        { step: 3, call: 0 },
+      ]),
+    ).toBe(3);
+  });
+
+  it('waits for the decisions before calling the calls settled', () => {
+    expect(undecidedCallStep(calls, undefined)).toBe('reading');
+    expect(undecidedCallStep(calls, undefined, true)).toBe('unreadable');
+    expect(undecidedCallStep(content({ stops: [stop()] }), undefined)).toBe(
+      undefined,
+    );
+  });
+
+  it('is settled once every call is decided, and counts them', () => {
+    const all = [
+      { step: 2, call: 0 },
+      { step: 3, call: 0 },
+      { step: 3, call: 1 },
+    ];
+    expect(undecidedCallStep(calls, all)).toBeUndefined();
+    expect(callDecisionProgress(calls, all)).toEqual({ total: 3, decided: 3 });
+    expect(callDecisionProgress(calls, [{ step: 3, call: 1 }])).toEqual({
+      total: 3,
+      decided: 1,
+    });
+    expect(callDecisionProgress(calls, [{ step: 1, call: 0 }])).toEqual({
+      total: 3,
+      decided: 0,
+    });
+  });
+});
+
+describe('call choices', () => {
+  const comparison = {
+    columns: ['Show all notes', 'Show no notes'],
+    rows: [['Browsing works', 'Quiet first view']],
+  };
+
+  it('marks the option the change implements and says what each choice means for the code', () => {
+    expect(
+      callChoices({ ...comparison, implemented: 'Show all notes' }),
+    ).toEqual([
+      {
+        option: 'Show all notes',
+        implemented: true,
+        effect: 'Keeps the code as it is.',
+      },
+      {
+        option: 'Show no notes',
+        implemented: false,
+        effect: 'Needs a new commit: this change does not do this yet.',
+      },
+    ]);
+  });
+
+  it('claims nothing about the code when the writer named no implemented option', () => {
+    expect(callChoices(comparison)).toEqual([
+      { option: 'Show all notes', implemented: false, effect: undefined },
+      { option: 'Show no notes', implemented: false, effect: undefined },
+    ]);
+  });
+
+  it('flags a decision the change does not implement', () => {
+    const implemented = { ...comparison, implemented: 'Show all notes' };
+    expect(decidedAgainstChange(implemented, 'Show no notes')).toBe(true);
+    expect(decidedAgainstChange(implemented, 'Show all notes')).toBe(false);
+    expect(decidedAgainstChange(comparison, 'Show no notes')).toBe(false);
+    expect(decidedAgainstChange(implemented, undefined)).toBe(false);
+  });
+
+  it('says what choosing does to Merge in words true for every option', () => {
+    expect(callDeciding(comparison)).toBe(
+      'Choosing records your call, and Merge stops waiting for it. Porcelain changes no code.',
+    );
+    expect(callDeciding({ ...comparison, implemented: 'Show all notes' })).toBe(
+      'Choosing records your call. Merge stops waiting for it unless the call needs a new commit. Porcelain changes no code.',
+    );
+    expect(callDeciding(undefined)).toBe(
+      'Choosing records your call, and Merge stops waiting for it. Porcelain changes no code.',
+    );
+  });
+
+  it('names the steps whose call was decided against what the change does', () => {
+    const implemented = { ...comparison, implemented: 'Show all notes' };
+    const calls = content({
+      stops: [
+        stop({ callouts: [{ attention, comparison: implemented }] }),
+        stop({ callouts: [{ attention, comparison }] }),
+        stop({
+          callouts: [
+            { attention, comparison: implemented },
+            { attention, comparison: implemented },
+          ],
+        }),
+      ],
+    });
+    expect(callsNeedingCommit(calls, undefined)).toEqual([]);
+    expect(callsNeedingCommit(calls, [])).toEqual([]);
+    expect(
+      callsNeedingCommit(calls, [
+        { step: 1, call: 0, option: 'Show all notes' },
+        { step: 2, call: 0, option: 'Show no notes' },
+        { step: 3, call: 0, option: undefined },
+      ]),
+    ).toEqual([]);
+    expect(
+      callsNeedingCommit(calls, [
+        { step: 3, call: 1, option: 'Show no notes' },
+        { step: 1, call: 0, option: 'Show no notes' },
+        { step: 3, call: 0, option: 'Show all notes' },
+      ]),
+    ).toEqual([1, 3]);
+  });
+
+  it('never calls a decision that holds Merge done', () => {
+    const implemented = { ...comparison, implemented: 'Show all notes' };
+    expect(callState(implemented, undefined)).toBe('open');
+    expect(callState(implemented, { option: 'Show all notes' })).toBe(
+      'decided',
+    );
+    expect(callState(implemented, { option: 'Show no notes' })).toBe(
+      'needs-commit',
+    );
+    expect(callState(comparison, { option: 'Show no notes' })).toBe('decided');
+    expect(callState(undefined, { option: undefined })).toBe('decided');
+  });
+
+  it('gives a step the state of its least settled call', () => {
+    const implemented = { ...comparison, implemented: 'Show all notes' };
+    const calls = content({
+      stops: [
+        stop({
+          callouts: [
+            { attention, comparison: implemented },
+            { attention, comparison: implemented },
+          ],
+        }),
+        stop({}),
+      ],
+    });
+    expect(stepCallState(calls, 1, undefined)).toBe('open');
+    expect(
+      stepCallState(calls, 1, [{ step: 1, call: 0, option: 'Show no notes' }]),
+    ).toBe('open');
+    expect(
+      stepCallState(calls, 1, [
+        { step: 1, call: 0, option: 'Show no notes' },
+        { step: 1, call: 1, option: 'Show all notes' },
+      ]),
+    ).toBe('needs-commit');
+    expect(
+      stepCallState(calls, 1, [
+        { step: 1, call: 0, option: 'Show all notes' },
+        { step: 1, call: 1, option: 'Show all notes' },
+      ]),
+    ).toBe('decided');
+    expect(stepCallState(calls, 2, [])).toBeUndefined();
+  });
+});
+
+describe('where a call was decided', () => {
+  const phone = 'a6f3c1d2-0000-4000-8000-000000000001';
+  const laptop = 'a6f3c1d2-0000-4000-8000-000000000002';
+  const labels = new Map([[phone, 'Fábio’s iPhone']]);
+
+  it('says nothing when the decision came from the device in use', () => {
+    expect(
+      decisionPlace({ kind: 'owner' }, { kind: 'owner' }, labels),
+    ).toBeUndefined();
+    expect(
+      decisionPlace(
+        { kind: 'device', deviceId: phone },
+        { kind: 'device', deviceId: phone },
+        labels,
+      ),
+    ).toBeUndefined();
+  });
+
+  it('names another device, or says only that it was another one', () => {
+    expect(
+      decisionPlace(
+        { kind: 'device', deviceId: phone },
+        { kind: 'owner' },
+        labels,
+      ),
+    ).toBe('on Fábio’s iPhone');
+    expect(
+      decisionPlace(
+        { kind: 'device', deviceId: phone },
+        { kind: 'device', deviceId: laptop },
+        undefined,
+      ),
+    ).toBe('on another device');
+    expect(
+      decisionPlace(
+        { kind: 'device', deviceId: laptop },
+        { kind: 'owner' },
+        labels,
+      ),
+    ).toBe('on another device');
+    expect(
+      decisionPlace(
+        { kind: 'owner' },
+        { kind: 'device', deviceId: phone },
+        labels,
+      ),
+    ).toBe('on the computer');
+  });
+
+  it('claims no place while the device in use is unknown', () => {
+    expect(
+      decisionPlace({ kind: 'device', deviceId: phone }, undefined, labels),
+    ).toBeUndefined();
+  });
+});
+
+it('states what the after screenshot shows as the verified claim', () => {
+  const screenshot = (label: 'Before' | 'After', shows: string) => ({
+    assetId: label,
+    shows,
+    label,
+    enlarge: `Enlarge ${label}`,
+  });
+  expect(
+    screenshotClaim([
+      screenshot('Before', 'The results without a count'),
+      screenshot('After', 'The results with “3 notes found”'),
+    ]),
+  ).toBe('The results with “3 notes found”');
+});
+
+describe('a step’s files on one side of the Changes panel', () => {
+  const code = {
+    branch: ['src/search.ts', 'src/view.ts'],
+    worktree: ['README.md', 'src/view.ts'],
+  };
+
+  it('lists the committed files and names the uncommitted-only ones as elsewhere', () => {
+    expect(reviewCodeIn(code, 'branch')).toEqual({
+      here: ['src/search.ts', 'src/view.ts'],
+      elsewhere: ['README.md'],
+    });
+    expect(reviewCodeIn(code, 'worktree')).toEqual({
+      here: ['README.md', 'src/view.ts'],
+      elsewhere: ['src/search.ts'],
+    });
+  });
+
+  it('counts a file changed on both sides once, as the step’s full diff does', () => {
+    expect(reviewCodeCount(code)).toBe(3);
+  });
 });

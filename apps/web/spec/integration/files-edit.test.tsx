@@ -7,7 +7,7 @@ test.for(['pause', 'shortcut', 'Done', 'tab close'] as const)(
     const readme = repo.readme.path;
     const marker = `Browser ${method} marker`;
     await workspace
-      .getByRole('button', { name: 'Review', exact: true })
+      .getByRole('button', { name: 'Side panel', exact: true })
       .click();
     await workspace.getByRole('tab', { name: 'Files', exact: true }).click();
     const file = workspace.getByRole('treeitem', { name: readme, exact: true });

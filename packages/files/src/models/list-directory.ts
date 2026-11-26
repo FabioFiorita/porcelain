@@ -9,6 +9,7 @@ export type ListDirectoryResult = {
   worktreeId: string;
   path: string;
   entries: DirectoryEntry[];
+  omitted?: number;
 };
 
 export type ListDirectoryOptions = {

@@ -1,4 +1,5 @@
 import {
+  walkthroughCalls,
   walkthroughFailureCopy,
   walkthroughFileCount,
   type walkthroughPhase,
@@ -6,7 +7,7 @@ import {
   type WalkthroughContent,
   type WalkthroughRun,
 } from './walkthrough.ts';
-import type { WalkthroughStop } from './blocks.ts';
+import type { WalkthroughScreenshot, WalkthroughStop } from './blocks.ts';
 
 type Attention = WalkthroughStop['callouts'][number]['attention'];
 type Growth = WalkthroughContent['growth'][number];
@@ -21,6 +22,124 @@ const ATTENTION_LABELS: Record<Attention['kind'], string> = {
 
 export function attentionLabel(attention: Attention) {
   return ATTENTION_LABELS[attention.kind];
+}
+
+type Comparison = WalkthroughStop['callouts'][number]['comparison'];
+
+export const NEEDS_A_COMMIT =
+  'Needs a new commit: this change does not do this yet.';
+
+export function callDeciding(comparison: Comparison) {
+  return comparison?.implemented === undefined
+    ? 'Choosing records your call, and Merge stops waiting for it. Porcelain changes no code.'
+    : 'Choosing records your call. Merge stops waiting for it unless the call needs a new commit. Porcelain changes no code.';
+}
+
+export function callChoices(comparison: Comparison) {
+  const implemented = comparison?.implemented;
+  return (comparison?.columns ?? []).map((option) => ({
+    option,
+    implemented: option === implemented,
+    effect:
+      implemented === undefined
+        ? undefined
+        : option === implemented
+          ? 'Keeps the code as it is.'
+          : NEEDS_A_COMMIT,
+  }));
+}
+
+export function screenshotClaim(screenshots: readonly WalkthroughScreenshot[]) {
+  return (
+    screenshots.find((screenshot) => screenshot.label === 'After')?.shows ??
+    'Before and after screenshots'
+  );
+}
+
+export function decidedAgainstChange(
+  comparison: Comparison,
+  option: string | undefined,
+) {
+  const implemented = comparison?.implemented;
+  return (
+    option !== undefined && implemented !== undefined && option !== implemented
+  );
+}
+
+type DecidedOption = {
+  readonly step: number;
+  readonly call: number;
+  readonly option?: string | undefined;
+};
+
+export function callsNeedingCommit(
+  content: WalkthroughContent,
+  decisions: readonly DecidedOption[] | undefined,
+) {
+  return walkthroughCalls(content)
+    .filter((call) =>
+      decidedAgainstChange(
+        call.comparison,
+        decisions?.find(
+          (entry) => entry.step === call.step && entry.call === call.callIndex,
+        )?.option,
+      ),
+    )
+    .map((call) => call.step);
+}
+
+export type CallState = 'open' | 'decided' | 'needs-commit';
+
+export function callState(
+  comparison: Comparison,
+  decision: { readonly option?: string | undefined } | undefined,
+): CallState {
+  if (!decision) return 'open';
+  return decidedAgainstChange(comparison, decision.option)
+    ? 'needs-commit'
+    : 'decided';
+}
+
+const CALL_STATE_ORDER: readonly CallState[] = [
+  'open',
+  'needs-commit',
+  'decided',
+];
+
+export function stepCallState(
+  content: WalkthroughContent,
+  step: number,
+  decisions: readonly DecidedOption[] | undefined,
+): CallState | undefined {
+  const states = walkthroughCalls(content)
+    .filter((call) => call.step === step)
+    .map((call) =>
+      callState(
+        call.comparison,
+        decisions?.find(
+          (entry) => entry.step === step && entry.call === call.callIndex,
+        ),
+      ),
+    );
+  return CALL_STATE_ORDER.find((state) => states.includes(state));
+}
+
+type Decider =
+  | { readonly kind: 'owner' }
+  | { readonly kind: 'device'; readonly deviceId: string };
+
+export function decisionPlace(
+  decidedBy: Decider,
+  viewer: Decider | undefined,
+  deviceLabels: ReadonlyMap<string, string> | undefined,
+) {
+  if (!viewer) return undefined;
+  if (decidedBy.kind === 'owner')
+    return viewer.kind === 'owner' ? undefined : 'on the computer';
+  if (viewer.kind === 'device' && viewer.deviceId === decidedBy.deviceId)
+    return undefined;
+  const label = deviceLabels?.get(decidedBy.deviceId);
+  return label === undefined ? 'on another device' : `on ${label}`;
 }
 
 const GROWTH_SIGNS: Record<Growth['change'], string> = {
@@ -64,17 +183,48 @@ export function foldedNotSaid(content: WalkthroughContent, open: boolean) {
   };
 }
 
+export type MetaFiles = {
+  readonly committed: readonly string[];
+  readonly uncommitted: readonly string[];
+};
+
+const fileCount = (count: number) =>
+  count === 1 ? '1 file' : `${count} files`;
+
+function filesLabel(
+  content: WalkthroughContent | undefined,
+  files: MetaFiles | null | undefined,
+) {
+  if (files === null) return undefined;
+  if (files === undefined) {
+    const cited = content ? walkthroughFileCount(content) : 0;
+    return cited === 0 ? undefined : fileCount(cited);
+  }
+  const committed = new Set(files.committed);
+  const local = new Set(
+    files.uncommitted.filter((path) => !committed.has(path)),
+  ).size;
+  const total = committed.size + local;
+  if (total === 0) return undefined;
+  return `${fileCount(total)}${local > 0 ? `, ${local} uncommitted` : ''}`;
+}
+
 export function walkthroughMeta(
   run: WalkthroughRun,
   content?: WalkthroughContent,
+  writerModel?: string,
+  files?: MetaFiles | null,
 ) {
-  const files = content ? walkthroughFileCount(content) : 0;
+  const label = filesLabel(content, files);
   return [
     ...(run.pullRequestNumber === undefined
       ? []
       : [`#${run.pullRequestNumber}`]),
-    ...(files > 0 ? [files === 1 ? '1 file' : `${files} files`] : []),
+    ...(label === undefined ? [] : [label]),
     `written for ${run.headOid.slice(0, SHORT_OID)}${run.includesUncommitted ? ' and uncommitted work' : ''}`,
+    ...(writerModel === undefined
+      ? []
+      : [`by ${writerModel}`, `${run.writer.effort} effort`]),
   ].join(' · ');
 }
 
@@ -142,4 +292,42 @@ export function walkthroughEvidenceNotice(run: WalkthroughRun) {
     case undefined:
       return undefined;
   }
+}
+
+function fileNames(paths: readonly string[]) {
+  const names = paths.map((path) => path.split('/').at(-1) ?? path);
+  const shown = names.slice(0, 3);
+  const more = names.length - shown.length;
+  if (more > 0) return `${shown.join(', ')} and ${more} more`;
+  const last = shown.pop();
+  return shown.length > 0 ? `${shown.join(', ')} and ${last}` : (last ?? '');
+}
+
+export function walkthroughScope({
+  uncommitted,
+  uncovered,
+  pullRequest,
+  checkedCommit,
+}: {
+  uncommitted: readonly string[];
+  uncovered: readonly string[];
+  pullRequest: number | undefined;
+  checkedCommit: string | undefined;
+}) {
+  const outside =
+    pullRequest === undefined ? '' : `, so not in #${pullRequest}`;
+  const checks =
+    checkedCommit === undefined
+      ? ''
+      : ` The checks cover ${checkedCommit.slice(0, SHORT_OID)} only.`;
+  return {
+    uncommitted:
+      uncommitted.length === 0
+        ? undefined
+        : `${fileNames(uncommitted)} ${uncommitted.length === 1 ? 'is' : 'are'} uncommitted${outside}.${checks}`,
+    uncovered:
+      uncovered.length === 0
+        ? undefined
+        : `No step covers ${fileNames(uncovered)}.`,
+  };
 }

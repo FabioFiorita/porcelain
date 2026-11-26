@@ -8,7 +8,9 @@ test('the active file chip stays inside the narrow tab strip after its controls 
 }) => {
   await page.viewport(414, 896);
   const workspace = await render.workspace();
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await workspace.getByRole('tab', { name: 'Files', exact: true }).click();
   await workspace
     .getByRole('treeitem', { name: repo.readme.path, exact: true })
@@ -34,7 +36,9 @@ test('a split has controls in each pane, one Git button, and closes with its las
   repo,
 }) => {
   const path = repo.readme.path;
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await workspace.getByRole('tab', { name: 'Files', exact: true }).click();
   await workspace
     .getByRole('treeitem', { name: path, exact: true })

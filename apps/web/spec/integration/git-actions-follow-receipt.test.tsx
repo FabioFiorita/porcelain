@@ -33,7 +33,7 @@ test('a commit made while the live connection is down shows its outcome once the
   await expect.element(dialog).not.toBeInTheDocument();
 });
 
-test('a stash pop refused while the live connection is down shows what Git said once the app reconnects and reads the receipt', async ({
+test('a stash pop refused while the live connection is down shows a plain explanation once the app reconnects and reads the receipt', async ({
   workspace,
   live,
   repo,
@@ -104,6 +104,6 @@ test('a stash pop refused while the live connection is down shows what Git said 
   live.restore();
   await expect
     .element(pop.getByRole('alert'))
-    .toMatchTextContent(/would be overwritten/);
+    .toMatchTextContent('Git could not restore this stash.');
   await expect.poll(async () => (await server.text(readme)).text).toBe(local);
 });

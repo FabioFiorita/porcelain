@@ -114,7 +114,7 @@ test('the Open project button opens the chosen Git repository through the native
   await expect(project).toBeVisible();
   await expect(project).toHaveAttribute('aria-current', 'page');
   const reviewToggle = page.getByRole('button', {
-    name: 'Review',
+    name: 'Side panel',
     exact: true,
   });
   const rail = page.getByRole('navigation', {
@@ -130,7 +130,9 @@ test('the Open project button opens the chosen Git repository through the native
   if (sheet) await reviewToggle.click();
   await openView('History');
   await expect(
-    page.getByRole('button', { name: 'Create smoke project', exact: false }),
+    page
+      .getByLabel('Commits', { exact: true })
+      .getByRole('button', { name: 'Create smoke project', exact: false }),
   ).toBeVisible();
   await openView('Files');
   await page

@@ -5,7 +5,9 @@ test('invoking the right Review control chooses the source pane before opening a
   workspace,
   repo,
 }) => {
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await workspace.getByRole('tab', { name: 'Files', exact: true }).click();
   await workspace
     .getByRole('treeitem', { name: repo.readme.path, exact: true })
@@ -29,7 +31,7 @@ test('invoking the right Review control chooses the source pane before opening a
     exact: true,
   });
   await left.getByRole('button', { name: 'Edit', exact: true }).click();
-  await right.getByRole('button', { name: 'Review', exact: true }).click();
+  await right.getByRole('button', { name: 'Side panel', exact: true }).click();
   await workspace.getByRole('tab', { name: 'Files', exact: true }).click();
   await workspace
     .getByRole('treeitem', { name: repo.readme.path, exact: true })
@@ -77,7 +79,9 @@ test('tree side menu preserves the source document and focuses the destination a
   workspace,
   repo,
 }) => {
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await workspace.getByRole('tab', { name: 'Files', exact: true }).click();
   await workspace
     .getByRole('treeitem', { name: repo.readme.path, exact: true })
@@ -128,12 +132,16 @@ test('Alt-click on the already-selected unchanged tree file opens it once in the
   await repo.commit('Add guide');
   await repo.write(repo.readme.path, repo.readme.changed);
   const workspace = await render.workspace();
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await workspace.getByRole('tab', { name: 'Files', exact: true }).click();
   await workspace
     .getByRole('treeitem', { name: 'guide.txt', exact: true })
     .click();
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   const row = workspace.getByRole('treeitem', {
     name: 'guide.txt',
     exact: true,
@@ -182,7 +190,9 @@ test('pinned side menu and Alt-click follow the focused pane and keep the existi
   workspace,
   repo,
 }) => {
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await workspace.getByRole('tab', { name: 'Files', exact: true }).click();
   await workspace
     .getByRole('treeitem', { name: repo.readme.path, exact: true })
@@ -208,7 +218,9 @@ test('pinned side menu and Alt-click follow the focused pane and keep the existi
   await expect
     .element(rightTab)
     .toHaveAttribute('data-entry', `file:${repo.readme.path}`);
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await pinned.click({ button: 'right' });
   await expect
     .element(
@@ -255,7 +267,9 @@ test('changed-file context action and Alt-click preserve the diff identity in bo
   workspace,
   repo,
 }) => {
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await workspace
     .getByRole('complementary', { name: 'Review sidebar', exact: true })
     .getByRole('tab', { name: 'Changes', exact: true })
@@ -282,7 +296,9 @@ test('changed-file context action and Alt-click preserve the diff identity in bo
     )
     .not.toBeInTheDocument();
   await expect.element(rightTab).toHaveFocus();
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await row.click({ button: 'right' });
   await expect
     .element(
@@ -322,7 +338,9 @@ test('history side menu and Alt-click open the real commit identity', async ({
   const initial = (await server.commits()).commits[0];
   if (initial === undefined)
     throw new Error('The sample repository has no initial commit.');
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await workspace.getByRole('tab', { name: 'History', exact: true }).click();
   const row = workspace.getByRole('button', {
     name: new RegExp(`^${repo.initialCommit}`),
@@ -344,7 +362,9 @@ test('history side menu and Alt-click open the real commit identity', async ({
     )
     .not.toBeInTheDocument();
   await expect.element(rightTab).toHaveFocus();
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await row.click({ button: 'right' });
   await expect
     .element(
@@ -381,7 +401,9 @@ test('branch file side actions keep the branch document kind', async ({
   await repo.switch('feature');
   await repo.write('notes.md', 'Branch notes\n');
   await repo.commit('Add notes');
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await workspace
     .getByRole('complementary', { name: 'Review sidebar', exact: true })
     .getByRole('tab', { name: 'Changes', exact: true })
@@ -420,7 +442,9 @@ test('graph commit rows offer a side menu and Alt-click without replacing the gr
   const initial = (await server.commits()).commits[0];
   if (initial === undefined)
     throw new Error('The sample repository has no initial commit.');
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await workspace.getByRole('tab', { name: 'History', exact: true }).click();
   await workspace
     .getByRole('button', { name: 'Open graph', exact: true })
@@ -475,7 +499,9 @@ test('timeline commit side actions preserve the file comparison and leave the ti
   const initial = (await server.commits()).commits[0];
   if (initial === undefined)
     throw new Error('The sample repository has no initial commit.');
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await workspace.getByRole('tab', { name: 'Files', exact: true }).click();
   await workspace
     .getByRole('treeitem', { name: repo.readme.path, exact: true })
@@ -538,7 +564,7 @@ test('closing the destination during sheet exit cancels its focus transfer and r
   reviewLayout,
 }) => {
   const trigger = workspace.getByRole('button', {
-    name: 'Review',
+    name: 'Side panel',
     exact: true,
   });
   const sheet = workspace.getByRole('dialog', {
@@ -589,7 +615,7 @@ test('switching to another tab during sheet exit cancels the older destination f
 }) => {
   await repo.write('guide.txt', 'Guide to the project\n');
   const trigger = workspace.getByRole('button', {
-    name: 'Review',
+    name: 'Side panel',
     exact: true,
   });
   const sheet = workspace.getByRole('dialog', {
@@ -657,7 +683,7 @@ test('newer find-input focus during sheet exit supersedes the side-open tab focu
   await repo.write(repo.readme.path, repo.readme.changed);
   const workspace = await render.workspace();
   const trigger = workspace.getByRole('button', {
-    name: 'Review',
+    name: 'Side panel',
     exact: true,
   });
   const sheet = workspace.getByRole('dialog', {

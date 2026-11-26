@@ -2,7 +2,7 @@ import { readRemoteAccessResponseSchema } from '@porcelain/contracts/access';
 import { Schema } from 'effect';
 import { expect, it } from 'vite-plus/test';
 import type { RemoteAccess } from '@porcelain/client/access/rules';
-import { computerSummary, deviceKind, devicePlatformName } from './settings';
+import { computerReach, deviceKind, devicePlatformName } from './settings';
 
 it.each([
   ['', 'Unknown platform'],
@@ -80,21 +80,43 @@ it.each([
   [
     { lan: on, tailnet: on, cloudflare: off },
     3,
-    'Local network and Tailscale · 3 devices',
+    {
+      devices: '3 paired devices',
+      reach: 'Other devices reach it over Local network and Tailscale.',
+      unreachable: false,
+    },
   ],
   [
     { lan: on, tailnet: on, cloudflare: on },
     1,
-    'Local network, Tailscale and Cloudflare tunnel · 1 device',
+    {
+      devices: '1 paired device',
+      reach:
+        'Other devices reach it over Local network, Tailscale and Cloudflare tunnel.',
+      unreachable: false,
+    },
   ],
   [
     { lan: off, tailnet: starting, cloudflare: off },
     0,
-    'No way in on · 0 devices',
+    {
+      devices: '0 paired devices',
+      reach: 'Tailscale is starting.',
+      unreachable: false,
+    },
+  ],
+  [
+    { lan: off, tailnet: off, cloudflare: off },
+    2,
+    {
+      devices: '2 paired devices',
+      reach: 'Other devices cannot reach it yet.',
+      unreachable: true,
+    },
   ],
 ] as const)(
-  'summarises ways in that answer and devices',
+  'says how other devices reach the computer, apart from its devices',
   (routes, devices, expected) => {
-    expect(computerSummary(access(routes), devices)).toBe(expected);
+    expect(computerReach(access(routes), devices)).toEqual(expected);
   },
 );

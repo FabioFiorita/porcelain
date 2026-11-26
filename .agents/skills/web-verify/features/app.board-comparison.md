@@ -40,12 +40,12 @@ Each role below names explicit board and app CSS selectors. `index` deliberately
 | Name                          | Approved HTML                    | App setup                                                        |
 | ----------------------------- | -------------------------------- | ---------------------------------------------------------------- |
 | sidebar                       | selected-direction               | Main first; include a linked topic PR; phone opens the navigator |
-| changes                       | Narrative-desktop-no-review      | Worktree without a Walkthrough                              |
+| changes                       | Narrative-desktop-no-review      | Worktree without a Walkthrough                                   |
 | settings-general              | Narrative-settings-general       | `/settings/general`                                              |
 | settings-git                  | Narrative-settings-reviews-git   | `/settings/git`                                                  |
 | settings-computers            | Narrative-settings-computers     | `/settings/computers`                                            |
 | settings-this-computer        | Narrative-settings-this-computer | `/settings/computers/this-computer`                              |
-| commit                        | Narrative-desktop-history        | Worktree with `?entry=commit:<oid>`                              |
+| commit                        | Narrative-desktop-history        | Worktree with `?entry=commit:<oid>` of a commit with 2+ files    |
 | history                       | Narrative-desktop-history        | Worktree with `?entry=commit:<oid>&surface=history`              |
 | graph                         | Narrative-desktop-graph          | Worktree with `?entry=graph`                                     |
 | pr-linked                     | Narrative-desktop-pr-linked      | Linked PR in the Changes panel                                   |
@@ -709,7 +709,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
     "reveal": [
       {
         "target": "aside[aria-label=\"Review sidebar\"]:visible",
-        "trigger": "nav[aria-label=\"Side panel\"] button[aria-label=\"History\"]:visible, button[aria-label=\"Review\"]:visible"
+        "trigger": "nav[aria-label=\"Side panel\"] button[aria-label=\"History\"]:visible, button[aria-label=\"Side panel\"]:visible"
       },
       {
         "target": "aside[aria-label=\"Review sidebar\"] [aria-label=\"Commits\"]:visible",
@@ -842,7 +842,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
     "reveal": [
       {
         "target": "aside[aria-label=\"Review sidebar\"]:visible",
-        "trigger": "button[aria-label=\"Review\"]:visible"
+        "trigger": "button[aria-label=\"Side panel\"]:visible"
       },
       {
         "target": "section[aria-label=\"Pull request\"]:visible",
@@ -925,7 +925,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
     "reveal": [
       {
         "target": "aside[aria-label=\"Review sidebar\"]:visible",
-        "trigger": "button[aria-label=\"Review\"]:visible"
+        "trigger": "button[aria-label=\"Side panel\"]:visible"
       },
       {
         "target": "section[aria-label=\"Pull request\"]:visible",
@@ -967,7 +967,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
     "reveal": [
       {
         "target": "aside[aria-label=\"Review sidebar\"]:visible",
-        "trigger": "button[aria-label=\"Review\"]:visible"
+        "trigger": "button[aria-label=\"Side panel\"]:visible"
       },
       {
         "target": "section[aria-label=\"Pull request\"]:visible",
@@ -1009,7 +1009,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
     "reveal": [
       {
         "target": "aside[aria-label=\"Review sidebar\"]:visible",
-        "trigger": "button[aria-label=\"Review\"]:visible"
+        "trigger": "button[aria-label=\"Side panel\"]:visible"
       },
       {
         "target": "section[aria-label=\"Pull request\"]:visible",
@@ -1051,7 +1051,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
     "reveal": [
       {
         "target": "aside[aria-label=\"Review sidebar\"]:visible",
-        "trigger": "button[aria-label=\"Review\"]:visible"
+        "trigger": "button[aria-label=\"Side panel\"]:visible"
       },
       {
         "target": "section[aria-label=\"Pull request\"]:visible",
@@ -1093,7 +1093,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
     "reveal": [
       {
         "target": "aside[aria-label=\"Review sidebar\"]:visible",
-        "trigger": "button[aria-label=\"Review\"]:visible"
+        "trigger": "button[aria-label=\"Side panel\"]:visible"
       },
       {
         "target": "section[aria-label=\"Pull request\"]:visible",
@@ -1135,7 +1135,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
     "reveal": [
       {
         "target": "aside[aria-label=\"Review sidebar\"]:visible",
-        "trigger": "button[aria-label=\"Review\"]:visible"
+        "trigger": "button[aria-label=\"Side panel\"]:visible"
       },
       {
         "target": "section[aria-label=\"Pull request\"]:visible",
@@ -1177,7 +1177,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
     "reveal": [
       {
         "target": "aside[aria-label=\"Review sidebar\"]:visible",
-        "trigger": "button[aria-label=\"Review\"]:visible"
+        "trigger": "button[aria-label=\"Side panel\"]:visible"
       },
       {
         "target": "section[aria-label=\"Pull request\"]:visible",
@@ -1219,7 +1219,7 @@ Names without `.html` are also accepted for the first mapped screen using that H
     "reveal": [
       {
         "target": "aside[aria-label=\"Review sidebar\"]:visible",
-        "trigger": "button[aria-label=\"Review\"]:visible"
+        "trigger": "button[aria-label=\"Side panel\"]:visible"
       },
       {
         "target": "section[aria-label=\"Pull request\"]:visible",

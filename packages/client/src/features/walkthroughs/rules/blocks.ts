@@ -8,6 +8,7 @@ type Excerpt = Extract<WalkthroughBlock, { kind: 'diff_excerpt' }>;
 type Images = Extract<WalkthroughBlock, { kind: 'before_after' }>;
 type Checks = Extract<WalkthroughBlock, { kind: 'checks' }>;
 type Callout = Extract<WalkthroughBlock, { kind: 'callout' }>;
+type Diagram = Extract<WalkthroughBlock, { kind: 'diagram' }>;
 
 export type WalkthroughEvidence = Images['before'];
 export type WalkthroughScreenshot = WalkthroughEvidence & {
@@ -22,6 +23,21 @@ export type WalkthroughExcerpt = Pick<
   readonly position: number;
   readonly lines: string;
   readonly span: { readonly startLine: number; readonly endLine: number };
+  readonly node?: string | undefined;
+};
+
+export type DiagramNode = Omit<Diagram['nodes'][number], 'anchor'> & {
+  readonly anchor:
+    | { readonly kind: 'lines'; readonly excerpt: WalkthroughExcerpt }
+    | { readonly kind: 'file'; readonly path: string }
+    | undefined;
+};
+export type DiagramEdge = Diagram['edges'][number];
+export type StepDiagram = {
+  readonly title: string | undefined;
+  readonly layout: Diagram['layout'];
+  readonly nodes: readonly DiagramNode[];
+  readonly edges: readonly DiagramEdge[];
 };
 
 export type WalkthroughComparison = NonNullable<Callout['comparison']>;
@@ -48,7 +64,8 @@ export type StepBlock =
   | {
       readonly kind: 'checks';
       readonly checks: Omit<Checks, 'kind'>;
-    };
+    }
+  | { readonly kind: 'diagram'; readonly diagram: StepDiagram };
 
 export type WalkthroughStop = {
   readonly title: string;
@@ -57,11 +74,42 @@ export type WalkthroughStop = {
   readonly callouts: readonly WalkthroughCallout[];
 };
 
-function excerptLines(excerpt: Excerpt) {
+function excerptLines(excerpt: Pick<Excerpt, 'side' | 'start' | 'end'>) {
   const side = excerpt.side === 'old' ? 'Old' : 'New';
   return excerpt.start === excerpt.end
     ? `${side} line ${excerpt.start}`
     : `${side} lines ${excerpt.start}–${excerpt.end}`;
+}
+
+function readDiagram(block: Diagram, position: number): StepDiagram {
+  return {
+    title: block.title,
+    layout: block.layout,
+    edges: block.edges,
+    nodes: block.nodes.map(({ anchor, ...node }) => ({
+      ...node,
+      anchor:
+        anchor === undefined
+          ? undefined
+          : anchor.lines === undefined
+            ? { kind: 'file', path: anchor.path }
+            : {
+                kind: 'lines',
+                excerpt: {
+                  path: anchor.path,
+                  ...anchor.lines,
+                  caption: node.note ?? '',
+                  position,
+                  node: node.id,
+                  lines: excerptLines(anchor.lines),
+                  span: {
+                    startLine: anchor.lines.start,
+                    endLine: anchor.lines.end,
+                  },
+                },
+              },
+    })),
+  };
 }
 
 export function readStop({
@@ -123,6 +171,9 @@ export function readStop({
             results: block.results,
           },
         });
+        return;
+      case 'diagram':
+        shown.push({ kind: 'diagram', diagram: readDiagram(block, index + 1) });
         return;
       case 'callout':
         callouts.push({

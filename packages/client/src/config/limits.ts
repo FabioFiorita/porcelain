@@ -22,3 +22,7 @@ export const READ_RETAIN_IDLE_MS = 5 * 60_000;
 export const FILE_PREVIEW_MAX_ASSETS = 64;
 export const FILE_PREVIEW_MAX_BYTES = 28 * 1024 * 1024;
 export const FILE_PREVIEW_MAX_ROUNDS = 8;
+
+export const RELATIVE_TIME_DAYS_PER_MONTH = 30;
+export const RELATIVE_TIME_DAYS_PER_YEAR = 365;
+export const RELATIVE_TIME_MONTHS_PER_YEAR = 12;

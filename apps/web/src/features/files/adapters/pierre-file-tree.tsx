@@ -139,11 +139,12 @@ function mountTree(
   const model = new FileTree({
     paths: read().paths,
     density: 'default',
+    itemHeight: 28,
     flattenEmptyDirectories: true,
     initialExpansion: read().filter ? 'open' : 'closed',
     icons: treeIconsFor(read().links),
     unsafeCSS:
-      '[data-icon-name="file-tree-icon-chevron"] { color: var(--trees-fg-muted); } [data-item-git-status]:not([data-item-git-status="ignored"]) > [data-item-section="content"] { color: inherit; } [data-context-menu-open] { outline: 1px solid var(--trees-fg-muted); outline-offset: -1px; border-radius: 4px; }',
+      '[data-icon-name="file-tree-icon-chevron"] { color: var(--trees-fg-muted); } [data-item-git-status]:not([data-item-git-status="ignored"]) > [data-item-section="content"] { color: inherit; } [data-context-menu-open] { outline: 1px solid var(--trees-fg-muted); outline-offset: -1px; border-radius: 4px; } [data-truncate-container] { --truncate-marker-background-color: var(--card); --truncate-marker-opacity: 100%; }',
     gitStatus: read().gitStatus,
     search: false,
     renaming: {
@@ -269,6 +270,7 @@ function mountTree(
     model.add(path);
     model.startRenaming(path, { removeIfCanceled: true });
     frame(() => {
+      creating.onStart();
       const input = host
         .querySelector('[data-slot="file-tree"]')
         ?.shadowRoot?.querySelector('[data-item-rename-input]');

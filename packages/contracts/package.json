@@ -10,7 +10,8 @@
     "./files": "./src/files/index.ts",
     "./git-actions": "./src/git-actions/index.ts",
     "./access": "./src/access/index.ts",
-    "./walkthroughs": "./src/walkthroughs/index.ts"
+    "./walkthroughs": "./src/walkthroughs/index.ts",
+    "./comments": "./src/comments/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

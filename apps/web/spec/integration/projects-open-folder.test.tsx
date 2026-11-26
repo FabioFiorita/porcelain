@@ -37,7 +37,7 @@ test.for([1280, 414])(
         .toBeVisible();
       await expect
         .element(
-          dialog.getByRole('button', { name: 'Open plain', exact: true }),
+          dialog.getByRole('button', { name: 'Open repository', exact: true }),
         )
         .toBeDisabled();
       await expect.poll(registered).not.toContain(plain);
@@ -65,7 +65,7 @@ test('opening a new project from the phone sidebar closes the sidebar on its rev
   });
   await dialog.getByRole('button', { name: 'fresh-repo', exact: true }).click();
   await dialog
-    .getByRole('button', { name: 'Open fresh-repo', exact: true })
+    .getByRole('button', { name: 'Open repository', exact: true })
     .click();
   await expect
     .poll(async () =>

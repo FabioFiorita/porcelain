@@ -36,6 +36,36 @@ const nativeHistorySchema = Schema.Array(
 );
 
 export const nativeMigrations = Migrator.fromRecord({
+  '021_walkthrough_decisions': Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`CREATE TABLE walkthrough_decisions (
+      run_id TEXT NOT NULL REFERENCES walkthrough_runs(id) ON DELETE CASCADE,
+      worktree_id TEXT NOT NULL,
+      step INTEGER NOT NULL,
+      call INTEGER NOT NULL,
+      option TEXT,
+      decided_by TEXT NOT NULL CHECK(json_valid(decided_by)),
+      decided_at TEXT NOT NULL,
+      PRIMARY KEY (run_id, step, call)
+    )`;
+  }),
+  '020_draft_comments': Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`CREATE TABLE draft_comments (
+      sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+      id TEXT NOT NULL UNIQUE,
+      worktree_id TEXT NOT NULL REFERENCES worktree_presence(worktree_id) ON DELETE CASCADE,
+      branch TEXT NOT NULL,
+      head_oid TEXT NOT NULL,
+      anchor TEXT NOT NULL CHECK(json_valid(anchor)),
+      text TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      published_url TEXT,
+      published_at TEXT
+    )`;
+    yield* sql`CREATE INDEX draft_comments_worktree ON draft_comments(worktree_id, branch, sequence)`;
+  }),
   '019_walkthrough_blocks': Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     yield* sql`DELETE FROM walkthrough_runs WHERE status = 'ready' AND json_extract(payload, '$.run.state.content.version') IS NULL`;

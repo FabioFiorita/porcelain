@@ -1,13 +1,16 @@
 import { Atom } from 'effect/reactivity';
 import { Context, Effect, Layer } from 'effect';
-import type { ReadFileAssetResponse } from '@porcelain/contracts/files';
+import { PREVIEW_FILE_ROUTE } from '@porcelain/contracts/files';
 import type {
   RuntimeConnection,
   WorktreeScope,
 } from '../../../shared/api/connection.ts';
 import { currentAnswerEffect } from '../../../shared/api/stale-answer.ts';
 import { porcelainClient } from '../../../shared/api/client.ts';
-import type { PreviewAssetFailure } from '../ports/html-preview-platform.ts';
+import type {
+  PreviewAssetFailure,
+  PreviewAssetSource,
+} from '../ports/html-preview-platform.ts';
 
 export const readPreviewAssets = Atom.family(
   (connection: RuntimeConnection) => {
@@ -18,8 +21,9 @@ export const readPreviewAssets = Atom.family(
           scope: WorktreeScope,
           document: string,
           paths: readonly string[],
+          streamMedia: boolean,
         ) => Effect.Effect<
-          Map<string, ReadFileAssetResponse | null>,
+          Map<string, PreviewAssetSource | null>,
           PreviewAssetFailure
         >;
       }
@@ -33,18 +37,28 @@ export const readPreviewAssets = Atom.family(
               scope: WorktreeScope,
               document: string,
               paths: readonly string[],
+              streamMedia: boolean,
             ) {
-              const response = yield* client.request((api) =>
+              const [response, request] = yield* client.request((api) =>
                 api.files.readPreviewAssets({
                   params: { worktreeId: scope.worktreeId },
-                  payload: { document, paths: [...paths] },
+                  payload: {
+                    document,
+                    paths: [...paths],
+                    ...(streamMedia ? { streamMedia } : {}),
+                  },
+                  responseMode: 'decoded-and-response',
                 }),
               );
               yield* currentAnswerEffect(connection);
-              return new Map(
+              return new Map<string, PreviewAssetSource | null>(
                 response.assets.map((asset) => [
                   asset.path,
-                  asset.kind === 'asset' ? asset : null,
+                  asset.kind === 'stream'
+                    ? { url: previewUrl(request.url, scope.worktreeId, asset) }
+                    : asset.kind === 'asset'
+                      ? asset
+                      : null,
                 ]),
               );
             }),
@@ -55,3 +69,19 @@ export const readPreviewAssets = Atom.family(
     return PreviewAssets;
   },
 );
+
+function previewUrl(
+  base: string,
+  worktreeId: string,
+  asset: { path: string; ticket: string },
+) {
+  const url = new URL(
+    PREVIEW_FILE_ROUTE.replace(':worktreeId', encodeURIComponent(worktreeId)),
+    base,
+  );
+  url.search = new URLSearchParams({
+    path: asset.path,
+    ticket: asset.ticket,
+  }).toString();
+  return url.href;
+}

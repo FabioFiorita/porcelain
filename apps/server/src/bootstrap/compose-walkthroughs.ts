@@ -28,6 +28,7 @@ import {
   AddWalkthroughMessageService,
   RetryWalkthroughAnswerService,
   SaveWalkthroughMessageService,
+  DecideWalkthroughCallService,
   AnswerWalkthroughMessageService,
   PlanWalkthroughPostService,
   PostWalkthroughMessagesService,
@@ -63,6 +64,7 @@ import { ListWalkthroughConversationsUseCase } from '../use-cases/walkthroughs/l
 import { AddWalkthroughMessageUseCase } from '../use-cases/walkthroughs/add-walkthrough-message.ts';
 import { RetryWalkthroughAnswerUseCase } from '../use-cases/walkthroughs/retry-walkthrough-answer.ts';
 import { SaveWalkthroughMessageUseCase } from '../use-cases/walkthroughs/save-walkthrough-message.ts';
+import { DecideWalkthroughCallUseCase } from '../use-cases/walkthroughs/decide-walkthrough-call.ts';
 import { PostWalkthroughMessagesUseCase } from '../use-cases/walkthroughs/post-walkthrough-messages.ts';
 import { ReadWalkthroughBriefUseCase } from '../use-cases/walkthroughs/read-walkthrough-brief.ts';
 import { ResolveProjectGitHubUseCasePort } from '../ports/resolve-project-github-use-case-port.ts';
@@ -116,7 +118,10 @@ export function composeWalkthroughs(
     Layer.succeed(ChangeStatusReader, shared.changeStatusReader),
     Layer.succeed(EventPublisher, context.events),
     Layer.succeed(ResolveProjectGitHubUseCasePort, resolveProjectGitHub),
-    ghPullRequestCommenterLayer(context.settings.limits.git),
+    ghPullRequestCommenterLayer(
+      context.settings.limits.git,
+      context.githubAccess,
+    ),
     Layer.succeed(IdSource, context.ids),
     gitWalkthroughSourceReaderLayer(context.settings.limits.git).pipe(
       Layer.provide(Layer.succeed(BranchRangeReader, shared.branchRangeReader)),
@@ -132,7 +137,7 @@ export function composeWalkthroughs(
     githubEvidenceReaderLayer.pipe(
       Layer.provide(
         Layer.mergeAll(
-          githubReader(context.settings.limits.git),
+          githubReader(context.settings.limits.git, context.githubAccess),
           Layer.succeed(GitHubAccountStore, stores.githubAccounts),
         ),
       ),
@@ -149,6 +154,7 @@ export function composeWalkthroughs(
     AddWalkthroughMessageService.layer,
     RetryWalkthroughAnswerService.layer,
     SaveWalkthroughMessageService.layer,
+    DecideWalkthroughCallService.layer,
     AnswerWalkthroughMessageService.layer,
     PostWalkthroughMessagesService.layer.pipe(
       Layer.provideMerge(PlanWalkthroughPostService.layer),
@@ -179,6 +185,7 @@ export function composeWalkthroughs(
     AddWalkthroughMessageUseCase.layer,
     RetryWalkthroughAnswerUseCase.layer,
     SaveWalkthroughMessageUseCase.layer,
+    DecideWalkthroughCallUseCase.layer,
     PostWalkthroughMessagesUseCase.layer,
     ReadWalkthroughBriefUseCase.layer,
   ).pipe(Layer.provideMerge(workflow));
@@ -215,6 +222,7 @@ export function composeWalkthroughs(
       addMessage: Context.get(runtime, AddWalkthroughMessageUseCase),
       retryAnswer: Context.get(runtime, RetryWalkthroughAnswerUseCase),
       saveMessage: Context.get(runtime, SaveWalkthroughMessageUseCase),
+      decideCall: Context.get(runtime, DecideWalkthroughCallUseCase),
       postMessages: Context.get(runtime, PostWalkthroughMessagesUseCase),
       brief: Context.get(runtime, ReadWalkthroughBriefUseCase),
     };

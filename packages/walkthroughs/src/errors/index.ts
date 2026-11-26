@@ -5,3 +5,4 @@ export { WalkthroughTargetNotFoundError } from './walkthrough-target-not-found-e
 export { WalkthroughPostFailedError } from './walkthrough-post-failed-error.ts';
 export { WalkthroughRepositoryChangedError } from './walkthrough-repository-changed-error.ts';
 export { UnsupportedWalkthroughEffortError } from './unsupported-walkthrough-effort-error.ts';
+export { WalkthroughCallNotFoundError } from './walkthrough-call-not-found-error.ts';

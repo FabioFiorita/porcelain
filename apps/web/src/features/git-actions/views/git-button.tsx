@@ -2,7 +2,10 @@ import { PendingButton, PendingContent } from '@/shared/views/pending-button';
 import { PendingSpinner } from '@/shared/views/state-notice';
 import { useWorkspaceWriteBlock } from '@/shared/workspace/connection';
 import { TruncatedText } from '@/shared/views/truncated-text';
+import { useElement } from '@/shared/hooks/use-element';
 import { AsyncResult } from 'effect/reactivity';
+import { useAtomRef } from '@effect/atom-react';
+import { isTerminal, operationKey } from '@porcelain/client/git-actions';
 import { Option } from 'effect';
 import { ChevronDownIcon, GitBranchIcon, Undo2Icon } from 'lucide-react';
 import { Fragment, useState } from 'react';
@@ -11,7 +14,8 @@ import {
   useRefreshGitLook,
   useReviewOverview,
 } from '@/features/changes/index';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { cn } from '@/shared/lib/utils';
 import { ButtonGroup } from '@/components/ui/button-group';
 import {
   Dialog,
@@ -83,6 +87,7 @@ export function GitButton({
   context: Parameters<typeof useGitMenu>[1];
 }) {
   const { connection } = context;
+  const { operations } = useAtomRef(connection.operations.state);
   const overview = Option.getOrUndefined(
     AsyncResult.value(useReviewOverview(scope, connection)),
   );
@@ -114,6 +119,8 @@ export function GitButton({
   const [progressOpen, setProgressOpen] = useState(false);
   const [result, setResult] = useState<GitNotice | null>(null);
   const [action, setAction] = useState<GitAction | null>(null);
+  const menuTrigger = useElement<HTMLButtonElement>();
+  const [opener, setOpener] = useState<HTMLElement | null>(null);
   const [openedStatus, setOpenedStatus] = useState<GitActionStatus | null>(
     null,
   );
@@ -150,7 +157,26 @@ export function GitButton({
     refreshLook,
     onLooked: setOpenedStatus,
   });
-  if (overview === null || overview === undefined) return null;
+  if (overview === null || overview === undefined)
+    return (
+      <span aria-hidden="true" className="invisible flex shrink-0">
+        <span
+          className={cn(
+            buttonVariants({ variant: 'outline' }),
+            'rounded-r-none @max-lg/pane:w-7 @max-lg/pane:px-0',
+          )}
+        >
+          <GitActionIcon action="commit" className="size-3.5" />
+          <span className="hidden @min-lg/pane:inline">Commit</span>
+        </span>
+        <span
+          className={cn(
+            buttonVariants({ variant: 'outline', size: 'icon' }),
+            'rounded-l-none border-l-0',
+          )}
+        />
+      </span>
+    );
   const status = {
     ...statusFromChanges(overview),
     branch: shownBranch(
@@ -177,6 +203,11 @@ export function GitButton({
       menu.runNetwork(next, status.branch);
       return;
     }
+    setOpener(
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null,
+    );
     setOpenedStatus(status);
     setAction(next);
   };
@@ -257,7 +288,7 @@ export function GitButton({
                   )}
                 </PopoverHeader>
               ) : (
-                <>
+                <div className="flex flex-col gap-2.5">
                   <PopoverTitle>
                     {running ? `${networkLabel(running.name)}…` : 'Git action…'}
                   </PopoverTitle>
@@ -284,13 +315,14 @@ export function GitButton({
                   {running && (
                     <PendingButton
                       variant="outline"
+                      className="self-start"
                       pending={running.checking}
                       onClick={menu.checkOutcome}
                     >
                       Check outcome
                     </PendingButton>
                   )}
-                </>
+                </div>
               )}
             </PopoverContent>
           </Popover>
@@ -313,6 +345,7 @@ export function GitButton({
                 <DropdownMenuTrigger
                   render={
                     <Button
+                      ref={(element) => menuTrigger.attach(element)}
                       variant="outline"
                       size="icon"
                       aria-label="Git actions"
@@ -350,11 +383,16 @@ export function GitButton({
               <Fragment key={group.id}>
                 <DropdownMenuGroup>
                   {group.actions.map((candidate) => {
-                    const blocker = networkActionBlocker(
-                      candidate.id,
-                      status,
-                      pullBlock,
+                    const pending = operations.get(
+                      operationKey(scope, candidate.id),
                     );
+                    const recoveringStash =
+                      candidate.id.startsWith('stash-') &&
+                      pending &&
+                      (!pending.receipt || !isTerminal(pending.receipt));
+                    const blocker = recoveringStash
+                      ? null
+                      : networkActionBlocker(candidate.id, status, pullBlock);
                     const reason =
                       writeBlock ??
                       (blocker
@@ -378,9 +416,11 @@ export function GitButton({
                           <GitActionIcon action={candidate.id} />
                           <span className="flex min-w-0 flex-col">
                             <TruncatedText text={candidate.label} />
-                            {blocker && (
+                            {(recoveringStash || blocker) && (
                               <span className="text-xs whitespace-normal text-muted-foreground">
-                                {blocker}
+                                {recoveringStash
+                                  ? 'Check the previous outcome.'
+                                  : blocker}
                               </span>
                             )}
                           </span>
@@ -455,15 +495,20 @@ export function GitButton({
           }}
         >
           <DialogContent
+            finalFocus={() =>
+              opener?.isConnected ? opener : menuTrigger.element
+            }
             aria-busy={busy}
             className="max-h-[min(90svh,48rem)] overflow-y-auto sm:max-w-2xl"
           >
             {selected?.id !== 'commit' && selected?.id !== 'amend' && (
               <DialogHeader>
                 <DialogTitle>{selected?.label ?? 'Git action'}</DialogTitle>
-                <DialogDescription>
-                  {stashDescription(selected?.id)}
-                </DialogDescription>
+                {selected?.id !== 'stash-create' && (
+                  <DialogDescription>
+                    {stashDescription(selected?.id)}
+                  </DialogDescription>
+                )}
               </DialogHeader>
             )}
             <GitActionInspection

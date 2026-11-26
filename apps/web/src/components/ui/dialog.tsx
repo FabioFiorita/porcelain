@@ -10,7 +10,8 @@ import {
   createDialogController,
   type DialogController,
 } from '@ui-sdk/react/dialog';
-import { cn } from 'cn';
+import { cn } from '@/shared/lib/utils';
+import { pageRoot } from '@/components/ui/page-root';
 
 import { Button } from '@/components/ui/button';
 import { XIcon } from 'lucide-react';
@@ -47,6 +48,7 @@ function Dialog<Payload = unknown>({
   return (
     <DialogRoot
       data-slot="dialog"
+      container={pageRoot()}
       {...(controller === undefined ? {} : { controller })}
       onOpenChange={(open, details) => {
         if (open && controller) setPayload(controller.getPayload());
@@ -177,7 +179,10 @@ function DialogTitle({
   return (
     <DialogTitlePrimitive
       data-slot="dialog-title"
-      className={cn('font-heading text-sm font-medium', className)}
+      className={cn(
+        'font-heading text-sm font-medium [overflow-wrap:anywhere]',
+        className,
+      )}
       {...props}
     />
   );

@@ -111,7 +111,9 @@ test('Show timeline is a distinct document and reopening it focuses its existing
   workspace,
   repo,
 }) => {
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await workspace.getByRole('tab', { name: 'Files', exact: true }).click();
   const row = workspace.getByRole('treeitem', {
     name: repo.readme.path,
@@ -137,7 +139,9 @@ test('Show timeline is a distinct document and reopening it focuses its existing
   });
   await expect.element(file).toHaveAttribute('data-entry', 'file:README.md');
   await file.click();
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await row.click({ button: 'right' });
   await workspace
     .getByRole('menuitem', { name: 'Show timeline', exact: true })

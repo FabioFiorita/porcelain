@@ -2,6 +2,7 @@ import { Schema } from 'effect';
 import {
   writerSchema,
   answerStateSchema,
+  callDecisionSchema,
   postStateSchema,
   walkthroughFailureSchema,
 } from '@porcelain/walkthroughs/models';
@@ -10,6 +11,7 @@ import type {
   WalkthroughConversationsView,
 } from '@porcelain/walkthroughs/models';
 import { nullableAsUndefined } from '../shared/schema.ts';
+import type { Principal } from '../access/principal.ts';
 import { worktreeParamsSchema } from '../shared/worktree-params.ts';
 
 const MAX_MESSAGE_LENGTH = 8000;
@@ -51,6 +53,28 @@ export const addWalkthroughMessageRequestSchema = Schema.Struct({
 });
 export type AddWalkthroughMessageRequest =
   typeof addWalkthroughMessageRequestSchema.Type;
+export const walkthroughCallParamsSchema = Schema.Struct({
+  ...walkthroughConversationParamsSchema.fields,
+  step: Schema.NumberFromString.check(Schema.isInt(), Schema.isGreaterThan(0)),
+  call: Schema.NumberFromString.check(
+    Schema.isInt(),
+    Schema.isGreaterThanOrEqualTo(0),
+  ),
+});
+type WalkthroughCallParams = typeof walkthroughCallParamsSchema.Type;
+export const decideWalkthroughCallRequestSchema = Schema.Union([
+  Schema.Struct({ decided: Schema.Literal(false) }),
+  Schema.Struct({
+    decided: Schema.Literal(true),
+    option: Schema.optional(
+      Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(500)),
+    ),
+  }),
+]);
+export type DecideWalkthroughCallRequest =
+  typeof decideWalkthroughCallRequestSchema.Type;
+export type DecideWalkthroughCallInput = WalkthroughCallParams &
+  DecideWalkthroughCallRequest & { readonly caller: Principal };
 export const saveWalkthroughMessageRequestSchema = Schema.Struct({
   saved: Schema.Boolean,
 });
@@ -94,6 +118,12 @@ export const walkthroughConversationsResponseSchema = Schema.Struct({
   runId: nullableAsUndefined(Schema.String),
   pullRequestNumber: nullableAsUndefined(Schema.Int),
   conversations: Schema.Array(walkthroughConversationSchema),
+  decisions: Schema.Array(
+    Schema.Struct({
+      ...callDecisionSchema.fields,
+      option: nullableAsUndefined(Schema.String),
+    }),
+  ),
 });
 export type WalkthroughConversationsResponse =
   typeof walkthroughConversationsResponseSchema.Type;

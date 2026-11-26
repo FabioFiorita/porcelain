@@ -12,6 +12,7 @@ import { sqliteFilePreferenceStoreLayer } from '../repositories/projects/sqlite-
 import { sqliteInventoryStoreLayer } from '../repositories/projects/sqlite-inventory-store.ts';
 import { sqliteWorktreePresenceStoreLayer } from '../repositories/projects/sqlite-worktree-presence-store.ts';
 import { sqliteReviewedFileStoreLayer } from '../repositories/reviews/sqlite-reviewed-file-store.ts';
+import { sqliteDraftCommentStoreLayer } from '../repositories/reviews/sqlite-draft-comment-store.ts';
 import { sqliteGitActionReceiptStoreLayer } from '../repositories/git-actions/sqlite-git-action-receipt-store.ts';
 
 export function storageLayer(
@@ -33,6 +34,7 @@ export function storageLayer(
     sqliteWorktreePresenceStoreLayer,
 
     sqliteReviewedFileStoreLayer,
+    sqliteDraftCommentStoreLayer,
 
     sqliteGitActionReceiptStoreLayer,
   ).pipe(Layer.provideMerge(databaseLayer(dataDirectory, options)));

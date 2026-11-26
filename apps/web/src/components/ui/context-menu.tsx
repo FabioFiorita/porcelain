@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { MenuContent, MenuContextTrigger } from '@ui-sdk/react/menu';
-import { cn } from 'cn';
+import { cn } from '@/shared/lib/utils';
+import { pageRoot } from '@/components/ui/page-root';
 import {
   DropdownMenu,
   DropdownMenuGroup,
@@ -32,6 +33,7 @@ function ContextMenuContent({
     <MenuContent
       ref={lockScrollOutsideMenus}
       data-slot="context-menu-content"
+      container={pageRoot()}
       className={cn(menuContentClassName, className)}
       {...props}
     />

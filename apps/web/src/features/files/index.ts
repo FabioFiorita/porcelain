@@ -1,6 +1,12 @@
 export { FileTreeIcon, PierreIconSprite } from './views/file-tree-icon';
 export { ImagePreview } from './views/image-preview';
-export { MarkdownView } from './views/markdown-view';
+export { MarkdownView, scrollToFragment } from './views/markdown-view';
+export {
+  MarkdownOutlineMenu,
+  MarkdownReader,
+  useMarkdownDocument,
+} from './views/markdown-reader';
+export { useReaderPlaces } from './store';
 export { useTextContents } from './queries/text';
 export { FileEditor } from './views/lazy-file-editor';
 export { HtmlPreview } from './views/html-preview';

@@ -8,7 +8,7 @@ async function openFiles(render: Render, repo: Repo) {
     `# Large\n\n${'A long line of notes.\n'.repeat(60_000)}`,
   );
   const opened = await render.workspace();
-  await opened.getByRole('button', { name: 'Review', exact: true }).click();
+  await opened.getByRole('button', { name: 'Side panel', exact: true }).click();
   await opened.getByRole('tab', { name: 'Files', exact: true }).click();
   return opened;
 }

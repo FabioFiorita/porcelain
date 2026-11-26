@@ -31,6 +31,22 @@ export const SPECS: DocumentRef = { kind: 'specs' };
 export const BRANCH: DocumentRef = { kind: 'branch' };
 const GRAPH: DocumentRef = { kind: 'graph' };
 
+export function pullRequestDocument(input: {
+  projectId: string;
+  number: number;
+  environmentId: string;
+  shownOn: string;
+}): DocumentRef {
+  return {
+    kind: 'pull-request',
+    projectId: input.projectId,
+    number: input.number,
+    ...(input.environmentId === input.shownOn
+      ? {}
+      : { environmentId: input.environmentId }),
+  };
+}
+
 export function entryKey(ref: DocumentRef): string {
   switch (ref.kind) {
     case 'review':
@@ -112,6 +128,33 @@ export function parseEntry(entry: string | undefined): DocumentRef | null {
   }
 }
 
+export function documentSubject(ref: DocumentRef | null): string {
+  switch (ref?.kind) {
+    case undefined:
+      return 'This worktree';
+    case 'review':
+      return 'The Walkthrough';
+    case 'walkthrough-step':
+      return 'This step';
+    case 'file':
+      return 'This file';
+    case 'commit':
+      return 'This commit';
+    case 'pull-request':
+      return 'This pull request';
+    case 'graph':
+      return 'The commit graph';
+    case 'timeline':
+      return 'This file history';
+    case 'all-changes':
+    case 'specs':
+    case 'change':
+    case 'branch':
+    case 'branch-file':
+      return 'These changes';
+  }
+}
+
 export function canonicalEntry(entry: string | undefined) {
   const ref = parseEntry(entry);
   return ref ? entryKey(ref) : undefined;
@@ -173,7 +216,7 @@ function documentTitle(ref: DocumentRef): string {
     case 'specs':
       return 'Specs';
     case 'branch':
-      return 'Branch changes';
+      return 'All branch changes';
     case 'graph':
       return 'Commit graph';
     case 'commit':

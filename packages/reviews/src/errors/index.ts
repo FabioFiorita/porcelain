@@ -1,3 +1,8 @@
 export { GitHubPullRequestNotFoundError } from './github-pull-request-not-found-error.ts';
 export { GitHubReadError } from './github-read-error.ts';
 export { ReviewedMarkConflictError } from './reviewed-mark-conflict-error.ts';
+export { PullRequestMergeRefusedError } from './pull-request-merge-refused-error.ts';
+export { DraftCommentNotFoundError } from './draft-comment-not-found-error.ts';
+export { PullRequestReviewFailedError } from './pull-request-review-failed-error.ts';
+export { ReviewChangedError } from './review-changed-error.ts';
+export { PullRequestActionRefusedError } from './pull-request-action-refused-error.ts';

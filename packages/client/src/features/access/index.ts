@@ -45,6 +45,7 @@ export {
   serviceUpdateSnapshot,
 } from './queries/share.ts';
 export { readBrowserSession } from './queries/session.ts';
+export { readDeviceLabels, readViewer } from './queries/viewer.ts';
 export { disconnectBrowserSession } from './commands/session.ts';
 export { EnvironmentCommands } from './commands/environments.ts';
 export { EnvironmentMutations } from './store/environment-mutations.ts';

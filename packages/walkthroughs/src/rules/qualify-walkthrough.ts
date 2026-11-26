@@ -100,9 +100,96 @@ function qualifyBlock(
             comparison.rows.some((row) => row.length !== 2)))
       )
         return undefined;
-      return { block, paths: [] };
+      if (
+        comparison?.implemented === undefined ||
+        comparison.columns.includes(comparison.implemented)
+      )
+        return { block, paths: [] };
+      const { implemented: _, ...shown } = comparison;
+      return { block: { ...block, comparison: shown }, paths: [] };
+    }
+    case 'diagram': {
+      const diagram = qualifyDiagram(block, job);
+      return diagram === undefined ? undefined : { block: diagram, paths: [] };
     }
   }
+}
+
+type Diagram = Extract<WalkthroughBlockRequest, { kind: 'diagram' }>;
+type DiagramAnchor = NonNullable<Diagram['nodes'][number]['anchor']>;
+
+function capturedAnchor(
+  anchor: DiagramAnchor,
+  job: WalkthroughJob,
+): DiagramAnchor | undefined {
+  const side = anchor.lines?.side ?? 'new';
+  const changed = job.files.some(
+    (file) =>
+      (side === 'old' ? (file.oldPath ?? file.path) : file.path) ===
+      anchor.path,
+  );
+  if (!changed) return undefined;
+  if (anchor.lines === undefined) return { path: anchor.path };
+  return capturedDiffHunk(job.patch, { path: anchor.path, ...anchor.lines })
+    ? { path: anchor.path, lines: anchor.lines }
+    : { path: anchor.path };
+}
+
+const DIAGRAM_LIMITS = {
+  nodes: 12,
+  edges: 20,
+  id: 24,
+  label: 28,
+  note: 80,
+  edgeLabel: 24,
+  title: 80,
+} as const;
+
+const fits = (text: string | undefined, maximum: number) =>
+  text === undefined || (text.trim() !== '' && text.length <= maximum);
+
+function withinDiagramLimits(block: Diagram) {
+  return (
+    block.nodes.length >= 2 &&
+    block.nodes.length <= DIAGRAM_LIMITS.nodes &&
+    block.edges.length >= 1 &&
+    block.edges.length <= DIAGRAM_LIMITS.edges &&
+    fits(block.title, DIAGRAM_LIMITS.title) &&
+    block.nodes.every(
+      (node) =>
+        fits(node.id, DIAGRAM_LIMITS.id) &&
+        fits(node.label, DIAGRAM_LIMITS.label) &&
+        fits(node.note, DIAGRAM_LIMITS.note) &&
+        (node.anchor?.lines === undefined ||
+          (node.anchor.lines.start >= 1 &&
+            node.anchor.lines.end >= node.anchor.lines.start)),
+    ) &&
+    block.edges.every((edge) => fits(edge.label, DIAGRAM_LIMITS.edgeLabel))
+  );
+}
+
+function qualifyDiagram(
+  block: Diagram,
+  job: WalkthroughJob,
+): Diagram | undefined {
+  const ids = new Set(block.nodes.map((node) => node.id));
+  if (
+    !withinDiagramLimits(block) ||
+    ids.size !== block.nodes.length ||
+    block.edges.some(
+      (edge) =>
+        edge.from === edge.to || !ids.has(edge.from) || !ids.has(edge.to),
+    )
+  )
+    return undefined;
+  return {
+    ...block,
+    nodes: block.nodes.map(({ anchor, ...node }) => {
+      const kept =
+        anchor === undefined ? undefined : capturedAnchor(anchor, job);
+      return kept === undefined ? node : { ...node, anchor: kept };
+    }),
+  };
 }
 
 export function qualifyWalkthrough(

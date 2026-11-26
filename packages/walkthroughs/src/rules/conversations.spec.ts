@@ -100,6 +100,7 @@ describe('conversationsView', () => {
       runId: undefined,
       pullRequestNumber: undefined,
       conversations: [],
+      decisions: [],
     });
   });
 

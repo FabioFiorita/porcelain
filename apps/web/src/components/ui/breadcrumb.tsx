@@ -4,7 +4,7 @@ import {
   renderPart,
   type PartElementProps,
 } from '@/components/ui/render-part';
-import { cn } from 'cn';
+import { cn } from '@/shared/lib/utils';
 import { ChevronRightIcon, MoreHorizontalIcon } from 'lucide-react';
 
 function Breadcrumb({ className, ...props }: React.ComponentProps<'nav'>) {

@@ -13,7 +13,9 @@ test('long files highlight in workers, reuse unchanged revisions and refresh cha
   ).join('\n');
   await repo.write(path, contents);
   const workspace = await render.workspace();
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await workspace.getByRole('tab', { name: 'Files', exact: true }).click();
   await workspace
     .getByRole('treeitem', { name: path, exact: true })
@@ -40,7 +42,11 @@ test('long files highlight in workers, reuse unchanged revisions and refresh cha
   await expect.poll(() => request?.file.cacheKey).toBeDefined();
   await expect
     .poll(() => workers.responseFor(request))
-    .toMatchObject({ options: { theme: 'porcelain-review' } });
+    .toMatchObject({
+      options: {
+        theme: { light: 'porcelain-review', dark: 'porcelain-review' },
+      },
+    });
   const rendered = files().map((request) => ({
     key: request.file.cacheKey,
     length: request.file.contents.length,
@@ -82,7 +88,7 @@ test('long files highlight in workers, reuse unchanged revisions and refresh cha
     .toEqual([]);
 });
 
-test('simultaneous code panes preserve their palettes and release every worker on unmount', async ({
+test('every code pane highlights with the Porcelain palette from one worker pool and releases it on unmount', async ({
   pierreWorkers: workers,
   pierrePanes: panes,
 }) => {
@@ -98,14 +104,14 @@ test('simultaneous code panes preserve their palettes and release every worker o
       const request = workers.files(path).at(-1);
       return workers.responseFor(request);
     };
-    await expect
-      .poll(() => themed('standard.ts'))
-      .toMatchObject({
-        options: { theme: { light: 'pierre-light', dark: 'pierre-dark' } },
-      });
-    await expect
-      .poll(() => themed('review.ts'))
-      .toMatchObject({ options: { theme: 'porcelain-review' } });
+    for (const path of ['standard.ts', 'review.ts'])
+      await expect
+        .poll(() => themed(path))
+        .toMatchObject({
+          options: {
+            theme: { light: 'porcelain-review', dark: 'porcelain-review' },
+          },
+        });
     await expect
       .poll(() => workers.active(), {
         message: `mounted worker budget on mount ${mount}`,

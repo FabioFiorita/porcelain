@@ -36,7 +36,7 @@ test('only the repository selected by browsing is registered', async ({
   await expect.poll(registered).toHaveLength(1);
   await dialog.getByRole('button', { name: 'selected', exact: true }).click();
   await dialog
-    .getByRole('button', { name: 'Open selected', exact: true })
+    .getByRole('button', { name: 'Open repository', exact: true })
     .click();
   await expect(dialog).not.toBeAttached();
   await expect(

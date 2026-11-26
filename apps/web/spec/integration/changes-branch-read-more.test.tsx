@@ -23,7 +23,9 @@ test('reading more of a long branch keeps its diffs during loading and after a n
   await repo.write('pending.txt', 'Not committed\n');
   const workspace = await render.workspace();
 
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await workspace
     .getByRole('complementary', { name: 'Review sidebar', exact: true })
     .getByRole('tab', { name: 'Changes', exact: true })
@@ -90,12 +92,12 @@ test('reading more of a long branch keeps its diffs during loading and after a n
   await expect
     .element(
       workspace
-        .getByRole('tabpanel', { name: 'Branch', exact: true })
+        .getByRole('tabpanel', { name: 'All branch changes', exact: true })
         .getByText('note 25', { exact: true }),
     )
     .toBeVisible();
   await workspace
-    .getByRole('tabpanel', { name: 'Branch', exact: true })
+    .getByRole('tabpanel', { name: 'All branch changes', exact: true })
     .getByText('note 25', { exact: true })
     .click();
   await workspace.getByRole('tab', { name: 'Review', exact: true }).click();
@@ -103,12 +105,12 @@ test('reading more of a long branch keeps its diffs during loading and after a n
     .getByRole('button', { name: 'Open document list', exact: true })
     .click();
   await workspace
-    .getByRole('menuitemradio', { name: 'Branch', exact: true })
+    .getByRole('menuitemradio', { name: 'All branch changes', exact: true })
     .click();
   await expect
     .element(
       workspace
-        .getByRole('tabpanel', { name: 'Branch', exact: true })
+        .getByRole('tabpanel', { name: 'All branch changes', exact: true })
         .getByText('note 25', { exact: true }),
     )
     .toBeVisible();
@@ -123,7 +125,7 @@ test('reading more of a long branch keeps its diffs during loading and after a n
   const contentPosition = reviewLayout.codeOffset(
     code,
     workspace
-      .getByRole('tabpanel', { name: 'Branch', exact: true })
+      .getByRole('tabpanel', { name: 'All branch changes', exact: true })
       .getByText('note 25', { exact: true }),
   );
   const height = reviewLayout.codeScrollHeight(code);
@@ -138,7 +140,11 @@ test('reading more of a long branch keeps its diffs during loading and after a n
     .poll(async () => (await server.branchChanges()).files.length)
     .toBe(28);
   await expect
-    .element(workspace.getByText('28 files changed', { exact: true }))
+    .element(
+      workspace
+        .getByRole('tabpanel', { name: 'All branch changes', exact: true })
+        .getByText('Added after reading more', { exact: true }),
+    )
     .toBeVisible();
   await expect
     .element(
@@ -163,7 +169,7 @@ test('reading more of a long branch keeps its diffs during loading and after a n
       reviewLayout.codeOffset(
         code,
         workspace
-          .getByRole('tabpanel', { name: 'Branch', exact: true })
+          .getByRole('tabpanel', { name: 'All branch changes', exact: true })
           .getByText('note 25', { exact: true }),
       ),
     )
@@ -172,7 +178,7 @@ test('reading more of a long branch keeps its diffs during loading and after a n
   await expect
     .element(
       workspace
-        .getByRole('tabpanel', { name: 'Branch', exact: true })
+        .getByRole('tabpanel', { name: 'All branch changes', exact: true })
         .getByText('Added after reading more', { exact: true }),
     )
     .toBeVisible();

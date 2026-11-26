@@ -2,6 +2,7 @@ import { Option } from 'effect';
 import { AsyncResult, Atom } from 'effect/reactivity';
 import type { RuntimeConnection } from '../../../shared/api/connection.ts';
 import { readGitStatus } from '../../changes/queries/changes.ts';
+import { changedFileCount } from '../../changes/rules/omitted-changes.ts';
 import {
   readProjectPullRequests,
   readProjectPullChecks,
@@ -118,13 +119,7 @@ const readNavigatorProject = Atom.family(
           entry.changes = answer
             ? {
                 state: 'available',
-                count: new Set(
-                  answer.changes.map((change) =>
-                    change.scope === 'untracked' || change.scope === 'unmerged'
-                      ? change.path
-                      : (change.newPath ?? change.oldPath),
-                  ),
-                ).size,
+                count: changedFileCount(answer),
               }
             : AsyncResult.isFailure(status)
               ? { state: 'unavailable' }

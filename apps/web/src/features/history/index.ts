@@ -5,3 +5,4 @@ export { BranchTracking } from './views/branch-tracking';
 export { CommitGraph } from './views/commit-graph';
 export { FileTimeline } from './views/file-timeline';
 export { HistoryNavigation } from './views/history-navigation';
+export { RecentHistory } from './views/recent-history';

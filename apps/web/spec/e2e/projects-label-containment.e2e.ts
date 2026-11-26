@@ -27,7 +27,8 @@ for (const width of [1440, 414]) {
     });
     const card = page.getByRole('listitem').filter({ has: row });
     const label = card.getByText('Completed archive fixture', { exact: true });
-    await expect(card).toHaveText('Completed archive fixture#423 merged');
+    await expect(label).toBeVisible();
+    await expect(card.getByText('-branch-name', { exact: true })).toBeVisible();
     await expect(
       card.getByRole('button', { name: /^Open PR #423 · / }),
     ).toBeVisible();

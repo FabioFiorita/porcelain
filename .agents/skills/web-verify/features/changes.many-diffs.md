@@ -1,12 +1,15 @@
 ---
 route: /
 selectors:
+  - 'Side panel'
   - 'Review'
   - 'All changes'
   - 'The changes in this document could not be read.'
+  - 'changes shown'
 tests:
   - apps/web/spec/integration/changes-many-diffs.test.tsx
   - apps/web/spec/integration/changes-presentation.test.tsx
+  - apps/web/spec/integration/workspace-read-failure.test.tsx
 api:
   - GET /api/worktrees/:worktreeId/changes
   - POST /api/worktrees/:worktreeId/changes/diffs
@@ -14,11 +17,11 @@ api:
 
 # changes.many-diffs
 
-All changes lists and reads diffs for its first 25 files; "Read 25 more…" at the bottom adds the next 25 rows and diffs. Its heading, reviewed count and Mark all still cover every file, and the window survives switching tabs. Read to the end, more files than one diff request may carry (200) are split over several requests, with no failure notice. While the initial diff is pending, the document shows nothing in its place (no skeleton or loading words); already loaded diffs stay readable during later reads.
+All changes lists and reads diffs for its first 25 files; a worktree with more than 2,000 changed files lists the first 2,000 and its heading reads "2,000 of M changes shown", while Stash, Pop stash and a merge commit say to use a terminal and the commit form notes that unlisted changes stay out of the commit. If the change list cannot be read at all, the tabs, toolbar and side panel stay and the Review tab shows the failure with Try again; "Read 25 more…" at the bottom adds the next 25 rows and diffs. Its heading, reviewed count and Mark all still cover every file, and the window survives switching tabs. Read to the end, more files than one diff request may carry (200) are split over several requests, with no failure notice. While the initial diff is pending, the document shows nothing in its place (no skeleton or loading words); already loaded diffs stay readable during later reads.
 
 ## How to get to it (user POV)
 
-- Workspace → button "Review" → button "All changes" in a worktree with more than 200 tracked, modified files.
+- Workspace → button "Side panel" → button "All changes" in a worktree with more than 200 tracked, modified files.
 
 ## Driving it with browser
 
@@ -37,7 +40,7 @@ git -C "$REPO" status --porcelain | wc -l   # prints 205
 
 1. Navigate to `/`
    Expect: title "Review — repository"; text "205 files" (on an instance where an earlier feature left another tab selected, a full reload of `/` reopens that tab; click tab "Review" first).
-2. Click button `Review`
+2. Click button `Side panel`
    Expect: button "All changes"; rows from "note-000.md · unstaged" to "note-204.md · unstaged".
 3. Click button `All changes`
    Expect: the sheet closes; heading "205 uncommitted changes" in document "All changes"; the URL contains `entry=all-changes`; the file table's first 25 rows and a button "Read 25 more…" at the bottom. Click its "note-000.md +1 −1" row to scroll to that diff and read "note-000.md changed" (the first file's new line). Click "Read 25 more…" until it is gone: the table ends with note-204.md; no text "The changes in this document could not be read.".

@@ -1,6 +1,9 @@
 import { Effect } from 'effect';
 import { Atom, Reactivity } from 'effect/reactivity';
-import type { AddWalkthroughMessageRequest } from '@porcelain/contracts/walkthroughs';
+import type {
+  AddWalkthroughMessageRequest,
+  DecideWalkthroughCallRequest,
+} from '@porcelain/contracts/walkthroughs';
 import type { WorktreeSelection } from '../../../shared/api/connection.ts';
 import { requestApi } from '../../../shared/api/client.ts';
 import { clientRuntime } from '../../../shared/api/runtime.ts';
@@ -36,6 +39,21 @@ export const walkthroughConversationCommands = Atom.family(
           const view = yield* requestApi(connection, (api) =>
             api.walkthroughs.retryWalkthroughAnswer({
               params: message(messageId),
+            }),
+          );
+          yield* invalidate;
+          return view;
+        }),
+      ),
+      decideCall: runtime.fn(
+        Effect.fn('Walkthroughs.decideCall')(function* (
+          input: { step: number; call: number } & DecideWalkthroughCallRequest,
+        ) {
+          const { step, call, ...payload } = input;
+          const view = yield* requestApi(connection, (api) =>
+            api.walkthroughs.decideWalkthroughCall({
+              params: { ...worktree, step, call },
+              payload,
             }),
           );
           yield* invalidate;

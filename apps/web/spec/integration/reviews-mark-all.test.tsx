@@ -75,7 +75,11 @@ test('All changes on a worktree with a ready walkthrough keeps its file table an
     .getByRole('button', { name: 'Write walkthrough', exact: true })
     .click();
   await expect
-    .element(workspace.getByRole('heading', { name: /One call is yours\.$/ }))
+    .element(
+      workspace.getByRole('heading', {
+        name: /^Teach the sample to explain itself$/,
+      }),
+    )
     .toBeVisible();
   await reviewLayout.openAllChanges();
   await expect

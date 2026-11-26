@@ -18,11 +18,13 @@ export function ProjectFolderList({
   disabled: boolean;
 }) {
   return (
-    <ScrollArea className="h-40" aria-label="Folders">
-      <div className="flex flex-col p-1">
-        <FolderEntries folder={folder} disabled={disabled} />
-      </div>
-    </ScrollArea>
+    <div className="overflow-hidden rounded-lg border">
+      <ScrollArea className="h-38" aria-label="Folders">
+        <div className="flex flex-col p-1">
+          <FolderEntries folder={folder} disabled={disabled} />
+        </div>
+      </ScrollArea>
+    </div>
   );
 }
 

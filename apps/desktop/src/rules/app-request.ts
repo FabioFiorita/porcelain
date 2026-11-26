@@ -73,7 +73,11 @@ export function forwardedResponseHeaders(
   web: DesktopWeb,
 ): Headers {
   const forwarded = new Headers(headers);
-  for (const name of withheldResponseHeaders) forwarded.delete(name);
+  const hasByteLength =
+    !headers.has('content-encoding') &&
+    headers.get('accept-ranges') === 'bytes';
+  for (const name of withheldResponseHeaders)
+    if (name !== 'content-length' || !hasByteLength) forwarded.delete(name);
   if (!pathname.startsWith('/api/'))
     forwarded.set('content-security-policy', desktopContentSecurityPolicy(web));
   return forwarded;

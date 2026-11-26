@@ -88,11 +88,18 @@ describe('ReadPreviewAssetsService', () => {
     expect(assets.map((asset) => asset.path)).toEqual(['a.png']);
   });
 
-  it('serves only references inside the folder of the document', async () => {
+  it('serves references anywhere inside the repository and refuses every path that leaves it', async () => {
     const service = serviceWith({
-      'docs/a.png': file(3),
-      'docs-old/b.png': file(3),
-      'c.png': file(3),
+      'assets/a.png': file(3),
+      'docs/b.png': file(3),
+      '../outside.png': file(3),
+      'docs/../../outside.png': file(3),
+      '/etc/logo.png': file(3),
+      'docs\\..\\x.png': file(3),
+      'C:/x.png': file(3),
+      './c.png': file(3),
+      '.git/d.png': file(3),
+      'docs//e.png': file(3),
     });
     const { assets } = await Effect.runPromise(
       withReadLease(
@@ -100,15 +107,57 @@ describe('ReadPreviewAssetsService', () => {
         service.execute({
           worktreeId,
           document: 'docs/guide.md',
-          paths: ['docs/a.png', 'docs-old/b.png', 'c.png'],
+          paths: [
+            'assets/a.png',
+            'docs/b.png',
+            '../outside.png',
+            'docs/../../outside.png',
+            '/etc/logo.png',
+            'docs\\..\\x.png',
+            'C:/x.png',
+            './c.png',
+            '.git/d.png',
+            'docs//e.png',
+          ],
         }),
       ),
     );
-    expect(assets.map((asset) => asset.kind)).toEqual([
-      'asset',
-      'unavailable',
-      'unavailable',
+    expect(assets.map((asset) => [asset.path, asset.kind])).toEqual([
+      ['assets/a.png', 'asset'],
+      ['docs/b.png', 'asset'],
+      ['../outside.png', 'unavailable'],
+      ['docs/../../outside.png', 'unavailable'],
+      ['/etc/logo.png', 'unavailable'],
+      ['docs\\..\\x.png', 'unavailable'],
+      ['C:/x.png', 'unavailable'],
+      ['./c.png', 'unavailable'],
+      ['.git/d.png', 'unavailable'],
+      ['docs//e.png', 'unavailable'],
     ]);
+  });
+
+  it('serves video, audio and font references by their media type', async () => {
+    const service = serviceWith({
+      'demo.MP4': file(1),
+      'clip.webm': file(1),
+      'sound.mp3': file(1),
+      'face.otf': file(1),
+    });
+    const { assets } = await Effect.runPromise(
+      withReadLease(
+        worktreeId,
+        service.execute({
+          worktreeId,
+          document: 'README.md',
+          paths: ['demo.MP4', 'clip.webm', 'sound.mp3', 'face.otf'],
+        }),
+      ),
+    );
+    expect(
+      assets.map((asset) =>
+        asset.kind === 'asset' ? asset.mediaType : undefined,
+      ),
+    ).toEqual(['video/mp4', 'video/webm', 'audio/mpeg', 'font/otf']);
   });
 
   it('marks assets unavailable once the preview budget is spent', async () => {

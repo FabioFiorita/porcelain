@@ -19,7 +19,7 @@ A repository is registered only when the owner browses to it and opens it; openi
 
 ## How to get to it (user POV)
 
-- Sidebar (phone width: `Toggle Sidebar` first, or `ControlOrMeta+b`) → `Open project` (the plus button in the navigator header) → dialog "Open project" → click folders in "Browse for a folder" → `Open <folder>`.
+- Sidebar (phone width: `Toggle Sidebar` first, or `ControlOrMeta+b`) → `Open project` (the plus button in the navigator header) → dialog "Open project" → click folders in "Browse for a folder" → `Open repository`.
 - In the desktop shell with remote computers added, `Open project` is a menu: choose `This computer`.
 
 ## Driving it with browser
@@ -71,3 +71,5 @@ Automated coverage: `projects-manual-selection.e2e.ts`.
 
 - Open selected leaves the navigator sheet open. Registration persists and changes default workspace selection; remove selected through its labelled Project actions menu → Remove from Porcelain, or reset.
 - Use unique folder names: home/repository/state/web already exist in the fixture home.
+
+With a second computer configured, verify the plus menu opens above the workspace, can be dismissed with Escape or an outside click, and opens the appropriate folder chooser when a computer is selected. The single-computer plus opens the local chooser directly.

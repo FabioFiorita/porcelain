@@ -10,7 +10,9 @@ test('the browser tab follows the open surface, file and commit', async ({
   const title = () => app.title();
   await expect.poll(title).toBe(`Review — ${project}`);
 
-  await pairedPage.getByRole('button', { name: 'Review', exact: true }).click();
+  await pairedPage
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   const sidebar = pairedPage.getByRole('complementary', {
     name: 'Review sidebar',
     exact: true,
@@ -25,7 +27,9 @@ test('the browser tab follows the open surface, file and commit', async ({
   await pairedPage.keyboard.press('Alt+2');
   await expect(changes).toHaveAttribute('aria-selected', 'true');
   await app.reload();
-  await pairedPage.getByRole('button', { name: 'Review', exact: true }).click();
+  await pairedPage
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await expect(changes).toHaveAttribute('aria-selected', 'true');
   await pairedPage.keyboard.press('Alt+1');
   await expect(files).toHaveAttribute('aria-selected', 'true');
@@ -45,7 +49,9 @@ test('the browser tab follows the open surface, file and commit', async ({
     .poll(async () => (await server.commits()).commits[0]?.subject)
     .toBe(subject);
   const oid = (await server.commits()).commits[0]?.oid ?? '';
-  await pairedPage.getByRole('button', { name: 'Review', exact: true }).click();
+  await pairedPage
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await pairedPage.getByRole('tab', { name: 'History', exact: true }).click();
   await pairedPage
     .getByRole('button', { name: new RegExp(`^${subject}`) })

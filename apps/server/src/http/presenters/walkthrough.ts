@@ -38,5 +38,9 @@ export function presentWalkthroughConversations(
           : { ...message, state: presentAnswerState(message.state) },
       ),
     })),
+    decisions: view.decisions.map((decision) => ({
+      ...decision,
+      option: decision.option,
+    })),
   };
 }

@@ -14,18 +14,21 @@ import {
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { FieldLegend, FieldSet } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { TruncatedText } from '@/shared/views/truncated-text';
-import { Item, ItemContent, ItemGroup } from '@/components/ui/item';
+import { Item, ItemContent } from '@/components/ui/item';
 import { submitForm } from '@/shared/lib/submit-form';
 import { cn } from '@/shared/lib/utils';
-import { SettingsHeading } from '@/shared/views/settings-heading';
+import {
+  plainClick,
+  SettingsGroup,
+  SettingsSection,
+} from '@/shared/views/settings-section';
 import { type Connection } from '@/shared/workspace/connection';
 import { useAddRemote, useReadSavedEnvironments } from '../commands/remotes';
 import { useRemoteStatus } from '../queries/remotes';
 import { usePairedAccess, useRemoteAccess } from '../queries/share';
-import { computerSummary } from '../rules/settings';
+import { computerReach } from '../rules/settings';
 import { useConnectedContext, useSavedEnvironments } from '../store';
 import {
   useSettingsUpdates,
@@ -35,6 +38,13 @@ import { useAppUpdateState } from '../queries/app-update';
 import { appUpdateProgress } from '../rules/app-update';
 import { SettingsUpdateRow } from './settings-update-row';
 import { ComputerUpdate } from './share-settings';
+
+function byComputerName(left: Remote, right: Remote) {
+  return (
+    left.name.localeCompare(right.name) ||
+    left.environmentId.localeCompare(right.environmentId)
+  );
+}
 
 function RemoteRow({
   remote,
@@ -142,9 +152,32 @@ function ThisComputerSummary({ connection }: { connection: Connection }) {
   const paired = Option.getOrUndefined(
     AsyncResult.value(usePairedAccess(connection)),
   );
-  return remote && paired
-    ? `Online · ${computerSummary(remote, paired.devices.length)}`
-    : 'Online · Connected computer';
+  if (!remote || !paired) return 'Online · Connected computer';
+  const { devices, reach, unreachable } = computerReach(
+    remote,
+    paired.devices.length,
+  );
+  return (
+    <>
+      <span className="block">{`Online · ${devices}`}</span>
+      <span className="block">
+        {reach}
+        {unreachable && (
+          <>
+            {' '}
+            <Link
+              to="/settings/$section/$environmentId"
+              params={{ section: 'computers', environmentId: 'this-computer' }}
+              hash="ways-in"
+              className="relative rounded-sm font-medium whitespace-nowrap text-foreground underline underline-offset-2 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              Turn on a way in
+            </Link>
+          </>
+        )}
+      </span>
+    </>
+  );
 }
 
 export function RemoteComputers({
@@ -167,7 +200,6 @@ export function RemoteComputers({
   const appBusy = appUpdateProgress(useAppUpdateState()) !== undefined;
   return (
     <>
-      <SettingsHeading section="Settings" title="Computers" />
       {unreadable !== undefined && (
         <Alert variant="destructive">
           <KeyRoundIcon />
@@ -186,19 +218,13 @@ export function RemoteComputers({
           </AlertDescription>
         </Alert>
       )}
-      <section
-        aria-labelledby="computers-heading"
-        className="@container flex min-w-0 flex-col gap-2"
-      >
-        <div className="mb-1.5 flex min-h-7 items-center justify-between gap-2">
-          <h2
-            id="computers-heading"
-            className="flex items-center gap-1 text-xs leading-4 font-medium text-muted-foreground"
-          >
-            Computers
-            <span className="tabular-nums">{remotes.length + 1}</span>
-          </h2>
-          <div className="flex flex-wrap justify-end gap-2">
+      <SettingsSection
+        id="computers"
+        title="Computers"
+        count={remotes.length + 1}
+        className="@container"
+        action={
+          <>
             <PendingButton
               pending={asked !== 'no' && checking}
               size="sm"
@@ -211,16 +237,19 @@ export function RemoteComputers({
             >
               Check for updates
             </PendingButton>
-            <Button
-              size="sm"
-              disabled={batch.running || count === 0}
-              onClick={() => run(targets)}
-            >
-              Update all ({count})
-            </Button>
-          </div>
-        </div>
-        <ItemGroup aria-label="Computers">
+            {remotes.length > 0 && (
+              <Button
+                size="sm"
+                disabled={batch.running || count === 0}
+                onClick={() => run(targets)}
+              >
+                Update all ({count})
+              </Button>
+            )}
+          </>
+        }
+      >
+        <SettingsGroup aria-label="Computers">
           <ComputerRow
             name={environment.name}
             label={`This computer: ${environment.name}`}
@@ -231,29 +260,22 @@ export function RemoteComputers({
             description={<ThisComputerSummary connection={connection} />}
             update={showUpdates && <ComputerUpdate />}
           />
-          {[...remotes]
-            .sort(
-              (a, b) =>
-                a.name.localeCompare(b.name) ||
-                a.environmentId.localeCompare(b.environmentId),
-            )
-            .map((remote) => (
-              <RemoteRow
-                key={remote.environmentId}
-                remote={remote}
-                showUpdates={showUpdates}
-                onOpen={onOpen}
-              />
-            ))}
-        </ItemGroup>
-      </section>
-      <FieldSet>
-        <FieldLegend variant="label">Add computer</FieldLegend>
-        <ItemGroup>
+          {[...remotes].sort(byComputerName).map((remote) => (
+            <RemoteRow
+              key={remote.environmentId}
+              remote={remote}
+              showUpdates={showUpdates}
+              onOpen={onOpen}
+            />
+          ))}
+        </SettingsGroup>
+      </SettingsSection>
+      <SettingsSection id="add-computer" title="Add computer">
+        <SettingsGroup>
           <AddRemote />
-        </ItemGroup>
-      </FieldSet>
-      <p className="-mt-3.5 text-ui leading-5 text-muted-foreground">
+        </SettingsGroup>
+      </SettingsSection>
+      <p className="text-ui leading-5 text-muted-foreground">
         To pair a phone, tablet or browser with this computer, open{' '}
         <Link
           to="/settings/$section/$environmentId"
@@ -354,5 +376,115 @@ function ComputerRow({
         className="col-start-3 row-start-1 size-4 justify-self-center text-muted-foreground @2xl:col-start-4"
       />
     </Item>
+  );
+}
+
+function OutlineComputer({
+  environmentId,
+  name,
+  status,
+  state,
+  selected,
+  onOpen,
+  children,
+}: {
+  environmentId: string;
+  name: string;
+  status: RemoteStatus['kind'];
+  state: string;
+  selected: boolean;
+  onOpen: (environmentId: string) => void;
+  children: ReactNode;
+}) {
+  return (
+    <>
+      <Link
+        to="/settings/$section/$environmentId"
+        params={{ section: 'computers', environmentId }}
+        aria-current={selected ? 'page' : undefined}
+        aria-label={`${name}, ${state}`}
+        onClick={(event) => {
+          if (!plainClick(event)) return;
+          event.preventDefault();
+          onOpen(environmentId);
+        }}
+        className={cn(
+          'flex h-7 w-full min-w-0 items-center gap-2 rounded-md pr-2 pl-2.5 text-left text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/30',
+          selected &&
+            'bg-secondary font-medium text-foreground hover:bg-secondary',
+        )}
+      >
+        <span
+          aria-hidden
+          className="flex size-3.5 shrink-0 items-center justify-center"
+        >
+          {statusDots[status]}
+        </span>
+        <TruncatedText text={name} className="min-w-0 text-xs leading-4" />
+      </Link>
+      {selected && children}
+    </>
+  );
+}
+
+function OutlineRemote({
+  remote,
+  selected,
+  onOpen,
+  children,
+}: {
+  remote: Remote;
+  selected: boolean;
+  onOpen: (environmentId: string) => void;
+  children: ReactNode;
+}) {
+  const status = useRemoteStatus(remote);
+  return (
+    <OutlineComputer
+      environmentId={remote.environmentId}
+      name={status.kind === 'online' ? status.name : remote.name}
+      status={status.kind}
+      state={remoteStatusText(status)}
+      selected={selected}
+      onOpen={onOpen}
+    >
+      {children}
+    </OutlineComputer>
+  );
+}
+
+export function ComputersOutline({
+  selected,
+  onOpen,
+  children,
+}: {
+  selected: string | undefined;
+  onOpen: (environmentId: string) => void;
+  children: ReactNode;
+}) {
+  const { remotes } = useSavedEnvironments();
+  return (
+    <div className="flex flex-col gap-0.5">
+      <OutlineComputer
+        environmentId="this-computer"
+        name="This computer"
+        status="online"
+        state="Online"
+        selected={selected === 'this-computer'}
+        onOpen={onOpen}
+      >
+        {children}
+      </OutlineComputer>
+      {[...remotes].sort(byComputerName).map((remote) => (
+        <OutlineRemote
+          key={remote.environmentId}
+          remote={remote}
+          selected={selected === remote.environmentId}
+          onOpen={onOpen}
+        >
+          {children}
+        </OutlineRemote>
+      ))}
+    </div>
   );
 }

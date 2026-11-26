@@ -5965,7 +5965,6 @@ const configRequiredRules = [
   'typescript/no-unsafe-type-assertion',
   'typescript/only-throw-error',
   'shadcn/no-raw-colors',
-  'shadcn/no-restyle',
   'porcelain/no-node-globals',
 ];
 const styleConfigCases = [
@@ -7364,6 +7363,30 @@ Effect.runPromise(Effect.provideService(read, WorktreeRead, { assert: () => unde
           : ['lane-per-table'],
     }));
   }),
+  {
+    rule: 'lane-per-table',
+    name: 'draft comment writes use the repository reviews lane',
+    files: {
+      'packages/reviews/src/ports/draft-comment-store.ts':
+        "import { Context, type Effect } from 'effect'; export interface DraftCommentStore { insert(): Effect.Effect<void>; } export const DraftCommentStore = Context.Service<'@porcelain/reviews/DraftCommentStore', DraftCommentStore>('@porcelain/reviews/DraftCommentStore');",
+      'apps/server/src/runtime/lanes.ts':
+        "import { Context, type Effect } from 'effect'; export class Lanes extends Context.Service<Lanes, { readonly run: (key: string, mode: string, work: () => Effect.Effect<void>) => Effect.Effect<void>; }>()('@porcelain/server/Lanes') {}",
+      'apps/server/src/runtime/lane-keys.ts':
+        "import { Context } from 'effect'; export class LaneKeys extends Context.Service<LaneKeys, { readonly reviews: () => string; readonly project: () => string; }>()('@porcelain/server/LaneKeys') {}",
+    },
+    ...Object.fromEntries(
+      [
+        ['valid', 'reviews'],
+        ['invalid', 'project'],
+      ].map(([result, lane]) => [
+        result,
+        {
+          'apps/server/src/runtime/draft-comment-workflow.ts': `import { Context, Effect, Layer } from 'effect'; import { DraftCommentStore } from '../../../../packages/reviews/src/ports/draft-comment-store.ts'; import { Lanes } from './lanes.ts'; import { LaneKeys } from './lane-keys.ts'; export class DraftCommentWorkflow extends Context.Service<DraftCommentWorkflow, { readonly execute: () => Effect.Effect<void>; }>()('@porcelain/server/DraftCommentWorkflow') { static readonly layer = Layer.effect(DraftCommentWorkflow, Effect.gen(function* () { const store = yield* DraftCommentStore; const lanes = yield* Lanes; const keys = yield* LaneKeys; return { execute: Effect.fn('DraftCommentWorkflow.execute')(function* () { yield* lanes.run(keys.${lane}(), 'write', () => store.insert()); }), }; })); }`,
+        },
+      ]),
+    ),
+    errors: ['lane-per-table'],
+  },
   {
     rule: 'lane-per-table',
     valid: {

@@ -2,6 +2,10 @@ import {
   archivePullRequestRequestSchema,
   archivePullRequestResponseSchema,
 } from '@porcelain/projects/models';
+import {
+  PullRequestMergeRefusedError,
+  PullRequestActionRefusedError,
+} from '@porcelain/reviews/errors';
 import { HttpApiEndpoint, HttpApiGroup } from 'effect/http-api';
 import { porcelainApi } from '../shared/http-api.ts';
 import { PairedRequest } from '../shared/http-caller.ts';
@@ -18,6 +22,16 @@ import {
   setGitHubAccountRequestSchema,
   readPullRequestResponseSchema,
   readPullChecksResponseSchema,
+  mergePullRequestRequestSchema,
+  mergePullRequestResponseSchema,
+  readPullStatusResponseSchema,
+  projectPullJobParamsSchema,
+  readCheckLogQuerySchema,
+  readCheckLogResponseSchema,
+  rerunPullChecksRequestSchema,
+  rerunPullChecksResponseSchema,
+  commentOnPullRequestRequestSchema,
+  commentOnPullRequestResponseSchema,
 } from './pull-requests.ts';
 
 export class PullRequestsApi extends porcelainApi.add(
@@ -85,6 +99,75 @@ export class PullRequestsApi extends porcelainApi.add(
           error: [
             httpFailure(ProjectNotFoundError, 'NotFound'),
             httpFailure(BranchArchiveRefusedError, 'Conflict', {
+              message: { fromError: true },
+            }),
+          ],
+        },
+      ),
+      HttpApiEndpoint.post(
+        'mergePullRequest',
+        '/api/projects/:projectId/pull-requests/:number/merge',
+        {
+          disableCodecs: true,
+          params: projectPullRequestParamsSchema,
+          payload: mergePullRequestRequestSchema,
+          success: mergePullRequestResponseSchema,
+          error: [
+            httpFailure(ProjectNotFoundError, 'NotFound'),
+            httpFailure(PullRequestMergeRefusedError, 'Conflict', {
+              message: { fromError: true },
+            }),
+          ],
+        },
+      ),
+      HttpApiEndpoint.get(
+        'readProjectPullStatus',
+        '/api/projects/:projectId/pull-requests/:number/status',
+        {
+          disableCodecs: true,
+          params: projectPullRequestParamsSchema,
+          success: readPullStatusResponseSchema,
+          error: [httpFailure(ProjectNotFoundError, 'NotFound')],
+        },
+      ),
+      HttpApiEndpoint.get(
+        'readProjectCheckLog',
+        '/api/projects/:projectId/pull-requests/:number/jobs/:jobId/log',
+        {
+          disableCodecs: true,
+          params: projectPullJobParamsSchema,
+          query: readCheckLogQuerySchema.fields,
+          success: readCheckLogResponseSchema,
+          error: [httpFailure(ProjectNotFoundError, 'NotFound')],
+        },
+      ),
+      HttpApiEndpoint.post(
+        'rerunPullRequestChecks',
+        '/api/projects/:projectId/pull-requests/:number/rerun',
+        {
+          disableCodecs: true,
+          params: projectPullRequestParamsSchema,
+          payload: rerunPullChecksRequestSchema,
+          success: rerunPullChecksResponseSchema,
+          error: [
+            httpFailure(ProjectNotFoundError, 'NotFound'),
+            httpFailure(PullRequestActionRefusedError, 'Conflict', {
+              message: { fromError: true },
+            }),
+          ],
+        },
+      ),
+      HttpApiEndpoint.post(
+        'commentOnPullRequest',
+        '/api/projects/:projectId/pull-requests/:number/comments',
+        {
+          disableCodecs: true,
+          params: projectPullRequestParamsSchema,
+          payload: commentOnPullRequestRequestSchema,
+          success: commentOnPullRequestResponseSchema,
+          error: [
+            httpFailure(ProjectNotFoundError, 'NotFound'),
+            httpFailure(PullRequestActionRefusedError, 'Conflict', {
               message: { fromError: true },
             }),
           ],

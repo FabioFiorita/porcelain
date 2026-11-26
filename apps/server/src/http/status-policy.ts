@@ -111,8 +111,13 @@ import {
   WorktreeUnavailableError,
 } from '@porcelain/projects/errors';
 import {
+  DraftCommentNotFoundError,
   GitHubPullRequestNotFoundError,
   GitHubReadError,
+  PullRequestActionRefusedError,
+  PullRequestMergeRefusedError,
+  PullRequestReviewFailedError,
+  ReviewChangedError,
   ReviewedMarkConflictError,
 } from '@porcelain/reviews/errors';
 import { ApplicationClosedError } from '../runtime/errors/application-closed-error.ts';
@@ -207,6 +212,7 @@ const rules: readonly StatusRule[] = [
       FolderNotFoundError,
       GitActionNotFoundError,
       DeviceNotFoundError,
+      DraftCommentNotFoundError,
     ],
     statusCode: 404,
   },
@@ -221,6 +227,9 @@ const rules: readonly StatusRule[] = [
       EntryExistsError,
 
       ReviewedMarkConflictError,
+      ReviewChangedError,
+      PullRequestMergeRefusedError,
+      PullRequestActionRefusedError,
       BranchArchiveRefusedError,
       ProjectReconnectionRefusedError,
       UnrelatedBranchError,
@@ -324,6 +333,10 @@ const rules: readonly StatusRule[] = [
     errors: [UnsupportedHistoryDataError],
     statusCode: 422,
     message: 'History contains unsupported data',
+  },
+  {
+    errors: [PullRequestReviewFailedError],
+    statusCode: 502,
   },
   {
     errors: [InvalidGitDiffError, InvalidGitStatusError],

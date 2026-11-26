@@ -37,10 +37,55 @@ type Label = HTMLAttributes<HTMLElement> & {
   'data-clipped'?: '' | undefined;
 };
 
-type Cut = 'end' | 'start';
+type Cut = 'end' | 'start' | { readonly keep: string };
 
 function cutContent(cut: Cut, content: ReactNode) {
   return cut === 'start' ? <bdi dir="ltr">{content}</bdi> : content;
+}
+
+function middleParts(value: string, keep: string) {
+  return value.endsWith(keep) && keep.length < value.length
+    ? { head: value.slice(0, value.length - keep.length), tail: keep }
+    : { head: value, tail: '' };
+}
+
+function ancestors(element: HTMLElement, count: number) {
+  const found: HTMLElement[] = [];
+  let next = element.parentElement;
+  while (next && found.length < count) {
+    found.push(next);
+    next = next.parentElement;
+  }
+  return found;
+}
+
+function ellipsisWidth(element: HTMLElement) {
+  const context = document.createElement('canvas').getContext('2d');
+  if (!context) return 0;
+  context.font = getComputedStyle(element).font;
+  return context.measureText('…').width;
+}
+
+function fitMiddleHead(head: HTMLElement) {
+  head.style.maxWidth = '';
+  const text = head.firstChild;
+  if (!(text instanceof Text) || head.scrollWidth <= head.clientWidth) return;
+  const room = head.getBoundingClientRect().width;
+  const dots = ellipsisWidth(head);
+  const range = document.createRange();
+  const width = (end: number) => {
+    range.setStart(text, 0);
+    range.setEnd(text, end);
+    return range.getBoundingClientRect().width;
+  };
+  let low = 0;
+  let high = text.length;
+  while (low < high) {
+    const middle = Math.ceil((low + high) / 2);
+    if (width(middle) + dots <= room) low = middle;
+    else high = middle - 1;
+  }
+  head.style.maxWidth = `${Math.ceil(width(low) + dots)}px`;
 }
 
 function isClipped(element: HTMLElement, lines: 1 | 3) {
@@ -101,8 +146,17 @@ export function TruncatedText({
       ? null
       : (element.parentElement?.closest<HTMLElement>(owners) ?? null);
     let active = true;
+    let frame = 0;
     const measure = () => {
-      if (active) setClipped(pieces().some((piece) => isClipped(piece, lines)));
+      if (!active) return;
+      setClipped(pieces().some((piece) => isClipped(piece, lines)));
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        for (const head of element.querySelectorAll<HTMLElement>(
+          '[data-middle-head]',
+        ))
+          fitMiddleHead(head);
+      });
     };
     const show = () => {
       if (
@@ -123,6 +177,10 @@ export function TruncatedText({
     measure();
     const observer = new ResizeObserver(measure);
     for (const piece of pieces()) observer.observe(piece);
+    for (const head of element.querySelectorAll<HTMLElement>(
+      '[data-middle-head]',
+    ))
+      for (const frame of ancestors(head, 4)) observer.observe(frame);
     const content = new MutationObserver(measure);
     content.observe(element, {
       characterData: true,
@@ -135,6 +193,7 @@ export function TruncatedText({
     owner?.addEventListener('keydown', dismiss);
     return () => {
       active = false;
+      cancelAnimationFrame(frame);
       observer.disconnect();
       content.disconnect();
       owner?.removeEventListener('focus', show);
@@ -144,37 +203,58 @@ export function TruncatedText({
   });
 
   const standalone = !triggered && !owned;
-  const clip = (value: string, styles?: string, edge: Cut = 'end') => (
-    <span
-      dir={edge === 'start' ? 'rtl' : undefined}
-      className={cn(
-        'min-w-0 truncate',
-        edge === 'start' && 'text-left',
-        styles,
-      )}
-      data-truncated={id}
-    >
-      {cutContent(edge, value)}
-    </span>
-  );
+  const clip = (value: string, styles?: string, edge: Cut = 'end') =>
+    typeof edge === 'object' ? (
+      <span className={cn('flex min-w-0', styles)}>
+        <span
+          className="min-w-0 truncate"
+          data-truncated={id}
+          data-middle-head=""
+        >
+          {middleParts(value, edge.keep).head}
+        </span>
+        <span className="shrink-0 whitespace-pre">
+          {middleParts(value, edge.keep).tail}
+        </span>
+      </span>
+    ) : (
+      <span
+        dir={edge === 'start' ? 'rtl' : undefined}
+        className={cn(
+          'min-w-0 truncate',
+          edge === 'start' && 'text-left',
+          styles,
+        )}
+        data-truncated={id}
+      >
+        {cutContent(edge, value)}
+      </span>
+    );
   const element: ReactElement<Label> = render ?? <span />;
+  const labelId = element.props.id ?? id;
   const label = cloneElement(
     element,
     {
       tabIndex: standalone && disclosed ? 0 : undefined,
       dir: cut === 'start' ? 'rtl' : undefined,
       'aria-label': standalone ? text : undefined,
+      id: owned ? labelId : element.props.id,
+      'aria-labelledby': owned ? labelId : undefined,
       'data-truncated': id,
       'data-clipped': !triggered && disclosed ? '' : undefined,
       className: cn(
         'relative min-w-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
-        lines === 3 ? 'line-clamp-3 whitespace-normal' : 'truncate',
+        typeof cut === 'object' && 'flex',
+        typeof cut !== 'object' &&
+          (lines === 3 ? 'line-clamp-3 whitespace-normal' : 'truncate'),
         cut === 'start' && 'text-left',
         render?.props.className,
         className,
       ),
     },
-    cutContent(cut, children ?? text),
+    typeof cut === 'object'
+      ? clip(text, undefined, cut)
+      : cutContent(cut, children ?? text),
   );
   const trigger = renderTrigger?.(label, clip) ?? label;
   if (!disclosed && !triggered)

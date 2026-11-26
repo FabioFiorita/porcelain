@@ -11,7 +11,7 @@ async function openPage(
   );
   await repo.write('page.html', html);
   const opened = await render.workspace();
-  await opened.getByRole('button', { name: 'Review', exact: true }).click();
+  await opened.getByRole('button', { name: 'Side panel', exact: true }).click();
   await opened.getByRole('tab', { name: 'Files', exact: true }).click();
   await opened
     .getByRole('treeitem', { name: 'page.html', exact: true })
@@ -28,18 +28,13 @@ test('an HTML page opened from the file tree previews with its local images and 
     .element(opened.getByLabelText('page.html HTML preview', { exact: true }))
     .toBeVisible();
   await expect
-    .element(
-      opened.getByText(
-        'Some assets could not be loaded: missing.png. This preview supports local static assets.',
-        { exact: true },
-      ),
-    )
+    .element(opened.getByText('Not loaded: missing.png', { exact: true }))
     .toBeVisible();
   await expect
     .element(opened.getByRole('tab', { name: 'Preview', exact: true }))
     .toHaveAttribute('aria-selected', 'true');
   await expect
-    .element(opened.getByText(/could not be loaded: .*logo\.svg/))
+    .element(opened.getByText(/^Not loaded: .*logo\.svg/))
     .not.toBeInTheDocument();
 });
 
@@ -60,16 +55,11 @@ test.for([
       .toBeVisible();
     if (missing) {
       await expect
-        .element(
-          page.getByText(
-            `Some assets could not be loaded: ${missing}. This preview supports local static assets.`,
-            { exact: true },
-          ),
-        )
+        .element(page.getByText(`Not loaded: ${missing}`, { exact: true }))
         .toBeVisible();
     } else {
       await expect
-        .element(page.getByText(/^Some assets could not be loaded/))
+        .element(page.getByText(/^Not loaded:/))
         .not.toBeInTheDocument();
     }
   },
@@ -86,7 +76,5 @@ test('switching the HTML page to its source shows the markup instead of the prev
   await expect
     .element(page.getByRole('tabpanel').getByText(/<h1>Preview heading<\/h1>/))
     .toBeVisible();
-  await expect
-    .element(page.getByText(/^Some assets could not be loaded/))
-    .not.toBeInTheDocument();
+  await expect.element(page.getByText(/^Not loaded:/)).not.toBeInTheDocument();
 });

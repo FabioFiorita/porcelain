@@ -30,8 +30,12 @@ import {
   FileEditor,
   HtmlPreview,
   ImagePreview,
-  MarkdownView,
+  MarkdownOutlineMenu,
+  MarkdownReader,
+  scrollToFragment,
   useDirectory,
+  useMarkdownDocument,
+  useReaderPlaces,
   useDiskChangeNotice,
   useFileDraft,
 } from '@/features/files/index';
@@ -43,6 +47,7 @@ import type { ReviewScope } from '@porcelain/client/changes/rules';
 import { CodeDocument } from './code-document';
 import { FindBar } from './find-bar';
 import { StateNotice } from '@/shared/views/state-notice';
+import { MARKDOWN_READER_MAX_CHARACTERS } from '@/config/limits';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
 type FileDocumentProps = {
@@ -217,8 +222,11 @@ function ReadableFileDocument({
       ? `${comparison.scope} · ${comparison.kind}`
       : comparison?.scope;
   const changed = changes.changes.some((entry) => entry.path === path);
+  const large =
+    kind === 'markdown' && text.length > MARKDOWN_READER_MAX_CHARACTERS;
+  const [renderLarge, setRenderLarge] = useState(false);
   const [mode, setMode] = useState<FileDisplayMode>(() =>
-    defaultFileDisplayMode(kind, preferences),
+    large ? 'source' : defaultFileDisplayMode(kind, preferences),
   );
   const { active } = interaction;
   const [editing, setEditing] = useState(false);
@@ -226,6 +234,19 @@ function ReadableFileDocument({
   const [foundLine, setFoundLine] = useState<{ line: number; nonce: number }>();
   const { element: codeArea, attach: attachCodeArea } =
     useElement<HTMLDivElement>();
+  const { element: reader, attach: attachReader } =
+    useElement<HTMLDivElement>();
+  const markdown = useMarkdownDocument(kind === 'markdown' ? text : '');
+  const places = useReaderPlaces();
+  const openPath = (target: string, hash: string) => {
+    if (target !== path) {
+      places.openAt(`${scope.worktreeId}:${target}`, hash);
+      onOpen({ kind: 'file', path: target });
+      return;
+    }
+    const content = reader?.querySelector('[data-markdown-root]');
+    if (hash && content) scrollToFragment(content, hash);
+  };
   const editorId = useId();
   useDiskChangeNotice(draft, editorId, contentFingerprint);
 
@@ -244,6 +265,11 @@ function ReadableFileDocument({
       >
         {draftState.diskChanged.has(editorId) ? 'Changed on disk just now' : ''}
       </span>
+      {kind === 'markdown' &&
+        mode === 'rendered' &&
+        (!large || renderLarge) && (
+          <MarkdownOutlineMenu outline={markdown.outline} root={reader} />
+        )}
       {kind !== 'code' && (
         <Tabs
           value={mode}
@@ -341,8 +367,53 @@ function ReadableFileDocument({
       />
     );
 
+  let rendered: ReactNode;
+  if (large && !renderLarge)
+    rendered = (
+      <div className="grid min-h-48 flex-1 place-items-center p-6">
+        <StateNotice
+          message={`This Markdown file is ${Math.round(text.length / 1024)} KB. Rendering it can take a few seconds.`}
+          action={
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setRenderLarge(true)}
+            >
+              Render it
+            </Button>
+          }
+        />
+      </div>
+    );
+  else if (kind === 'markdown')
+    rendered = (
+      <MarkdownReader
+        key={path}
+        document={markdown.document}
+        outline={markdown.outline}
+        attach={attachReader}
+        file={{
+          path,
+          scope,
+          connection: context.connection,
+          openPath,
+        }}
+      />
+    );
+  else
+    rendered = (
+      <HtmlPreview
+        key={path}
+        scope={scope}
+        path={path}
+        html={text}
+        connection={context.connection}
+        onOpenPath={(target) => openPath(target, '')}
+      />
+    );
+
   return (
-    <div className="flex min-h-0 flex-1 flex-col bg-card">
+    <div className="@container/document flex min-h-0 flex-1 flex-col bg-card">
       {interaction.toolbarTarget &&
         !showingSource &&
         createPortal(
@@ -359,13 +430,7 @@ function ReadableFileDocument({
               {commands}
             </ButtonGroup>
           </FileToolbar>
-          <RenderedFile
-            scope={scope}
-            context={context}
-            path={path}
-            kind={kind}
-            text={text}
-          />
+          {rendered}
         </>
       ) : (
         <div ref={attachCodeArea} className="flex min-h-0 flex-1 flex-col">
@@ -389,6 +454,7 @@ function ReadableFileDocument({
             {commands}
           </FileHeading>
           <CodeDocument
+            comments
             disableFileHeader
             compactThreads
             fileDiff={diff}
@@ -409,42 +475,6 @@ function ReadableFileDocument({
           />
         </div>
       )}
-    </div>
-  );
-}
-
-function RenderedFile({
-  scope,
-  context,
-  path,
-  kind,
-  text,
-}: {
-  scope: ReviewScope;
-  context: ConnectionContext;
-  path: string;
-  kind: Exclude<ReadableFileKind, 'code'>;
-  text: string;
-}) {
-  if (kind === 'markdown')
-    return (
-      <div className="min-h-0 flex-1 overflow-auto">
-        <MarkdownView text={text} className="mx-auto max-w-[78ch] px-6 py-6" />
-      </div>
-    );
-  return (
-    <div className="flex min-h-0 flex-1 flex-col bg-background">
-      <p className="border-b bg-muted/40 px-3.5 py-1.5 text-2xs text-muted-foreground">
-        Sandboxed preview: scripts run, and cannot read Porcelain, your cookies
-        or the review API, load anything from the network, submit a form, or
-        move the page around them.
-      </p>
-      <HtmlPreview
-        scope={scope}
-        path={path}
-        html={text}
-        connection={context.connection}
-      />
     </div>
   );
 }

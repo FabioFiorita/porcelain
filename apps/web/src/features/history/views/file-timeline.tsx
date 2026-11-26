@@ -89,10 +89,10 @@ function TimelineStatus({
 }) {
   if (AsyncResult.isFailure(timeline.result))
     return (
-      <div role="status">
-        Couldn't load older commits
+      <div role="status" className="flex items-center gap-2">
+        Older commits could not be loaded.
         <Button size="xs" variant="outline" onClick={timeline.readMore}>
-          Retry
+          Try again
         </Button>
       </div>
     );
@@ -102,6 +102,7 @@ function TimelineStatus({
         pending={timeline.result.waiting}
         size="sm"
         variant="outline"
+        className="self-start"
         onClick={timeline.readMore}
       >
         Load older commits

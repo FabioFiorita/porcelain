@@ -22,12 +22,12 @@ const imported = {
 const trustRequired = apiError(
   403,
   'Forbidden',
-  'An owner must trust this device on the computer that runs Porcelain before it can change Reviews & Git settings',
+  'An owner must trust this device on the computer that runs Porcelain before it can change Changes & Git settings',
 );
 const notConfigured = apiError(
   409,
   'Conflict',
-  'Choose Reviews & Git settings for this computer before changing one of them',
+  'Choose Changes & Git settings for this computer before changing one of them',
 );
 
 const current: HttpRequest = { method: 'GET', path: SETTINGS_PATH };

@@ -68,57 +68,59 @@ export function ChangeTable({
           </PopoverContent>
         </Popover>
       </div>
-      <ol>
-        {items.slice(0, rows ?? items.length).map((item) => {
-          const slash = item.path.lastIndexOf('/') + 1;
-          const counts = controls.counts.get(item.path);
-          return (
-            <li
-              key={item.path}
-              className="box-content flex h-8 items-center gap-3 border-t pl-1 first:border-t-0 last:border-b"
-            >
-              <ReviewedCheckbox
-                scope={scope}
-                context={context}
-                path={item.path}
-                fingerprint={item.fingerprint}
-                status={item.reviewStatus}
-                latest={latest === item.path}
-                onStart={() => setLatest(item.path)}
-              />
-              <TruncatedText
-                text={item.path}
-                renderTrigger={(_label, clip) => (
-                  <button
-                    type="button"
-                    aria-label={`${item.path}${counts ? ` +${counts.additions} −${counts.deletions}` : ''}`}
-                    aria-current={
-                      controls.current === item.path ? 'true' : undefined
-                    }
-                    onClick={() => controls.open(item.path)}
-                    className="flex h-8 min-w-0 flex-1 items-center gap-3 rounded-sm px-1.5 text-left whitespace-nowrap text-foreground outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    <span className="flex min-w-0 font-mono text-caption leading-4">
-                      {slash > 0 &&
-                        clip(
-                          item.path.slice(0, slash),
-                          'shrink-[100] text-muted-foreground',
-                          'start',
-                        )}
-                      {clip(item.path.slice(slash), 'shrink-0 max-w-full')}
-                    </span>
-                    {counts && (
-                      <span className="ml-auto shrink-0">
-                        <ChangeCounts counts={counts} />
+      {!(items.length === 1 && controls.counts.has(items[0]?.path ?? '')) && (
+        <ol>
+          {items.slice(0, rows ?? items.length).map((item) => {
+            const slash = item.path.lastIndexOf('/') + 1;
+            const counts = controls.counts.get(item.path);
+            return (
+              <li
+                key={item.path}
+                className="box-content flex h-8 items-center gap-3 border-t pl-1 first:border-t-0 last:border-b"
+              >
+                <ReviewedCheckbox
+                  scope={scope}
+                  context={context}
+                  path={item.path}
+                  fingerprint={item.fingerprint}
+                  status={item.reviewStatus}
+                  latest={latest === item.path}
+                  onStart={() => setLatest(item.path)}
+                />
+                <TruncatedText
+                  text={item.path}
+                  renderTrigger={(_label, clip) => (
+                    <button
+                      type="button"
+                      aria-label={`${item.path}${counts ? ` +${counts.additions} −${counts.deletions}` : ''}`}
+                      aria-current={
+                        controls.current === item.path ? 'true' : undefined
+                      }
+                      onClick={() => controls.open(item.path)}
+                      className="flex h-8 min-w-0 flex-1 items-center gap-3 rounded-sm px-1.5 text-left whitespace-nowrap text-foreground outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      <span className="flex min-w-0 font-mono text-caption leading-4">
+                        {slash > 0 &&
+                          clip(
+                            item.path.slice(0, slash),
+                            'shrink-[100] text-muted-foreground',
+                            'start',
+                          )}
+                        {clip(item.path.slice(slash), 'shrink-0 max-w-full')}
                       </span>
-                    )}
-                  </button>
-                )}
-              />
-            </li>
-          );
-        })}
-      </ol>
+                      {counts && (
+                        <span className="ml-auto shrink-0">
+                          <ChangeCounts counts={counts} />
+                        </span>
+                      )}
+                    </button>
+                  )}
+                />
+              </li>
+            );
+          })}
+        </ol>
+      )}
     </section>
   );
 }

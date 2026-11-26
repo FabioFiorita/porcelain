@@ -22,6 +22,7 @@ import {
   SelectItem,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { TruncatedText } from '@/shared/views/truncated-text';
 import { shortOid } from '@porcelain/client/history/rules';
 import { useActionForm } from '../commands/action-form';
 import {
@@ -36,6 +37,8 @@ import {
   changedSinceLookedText,
   gitErrorMessage,
   receiptFailed,
+  receiptSettled,
+  receiptWords,
 } from '@porcelain/client/git-actions/rules';
 import type { GitActionStatus } from '@porcelain/client/git-actions/rules';
 import { CommitForm } from './commit-form';
@@ -274,7 +277,7 @@ function ActionForm({
         {action === 'stash-create' && (
           <p className="text-xs text-muted-foreground">
             {option
-              ? 'Tracked changes and new files are set aside. The handoff stays empty until you restore the stash.'
+              ? 'Tracked changes and new files are set aside until you pop the stash.'
               : 'Tracked changes are set aside. New files stay in the worktree.'}
           </p>
         )}
@@ -310,7 +313,10 @@ function ActionForm({
                 <SelectContent>
                   {branch.stashes.map((stash) => (
                     <SelectItem key={stash.oid} value={stash.oid}>
-                      {stash.message} · {shortOid(stash.oid)}
+                      <TruncatedText text={stash.message} />
+                      <span className="font-mono text-muted-foreground">
+                        {shortOid(stash.oid)}
+                      </span>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -326,7 +332,7 @@ function ActionForm({
             )}
           </Field>
         )}
-        <label className="flex items-center gap-2 text-sm">
+        <label className="flex items-center gap-2 text-xs">
           <Checkbox
             checked={option}
             onCheckedChange={(checked) => setOption(checked === true)}
@@ -351,19 +357,37 @@ function ActionForm({
         <Button
           type="button"
           variant="outline"
+          className="self-start"
           disabled={busy}
           onClick={git.lookAgain}
         >
           Look again
         </Button>
       )}
-      {git.operation && !busy && !stale && (
-        <Button type="button" variant="outline" onClick={git.checkOutcome}>
+      {git.operation && !busy && !(outcome && receiptSettled(outcome)) && (
+        <Button
+          type="button"
+          variant="outline"
+          className="self-start"
+          onClick={git.checkOutcome}
+        >
           Check outcome
+        </Button>
+      )}
+      {git.clearUnconfirmed && (
+        <Button
+          type="button"
+          variant="outline"
+          className="self-start"
+          disabled={busy || Boolean(writeBlock)}
+          onClick={git.clearUnconfirmed}
+        >
+          Clear unconfirmed action
         </Button>
       )}
       <Button
         type="submit"
+        className="self-end"
         aria-description={writeBlock}
         disabled={Boolean(writeBlock) || busy || uncertain || stale}
       >
@@ -377,13 +401,8 @@ type FormOutcome = ReturnType<typeof useActionForm>['outcome'];
 
 function ActionOutcome({ outcome }: { outcome: FormOutcome }) {
   if (!outcome) return null;
-  if (
-    outcome.message &&
-    receiptFailed(outcome) &&
-    outcome.state !== 'conflicted'
-  ) {
-    return <GitActionError text={outcome.message} />;
-  }
+  if (receiptFailed(outcome) && outcome.state !== 'running')
+    return <GitActionError text={receiptWords(outcome)} />;
   return (
     <p role="status" className="text-sm">
       {outcome.state}

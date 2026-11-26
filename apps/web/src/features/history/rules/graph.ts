@@ -3,6 +3,8 @@ import {
   HISTORY_GRAPH_INSET,
   HISTORY_LANE_WIDTH,
   HISTORY_ORDINAL_CENTURY,
+  HISTORY_PANEL_LAST_LANE,
+  HISTORY_PANEL_LANE_WIDTH,
   HISTORY_ORDINAL_DECADE,
   HISTORY_ORDINAL_TEENS_END,
   HISTORY_ORDINAL_TEENS_START,
@@ -46,7 +48,28 @@ export function layoutGraph(commits: readonly CommitSummary[]): GraphRow[] {
   return rows;
 }
 
-export function historyGraphWidth(rows: readonly GraphRow[]) {
+export type GraphGutter = { laneWidth: number; lastLane: number };
+
+export const FULL_GUTTER: GraphGutter = {
+  laneWidth: HISTORY_LANE_WIDTH,
+  lastLane: Number.POSITIVE_INFINITY,
+};
+
+export const PANEL_GUTTER: GraphGutter = {
+  laneWidth: HISTORY_PANEL_LANE_WIDTH,
+  lastLane: HISTORY_PANEL_LAST_LANE,
+};
+
+export function laneX(lane: number, gutter: GraphGutter = FULL_GUTTER) {
+  return (
+    HISTORY_GRAPH_INSET + Math.min(lane, gutter.lastLane) * gutter.laneWidth
+  );
+}
+
+export function historyGraphWidth(
+  rows: readonly GraphRow[],
+  gutter: GraphGutter = FULL_GUTTER,
+) {
   const occupiedLanes = rows.flatMap((row) => [
     row.lane,
     ...row.outgoing,
@@ -54,11 +77,7 @@ export function historyGraphWidth(rows: readonly GraphRow[]) {
       waitingFor === null || waitingFor === undefined ? [] : [lane],
     ),
   ]);
-  return (
-    HISTORY_GRAPH_INSET +
-    HISTORY_GRAPH_INSET +
-    Math.max(0, ...occupiedLanes) * HISTORY_LANE_WIDTH
-  );
+  return laneX(Math.max(0, ...occupiedLanes), gutter) + HISTORY_GRAPH_INSET;
 }
 
 export function ordinal(n: number) {

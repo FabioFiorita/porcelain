@@ -1,4 +1,7 @@
-import type { ReadPullRequestResponse } from '@porcelain/contracts/projects';
+import type {
+  PullRequestStatus,
+  ReadPullRequestResponse,
+} from '@porcelain/contracts/projects';
 
 export type PullRequestRead = ReadPullRequestResponse;
 
@@ -6,7 +9,10 @@ type LinkedPullRequest = Extract<
   ReadPullRequestResponse,
   { kind: 'available' }
 >['pullRequest'];
-type PullCheck = LinkedPullRequest['checks'][number];
+type PullCheck = Pick<
+  LinkedPullRequest['checks'][number],
+  'name' | 'status' | 'conclusion'
+>;
 type GitHubUnavailableReason = Extract<
   ReadPullRequestResponse,
   { kind: 'unavailable' }
@@ -83,7 +89,7 @@ export type RecordedCheck = {
   readonly detail: string | undefined;
 };
 
-export function recordedChecks(checks: {
+type CapturedChecks = {
   readonly headOid: string;
   readonly state: string;
   readonly checksTruncated: boolean;
@@ -91,7 +97,21 @@ export function recordedChecks(checks: {
     readonly name: string;
     readonly status: string;
   }[];
-}): { label: string; more: boolean; results: readonly RecordedCheck[] } {
+};
+
+const WRITTEN_WORDS: Record<PullChecksTone, string> = {
+  passed: 'Passing when written',
+  failed: 'Failing when written',
+  running: 'Running when written',
+  none: 'Checks when written',
+};
+
+export function recordedChecks(checks: CapturedChecks): {
+  label: string;
+  whenWritten: string;
+  more: boolean;
+  results: readonly RecordedCheck[];
+} {
   const rollup = pullRequestRollup(checks.state);
   const commit = checks.headOid.slice(0, 7);
   return {
@@ -99,6 +119,7 @@ export function recordedChecks(checks: {
       rollup.tone === 'none'
         ? `Checks at ${commit}`
         : `${rollup.label} at ${commit}`,
+    whenWritten: `${WRITTEN_WORDS[rollup.tone]}, at ${commit}`,
     more: checks.checksTruncated,
     results: checks.results.map(({ name, status }) => {
       const tone = checkResultTone(status);
@@ -159,10 +180,119 @@ export function pullRequestChecks(
   };
 }
 
-export function pullCheckTone(
-  check: PullCheck,
-): Exclude<PullChecksTone, 'none'> {
-  return checkOutcome(check);
+export function currentWalkthroughChecks(
+  captured: CapturedChecks,
+  live:
+    | {
+        readonly headSha: string;
+        readonly checksTruncated: boolean;
+        readonly checksSummary?: string | undefined;
+        readonly checks: readonly PullCheck[];
+      }
+    | undefined,
+) {
+  if (!live || live.headSha !== captured.headOid) return undefined;
+  const { tone } = pullRequestChecks(
+    live.checks,
+    live.checksTruncated,
+    live.checksSummary,
+  );
+  if (
+    tone === 'none' &&
+    (live.checksTruncated || live.checksSummary !== undefined)
+  )
+    return undefined;
+  const capturedTone = pullRequestRollup(captured.state).tone;
+  const changed = live.checks.filter((check) => {
+    const previous = captured.results.find(
+      (result) => result.name === check.name,
+    );
+    return (
+      previous !== undefined &&
+      checkResultTone(previous.status) !== checkOutcome(check)
+    );
+  });
+  if (tone === capturedTone && changed.length === 0) return undefined;
+  const labels: Record<PullChecksTone, string> = {
+    failed: 'Failing now',
+    passed: 'Passing now',
+    running: 'Running now',
+    none: 'No checks now',
+  };
+  const names = live.checks
+    .filter((check) => checkOutcome(check) === tone)
+    .map((check) => check.name);
+  return {
+    tone,
+    label: labels[tone],
+    names,
+    changed: changed.map((check) => ({
+      name: check.name,
+      tone: checkOutcome(check),
+      label: labels[checkOutcome(check)],
+    })),
+  };
+}
+
+export function checksHeadline(
+  captured: CapturedChecks,
+  live: Parameters<typeof currentWalkthroughChecks>[1],
+): {
+  tone: PullChecksTone;
+  label: string;
+  names: readonly string[];
+  note: string | undefined;
+} {
+  const recorded = recordedChecks(captured);
+  const now = currentWalkthroughChecks(captured, live);
+  if (!now)
+    return {
+      tone: pullRequestRollup(captured.state).tone,
+      label: recorded.label,
+      names: [],
+      note: undefined,
+    };
+  return {
+    tone: now.tone,
+    label: now.label,
+    names: now.names,
+    note: recorded.whenWritten,
+  };
+}
+
+export function walkthroughCheckRows<
+  Entry extends { readonly checks: CapturedChecks },
+>(
+  entries: readonly Entry[],
+  live: Parameters<typeof currentWalkthroughChecks>[1],
+) {
+  const rows = entries.map((entry) => ({
+    ...entry,
+    live: currentWalkthroughChecks(entry.checks, live),
+  }));
+  return {
+    changed: rows.flatMap(({ live: now, ...entry }) =>
+      now ? [{ ...entry, live: now }] : [],
+    ),
+    unchanged: rows.flatMap(({ live: now, ...entry }) => (now ? [] : [entry])),
+  };
+}
+
+export function withPullRequestStatus(
+  pull: LinkedPullRequest,
+  status: PullRequestStatus | undefined,
+): LinkedPullRequest {
+  if (!status) return pull;
+  return {
+    ...pull,
+    state: status.state,
+    draft: status.draft,
+    headSha: status.headSha,
+    mergeable: status.mergeable,
+    checks: status.checks,
+    checksTruncated: status.checksTruncated,
+    checksSummary: status.checksSummary,
+  };
 }
 
 export function pullRequestRollup(summary: string | undefined): {
@@ -191,7 +321,7 @@ export function githubUnavailable(reason: GitHubUnavailableReason): {
     case 'no-access':
       return {
         description:
-          'The chosen or detected GitHub account cannot open this repository. Choose another account or reset the choice in Settings › Reviews & Git.',
+          'The chosen or detected GitHub account cannot open this repository. Choose another account or reset the choice in Settings › Changes & Git.',
         action: { kind: 'settings', label: 'Choose an account' },
       };
     case 'gh-not-installed':
@@ -253,6 +383,81 @@ export function pullRequestMergeable(mergeable: string): {
   return { label: 'Not known yet', tone: 'none' };
 }
 
+export type PullRequestMergeMethod = 'merge' | 'squash' | 'rebase';
+
+const mergeMethodLabels: Record<PullRequestMergeMethod, string> = {
+  merge: 'Create a merge commit',
+  squash: 'Squash and merge',
+  rebase: 'Rebase and merge',
+};
+
+export function pullRequestMergeMethods(pull: {
+  readonly mergeMethods?: readonly PullRequestMergeMethod[] | undefined;
+}) {
+  return (pull.mergeMethods ?? ['merge', 'squash', 'rebase']).map((method) => ({
+    method,
+    label: mergeMethodLabels[method],
+  }));
+}
+
+export function mergeFailureMessage(error: unknown) {
+  return error instanceof Error && error.message
+    ? error.message
+    : 'The merge could not be completed. Check the pull request before trying again.';
+}
+
+export type PullRequestMergeReview = {
+  readonly headOid: string;
+  readonly undecidedCallStep: number | 'reading' | 'unreadable' | undefined;
+  readonly undecidedCalls?: number | undefined;
+  readonly callsNeedingCommit?: readonly number[] | undefined;
+};
+
+export function pullRequestMergeBlock(
+  pull: Pick<
+    LinkedPullRequest,
+    | 'state'
+    | 'draft'
+    | 'mergeable'
+    | 'checks'
+    | 'checksTruncated'
+    | 'checksSummary'
+    | 'baseBranch'
+    | 'headSha'
+  > & {
+    readonly mergeMethods?: readonly PullRequestMergeMethod[] | undefined;
+  },
+  review?: PullRequestMergeReview,
+): string | undefined {
+  if (pull.state === 'merged') return 'Already merged.';
+  if (pull.state === 'closed') return 'This pull request is closed.';
+  if (pull.draft) return 'It is a draft. Mark it ready for review on GitHub.';
+  if (pull.mergeMethods?.length === 0)
+    return 'This repository allows no merge method.';
+  if (pull.mergeable === 'CONFLICTING')
+    return `It conflicts with ${pull.baseBranch}.`;
+  const checks = pullRequestChecks(
+    pull.checks,
+    pull.checksTruncated,
+    pull.checksSummary,
+  );
+  if (checks.tone === 'failed' || checks.tone === 'running')
+    return checks.tone === 'failed'
+      ? `${checks.label.replace(/^Checks failing$/, 'Checks are failing')}.`
+      : `${checks.label.replace(/^Checks running$/, 'Checks are still running')}.`;
+  if (!review || review.headOid !== pull.headSha) return undefined;
+  if (review.undecidedCallStep === 'reading')
+    return 'Reading your decisions on the calls.';
+  if (review.undecidedCallStep === 'unreadable')
+    return 'Your decisions on the calls could not be read.';
+  if (review.undecidedCallStep !== undefined)
+    return `Your call in step ${review.undecidedCallStep} is not decided yet.`;
+  const needsCommit = review.callsNeedingCommit?.[0];
+  if (needsCommit !== undefined)
+    return `Your call in step ${needsCommit} needs a new commit.`;
+  return undefined;
+}
+
 export function pullReviewState(
   state: string | undefined,
 ): { label: string; tone: 'passed' | 'failed' | 'none' } | undefined {
@@ -270,16 +475,6 @@ export function pullRequestNumber(url: string): number | undefined {
 
 export function pullRequestRepository(url: string): string | undefined {
   return /^https:\/\/github\.com\/([^/]+\/[^/]+)\/pull\//.exec(url)?.[1];
-}
-
-export function pullCheckDuration(
-  durationMs: number | undefined,
-): string | undefined {
-  if (durationMs === undefined) return undefined;
-  const seconds = Math.floor(durationMs / 1000);
-  return seconds < 60
-    ? `${seconds}s`
-    : `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
 }
 
 export function pullRequestConversation(

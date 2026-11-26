@@ -9,7 +9,7 @@ test('finding in a file opened from the review sheet keeps focus while the sheet
   await repo.write(path, 'needle one\nneedle two\n');
   const openFile = async () => {
     await workspace
-      .getByRole('button', { name: 'Review', exact: true })
+      .getByRole('button', { name: 'Side panel', exact: true })
       .click();
     await workspace.getByRole('tab', { name: 'Files', exact: true }).click();
     await workspace

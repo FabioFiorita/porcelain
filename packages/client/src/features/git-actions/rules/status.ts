@@ -22,6 +22,7 @@ export type GitActionStatus = {
   mergeHeadOid?: string | null | undefined;
   headOid?: string | null | undefined;
   changes: readonly Change[];
+  omittedChanges?: number | undefined;
   files?: readonly { path: string; fingerprint: string | null | undefined }[];
   branch?: GitBranchStatus | null | undefined;
 };
@@ -36,6 +37,7 @@ export function statusFromChanges(
     headOid: changes.headOid,
     branch: changes.branch,
     changes: changes.changes.flatMap((entry) => entry.comparisons),
+    omittedChanges: changes.omittedChanges,
     files: changes.changes.map(({ path, fingerprint }) => ({
       path,
       fingerprint,
@@ -73,6 +75,28 @@ export function branchStatus(status: GitActionStatus): GitBranchStatus | null {
   return status.branch ?? null;
 }
 
+const wholeListWork: Partial<Record<GitAction, string>> = {
+  'stash-create': 'stash these changes',
+  'stash-apply': 'apply this stash',
+  'stash-pop': 'pop this stash',
+};
+
+export function unlistedCommitNote(status: GitActionStatus) {
+  return status.omittedChanges
+    ? `${status.omittedChanges.toLocaleString('en-US')} more changes are not listed and stay out of this commit.`
+    : null;
+}
+
+function unlistedChangesBlocker(action: GitAction, status: GitActionStatus) {
+  const work =
+    action === 'commit' && status.inProgress === 'merge'
+      ? 'commit this merge'
+      : wholeListWork[action];
+  return status.omittedChanges && work
+    ? `Not every change is listed here, so ${work} in a terminal.`
+    : null;
+}
+
 function hasConflicts(status: GitActionStatus) {
   return status.changes.some((change) => change.scope === 'unmerged');
 }
@@ -88,6 +112,8 @@ export function gitActionBlocker(
     return 'Finish or abort the merge first.';
   if (status.inProgress === 'merge' && !status.mergeHeadOid)
     return 'Finish this merge in a terminal.';
+  const unlisted = unlistedChangesBlocker(action, status);
+  if (unlisted) return unlisted;
   switch (action) {
     case 'switch':
       return status.changes.length

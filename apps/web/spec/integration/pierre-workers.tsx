@@ -1,4 +1,4 @@
-import { File } from '@pierre/diffs/react';
+import { CodeView, File } from '@pierre/diffs/react';
 import {
   WorkerPoolManager,
   type RenderFileRequest,
@@ -8,15 +8,8 @@ import {
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { vi } from 'vite-plus/test';
-import {
-  PierreCodeView,
-  PierreWorkers,
-} from '@/features/workspace/adapters/pierre-workers';
-import {
-  PIERRE_DECISION_THEME,
-  PIERRE_HIGHLIGHTER,
-  PIERRE_THEME,
-} from '@/shared/lib/pierre';
+import { PierreWorkers } from '@/features/workspace/adapters/pierre-workers';
+import { PIERRE_HIGHLIGHTER, PIERRE_THEME } from '@/shared/lib/pierre';
 
 export function observePierreWorkers() {
   const requests: WorkerRequest[] = [];
@@ -130,8 +123,7 @@ export function createMixedPierrePanes() {
                 preferredHighlighter: PIERRE_HIGHLIGHTER,
               }}
             />
-            <PierreCodeView
-              review
+            <CodeView
               items={[
                 {
                   id: 'review',
@@ -144,7 +136,7 @@ export function createMixedPierrePanes() {
                 },
               ]}
               options={{
-                theme: PIERRE_DECISION_THEME,
+                theme: PIERRE_THEME,
                 preferredHighlighter: PIERRE_HIGHLIGHTER,
               }}
               style={{ height: 200 }}

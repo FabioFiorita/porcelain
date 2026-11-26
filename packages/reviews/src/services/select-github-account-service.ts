@@ -5,7 +5,7 @@ import type {
   GitHubAccountResult,
   GitHubRepository,
 } from '../models/pull-request.ts';
-import { GitHubReader } from '../ports/github-reader.ts';
+import { GitHubReader, type GitHubFreshness } from '../ports/github-reader.ts';
 import {
   githubAccountCandidates,
   pickGitHubAccount,
@@ -15,9 +15,10 @@ export class SelectGitHubAccountService extends Context.Service<
   SelectGitHubAccountService,
   {
     readonly execute: (
-      input: GitHubRepository & {
-        preference: GitHubAccountPreference | undefined;
-      },
+      input: GitHubRepository &
+        GitHubFreshness & {
+          preference: GitHubAccountPreference | undefined;
+        },
     ) => Effect.Effect<GitHubAccountResult>;
   }
 >()('@porcelain/reviews/SelectGitHubAccountService') {
@@ -31,7 +32,10 @@ export class SelectGitHubAccountService extends Context.Service<
             const repository = `${input.owner}/${input.repo}`;
             const preference = input.preference;
             const override = preference?.override;
-            const accountsResult = yield* github.accounts().pipe(Effect.result);
+            const freshness = input.fresh ? { fresh: input.fresh } : {};
+            const accountsResult = yield* github
+              .accounts(freshness)
+              .pipe(Effect.result);
             if (accountsResult._tag === 'Failure')
               return {
                 repository,
@@ -60,7 +64,12 @@ export class SelectGitHubAccountService extends Context.Service<
             let unavailableReason: GitHubReadError['reason'] | undefined;
             for (const account of candidates) {
               const probe = yield* github
-                .canRead({ ...input, account })
+                .canRead({
+                  owner: input.owner,
+                  repo: input.repo,
+                  account,
+                  ...freshness,
+                })
                 .pipe(Effect.result);
               if (probe._tag === 'Failure') {
                 unavailableReason = probe.failure.reason;

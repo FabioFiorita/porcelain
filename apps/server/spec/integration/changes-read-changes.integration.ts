@@ -1,4 +1,7 @@
 import { readChangesResponseSchema } from '@porcelain/contracts/changes';
+import { mkdir, rm } from 'node:fs/promises';
+import { join } from 'node:path';
+import { CHANGED_PATHS } from '@porcelain/contracts/shared';
 import * as Schema from 'effect/Schema';
 import { expect } from 'vite-plus/test';
 import { apiError } from '../kit/answers.ts';
@@ -97,6 +100,44 @@ test('reading the changes of the sample unstaged change returns its entry, the h
       },
     ],
   });
+});
+
+test('a worktree with more changed files than the limit lists the first files and counts the rest', async ({
+  session,
+  onTestFinished,
+}) => {
+  await mkdir(join(session.repository, 'bulk/zz-folder'), { recursive: true });
+  onTestFinished(() =>
+    rm(join(session.repository, 'bulk'), { recursive: true }),
+  );
+  await Promise.all(
+    Array.from({ length: CHANGED_PATHS + 1 }, (_, index) =>
+      session.writeFile(
+        `bulk/file-${String(index).padStart(5, '0')}.txt`,
+        `${index}\n`,
+      ),
+    ),
+  );
+
+  const response = await session.send(changesRead(session));
+  const status = await session.send({
+    method: 'GET',
+    path: worktreePath(session, '/git/status'),
+  });
+
+  expect(response.status).toBe(200);
+  expect(status.status).toBe(200);
+  const listed = list(record(response.body).changes).map(
+    (change) => record(change).path,
+  );
+  expect(listed).toHaveLength(CHANGED_PATHS);
+  expect(listed).toContain(session.fixture.readme.path);
+  expect(listed).toContain('bulk/file-00000.txt');
+  expect(listed).not.toContain(
+    `bulk/file-${String(CHANGED_PATHS).padStart(5, '0')}.txt`,
+  );
+  expect(record(response.body).omittedChanges).toBe(2);
+  expect(record(status.body).omittedChanges).toBe(2);
 });
 
 test('reads that find the catalog entry stale refresh it and still answer the worktree as it was', async ({

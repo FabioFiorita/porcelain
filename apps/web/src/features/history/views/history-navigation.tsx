@@ -1,7 +1,5 @@
 import { historyPlace } from '@porcelain/client/history';
 import { TruncatedText } from '@/shared/views/truncated-text';
-import { Option } from 'effect';
-import { AsyncResult } from 'effect/reactivity';
 import {
   ChevronRightIcon,
   CircleDashedIcon,
@@ -11,13 +9,9 @@ import {
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Empty, EmptyHeader, EmptyTitle } from '@/components/ui/empty';
-import { useHistory } from '../queries/history';
+import { useHistoryOverview, type useHistory } from '../queries/history';
 import type { HistoryScope } from '@porcelain/client/history/rules';
-import {
-  branchTracking,
-  historyHeading,
-} from '@porcelain/client/history/rules';
-import { useReviewOverview } from '@/features/changes/index';
+import { historyHeading } from '@porcelain/client/history/rules';
 import { BranchTracking } from './branch-tracking';
 import { GraphRows } from './history-rows';
 import { type Connection } from '@/shared/workspace/connection';
@@ -41,11 +35,10 @@ export function HistoryNavigation({
   onOpenGraph: () => void;
   onOpenChanges: () => void;
 }) {
-  const history = useHistory(connection, scope);
-  const overview = Option.getOrUndefined(
-    AsyncResult.value(useReviewOverview(scope, connection)),
+  const { history, overview, overviewPending, tracking } = useHistoryOverview(
+    connection,
+    scope,
   );
-  const tracking = branchTracking(overview?.branch, history.snapshot);
   const uncommitted = overview?.changes.length ?? 0;
   const scroll = useHistoryScroll(
     historyPlace({ connection, scope, kind: 'commits' }),
@@ -81,9 +74,8 @@ export function HistoryNavigation({
             </button>
           </div>
         )}
-        {history.commits.length === 0 ? (
-          <NoCommits />
-        ) : (
+        {!overviewPending && history.commits.length === 0 && <NoCommits />}
+        {!overviewPending && history.commits.length > 0 && (
           <GraphRows
             label="Commits"
             layout="stacked"

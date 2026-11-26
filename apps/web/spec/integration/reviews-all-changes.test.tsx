@@ -63,19 +63,15 @@ test('All changes lists its files above the diff and marks them reviewed at desk
         }),
       )
       .toBeVisible();
+    await repo.write('notes.md', 'First note\nSecond note\n');
     await reviewLayout.openAllChanges();
     const table = workspace.getByRole('region', {
-      name: '1 uncommitted change',
+      name: '2 uncommitted changes',
       exact: true,
     });
     await expect
-      .element(table.getByText('0 of 1 file reviewed', { exact: true }))
+      .element(table.getByText('0 of 2 files reviewed', { exact: true }))
       .toBeVisible();
-    const row = table.getByRole('button', {
-      name: `${repo.readme.path} +2 −0`,
-      exact: true,
-    });
-    await expect.element(row).toHaveAttribute('aria-current', 'true');
     const reviewed = table.getByRole('checkbox', {
       name: `${repo.readme.path} reviewed`,
       exact: true,
@@ -84,7 +80,7 @@ test('All changes lists its files above the diff and marks them reviewed at desk
     await reviewed.click();
     await expect.element(reviewed).toHaveAttribute('aria-checked', 'true');
     await expect
-      .element(table.getByText('1 of 1 file reviewed', { exact: true }))
+      .element(table.getByText('1 of 2 files reviewed', { exact: true }))
       .toBeVisible();
     await expect
       .poll(async () =>
@@ -92,31 +88,29 @@ test('All changes lists its files above the diff and marks them reviewed at desk
       )
       .toEqual([repo.readme.path]);
 
-    await repo.write('notes.md', 'First note\nSecond note\n');
-    const both = workspace.getByRole('region', {
-      name: '2 uncommitted changes',
-      exact: true,
-    });
-    const notes = both.getByRole('button', {
+    const notes = table.getByRole('button', {
       name: 'notes.md +2 −0',
       exact: true,
     });
     await notes.click();
     await expect.element(notes).toHaveAttribute('aria-current', 'true');
+    const readme = table.getByRole('button', {
+      name: `${repo.readme.path} +2 −0`,
+      exact: true,
+    });
+    await expect.element(readme).not.toHaveAttribute('aria-current');
+    const code = workspace.getByRole('region', {
+      name: 'Code content',
+      exact: true,
+    });
     await expect
-      .element(
-        both.getByRole('button', {
-          name: `${repo.readme.path} +2 −0`,
-          exact: true,
-        }),
-      )
-      .not.toHaveAttribute('aria-current');
+      .element(code.getByText('Second note', { exact: true }))
+      .toBeVisible();
+    await readme.click();
+    await expect.element(readme).toHaveAttribute('aria-current', 'true');
+    await expect.element(notes).not.toHaveAttribute('aria-current');
     await expect
-      .element(
-        workspace
-          .getByRole('region', { name: 'Code content', exact: true })
-          .getByText('Second note', { exact: true }),
-      )
+      .element(code.getByText('A change to review.', { exact: true }))
       .toBeVisible();
   } finally {
     await page.viewport(414, 896);
@@ -207,6 +201,7 @@ test('All changes reopens a collapsed file from its table', async ({
   repo,
   reviewLayout,
 }) => {
+  await repo.write('zz-notes.md', 'A later file\n');
   await reviewLayout.openAllChanges();
   const code = workspace
     .getByRole('region', { name: 'Code content', exact: true })
@@ -217,10 +212,48 @@ test('All changes reopens a collapsed file from its table', async ({
     .click();
   await expect.element(code).not.toBeInTheDocument();
   await workspace
-    .getByRole('region', { name: '1 uncommitted change', exact: true })
+    .getByRole('region', { name: '2 uncommitted changes', exact: true })
     .getByRole('button', { name: `${repo.readme.path} +2 −0`, exact: true })
     .click();
   await expect.element(code).toBeVisible();
+});
+
+test('All changes with one file names it once, in its diff, under the count and review progress', async ({
+  workspace,
+  repo,
+  reviewLayout,
+}) => {
+  await reviewLayout.openAllChanges();
+  const table = workspace.getByRole('region', {
+    name: '1 uncommitted change',
+    exact: true,
+  });
+  await expect
+    .element(table.getByText('0 of 1 file reviewed', { exact: true }))
+    .toBeVisible();
+  const code = workspace.getByRole('region', {
+    name: 'Code content',
+    exact: true,
+  });
+  await expect
+    .element(code.getByText('A change to review.', { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(
+      table.getByRole('button', {
+        name: `${repo.readme.path} +2 −0`,
+        exact: true,
+      }),
+    )
+    .not.toBeInTheDocument();
+  await expect
+    .element(
+      code.getByRole('checkbox', {
+        name: `${repo.readme.path} reviewed`,
+        exact: true,
+      }),
+    )
+    .not.toBeInTheDocument();
 });
 
 test('All changes keeps the selected file when an earlier diff finishes loading', async ({

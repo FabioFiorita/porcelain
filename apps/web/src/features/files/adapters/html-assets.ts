@@ -1,6 +1,11 @@
 import { Effect } from 'effect';
 import { collectHtmlAssets } from '@porcelain/client/files';
-import type { PreviewAssetFailure } from '@porcelain/client/files';
+import type {
+  PreviewAssetFailure,
+  PreviewAssetSource,
+} from '@porcelain/client/files';
+import { PREVIEW_BRIDGE_SCRIPT } from '@porcelain/client/files/rules';
+import { repositoryReference } from '@porcelain/client/links/rules';
 import type { ReadFileAssetResponse as AssetResponse } from '@porcelain/contracts/files';
 import { FILE_PREVIEW_MAX_BYTES } from '@/config/limits';
 
@@ -8,19 +13,41 @@ import { assetUrl } from '../rules/html-assets';
 
 type ReadAssets = (
   paths: string[],
-) => Effect.Effect<Map<string, AssetResponse | null>, PreviewAssetFailure>;
+) => Effect.Effect<Map<string, PreviewAssetSource | null>, PreviewAssetFailure>;
 
 const STYLE_REFERENCE =
-  /url\(\s*(['"]?)([^)'"]+)\1\s*\)|@import\s+(['"])([^'"]+)\3/g;
+  /url\(\s*(['"]?)([^)'"]+)\1\s*\)|@import\s+(?:url\(\s*)?(['"])([^'"]+)\3\s*\)?\s*([^;]*);?/g;
 
 const PREVIEW_POLICY =
-  "default-src 'none'; script-src 'unsafe-inline' data:; style-src 'unsafe-inline' data:; img-src data: blob:; font-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'; frame-src 'none'";
+  "default-src 'none'; script-src 'unsafe-inline' data:; style-src 'unsafe-inline' data:; img-src data: blob:; media-src data: blob:; font-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'; frame-src 'none'";
 
-export function htmlFrameDocument(html: string) {
+function previewPolicy(mediaSources: readonly string[]) {
+  const sources = mediaSources.join(' ');
+  return mediaSources.length === 0
+    ? PREVIEW_POLICY
+    : PREVIEW_POLICY.replace(
+        'img-src data: blob:;',
+        `img-src data: blob: ${sources};`,
+      ).replace('media-src data: blob:;', `media-src data: blob: ${sources};`);
+}
+
+const MEDIA =
+  'img[src], script[src], source[src], video[src], audio[src], track[src], video[poster], image[href], input[type="image"][src]';
+
+export function htmlFrameDocument(
+  html: string,
+  scripts: { run: true } | { run: false; nonce: string },
+  mediaSources: readonly string[],
+) {
   const document = window.document.implementation.createHTMLDocument();
   const policy = document.createElement('meta');
   policy.httpEquiv = 'Content-Security-Policy';
-  policy.content = PREVIEW_POLICY;
+  policy.content = scripts.run
+    ? previewPolicy(mediaSources)
+    : previewPolicy(mediaSources).replace(
+        "script-src 'unsafe-inline' data:",
+        `script-src 'nonce-${scripts.nonce}'`,
+      );
   const style = document.createElement('style');
   style.textContent =
     'html, body { height: 100%; margin: 0; } iframe { display: block; width: 100%; height: 100%; border: 0; color-scheme: inherit; }';
@@ -38,25 +65,17 @@ export function htmlFrameDocument(html: string) {
 
 export const inlineHtmlAssets = Effect.fn('BrowserHtmlPreview.inlineAssets')(
   function* (html: string, path: string, readAssets: ReadAssets) {
-    const origin = 'https://porcelain-preview.invalid/';
-    const folder = path.includes('/')
-      ? `${path.slice(0, path.lastIndexOf('/'))}/`
-      : '';
-    const base = new URL(folder, origin);
     const failures = new Set<string>();
-    let assets = new Map<string, AssetResponse | null>();
+    let assets = new Map<string, PreviewAssetSource | null>();
     let expanded = 0;
 
     function resolve(value: string, parent: string) {
-      if (value.startsWith('data:') || value.startsWith('#')) return null;
-      const url = new URL(value, new URL(parent, origin));
-      if (url.origin !== base.origin) throw new Error('External asset');
-      if (!url.pathname.startsWith(base.pathname))
-        throw new Error('Outside the document folder');
-      return {
-        path: decodeURIComponent(url.pathname.slice(1)),
-        hash: url.hash,
-      };
+      if (value.startsWith('data:')) return null;
+      const reference = repositoryReference(parent, value);
+      if (reference.kind === 'fragment') return null;
+      if (reference.kind !== 'repository')
+        throw new Error('Not in the repository');
+      return reference;
     }
 
     function cssReferences(css: string, parent: string) {
@@ -81,28 +100,38 @@ export const inlineHtmlAssets = Effect.fn('BrowserHtmlPreview.inlineAssets')(
       );
     }
 
-    function reference(value: string, parent: string, ancestors: string[]) {
+    function budget(length: number) {
+      if (expanded + length > FILE_PREVIEW_MAX_BYTES)
+        throw new Error('Expanded preview too large');
+      expanded += length;
+    }
+
+    function stylesheet(value: string, parent: string, ancestors: string[]) {
+      const resolved = resolve(value, parent);
+      if (resolved === null) return '';
+      const asset = assets.get(resolved.path);
+      if (!asset || 'url' in asset || asset.mediaType !== 'text/css')
+        throw new Error('Unavailable');
+      if (ancestors.includes(resolved.path))
+        throw new Error('Circular stylesheet');
+      const css = rewriteStyles(decode(asset), resolved.path, [
+        ...ancestors,
+        resolved.path,
+      ]);
+      budget(css.length);
+      return css;
+    }
+
+    function reference(value: string, parent: string) {
       try {
         const resolved = resolve(value, parent);
         if (resolved === null) return value;
         const asset = assets.get(resolved.path);
-        if (!asset) throw new Error('Unavailable');
-        if (ancestors.includes(resolved.path))
-          throw new Error('Circular stylesheet');
-        const url =
-          asset.mediaType === 'text/css'
-            ? `data:text/css;charset=utf-8,${encodeURIComponent(
-                rewriteStyles(decode(asset), resolved.path, [
-                  ...ancestors,
-                  resolved.path,
-                ]),
-              )}`
-            : assetUrl(asset);
-        const reference = url + resolved.hash;
-        if (expanded + reference.length > FILE_PREVIEW_MAX_BYTES)
-          throw new Error('Expanded preview too large');
-        expanded += reference.length;
-        return reference;
+        if (!asset || ('mediaType' in asset && asset.mediaType === 'text/css'))
+          throw new Error('Unavailable');
+        const url = assetUrl(asset) + resolved.hash;
+        budget(url.length);
+        return url;
       } catch {
         failures.add(value);
         return 'data:,';
@@ -118,12 +147,17 @@ export const inlineHtmlAssets = Effect.fn('BrowserHtmlPreview.inlineAssets')(
       let end = 0;
       for (const match of css.matchAll(STYLE_REFERENCE)) {
         result += css.slice(end, match.index);
-        const url = reference(
-          (match[2] ?? match[4] ?? '').trim(),
-          parent,
-          ancestors,
-        );
-        result += match[4] ? `@import url("${url}")` : `url("${url}")`;
+        if (match[4] !== undefined) {
+          const media = (match[5] ?? '').trim();
+          try {
+            const imported = stylesheet(match[4].trim(), parent, ancestors);
+            result += media ? `@media ${media} {\n${imported}\n}` : imported;
+          } catch {
+            failures.add(match[4].trim());
+          }
+        } else {
+          result += `url("${reference((match[2] ?? '').trim(), parent)}")`;
+        }
         end = match.index + match[0].length;
       }
       return result + css.slice(end);
@@ -133,18 +167,34 @@ export const inlineHtmlAssets = Effect.fn('BrowserHtmlPreview.inlineAssets')(
     for (const node of document.querySelectorAll('base, meta[http-equiv]'))
       node.remove();
 
+    const links = [...document.querySelectorAll('link[href]')];
+    const sheets = links.filter((node) =>
+      (node.getAttribute('rel') ?? '')
+        .toLowerCase()
+        .split(/\s+/)
+        .includes('stylesheet'),
+    );
+    const icons = links.filter((node) =>
+      (node.getAttribute('rel') ?? '')
+        .toLowerCase()
+        .split(/\s+/)
+        .includes('icon'),
+    );
+    for (const node of links)
+      if (!sheets.includes(node) && !icons.includes(node)) node.remove();
+
     const elements = [
-      ...document.querySelectorAll(
-        'link[href], img[src], script[src], source[src], video[poster], image[href]',
+      ...[...document.querySelectorAll(MEDIA)].flatMap((node) =>
+        ['src', 'poster', 'href']
+          .filter(
+            (attribute) =>
+              node.hasAttribute(attribute) &&
+              !(attribute === 'href' && node.tagName.toLowerCase() !== 'image'),
+          )
+          .map((attribute) => ({ node, attribute })),
       ),
-    ].map((node) => ({
-      node,
-      attribute: node.hasAttribute('href')
-        ? 'href'
-        : node.hasAttribute('poster')
-          ? 'poster'
-          : 'src',
-    }));
+      ...icons.map((node) => ({ node, attribute: 'href' })),
+    ];
     const sets = [...document.querySelectorAll('[srcset]')];
     const inlineStyles = [
       ...document.querySelectorAll('style'),
@@ -162,6 +212,7 @@ export const inlineHtmlAssets = Effect.fn('BrowserHtmlPreview.inlineAssets')(
     };
     for (const { node, attribute } of elements)
       collectValue(node.getAttribute(attribute) ?? '');
+    for (const node of sheets) collectValue(node.getAttribute('href') ?? '');
     for (const node of sets)
       for (const candidate of srcsetCandidates(
         node.getAttribute('srcset') ?? '',
@@ -181,7 +232,7 @@ export const inlineHtmlAssets = Effect.fn('BrowserHtmlPreview.inlineAssets')(
     for (const { node, attribute } of elements) {
       node.setAttribute(
         attribute,
-        reference(node.getAttribute(attribute) ?? '', path, []),
+        reference(node.getAttribute(attribute) ?? '', path),
       );
       node.removeAttribute('integrity');
       node.removeAttribute('crossorigin');
@@ -192,7 +243,7 @@ export const inlineHtmlAssets = Effect.fn('BrowserHtmlPreview.inlineAssets')(
         srcsetCandidates(node.getAttribute('srcset') ?? '')
           .map(
             (candidate) =>
-              `${reference(candidate.url, path, [])}${
+              `${reference(candidate.url, path)}${
                 candidate.descriptor ? ` ${candidate.descriptor}` : ''
               }`,
           )
@@ -205,14 +256,49 @@ export const inlineHtmlAssets = Effect.fn('BrowserHtmlPreview.inlineAssets')(
         'style',
         rewriteStyles(node.getAttribute('style') ?? '', path),
       );
+    for (const node of sheets) {
+      const href = node.getAttribute('href') ?? '';
+      const style = document.createElement('style');
+      const media = node.getAttribute('media');
+      if (media) style.media = media;
+      try {
+        style.textContent = stylesheet(href, path, []);
+        node.replaceWith(style);
+      } catch {
+        failures.add(href);
+        node.remove();
+      }
+    }
+
+    const written = new Set(
+      [...document.querySelectorAll('a[href], area[href]')].map(
+        (node) => node.getAttribute('href') ?? '',
+      ),
+    );
 
     const policy = document.createElement('meta');
     policy.httpEquiv = 'Content-Security-Policy';
-    policy.content = PREVIEW_POLICY;
-    document.head.prepend(policy);
+    const mediaSources = [
+      ...new Set(
+        [...assets.values()].flatMap((asset) => {
+          if (!asset || !('url' in asset)) return [];
+          const url = new URL(asset.url);
+          return [`${url.protocol}//${url.host}${url.pathname}`];
+        }),
+      ),
+    ];
+    policy.content = previewPolicy(mediaSources);
+    const nonce = crypto.randomUUID();
+    const bridge = document.createElement('script');
+    bridge.setAttribute('nonce', nonce);
+    bridge.textContent = PREVIEW_BRIDGE_SCRIPT;
+    document.head.prepend(policy, bridge);
     return {
       html: `<!doctype html>${document.documentElement.outerHTML}`,
       missing: [...failures],
+      links: [...written],
+      nonce,
+      mediaSources,
     };
   },
 );

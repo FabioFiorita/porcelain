@@ -1,4 +1,7 @@
 import { listDirectoryResponseSchema } from '@porcelain/contracts/files';
+import { mkdir, rm } from 'node:fs/promises';
+import { join } from 'node:path';
+import { DIRECTORY_ENTRIES } from '@porcelain/contracts/shared';
 import * as Schema from 'effect/Schema';
 import { expect } from 'vite-plus/test';
 import { apiError, unreadablePath } from '../kit/answers.ts';
@@ -40,6 +43,38 @@ test('listing the root names each entry with its kind, flags an ignored file and
       { name: 'build.log', kind: 'file', ignored: true },
     ],
   });
+});
+
+test('a folder with more entries than the limit lists its first folders and files and counts the rest', async ({
+  session,
+  onTestFinished,
+}) => {
+  await mkdir(join(session.repository, 'bulk/zz-folder'), { recursive: true });
+  onTestFinished(() =>
+    rm(join(session.repository, 'bulk'), { recursive: true }),
+  );
+  await session.writeFile('bulk/zz-folder/inside.txt', 'inside\n');
+  await Promise.all(
+    Array.from({ length: DIRECTORY_ENTRIES + 1 }, (_, index) =>
+      session.writeFile(
+        `bulk/file-${String(index).padStart(5, '0')}.txt`,
+        `${index}\n`,
+      ),
+    ),
+  );
+
+  const response = await session.send(directory(session, 'bulk'));
+
+  expect(response.status).toBe(200);
+  const entries = list(record(response.body).entries).map(record);
+  expect(entries).toHaveLength(DIRECTORY_ENTRIES);
+  expect(entries).toContainEqual({ name: 'zz-folder', kind: 'directory' });
+  expect(entries).toContainEqual({ name: 'file-00000.txt', kind: 'file' });
+  expect(entries).not.toContainEqual({
+    name: `file-${String(DIRECTORY_ENTRIES).padStart(5, '0')}.txt`,
+    kind: 'file',
+  });
+  expect(record(response.body).omitted).toBe(2);
 });
 
 test('listing a folder that does not exist is not found', async ({

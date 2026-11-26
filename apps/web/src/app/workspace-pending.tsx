@@ -1,12 +1,31 @@
 import { StateSpinner } from '@/shared/views/state-notice';
+import { useOptionalSidebar } from '@/components/ui/sidebar';
+import { useReviewPanelOpen } from '@/features/workspace/index';
+import { cn } from '@/shared/lib/utils';
 
 export function WorkspacePending() {
+  const { open } = useReviewPanelOpen();
+  const navigatorOpen = useOptionalSidebar()?.open ?? true;
   return (
-    <div className="flex min-h-svh w-full gap-2 bg-muted p-2">
-      <div className="hidden w-66 shrink-0 rounded-xl bg-sidebar md:block" />
-      <div className="flex min-w-0 flex-1 rounded-paper border bg-background">
+    <div
+      className={cn(
+        'relative flex h-svh w-full bg-frame p-2 max-md:p-0',
+        !navigatorOpen && 'desktop-workspace-without-navigator',
+      )}
+    >
+      {navigatorOpen && (
+        <div aria-hidden="true" className="hidden w-64 shrink-0 md:block" />
+      )}
+      <div className="flex min-w-0 flex-1 rounded-paper border bg-card max-md:rounded-none max-md:border-0">
         <StateSpinner label="Opening Porcelain" />
       </div>
+      {open && (
+        <div
+          aria-hidden="true"
+          className="ml-2 hidden w-80 shrink-0 rounded-paper bg-card shadow-paper xl:block"
+        />
+      )}
+      <div aria-hidden="true" className="hidden w-11 shrink-0 xl:block" />
     </div>
   );
 }

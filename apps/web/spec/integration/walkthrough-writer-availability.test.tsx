@@ -25,12 +25,13 @@ test('an unwritten walkthrough offers one action: checking writers until one is 
   });
   await expect.element(write).not.toBeInTheDocument();
   await codingTool.install();
-  await page
-    .getByRole('button', { name: 'Check writers again', exact: true })
-    .click();
+  await page.getByRole('button', { name: 'Check again', exact: true }).click();
   await expect
     .element(
-      page.getByText('Since main · Claude / Opus 5.5 · high', { exact: true }),
+      page.getByRole('button', {
+        name: 'Writer: Claude / Opus 5.5 · high',
+        exact: true,
+      }),
     )
     .toBeVisible();
   await expect.element(write).toBeEnabled();
@@ -107,7 +108,7 @@ test('project automation stays editable when no writers are available and checki
   await expect.element(dialog).not.toBeInTheDocument();
   await open();
   const check = dialog.getByRole('button', {
-    name: 'Check writers again',
+    name: 'Check again',
     exact: true,
   });
   await check.click();
@@ -171,7 +172,12 @@ test('an unavailable project override opens its own settings and clearing it ena
     .toEqual({ mode: 'manual' });
   await expect.element(dialog).not.toBeInTheDocument();
   await expect
-    .element(page.getByText(/^Since .+ · Claude \/ Opus 5\.5 · high$/u))
+    .element(
+      page.getByRole('button', {
+        name: 'Writer: Claude / Opus 5.5 · high',
+        exact: true,
+      }),
+    )
     .toBeVisible();
   await expect.element(write).toBeEnabled();
 });
@@ -183,7 +189,7 @@ const unsupportedWriter = {
 } as const;
 const unsupportedNote = "Fixture model doesn't support high effort.";
 
-test('disables Write and Save until the saved effort is changed', async ({
+test('hides Write and disables Save until the saved effort is changed', async ({
   repo,
   render,
   codingTool,
@@ -205,7 +211,7 @@ test('disables Write and Save until the saved effort is changed', async ({
   await expect
     .element(page.getByText(unsupportedNote, { exact: true }))
     .toBeVisible();
-  await expect.element(write).toBeDisabled();
+  await expect.element(write).not.toBeInTheDocument();
   await page
     .getByRole('button', { name: 'Project walkthrough settings', exact: true })
     .click();
@@ -236,7 +242,7 @@ test.for([
   ['pr', 'Update walkthrough'],
   ['failed-update', 'Try again'],
 ] as const)(
-  'blocks the %s writer action when the saved effort disappears',
+  'hides the %s writer action when the saved effort disappears',
   async ([scenario, button], { repo, render, codingTool, server }) => {
     await conversationFixture(scenario);
     const project = await server.project();
@@ -248,11 +254,11 @@ test.for([
     await codingTool.codexEffort(false);
     const { page } = await render.route('/');
     await expect
-      .element(page.getByRole('button', { name: button, exact: true }))
-      .toBeDisabled();
-    await expect
       .element(page.getByText(unsupportedNote, { exact: true }))
       .toBeVisible();
+    await expect
+      .element(page.getByRole('button', { name: button, exact: true }))
+      .not.toBeInTheDocument();
     await page
       .getByRole('button', {
         name: 'Project walkthrough settings',
@@ -300,7 +306,7 @@ test('a failed writer check leaves Update usable and can be checked again', asyn
   try {
     const { page } = await render.route('/');
     const note = page.getByText(
-      'Could not check writers on the connected computer.',
+      'Could not check Claude Code or Codex on the connected computer.',
       {
         exact: true,
       },
@@ -312,7 +318,7 @@ test('a failed writer check leaves Update usable and can be checked again', asyn
       )
       .toBeEnabled();
     const check = page.getByRole('button', {
-      name: 'Check writers again',
+      name: 'Check again',
       exact: true,
     });
     restore();
@@ -341,7 +347,7 @@ test('checks a missing writer again after sign-in without leaving a ready walkth
     name: 'Update walkthrough',
     exact: true,
   });
-  await expect.element(update).toBeDisabled();
+  await expect.element(update).not.toBeInTheDocument();
   await expect
     .element(
       page.getByText('Codex / fixture-model · high is unavailable.', {
@@ -352,7 +358,7 @@ test('checks a missing writer again after sign-in without leaving a ready walkth
   await codingTool.codexEffort(true);
   await page
     .getByRole('button', {
-      name: 'Check writers again',
+      name: 'Check again',
       exact: true,
     })
     .click();
@@ -407,13 +413,8 @@ test.for(['default', 'project'] as const)(
     await codingTool.codexEffort(false);
     await save.click();
     await expect
-      .element(
-        form.getByText(
-          `UnsupportedWalkthroughEffortError: ${unsupportedNote}`,
-          { exact: true },
-        ),
-      )
-      .toBeVisible();
+      .element(form.getByRole('alert'))
+      .toHaveTextContent(unsupportedNote);
     await expect.element(save).toBeDisabled();
     await effort.click();
     await expect

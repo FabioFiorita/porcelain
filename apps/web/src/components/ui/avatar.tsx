@@ -4,7 +4,7 @@ import {
   AvatarFallback as AvatarFallbackPrimitive,
   AvatarImage as AvatarImagePrimitive,
 } from '@ui-sdk/react/avatar';
-import { cn } from 'cn';
+import { cn } from '@/shared/lib/utils';
 
 function Avatar({
   className,

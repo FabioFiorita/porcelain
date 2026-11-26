@@ -1,4 +1,5 @@
-import { useAtom } from '@effect/atom-react';
+import { useAtom, useAtomSet } from '@effect/atom-react';
+import { Atom } from 'effect/reactivity';
 import { useConfirmedRead } from '@/shared/query/confirmed-read';
 import { Effect, Exit, Cause } from 'effect';
 import {
@@ -17,8 +18,12 @@ const withoutTrailingSlash = (path: string) => path.replace(/\/$/, '');
 export function useEditFile(connection: RuntimeConnection, scope: FilesScope) {
   const command = editFile({ connection, scope });
   const [result, submit] = useAtom(command, { mode: 'promiseExit' });
+  const set = useAtomSet(command);
   return {
     result,
+    reset: () => {
+      if (!result.waiting) set(Atom.Reset);
+    },
     create: (
       path: string,
       entryKind: 'file' | 'directory',

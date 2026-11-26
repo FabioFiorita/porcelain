@@ -50,6 +50,7 @@ export const gitChangeStatusReaderLayer = (open: OpenInspection) =>
                     behind: status.branch.behind,
                   },
                   changes: status.changes.map(fromGitChange),
+                  omittedChanges: status.omittedChanges,
                 };
               }).pipe(provideGit),
             ),

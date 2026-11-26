@@ -1,12 +1,15 @@
 import { expect, it } from 'vite-plus/test';
 import {
+  checksHeadline,
+  currentWalkthroughChecks,
+  walkthroughCheckRows,
   githubUnavailable,
   pullRequestChecks,
   pullRequestConversation,
   type PullRequestRead,
-  pullCheckDuration,
-  pullCheckTone,
   pullRequestMergeable,
+  pullRequestMergeBlock,
+  pullRequestMergeMethods,
   pullRequestNumber,
   pullRequestRepository,
   pullRequestRollup,
@@ -89,7 +92,7 @@ it.each([
 
 it('sends a missing account to Settings by name', () => {
   expect(githubUnavailable('no-access').description).toBe(
-    'The chosen or detected GitHub account cannot open this repository. Choose another account or reset the choice in Settings › Reviews & Git.',
+    'The chosen or detected GitHub account cannot open this repository. Choose another account or reset the choice in Settings › Changes & Git.',
   );
 });
 
@@ -116,17 +119,6 @@ it('reads the number and repository from a pull request link', () => {
   expect(pullRequestNumber(url)).toBe(482);
   expect(pullRequestRepository(url)).toBe('FabioFiorita/porcelain');
   expect(pullRequestNumber('https://github.com/a/b')).toBeUndefined();
-});
-
-it.each([
-  [undefined, undefined],
-  [0, '0s'],
-  [4000, '4s'],
-  [108000, '1m 48s'],
-  [59999, '59s'],
-  [3600000, '60m 0s'],
-] as const)('formats check duration %s', (duration, expected) => {
-  expect(pullCheckDuration(duration)).toBe(expected);
 });
 
 it.each([
@@ -185,16 +177,6 @@ it.each([
     expect(pullRequestChecks([passed], true, summary)).toEqual(expected);
   },
 );
-
-it.each([
-  [passed, 'passed'],
-  [failed, 'failed'],
-  [running, 'running'],
-  [{ ...failed, conclusion: 'STALE' }, 'failed'],
-  [{ ...passed, conclusion: 'EXPECTED' }, 'running'],
-] as const)('reports the individual check %j as %s', (check, expected) => {
-  expect(pullCheckTone(check)).toBe(expected);
-});
 
 it('counts a required status that has not reported as running', () => {
   expect(
@@ -278,6 +260,7 @@ it('names each recorded check result and the commit it ran on', () => {
     ]),
   ).toEqual({
     label: 'Checks failing at abcdef1',
+    whenWritten: 'Failing when written, at abcdef1',
     more: true,
     results: [
       { name: 'Unit', tone: 'passed', label: 'Passed', detail: undefined },
@@ -301,4 +284,225 @@ it('names each recorded check result and the commit it ran on', () => {
   });
   expect(recorded('PENDING', []).label).toBe('Checks running at abcdef1');
   expect(recorded('SOMETHING_NEW', []).label).toBe('Checks at abcdef1');
+});
+
+const mergeablePull = {
+  state: 'open',
+  draft: false,
+  mergeable: 'MERGEABLE',
+  checks: [passed],
+  checksTruncated: false,
+  checksSummary: 'SUCCESS',
+  baseBranch: 'main',
+  headSha: '653d8396c7c1b6a503c3096d3f46a0f45cf33ca8',
+} as const;
+
+it.each([
+  [{}, undefined],
+  [{ state: 'closed' }, 'This pull request is closed.'],
+  [{ draft: true }, 'It is a draft. Mark it ready for review on GitHub.'],
+  [{ mergeMethods: [] }, 'This repository allows no merge method.'],
+  [{ mergeable: 'CONFLICTING' }, 'It conflicts with main.'],
+  [{ mergeable: 'UNKNOWN' }, undefined],
+  [{ checks: [passed, failed] }, '1 of 2 checks failed.'],
+  [{ checks: [passed, running, pending] }, '2 of 3 checks running.'],
+  [
+    { checks: [passed], checksTruncated: true, checksSummary: 'PENDING' },
+    'Checks are still running.',
+  ],
+] as const)('explains why %o cannot merge', (change, reason) => {
+  expect(pullRequestMergeBlock({ ...mergeablePull, ...change })).toBe(reason);
+});
+
+it('blocks an undecided call only for the head that would merge', () => {
+  expect(
+    pullRequestMergeBlock(mergeablePull, {
+      headOid: mergeablePull.headSha,
+      undecidedCallStep: undefined,
+    }),
+  ).toBeUndefined();
+  expect(
+    pullRequestMergeBlock(mergeablePull, {
+      headOid: 'ba370399bd1b3ac1a2c5a1d0f00df00df00df00d',
+      undecidedCallStep: 2,
+    }),
+  ).toBeUndefined();
+  expect(
+    pullRequestMergeBlock(mergeablePull, {
+      headOid: mergeablePull.headSha,
+      undecidedCallStep: 2,
+    }),
+  ).toBe('Your call in step 2 is not decided yet.');
+  expect(
+    pullRequestMergeBlock(mergeablePull, {
+      headOid: mergeablePull.headSha,
+      undecidedCallStep: 'reading',
+    }),
+  ).toBe('Reading your decisions on the calls.');
+  expect(
+    pullRequestMergeBlock(mergeablePull, {
+      headOid: mergeablePull.headSha,
+      undecidedCallStep: 'unreadable',
+    }),
+  ).toBe('Your decisions on the calls could not be read.');
+  expect(
+    pullRequestMergeBlock(
+      { ...mergeablePull, checks: [failed] },
+      { headOid: mergeablePull.headSha, undecidedCallStep: 2 },
+    ),
+  ).toBe('1 of 1 check failed.');
+});
+
+it('offers the merge methods the repository allows, or all three when unknown', () => {
+  expect(
+    pullRequestMergeMethods({ mergeMethods: ['squash'] }).map(
+      ({ label }) => label,
+    ),
+  ).toEqual(['Squash and merge']);
+  expect(pullRequestMergeMethods({}).map(({ method }) => method)).toEqual([
+    'merge',
+    'squash',
+    'rebase',
+  ]);
+});
+
+it('puts the live result first when the same captured head starts failing', () => {
+  const captured = {
+    headOid: 'abc1234',
+    state: 'SUCCESS',
+    checksTruncated: false,
+    results: [{ name: 'Browser tests', status: 'SUCCESS' }],
+  };
+  const live = {
+    headSha: 'abc1234',
+    checks: [
+      { name: 'Browser tests', status: 'COMPLETED', conclusion: 'FAILURE' },
+    ],
+    checksTruncated: false,
+  };
+  expect(currentWalkthroughChecks(captured, live)).toEqual({
+    tone: 'failed',
+    label: 'Failing now',
+    names: ['Browser tests'],
+    changed: [{ name: 'Browser tests', tone: 'failed', label: 'Failing now' }],
+  });
+  expect(recordedChecks(captured).label).toBe('Checks passing at abc1234');
+  expect(recordedChecks(captured).whenWritten).toBe(
+    'Passing when written, at abc1234',
+  );
+  expect(
+    currentWalkthroughChecks(captured, { ...live, headSha: 'def5678' }),
+  ).toBeUndefined();
+  expect(currentWalkthroughChecks(captured, undefined)).toBeUndefined();
+  expect(
+    currentWalkthroughChecks(captured, {
+      ...live,
+      checks: [
+        { name: 'Browser tests', status: 'COMPLETED', conclusion: 'SUCCESS' },
+      ],
+    }),
+  ).toBeUndefined();
+});
+
+it('moves a step’s checks out of Verified only while GitHub now disagrees with what was written', () => {
+  const passing = {
+    headOid: 'abc1234',
+    state: 'SUCCESS',
+    checksTruncated: false,
+    results: [{ name: 'Browser tests', status: 'SUCCESS' }],
+  };
+  const failing = { ...passing, headOid: 'fed4321' };
+  const rows = walkthroughCheckRows(
+    [
+      { step: 1, checks: passing },
+      { step: 2, checks: failing },
+    ],
+    {
+      headSha: 'abc1234',
+      checksTruncated: false,
+      checks: [
+        { name: 'Browser tests', status: 'COMPLETED', conclusion: 'FAILURE' },
+      ],
+    },
+  );
+  expect(rows.changed).toEqual([
+    {
+      step: 1,
+      checks: passing,
+      live: {
+        tone: 'failed',
+        label: 'Failing now',
+        names: ['Browser tests'],
+        changed: [
+          { name: 'Browser tests', tone: 'failed', label: 'Failing now' },
+        ],
+      },
+    },
+  ]);
+  expect(rows.unchanged).toEqual([{ step: 2, checks: failing }]);
+  expect(
+    walkthroughCheckRows([{ step: 1, checks: passing }], undefined),
+  ).toEqual({ changed: [], unchanged: [{ step: 1, checks: passing }] });
+});
+
+it('recognizes that the failing check changed even when the overall rollup stayed red', () => {
+  const captured = {
+    headOid: 'abc1234',
+    state: 'FAILURE',
+    checksTruncated: false,
+    results: [
+      { name: 'Build', status: 'FAILURE' },
+      { name: 'Browser tests', status: 'SUCCESS' },
+    ],
+  };
+  expect(
+    currentWalkthroughChecks(captured, {
+      headSha: 'abc1234',
+      checksTruncated: false,
+      checks: [
+        { name: 'Build', status: 'COMPLETED', conclusion: 'SUCCESS' },
+        { name: 'Browser tests', status: 'COMPLETED', conclusion: 'FAILURE' },
+      ],
+    }),
+  ).toEqual({
+    tone: 'failed',
+    label: 'Failing now',
+    names: ['Browser tests'],
+    changed: [
+      { name: 'Build', tone: 'passed', label: 'Passing now' },
+      { name: 'Browser tests', tone: 'failed', label: 'Failing now' },
+    ],
+  });
+});
+
+it('leads a step’s checks with what fails now and keeps the written result second', () => {
+  const captured = {
+    headOid: 'abc1234',
+    state: 'SUCCESS',
+    checksTruncated: false,
+    results: [
+      { name: 'Unit tests', status: 'SUCCESS' },
+      { name: 'Browser tests', status: 'SUCCESS' },
+    ],
+  };
+  const live = {
+    headSha: 'abc1234',
+    checksTruncated: false,
+    checks: [
+      { name: 'Unit tests', status: 'COMPLETED', conclusion: 'SUCCESS' },
+      { name: 'Browser tests', status: 'COMPLETED', conclusion: 'FAILURE' },
+    ],
+  };
+  expect(checksHeadline(captured, live)).toEqual({
+    tone: 'failed',
+    label: 'Failing now',
+    names: ['Browser tests'],
+    note: 'Passing when written, at abc1234',
+  });
+  expect(checksHeadline(captured, undefined)).toEqual({
+    tone: 'passed',
+    label: 'Checks passing at abc1234',
+    names: [],
+    note: undefined,
+  });
 });

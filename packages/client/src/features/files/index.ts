@@ -23,9 +23,13 @@ export {
 export type { FileDraftWriteFailure } from './ports/file-draft-writer.ts';
 
 export { readHtmlPreview } from './queries/html-preview.ts';
+export { readPreviewAsset } from './queries/preview-asset.ts';
 export {
   HtmlPreviewPlatform,
   HtmlPreviewUnavailable,
 } from './ports/html-preview-platform.ts';
 export { collectHtmlAssets } from './commands/html-assets.ts';
-export type { PreviewAssetFailure } from './ports/html-preview-platform.ts';
+export type {
+  PreviewAssetFailure,
+  PreviewAssetSource,
+} from './ports/html-preview-platform.ts';

@@ -1,6 +1,7 @@
 ---
 route: /
 selectors:
+  - 'Side panel'
   - 'Review'
   - 'Worktree review'
   - 'Files'
@@ -40,7 +41,7 @@ For the move, press on the source row, moves onto the target row and releases th
 
 1. Navigate to `/`
    Expect: title "Review — repository".
-2. Click button `Review`
+2. Click button `Side panel`
    Expect: dialog "Worktree review".
 3. Click tab `Files`
    Expect: the tree in region "All files" with treeitems "archive" (a collapsed folder), "clash.md", "move-me.md" and "README.md".

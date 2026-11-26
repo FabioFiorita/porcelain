@@ -20,7 +20,7 @@ it('refuses Pull when the computer’s settings cannot be read before reading Gi
     pull: {
       kind: 'blocked',
       reason:
-        'Reviews & Git settings could not be read. The computer is offline.',
+        'Changes & Git settings could not be read. The computer is offline.',
     },
     notify: (notice) => notices.push(notice),
     onProgress: () => calls.push('progress'),
@@ -47,7 +47,7 @@ it('refuses Pull when the computer’s settings cannot be read before reading Gi
     {
       title: 'Pull did not run',
       description:
-        'Reviews & Git settings could not be read. The computer is offline.',
+        'Changes & Git settings could not be read. The computer is offline.',
       type: 'error',
     },
   ]);

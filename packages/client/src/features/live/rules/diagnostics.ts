@@ -7,6 +7,7 @@ export const liveDiagnosticSchema = Schema.Struct({
     'Server ready',
     'Connected',
     'Retry scheduled',
+    'Retry requested',
     'Socket closed',
     'Socket error',
     'Liveness timeout',

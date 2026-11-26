@@ -1,6 +1,7 @@
 ---
 route: /
 selectors:
+  - "Side panel"
   - "Review"
   - "History"
   - "Start of history."
@@ -17,9 +18,9 @@ History lists the checked-out branch's commits down to "Start of history.", show
 
 ## How to get to it (user POV)
 
-- Phone width: button "Review" (top right of the document tabs) opens the sheet "Worktree review" → tab "History".
+- Phone width: button "Side panel" (top right of the document tabs) opens the sheet "Worktree review" → tab "History".
 - Desktop width (1280 px and wider): the review sidebar stands beside the document → tab "History".
-- Shortcut `Alt+3` (focus outside a text field) switches the review surface to History; at phone width the sheet still has to be opened with "Review".
+- Shortcut `Alt+3` (focus outside a text field) switches the review surface to History; at phone width the sheet still has to be opened with "Side panel".
 - URL: `?surface=history` on the workspace route.
 
 ## Driving it with browser
@@ -34,7 +35,7 @@ git -C "$REPO" branch before-commit
 
 ### 1. A commit made on disk shows above the start of history
 
-1. Click button `Review`
+1. Click button `Side panel`
    Expect: dialog "Worktree review" with a tablist holding tabs "Files", "Changes", "History".
 2. Click tab `History`
    Expect: tab "History" selected; URL has `surface=history`; the current document stays open (title "Review — repository" on the start fixture); one row, a button whose name starts "Initial commit" and goes on with the 7-character id, "Porcelain Development", the age and the ref chips "before-commit" and "main"; text "Start of history." below it.

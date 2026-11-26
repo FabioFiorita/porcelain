@@ -60,6 +60,7 @@ it('lists signed-in installed writers, includes Opus, and uses each Codex modelâ
       provider: 'claude',
       model: 'claude-opus-5-5',
       label: 'Opus 5.5',
+      family: 'Opus',
       efforts: ['low', 'medium', 'high', 'xhigh', 'max'],
       defaultEffort: 'high',
     });

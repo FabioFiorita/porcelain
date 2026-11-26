@@ -70,6 +70,7 @@ const view = (
   runId: 'run',
   pullRequestNumber,
   conversations,
+  decisions: [],
 });
 
 describe('walkthrough conversation rules', () => {
@@ -167,6 +168,7 @@ it('keeps whole-walkthrough and removed-stop threads together near the end', () 
         runId: 'run',
         pullRequestNumber: undefined,
         conversations: [whole, current, removed],
+        decisions: [],
       },
       ['Kept stop'],
     ),

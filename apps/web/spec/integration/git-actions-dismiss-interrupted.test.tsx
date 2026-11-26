@@ -18,7 +18,7 @@ test('a commit that Git never finishes ends interrupted, and its notice stays un
     .click();
   await expect
     .element(dialog.getByRole('alert'))
-    .toHaveTextContent('outcome unknown');
+    .toHaveTextContent('Porcelain could not confirm the outcome.');
   await userEvent.keyboard('{Escape}');
   await expect.element(dialog).not.toBeInTheDocument();
 

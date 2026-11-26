@@ -1,6 +1,7 @@
 ---
 route: /$projectId/$worktreeId
 selectors:
+  - 'Side panel'
   - 'Review'
   - 'Files'
   - 'Open file'
@@ -37,18 +38,18 @@ printf 'binary\000content\n' > "$REPO/data.bin"
 
 ### 1. An image opened from the file tree shows as a picture
 
-1. Navigate to `/`, click button `Review`, click tab `Files`
+1. Navigate to `/`, click button `Side panel`, click tab `Files`
    Expect: treeitems "logo.svg", "pixel.png" and "data.bin".
 2. Click treeitem `logo.svg`
    Expect: the sheet closes; tab "logo.svg" selected; heading "logo.svg"; img "logo.svg"; buttons "Timeline" and "Copy path" (no "Edit"). The screenshot shows a teal square.
-3. Click button `Review`, then click treeitem named `pixel.png`
+3. Click button `Side panel`, then click treeitem named `pixel.png`
    Expect: img "pixel.png" (a 1 by 1 pixel PNG).
 4. Inspect HTTP traffic
    Expect: `GET /api/worktrees/<id>/asset?path=logo.svg` and `...asset?path=pixel.png` answered 200, and no `GET .../text` for either.
 
 ### 2. A binary file opened from the file tree is not shown as text and says why
 
-1. Click button `Review`, then right-click treeitem named `data.bin`
+1. Click button `Side panel`, then right-click treeitem named `data.bin`
    Expect: menuitems "Open diff" and "Open file".
 2. Click menuitem `Open file`
    Expect: tab "data.bin" selected; heading "data.bin"; the one line "This file is binary or uses an unsupported text encoding."; no button "Edit".

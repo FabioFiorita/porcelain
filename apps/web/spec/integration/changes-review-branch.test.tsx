@@ -20,7 +20,9 @@ test.for([1280, 414])(
       const page = app.page;
       const search = () => new URL(app.location(), 'http://test').searchParams;
       if (width === 414)
-        await page.getByRole('button', { name: 'Review', exact: true }).click();
+        await page
+          .getByRole('button', { name: 'Side panel', exact: true })
+          .click();
       if (width === 414)
         await page
           .getByRole('complementary', {
@@ -73,3 +75,58 @@ test.for([1280, 414])(
     }
   },
 );
+
+test('a lone branch file names its path once with its line counts', async ({
+  render,
+  repo,
+  server,
+  reviewLayout,
+}) => {
+  await browserPage.viewport(1280, 896);
+  try {
+    await repo.branch('feature');
+    await repo.switch('feature');
+    await repo.write('notes.md', 'first line\nsecond line\n');
+    await repo.commit('Add notes');
+    await expect
+      .poll(async () =>
+        (await server.branchChanges()).files.map((file) => file.path),
+      )
+      .toEqual([repo.readme.path, 'notes.md']);
+    const { page } = await render.route('/');
+    await page
+      .getByRole('navigation', { name: 'Side panel', exact: true })
+      .getByRole('button', { name: 'Changes', exact: true })
+      .click();
+    const sidebar = page.getByRole('complementary', {
+      name: 'Review sidebar',
+      exact: true,
+    });
+    await sidebar.getByRole('tab', { name: 'Branch', exact: true }).click();
+    await sidebar
+      .getByRole('button', { name: 'notes.md · added', exact: true })
+      .click();
+
+    const single = page.getByRole('region', {
+      name: 'Code content',
+      exact: true,
+    });
+    await expect
+      .element(single.getByText('second line', { exact: true }))
+      .toBeVisible();
+    await expect
+      .element(single.getByText('notes.md · on the branch', { exact: true }))
+      .toBeVisible();
+    await expect.element(single.getByText('+2', { exact: true })).toBeVisible();
+    await expect.element(single.getByText('−0', { exact: true })).toBeVisible();
+    await expect.poll(() => reviewLayout.fileHeaders(single)).toEqual([]);
+
+    await sidebar.getByRole('button', { name: /^All branch changes/u }).click();
+    const all = page
+      .getByRole('tabpanel', { name: 'All branch changes', exact: true })
+      .getByRole('region', { name: 'Code content', exact: true });
+    await expect.poll(() => reviewLayout.fileHeaders(all).length).toBe(2);
+  } finally {
+    await browserPage.viewport(414, 896);
+  }
+});

@@ -1,6 +1,7 @@
 import { WalkthroughModelReader } from '@porcelain/walkthroughs/ports';
 import { installedWalkthroughModelReaderLayer } from '@porcelain/agents/walkthrough-writing';
 import { ghPullRequestReaderLayer } from '../adapters/reviews/gh-pull-request-reader.ts';
+import { makeGitHubAccessMemo } from '../adapters/reviews/github-access-memo.ts';
 import { IdSource } from '@porcelain/kernel/ports';
 import { DeviceConnectionStore } from '../ports/device-connection-store.ts';
 import { TunnelConnectionStore } from '../ports/tunnel-connection-store.ts';
@@ -69,6 +70,7 @@ import { filesystemWebRootReaderLayer } from '../adapters/web/filesystem-web-roo
 import { operationDeadline } from '../config/operation-deadline.ts';
 import { type Limits } from '../config/limits.ts';
 import { createOwnerServer } from '../http/owner-server.ts';
+import { composeComments } from './compose-comments.ts';
 import { createNetworkServer } from '../http/server.ts';
 import { makeIntervalJob, jobSequence } from '../runtime/interval-job.ts';
 import { type Job } from '../ports/job.ts';
@@ -236,6 +238,7 @@ function serverResources(
           clock,
           ids: yield* IdSource,
           logger,
+          githubAccess: yield* makeGitHubAccessMemo,
         };
         const deviceConnections = yield* DeviceConnectionStore;
         const tunnelConnections = yield* TunnelConnectionStore;
@@ -371,6 +374,14 @@ function serverResources(
           reviews.resolveProjectGitHub,
         );
         yield* walkthroughs.workflow.recover();
+        const comments = yield* composeComments(context, {
+          stores,
+          shared,
+          checkWorktree,
+          resolveProjectGitHub: reviews.resolveProjectGitHub,
+          listProjectPullRequests: reviews.listProjectPullRequests,
+          readInventory: projects.readInventory,
+        });
         const jobs: readonly Job[] = [
           yield* makeIntervalJob(
             'automatic-walkthroughs',
@@ -439,9 +450,10 @@ function serverResources(
         const useCases = {
           access,
           projects: projects.routes,
-          files,
+          files: files.routes,
+          previewFileTickets: files.tickets,
           changes: changes.routes,
-          reviews: reviews.routes,
+          reviews: Layer.mergeAll(reviews.routes, comments.routes),
           gitActions: gitActions.routes,
           walkthroughs: walkthroughs.routes,
         };
@@ -462,7 +474,7 @@ function serverResources(
           jobs,
           network,
           owner: createOwnerServer({
-            application: useCases,
+            application: { ...useCases, comments: { owner: comments.owner } },
             logger,
             observability,
             limits,

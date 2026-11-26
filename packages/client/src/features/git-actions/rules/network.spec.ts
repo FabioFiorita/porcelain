@@ -165,3 +165,17 @@ it.each([
     ).toEqual({ title, description: 'Inspect the current branch.', type });
   },
 );
+
+it('describes a conflicted receipt without a message in words', () => {
+  expect(
+    networkNotice('pull', {
+      projectId: '11111111-1111-4111-8111-111111111111',
+      worktreeId: '0123456789abcdef0123456789abcdef',
+      requestId: '22222222-2222-4222-8222-222222222222',
+      action: 'pull',
+      state: 'conflicted',
+      acceptedAt: '2026-11-01T00:00:00.000Z',
+      progress: [],
+    }).description,
+  ).toBe('Some files conflict. Resolve them, then commit.');
+});

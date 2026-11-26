@@ -1,6 +1,7 @@
 ---
 route: /
 selectors:
+  - 'Side panel'
   - 'Review'
   - 'Files'
   - 'Open file'
@@ -46,8 +47,8 @@ None before step 1. Step 5 writes README.md on disk in the middle of the flow (a
 ### Case 1: refused while a draft cannot be saved
 
 1. Navigate to `/`
-   Expect: URL `/<projectId>/<worktreeId>`, title "Review — repository", button "Review".
-2. Click button `Review`
+   Expect: URL `/<projectId>/<worktreeId>`, title "Review — repository", button "Side panel".
+2. Click button `Side panel`
    Expect: the review sheet opens with tabs "Files", "Changes", "History".
 3. Click tab `Files`
    Expect: tab "Files" selected; treeitem "README.md"; URL gains `?surface=files`.

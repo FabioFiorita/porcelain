@@ -1,13 +1,15 @@
 import { Cause, Option } from 'effect';
+import { RetryAlert } from '@/shared/views/retry-alert';
 import { AsyncResult } from 'effect/reactivity';
 import { PencilIcon } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
-import { FieldLegend, FieldSet } from '@/components/ui/field';
-import { Item, ItemContent, ItemGroup } from '@/components/ui/item';
+import { Item, ItemActions, ItemContent } from '@/components/ui/item';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { SettingsHeading } from '@/shared/views/settings-heading';
+import {
+  SettingsGroup,
+  SettingsSection,
+} from '@/shared/views/settings-section';
 import { TruncatedText } from '@/shared/views/truncated-text';
 import { desktopShell } from '@/shared/shell';
 import { usePairedAccess, useRetryPairedAccess } from '../queries/share';
@@ -54,19 +56,7 @@ function SharingGate({
     : undefined;
   if (!answer)
     return failure ? (
-      <Alert variant="destructive">
-        <AlertDescription>
-          {failure}
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={access.waiting}
-            onClick={retry}
-          >
-            Try again
-          </Button>
-        </AlertDescription>
-      </Alert>
+      <RetryAlert message={failure} waiting={access.waiting} onRetry={retry} />
     ) : null;
   return children(answer, failure);
 }
@@ -101,108 +91,99 @@ export function ComputerSettings({
 
   return (
     <>
-      <SettingsHeading
-        section="Computers"
-        title={environment.name}
-
-        status={
-          <>
-            <span
-              aria-hidden
-              className="size-2 shrink-0 rounded-full bg-add-fg"
-            />
-            <span>Online</span>
-            <span aria-hidden className="text-muted-foreground">
-              ·
-            </span>
-            <Badge variant="secondary">This computer</Badge>
-            {address && (
-              <>
-                <span aria-hidden className="text-muted-foreground">
-                  ·
-                </span>
-                <TruncatedText
-                  text={address}
-                  className="font-mono text-xs text-muted-foreground"
+      <SettingsSection id="overview" title="Overview">
+        <SettingsGroup>
+          <Item>
+            <ItemContent className="min-w-0">
+              <span className="min-w-0 text-sm leading-5 font-medium wrap-anywhere">
+                {environment.name}
+              </span>
+              <div className="flex min-w-0 items-center gap-1.5 text-xs leading-4.5 text-muted-foreground">
+                <span
+                  aria-hidden
+                  className="size-1.5 shrink-0 rounded-full bg-add-fg"
                 />
-              </>
+                <span className="shrink-0 text-foreground-2">Online</span>
+                {address && (
+                  <>
+                    <span aria-hidden>·</span>
+                    <TruncatedText
+                      text={address}
+                      className="min-w-0 font-mono"
+                    />
+                  </>
+                )}
+              </div>
+              {canEditIdentity && AsyncResult.isFailure(iconChange) && (
+                <Alert variant="destructive" className="mt-2 max-w-160">
+                  <AlertDescription>
+                    {connectionErrorMessage(Cause.squash(iconChange.cause))}
+                  </AlertDescription>
+                </Alert>
+              )}
+              {canEditIdentity && renaming && (
+                <div className="mt-2">
+                  <EnvironmentName
+                    connection={connection}
+                    environment={environment}
+                    onCancel={() => setRenamingFrom(null)}
+                  />
+                </div>
+              )}
+            </ItemContent>
+            {canEditIdentity && !renaming && (
+              <ItemActions>
+                <span className="flex items-center gap-1 text-muted-foreground">
+                  <EnvironmentIconPicker
+                    icon={environmentIcon(environment)}
+                    pending={iconChange.waiting}
+                    onChange={(icon) => setIcon(chosenEnvironmentIcon(icon))}
+                  />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    ref={
+                      returning
+                        ? (element: HTMLButtonElement | null) => {
+                            if (!element) return;
+                            element.focus();
+                            setReturning(false);
+                          }
+                        : undefined
+                    }
+                    onClick={() => {
+                      setReturning(true);
+                      setRenamingFrom(named);
+                    }}
+                  >
+                    <PencilIcon />
+                    Rename
+                  </Button>
+                </span>
+              </ItemActions>
             )}
-          </>
-        }
-        action={
-          canEditIdentity &&
-          !renaming && (
-            <span className="mt-1 flex items-center gap-1 text-muted-foreground">
-              <EnvironmentIconPicker
-                icon={environmentIcon(environment)}
-                pending={iconChange.waiting}
-                onChange={(icon) => setIcon(chosenEnvironmentIcon(icon))}
-              />
-              <Button
-                variant="ghost"
-                size="sm"
-                ref={
-                  returning
-                    ? (element: HTMLButtonElement | null) => {
-                        if (!element) return;
-                        element.focus();
-                        setReturning(false);
-                      }
-                    : undefined
-                }
-                onClick={() => {
-                  setReturning(true);
-                  setRenamingFrom(named);
-                }}
-              >
-                <PencilIcon />
-                Rename
-              </Button>
-            </span>
-          )
-        }
-      >
-        {canEditIdentity && AsyncResult.isFailure(iconChange) && (
-          <Alert variant="destructive" className="mt-4 max-w-160">
-            <AlertDescription>
-              {connectionErrorMessage(Cause.squash(iconChange.cause))}
-            </AlertDescription>
-          </Alert>
-        )}
-        {canEditIdentity && renaming && (
-          <div className="mt-4">
-            <EnvironmentName
-              connection={connection}
-              environment={environment}
-              onCancel={() => setRenamingFrom(null)}
-            />
-          </div>
-        )}
-      </SettingsHeading>
-      <div className="settings-computer grid min-w-0 items-start gap-x-8 gap-y-6 lg:grid-cols-[minmax(0,1fr)_--spacing(62)]">
-        <ItemGroup aria-label="Version">
-          <Item variant="outline">
+          </Item>
+          <Item>
             <ItemContent>
               <ComputerUpdate prominent />
               <ConnectionHistory environmentId={connection.environmentId} />
             </ItemContent>
           </Item>
-        </ItemGroup>
-        <WaysIn connection={connection} />
-        <DevicesSettings connection={connection} />
-        {!desktopShell && (
-          <FieldSet>
-            <FieldLegend variant="label">This browser</FieldLegend>
-            <ItemGroup>
-              <Item>
-                <ItemContent>
-                  <DisconnectBrowser computer={environment.name} />
-                </ItemContent>
-              </Item>
-            </ItemGroup>
-          </FieldSet>
-        )}
-      </div>
+        </SettingsGroup>
+      </SettingsSection>
+      <WaysIn connection={connection} />
+      <DevicesSettings connection={connection} />
+      {!desktopShell && (
+        <SettingsSection id="this-browser" title="This browser">
+          <SettingsGroup>
+            <Item>
+              <ItemContent>
+                <DisconnectBrowser computer={environment.name} />
+              </ItemContent>
+            </Item>
+          </SettingsGroup>
+        </SettingsSection>
+      )}
     </>
   );
 }
@@ -212,61 +193,47 @@ export function DevicesSettings({ connection }: { connection: Connection }) {
     AsyncResult.value(usePairedAccess(connection)),
   );
   return (
-    <SharingGate connection={connection}>
-      {(access, failure) => (
-        <WaysInGate connection={connection}>
-          {(remote) => (
-            <>
-              <FieldSet
-                id="devices"
-                className="min-w-0"
+    <SettingsSection
+      id="devices"
+      title="Devices"
+      count={paired?.devices.length}
+    >
+      <SharingGate connection={connection}>
+        {(access, failure) => (
+          <WaysInGate connection={connection}>
+            {(remote) => (
+              <fieldset
                 disabled={failure !== undefined}
+                className="flex min-w-0 flex-col gap-3"
               >
-                <FieldLegend variant="label">
-                  <span className="flex items-center gap-1">
-                    Devices
-                    {paired && (
-                      <span className="tabular-nums">
-                        {paired.devices.length}
-                      </span>
-                    )}
-                  </span>
-                </FieldLegend>
                 {failure && (
                   <Alert variant="destructive">
                     <AlertDescription>{failure}</AlertDescription>
                   </Alert>
                 )}
-                <PairedDevices
-                  connection={connection}
-                  access={access}
-                  disabled={failure !== undefined}
-                />
-              </FieldSet>
-              <aside
-                aria-label="Pair a device"
-                className="flex min-w-0 flex-col gap-2.5 rounded-xl border bg-card p-3 shadow-pop lg:col-start-2 lg:row-span-2 lg:row-start-3"
-              >
-                <div>
-                  <p className="text-ui leading-4.5 font-semibold">
+                <section
+                  aria-label="Pair a device"
+                  className="flex min-w-0 flex-col gap-2.5 rounded-lg border bg-card p-3"
+                >
+                  <h3 className="text-xs leading-snug font-medium">
                     Pair a device
-                  </p>
-                  <p className="mt-0.5 text-xs leading-4.25 text-muted-foreground">
-                    A link works once, for a few minutes.
-                  </p>
-                </div>
-                <FieldSet className="contents" disabled={failure !== undefined}>
+                  </h3>
                   <PairDevice
                     connection={connection}
                     remote={remote}
                     disabled={failure !== undefined}
                   />
-                </FieldSet>
-              </aside>
-            </>
-          )}
-        </WaysInGate>
-      )}
-    </SharingGate>
+                </section>
+                <PairedDevices
+                  connection={connection}
+                  access={access}
+                  disabled={failure !== undefined}
+                />
+              </fieldset>
+            )}
+          </WaysInGate>
+        )}
+      </SharingGate>
+    </SettingsSection>
   );
 }

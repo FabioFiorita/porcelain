@@ -12,6 +12,7 @@ import type {
   AnswerState,
   StoredWalkthroughMessage,
 } from '../models/conversation.ts';
+import type { CallDecision, CallTarget } from '../models/decision.ts';
 export interface WalkthroughStore {
   readDefaultWriter(): Effect.Effect<WalkthroughWriterChoice | undefined>;
   saveDefaultWriter(writer: WalkthroughWriterChoice): Effect.Effect<void>;
@@ -65,6 +66,14 @@ export interface WalkthroughStore {
     worktreeId: string,
     messageId: string,
     saved: boolean,
+  ): Effect.Effect<void>;
+  listDecisions(
+    worktreeId: string,
+    runId: string,
+  ): Effect.Effect<readonly CallDecision[]>;
+  saveDecision(
+    target: CallTarget,
+    decision: Omit<CallDecision, 'step' | 'call'> | undefined,
   ): Effect.Effect<void>;
   markPosted(
     worktreeId: string,

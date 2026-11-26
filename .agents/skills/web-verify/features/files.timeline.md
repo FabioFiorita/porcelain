@@ -1,6 +1,7 @@
 ---
 route: /
 selectors:
+  - 'Side panel'
   - 'Load older commits'
   - 'Timeline reading area'
   - 'Review'
@@ -53,8 +54,8 @@ The last line prints `Move the readme to the guide`, `Explain the change to revi
 ### 1. The timeline follows the rename and opens a commit
 
 1. Navigate to `/`
-   Expect: button "Review".
-2. Click button `Review`
+   Expect: button "Side panel".
+2. Click button `Side panel`
    Expect: dialog "Worktree review".
 3. Click tab `Files`
    Expect: treeitem "guide.md" in the tree of region "All files", and no treeitem "README.md".
@@ -67,7 +68,7 @@ The last line prints `Move the readme to the guide`, `Explain the change to revi
 
 ### 2. The tree menu opens the timeline
 
-7. Click button `Review`
+7. Click button `Side panel`
    Expect: dialog "Worktree review" on tab "Files".
 8. Right-click treeitem `guide.md`
    Expect: menuitem "Show timeline".
@@ -84,7 +85,7 @@ Automated coverage: `files-timeline.test.tsx`, `reviews-reopen-document.test.tsx
 
 ### Older history and return
 
-Create more than 100 commits touching one file, including a rename. Load older commits and compare the complete OID/path sequence with Git. Open an older row, then return through its existing timeline tab: loaded rows, selected commit and reading position remain. Fail a later page and Retry; keep confirmed rows and use the same continuation. A rewritten checkout replaces the old page window with an explicit restart; shallow history names its boundary. The shared query rereads current data to the retained depth when the timeline is reopened, without retaining hidden live subscriptions.
+Create more than 100 commits touching one file, including a rename. Load older commits and compare the complete OID/path sequence with Git. Open an older row, then return through its existing timeline tab: loaded rows, selected commit and reading position remain. Fail a later page and Try again; keep confirmed rows and use the same continuation. A rewritten checkout replaces the old page window with an explicit restart; shallow history names its boundary. The shared query rereads current data to the retained depth when the timeline is reopened, without retaining hidden live subscriptions.
 
 ## Gotchas
 

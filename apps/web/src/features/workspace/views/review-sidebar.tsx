@@ -5,7 +5,7 @@ import { useElement } from '@/shared/hooks/use-element';
 import type { ReactNode } from 'react';
 import {
   FileDiffIcon,
-  FilesIcon,
+  FolderTreeIcon,
   HistoryIcon,
   ListChecksIcon,
 } from 'lucide-react';
@@ -176,7 +176,7 @@ export function SurfaceIcon({
   surface: Surface;
   className?: string;
 }) {
-  if (surface === 'files') return <FilesIcon className={className} />;
+  if (surface === 'files') return <FolderTreeIcon className={className} />;
   if (surface === 'history') return <HistoryIcon className={className} />;
   return published ? (
     <ListChecksIcon className={className} />

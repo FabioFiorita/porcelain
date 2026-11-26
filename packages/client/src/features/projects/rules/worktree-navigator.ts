@@ -77,15 +77,15 @@ type NavigatorOrder = Pick<
   NavigatorEntry,
   'key' | 'name' | 'main' | 'headCommittedAt' | 'uncommittedChangedAt'
 >;
-function touchedAt(entry: NavigatorOrder) {
+export function navigatorTouchedAt(entry: NavigatorOrder) {
   const times = [entry.headCommittedAt, entry.uncommittedChangedAt].filter(
     (time) => time !== undefined,
   );
   return times.length === 0 ? undefined : times.sort().at(-1);
 }
 export function navigatorWorktreeOrder(a: NavigatorOrder, b: NavigatorOrder) {
-  const aTouched = touchedAt(a);
-  const bTouched = touchedAt(b);
+  const aTouched = navigatorTouchedAt(a);
+  const bTouched = navigatorTouchedAt(b);
   return (
     Number(b.main) - Number(a.main) ||
     Number(bTouched !== undefined) - Number(aTouched !== undefined) ||
@@ -182,7 +182,7 @@ export function navigatorInventoryEntries(
     .sort(navigatorWorktreeOrder);
 }
 export type NavigatorTrailing =
-  | { kind: 'pull-request'; number: number; text: string }
+  | { kind: 'pull-request'; number: number; merged: boolean; text: string }
   | { kind: 'changes'; text: string };
 export function navigatorRowTrailing(
   entry: Pick<NavigatorEntry, 'pullRequest' | 'changes'>,
@@ -191,7 +191,8 @@ export function navigatorRowTrailing(
     return {
       kind: 'pull-request',
       number: entry.pullRequest.number,
-      text: `#${entry.pullRequest.number}${entry.pullRequest.merged ? ' merged' : ''}`,
+      merged: entry.pullRequest.merged,
+      text: `#${entry.pullRequest.number}`,
     };
   if (entry.changes.state === 'available' && entry.changes.count > 0)
     return {
@@ -200,6 +201,14 @@ export function navigatorRowTrailing(
     };
   return undefined;
 }
+const KEPT_END = 16;
+
+export function nameEnd(name: string) {
+  const end = name.slice(-KEPT_END);
+  const at = end.search(/[/_.-]/);
+  return at === -1 || at === end.length - 1 ? end : end.slice(at);
+}
+
 export function navigatorCardChangesLabel(changes: NavigatorChanges) {
   if (changes.state === 'unavailable') return '—';
   if (changes.state === 'loading' || changes.count === 0) return '';
