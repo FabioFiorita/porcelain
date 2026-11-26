@@ -29,6 +29,39 @@ async function addRemoteComputer(page: Page, link: string, name: string) {
   ).not.toBeAttached();
 }
 
+test('the navigator keeps a remote project visible after an offline reload', async ({
+  pairedPage: page,
+  app,
+  remote,
+}) => {
+  const { environment } = await remote.server.inventory();
+  const project = await remote.server.project();
+  const link = await app.remoteLink();
+  await addRemoteComputer(page, link, environment.name);
+  await page.setViewportSize({ width: 1440, height: 900 });
+
+  const navigation = page.getByRole('navigation', {
+    name: 'Projects and worktrees',
+    exact: true,
+  });
+  const heading = navigation.getByRole('button', {
+    name: `Collapse ${project.name} · ${environment.name}`,
+    exact: true,
+  });
+  await expect(heading).toBeVisible();
+  const outage = await app.dropRemoteComputer(link);
+  try {
+    await outage.healthFailure;
+    await app.reload();
+    await expect(heading).toBeVisible();
+    await expect(
+      navigation.getByText('Computer unavailable', { exact: true }),
+    ).toBeVisible();
+  } finally {
+    await outage.restore();
+  }
+});
+
 const paths = (inventory: {
   projects: readonly { worktrees: readonly { path: string }[] }[];
 }) =>

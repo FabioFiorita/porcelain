@@ -377,6 +377,7 @@ function EmptyWorkspaceContent({
       <RemoteUnavailable
         name={remote.remote.name}
         status={unavailable}
+        onRetry={() => remote.connection.liveUpdates.retry()}
         onOpenRemotes={() => onOpenRemotes(remote.remote.environmentId)}
       />
     );

@@ -124,7 +124,8 @@ function setup(
       execute(command, request),
     recovery: recover,
     recover: () => execute(recover, undefined),
-    startNew: () => execute(startNew, undefined),
+    startNew: (missingRequestId?: string) =>
+      execute(startNew, missingRequestId),
     close: async () => {
       registry.dispose();
       await lifetime.close();
@@ -245,6 +246,54 @@ it('keeps an unanswered operation blocked when its receipt is missing instead of
     expect(
       subject.operations.state.value.operations.get(subject.key)?.requestId,
     ).toBe(requestId);
+  } finally {
+    await subject.close();
+  }
+});
+
+it('clears the checked missing receipt without sending another Git write', async () => {
+  let writes = 0;
+  let retained: string | null = null;
+  const { store } = operationStoreFixture({
+    key: 'pending-actions',
+    storage: {
+      getItem: () => retained,
+      setItem: (_, value) => {
+        retained = value;
+      },
+      removeItem: () => {
+        retained = null;
+      },
+    },
+  });
+  const subject = setup((path) => {
+    if (path.endsWith(`/git/receipts/${requestId}`))
+      return Promise.resolve(
+        Response.json(
+          {
+            statusCode: 404,
+            error: 'Not Found',
+            message: 'Git action receipt not found',
+          },
+          { status: 404 },
+        ),
+      );
+    writes++;
+    return Promise.reject(new Error('Lost response'));
+  }, store);
+  try {
+    await expect(subject.run()).rejects.toThrow('Could not reach Porcelain');
+    const missing: unknown = await subject
+      .recover()
+      .catch((error: unknown) => error);
+    expect(missing).toMatchObject({ reason: 'receipt-unavailable', requestId });
+    expect(await subject.startNew(nextRequestId)).toBe(false);
+    expect(await subject.startNew(requestId)).toBe(true);
+    expect(
+      subject.operations.state.value.operations.get(subject.key),
+    ).toBeUndefined();
+    expect(retained).toBeNull();
+    expect(writes).toBe(1);
   } finally {
     await subject.close();
   }

@@ -1,5 +1,5 @@
 import type { LiveDiagnostic } from '../rules/diagnostics.ts';
-import { liveSessionState } from '../store.ts';
+import { liveRetrySignal, liveSessionState } from '../store.ts';
 import {
   Cause,
   Clock,
@@ -99,8 +99,10 @@ export function createLiveUpdates<E>(
   },
 ): LiveUpdatePort {
   const state = liveSessionState();
+  const retry = liveRetrySignal();
   return {
     state,
+    retry: () => retry.update((revision) => revision + 1),
     connect: Effect.fn('LiveUpdates.connect')(function* ({
       onNotice,
       onReconnect,
@@ -123,6 +125,12 @@ export function createLiveUpdates<E>(
       const wakeups = yield* Queue.sliding<void>(1);
       let refreshOnForeground = false;
       const foreground = Queue.take(wakeups);
+      yield* Effect.acquireRelease(
+        Effect.sync(() =>
+          retry.subscribe(() => Queue.offerUnsafe(wakeups, undefined)),
+        ),
+        (unsubscribe) => Effect.sync(unsubscribe),
+      );
       if (options?.activity) {
         const activity = options.activity;
         let wasActive = activity.isActive();
@@ -157,7 +165,7 @@ export function createLiveUpdates<E>(
       let silent = false;
       const connection = Effect.scoped(
         Effect.gen(function* () {
-          state.set(readyCount === 0 ? 'connecting' : 'reconnecting');
+          if (state.value === 'idle') state.set('connecting');
           deadline = 'Connection setup timeout';
           silent = false;
           record({ event: 'Connection attempt' });
@@ -269,7 +277,7 @@ export function createLiveUpdates<E>(
                 return yield* Effect.never;
               }
             }
-            state.set(readyCount === 0 ? 'connecting' : 'reconnecting');
+            state.set(readyCount === 0 ? 'unavailable' : 'reconnecting');
             record({ event: 'Retry scheduled', retryMs });
             yield* Effect.sleep(retryMs).pipe(Effect.raceFirst(foreground));
             retryMs = Math.min(

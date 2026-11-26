@@ -5,6 +5,7 @@ export { restoreSession } from './commands/restore-session';
 export { useSignOutWhenUnauthorized } from './commands/unauthorized';
 export {
   remoteConnectionStatus,
+  remoteWorktreeSnapshots,
   rememberRemoteWorkspace,
   shownRemoteWorkspace,
   useRemoteStatus,

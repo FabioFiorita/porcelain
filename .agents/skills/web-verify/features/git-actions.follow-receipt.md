@@ -49,7 +49,7 @@ Keep live traffic offline through a refused reconnect, then restore and wait for
 6. Press `Escape`
    Expect: the dialog is gone.
 
-### 2. A stash pop Git refused while the live connection is down shows what Git said once it is back
+### 2. A stash pop Git refused while the live connection is down shows the refusal once it is back
 
 Setup, after section 1 (or after `git -C "$REPO" commit -am "Followed commit"` on a fresh instance): `printf 'Set aside\n' > "$REPO/README.md"`, then wait for button `Mark README.md as reviewed`.
 
@@ -60,8 +60,8 @@ Setup, after section 1 (or after `git -C "$REPO" commit -am "Followed commit"` o
    Expect: dialog "Pop stash" with combobox "Stash" on option "On main: Porcelain review · <id>", checkbox "Restore staged changes" and button "Pop stash".
 4. Drop the live WebSocket and reject reconnects (see [routing recipes and per-map instructions](../references/failure-injection.md)), click button `Pop stash`, then after a few seconds Inspect the accessibility tree
    Expect: button "Working…" [disabled]; the outcome remains unconfirmed; `cat "$REPO/README.md"` still prints `Changed while the stash was set aside`.
-5. Restore the live WebSocket and wait for the app to reconnect (see [routing recipes and per-map instructions](../references/failure-injection.md)), then wait for '/would be overwritten/'
-   Expect: alert "error: Your local changes to the following files would be overwritten by merge: README.md …"; button "Pop stash" back; README.md unchanged; a receipt `GET …/git/receipts/<requestId>` 200 in network log.
+5. Restore the live WebSocket and wait for the app to reconnect (see [routing recipes and per-map instructions](../references/failure-injection.md)), then wait for 'Git could not restore this stash.'
+   Expect: alert "Git could not restore this stash."; button "Pop stash" back; README.md unchanged; a receipt `GET …/git/receipts/<requestId>` 200 in network log.
 
 ### Observable proof
 
@@ -76,7 +76,7 @@ Automated coverage: `git-actions-follow-receipt.test.tsx`.
 
 ### Lost response and manual recovery
 
-- If the action response is lost, open the progress box and choose Check outcome. It reads the retained request's receipt using GET; it never submits the write again. A running receipt remains followed until terminal completion and keeps another submission blocked; an unavailable receipt keeps the original operation blocked and explains terminal inspection.
+- If the action response is lost, open the progress box and choose Check outcome. It reads the retained request's receipt using GET; it never submits the write again. A running receipt remains followed until terminal completion and keeps another submission blocked; A missing stash receipt offers Clear unconfirmed action after terminal inspection.
 - Fetch/Pull/Push interruption says outcome not confirmed; a conflicted receipt asks for conflict resolution. Only a known rejection says did not run.
 - In Use groups, lose the first response while holding live traffic, independently read the first commit, then Check outcome. Commit 1 becomes committed. After three rejected socket reconnections, restore transport with a browser online signal and continue: only the remaining group submits, using the recovered HEAD. Independent log, parent and file readbacks must match the two groups exactly once. This case verifies receipt recovery across a network-return hint; the live domain tests independently cover reconnect backoff.
 - Automated recovery coverage also lives in `git-actions-recover-groups.test.tsx` and `git-actions-push.test.tsx`.

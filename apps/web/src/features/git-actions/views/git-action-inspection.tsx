@@ -38,6 +38,7 @@ import {
   gitErrorMessage,
   receiptFailed,
   receiptSettled,
+  receiptWords,
 } from '@porcelain/client/git-actions/rules';
 import type { GitActionStatus } from '@porcelain/client/git-actions/rules';
 import { CommitForm } from './commit-form';
@@ -363,19 +364,27 @@ function ActionForm({
           Look again
         </Button>
       )}
-      {git.operation &&
-        !busy &&
-        !stale &&
-        !(outcome && receiptSettled(outcome)) && (
-          <Button
-            type="button"
-            variant="outline"
-            className="self-start"
-            onClick={git.checkOutcome}
-          >
-            Check outcome
-          </Button>
-        )}
+      {git.operation && !busy && !(outcome && receiptSettled(outcome)) && (
+        <Button
+          type="button"
+          variant="outline"
+          className="self-start"
+          onClick={git.checkOutcome}
+        >
+          Check outcome
+        </Button>
+      )}
+      {git.clearUnconfirmed && (
+        <Button
+          type="button"
+          variant="outline"
+          className="self-start"
+          disabled={busy || Boolean(writeBlock)}
+          onClick={git.clearUnconfirmed}
+        >
+          Clear unconfirmed action
+        </Button>
+      )}
       <Button
         type="submit"
         className="self-end"
@@ -392,13 +401,8 @@ type FormOutcome = ReturnType<typeof useActionForm>['outcome'];
 
 function ActionOutcome({ outcome }: { outcome: FormOutcome }) {
   if (!outcome) return null;
-  if (
-    outcome.message &&
-    receiptFailed(outcome) &&
-    outcome.state !== 'conflicted'
-  ) {
-    return <GitActionError text={outcome.message} />;
-  }
+  if (receiptFailed(outcome) && outcome.state !== 'running')
+    return <GitActionError text={receiptWords(outcome)} />;
   return (
     <p role="status" className="text-sm">
       {outcome.state}

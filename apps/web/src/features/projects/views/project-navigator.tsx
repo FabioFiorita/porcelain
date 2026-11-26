@@ -25,7 +25,7 @@ import {
   SettingsIcon,
 } from 'lucide-react';
 import {
-  readWorktreeNavigator,
+  readWorktreeNavigatorWithSnapshots,
   refreshWorktreeNavigator,
   refreshInventories,
   worktreeNavigatorState,
@@ -45,6 +45,7 @@ import {
 import {
   EnvironmentGlyph,
   remoteConnectionStatus,
+  remoteWorktreeSnapshots,
   UpdatesMenu,
   useConnectedContext,
 } from '@/features/access/index';
@@ -137,7 +138,10 @@ export function ProjectNavigator({
     ...(remotes ?? []).map((entry) => entry.connection),
   ];
   const { projects, filters, loading, neverRead } = useAtomValue(
-    readWorktreeNavigator(connections),
+    readWorktreeNavigatorWithSnapshots({
+      connections,
+      snapshots: remoteWorktreeSnapshots(remotes ?? []),
+    }),
   );
   const state = useAtomValue(worktreeNavigatorState);
   const setState = useAtomSet(worktreeNavigatorState);
@@ -371,7 +375,15 @@ export function ProjectNavigator({
                     </TooltipContent>
                   </Tooltip>
                 </div>
-                {!source.project.available && (
+                {source.saved && (
+                  <p
+                    role="status"
+                    className="px-2 py-2 text-xs text-muted-foreground"
+                  >
+                    Computer unavailable
+                  </p>
+                )}
+                {!source.saved && !source.project.available && (
                   <div className="flex flex-col gap-2 px-2 py-2">
                     <p role="status" className="text-xs text-muted-foreground">
                       {projectUnavailableMessage(source.project)}

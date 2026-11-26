@@ -14,6 +14,7 @@ export {
   gitErrorMessage,
   receiptFailed,
   receiptSettled,
+  receiptWords,
   type GitNotice,
 } from './feedback.ts';
 export {

@@ -233,6 +233,7 @@ const connectionStatusAtoms = Atom.family(
       if (state?.value === 'unauthorized') return { kind: 'needs-pairing' };
       if (status.kind === 'other-server' || status.kind === 'incompatible')
         return status;
+      if (state?.value === 'unavailable') return { kind: 'offline' };
       if (state?.value === 'reconnecting') return { kind: 'reconnecting' };
       if (state?.value === 'connecting')
         return status.kind === 'offline' ? status : { kind: 'checking' };

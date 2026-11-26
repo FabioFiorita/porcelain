@@ -846,7 +846,8 @@ it.effect('bounds an RPC session that never becomes ready', () =>
     const first = yield* Queue.take(subject.openings);
     yield* TestClock.adjust(10000);
     yield* Queue.take(first.closed);
-    yield* TestClock.adjust(500);
+    expect(subject.port.state.value).toBe('unavailable');
+    subject.port.retry();
     yield* Queue.take(subject.ready);
     expect(subject.attempts()).toBe(2);
     expect(subject.diagnostics).toContainEqual({

@@ -35,6 +35,7 @@ test('mounted worktree marks catch up after external writes and reconnect while 
   let callbacks: Parameters<LiveUpdatePort['connect']>[0] | undefined;
   const liveUpdates: LiveUpdatePort = {
     state: liveSessionState(),
+    retry: () => undefined,
     connect: (options) =>
       Effect.sync(() => {
         callbacks = options;

@@ -1,3 +1,4 @@
+import { isSchemaError } from 'effect/Schema';
 import type { Expectation, Receipt } from './git-action.ts';
 import type { GitActionStatus } from './status.ts';
 
@@ -43,11 +44,22 @@ const stateWords: Record<Receipt['state'], string> = {
   interrupted: 'Git stopped before Porcelain could confirm the result.',
 };
 
-export const receiptWords = (receipt: Receipt) =>
-  receipt.message ??
-  (receipt.reason
-    ? receipt.reason.replaceAll('_', ' ').toLowerCase()
-    : stateWords[receipt.state]);
+export function receiptWords(receipt: Receipt) {
+  if (receipt.action.startsWith('stash-')) {
+    if (receipt.state === 'interrupted' || receipt.state === 'conflicted')
+      return stateWords[receipt.state];
+    if (receipt.state === 'rejected' && receipt.reason === 'GIT_REJECTED')
+      return receipt.action === 'stash-create'
+        ? 'Git could not set these changes aside.'
+        : 'Git could not restore this stash.';
+  }
+  return (
+    receipt.message ??
+    (receipt.reason
+      ? receipt.reason.replaceAll('_', ' ').toLowerCase()
+      : stateWords[receipt.state])
+  );
+}
 
 export const changedSinceLooked = (receipt: Receipt) =>
   receipt.state === 'rejected' && receipt.reason === 'CHANGED_SINCE_LOOKED';
@@ -83,9 +95,9 @@ export function changedSinceLookedText(paths: readonly string[]) {
 }
 
 export function gitErrorMessage(error: unknown) {
-  return error instanceof Error
+  return error instanceof Error && !isSchemaError(error)
     ? error.message
-    : 'Git could not complete this action. Check the current state and try again.';
+    : 'Git could not complete this action.';
 }
 
 export type GitNotice = {
