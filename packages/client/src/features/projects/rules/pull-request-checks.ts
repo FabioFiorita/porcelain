@@ -61,6 +61,16 @@ const ORDER: Record<CheckState, number> = {
   skipped: 2,
 };
 
+export function checkNameInGroup(check: {
+  readonly name: string;
+  readonly group: string;
+}) {
+  const prefix = `${check.group} / `;
+  return check.name.startsWith(prefix) && check.name.length > prefix.length
+    ? check.name.slice(prefix.length)
+    : check.name;
+}
+
 export function groupChecks(checks: readonly PullCheck[]): CheckGroup[] {
   const groups = new Map<
     string,

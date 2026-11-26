@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useWorkspaceWriteBlock } from '@/shared/workspace/connection';
 import { useDecideCall } from '../commands/conversations';
+import { ComparisonTable } from './walkthrough-blocks';
 import {
   useConversations,
   type ConversationScope,
@@ -90,53 +91,48 @@ export function CallDecision({
   );
   const choices = callChoices(comparison);
   const state = callState(comparison, decision);
+  const byOption = new Map(choices.map((choice) => [choice.option, choice]));
+  const chooseOption = (option: string) => {
+    const choice = byOption.get(option);
+    if (choice === undefined) return null;
+    return (
+      <div className="flex flex-col items-start gap-1.5">
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={disabled}
+          aria-label={`Choose ${option}`}
+          aria-description={
+            [
+              choice.implemented ? 'In this change.' : undefined,
+              choice.effect,
+              writeBlock,
+            ]
+              .filter(Boolean)
+              .join(' ') || undefined
+          }
+          onClick={() => decide({ step, call: index, decided: true, option })}
+        >
+          Choose
+        </Button>
+        <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
+          {choice.implemented && (
+            <Badge variant="outline">In this change</Badge>
+          )}
+          {choice.effect && (
+            <span className="text-caption text-pretty text-muted-foreground">
+              {choice.effect}
+            </span>
+          )}
+        </span>
+      </div>
+    );
+  };
   const choose =
     choices.length > 0 ? (
-      <div className="flex flex-col gap-1.5">
-        <ul
-          aria-label="Options"
-          className="grid grid-cols-1 gap-x-2.5 gap-y-1.5 @xl:grid-cols-[minmax(0,auto)_minmax(16rem,1fr)]"
-        >
-          {choices.map(({ option, implemented, effect }) => (
-            <li
-              key={option}
-              className="col-span-full grid grid-cols-subgrid items-center gap-y-1"
-            >
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-auto min-h-6 max-w-full justify-self-start text-left whitespace-normal"
-                disabled={disabled}
-                aria-description={
-                  [
-                    implemented ? 'In this change.' : undefined,
-                    effect,
-                    writeBlock,
-                  ]
-                    .filter(Boolean)
-                    .join(' ') || undefined
-                }
-                onClick={() =>
-                  decide({ step, call: index, decided: true, option })
-                }
-              >
-                {option}
-              </Button>
-              <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
-                {implemented && <Badge variant="outline">In this change</Badge>}
-                {effect && (
-                  <span className="text-caption text-pretty text-muted-foreground">
-                    {effect}
-                  </span>
-                )}
-              </span>
-            </li>
-          ))}
-        </ul>
-        <p className="text-caption text-muted-foreground">
-          {callDeciding(comparison)}
-        </p>
-      </div>
+      <p className="text-caption text-muted-foreground">
+        {callDeciding(comparison)}
+      </p>
     ) : (
       <div className="flex flex-col gap-1.5">
         <Button
@@ -155,7 +151,13 @@ export function CallDecision({
       </div>
     );
   return (
-    <div className="flex flex-col gap-1.5 pt-1">
+    <div className="flex flex-col gap-2">
+      {comparison && (
+        <ComparisonTable
+          comparison={comparison}
+          choose={decision ? undefined : chooseOption}
+        />
+      )}
       {decision ? (
         <p
           role="status"

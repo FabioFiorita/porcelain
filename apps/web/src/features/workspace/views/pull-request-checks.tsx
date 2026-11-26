@@ -15,6 +15,7 @@ import {
 import {
   checkCounts,
   checkDurationLabel,
+  checkNameInGroup,
   checkProgress,
   checkState,
   elapsedMs,
@@ -492,7 +493,7 @@ function CheckRow({
           />
           <StateIcon state={state} />
           <span className="flex min-w-0 items-center gap-2">
-            <TruncatedText text={check.name} className="min-w-0" />
+            <TruncatedText text={checkNameInGroup(check)} className="min-w-0" />
             {check.required && (
               <span className="hidden shrink-0 text-xs text-muted-foreground @min-xl/pr:inline">
                 Required

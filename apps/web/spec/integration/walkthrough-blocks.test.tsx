@@ -47,10 +47,12 @@ test('a call shows its comparison as a table, and each excerpt opens its own sav
     )
     .toBeVisible();
 
-  const options = page.getByRole('list', { name: 'Options', exact: true });
-  const current = options
-    .getByRole('listitem')
-    .filter({ hasText: 'Show all notes' });
+  const current = calls.getByRole('cell').filter({
+    has: page.getByRole('button', {
+      name: 'Choose Show all notes',
+      exact: true,
+    }),
+  });
   await expect
     .element(current.getByText('In this change', { exact: true }))
     .toBeVisible();
@@ -59,9 +61,14 @@ test('a call shows its comparison as a table, and each excerpt opens its own sav
     .toBeVisible();
   await expect
     .element(
-      options
-        .getByRole('listitem')
-        .filter({ hasText: 'Show no notes' })
+      calls
+        .getByRole('cell')
+        .filter({
+          has: page.getByRole('button', {
+            name: 'Choose Show no notes',
+            exact: true,
+          }),
+        })
         .getByText('Needs a new commit: this change does not do this yet.', {
           exact: true,
         }),

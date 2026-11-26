@@ -1,6 +1,7 @@
 import { expect, it } from 'vite-plus/test';
 import {
   checkDurationLabel,
+  checkNameInGroup,
   checkProgress,
   checkState,
   groupChecks,
@@ -527,4 +528,19 @@ it('reports an unread, merged or closed pull request without a verdict', () => {
       baseBranch: 'main',
     }).label,
   ).toBe('Closed without merging');
+});
+
+it('names a check under its group without repeating the group name before it', () => {
+  expect(
+    checkNameInGroup({ name: 'reviewdog / eslint', group: 'reviewdog' }),
+  ).toBe('eslint');
+  expect(checkNameInGroup({ name: 'Browser tests', group: 'CI' })).toBe(
+    'Browser tests',
+  );
+  expect(checkNameInGroup({ name: 'reviewdog', group: 'reviewdog' })).toBe(
+    'reviewdog',
+  );
+  expect(
+    checkNameInGroup({ name: 'reviewdog-lint / eslint', group: 'reviewdog' }),
+  ).toBe('reviewdog-lint / eslint');
 });

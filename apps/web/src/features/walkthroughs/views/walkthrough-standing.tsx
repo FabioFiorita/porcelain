@@ -76,7 +76,8 @@ export function WalkthroughStanding({
     (open > 0 ? `${open === 1 ? '1 call' : `${open} calls`} open` : undefined);
   if (!label && !pull) return null;
   const tone = readiness ? tones[readiness.tone] : 'none';
-  const state = pull ? stateWord(pull) : undefined;
+  const ended = readiness?.tone === 'merged' || readiness?.tone === 'closed';
+  const state = pull && !ended ? stateWord(pull) : undefined;
   return (
     <div
       role="status"

@@ -1,4 +1,5 @@
 import { TruncatedText } from '@/shared/views/truncated-text';
+import { cn } from '@/shared/lib/utils';
 import { BranchState } from './branch-state';
 import { HistoryIcon } from 'lucide-react';
 import { BarAction } from '@/shared/workspace/bar-action';
@@ -17,7 +18,8 @@ import {
   useBranchDiffs,
   useReviewOverview,
 } from '@/features/changes/index';
-import type { CodeEntry } from '../adapters/code-entries';
+import { type CodeEntry, entryLineCounts } from '../adapters/code-entries';
+import { ChangeCounts } from './change-counts';
 import { useReviewedMarks } from '../queries/reviewed';
 import type { DocumentInteraction, OpenDocument } from '../rules/documents';
 import {
@@ -325,6 +327,7 @@ function BranchDiffs({
       <CodeDocument
         comments
         fullHeight={fullHeight}
+        disableFileHeader={single}
         readingColumn={!single && !singleHeader}
         scope={scope}
         context={context}
@@ -349,7 +352,19 @@ function BranchDiffs({
                 target={interaction.toolbarTarget}
                 barActions={null}
                 title={basename(first.path)}
-                subtitle={`${first.path} · on the branch`}
+                subtitle={`${[first.oldPath, first.path].filter((name, index, names) => name !== undefined && names.indexOf(name) === index).join(' → ')} · on the branch`}
+                aside={
+                  entries[0] && (
+                    <>
+                      <ChangeCounts counts={entryLineCounts(entries[0])} />
+                      {first.reviewStatus === 'stale' && (
+                        <span className="shrink-0 rounded-md bg-graph-4/15 px-1.5 py-0.5 text-2xs text-graph-4">
+                          Changed since reviewed
+                        </span>
+                      )}
+                    </>
+                  )
+                }
               >
                 {interaction.toolbarTarget === undefined &&
                   control(first, false)}
@@ -386,6 +401,7 @@ function BranchDiffs({
         }}
         header={() => (
           <BranchHeader
+            single={single}
             singleHeader={singleHeader}
             uncommitted={uncommitted}
             omitted={omitted}
@@ -407,6 +423,7 @@ function BranchDiffs({
 }
 
 function BranchHeader({
+  single,
   singleHeader,
   uncommitted,
   omitted,
@@ -415,6 +432,7 @@ function BranchHeader({
   onRetry,
   control,
 }: {
+  single: boolean;
   singleHeader: boolean;
   uncommitted: number;
   omitted: readonly BranchChangeItem[];
@@ -426,7 +444,7 @@ function BranchHeader({
   const note = uncommitted > 0 && !singleHeader;
   if (!note && !failed && omitted.length === 0) return null;
   return (
-    <section className="mx-4 mt-3 flex flex-col gap-3">
+    <section className={cn('mx-4 mt-3 flex flex-col gap-3', single && 'mb-3')}>
       {note && (
         <p className="text-2xs text-muted-foreground">
           Uncommitted changes are not part of the branch review. Review them
@@ -449,10 +467,12 @@ function BranchHeader({
               className="flex min-w-0 items-center gap-2 rounded-lg border bg-muted/25 px-3 py-2 text-xs"
             >
               {control(item)}
-              <TruncatedText
-                className="font-mono font-medium"
-                text={item.path}
-              />
+              {!single && (
+                <TruncatedText
+                  className="font-mono font-medium"
+                  text={item.path}
+                />
+              )}
               <span className="shrink-0 text-muted-foreground">
                 {item.status}
                 {patchOf(item) !== undefined || failed

@@ -163,8 +163,9 @@ function CallPanel({
       <p className="text-ui text-foreground-2">
         <RichText text={attention.note} />
       </p>
-      {comparison && <ComparisonTable comparison={comparison} />}
-      {decision?.({ step, index, comparison })}
+      {decision
+        ? decision({ step, index, comparison })
+        : comparison && <ComparisonTable comparison={comparison} />}
     </section>
   ));
 }
