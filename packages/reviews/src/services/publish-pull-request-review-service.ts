@@ -9,9 +9,8 @@ import type { GitHubRepository } from '../models/pull-request.ts';
 import { DraftCommentStore } from '../ports/draft-comment-store.ts';
 import { PullRequestReviewer } from '../ports/pull-request-reviewer.ts';
 import {
-  confirmedReview,
-  openDraftRevision,
   planPullRequestReview,
+  reviewPayload,
 } from '../rules/draft-comments.ts';
 
 function failure(problem: string) {
@@ -42,8 +41,6 @@ export class PublishPullRequestReviewService extends Context.Service<
       readonly confirmed: {
         readonly pullRequest: GitHubRepository & { readonly number: number };
         readonly headOid: string;
-        readonly draftRevision: string;
-        readonly inlineIds: readonly string[];
         readonly summary: string;
         readonly bodies: Readonly<Record<string, string>>;
       };
@@ -62,19 +59,21 @@ export class PublishPullRequestReviewService extends Context.Service<
       return {
         execute: Effect.fn('PublishPullRequestReviewService.execute')(
           function* (input) {
-            const target = input.target;
-            if (
-              !input.comments.some(
-                ({ publication }) => publication.status === 'draft',
-              )
-            )
+            const { target, confirmed } = input;
+            const drafts = input.comments.flatMap((comment) =>
+              comment.publication.status === 'draft' &&
+              Object.hasOwn(confirmed.bodies, comment.id)
+                ? [{ ...comment, text: confirmed.bodies[comment.id]! }]
+                : [],
+            );
+            if (drafts.length === 0)
               return yield* new ReviewChangedError({
                 message:
                   'There are no drafts left to post. Go back to see the current comments.',
               });
             if ('unavailable' in target)
               return yield* failure(target.unavailable);
-            const previewed = input.confirmed.pullRequest;
+            const previewed = confirmed.pullRequest;
             if (
               target.owner.toLowerCase() !== previewed.owner.toLowerCase() ||
               target.repo.toLowerCase() !== previewed.repo.toLowerCase() ||
@@ -84,14 +83,6 @@ export class PublishPullRequestReviewService extends Context.Service<
                 message:
                   'The destination pull request changed. Go back and preview the review again.',
               });
-            if (
-              openDraftRevision(input.comments) !==
-              input.confirmed.draftRevision
-            )
-              return yield* new ReviewChangedError({
-                message:
-                  'The comments changed since this preview. Review them again before posting.',
-              });
             const diff = yield* reviewer
               .diff(target)
               .pipe(
@@ -99,27 +90,13 @@ export class PublishPullRequestReviewService extends Context.Service<
                   failure('github-read'),
                 ),
               );
-            if (diff.headOid !== input.confirmed.headOid)
+            if (diff.headOid !== confirmed.headOid)
               return yield* new ReviewChangedError({
                 message:
                   'The pull request has new commits since this preview. Review it again before posting.',
               });
-            const plan = planPullRequestReview(input.comments, diff);
-            const inlineIds = new Set(input.confirmed.inlineIds);
-            if (
-              plan.inline.length !== inlineIds.size ||
-              plan.inline.some(({ id }) => !inlineIds.has(id))
-            )
-              return yield* new ReviewChangedError({
-                message:
-                  'Where a comment will appear changed. Go back and preview the review again.',
-              });
-            const review = confirmedReview(plan, input.confirmed);
-            if (review === undefined)
-              return yield* new ReviewChangedError({
-                message:
-                  'The comments changed since this preview. Review them again before posting.',
-              });
+            const plan = planPullRequestReview(drafts, diff);
+            const review = reviewPayload(plan, confirmed.summary);
             const posted = yield* reviewer.post({
               ...target,
               commitId: diff.headOid,

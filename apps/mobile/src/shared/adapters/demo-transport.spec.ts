@@ -26,6 +26,7 @@ import {
   walkthroughConversationsResponseSchema,
   readWalkthroughResponseSchema,
 } from '@porcelain/contracts/walkthroughs';
+import { reviewPreviewResponseSchema } from '@porcelain/contracts/comments';
 import { createDemoTransport } from './demo-transport';
 
 const worktree = '/api/worktrees/9e939510f914ca5886ccab463c94166f';
@@ -358,7 +359,9 @@ test('draft comments are added, edited and deleted, and an empty review has noth
     (await read(await send(`${comments}/${id}`, { method: 'DELETE' })))
       .comments,
   ).toEqual([]);
-  const preview: unknown = await (await send(`${comments}/review`)).json();
+  const preview = Schema.decodeUnknownSync(reviewPreviewResponseSchema)(
+    await (await send(`${comments}/review`)).json(),
+  );
   expect(preview).toEqual({ kind: 'unavailable', reason: 'no-comments' });
 });
 
@@ -488,14 +491,17 @@ test('a draft on demo lines is previewed inline on pull request #7 and published
   );
   const id = added[0]?.id ?? '';
   await send(`${comments}/${id}`, request('PATCH', { text: 'Trim earlier?' }));
-  const preview: unknown = await (await send(`${comments}/review`)).json();
+  const preview = Schema.decodeUnknownSync(reviewPreviewResponseSchema)(
+    await (await send(`${comments}/review`)).json(),
+  );
+  if (preview.kind !== 'available') throw new Error('Expected a demo preview.');
   expect(preview).toMatchObject({
     kind: 'available',
-    pullRequest: { number: 7 },
+    pullRequest: { owner: 'porcelain-demo', repo: 'hello-garden', number: 7 },
     inline: [
       {
         path: 'src/welcome.ts',
-        side: 'additions',
+        side: 'RIGHT',
         line: 2,
         body: 'Trim earlier?',
       },
@@ -504,7 +510,12 @@ test('a draft on demo lines is previewed inline on pull request #7 and published
   });
   await send(
     `${comments}/review`,
-    request('POST', { headOid: 'demo', summary: '', bodies: {} }),
+    request('POST', {
+      pullRequest: preview.pullRequest,
+      headOid: preview.headOid,
+      summary: '',
+      bodies: { [id]: 'Trim earlier?' },
+    }),
   );
   expect((await drafts(await send(comments)))[0]?.publication).toMatchObject({
     status: 'published',

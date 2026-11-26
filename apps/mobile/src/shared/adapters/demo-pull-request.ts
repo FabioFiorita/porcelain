@@ -20,9 +20,13 @@ type Pull = Extract<
 type Status = Extract<ReadPullStatusResponse, { kind: 'available' }>['status'];
 type Check = Status['checks'][number];
 
-export const demoPullRequestNumber = 7;
-const number = demoPullRequestNumber;
-export const demoPullRequestUrl = `https://github.com/porcelain-demo/hello-garden/pull/${number}`;
+export const demoPullRequestIdentity = {
+  owner: 'porcelain-demo',
+  repo: 'hello-garden',
+  number: 7,
+};
+const { owner, repo, number } = demoPullRequestIdentity;
+export const demoPullRequestUrl = `https://github.com/${owner}/${repo}/pull/${number}`;
 const url = demoPullRequestUrl;
 const run = `https://github.com/porcelain-demo/hello-garden/actions/runs/101`;
 

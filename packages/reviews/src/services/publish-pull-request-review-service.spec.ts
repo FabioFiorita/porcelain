@@ -9,7 +9,6 @@ import {
   type PullRequestReviewer as Reviewer,
 } from '../ports/pull-request-reviewer.ts';
 import { InMemoryDraftCommentStore } from '../../spec/fakes/in-memory-draft-comment-store.ts';
-import { openDraftRevision } from '../rules/draft-comments.ts';
 import { EditDraftCommentService } from './edit-draft-comment-service.ts';
 import { PublishPullRequestReviewService } from './publish-pull-request-review-service.ts';
 
@@ -81,8 +80,6 @@ async function setup(headOid = HEAD, beforePost = Effect.void) {
   const preview = {
     pullRequest: target,
     headOid: HEAD,
-    inlineIds: ['inline'],
-    draftRevision: openDraftRevision(comments),
   };
   return { store, posted, service, comments, preview };
 }
@@ -232,7 +229,7 @@ describe('PublishPullRequestReviewService', () => {
     ).toBe(true);
   });
 
-  it('refuses a confirmation that adds a comment the developer did not write', async () => {
+  it('refuses when none of the confirmed ids are open drafts', async () => {
     const { posted, service, comments, preview } = await setup();
     const exit = await Effect.runPromiseExit(
       service.execute({
@@ -242,11 +239,11 @@ describe('PublishPullRequestReviewService', () => {
         confirmed: {
           ...preview,
           summary: '',
-          bodies: { inline: 'x', step: 'y', invented: 'z' },
+          bodies: { invented: 'z' },
         },
       }),
     );
-    expect(JSON.stringify(exit)).toContain('ReviewChangedError');
+    expect(JSON.stringify(exit)).toContain('There are no drafts left to post.');
     expect(posted).toEqual([]);
   });
 

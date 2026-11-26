@@ -89,7 +89,6 @@ describe('review preview', () => {
       title: 'Search',
     },
     headOid: 'a'.repeat(40),
-    draftRevision: 'b'.repeat(64),
     inline: [
       {
         id: 'one',
@@ -132,7 +131,7 @@ describe('review preview', () => {
     expect(generalReviewNote('step')).toBeUndefined();
   });
 
-  it('starts from every previewed body and confirms the previewed destination, head and placement with trimmed bodies', () => {
+  it('starts from every previewed body and confirms the previewed destination and head with trimmed bodies', () => {
     let form = reviewForm(preview);
     const update = (change: (current: typeof form) => typeof form) => {
       form = change(form);
@@ -144,8 +143,6 @@ describe('review preview', () => {
     expect(bound.request).toEqual({
       pullRequest: { owner: 'acme', repo: 'notes', number: 4 },
       headOid: 'a'.repeat(40),
-      draftRevision: 'b'.repeat(64),
-      inlineIds: ['one', 'two'],
       summary: 'Looks good',
       bodies: { one: 'First!', two: 'Second', three: 'Third' },
     });
