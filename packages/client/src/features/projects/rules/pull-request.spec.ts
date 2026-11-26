@@ -4,7 +4,7 @@ import {
   recordedCheckNow,
   mergeConfirmation,
   pullRequestCheckout,
-  undecidedCallAtHead,
+  callNotesAtHead,
   walkthroughCheckRows,
   githubUnavailable,
   pullRequestChecks,
@@ -551,11 +551,21 @@ it('finds the checkout of a pull request by its head branch', () => {
   expect(pullRequestCheckout(projects, 'q', 'feature')).toBeUndefined();
 });
 
-it('counts an undecided call only at the pull request head', () => {
-  const review = { headOid: 'abc', undecidedCallStep: 2 };
-  expect(undecidedCallAtHead(review, 'abc')).toBe(2);
-  expect(undecidedCallAtHead(review, 'def')).toBeUndefined();
-  expect(undecidedCallAtHead(undefined, 'abc')).toBeUndefined();
+it('notes an undecided call and a call needing a commit only at the pull request head', () => {
+  const review = {
+    headOid: 'abc',
+    undecidedCallStep: 2,
+    callsNeedingCommit: [1, 3],
+  };
+  expect(callNotesAtHead(review, 'abc')).toEqual([
+    { step: 2, state: 'is not decided yet' },
+    { step: 1, state: 'needs a new commit' },
+  ]);
+  expect(callNotesAtHead(review, 'def')).toEqual([]);
+  expect(callNotesAtHead(undefined, 'abc')).toEqual([]);
+  expect(
+    callNotesAtHead({ headOid: 'abc', undecidedCallStep: 'reading' }, 'abc'),
+  ).toEqual([]);
 });
 
 it('names the pinned head in the merge confirmation', () => {

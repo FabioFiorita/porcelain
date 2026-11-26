@@ -68,7 +68,6 @@ export function PullRequestMergeArea({
   const staleWalkthrough =
     merge.walkthroughHead !== undefined &&
     merge.walkthroughHead !== pull.headSha;
-  const step = merge.undecidedCall;
   return (
     <Box gap={1}>
       <SectionHeading
@@ -122,28 +121,31 @@ export function PullRequestMergeArea({
           {`The Walkthrough covers ${merge.walkthroughHead?.slice(0, 7)}; the pull request is at ${pull.headSha.slice(0, 7)}.`}
         </Note>
       ) : null}
-      {open && typeof step === 'number' ? (
-        <Note
-          state="pending"
-          action={
-            here && checkoutKey ? (
-              <Button
-                label={`Open step ${step}`}
-                variant="plain"
-                size="sm"
-                onPress={() =>
-                  router.navigate({
-                    pathname: '/(tabs)/(walkthrough)/walkthrough-step',
-                    params: { workspace: checkoutKey, step: String(step) },
-                  })
-                }
-              />
-            ) : undefined
-          }
-        >
-          {`Your call in Walkthrough step ${step} is not decided yet. Merge waits for it.`}
-        </Note>
-      ) : null}
+      {open
+        ? merge.callNotes.map(({ step, state }) => (
+            <Note
+              key={`${state}:${step}`}
+              state="pending"
+              action={
+                here && checkoutKey ? (
+                  <Button
+                    label={`Open step ${step}`}
+                    variant="plain"
+                    size="sm"
+                    onPress={() =>
+                      router.navigate({
+                        pathname: '/(tabs)/(walkthrough)/walkthrough-step',
+                        params: { workspace: checkoutKey, step: String(step) },
+                      })
+                    }
+                  />
+                ) : undefined
+              }
+            >
+              {`Your call in Walkthrough step ${step} ${state}. Merge waits for it.`}
+            </Note>
+          ))
+        : null}
       {open && merge.checkout ? (
         <DraftNote
           target={target}

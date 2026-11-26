@@ -521,11 +521,21 @@ export function pullRequestCheckout(
   return worktree ? { projectId, worktreeId: worktree.id } : undefined;
 }
 
-export function undecidedCallAtHead(
+export function callNotesAtHead(
   review: PullRequestMergeReview | undefined,
   headSha: string,
-) {
-  return review?.headOid === headSha ? review.undecidedCallStep : undefined;
+): readonly { readonly step: number; readonly state: string }[] {
+  if (review?.headOid !== headSha) return [];
+  const undecided = review.undecidedCallStep;
+  const needsCommit = review.callsNeedingCommit?.[0];
+  return [
+    ...(typeof undecided === 'number'
+      ? [{ step: undecided, state: 'is not decided yet' }]
+      : []),
+    ...(needsCommit === undefined
+      ? []
+      : [{ step: needsCommit, state: 'needs a new commit' }]),
+  ];
 }
 
 export function pullRequestActionFailure(error: unknown) {

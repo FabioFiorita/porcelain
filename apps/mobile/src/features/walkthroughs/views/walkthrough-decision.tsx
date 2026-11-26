@@ -1,7 +1,7 @@
 import {
-  CALL_DECIDING,
   NEEDS_A_COMMIT,
   callChoices,
+  callDeciding,
   callDecision,
   decidedAgainstChange,
   decidedOption,
@@ -105,7 +105,7 @@ export function CallDecision({
             />
           )}
           <Text variant="caption" tone="muted">
-            {CALL_DECIDING}
+            {callDeciding(comparison)}
           </Text>
         </Box>
       )}

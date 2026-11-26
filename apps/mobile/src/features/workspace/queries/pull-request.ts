@@ -14,7 +14,7 @@ import {
   pullRequestBlockers,
   pullRequestCheckout,
   pullRequestMergeBlock,
-  undecidedCallAtHead,
+  callNotesAtHead,
   withPullRequestStatus,
 } from '@porcelain/client/projects/rules';
 import {
@@ -131,7 +131,7 @@ export function usePullRequestMerge(
     blockers: live.status
       ? pullRequestBlockers(live.status, merged.baseBranch, merged.mergeMethods)
       : [],
-    undecidedCall: undecidedCallAtHead(review, merged.headSha),
+    callNotes: callNotesAtHead(review, merged.headSha),
     block,
   };
 }
