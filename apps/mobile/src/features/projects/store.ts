@@ -55,3 +55,7 @@ export type WorktreeDetails = {
 export const openedWorktree = Atom.make<WorktreeDetails | undefined>(
   undefined,
 ).pipe(Atom.keepAlive);
+
+export const worktreeDrawerOpen = Atom.make(false).pipe(Atom.keepAlive);
+
+export const worktreeSidebarHidden = Atom.make(false).pipe(Atom.keepAlive);

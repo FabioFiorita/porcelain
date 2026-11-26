@@ -10,7 +10,6 @@ export const appTabs = [
   { name: '(changes)', root: 'changes', title: 'Changes', icon: 'changes' },
   { name: '(files)', root: 'files', title: 'Files', icon: 'files' },
   { name: '(history)', root: 'history', title: 'History', icon: 'history' },
-  { name: '(settings)', root: 'settings', title: 'Settings', icon: 'settings' },
 ] as const satisfies readonly {
   name: string;
   root: string;
@@ -18,4 +17,4 @@ export const appTabs = [
   icon: TabIconName;
 }[];
 
-export type WorktreeTab = Exclude<(typeof appTabs)[number]['root'], 'settings'>;
+export type WorktreeTab = (typeof appTabs)[number]['root'];

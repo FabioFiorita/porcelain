@@ -24,6 +24,7 @@ import type { ListDetailMode } from '../shared/rules/list-detail';
 import type { WorktreeTab } from './app-tab-list';
 import { TopBar } from './top-bar';
 import { WorktreeChangesPane } from './workspace-review-pane';
+import { DrawerToolbar } from './drawer-toolbar';
 
 const tabTestIds = {
   walkthrough: 'walkthrough-tab',
@@ -62,6 +63,7 @@ export function WorktreeTabRoot({ tab }: { tab: WorktreeTab }) {
       onLayout={layout.onLayout}
       testID={tabTestIds[tab]}
     >
+      <DrawerToolbar />
       <WorktreeTitleButton />
       <TopBar />
       <WorkspaceGate frame="pane">

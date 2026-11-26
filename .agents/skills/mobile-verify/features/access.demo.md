@@ -1,5 +1,5 @@
 ---
-screen: /worktrees
+screen: /walkthrough
 selectors:
   - 'demo-start'
   - 'demo-reset'

@@ -16,7 +16,7 @@ Development Button samples show the native button variants, sizes and icon butto
 
 ## How to get to it (user POV)
 
-- Settings tab → Development → Component library → Explore Button.
+- Drawer → Settings → Development → Component library → Explore Button.
 
 ## Driving it with agent-device
 

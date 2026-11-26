@@ -31,7 +31,7 @@ Computers manages saved connections and shows status, trust and update offers, w
 
 ## How to get to it (user POV)
 
-- Settings tab → Computers. The header + (Add computer) pairs another computer.
+- Drawer → Settings → Computers. The header + (Add computer) pairs another computer.
 
 ## Driving it with agent-device
 

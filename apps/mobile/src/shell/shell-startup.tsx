@@ -23,16 +23,8 @@ export function ShellStartup() {
       })}
     >
       <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="(settings)" options={{ presentation: 'modal' }} />
       <Stack.Screen name="index" options={{ animation: 'none' }} />
-      <Stack.Screen
-        name="worktrees"
-        options={{
-          headerShown: true,
-          title: 'Worktrees',
-          headerBackButtonDisplayMode: 'minimal',
-          headerLargeTitleEnabled: true,
-        }}
-      />
       <Stack.Screen
         name="archive-pull-request"
         options={{ title: 'Archive pull request', ...sheetOptions('tall') }}

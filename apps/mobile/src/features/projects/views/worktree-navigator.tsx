@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ComponentRef } from 'react';
 import { Cause } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import {
@@ -10,9 +10,10 @@ import {
   useEnvironments,
   useEnvironmentStorageStatus,
 } from '../../access';
-import { ScrollView } from 'react-native';
+import { ScrollView, type TextInput } from 'react-native';
+import { Input } from '../../../components/ui/input';
 import { useScrollReveal } from '../../../components/ui/scroll-reveal';
-import { Stack, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useAtomRef, useAtomValue, useAtomSet } from '@effect/atom-react';
 import {
   readWorktreeNavigatorWithSnapshots,
@@ -29,7 +30,6 @@ import {
   startMobileNavigation,
 } from '../../../shared/application/mobile-timing';
 import { useListCursor } from '../../../shared/application/key-commands';
-import type { SearchBarCommands } from 'react-native-screens';
 import { IconButton } from '../../../components/ui/icon-button';
 import { ButtonSurface } from '../../../components/ui/button-surface';
 import { Box } from '../../../components/ui/box';
@@ -80,7 +80,8 @@ export function WorktreeNavigator({
   const retry = useAtomSet(refreshWorktreeNavigator(connections));
   const clipboard = useCopyPath();
   const router = useRouter();
-  const { setQuery, filter, setFilter, setExpanded } = useWorktreeNavigator();
+  const { query, setQuery, filter, setFilter, setExpanded } =
+    useWorktreeNavigator();
   const openPullRequest = useOpenPullRequest();
   const openComputers = useOpenComputers();
   const paired = useEnvironments();
@@ -108,8 +109,8 @@ export function WorktreeNavigator({
       );
     }
   };
-  const [searchBar] = useState(() => ({
-    current: null as SearchBarCommands | null,
+  const [searchInput] = useState(() => ({
+    current: null as ComponentRef<typeof TextInput> | null,
   }));
   const visibleEntries = projects.flatMap((project) =>
     project.expanded && !project.saved
@@ -129,7 +130,7 @@ export function WorktreeNavigator({
       const entry = visibleEntries.find((candidate) => candidate.key === key);
       if (entry && !picker.disabled) open(entry);
     },
-    onSearch: () => searchBar.current?.focus(),
+    onSearch: () => searchInput.current?.focus(),
   });
   if (storage.status === 'ready' && paired.length === 0)
     return (
@@ -155,14 +156,6 @@ export function WorktreeNavigator({
     );
   return (
     <Box className="flex-1" testID="worktree-navigator" collapsable={false}>
-      <Stack.SearchBar
-        ref={searchBar}
-        placeholder="Search worktrees"
-        autoCapitalize="none"
-        hideWhenScrolling={false}
-        onChangeText={(event) => setQuery(event.nativeEvent.text)}
-        onCancelButtonPress={() => setQuery('')}
-      />
       <ScrollView
         {...reveal.scroller}
         className="flex-1"
@@ -172,6 +165,16 @@ export function WorktreeNavigator({
         accessibilityLabel="Worktrees by project"
         contentContainerClassName="gap-2.5 px-4 pb-6"
       >
+        <Input
+          ref={searchInput}
+          accessibilityLabel="Search worktrees"
+          placeholder="Search worktrees"
+          value={query}
+          onChangeText={setQuery}
+          autoCapitalize="none"
+          autoCorrect={false}
+          clearButtonMode="while-editing"
+        />
         <Box className="flex-row items-center" gap={2}>
           <ScrollView
             horizontal

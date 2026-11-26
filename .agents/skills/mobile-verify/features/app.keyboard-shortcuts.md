@@ -32,8 +32,8 @@ Preconditions: [surface baseline](README.md) on an iPad simulator in landscape, 
 3. On the open file: ⌘⇧T opens Timeline; ⌘[ returns; on a Markdown file ⌘⇧S switches Show source and Show rendered.
 4. ⌘0, ⌘1, ⌘2 and ⌘3 switch the Walkthrough, Changes, Files and History tabs; hold ⌘ to see the Worktree group.
 5. ⌘F: the active list's search field takes focus. Type a letter: it appears in the field and does not move the highlight. Esc clears or leaves the search as UIKit does, and the shortcuts return when editing ends.
-6. Tap the title to open Worktrees: arrows move through worktrees and Return chooses one, returning to the tab.
-7. ⌘,: the Settings tab shows. Open General, Esc: back to Settings. With Pair a computer open, ⌘W closes that sheet.
+6. Tap the title to open the worktree drawer: arrows move through worktrees and Return chooses one and closes it.
+7. ⌘,: Settings opens. Open General, Esc: back to Settings. With Pair a computer open, ⌘W closes that sheet.
 8. ⌘/: Keyboard Shortcuts (`keyboard-shortcuts`) opens as a sheet with Go, Worktree, List and Document; Back lists ⌘[ and Esc on one row. ⌘W closes it. Settings → Keyboard Shortcuts (`settings-keyboard-shortcuts`) opens the same sheet.
 9. iPhone: steps 2, 3 and 7 behave the same with files pushed.
 10. Android tablet: the app starts and behaves as before; Settings has no Keyboard Shortcuts row.

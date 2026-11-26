@@ -4,6 +4,7 @@ export type { Workspace } from './commands/workspace-connection';
 export { useComputerConnection } from './store';
 export { WorktreesScreen, useSelectedWorktree } from './views/worktrees-screen';
 export { WorktreeTitleButton } from './views/worktree-title';
+export { useWorktreeDrawer } from './views/worktree-drawer';
 export { useOpenPullRequest } from './views/open-pull-request';
 export { useWorkspace } from './views/workspace';
 export { PullRequestArchive } from './views/archive-pull-request';

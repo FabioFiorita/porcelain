@@ -1,1 +1,5 @@
-export { StartRedirect as default } from '../shell/start-redirect';
+import { Redirect } from 'expo-router';
+
+export default function Index() {
+  return <Redirect href="/walkthrough" />;
+}

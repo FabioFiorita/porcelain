@@ -31,9 +31,4 @@ export type HeaderIconName =
   | 'next'
   | 'openExternal';
 
-export type TabIconName =
-  | 'walkthrough'
-  | 'changes'
-  | 'files'
-  | 'history'
-  | 'settings';
+export type TabIconName = 'walkthrough' | 'changes' | 'files' | 'history';

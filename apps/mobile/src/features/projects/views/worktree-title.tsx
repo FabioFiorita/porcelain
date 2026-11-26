@@ -1,4 +1,5 @@
-import { Stack, useRouter } from 'expo-router';
+import { Stack } from 'expo-router';
+import { useWorktreeDrawer } from './worktree-drawer';
 import { HeaderTitle } from '../../../components/ui/header-title';
 import { useSelectedWorktree } from './worktrees-screen';
 
@@ -6,7 +7,7 @@ const pageActionSpace = 2;
 
 export function WorktreeTitleButton() {
   const selected = useSelectedWorktree();
-  const router = useRouter();
+  const drawer = useWorktreeDrawer();
   const title = selected?.title ?? 'Choose a worktree';
   return (
     <Stack.Title asChild>
@@ -20,8 +21,8 @@ export function WorktreeTitleButton() {
         }
         trailingItems={pageActionSpace}
         accessibilityLabel={selected ? `Worktree ${title}` : title}
-        accessibilityHint="Opens the worktree list"
-        onPress={() => router.push('/worktrees')}
+        accessibilityHint="Shows the worktree list"
+        onPress={drawer.show}
       />
     </Stack.Title>
   );

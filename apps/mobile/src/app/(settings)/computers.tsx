@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { EnvironmentsSettings } from '../../../features/access';
+import { EnvironmentsSettings } from '../../features/access';
 
 export default function ComputersRoute() {
   const router = useRouter();

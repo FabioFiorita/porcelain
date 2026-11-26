@@ -1,4 +1,3 @@
-import { useRouter } from 'expo-router';
 import { useAtomRef, useAtomSet, useAtomValue } from '@effect/atom-react';
 import { readWorktreeNavigator } from '@porcelain/client/projects';
 import {
@@ -10,19 +9,19 @@ import { profileMobileScreen } from '../../../shared/application/mobile-timing';
 import { worktreeRow } from '../rules/worktree-row';
 import { openedWorktree } from '../store';
 import { WorktreeNavigator } from './worktree-navigator';
+import { useWorktreeDrawer } from './worktree-drawer';
 import type { WorktreeDetails } from '../store';
 import { useWorkspacePickerModel } from './workspace-picker-model';
 
 export function WorktreesScreen() {
-  const router = useRouter();
   const remember = useAtomSet(openedWorktree);
+  const drawer = useWorktreeDrawer();
   return profileMobileScreen(
     'worktrees',
     <WorktreeNavigator
       onOpenWorktree={(entry) => {
         remember(worktreeDetails(entry));
-        if (router.canGoBack()) router.back();
-        else router.replace('/walkthrough');
+        drawer.close();
       }}
     />,
   );

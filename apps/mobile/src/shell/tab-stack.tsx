@@ -3,8 +3,7 @@ import { SafeAreaView } from 'react-native-screens/experimental';
 import { appTabs, type WorktreeTab } from './app-tab-list';
 
 function rootOf(segment: string): WorktreeTab {
-  const root = appTabs.find((tab) => tab.name === segment)?.root;
-  return root === undefined || root === 'settings' ? 'walkthrough' : root;
+  return appTabs.find((tab) => tab.name === segment)?.root ?? 'walkthrough';
 }
 
 function TabRoutes({ root }: { root: WorktreeTab }) {

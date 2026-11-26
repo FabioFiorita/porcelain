@@ -30,7 +30,7 @@ Preconditions: [surface baseline](README.md).
 
 1. Open Computers → This computer on a paired computer. Expect a pushed page titled with that computer's name, its address, section headings Ways in, Devices and Pair a device over outlined groups, and instructions to manage devices or create a link in a browser on that computer. Native Back (and the iOS edge swipe) returns to Computers; there is no Close button and no tab bar around it. With multiple computers open each one and verify its identity.
 2. Forget the computer from another path while its page is in the stack, then return to it: the page says This computer is no longer paired.
-3. On tablets verify landscape and portrait: the page pushes inside the Settings tab and stays bounded.
+3. On tablets verify landscape and portrait: the page pushes inside the Settings modal and stays bounded.
 
 Automated coverage: `share.spec.ts`.
 

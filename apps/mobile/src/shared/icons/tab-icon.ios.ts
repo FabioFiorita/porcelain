@@ -6,7 +6,6 @@ const symbols = {
   changes: 'plus.forwardslash.minus',
   files: 'folder',
   history: 'clock.arrow.circlepath',
-  settings: 'gearshape',
 } satisfies Record<TabIconName, NonNullable<SFSymbolIcon['sf']>>;
 
 export function tabIcon(name: TabIconName) {

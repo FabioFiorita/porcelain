@@ -2,7 +2,7 @@ import { lazy, Suspense } from 'react';
 
 const TextPreview = __DEV__
   ? lazy(() =>
-      import('../../../features/development-catalog').then((catalog) => ({
+      import('../../features/development-catalog').then((catalog) => ({
         default: catalog.TextPreview,
       })),
     )

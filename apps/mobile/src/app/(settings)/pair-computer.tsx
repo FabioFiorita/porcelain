@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { PairComputerSheet } from '../../../features/access';
+import { PairComputerSheet } from '../../features/access';
 
 export default function PairComputerRoute() {
   const router = useRouter();

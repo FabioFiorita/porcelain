@@ -13,7 +13,7 @@ Development preview samples exercise file renderers and primitive interactions.
 
 ## How to get to it (user POV)
 
-- Settings tab → Development → Component library → primitive sample.
+- Drawer → Settings → Development → Component library → primitive sample.
 
 ## Driving it with agent-device
 

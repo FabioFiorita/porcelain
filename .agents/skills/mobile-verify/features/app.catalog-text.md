@@ -14,7 +14,7 @@ Development Text samples show type styles, wrapping and native selection.
 
 ## How to get to it (user POV)
 
-- Settings tab → Development → Component library → Explore Text.
+- Drawer → Settings → Development → Component library → Explore Text.
 
 ## Driving it with agent-device
 

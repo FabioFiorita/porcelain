@@ -1,4 +1,5 @@
-import { useRouter } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
+import { headerIcon } from '../shared/icons/header-icon';
 import { useState } from 'react';
 import { ListDetail, useListDetailLayout } from '../components/ui/list-detail';
 import { EnvironmentsSettings, SettingsScreen } from '../features/access';
@@ -29,11 +30,20 @@ export function SettingsHome() {
     />
   );
   return (
-    <ListDetail
-      layout={layout}
-      list={() => list}
-      detail={beside ? <SettingsPageView page={page} /> : null}
-    />
+    <>
+      <Stack.Toolbar placement="left">
+        <Stack.Toolbar.Button
+          icon={headerIcon('close')}
+          accessibilityLabel="Close Settings"
+          onPress={() => router.back()}
+        />
+      </Stack.Toolbar>
+      <ListDetail
+        layout={layout}
+        list={() => list}
+        detail={beside ? <SettingsPageView page={page} /> : null}
+      />
+    </>
   );
 }
 

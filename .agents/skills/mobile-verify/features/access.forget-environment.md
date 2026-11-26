@@ -15,7 +15,7 @@ Forget computer removes this device’s saved computer, credentials, remembered 
 
 ## How to get to it (user POV)
 
-- Settings tab → Computers → the computer's Forget computer button
+- Drawer → Settings → Computers → the computer's Forget computer button
 
 ## Driving it with agent-device
 

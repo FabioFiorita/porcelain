@@ -25,7 +25,7 @@ Reviews & Git edits the archive deletions, Spec files and pull strategy that a c
 
 ## How to get to it (user POV)
 
-- Settings tab → Reviews & Git. Native Back returns to Settings.
+- Drawer → Settings → Reviews & Git. Native Back returns to Settings.
 - With several paired computers, the Computer choice picks which one is edited; with one, the page names it.
 
 ## Driving it with agent-device

@@ -6,7 +6,6 @@ const symbols = {
   changes: 'difference',
   files: 'folder',
   history: 'history',
-  settings: 'settings',
 } satisfies Record<TabIconName, NonNullable<MaterialIcon['md']>>;
 
 export function tabIcon(name: TabIconName): MaterialIcon {
