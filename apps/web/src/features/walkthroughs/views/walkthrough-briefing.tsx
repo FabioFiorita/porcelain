@@ -10,6 +10,8 @@ import {
   type WalkthroughRun,
 } from '@porcelain/client/walkthroughs/rules';
 import {
+  capturedCheckNames,
+  capturedCheckRest,
   movedPullHead,
   recordedChecks,
   walkthroughCheckRows,
@@ -251,16 +253,13 @@ function CheckLine({
   onJump: Jump;
 }) {
   const recorded = recordedChecks(block.checks);
+  const captured = capturedCheckNames(recorded, checksTone(block.checks));
+  const rest = capturedCheckRest(captured);
   const moved = movedPullHead(pull?.detail?.headSha, block.checks.headOid);
   const names = (
     <>
-      <CheckNames
-        names={recorded.results.map((result) => result.name)}
-        pull={pull}
-      />
-      {recorded.more && (
-        <span className="text-muted-foreground"> and more</span>
-      )}
+      <CheckNames names={captured.names} pull={pull} />
+      {rest && <span className="text-muted-foreground">{rest}</span>}
     </>
   );
   return (
@@ -280,14 +279,14 @@ function CheckLine({
             </span>
             <span className="text-caption text-muted-foreground">
               <ShortOid label={recorded.whenWritten} />
-              {recorded.results.length > 0 && ': '}
+              {captured.names.length > 0 && ': '}
               {names}
             </span>
           </>
         ) : (
           <span>
             <ShortOid label={recorded.label} />
-            {recorded.results.length > 0 && (
+            {captured.names.length > 0 && (
               <span className="text-muted-foreground">: </span>
             )}
             {names}

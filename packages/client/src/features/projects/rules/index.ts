@@ -68,6 +68,11 @@ export {
 } from './walkthrough-writer.ts';
 
 export * from './pull-request.ts';
-export { movedPullHead, verifiedChecks } from './walkthrough-checks.ts';
+export {
+  capturedCheckNames,
+  capturedCheckRest,
+  movedPullHead,
+  verifiedChecks,
+} from './walkthrough-checks.ts';
 export * from './pull-request-checks.ts';
 export * from './merge-readiness.ts';

@@ -59,22 +59,27 @@ describe('verifiedChecksLine', () => {
     });
   });
 
-  it('names only the checks that failed when the written result is a failure', () => {
+  it('names only the checks that failed and counts the passing ones', () => {
+    const failing = {
+      label: 'Checks failing at abcdef1',
+      whenWritten: 'Failing when written, at abcdef1',
+      more: false,
+      results: [
+        { name: 'Unit tests', tone: 'passed' as const },
+        { name: 'Browser tests', tone: 'failed' as const },
+        { name: 'Lint', tone: 'passed' as const },
+      ],
+    };
+    expect(verifiedChecksLine(failing, undefined, 'failed').text).toBe(
+      'Checks failing at abcdef1: Browser tests and 2 passing',
+    );
     expect(
-      verifiedChecksLine(
-        {
-          label: 'Checks failing at abcdef1',
-          whenWritten: 'Failing when written, at abcdef1',
-          more: false,
-          results: [
-            { name: 'Unit tests', tone: 'passed' },
-            { name: 'Browser tests', tone: 'failed' },
-          ],
-        },
-        undefined,
-        'failed',
-      ).text,
-    ).toBe('Checks failing at abcdef1: Browser tests');
+      verifiedChecksLine({ ...failing, more: true }, undefined, 'failed').text,
+    ).toBe('Checks failing at abcdef1: Browser tests and 2 passing, and more');
+    expect(
+      verifiedChecksLine(failing, { label: 'Passing now', names: [] }, 'failed')
+        .captured,
+    ).toBe('Failing when written, at abcdef1: Browser tests and 2 passing');
   });
 });
 
