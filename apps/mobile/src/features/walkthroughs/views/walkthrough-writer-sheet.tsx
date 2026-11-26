@@ -13,6 +13,7 @@ import { Box } from '../../../components/ui/box';
 import { Button } from '../../../components/ui/button';
 import { CardRows } from '../../../components/ui/card';
 import { Empty } from '../../../components/ui/empty';
+import { ErrorState } from '../../../components/ui/error-state';
 import { Icon } from '../../../components/ui/icon';
 import { Item } from '../../../components/ui/item';
 import { Sheet } from '../../../components/ui/sheet';
@@ -59,7 +60,19 @@ function WriterChoice({ workspace }: { workspace: Workspace }) {
   );
   const [failure, setFailure] = useState<string>();
   const { settings, writer } = check;
-  if (!settings || !writer) return check.failed ? null : <Spinner />;
+  if (!settings || !writer)
+    return check.failed ? (
+      <ErrorState
+        message="Could not check writers on the connected computer."
+        retry={{
+          label: 'Check writers again',
+          onPress: check.refresh,
+          pending: check.checking,
+        }}
+      />
+    ) : (
+      <Spinner />
+    );
   const { models } = settings;
   if (models.length === 0)
     return (

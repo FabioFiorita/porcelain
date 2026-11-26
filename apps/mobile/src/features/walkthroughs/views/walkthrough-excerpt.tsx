@@ -28,6 +28,7 @@ function CapturedLines({
     runId,
     step,
     block: excerpt.position,
+    node: excerpt.node,
   });
   if (AsyncResult.isInitial(result)) return null;
   if (AsyncResult.isFailure(result))

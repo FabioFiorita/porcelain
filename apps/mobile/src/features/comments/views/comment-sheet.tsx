@@ -95,7 +95,7 @@ function EditComment({
   );
 }
 
-function CommentForm({
+export function CommentForm({
   workspace,
   anchor,
   comment,

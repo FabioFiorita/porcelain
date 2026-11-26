@@ -31,6 +31,7 @@ import {
   type ReviewPreview,
 } from '../commands/comments';
 import { useComments } from '../queries/comments';
+import { CommentForm } from './comment-sheet';
 import { DraftComments } from './draft-comments';
 
 export function PublishCommentsSheet({
@@ -119,6 +120,7 @@ function Drafts({
   const { view, failed, waiting, refresh } = useComments(workspace);
   const review = useReviewPreview(workspace);
   const copy = useCopyComments();
+  const [editing, setEditing] = useState<string>();
   if (!view)
     return failed ? (
       <ErrorState
@@ -149,11 +151,25 @@ function Drafts({
           lines.
         </Text>
       ) : (
-        <DraftComments
-          workspace={workspace}
-          drafts={open}
-          locations={(comment) => anchorLabel(comment.anchor)}
-        />
+        open.map((comment) =>
+          editing === comment.id ? (
+            <CommentForm
+              key={comment.id}
+              workspace={workspace}
+              anchor={comment.anchor}
+              comment={comment}
+              onClose={() => setEditing(undefined)}
+            />
+          ) : (
+            <DraftComments
+              key={comment.id}
+              workspace={workspace}
+              drafts={[comment]}
+              locations={(draft) => anchorLabel(draft.anchor)}
+              onEdit={(draft) => setEditing(draft.id)}
+            />
+          ),
+        )
       )}
       {posted > 0 ? (
         <Text variant="caption" tone="muted">
