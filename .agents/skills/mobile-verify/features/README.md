@@ -57,7 +57,7 @@ Use the [shared evidence reference](../../verify-core/evidence.md) for screensho
 - [preferences.reviews-git](preferences.reviews-git.md) — Each computer's archive, spec and pull settings, and this app's commit model.
 - [projects.archive-pull-request](projects.archive-pull-request.md) — Archive a merged or closed review from its pull request.
 - [projects.rename-project](projects.rename-project.md) — Rename a project; remove it with a platform alert.
-- [projects.worktree](projects.worktree.md) — A selected worktree's Walkthrough, Changes, Files and History, switched from four top-bar buttons.
+- [projects.worktree](projects.worktree.md) — A selected worktree's Walkthrough, Changes, Files and History tabs and the worktree title button.
 - [projects.worktree-actions](projects.worktree-actions.md) — A worktree's long-press actions: copy path, switch branch, delete.
 - [projects.worktrees](projects.worktrees.md) — Projects, worktrees, review progress, search and filters.
 - [reviews.all-changes](reviews.all-changes.md) — Every changed file of a comparison as one scrolling page.

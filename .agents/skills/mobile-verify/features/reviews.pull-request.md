@@ -41,7 +41,7 @@ A pull request reads as one page scoped to its project, number and computer, mat
 ## How to get to it (user POV)
 
 - Changes tab → Pull request #n row (shown when the worktree's branch has a pull request). Back returns to Changes.
-- Worktrees → a worktree's PR number. From the end of the Walkthrough, Open #n.
+- Worktree drawer → a worktree's PR number, the Pull request row on Changes, or Open #n at the end of the Walkthrough.
 
 ## Driving it with agent-device
 

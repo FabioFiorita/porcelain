@@ -31,7 +31,7 @@ Every changed file of the selected comparison reads as one scrolling page, each 
 
 ## How to get to it (user POV)
 
-- Worktrees → worktree → Changes → All changes, the first row of the Changed files list. It opens the comparison the Changes menu shows (Uncommitted or Branch · base). Native Back returns to Changes.
+- Changes tab → All changes, the first row of the Changed files list. It opens the comparison the Changes menu shows (Uncommitted or Branch · base). Native Back returns to Changes.
 
 ## Driving it with agent-device
 

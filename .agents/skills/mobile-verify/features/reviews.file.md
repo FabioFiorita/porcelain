@@ -29,7 +29,7 @@ Diff documents support Reviewed marks, comparison switching and draft comments o
 
 ## How to get to it (user POV)
 
-- Worktrees → worktree → Changes → changed file. Reviewed, Comment on this file and Comparison are native top-bar actions.
+- Changes tab → changed file. Reviewed, Comment on this file and Comparison are native top-bar actions.
 
 ## Driving it with agent-device
 

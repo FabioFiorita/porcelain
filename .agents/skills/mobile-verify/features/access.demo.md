@@ -17,7 +17,7 @@ The bundled demo opens the real mobile screens with a local sample computer and 
 
 ## How to get to it (user POV)
 
-- With no computers paired, Worktrees → Try the demo.
+- With no computers paired, the worktree drawer → Try the demo.
 - Settings → Try the demo also works when real computers are saved.
 - Open Hello Garden → A warmer welcome for every visitor. Read its Walkthrough, open a step, Changes, Files and History. Changes shows Pull request #7, a simulated pull request whose Lint check fails until Re-run failed jobs; merging, commenting and draft comments change what the demo reads back until it resets.
 - Settings → Reset demo restores the sample; Exit demo removes the sample computer.

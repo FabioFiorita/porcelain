@@ -18,7 +18,7 @@ Rename project is a form sheet route opened from a project header's ellipsis in 
 
 ## How to get to it (user POV)
 
-- Worktrees → project header ellipsis → Rename project.
+- Worktree drawer → project header ellipsis → Rename project.
 
 ## Driving it with agent-device
 
