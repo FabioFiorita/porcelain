@@ -1,6 +1,7 @@
 import { HttpApiEndpoint, HttpApiGroup } from 'effect/http-api';
 import {
   DraftCommentNotFoundError,
+  DraftCommentPublishedError,
   PullRequestReviewFailedError,
   ReviewChangedError,
 } from '@porcelain/reviews/errors';
@@ -23,6 +24,11 @@ import {
 
 const readFailures = [...worktreeFailures, ...gitReadFailures] as const;
 const notFound = httpFailure(DraftCommentNotFoundError, 'NotFound');
+const writeFailures = [
+  ...readFailures,
+  notFound,
+  httpFailure(DraftCommentPublishedError, 'Conflict'),
+] as const;
 
 export class CommentsApi extends porcelainApi.add(
   HttpApiGroup.make('comments')
@@ -45,7 +51,7 @@ export class CommentsApi extends porcelainApi.add(
           params: worktreeParamsSchema,
           payload: addCommentRequestSchema,
           success: commentsResponseSchema,
-          error: [...readFailures, notFound],
+          error: writeFailures,
         },
       ),
       HttpApiEndpoint.patch(
@@ -56,7 +62,7 @@ export class CommentsApi extends porcelainApi.add(
           params: commentParamsSchema,
           payload: editCommentRequestSchema,
           success: commentsResponseSchema,
-          error: [...readFailures, notFound],
+          error: writeFailures,
         },
       ),
       HttpApiEndpoint.delete(
@@ -66,7 +72,7 @@ export class CommentsApi extends porcelainApi.add(
           disableCodecs: true,
           params: commentParamsSchema,
           success: commentsResponseSchema,
-          error: [...readFailures, notFound],
+          error: writeFailures,
         },
       ),
       HttpApiEndpoint.get(

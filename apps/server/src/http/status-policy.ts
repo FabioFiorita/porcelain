@@ -112,6 +112,7 @@ import {
 } from '@porcelain/projects/errors';
 import {
   DraftCommentNotFoundError,
+  DraftCommentPublishedError,
   GitHubPullRequestNotFoundError,
   GitHubReadError,
   PullRequestActionRefusedError,
@@ -227,6 +228,7 @@ const rules: readonly StatusRule[] = [
       EntryExistsError,
 
       ReviewedMarkConflictError,
+      DraftCommentPublishedError,
       ReviewChangedError,
       PullRequestMergeRefusedError,
       PullRequestActionRefusedError,

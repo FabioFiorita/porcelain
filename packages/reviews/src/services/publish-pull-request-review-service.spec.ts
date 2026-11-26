@@ -1,6 +1,7 @@
 import { testClock } from '@porcelain/kernel/test-kit';
-import { Clock, Effect, Exit } from 'effect';
+import { Cause, Clock, Deferred, Effect, Exit, Fiber, Semaphore } from 'effect';
 import { describe, expect, it } from 'vite-plus/test';
+import { DraftCommentPublishedError } from '../errors/draft-comment-published-error.ts';
 import type { DraftCommentView } from '../models/draft-comment.ts';
 import { DraftCommentStore } from '../ports/draft-comment-store.ts';
 import {
@@ -9,6 +10,7 @@ import {
 } from '../ports/pull-request-reviewer.ts';
 import { InMemoryDraftCommentStore } from '../../spec/fakes/in-memory-draft-comment-store.ts';
 import { openDraftRevision } from '../rules/draft-comments.ts';
+import { EditDraftCommentService } from './edit-draft-comment-service.ts';
 import { PublishPullRequestReviewService } from './publish-pull-request-review-service.ts';
 
 const worktreeId = 'w'.repeat(32);
@@ -30,7 +32,7 @@ function stored(id: string, anchor: DraftCommentView['anchor']) {
   };
 }
 
-async function setup(headOid = HEAD) {
+async function setup(headOid = HEAD, beforePost = Effect.void) {
   const store = new InMemoryDraftCommentStore();
   const inline = stored('inline', {
     kind: 'lines',
@@ -48,12 +50,16 @@ async function setup(headOid = HEAD) {
     diff: () =>
       Effect.succeed({ headOid, files: [{ path: 'src/a.ts', patch: PATCH }] }),
     post: (input) =>
-      Effect.sync(() => {
-        posted.push(input);
-        return {
-          url: 'https://github.com/acme/notes/pull/7#pullrequestreview-9',
-        };
-      }),
+      beforePost.pipe(
+        Effect.andThen(
+          Effect.sync(() => {
+            posted.push(input);
+            return {
+              url: 'https://github.com/acme/notes/pull/7#pullrequestreview-9',
+            };
+          }),
+        ),
+      ),
   };
   const service = Effect.runSync(
     PublishPullRequestReviewService.pipe(
@@ -132,6 +138,70 @@ describe('PublishPullRequestReviewService', () => {
         publishedAt: '2026-11-25T12:00:00.000Z',
       },
     ]);
+  });
+
+  it('refuses an edit waiting behind publication and keeps the posted draft unchanged', async () => {
+    const posting = Deferred.makeUnsafe<void>();
+    const releasePost = Deferred.makeUnsafe<void>();
+    const { store, posted, service, comments, preview } = await setup(
+      HEAD,
+      Deferred.succeed(posting, undefined).pipe(
+        Effect.andThen(Deferred.await(releasePost)),
+      ),
+    );
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const edit = yield* EditDraftCommentService.pipe(
+          Effect.provide(EditDraftCommentService.layer),
+          Effect.provideService(DraftCommentStore, store),
+        );
+        const writer = yield* Semaphore.make(1);
+        const publish = yield* Effect.forkChild(
+          writer.withPermit(
+            service.execute({
+              worktreeId,
+              target,
+              comments,
+              confirmed: {
+                ...preview,
+                summary: '',
+                bodies: { inline: 'draft inline', step: 'draft step' },
+              },
+            }),
+          ),
+          { startImmediately: true },
+        );
+        yield* Deferred.await(posting);
+        const editRequested = Deferred.makeUnsafe<void>();
+        const save = yield* Effect.forkChild(
+          Deferred.succeed(editRequested, undefined).pipe(
+            Effect.andThen(
+              writer.withPermit(
+                edit.execute({
+                  worktreeId,
+                  id: 'inline',
+                  text: 'A later save',
+                }),
+              ),
+            ),
+          ),
+          { startImmediately: true },
+        );
+        yield* Deferred.await(editRequested);
+        yield* Deferred.succeed(releasePost, undefined);
+        yield* Fiber.join(publish);
+        const refused = yield* Fiber.await(save);
+        expect(
+          Exit.isFailure(refused) && Cause.squash(refused.cause),
+        ).toBeInstanceOf(DraftCommentPublishedError);
+        expect(yield* store.find({ worktreeId, id: 'inline' })).toMatchObject({
+          text: 'draft inline',
+          publication: { status: 'published' },
+        });
+        expect(posted).toHaveLength(1);
+        expect(posted[0]?.comments[0]?.body).toBe('draft inline');
+      }),
+    );
   });
 
   it('refuses to post when the pull request moved after the preview', async () => {
