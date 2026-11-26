@@ -9,7 +9,9 @@ test('open tabs, a pinned tab and a collapsed diff come back after a reload', as
   await repo.write(notes, '# Notes\n');
   const opened = await app.open(await app.link('this'));
   const openFile = async (path: string) => {
-    await opened.getByRole('button', { name: 'Review', exact: true }).click();
+    await opened
+      .getByRole('button', { name: 'Side panel', exact: true })
+      .click();
     await opened.getByRole('tab', { name: 'Files', exact: true }).click();
     const file = opened.getByRole('treeitem', { name: path, exact: true });
     await expect(file).toBeVisible();
@@ -30,7 +32,7 @@ test('open tabs, a pinned tab and a collapsed diff come back after a reload', as
   await expect(
     opened.getByRole('button', { name: `Unpin ${readme}`, exact: true }),
   ).toBeVisible();
-  await opened.getByRole('button', { name: 'Review', exact: true }).click();
+  await opened.getByRole('button', { name: 'Side panel', exact: true }).click();
   await opened
     .getByRole('complementary', { name: 'Review sidebar', exact: true })
     .getByRole('tab', { name: 'Changes', exact: true })
@@ -67,7 +69,7 @@ test('a reloaded split keeps shortcuts on the saved side pane and closing it pre
   repo,
 }) => {
   const opened = await app.open(await app.link('this'));
-  await opened.getByRole('button', { name: 'Review', exact: true }).click();
+  await opened.getByRole('button', { name: 'Side panel', exact: true }).click();
   await opened.getByRole('tab', { name: 'Files', exact: true }).click();
   await opened
     .getByRole('treeitem', { name: repo.readme.path, exact: true })

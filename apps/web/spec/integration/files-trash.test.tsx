@@ -18,7 +18,7 @@ test('moving a file to the trash from the tree removes it from disk and the tree
   await repo.write(kept, 'Notes to throw away\n');
   await repo.write(gone, 'Notes another writer removes\n');
   const opened = await render.workspace();
-  await opened.getByRole('button', { name: 'Review', exact: true }).click();
+  await opened.getByRole('button', { name: 'Side panel', exact: true }).click();
   await opened.getByRole('tab', { name: 'Files', exact: true }).click();
   await opened
     .getByRole('treeitem', { name: kept, exact: true })
@@ -47,7 +47,7 @@ test('moving a file another writer already removed to the trash is refused and s
 }) => {
   await repo.write(gone, 'Notes another writer removes\n');
   const page = await render.workspace();
-  await page.getByRole('button', { name: 'Review', exact: true }).click();
+  await page.getByRole('button', { name: 'Side panel', exact: true }).click();
   await page.getByRole('tab', { name: 'Files', exact: true }).click();
   await page
     .getByRole('treeitem', { name: gone, exact: true })
@@ -78,13 +78,13 @@ test('moving an open file to the trash closes its tab', async ({
 }) => {
   await repo.write(kept, 'Notes to throw away\n');
   const page = await render.workspace();
-  await page.getByRole('button', { name: 'Review', exact: true }).click();
+  await page.getByRole('button', { name: 'Side panel', exact: true }).click();
   await page.getByRole('tab', { name: 'Files', exact: true }).click();
   await page.getByRole('treeitem', { name: kept, exact: true }).click();
   await expect
     .element(page.getByRole('tab', { name: kept, exact: true }))
     .toHaveAttribute('aria-selected', 'true');
-  await page.getByRole('button', { name: 'Review', exact: true }).click();
+  await page.getByRole('button', { name: 'Side panel', exact: true }).click();
   await page.getByRole('tab', { name: 'Files', exact: true }).click();
   await page
     .getByRole('treeitem', { name: kept, exact: true })

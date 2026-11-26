@@ -50,7 +50,7 @@ export function CommentsSummary({ owner }: { owner: CommentOwner }) {
             {label}
             <span className="text-muted-foreground"> · {spread(comments)}</span>
           </>,
-          'Review and publish',
+          'Publish review',
         )}
       {count === 0 &&
         posted > 0 &&

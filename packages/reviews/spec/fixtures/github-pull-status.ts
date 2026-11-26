@@ -55,7 +55,7 @@ export const actionsJob: RawCheck = {
   summary: null,
   checkSuite: {
     app: { name: 'GitHub Actions', slug: 'github-actions' },
-    workflowRun: { databaseId: 9001, workflow: { name: 'CI' } },
+    workflowRun: { databaseId: 9001, runNumber: 812, workflow: { name: 'CI' } },
   },
   steps: {
     nodes: [

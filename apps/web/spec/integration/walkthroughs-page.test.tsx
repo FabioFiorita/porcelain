@@ -509,12 +509,15 @@ test('a signed-out writer names the sign-in command and Try again runs it again'
     .click();
   await expect
     .element(
-      page.getByRole('heading', {
-        name: 'Sign in to Claude again with claude auth login, then try again.',
-        exact: true,
+      page.getByRole('alert').filter({
+        hasText:
+          /^Sign in to Claude again with claude auth login, then try again\.$/,
       }),
     )
     .toBeVisible();
+  await expect
+    .element(page.getByRole('button', { name: 'Check again', exact: true }))
+    .not.toBeInTheDocument();
 
   await repo.remove(SCENARIO);
   await page.getByRole('button', { name: 'Try again', exact: true }).click();
@@ -657,7 +660,7 @@ test('uncommitted-only work opens the review with its diffs and stays fresh when
     )
     .not.toBeInTheDocument();
   await expect
-    .element(page.getByText('Update log', { exact: true }))
+    .element(page.getByText('Writing log', { exact: true }))
     .not.toBeInTheDocument();
   await page
     .getByRole('button', { name: 'Update walkthrough', exact: true })

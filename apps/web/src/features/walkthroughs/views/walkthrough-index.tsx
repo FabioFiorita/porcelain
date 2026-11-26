@@ -12,6 +12,8 @@ import {
   plainText,
   reviewCodeIn,
   reviewCodeSections,
+  stepCallState,
+  type CallState,
   type WalkthroughContent,
   type WalkthroughStop,
 } from '@porcelain/client/walkthroughs/rules';
@@ -35,10 +37,55 @@ import { isSpecPath } from '@porcelain/client/changes/rules';
 import { useSpecsApart } from '@/features/preferences/index';
 import type { ConnectionContext } from '@/shared/workspace/connection';
 import { useWalkthroughContent } from '../queries/walkthrough';
+import {
+  useConversations,
+  type ConversationScope,
+} from '../queries/conversations';
 import { useBranchFileSizes } from './cited-files';
 import { FileChangeSize } from './walkthrough-blocks';
 
 type BranchSlot = ComponentProps<BranchFileGrouping>;
+
+const CALL_MARKS: Record<
+  CallState,
+  { text: string; label: string; className: string }
+> = {
+  open: { text: 'Call', label: 'Your call', className: 'text-warn' },
+  'needs-commit': {
+    text: 'Needs commit',
+    label: 'Your call, needs a new commit',
+    className: 'text-warn',
+  },
+  decided: {
+    text: 'Decided',
+    label: 'Your call, decided',
+    className: 'text-muted-foreground',
+  },
+};
+
+function StepCallMark({
+  owner,
+  content,
+  step,
+}: {
+  owner: ConversationScope;
+  content: WalkthroughContent;
+  step: number;
+}) {
+  const { view } = useConversations(owner);
+  const state = stepCallState(content, step, view?.decisions);
+  if (!state) return null;
+  const mark = CALL_MARKS[state];
+  return (
+    <span
+      role="img"
+      aria-label={mark.label}
+      className={cn('shrink-0 text-2xs font-medium', mark.className)}
+    >
+      {mark.text}
+    </span>
+  );
+}
 type UncommittedSlot = ComponentProps<UncommittedFileGrouping>;
 
 function useStepComments(scope: ReviewScope, context: ConnectionContext) {
@@ -106,7 +153,9 @@ function StepList<File>({
   row,
   comments,
   elsewhere,
+  callMark,
 }: {
+  callMark: (step: number) => ReactNode;
   steps: readonly StepRows<File>[];
   activeEntry: string | undefined;
   onOpen: OpenDocument;
@@ -147,15 +196,7 @@ function StepList<File>({
                 className="min-w-0 flex-1"
                 text={plainText(stop.title)}
               />
-              {stop.callouts.length > 0 && (
-                <span
-                  role="img"
-                  aria-label="Your call"
-                  className="shrink-0 text-2xs font-medium text-warn"
-                >
-                  Call
-                </span>
-              )}
+              {stop.callouts.length > 0 && callMark(step)}
               {commented > 0 && (
                 <span
                   aria-label={
@@ -304,6 +345,13 @@ function BranchSteps({
         }}
         comments={comments}
         elsewhere="worktree"
+        callMark={(step) => (
+          <StepCallMark
+            owner={{ scope, context, run: ready.run }}
+            content={ready.content}
+            step={step}
+          />
+        )}
       />
       <NotInWalkthrough
         files={items.filter((item) => outside.has(item.path))}
@@ -378,6 +426,13 @@ function UncommittedSteps({
         row={(path) => row(path, { tick: true })}
         comments={comments}
         elsewhere="branch"
+        callMark={(step) => (
+          <StepCallMark
+            owner={{ scope, context, run: ready.run }}
+            content={ready.content}
+            step={step}
+          />
+        )}
       />
       <NotInWalkthrough
         files={paths

@@ -10,7 +10,9 @@ const longFileTest = test.extend('longFile', async ({ workspace, repo }) => {
   lines.splice(20, 0, 'an early NEEDLE');
   await repo.write(path, `${lines.join('\n')}\n`);
 
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await workspace.getByRole('tab', { name: 'Files', exact: true }).click();
   const file = workspace.getByRole('treeitem', { name: path, exact: true });
   await expect.element(file).toBeVisible();

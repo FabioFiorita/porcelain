@@ -20,7 +20,9 @@ for (const [width, colorScheme] of [
     await page.setViewportSize({ width, height: 896 });
     await page.emulateMedia({ colorScheme });
     if (width === 414) {
-      await page.getByRole('button', { name: 'Review', exact: true }).click();
+      await page
+        .getByRole('button', { name: 'Side panel', exact: true })
+        .click();
       await page.getByRole('tab', { name: 'History', exact: true }).click();
     } else
       await page
@@ -58,16 +60,7 @@ for (const [width, colorScheme] of [
     await expect(
       page.getByRole('tooltip', { name: short, exact: true }),
     ).toHaveCount(0);
-    if (width === 1440) {
-      const author = page.getByRole('tooltip', {
-        name: 'Porcelain Verification',
-        exact: true,
-      });
-      await expect(author).toBeVisible();
-      await page.keyboard.press('Escape');
-      await expect(author).not.toBeVisible();
-      await expect(row(short)).toBeFocused();
-    } else await expect(page.getByRole('tooltip')).toHaveCount(0);
+    await expect(page.getByRole('tooltip')).toHaveCount(0);
     await row(subjects[0]).focus();
     await page.keyboard.press('Shift+Tab');
     await page.keyboard.press('Tab');
@@ -86,7 +79,7 @@ for (const [width, colorScheme] of [
       await page.keyboard.press('Escape');
       await expect(history).not.toBeVisible();
       const review = page.getByRole('button', {
-        name: 'Review',
+        name: 'Side panel',
         exact: true,
       });
       await expect(review).toBeFocused();
@@ -152,7 +145,17 @@ for (const width of [1440, 414]) {
     await expect(label).not.toHaveAttribute('tabindex');
     await expect
       .poll(() =>
-        label.evaluate((element) => element.scrollWidth > element.clientWidth),
+        label.evaluate((element) => {
+          type Part = {
+            scrollWidth: number;
+            clientWidth: number;
+            children: ArrayLike<Part>;
+          };
+          const clipped = (part: Part): boolean =>
+            part.scrollWidth > part.clientWidth ||
+            Array.from(part.children).some(clipped);
+          return clipped(element);
+        }),
       )
       .toBe(true);
     await row.focus();

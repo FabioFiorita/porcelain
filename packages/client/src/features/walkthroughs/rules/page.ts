@@ -88,6 +88,60 @@ export function callsNeedingCommit(
     .map((call) => call.step);
 }
 
+export type CallState = 'open' | 'decided' | 'needs-commit';
+
+export function callState(
+  comparison: Comparison,
+  decision: { readonly option?: string | undefined } | undefined,
+): CallState {
+  if (!decision) return 'open';
+  return decidedAgainstChange(comparison, decision.option)
+    ? 'needs-commit'
+    : 'decided';
+}
+
+const CALL_STATE_ORDER: readonly CallState[] = [
+  'open',
+  'needs-commit',
+  'decided',
+];
+
+export function stepCallState(
+  content: WalkthroughContent,
+  step: number,
+  decisions: readonly DecidedOption[] | undefined,
+): CallState | undefined {
+  const states = walkthroughCalls(content)
+    .filter((call) => call.step === step)
+    .map((call) =>
+      callState(
+        call.comparison,
+        decisions?.find(
+          (entry) => entry.step === step && entry.call === call.callIndex,
+        ),
+      ),
+    );
+  return CALL_STATE_ORDER.find((state) => states.includes(state));
+}
+
+type Decider =
+  | { readonly kind: 'owner' }
+  | { readonly kind: 'device'; readonly deviceId: string };
+
+export function decisionPlace(
+  decidedBy: Decider,
+  viewer: Decider | undefined,
+  deviceLabels: ReadonlyMap<string, string> | undefined,
+) {
+  if (!viewer) return undefined;
+  if (decidedBy.kind === 'owner')
+    return viewer.kind === 'owner' ? undefined : 'on the computer';
+  if (viewer.kind === 'device' && viewer.deviceId === decidedBy.deviceId)
+    return undefined;
+  const label = deviceLabels?.get(decidedBy.deviceId);
+  return label === undefined ? 'on another device' : `on ${label}`;
+}
+
 const GROWTH_SIGNS: Record<Growth['change'], string> = {
   added: '+',
   changed: '~',

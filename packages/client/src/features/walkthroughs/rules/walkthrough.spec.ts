@@ -33,7 +33,10 @@ import {
   callChoices,
   callDeciding,
   callsNeedingCommit,
+  callState,
   decidedAgainstChange,
+  decisionPlace,
+  stepCallState,
   screenshotClaim,
   failureCopy,
   foldedGrowth,
@@ -1278,6 +1281,107 @@ describe('call choices', () => {
         { step: 3, call: 0, option: 'Show all notes' },
       ]),
     ).toEqual([1, 3]);
+  });
+
+  it('never calls a decision that holds Merge done', () => {
+    const implemented = { ...comparison, implemented: 'Show all notes' };
+    expect(callState(implemented, undefined)).toBe('open');
+    expect(callState(implemented, { option: 'Show all notes' })).toBe(
+      'decided',
+    );
+    expect(callState(implemented, { option: 'Show no notes' })).toBe(
+      'needs-commit',
+    );
+    expect(callState(comparison, { option: 'Show no notes' })).toBe('decided');
+    expect(callState(undefined, { option: undefined })).toBe('decided');
+  });
+
+  it('gives a step the state of its least settled call', () => {
+    const implemented = { ...comparison, implemented: 'Show all notes' };
+    const calls = content({
+      stops: [
+        stop({
+          callouts: [
+            { attention, comparison: implemented },
+            { attention, comparison: implemented },
+          ],
+        }),
+        stop({}),
+      ],
+    });
+    expect(stepCallState(calls, 1, undefined)).toBe('open');
+    expect(
+      stepCallState(calls, 1, [{ step: 1, call: 0, option: 'Show no notes' }]),
+    ).toBe('open');
+    expect(
+      stepCallState(calls, 1, [
+        { step: 1, call: 0, option: 'Show no notes' },
+        { step: 1, call: 1, option: 'Show all notes' },
+      ]),
+    ).toBe('needs-commit');
+    expect(
+      stepCallState(calls, 1, [
+        { step: 1, call: 0, option: 'Show all notes' },
+        { step: 1, call: 1, option: 'Show all notes' },
+      ]),
+    ).toBe('decided');
+    expect(stepCallState(calls, 2, [])).toBeUndefined();
+  });
+});
+
+describe('where a call was decided', () => {
+  const phone = 'a6f3c1d2-0000-4000-8000-000000000001';
+  const laptop = 'a6f3c1d2-0000-4000-8000-000000000002';
+  const labels = new Map([[phone, 'Fábio’s iPhone']]);
+
+  it('says nothing when the decision came from the device in use', () => {
+    expect(
+      decisionPlace({ kind: 'owner' }, { kind: 'owner' }, labels),
+    ).toBeUndefined();
+    expect(
+      decisionPlace(
+        { kind: 'device', deviceId: phone },
+        { kind: 'device', deviceId: phone },
+        labels,
+      ),
+    ).toBeUndefined();
+  });
+
+  it('names another device, or says only that it was another one', () => {
+    expect(
+      decisionPlace(
+        { kind: 'device', deviceId: phone },
+        { kind: 'owner' },
+        labels,
+      ),
+    ).toBe('on Fábio’s iPhone');
+    expect(
+      decisionPlace(
+        { kind: 'device', deviceId: phone },
+        { kind: 'device', deviceId: laptop },
+        undefined,
+      ),
+    ).toBe('on another device');
+    expect(
+      decisionPlace(
+        { kind: 'device', deviceId: laptop },
+        { kind: 'owner' },
+        labels,
+      ),
+    ).toBe('on another device');
+    expect(
+      decisionPlace(
+        { kind: 'owner' },
+        { kind: 'device', deviceId: phone },
+        labels,
+      ),
+    ).toBe('on the computer');
+  });
+
+  it('claims no place while the device in use is unknown', () => {
+    expect(
+      decisionPlace({ kind: 'device', deviceId: phone }, undefined, labels),
+    ).toBeUndefined();
   });
 });
 

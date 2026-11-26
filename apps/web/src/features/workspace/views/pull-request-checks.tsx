@@ -307,8 +307,8 @@ function ChecksGroup({
           text={group.name}
           className="min-w-0 font-medium text-foreground"
         />
-        {group.runId !== undefined && (
-          <span className="shrink-0 tabular-nums">run {group.runId}</span>
+        {group.runNumber !== undefined && (
+          <span className="shrink-0 tabular-nums">#{group.runNumber}</span>
         )}
         {offer && group.runId !== undefined && (
           <RerunButton
@@ -846,17 +846,16 @@ function CheckLog({
         aria-label={`Log of step ${step.number}, ${step.name}`}
         className="max-h-96 min-w-0 overflow-auto py-1.5 font-mono text-xs leading-4.5 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
       >
-        {excerpt.lines.map((line, index) => (
-          <div
-            key={index}
-            className={cn(
-              'px-2.5 whitespace-pre-wrap wrap-anywhere',
-              logLevels[line.level],
-            )}
-          >
-            {line.text || ' '}
-          </div>
-        ))}
+        <div className="w-max min-w-full">
+          {excerpt.lines.map((line, index) => (
+            <div
+              key={index}
+              className={cn('px-2.5 whitespace-pre', logLevels[line.level])}
+            >
+              {line.text || ' '}
+            </div>
+          ))}
+        </div>
       </pre>
     </div>
   );

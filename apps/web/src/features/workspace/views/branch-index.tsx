@@ -153,7 +153,7 @@ function BranchFileList({
       ? 'this commit'
       : refLabel(branch.head.branch);
   const commits = counted(branch.commits, 'commit');
-  const allLabel = Grouping ? 'All changes' : 'All branch changes';
+  const allLabel = 'All branch changes';
   const row = (item: BranchChangeItem, extra?: ChangeRowExtra) => (
     <ChangeRow
       {...extra}

@@ -8,7 +8,7 @@ async function refuseDisconnectWithDraft(
   holdLive: () => { release: () => void },
 ) {
   const readme = repo.readme.path;
-  await page.getByRole('button', { name: 'Review', exact: true }).click();
+  await page.getByRole('button', { name: 'Side panel', exact: true }).click();
   await page.getByRole('tab', { name: 'Files', exact: true }).click();
   await page
     .getByRole('treeitem', { name: readme, exact: true })
@@ -47,7 +47,9 @@ test('disconnecting is refused while a file draft cannot be saved, and the file 
 }) => {
   const readme = repo.readme.path;
   const onDisk = 'Changed on disk before the browser disconnects\n';
-  await pairedPage.getByRole('button', { name: 'Review', exact: true }).click();
+  await pairedPage
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await pairedPage.getByRole('tab', { name: 'Files', exact: true }).click();
   const file = pairedPage.getByRole('treeitem', { name: readme, exact: true });
   await expect(file).toBeVisible();

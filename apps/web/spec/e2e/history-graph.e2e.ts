@@ -19,7 +19,7 @@ test('Open graph opens the commit graph as a tab that comes back after a reload,
     .toBe(2);
 
   const opened = await app.open(await app.link('this'));
-  await opened.getByRole('button', { name: 'Review', exact: true }).click();
+  await opened.getByRole('button', { name: 'Side panel', exact: true }).click();
   await opened.getByRole('tab', { name: 'History', exact: true }).click();
   await opened.getByRole('button', { name: 'Open graph', exact: true }).click();
   await expect(opened.getByRole('tab', { name: /^Graph/ })).toHaveAttribute(
@@ -73,7 +73,7 @@ test('shared merge parents keep continuous ancestry in History and Graph', async
     .toBe(5);
 
   const opened = await app.open(await app.link('this'));
-  await opened.getByRole('button', { name: 'Review', exact: true }).click();
+  await opened.getByRole('button', { name: 'Side panel', exact: true }).click();
   await opened.getByRole('tab', { name: 'History', exact: true }).click();
   const expected = commits.map((commit) => [...commit.parentOids].sort());
   const assertAncestry = async (name: string) => {

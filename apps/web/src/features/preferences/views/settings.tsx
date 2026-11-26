@@ -251,10 +251,10 @@ function ReviewGitSettingsForm({
           <AlertTitle>Choose settings for {computer.phrase}</AlertTitle>
           <AlertDescription>
             <p>
-              Every device connected to {computer.phrase} uses the same Changes
-              &amp; Git settings. These preview values come from this device’s
-              preferences or the defaults. Controls stay disabled until you use
-              them for {computer.phrase}.
+              Spec files, Pull strategy and the archive deletions are shared by
+              every device connected to {computer.phrase}. They show this
+              device’s preferences or the defaults, and you can change them once
+              you use them for {computer.phrase}.
             </p>
             <Link
               to="/settings/$section"
@@ -306,7 +306,7 @@ function ReviewGitSettingsForm({
         <SettingsGroup>
           <SwitchItem
             label="Spec files"
-            description="Group specs separately and start them collapsed, in the changed files."
+            description="Show changed spec and test files in their own collapsed list."
             checked={settings?.collapseSpecs}
             disabled={!editable}
             onChange={(collapseSpecs) => change({ collapseSpecs })}

@@ -16,7 +16,9 @@ test('Spec files creates a separate collapsed section only while the setting is 
   const rows = sidebar.getByRole('button', {
     name: /^(README\.md|search\.spec\.ts|search\.ts)( · .+)?$/,
   });
-  await pairedPage.getByRole('button', { name: 'Review', exact: true }).click();
+  await pairedPage
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await sidebar.getByRole('tab', { name: 'Changes', exact: true }).click();
   for (const [index, name] of [
     /^README\.md/,
@@ -61,7 +63,9 @@ test('Spec files creates a separate collapsed section only while the setting is 
     .toMatchObject({ kind: 'configured', settings: { collapseSpecs: true } });
   await closeSettings(settings.page());
 
-  await pairedPage.getByRole('button', { name: 'Review', exact: true }).click();
+  await pairedPage
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await expect(
     sidebar.getByRole('button', { name: /^search\.spec\.ts/ }),
   ).not.toBeVisible();

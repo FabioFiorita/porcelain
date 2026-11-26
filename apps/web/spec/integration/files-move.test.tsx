@@ -21,7 +21,7 @@ async function openFiles(agent: Agent, render: Render, repo: Repo) {
   await repo.write(moved, 'Notes to move\n');
   await repo.write(clash, 'Notes that clash\n');
   const opened = await render.workspace();
-  await opened.getByRole('button', { name: 'Review', exact: true }).click();
+  await opened.getByRole('button', { name: 'Side panel', exact: true }).click();
   await opened.getByRole('tab', { name: 'Files', exact: true }).click();
   return opened;
 }

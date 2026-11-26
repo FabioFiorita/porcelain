@@ -1,6 +1,7 @@
 ---
 route: /
 selectors:
+  - 'Side panel'
   - 'Review'
   - 'Files'
   - 'Open file'
@@ -46,7 +47,7 @@ None before step 1. Step 5 commits on disk; do it only after step 4, because "Op
 
 1. Navigate to `/`
    Expect: title "Review — repository".
-2. Click button `Review`
+2. Click button `Side panel`
    Expect: the review sheet with tab "Files" selected and treeitem "README.md"; the sidebar tabs appear in order "Files", "Changes", "History", with Files selected. The open Review document keeps title "Review — repository". Use `Alt+2` to select Changes, reload and reopen Review to confirm that explicit selection is restored, then use `Alt+1` to return to Files.
 3. Right-click treeitem `README.md`
    Expect: menu with menuitems "Open diff" and "Open file".
@@ -54,7 +55,7 @@ None before step 1. Step 5 commits on disk; do it only after step 4, because "Op
    Expect: the sheet closes; a document tab for README.md is selected; title "README.md — repository".
 5. On disk: `git -C "$REPO" add -A && git -C "$REPO" commit -qm "Name the tab after the commit" && git -C "$REPO" rev-parse --short=7 HEAD`
    Expect: a 7-character oid printed; call it `OID`.
-6. Click button `Review`, then click tab `History`
+6. Click button `Side panel`, then click tab `History`
    Expect: a button whose name starts with "Name the tab after the commit" above one starting with "Initial commit" (allow a moment for the watcher; inspect the accessibility tree until it shows).
 7. Click button `/^Name the tab after the commit/`
    Expect: title "`OID` — repository".

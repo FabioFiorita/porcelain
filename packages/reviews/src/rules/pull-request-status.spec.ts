@@ -32,6 +32,7 @@ it('reads an Actions job with its run, ordered steps and annotations', () => {
       completedAt: '2026-11-25T10:03:00Z',
       group: 'CI',
       runId: 9001,
+      runNumber: 812,
       jobId: 61004,
       required: true,
       summary: undefined,
@@ -71,6 +72,7 @@ it('finds Actions run and job ids in the link when the read lacks them', () => {
   expect(check).toMatchObject({
     kind: 'actions',
     runId: 77,
+    runNumber: undefined,
     jobId: 88,
     group: 'GitHub Actions',
     required: false,

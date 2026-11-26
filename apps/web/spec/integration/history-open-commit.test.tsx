@@ -12,7 +12,7 @@ test.for([
     await repo.branch(branch);
     const workspace = await render.workspace();
     await workspace
-      .getByRole('button', { name: 'Review', exact: true })
+      .getByRole('button', { name: 'Side panel', exact: true })
       .click();
     await workspace.getByRole('tab', { name: 'History', exact: true }).click();
     await workspace.getByRole('button', { name: /^Initial commit/ }).click();
@@ -34,7 +34,9 @@ test('opening the root commit shows its added file and patch against the empty t
   workspace,
   repo,
 }) => {
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await workspace.getByRole('tab', { name: 'History', exact: true }).click();
   await workspace.getByRole('button', { name: /^Initial commit/ }).click();
   await expect
@@ -70,7 +72,9 @@ test('opening a commit leads with its subject and summarizes its files before th
   await expect
     .poll(async () => (await server.commits()).commits[0]?.subject)
     .toBe(subject);
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await workspace.getByRole('tab', { name: 'History', exact: true }).click();
   await workspace
     .getByRole('button', { name: new RegExp(`^${subject}`) })
@@ -127,7 +131,9 @@ test('a binary file in a commit is listed without a code preview and says it is 
   await expect
     .poll(async () => (await server.commits()).commits[0]?.subject)
     .toBe(subject);
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await workspace.getByRole('tab', { name: 'History', exact: true }).click();
   await workspace
     .getByRole('button', { name: new RegExp(`^${subject}`) })
@@ -156,7 +162,9 @@ test('a retained commit only names the checkout branch while its history contain
   await repo.switch('topic');
   await repo.commit('Keep this commit open');
   const workspace = await render.workspace();
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await workspace.getByRole('tab', { name: 'History', exact: true }).click();
   await workspace
     .getByRole('button', { name: /^Keep this commit open/ })
@@ -187,7 +195,9 @@ test('the checkout branch appears in the eyebrow while a same-named tag remains 
 }) => {
   await repo.tag(repo.initialBranch);
   const workspace = await render.workspace();
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await workspace.getByRole('tab', { name: 'History', exact: true }).click();
   await workspace.getByRole('button', { name: /^Initial commit/ }).click();
   await expect
@@ -214,7 +224,9 @@ test('a binary-only commit retains its subject and file summary without a code p
   await expect
     .poll(async () => (await server.commits()).commits[0]?.subject)
     .toBe('Explain a binary-only change');
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await workspace.getByRole('tab', { name: 'History', exact: true }).click();
   await workspace
     .getByRole('button', { name: /^Explain a binary-only change/ })
@@ -270,7 +282,9 @@ test('a type change counts every text section of its patch', async ({
   await expect
     .poll(async () => (await server.commits()).commits[0]?.subject)
     .toBe('Preserve both sides of a type change');
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await workspace.getByRole('tab', { name: 'History', exact: true }).click();
   await workspace
     .getByRole('button', { name: /^Preserve both sides of a type change/ })

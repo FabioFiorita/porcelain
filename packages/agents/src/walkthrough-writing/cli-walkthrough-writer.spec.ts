@@ -348,7 +348,7 @@ it('surfaces ended sign-in as signed out', async ({ onTestFinished }) => {
     _tag: 'Failure',
     failure: {
       kind: 'signed_out',
-      message: 'Sign in again to the selected agent CLI.',
+      message: 'Sign in again to the selected agent CLI, then try again.',
     },
   });
 });

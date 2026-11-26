@@ -167,7 +167,9 @@ test('selecting a search result keeps a conflicted unsaved draft when returning 
   const current = project.worktrees.find((row) =>
     original.endsWith(`/${row.id}`),
   );
-  await pairedPage.getByRole('button', { name: 'Review', exact: true }).click();
+  await pairedPage
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await pairedPage.getByRole('tab', { name: 'Files', exact: true }).click();
   await pairedPage
     .getByRole('treeitem', { name: repo.readme.path, exact: true })

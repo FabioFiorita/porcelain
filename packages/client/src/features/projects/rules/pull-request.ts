@@ -234,6 +234,32 @@ export function currentWalkthroughChecks(
   };
 }
 
+export function checksHeadline(
+  captured: CapturedChecks,
+  live: Parameters<typeof currentWalkthroughChecks>[1],
+): {
+  tone: PullChecksTone;
+  label: string;
+  names: readonly string[];
+  note: string | undefined;
+} {
+  const recorded = recordedChecks(captured);
+  const now = currentWalkthroughChecks(captured, live);
+  if (!now)
+    return {
+      tone: pullRequestRollup(captured.state).tone,
+      label: recorded.label,
+      names: [],
+      note: undefined,
+    };
+  return {
+    tone: now.tone,
+    label: now.label,
+    names: now.names,
+    note: recorded.whenWritten,
+  };
+}
+
 export function walkthroughCheckRows<
   Entry extends { readonly checks: CapturedChecks },
 >(

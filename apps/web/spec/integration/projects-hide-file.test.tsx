@@ -10,7 +10,9 @@ test('hiding a file takes it out of the file tree and the server keeps it hidden
     (await server.filePreferences()).preferences
       .filter((preference) => preference.hidden)
       .map((preference) => preference.path);
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await workspace.getByRole('tab', { name: 'Files', exact: true }).click();
   const file = workspace.getByRole('treeitem', { name: readme, exact: true });
   await expect.element(file).toBeVisible();
@@ -43,7 +45,9 @@ test('showing a hidden file again returns it to the file tree and the server no 
     (await server.filePreferences()).preferences
       .filter((preference) => preference.hidden)
       .map((preference) => preference.path);
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await workspace.getByRole('tab', { name: 'Files', exact: true }).click();
   await workspace
     .getByRole('treeitem', { name: readme, exact: true })

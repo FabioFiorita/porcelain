@@ -17,7 +17,7 @@ test('a binary file opened from the file tree is not shown as text and says why'
   repo,
 }) => {
   const page = await openFiles(render, repo);
-  await page.getByRole('button', { name: 'Review', exact: true }).click();
+  await page.getByRole('button', { name: 'Side panel', exact: true }).click();
   await page.getByRole('tab', { name: 'Files', exact: true }).click();
   await page
     .getByRole('treeitem', { name: binary, exact: true })

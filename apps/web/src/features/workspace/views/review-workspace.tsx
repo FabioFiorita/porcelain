@@ -299,7 +299,7 @@ export function ReviewWorkspace({
               size="icon-sm"
               ref={(element) => mobileTrigger.attach(element)}
               className="xl:hidden"
-              aria-label="Review"
+              aria-label="Side panel"
               aria-haspopup="dialog"
               aria-expanded={mobileOpen && !desktop}
               aria-keyshortcuts={SHORTCUTS.toggleSidebar}
@@ -314,7 +314,7 @@ export function ReviewWorkspace({
           }
         />
         <TooltipContent role="tooltip" className="break-all">
-          Review <Kbd>{formatForDisplay(SHORTCUTS.toggleSidebar)}</Kbd>
+          Side panel <Kbd>{formatForDisplay(SHORTCUTS.toggleSidebar)}</Kbd>
         </TooltipContent>
       </Tooltip>
     </div>

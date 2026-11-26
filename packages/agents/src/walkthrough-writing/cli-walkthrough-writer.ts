@@ -15,12 +15,8 @@ import { openWalkthroughMcp } from './walkthrough-mcp.ts';
 import type { WalkthroughWriterChoice } from '@porcelain/walkthroughs/models';
 import { WalkthroughFailedError } from '@porcelain/walkthroughs/errors';
 import type { ProcessGroupLimits } from '@porcelain/process';
-import {
-  agentTurns,
-  failure,
-  unavailableWriter,
-  type AgentTurnWording,
-} from './agent-turn.ts';
+import { agentTurns, type AgentTurnWording } from './agent-turn.ts';
+import { failure, unavailableWriter } from './provider-failure.ts';
 import {
   answerPrompts,
   claudeWritingSchema,

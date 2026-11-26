@@ -105,7 +105,7 @@ for (const { scenario, notice } of [
         page.getByRole('button', { name: 'Update walkthrough', exact: true }),
       )
       .not.toBeInTheDocument();
-    await page.getByText('Update log', { exact: true }).click();
+    await page.getByText('Writing log', { exact: true }).click();
     await expect
       .element(page.getByText(/Codex is writing the updated walkthrough\.$/))
       .toBeVisible();

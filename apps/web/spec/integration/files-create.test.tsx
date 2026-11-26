@@ -6,7 +6,7 @@ test('New file and New folder open inline names at phone width and create entrie
   server,
 }) => {
   const opened = await render.workspace();
-  await opened.getByRole('button', { name: 'Review', exact: true }).click();
+  await opened.getByRole('button', { name: 'Side panel', exact: true }).click();
   await opened.getByRole('tab', { name: 'Files', exact: true }).click();
   const create = opened.getByRole('button', {
     name: 'Create file or folder',
@@ -51,7 +51,7 @@ test('New file and New folder open inline names at phone width and create entrie
       opened.getByRole('dialog', { name: 'Worktree review', exact: true }),
     )
     .not.toBeInTheDocument();
-  await opened.getByRole('button', { name: 'Review', exact: true }).click();
+  await opened.getByRole('button', { name: 'Side panel', exact: true }).click();
   await opened.getByRole('tab', { name: 'Files', exact: true }).click();
   const createFolder = opened.getByRole('button', {
     name: 'Create file or folder',
@@ -94,7 +94,7 @@ test('a refused New file name leaves no untitled entry behind and keeps typing i
   await expect.poll(fileNames).not.toEqual([]);
   const [existing] = await fileNames();
   const opened = await render.workspace();
-  await opened.getByRole('button', { name: 'Review', exact: true }).click();
+  await opened.getByRole('button', { name: 'Side panel', exact: true }).click();
   await opened.getByRole('tab', { name: 'Files', exact: true }).click();
   await opened
     .getByRole('button', { name: 'Create file or folder', exact: true })

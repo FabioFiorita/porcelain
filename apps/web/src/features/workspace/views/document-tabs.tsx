@@ -129,7 +129,7 @@ function describeTab(key: string) {
     case 'branch':
       return {
         Icon: GitBranchIcon,
-        title: 'Branch',
+        title: 'All branch changes',
         hint: 'Every change on the branch',
       };
     case 'branch-file':
@@ -256,7 +256,7 @@ export function DocumentTabs({
               };
             }}
           >
-            <div className="flex h-full w-max min-w-full items-center gap-1 px-1.5">
+            <div className="flex h-full w-full items-center gap-1 px-1.5">
               {tabs
                 .filter((key) => !permanentTab(key))
                 .map((key, index) => {
@@ -286,7 +286,10 @@ export function DocumentTabs({
                   return (
                     <span
                       key={key}
-                      className="flex min-w-0 shrink-0 items-center"
+                      className={cn(
+                        'flex items-center',
+                        key === active ? 'shrink-0' : 'min-w-18 shrink',
+                      )}
                     >
                       {commitContext && document?.kind === 'commit' ? (
                         <CommitTab
@@ -449,7 +452,7 @@ function DocumentTab({
                   aria-label={commitSubject ? tabTitle : accessibleName}
                   data-entry={tabKey}
                   className={cn(
-                    'group flex h-7 min-w-0 max-w-[min(100cqw,calc(var(--spacing)*45))] cursor-default items-center gap-1.5 rounded-md px-2 text-xs font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/60',
+                    'group flex h-7 min-w-0 max-w-[min(100cqw,calc(var(--spacing)*45))] cursor-default items-center gap-1.5 rounded-md px-2 text-xs font-medium outline-none transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-solid focus-visible:outline-ring',
                     active
                       ? 'bg-muted text-foreground ring-1 ring-border ring-inset'
                       : 'text-muted-foreground hover:bg-accent hover:text-foreground',

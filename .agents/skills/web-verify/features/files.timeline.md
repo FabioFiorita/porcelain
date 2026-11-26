@@ -1,6 +1,7 @@
 ---
 route: /
 selectors:
+  - 'Side panel'
   - 'Load older commits'
   - 'Timeline reading area'
   - 'Review'
@@ -53,8 +54,8 @@ The last line prints `Move the readme to the guide`, `Explain the change to revi
 ### 1. The timeline follows the rename and opens a commit
 
 1. Navigate to `/`
-   Expect: button "Review".
-2. Click button `Review`
+   Expect: button "Side panel".
+2. Click button `Side panel`
    Expect: dialog "Worktree review".
 3. Click tab `Files`
    Expect: treeitem "guide.md" in the tree of region "All files", and no treeitem "README.md".
@@ -67,7 +68,7 @@ The last line prints `Move the readme to the guide`, `Explain the change to revi
 
 ### 2. The tree menu opens the timeline
 
-7. Click button `Review`
+7. Click button `Side panel`
    Expect: dialog "Worktree review" on tab "Files".
 8. Right-click treeitem `guide.md`
    Expect: menuitem "Show timeline".

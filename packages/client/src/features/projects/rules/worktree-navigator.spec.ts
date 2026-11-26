@@ -119,7 +119,7 @@ it.each<{
   {
     pullRequest: { state: 'available', number: 770, merged: true },
     changes: { state: 'available', count: 0 },
-    text: '#770 merged',
+    text: '#770',
   },
   {
     pullRequest: { state: 'none' },
@@ -143,6 +143,15 @@ it.each<{
   },
 ])('ends a row with one value: $text', ({ pullRequest, changes, text }) => {
   expect(navigatorRowTrailing({ pullRequest, changes })?.text).toBe(text);
+});
+
+it('marks a merged pull request apart from its number so the branch keeps the room', () => {
+  expect(
+    navigatorRowTrailing({
+      pullRequest: { state: 'available', number: 770, merged: true },
+      changes: { state: 'available', count: 0 },
+    }),
+  ).toEqual({ kind: 'pull-request', number: 770, merged: true, text: '#770' });
 });
 
 it('keeps the branch, place and state in the accessible name while the row shows only its title', () => {

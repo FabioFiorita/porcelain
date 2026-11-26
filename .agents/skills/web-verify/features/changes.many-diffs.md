@@ -1,6 +1,7 @@
 ---
 route: /
 selectors:
+  - 'Side panel'
   - 'Review'
   - 'All changes'
   - 'The changes in this document could not be read.'
@@ -20,7 +21,7 @@ All changes lists and reads diffs for its first 25 files; a worktree with more t
 
 ## How to get to it (user POV)
 
-- Workspace → button "Review" → button "All changes" in a worktree with more than 200 tracked, modified files.
+- Workspace → button "Side panel" → button "All changes" in a worktree with more than 200 tracked, modified files.
 
 ## Driving it with browser
 
@@ -39,7 +40,7 @@ git -C "$REPO" status --porcelain | wc -l   # prints 205
 
 1. Navigate to `/`
    Expect: title "Review — repository"; text "205 files" (on an instance where an earlier feature left another tab selected, a full reload of `/` reopens that tab; click tab "Review" first).
-2. Click button `Review`
+2. Click button `Side panel`
    Expect: button "All changes"; rows from "note-000.md · unstaged" to "note-204.md · unstaged".
 3. Click button `All changes`
    Expect: the sheet closes; heading "205 uncommitted changes" in document "All changes"; the URL contains `entry=all-changes`; the file table's first 25 rows and a button "Read 25 more…" at the bottom. Click its "note-000.md +1 −1" row to scroll to that diff and read "note-000.md changed" (the first file's new line). Click "Read 25 more…" until it is gone: the table ends with note-204.md; no text "The changes in this document could not be read.".

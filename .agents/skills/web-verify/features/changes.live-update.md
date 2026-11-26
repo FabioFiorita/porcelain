@@ -1,6 +1,7 @@
 ---
 route: /
 selectors:
+  - 'Side panel'
   - 'Review'
   - 'Files'
   - 'Open file'
@@ -24,7 +25,7 @@ While the page stays open, a file another writer rewrites, creates or removes on
 ## How to get to it (user POV)
 
 - Nothing to click: it happens on any open workspace when the worktree changes on disk.
-- To watch it: button "Review" → tab "Files" (shortcut `Alt+1`) shows the tree; tab "Changes" (`Alt+2`) shows the change list; right-click a changed file in the tree → menuitem "Open file" opens its text (a Markdown file opens on tab "Reader" unless Documents open as says Source; tab "Source" shows the raw text).
+- To watch it: button "Side panel" → tab "Files" (shortcut `Alt+1`) shows the tree; tab "Changes" (`Alt+2`) shows the change list; right-click a changed file in the tree → menuitem "Open file" opens its text (a Markdown file opens on tab "Reader" unless Documents open as says Source; tab "Source" shows the raw text).
 
 ## Driving it with browser
 
@@ -38,7 +39,7 @@ None before a full page load: every disk write below happens while the page is o
 
 1. Navigate to `/`
    Expect: title "Review — repository".
-2. Click button `Review`
+2. Click button `Side panel`
    Expect: tabs "Files" [selected], "Changes", "History".
 3. Click tab `Files`
    Expect: treeitem "README.md".
@@ -54,7 +55,7 @@ None before a full page load: every disk write below happens while the page is o
 
 ### 2. A file created on disk appears in the tree and the change list
 
-1. Click button `Review`
+1. Click button `Side panel`
    Expect: the sheet opens again (opening README.md in part 1 closed it).
 2. Click tab `Files`
    Expect: tab "Files" [selected]; treeitem "README.md"; no treeitem "live-note.md".

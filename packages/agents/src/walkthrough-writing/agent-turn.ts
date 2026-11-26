@@ -1,5 +1,9 @@
 import { claudeEnvironment } from '../shared/commands/claude-environment.ts';
-import { providerFailure, logProviderFailure } from './provider-failure.ts';
+import {
+  classifyProviderFailure,
+  failure,
+  logProviderFailure,
+} from './provider-failure.ts';
 import { codexOutputSchema } from './codex-output-schema.ts';
 import {
   WALKTHROUGH_MCP_NAME,
@@ -12,7 +16,6 @@ import { Effect, FileSystem, Result, Schema } from 'effect';
 import { Toml } from 'effect/encoding';
 import { ChildProcessSpawner } from 'effect/process';
 import type { WalkthroughWriterChoice } from '@porcelain/walkthroughs/models';
-import { WalkthroughFailedError } from '@porcelain/walkthroughs/errors';
 import type { ProcessGroupLimits } from '@porcelain/process';
 import { runProvider } from '../commit-planning/commands/run-provider.ts';
 import { readBoundedText } from '../commit-planning/commands/read-bounded-text.ts';
@@ -48,9 +51,6 @@ const codexErrorDetail = (output: string) => {
   }
   return lastError ?? output;
 };
-const signedOutResult = /sign.?in|login|oauth|token.*expired|unauthorized/i;
-const signedOutOutput =
-  /not logged in|sign.?in|login|authentication|oauth|token.*expired|unauthorized/i;
 const CODEX_ISOLATION = [
   '-c',
   'notify=[]',
@@ -102,24 +102,6 @@ const mcpServersSchema = Schema.fromJsonString(
     }),
   ),
 );
-
-export const failure = (
-  kind: WalkthroughFailedError['kind'],
-  message: string,
-) => new WalkthroughFailedError({ kind, message });
-
-export const unavailableWriter = (writer: {
-  provider: string;
-  model: string;
-}) =>
-  failure(
-    'other',
-    `The walkthrough model ${writer.provider}/${writer.model} is unavailable. Install the CLI and sign in, or choose another model in walkthrough settings.`,
-  );
-const modelRefused = (detail: string) =>
-  /model.*(?:not.*(?:available|exist|found|support)|unavailable|no access)|no access.*model/i.test(
-    detail,
-  );
 
 export type AgentTurnWording = {
   readonly timedOut: string;
@@ -358,6 +340,11 @@ export const agentTurns = (options: {
         args.push('-');
         if (resuming) for (const path of turn.images) args.push('-i', path);
       }
+      const failureTurn = {
+        provider: turn.provider,
+        model: turn.model,
+        stopped: turn.wording.stopped,
+      };
       const failureDetail = (detail = '') =>
         turn.provider === 'codex' ? codexErrorDetail(detail) : detail;
       const output = yield* runProvider({
@@ -371,38 +358,24 @@ export const agentTurns = (options: {
         processGroup: options.processGroup,
       }).pipe(
         provideSpawner,
-        Effect.tapError((error) =>
-          logProviderFailure(
-            providerFailure(
-              turn.provider,
-              failureDetail(error.detail),
-              turn.wording.stopped,
-            ),
-            failureDetail(error.detail),
-          ),
-        ),
-        Effect.mapError((error) => {
+        Effect.catch((error) => {
           const detail = failureDetail(error.detail);
-          if (error.reason === 'deadline')
-            return failure('timed_out', turn.wording.timedOut);
-          if (
-            /invalid_request_error|invalid_json_schema|invalid schema/i.test(
-              detail,
-            )
-          )
-            return providerFailure(turn.provider, detail, turn.wording.stopped);
-          if (signedOutOutput.test(detail))
-            return failure(
-              'signed_out',
-              'Sign in again to the selected agent CLI, then try again.',
-            );
-          if (modelRefused(detail)) return unavailableWriter(turn);
-          if (error.cause !== undefined)
-            return failure(
-              'agent_not_installed',
-              'The selected agent CLI could not be started. Check that it is installed.',
-            );
-          return providerFailure(turn.provider, detail, turn.wording.stopped);
+          const classified =
+            error.reason === 'deadline'
+              ? failure('timed_out', turn.wording.timedOut)
+              : classifyProviderFailure(
+                  failureTurn,
+                  detail,
+                  error.cause === undefined
+                    ? undefined
+                    : failure(
+                        'agent_not_installed',
+                        'The selected agent CLI could not be started. Check that it is installed.',
+                      ),
+                );
+          return logProviderFailure(classified, detail).pipe(
+            Effect.andThen(Effect.fail(classified)),
+          );
         }),
       );
       if (turn.provider === 'claude') {
@@ -413,12 +386,15 @@ export const agentTurns = (options: {
             failure('unusable_output', turn.wording.unusable),
           ),
         );
-        if (envelope.is_error && modelRefused(envelope.result ?? ''))
-          return yield* unavailableWriter(turn);
-        if (envelope.is_error)
-          return yield* signedOutResult.test(envelope.result ?? '')
-            ? failure('signed_out', 'Sign in again to the selected agent CLI.')
-            : failure('other', turn.wording.stopped);
+        if (envelope.is_error) {
+          const error = classifyProviderFailure(
+            failureTurn,
+            envelope.result ?? '',
+            failure('other', turn.wording.stopped),
+          );
+          yield* logProviderFailure(error, envelope.result);
+          return yield* error;
+        }
         return {
           sessionId: envelope.session_id ?? turn.session.id,
           costUsd: envelope.total_cost_usd,
@@ -468,23 +444,7 @@ export const agentTurns = (options: {
       ) {
         if (lastError === undefined)
           return yield* failure('unusable_output', turn.wording.unusable);
-        const error =
-          /invalid_request_error|invalid_json_schema|invalid schema/i.test(
-            lastError,
-          )
-            ? providerFailure(turn.provider, lastError, turn.wording.stopped)
-            : signedOutOutput.test(lastError)
-              ? failure(
-                  'signed_out',
-                  'Sign in again to the selected agent CLI.',
-                )
-              : modelRefused(lastError)
-                ? unavailableWriter(turn)
-                : providerFailure(
-                    turn.provider,
-                    lastError,
-                    turn.wording.stopped,
-                  );
+        const error = classifyProviderFailure(failureTurn, lastError);
         yield* logProviderFailure(error, lastError);
         return yield* error;
       }

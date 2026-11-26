@@ -1,6 +1,7 @@
 ---
 route: /$projectId/$worktreeId
 selectors:
+  - 'Side panel'
   - 'Review'
   - 'Files'
   - 'Preview'
@@ -40,7 +41,7 @@ printf '<!doctype html><html><body><h1>Preview heading</h1><img src="logo.svg" a
 
 ### 1. The page previews with its local image and names the one it could not load
 
-1. Navigate to `/`, click button `Review`, click tab `Files`
+1. Navigate to `/`, click button `Side panel`, click tab `Files`
    Expect: treeitems "page.html" and "logo.svg".
 2. Click treeitem `page.html`
    Expect: the sheet closes; tab "page.html" selected; tab "Preview" selected (`[selected]`) and tab "Source"; status "Not loaded: missing.png" (it names `missing.png` only, never `logo.svg`); an iframe titled "page.html HTML preview" (some accessibility snapshots omit its content).

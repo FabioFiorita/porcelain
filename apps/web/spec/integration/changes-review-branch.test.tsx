@@ -20,7 +20,9 @@ test.for([1280, 414])(
       const page = app.page;
       const search = () => new URL(app.location(), 'http://test').searchParams;
       if (width === 414)
-        await page.getByRole('button', { name: 'Review', exact: true }).click();
+        await page
+          .getByRole('button', { name: 'Side panel', exact: true })
+          .click();
       if (width === 414)
         await page
           .getByRole('complementary', {

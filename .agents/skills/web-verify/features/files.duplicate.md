@@ -1,6 +1,7 @@
 ---
 route: /
 selectors:
+  - "Side panel"
   - "Review"
   - "Worktree review"
   - "Files"
@@ -36,7 +37,7 @@ printf 'Notes to copy\n' > "$REPO/notes.md"
 
 1. Navigate to `/`
    Expect: title "Review — repository".
-2. Click button `Review`
+2. Click button `Side panel`
    Expect: dialog "Worktree review".
 3. Click tab `Files`
    Expect: tab "Files" [selected], with treeitem "notes.md" and treeitem "README.md" in the tree of region "All files".
@@ -45,7 +46,7 @@ printf 'Notes to copy\n' > "$REPO/notes.md"
 5. Click menuitem `Duplicate`
    Expect: dialog "Worktree review" is gone; heading "notes copy.md" [level=1]; title "notes copy.md — repository".
    Disk: `cat "$REPO/notes copy.md"` prints `Notes to copy`, and `cat "$REPO/notes.md"` still prints `Notes to copy`.
-6. Click button `Review`
+6. Click button `Side panel`
    Expect: dialog "Worktree review" with tab "Files" selected and treeitem "notes copy.md" (selected) in the tree.
 7. Press `ControlOrMeta+d`
    Expect: the dialog is gone; title "notes copy copy.md — repository"; heading "notes copy copy.md" [level=1].

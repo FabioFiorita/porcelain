@@ -1,6 +1,7 @@
 ---
 route: /$projectId/$worktreeId
 selectors:
+  - "Side panel"
   - "Review"
   - "Files"
   - "Open file"
@@ -33,7 +34,7 @@ None before driving; the disk write happens between steps 6 and 7.
 
 1. Navigate to `/`
    Expect: title "Review — repository".
-2. Click button `Review`
+2. Click button `Side panel`
    Expect: dialog "Worktree review" with tab "Files".
 3. Click tab `Files`
    Expect: treeitem "README.md".

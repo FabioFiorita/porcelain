@@ -29,8 +29,9 @@ export function StepButton({
             variant="ghost"
             aria-label={label}
             aria-keyshortcuts={shortcut}
-            disabled={disabled}
-            onClick={onClick}
+            aria-disabled={disabled || undefined}
+            className="aria-disabled:cursor-default aria-disabled:hover:bg-transparent"
+            onClick={disabled ? undefined : onClick}
           />
         }
       >

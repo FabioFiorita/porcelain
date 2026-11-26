@@ -1,6 +1,7 @@
 ---
 route: /
 selectors:
+  - "Side panel"
   - "Review"
   - "Files"
   - "Hide file"
@@ -21,10 +22,10 @@ Hiding a file from the Files tree's context menu takes it out of the tree and th
 
 ## How to get to it (user POV)
 
-- Workspace → `Review` (phone width; at desktop width the review sidebar stands beside the document) → tab `Files` → right-click a file → `Hide file`. A folder gets `Hide folder`.
+- Workspace → `Side panel` (phone width; at desktop width the review sidebar stands beside the document) → tab `Files` → right-click a file → `Hide file`. A folder gets `Hide folder`.
 - With at least one hidden entry, region "All files" ends with a row naming them (`1 hidden file`, `3 hidden folders`, or `N hidden items` when mixed) and a button `Show`; once clicked it reads `Hide` and the hidden entries reappear in the tree.
 - On a revealed hidden entry, right-click → `Show file` (`Show folder`; a file inside a hidden folder offers `Show <folder name>`).
-- `Alt+1` goes to the Files surface (the tree itself still needs the `Review` sheet at phone width).
+- `Alt+1` goes to the Files surface (the tree itself still needs the `Side panel` sheet at phone width).
 
 ## Driving it with browser
 
@@ -37,8 +38,8 @@ Preconditions: [surface baseline](README.md).
 ### Hide README.md
 
 1. Navigate to `/`
-   Expect: title "Review — repository"; button "Review".
-2. Click button `Review`
+   Expect: title "Review — repository"; button "Side panel".
+2. Click button `Side panel`
    Expect: the review sheet (dialog "Worktree review") with tabs "Files", "Changes", "History".
 3. Click tab `Files`
    Expect: tab "Files" selected; treeitem "README.md"; no text "1 hidden file".
@@ -51,7 +52,7 @@ Preconditions: [surface baseline](README.md).
 
 ### The server kept it
 
-7. Navigate to `/`, then click button `Review`, then click tab `Files`
+7. Navigate to `/`, then click button `Side panel`, then click tab `Files`
    Expect: still no treeitem "README.md"; "1 hidden file" and button "Show" present (the preference came back from `GET /api/projects/<projectId>/file-preferences`).
 
 ### Show it again

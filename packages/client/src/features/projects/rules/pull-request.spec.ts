@@ -1,5 +1,6 @@
 import { expect, it } from 'vite-plus/test';
 import {
+  checksHeadline,
   currentWalkthroughChecks,
   walkthroughCheckRows,
   githubUnavailable,
@@ -471,5 +472,37 @@ it('recognizes that the failing check changed even when the overall rollup staye
       { name: 'Build', tone: 'passed', label: 'Passing now' },
       { name: 'Browser tests', tone: 'failed', label: 'Failing now' },
     ],
+  });
+});
+
+it('leads a step’s checks with what fails now and keeps the written result second', () => {
+  const captured = {
+    headOid: 'abc1234',
+    state: 'SUCCESS',
+    checksTruncated: false,
+    results: [
+      { name: 'Unit tests', status: 'SUCCESS' },
+      { name: 'Browser tests', status: 'SUCCESS' },
+    ],
+  };
+  const live = {
+    headSha: 'abc1234',
+    checksTruncated: false,
+    checks: [
+      { name: 'Unit tests', status: 'COMPLETED', conclusion: 'SUCCESS' },
+      { name: 'Browser tests', status: 'COMPLETED', conclusion: 'FAILURE' },
+    ],
+  };
+  expect(checksHeadline(captured, live)).toEqual({
+    tone: 'failed',
+    label: 'Failing now',
+    names: ['Browser tests'],
+    note: 'Passing when written, at abc1234',
+  });
+  expect(checksHeadline(captured, undefined)).toEqual({
+    tone: 'passed',
+    label: 'Checks passing at abc1234',
+    names: [],
+    note: undefined,
   });
 });

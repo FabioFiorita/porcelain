@@ -114,7 +114,7 @@ test('the Open project button opens the chosen Git repository through the native
   await expect(project).toBeVisible();
   await expect(project).toHaveAttribute('aria-current', 'page');
   const reviewToggle = page.getByRole('button', {
-    name: 'Review',
+    name: 'Side panel',
     exact: true,
   });
   const rail = page.getByRole('navigation', {

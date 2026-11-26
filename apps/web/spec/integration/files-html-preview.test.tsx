@@ -11,7 +11,7 @@ async function openPage(
   );
   await repo.write('page.html', html);
   const opened = await render.workspace();
-  await opened.getByRole('button', { name: 'Review', exact: true }).click();
+  await opened.getByRole('button', { name: 'Side panel', exact: true }).click();
   await opened.getByRole('tab', { name: 'Files', exact: true }).click();
   await opened
     .getByRole('treeitem', { name: 'page.html', exact: true })

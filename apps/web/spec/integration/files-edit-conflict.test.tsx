@@ -7,7 +7,9 @@ test('saving over a file that changed on disk is refused and keeps both texts', 
 }) => {
   const readme = repo.readme.path;
   const onDisk = 'Changed on disk while the browser edits\n';
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await workspace.getByRole('tab', { name: 'Files', exact: true }).click();
   const file = workspace.getByRole('treeitem', { name: readme, exact: true });
   await expect.element(file).toBeVisible();

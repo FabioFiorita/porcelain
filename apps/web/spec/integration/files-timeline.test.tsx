@@ -14,7 +14,7 @@ test('a file timeline keeps its selection and reading position after returning f
     }
     const workspace = await render.workspace();
     await workspace
-      .getByRole('button', { name: 'Review', exact: true })
+      .getByRole('button', { name: 'Side panel', exact: true })
       .click();
     await workspace.getByRole('tab', { name: 'Files', exact: true }).click();
     await workspace
@@ -80,7 +80,9 @@ test('the timeline of a renamed file lists its commits across the rename and ope
     .poll(async () => (await server.commits()).commits[0]?.subject)
     .toBe(moved);
 
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await workspace.getByRole('tab', { name: 'Files', exact: true }).click();
   await workspace.getByRole('treeitem', { name: guide, exact: true }).click();
   await workspace
@@ -129,7 +131,9 @@ test('a long timeline change line is clipped inside its row and discloses its fu
   await repo.remove(long);
   await repo.commit('Shorten the notes name');
 
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await workspace.getByRole('tab', { name: 'Files', exact: true }).click();
   await workspace.getByRole('treeitem', { name: notes, exact: true }).click();
   await workspace

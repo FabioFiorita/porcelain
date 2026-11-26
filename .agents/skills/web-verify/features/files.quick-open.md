@@ -1,6 +1,7 @@
 ---
 route: /
 selectors:
+  - 'Side panel'
   - 'Review'
   - 'Worktree review'
   - 'Files'
@@ -40,7 +41,7 @@ printf 'ignored output\n' > "$REPO/build.log"
 
 1. Navigate to `/`
    Expect: title "Review — repository".
-2. Click button `Review`
+2. Click button `Side panel`
    Expect: dialog "Worktree review".
 3. Click tab `Files`
    Expect: treeitem "README.md" in the tree of region "All files".
@@ -53,7 +54,7 @@ printf 'ignored output\n' > "$REPO/build.log"
 
 ### 2. An ignored file is not offered
 
-7. Click button `Review`
+7. Click button `Side panel`
    Expect: dialog "Worktree review" on tab "Files".
 8. Press `ControlOrMeta+p`
    Expect: combobox "Find a file by name", empty.

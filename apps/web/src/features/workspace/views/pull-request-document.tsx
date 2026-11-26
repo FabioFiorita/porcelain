@@ -53,7 +53,10 @@ import {
 import { PullRequestDecision } from './pull-request-decision';
 import { PullRequestComposer } from './pull-request-composer';
 import { readWalkthroughMergeReview } from '@porcelain/client/walkthroughs';
-import { PullRequestReviewNotes } from './pull-request-review-notes';
+import {
+  PullRequestCallNotes,
+  PullRequestDraftNote,
+} from './pull-request-review-notes';
 import { pullRequestCheckFocus } from '../store';
 import { PublishReviewButton } from '@/features/comments/index';
 import { useRerunChecks } from '../commands/pull-request-actions';
@@ -229,6 +232,20 @@ function PullRequestActions({
   );
 }
 
+function MetaItem({ children }: { children: ReactNode }) {
+  return (
+    <span className="relative flex max-w-full min-w-0 items-center gap-2.5 pl-6">
+      <span
+        aria-hidden="true"
+        className="absolute inset-y-0 left-0 flex w-6 items-center justify-center"
+      >
+        ·
+      </span>
+      {children}
+    </span>
+  );
+}
+
 function PullRequestHeader({ pull }: { pull: PullRequest }) {
   const repository = pullRequestRepository(pull.url)?.split('/').at(-1);
   return (
@@ -251,44 +268,50 @@ function PullRequestHeader({ pull }: { pull: PullRequest }) {
         <span className="text-title-dim tabular-nums">#{pull.number}</span>{' '}
         {pull.title}
       </h1>
-      <div className="mt-3.5 flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-2 text-ui leading-5 text-muted-foreground">
-        <PullStatePill pull={pull} />
-        {pull.author && (
-          <>
-            <GitHubAuthorAvatar
-              author={pull.author}
-              url={pull.authorAvatarUrl}
-            />
-            <TruncatedText
-              text={pull.author}
-              className="font-medium text-foreground"
-            />
-            <Dot />
-          </>
-        )}
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <span
-                tabIndex={0}
-                className="inline-flex max-w-full min-w-0 items-center gap-1.5 font-mono text-caption text-foreground outline-none"
-              />
-            }
-          >
-            <TruncatedText text={pull.baseBranch} />
-            <ArrowLeftIcon
-              aria-hidden="true"
-              strokeWidth={1.75}
-              className="size-3 shrink-0 text-muted-foreground"
-            />
-            <TruncatedText text={pull.headBranch} />
-          </TooltipTrigger>
-          <TooltipContent>
-            Merges {pull.headBranch} into {pull.baseBranch}
-          </TooltipContent>
-        </Tooltip>
-        <Dot />
-        <span>updated {timeAgo(pull.updatedAt)}</span>
+      <div className="mt-3.5 min-w-0 overflow-hidden">
+        <div className="-ml-6 flex min-w-0 flex-wrap items-center gap-y-2 text-ui leading-5 text-muted-foreground">
+          <MetaItem>
+            <PullStatePill pull={pull} />
+            {pull.author && (
+              <>
+                <GitHubAuthorAvatar
+                  author={pull.author}
+                  url={pull.authorAvatarUrl}
+                />
+                <TruncatedText
+                  text={pull.author}
+                  className="font-medium text-foreground"
+                />
+              </>
+            )}
+          </MetaItem>
+          <MetaItem>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <span
+                    role="group"
+                    aria-label={`Merges ${pull.headBranch} into ${pull.baseBranch}`}
+                    tabIndex={0}
+                    className="inline-flex max-w-full min-w-0 items-center gap-1.5 rounded-sm font-mono text-caption text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+                  />
+                }
+              >
+                <TruncatedText text={pull.baseBranch} />
+                <ArrowLeftIcon
+                  aria-hidden="true"
+                  strokeWidth={1.75}
+                  className="size-3 shrink-0 text-muted-foreground"
+                />
+                <TruncatedText text={pull.headBranch} />
+              </TooltipTrigger>
+              <TooltipContent>
+                Merges {pull.headBranch} into {pull.baseBranch}
+              </TooltipContent>
+            </Tooltip>
+          </MetaItem>
+          <MetaItem>updated {timeAgo(pull.updatedAt)}</MetaItem>
+        </div>
       </div>
       {pull.labels.length > 0 && (
         <ul aria-label="Labels" className="mt-3 flex min-w-0 flex-wrap gap-1.5">
@@ -685,13 +708,16 @@ function PullRequestLive({
         changedSinceReview={standing.changedSinceReview}
         notes={
           checkout && (
-            <PullRequestReviewNotes
-              checkout={checkout}
-              context={context}
+            <PullRequestCallNotes
               undecidedCallStep={current?.undecidedCallStep}
               callNeedingCommit={current?.callsNeedingCommit?.[0]}
               onOpenStep={openStep}
             />
+          )
+        }
+        drafts={
+          checkout && (
+            <PullRequestDraftNote checkout={checkout} context={context} />
           )
         }
         onOpenFile={
