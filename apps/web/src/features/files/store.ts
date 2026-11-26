@@ -98,7 +98,12 @@ export type PierreFileTreeInput = {
   kinds: ReadonlyMap<string, FileTreeEntry['kind']>;
   links: readonly { path: string; kind: string; target?: string | undefined }[];
   creating?:
-    | { kind: 'file' | 'directory'; folder: string; nonce: number }
+    | {
+        kind: 'file' | 'directory';
+        folder: string;
+        nonce: number;
+        onStart: () => void;
+      }
     | undefined;
   renameRequest?:
     | { path: string; nonce: number; onStart: () => void }

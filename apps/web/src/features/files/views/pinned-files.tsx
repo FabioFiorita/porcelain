@@ -78,7 +78,7 @@ export function PinnedFiles({
   return (
     <section aria-label="Pinned files" className="shrink-0 pt-1.5 pb-1">
       <FileSectionHeader label="Pinned" count={entries.length} />
-      <ul className="px-4">
+      <ul className="px-4 [--trees-item-height:--spacing(7)]">
         {entries.map((pinned) => {
           const { path } = pinned;
           const directory =
@@ -116,7 +116,7 @@ export function PinnedFiles({
                       aria-expanded={directory ? open : undefined}
                       disabled={!canOpen}
                       className={cn(
-                        'flex h-7.5 min-w-0 flex-1 items-center gap-1.5 rounded-md px-2 text-left hover:bg-accent',
+                        'flex h-7 min-w-0 flex-1 items-center gap-1.5 rounded-md px-2 text-left hover:bg-accent',
                         path === selected && 'bg-accent',
                       )}
                       onClick={(event) =>

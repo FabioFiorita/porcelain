@@ -230,7 +230,7 @@ export function DevicesSettings({ connection }: { connection: Connection }) {
                   aria-label="Pair a device"
                   className="flex min-w-0 flex-col gap-2.5 rounded-lg border bg-card p-3"
                 >
-                  <h3 className="text-ui leading-4.5 font-semibold">
+                  <h3 className="text-xs leading-snug font-medium">
                     Pair a device
                   </h3>
                   <PairDevice

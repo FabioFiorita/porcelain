@@ -139,6 +139,7 @@ function mountTree(
   const model = new FileTree({
     paths: read().paths,
     density: 'default',
+    itemHeight: 28,
     flattenEmptyDirectories: true,
     initialExpansion: read().filter ? 'open' : 'closed',
     icons: treeIconsFor(read().links),
@@ -269,6 +270,7 @@ function mountTree(
     model.add(path);
     model.startRenaming(path, { removeIfCanceled: true });
     frame(() => {
+      creating.onStart();
       const input = host
         .querySelector('[data-slot="file-tree"]')
         ?.shadowRoot?.querySelector('[data-item-rename-input]');

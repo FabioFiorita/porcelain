@@ -93,14 +93,23 @@ function CodeBlock({
       <File
         file={{ name: 'snippet', contents, lang }}
         options={{
-          ...createPierreFileOptions(dark ? 'dark' : 'light', {
-            overflow: 'scroll',
-          }),
+          ...codeBlockOptions(dark),
           disableLineNumbers: true,
         }}
       />
     </figure>
   );
+}
+
+function codeBlockOptions(dark: boolean) {
+  const options = createPierreFileOptions(dark ? 'dark' : 'light', {
+    overflow: 'scroll',
+  });
+  return {
+    ...options,
+    unsafeCSS: `${options.unsafeCSS ?? ''}
+[data-code] [data-line] { padding-inline: calc(var(--spacing) * 3); }`,
+  };
 }
 
 function CopyCode({ text }: { text: string }) {
@@ -168,7 +177,10 @@ function Alert({ role, children }: { role: string; children: ReactNode[] }) {
     <div
       role="note"
       aria-label={alert.label}
-      className={cn('my-4 border-l-3 py-0.5 pl-4', alert.tone)}
+      className={cn(
+        'my-4 border-l-3 py-0.5 pl-4 [&>div>:first-child]:mt-0 [&>div>:last-child]:mb-0',
+        alert.tone,
+      )}
     >
       <p className="mb-1 flex items-center gap-1.5 font-medium text-(--alert)">
         <Icon className="size-4" aria-hidden />
@@ -433,7 +445,8 @@ const SHARED: Record<string, string> = {
   li: 'has-[>input[type=checkbox]]:list-none has-[>input[type=checkbox]]:-ml-5',
   code: 'rounded-sm bg-muted px-1 py-px font-mono text-[0.875em]',
   kbd: 'rounded border border-b-2 bg-muted px-1.5 py-px font-mono text-[0.8em] text-foreground',
-  blockquote: 'my-4 border-l-3 pl-4 text-muted-foreground',
+  blockquote:
+    'my-4 border-l-3 pl-4 text-muted-foreground [&>:first-child]:mt-0 [&>:last-child]:mb-0 [&>p]:my-2',
   hr: 'my-6 border-t',
   details: 'my-4 rounded-lg border px-3 py-2 open:pb-3',
   summary: 'cursor-pointer font-medium select-none',

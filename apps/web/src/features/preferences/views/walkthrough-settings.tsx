@@ -20,7 +20,7 @@ export function WalkthroughSettings({
     <SettingsSection id="walkthroughs" title="Walkthroughs">
       <SettingsGroup>
         <Item>
-          <ItemContent className="min-w-0 basis-72">
+          <ItemContent className="min-w-0 basis-72 self-start">
             <ItemTitle>Default walkthrough writer</ItemTitle>
             <ItemDescription>
               Saved on this computer for manual and automatic walkthroughs. Each

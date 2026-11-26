@@ -213,7 +213,7 @@ export function MarkdownReader({
           className="w-full max-w-(--container-reading) min-w-0 flex-1"
         />
         {outline.length > 0 && (
-          <aside className="sticky top-6 hidden w-52 shrink-0 self-start @5xl/document:block">
+          <aside className="sticky top-6 hidden max-h-[calc(100svh-10rem)] w-52 shrink-0 self-start overflow-y-auto overscroll-contain @5xl/document:block">
             <OutlineList outline={outline} />
           </aside>
         )}

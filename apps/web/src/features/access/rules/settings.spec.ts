@@ -90,7 +90,7 @@ it.each([
   [
     { lan: off, tailnet: starting, cloudflare: off },
     0,
-    'No way in on · 0 devices',
+    'No ways in · 0 devices',
   ],
 ] as const)(
   'summarises ways in that answer and devices',

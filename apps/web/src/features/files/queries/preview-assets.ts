@@ -16,7 +16,8 @@ export function useAsset(
   scope: FilesScope,
   path: string,
 ) {
-  return useAtomValue(readAsset({ scope, connection, path }));
+  const atom = readAsset({ scope, connection, path });
+  return { result: useAtomValue(atom), retry: useAtomRefresh(atom) };
 }
 export function usePreviewAsset(
   connection: Connection | null,

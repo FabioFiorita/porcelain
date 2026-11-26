@@ -1,10 +1,10 @@
-import { StateSpinner } from '@/shared/views/state-notice';
+import { StateFailure, StateSpinner } from '@/shared/views/state-notice';
 import { Cause, Option } from 'effect';
+import { fileErrorMessage } from '@porcelain/client/files/rules';
 import { AsyncResult } from 'effect/reactivity';
 import { assetUrl } from '@/features/files/rules/html-assets';
 import type { FilesScope } from '@porcelain/client/files/rules';
 import { useAsset } from '@/features/files/queries/preview-assets';
-import { fileErrorMessage } from '@porcelain/client/files/rules';
 import { type Connection } from '@/shared/workspace/connection';
 
 export function ImagePreview({
@@ -31,13 +31,19 @@ function ImageAsset({
   query: ReturnType<typeof useAsset>;
   path: string;
 }) {
-  if (AsyncResult.isInitial(query))
+  const { result, retry } = query;
+  if (AsyncResult.isInitial(result))
     return <StateSpinner label="Reading the image" />;
-  if (AsyncResult.isFailure(query))
-    return <p role="status">{fileErrorMessage(Cause.squash(query.cause))}</p>;
+  if (AsyncResult.isFailure(result))
+    return (
+      <StateFailure
+        description={fileErrorMessage(Cause.squash(result.cause))}
+        onRetry={retry}
+      />
+    );
   return (
     <img
-      src={assetUrl(Option.getOrThrow(AsyncResult.value(query)))}
+      src={assetUrl(Option.getOrThrow(AsyncResult.value(result)))}
       alt={path}
       className="max-h-[70vh] max-w-full object-contain"
     />

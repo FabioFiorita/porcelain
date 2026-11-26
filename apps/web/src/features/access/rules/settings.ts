@@ -50,7 +50,7 @@ export function computerSummary(remote: RemoteAccess, devices: number) {
     .filter((name) => remote.routes[name].status.kind === 'on')
     .map((name) => remoteRouteTitles[name]);
   return [
-    ways.length === 0 ? 'No way in on' : waysInList.format(ways),
+    ways.length === 0 ? 'No ways in' : waysInList.format(ways),
     counted(devices, 'device'),
   ].join(' · ');
 }

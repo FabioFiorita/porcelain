@@ -434,7 +434,7 @@ export function GeneralSettings() {
         <SettingsGroup>
           <Choice
             label="Documents open as"
-            description="Markdown and HTML. You can switch per file; HTML previews run in a sandbox with no access to Porcelain."
+            description="Markdown and HTML. Switch per file."
             name="documentsDefault"
             options={[
               { value: 'rendered', label: 'Rendered' },

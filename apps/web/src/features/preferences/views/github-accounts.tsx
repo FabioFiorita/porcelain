@@ -41,7 +41,7 @@ import {
 export function GitHubAccounts({ connection }: { connection: Connection }) {
   const { projects, failed, retry } = useGitHubAccountProjects(connection);
   return (
-    <SettingsSection id="github" title="GitHub account for pull requests">
+    <SettingsSection id="github" title="GitHub accounts">
       <FieldDescription>
         By default, Porcelain uses a signed-in account with access to the
         repository. Your choice applies to every device using this computer.

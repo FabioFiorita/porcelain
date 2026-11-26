@@ -82,3 +82,41 @@ test('New file and New folder open inline names at phone width and create entrie
     )
     .toContain('phone-folder');
 });
+
+test('a refused New file name leaves no untitled entry behind and keeps typing in the file search', async ({
+  render,
+  server,
+}) => {
+  const fileNames = async () =>
+    (await server.directory('')).entries
+      .filter((entry) => entry.kind === 'file')
+      .map((entry) => entry.name);
+  await expect.poll(fileNames).not.toEqual([]);
+  const [existing] = await fileNames();
+  const opened = await render.workspace();
+  await opened.getByRole('button', { name: 'Review', exact: true }).click();
+  await opened.getByRole('tab', { name: 'Files', exact: true }).click();
+  await opened
+    .getByRole('button', { name: 'Create file or folder', exact: true })
+    .click();
+  await opened.getByRole('menuitem', { name: 'New file', exact: true }).click();
+  const fileName = opened.getByRole('textbox', { name: /rename/i });
+  await expectInputFocus(fileName);
+  await userEvent.keyboard(`${existing}{Enter}`);
+  await expect.element(fileName).not.toBeInTheDocument();
+  const search = opened.getByRole('textbox', {
+    name: 'Search files',
+    exact: true,
+  });
+  await search.click();
+  await userEvent.keyboard('zz');
+  await userEvent.clear(search);
+  await userEvent.keyboard('a');
+  await expect.element(search).toHaveValue('a');
+  await expect.element(fileName).not.toBeInTheDocument();
+  await expect
+    .poll(async () =>
+      (await fileNames()).filter((name) => name.startsWith('untitled')),
+    )
+    .toEqual([]);
+});
