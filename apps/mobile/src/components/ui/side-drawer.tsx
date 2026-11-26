@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { Fragment, useState, type ReactNode } from 'react';
 import {
   BackHandler,
   PanResponder,
@@ -82,38 +82,36 @@ export function SideDrawer({
       {drawer}
     </View>
   );
-  if (mode === 'pinned' && !hidden)
-    return (
-      <View className="flex-1 flex-row bg-background" collapsable={false}>
-        <View
-          className="border-r border-border"
-          style={{ width: size }}
-          collapsable={false}
-        >
-          {panel}
-        </View>
-        <View className="flex-1" collapsable={false}>
-          {children}
-        </View>
-      </View>
-    );
-  if (mode !== 'overlay')
+  if (mode !== 'overlay') {
+    const pinned = mode === 'pinned' && !hidden;
     return (
       <SlidingDrawer
-        open={open}
-        swipe={swipe}
+        open={!pinned && open}
+        swipe={!pinned && swipe}
         size={size}
         onOpenChange={onOpenChange}
-        panel={panel}
+        panel={pinned ? null : panel}
       >
         <View className="flex-1 flex-row" collapsable={false}>
-          {rail}
-          <View className="flex-1" collapsable={false}>
+          {pinned ? (
+            <View
+              key="sidebar"
+              className="border-r border-border"
+              style={{ width: size }}
+              collapsable={false}
+            >
+              {panel}
+            </View>
+          ) : (
+            <Fragment key="rail">{rail}</Fragment>
+          )}
+          <View key="content" className="flex-1" collapsable={false}>
             {children}
           </View>
         </View>
       </SlidingDrawer>
     );
+  }
   return (
     <SlidingDrawer
       open={open}
