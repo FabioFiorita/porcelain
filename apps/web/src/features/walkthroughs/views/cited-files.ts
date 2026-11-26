@@ -42,6 +42,31 @@ function openCitedFile(
     );
 }
 
+export function useBranchFileSizes(
+  scope: DocumentProps['scope'],
+  connection: DocumentProps['context']['connection'],
+  base: string | undefined,
+  paths: readonly string[],
+) {
+  const branchResult = useBranchChanges(scope, connection, base).result;
+  const branch = Option.getOrUndefined(AsyncResult.value(branchResult));
+  const branchFiles = (branch?.files ?? []).filter((file) =>
+    paths.includes(file.path),
+  );
+  const diffs = useBranchDiffs(
+    scope,
+    connection,
+    branch ? branchRange(branch) : null,
+    branchFiles.map(commitPaths),
+  );
+  return (path: string): FileSize | undefined => {
+    const file = branchFiles.find((candidate) => candidate.path === path);
+    if (!file) return undefined;
+    const content = diffs.patches.get(commitPaths(file).join('\0'));
+    return content?.kind === 'text' ? patchSize(content.patch) : undefined;
+  };
+}
+
 export function useCitedFiles(
   document: DocumentProps,
   paths: readonly string[],
@@ -58,22 +83,12 @@ export function useCitedFiles(
     branchFailed: AsyncResult.isFailure(branchResult),
     worktree: worktree.changes,
   };
-  const wanted = document.interaction.hidden === true ? [] : paths;
-  const branchFiles = (branch?.files ?? []).filter((file) =>
-    wanted.includes(file.path),
-  );
-  const diffs = useBranchDiffs(
+  const size = useBranchFileSizes(
     document.scope,
     document.context.connection,
-    branch ? branchRange(branch) : null,
-    branchFiles.map(commitPaths),
+    document.base,
+    document.interaction.hidden === true ? [] : paths,
   );
-  const size = (path: string): FileSize | undefined => {
-    const file = branchFiles.find((candidate) => candidate.path === path);
-    if (!file) return undefined;
-    const content = diffs.patches.get(commitPaths(file).join('\0'));
-    return content?.kind === 'text' ? patchSize(content.patch) : undefined;
-  };
   return {
     opening: (path: string) => fileOpening(read, path),
     size,

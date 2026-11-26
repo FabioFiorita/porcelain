@@ -209,6 +209,19 @@ export const PIERRE_FILE_CSS = `
 }
 `;
 
+export const PIERRE_TOKEN_WRAP_CSS = `
+[data-overflow='wrap'] [data-line] {
+  padding-inline-start: calc(0.5rem + 4ch);
+  text-indent: -4ch;
+}
+[data-overflow='wrap'] [data-line] > span {
+  display: inline-block;
+  max-width: 100%;
+  text-indent: 0;
+  overflow-wrap: anywhere;
+}
+`;
+
 export const PIERRE_COMMENT_CSS = `
 [data-line-number-content] { margin-inline-end: 18px; }
 [data-utility-button] {

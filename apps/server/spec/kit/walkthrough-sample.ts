@@ -87,6 +87,7 @@ export const sampleWalkthroughDraft: WalkthroughDraft = {
             rows: [
               ['Browsing works immediately', 'The first view stays quiet'],
             ],
+            implemented: 'Show all notes',
           },
         },
         {

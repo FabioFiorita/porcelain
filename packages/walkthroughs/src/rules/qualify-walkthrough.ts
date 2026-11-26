@@ -100,7 +100,13 @@ function qualifyBlock(
             comparison.rows.some((row) => row.length !== 2)))
       )
         return undefined;
-      return { block, paths: [] };
+      if (
+        comparison?.implemented === undefined ||
+        comparison.columns.includes(comparison.implemented)
+      )
+        return { block, paths: [] };
+      const { implemented: _, ...shown } = comparison;
+      return { block: { ...block, comparison: shown }, paths: [] };
     }
     case 'diagram': {
       const diagram = qualifyDiagram(block, job);

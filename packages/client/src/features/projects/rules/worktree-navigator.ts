@@ -200,6 +200,14 @@ export function navigatorRowTrailing(
     };
   return undefined;
 }
+const KEPT_END = 16;
+
+export function nameEnd(name: string) {
+  const end = name.slice(-KEPT_END);
+  const at = end.search(/[/_.-]/);
+  return at === -1 || at === end.length - 1 ? end : end.slice(at);
+}
+
 export function navigatorCardChangesLabel(changes: NavigatorChanges) {
   if (changes.state === 'unavailable') return '—';
   if (changes.state === 'loading' || changes.count === 0) return '';

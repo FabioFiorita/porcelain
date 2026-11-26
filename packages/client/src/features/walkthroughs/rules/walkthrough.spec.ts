@@ -5,6 +5,8 @@ import {
   walkthroughCodeScopes,
   reviewCodeSections,
   uncoveredPaths,
+  reviewCodeCount,
+  reviewCodeIn,
   eagerSections,
   groupFilesByStep,
   plainText,
@@ -29,6 +31,9 @@ import { worktreeOpening } from './opening.ts';
 import { readingOf } from '../queries/reading.ts';
 import {
   attentionLabel,
+  callChoices,
+  decidedAgainstChange,
+  screenshotClaim,
   failureCopy,
   foldedGrowth,
   foldedNotSaid,
@@ -685,6 +690,15 @@ describe('walkthrough page rules', () => {
         }),
       ),
     ).toBe('#423 · 2 files · written for bbbbbbb');
+    expect(
+      walkthroughMeta(written, content({ stops: [] }), undefined, {
+        committed: ['a.ts', 'b.ts', 'c.ts'],
+        uncommitted: ['README.md', 'docs.md', 'c.ts'],
+      }),
+    ).toBe('#423 · 5 files, 2 uncommitted · written for bbbbbbb');
+    expect(
+      walkthroughMeta(written, content({ stops: [] }), undefined, null),
+    ).toBe('#423 · written for bbbbbbb');
     expect(walkthroughMeta(run({ status: 'running' }))).toBe(
       'written for bbbbbbb',
     );
@@ -1186,5 +1200,81 @@ describe('undecidedCallStep', () => {
       total: 3,
       decided: 0,
     });
+  });
+});
+
+describe('call choices', () => {
+  const comparison = {
+    columns: ['Show all notes', 'Show no notes'],
+    rows: [['Browsing works', 'Quiet first view']],
+  };
+
+  it('marks the option the change implements and says what each choice means for the code', () => {
+    expect(
+      callChoices({ ...comparison, implemented: 'Show all notes' }),
+    ).toEqual([
+      {
+        option: 'Show all notes',
+        implemented: true,
+        effect: 'Keeps the code as it is.',
+      },
+      {
+        option: 'Show no notes',
+        implemented: false,
+        effect: 'Needs a new commit: this change does not do this yet.',
+      },
+    ]);
+  });
+
+  it('claims nothing about the code when the writer named no implemented option', () => {
+    expect(callChoices(comparison)).toEqual([
+      { option: 'Show all notes', implemented: false, effect: undefined },
+      { option: 'Show no notes', implemented: false, effect: undefined },
+    ]);
+  });
+
+  it('flags a decision the change does not implement', () => {
+    const implemented = { ...comparison, implemented: 'Show all notes' };
+    expect(decidedAgainstChange(implemented, 'Show no notes')).toBe(true);
+    expect(decidedAgainstChange(implemented, 'Show all notes')).toBe(false);
+    expect(decidedAgainstChange(comparison, 'Show no notes')).toBe(false);
+    expect(decidedAgainstChange(implemented, undefined)).toBe(false);
+  });
+});
+
+it('states what the after screenshot shows as the verified claim', () => {
+  const screenshot = (label: 'Before' | 'After', shows: string) => ({
+    assetId: label,
+    shows,
+    label,
+    enlarge: `Enlarge ${label}`,
+  });
+  expect(
+    screenshotClaim([
+      screenshot('Before', 'The results without a count'),
+      screenshot('After', 'The results with “3 notes found”'),
+    ]),
+  ).toBe('The results with “3 notes found”');
+});
+
+describe('a step’s files on one side of the Changes panel', () => {
+  const code = {
+    branch: ['src/search.ts', 'src/view.ts'],
+    worktree: ['README.md', 'src/view.ts'],
+  };
+
+  it('lists the committed files and names the uncommitted-only ones as elsewhere', () => {
+    expect(reviewCodeIn(code, 'branch')).toEqual({
+      here: ['src/search.ts', 'src/view.ts'],
+      elsewhere: ['README.md'],
+    });
+    expect(reviewCodeIn(code, 'worktree')).toEqual({
+      here: ['README.md', 'src/view.ts'],
+      elsewhere: ['src/search.ts'],
+    });
+  });
+
+  it('counts a file changed on both sides once, as the step’s full diff does', () => {
+    expect(reviewCodeCount(code)).toBe(3);
   });
 });

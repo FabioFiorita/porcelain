@@ -1,5 +1,12 @@
+import type { ReactNode } from 'react';
 import { TruncatedText } from '@/shared/views/truncated-text';
 import { CheckIcon, MessageSquareIcon } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import {
   changeStatusMarks,
   type ChangeStatus,
@@ -14,6 +21,11 @@ import {
   type ReviewSidebarAction,
 } from '@porcelain/client/changes/rules';
 import { SidebarActionMenu } from './sidebar-action-menu';
+
+export type ChangeRowExtra = {
+  readonly trailing?: ReactNode;
+  readonly tick?: boolean;
+};
 
 export const ROW =
   'flex h-7 w-full min-w-0 items-center gap-1.5 rounded-md px-2 text-left text-caption transition-colors outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring/60 aria-pressed:bg-selection aria-pressed:font-medium aria-pressed:text-foreground';
@@ -36,7 +48,9 @@ export function ChangeRow({
   indented = false,
   commentCount = 0,
   onComment,
-}: {
+  trailing,
+  tick = false,
+}: ChangeRowExtra & {
   path: string;
   document: DocumentRef;
   note: string | undefined;
@@ -130,6 +144,7 @@ export function ChangeRow({
             <ChangeStatusIcon
               status={changeStatus}
               reviewStatus={reviewStatus}
+              tick={tick}
             />
             <FileTreeIcon path={path} className="size-3.5 shrink-0" />
             <TruncatedText className="min-w-0 flex-1" text={basename(path)} />
@@ -144,7 +159,17 @@ export function ChangeRow({
                 {commentCount}
               </span>
             )}
+            {trailing}
           </button>
+          {tick && (
+            <ReviewTick
+              path={path}
+              status={reviewStatus}
+              canReview={canReview}
+              writeBlock={writeBlock}
+              onReview={onReview}
+            />
+          )}
           {menu}
         </div>
       )}
@@ -152,12 +177,49 @@ export function ChangeRow({
   );
 }
 
+function ReviewTick({
+  path,
+  status,
+  canReview,
+  writeBlock,
+  onReview,
+}: {
+  path: string;
+  status: ReviewStatus | undefined;
+  canReview: boolean;
+  writeBlock: string | undefined;
+  onReview: () => void;
+}) {
+  let hint = status === 'stale' ? 'Changed since reviewed' : 'Mark as reviewed';
+  if (!canReview) hint = 'This file cannot be marked reviewed';
+  if (writeBlock) hint = writeBlock;
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Checkbox
+            className="mx-1.5"
+            checked={status === 'reviewed'}
+            aria-label={`${path} reviewed`}
+            aria-description={hint}
+            disabled={!canReview || Boolean(writeBlock)}
+            onCheckedChange={onReview}
+          />
+        }
+      />
+      <TooltipContent role="tooltip">{hint}</TooltipContent>
+    </Tooltip>
+  );
+}
+
 function ChangeStatusIcon({
   status,
   reviewStatus,
+  tick,
 }: {
   status: ChangeStatus | undefined;
   reviewStatus: ReviewStatus | undefined;
+  tick: boolean;
 }) {
   const normalized = reviewStatus ?? 'unreviewed';
   const label = changeDescription(status, reviewStatus);
@@ -170,7 +232,7 @@ function ChangeStatusIcon({
       data-change-status={status}
       title={label}
     >
-      {normalized === 'reviewed' ? (
+      {normalized === 'reviewed' && !tick ? (
         <CheckIcon aria-hidden="true" className="size-3 text-add-fg" />
       ) : (
         <span

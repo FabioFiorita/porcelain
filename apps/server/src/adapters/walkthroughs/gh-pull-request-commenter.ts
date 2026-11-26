@@ -6,8 +6,15 @@ import {
 import { PullRequestCommenter } from '@porcelain/walkthroughs/ports';
 import { WalkthroughPostFailedError } from '@porcelain/walkthroughs/errors';
 import type { Limits } from '../../config/limits.ts';
+import {
+  lacksAccess,
+  type GitHubAccessMemo,
+} from '../reviews/github-access-memo.ts';
 
-export const ghPullRequestCommenterLayer = (limits: Limits['git']) =>
+export const ghPullRequestCommenterLayer = (
+  limits: Limits['git'],
+  access: GitHubAccessMemo,
+) =>
   Layer.effect(
     PullRequestCommenter,
     Effect.gen(function* () {
@@ -16,6 +23,7 @@ export const ghPullRequestCommenterLayer = (limits: Limits['git']) =>
         comment: (input) =>
           postGitHubIssueComment(input, limits).pipe(
             provide,
+            access.forgetWhenRefused(input, lacksAccess),
             Effect.map((url) => ({ url })),
             Effect.mapError(
               () =>

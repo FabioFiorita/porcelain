@@ -11,13 +11,14 @@ import { FileDiff } from '@pierre/diffs/react';
 import { AsyncResult } from 'effect/reactivity';
 import { ChevronRightIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useTheme } from '@/features/preferences/index';
+import { usePreferences, useTheme } from '@/features/preferences/index';
 import type { DocumentProps } from '@/features/workspace/index';
 import {
   PIERRE_HIGHLIGHTER,
   PIERRE_COMMENT_CSS,
   PIERRE_SURFACE_CSS,
   PIERRE_THEME,
+  PIERRE_TOKEN_WRAP_CSS,
 } from '@/shared/lib/pierre';
 import { cn } from '@/shared/lib/utils';
 import { PendingSpinner } from '@/shared/views/state-notice';
@@ -44,6 +45,7 @@ function CapturedLines({ document, runId, step, excerpt }: ExcerptProps) {
     excerpt.node,
   );
   const { dark } = useTheme();
+  const { preferences } = usePreferences();
   const owner = { scope: document.scope, context: document.context };
   const { view } = useComments(owner);
   const [composing, setComposing] = useState<LineRange>();
@@ -140,9 +142,9 @@ function CapturedLines({ document, runId, step, excerpt }: ExcerptProps) {
         preferredHighlighter: PIERRE_HIGHLIGHTER,
         theme: PIERRE_THEME,
         themeType: dark ? 'dark' : 'light',
-        overflow: 'wrap',
+        overflow: preferences.lineOverflow,
         disableFileHeader: true,
-        unsafeCSS: `${PIERRE_SURFACE_CSS}${PIERRE_COMMENT_CSS}`,
+        unsafeCSS: `${PIERRE_SURFACE_CSS}${PIERRE_COMMENT_CSS}${PIERRE_TOKEN_WRAP_CSS}`,
         diffStyle: 'unified',
         enableGutterUtility: true,
         onGutterUtilityClick: (range) => setComposing(commentRange(range)),

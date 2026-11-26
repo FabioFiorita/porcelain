@@ -28,7 +28,7 @@ import { type Connection } from '@/shared/workspace/connection';
 import { useAddRemote, useReadSavedEnvironments } from '../commands/remotes';
 import { useRemoteStatus } from '../queries/remotes';
 import { usePairedAccess, useRemoteAccess } from '../queries/share';
-import { computerSummary } from '../rules/settings';
+import { computerReach } from '../rules/settings';
 import { useConnectedContext, useSavedEnvironments } from '../store';
 import {
   useSettingsUpdates,
@@ -152,9 +152,32 @@ function ThisComputerSummary({ connection }: { connection: Connection }) {
   const paired = Option.getOrUndefined(
     AsyncResult.value(usePairedAccess(connection)),
   );
-  return remote && paired
-    ? `Online · ${computerSummary(remote, paired.devices.length)}`
-    : 'Online · Connected computer';
+  if (!remote || !paired) return 'Online · Connected computer';
+  const { devices, reach, unreachable } = computerReach(
+    remote,
+    paired.devices.length,
+  );
+  return (
+    <>
+      <span className="block">{`Online · ${devices}`}</span>
+      <span className="block">
+        {reach}
+        {unreachable && (
+          <>
+            {' '}
+            <Link
+              to="/settings/$section/$environmentId"
+              params={{ section: 'computers', environmentId: 'this-computer' }}
+              hash="ways-in"
+              className="relative rounded-sm font-medium whitespace-nowrap text-foreground underline underline-offset-2 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              Turn on a way in
+            </Link>
+          </>
+        )}
+      </span>
+    </>
+  );
 }
 
 export function RemoteComputers({

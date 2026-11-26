@@ -105,13 +105,13 @@ function githubReasons(
   if (status.reviewDecision === 'CHANGES_REQUESTED')
     reasons.push({
       text: 'changes requested',
-      blocksMerge: false,
+      blocksMerge: true,
       failed: true,
     });
   else if (status.reviewDecision === 'REVIEW_REQUIRED')
     reasons.push({
       text: 'review required',
-      blocksMerge: false,
+      blocksMerge: true,
       failed: false,
     });
   if (reasons.length === 0 && status.mergeState === 'BLOCKED')

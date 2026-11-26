@@ -12,6 +12,17 @@ import { clientRuntime } from '../../../shared/api/runtime.ts';
 import { queryKeys } from '../../../shared/api/query-keys.ts';
 import { requestedReruns } from '../store/pull-request-reruns.ts';
 import type { RequestedRerun } from '../rules/pull-request-checks.ts';
+const rereadPullRequests = (input: {
+  connection: RuntimeConnection;
+  projectId: string;
+}) =>
+  Reactivity.invalidate([
+    queryKeys.projectPullRequests(
+      input.connection.environmentId,
+      input.projectId,
+    ),
+  ]);
+
 export const archivePullRequest = Atom.family(
   (input: {
     connection: RuntimeConnection;
@@ -55,16 +66,7 @@ export const mergePullRequest = Atom.family(
             params: { projectId: input.projectId, number: input.number },
             payload,
           }),
-        ).pipe(
-          Effect.ensuring(
-            Reactivity.invalidate([
-              queryKeys.projectPullRequests(
-                input.connection.environmentId,
-                input.projectId,
-              ),
-            ]),
-          ),
-        );
+        ).pipe(Effect.ensuring(rereadPullRequests(input)));
       }),
     ),
 );
@@ -88,7 +90,7 @@ export const rerunPullRequestChecks = Atom.family(
             params: { projectId: input.projectId, number: input.number },
             payload: request.payload,
           }),
-        );
+        ).pipe(Effect.tapError(() => rereadPullRequests(input)));
         const pending = requestedReruns({
           environmentId: input.connection.environmentId,
           projectId: input.projectId,
@@ -114,19 +116,12 @@ export const commentOnPullRequest = Atom.family(
       Effect.fn('Projects.commentOnPullRequest')(function* (
         payload: CommentOnPullRequestRequest,
       ) {
-        const answer = yield* requestApi(input.connection, (api) =>
+        return yield* requestApi(input.connection, (api) =>
           api.pullRequests.commentOnPullRequest({
             params: { projectId: input.projectId, number: input.number },
             payload,
           }),
-        );
-        yield* Reactivity.invalidate([
-          queryKeys.projectPullRequests(
-            input.connection.environmentId,
-            input.projectId,
-          ),
-        ]);
-        return answer;
+        ).pipe(Effect.ensuring(rereadPullRequests(input)));
       }),
     ),
 );

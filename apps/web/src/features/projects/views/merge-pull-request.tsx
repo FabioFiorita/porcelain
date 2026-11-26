@@ -3,7 +3,6 @@ import { Cause } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import {
   mergeButtonReason,
-  mergeConfirmation,
   mergeFailureMessage,
   pullRequestMergeBlock,
   pullRequestMergeMethods,
@@ -11,11 +10,13 @@ import {
   type PullRequestMergeReview,
   type PullRequestRead,
 } from '@porcelain/client/projects/rules';
+import { shortOid } from '@porcelain/client/history/rules';
 import {
   useWorkspaceWriteBlock,
   type ConnectionContext,
 } from '@/shared/workspace/connection';
 import { PendingButton } from '@/shared/views/pending-button';
+import { LockIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -64,8 +65,8 @@ export function MergePullRequest({
 }) {
   const reasonId = useId();
   const writeBlock = useWorkspaceWriteBlock(context);
-  const block = writeBlock ?? pullRequestMergeBlock(pull, review);
-  const shown = writeBlock ?? mergeButtonReason(block, reason);
+  const block =
+    writeBlock ?? mergeButtonReason(pullRequestMergeBlock(pull, review), reason);
   return (
     <div
       className={cn(
@@ -95,9 +96,10 @@ export function MergePullRequest({
           })
         }
       >
+        {block !== undefined && <LockIcon aria-hidden />}
         {label}
       </Button>
-      {shown && (
+      {block && (
         <p
           id={reasonId}
           className={cn(
@@ -105,7 +107,7 @@ export function MergePullRequest({
             !showBlock && 'sr-only',
           )}
         >
-          {shown}
+          {block}
         </p>
       )}
     </div>
@@ -149,18 +151,13 @@ function MergeContent({
     () => mergePullRequestDialog.close(),
   );
   const chosen = options.find((option) => option.method === method);
-  const confirmation = mergeConfirmation({
-    number,
-    headBranch,
-    baseBranch,
-    headSha,
-  });
   return (
     <AlertDialogContent>
       <AlertDialogHeader>
-        <AlertDialogTitle>{confirmation.title}</AlertDialogTitle>
+        <AlertDialogTitle>Merge pull request #{number}?</AlertDialogTitle>
         <AlertDialogDescription className="[overflow-wrap:anywhere]">
-          {confirmation.description}
+          {headBranch} at {shortOid(headSha)} goes into {baseBranch} on GitHub.
+          A merge cannot be undone.
         </AlertDialogDescription>
       </AlertDialogHeader>
       {options.length > 1 && (

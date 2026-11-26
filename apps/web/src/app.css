@@ -215,6 +215,14 @@
   --strip-end: 1.25rem;
 }
 
+[data-scroll-strip][data-wide-fade]:not([data-at-x-start]) {
+  --strip-start: 3rem;
+}
+
+[data-scroll-strip][data-wide-fade]:not([data-at-x-end]) {
+  --strip-end: 3rem;
+}
+
 [data-slot='toast-viewport'] {
   z-index: 60;
 }

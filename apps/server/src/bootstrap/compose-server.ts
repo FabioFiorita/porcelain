@@ -1,6 +1,7 @@
 import { WalkthroughModelReader } from '@porcelain/walkthroughs/ports';
 import { installedWalkthroughModelReaderLayer } from '@porcelain/agents/walkthrough-writing';
 import { ghPullRequestReaderLayer } from '../adapters/reviews/gh-pull-request-reader.ts';
+import { makeGitHubAccessMemo } from '../adapters/reviews/github-access-memo.ts';
 import { IdSource } from '@porcelain/kernel/ports';
 import { DeviceConnectionStore } from '../ports/device-connection-store.ts';
 import { TunnelConnectionStore } from '../ports/tunnel-connection-store.ts';
@@ -237,6 +238,7 @@ function serverResources(
           clock,
           ids: yield* IdSource,
           logger,
+          githubAccess: yield* makeGitHubAccessMemo,
         };
         const deviceConnections = yield* DeviceConnectionStore;
         const tunnelConnections = yield* TunnelConnectionStore;

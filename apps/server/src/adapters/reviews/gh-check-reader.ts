@@ -11,6 +11,7 @@ import {
 import { GitHubCheckReader } from '@porcelain/reviews/ports';
 import { githubPullStatusSchema } from '@porcelain/reviews/models';
 import type { Limits } from '../../config/limits.ts';
+import { lacksAccess, type GitHubAccessMemo } from './github-access-memo.ts';
 
 const PAGE = 'pageInfo { hasNextPage }';
 const STATUS_QUERY = `query PullRequestStatus($owner: String!, $repo: String!, $number: Int!) {
@@ -43,7 +44,10 @@ const unavailable = (error: {
     reason: error.reason === 'not-found' ? 'invalid-response' : error.reason,
   });
 
-export const ghCheckReaderLayer = (limits: Limits['git']) =>
+export const ghCheckReaderLayer = (
+  limits: Limits['git'],
+  access: GitHubAccessMemo,
+) =>
   Layer.effect(
     GitHubCheckReader,
     Effect.gen(function* () {
@@ -64,6 +68,7 @@ export const ghCheckReaderLayer = (limits: Limits['git']) =>
             limits,
           ).pipe(
             provide,
+            access.forgetWhenRefused(input, lacksAccess),
             Effect.mapError((error) =>
               error.reason === 'not-found'
                 ? new GitHubPullRequestNotFoundError()
@@ -87,6 +92,7 @@ export const ghCheckReaderLayer = (limits: Limits['git']) =>
         jobLog: (input) =>
           readGitHubJobLog(input, limits).pipe(
             provide,
+            access.forgetWhenRefused(input, lacksAccess),
             Effect.mapError(unavailable),
           ),
       });

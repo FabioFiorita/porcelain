@@ -47,6 +47,27 @@ test('a call shows its comparison as a table, and each excerpt opens its own sav
     )
     .toBeVisible();
 
+  const options = page.getByRole('list', { name: 'Options', exact: true });
+  const current = options
+    .getByRole('listitem')
+    .filter({ hasText: 'Show all notes' });
+  await expect
+    .element(current.getByText('In this change', { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(current.getByText('Keeps the code as it is.', { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(
+      options
+        .getByRole('listitem')
+        .filter({ hasText: 'Show no notes' })
+        .getByText('Needs a new commit: this change does not do this yet.', {
+          exact: true,
+        }),
+    )
+    .toBeVisible();
+
   const first = stepItem(page, 'Choose the empty search behavior');
   const labels = 'src/labels.ts · New line 1';
   const search = 'src/search.ts · New line 2';

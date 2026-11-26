@@ -456,19 +456,19 @@ function CheckRow({
         <span className="hidden text-del-fg @min-2xl/pr:inline">
           Step {failed.number} · {failed.name} ·{' '}
         </span>
-        {duration}
+        <span className="hidden @min-2xl/pr:inline">{duration}</span>
       </>
     );
   return (
     <li className="min-w-0">
-      <div className="flex h-7 min-w-0 items-center gap-1">
+      <div className="flex min-h-7 min-w-0 items-start gap-1">
         <button
           type="button"
           data-check-row={check.key}
           aria-expanded={open}
           aria-controls={panelId}
           onClick={onToggle}
-          className="flex h-7 min-w-0 flex-1 items-center gap-2 rounded-sm text-left text-ui leading-4.5 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="grid min-h-7 min-w-0 flex-1 grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center gap-x-2 rounded-sm text-left text-ui leading-4.5 outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <ChevronRightIcon
             aria-hidden="true"
@@ -478,20 +478,32 @@ function CheckRow({
             )}
           />
           <StateIcon state={state} />
-          <TruncatedText text={check.name} className="min-w-0" />
-          {check.required && (
-            <span className="hidden shrink-0 text-xs text-muted-foreground @min-xl/pr:inline">
-              Required
-            </span>
-          )}
-          <span className="ml-auto shrink-0 pl-2 text-xs leading-4 text-muted-foreground tabular-nums">
+          <span className="flex min-w-0 items-center gap-2">
+            <TruncatedText text={check.name} className="min-w-0" />
+            {check.required && (
+              <span className="hidden shrink-0 text-xs text-muted-foreground @min-xl/pr:inline">
+                Required
+              </span>
+            )}
+          </span>
+          <span className="shrink-0 pl-2 text-xs leading-4 text-muted-foreground tabular-nums">
             {detail}
           </span>
+          {failed && (
+            <span className="col-span-2 col-start-3 -mt-0.5 pb-1 text-xs leading-4 text-del-fg @min-2xl/pr:hidden">
+              {check.required && (
+                <span className="text-muted-foreground @min-xl/pr:hidden">
+                  Required ·{' '}
+                </span>
+              )}
+              Step {failed.number} · {failed.name}
+            </span>
+          )}
         </button>
         {cited !== undefined && onOpenStep && (
           <button
             type="button"
-            className="h-6 shrink-0 rounded-sm px-1.5 text-xs text-muted-foreground underline-offset-2 outline-none hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+            className="h-7 shrink-0 rounded-sm px-1.5 text-xs text-muted-foreground underline-offset-2 outline-none hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring"
             aria-label={`${check.name} is cited in Walkthrough step ${cited}`}
             onClick={() => onOpenStep(cited)}
           >

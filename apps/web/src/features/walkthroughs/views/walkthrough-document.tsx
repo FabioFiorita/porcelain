@@ -13,6 +13,7 @@ import {
   uncoveredPaths,
   eagerSections,
   walkthroughMeta,
+  type MetaFiles,
   walkthroughEvidenceNotice,
   acknowledgedWalkthrough,
   walkthroughPhase,
@@ -69,10 +70,12 @@ function Meta({
   run,
   content,
   writer,
+  files,
 }: {
   run: WalkthroughRun;
   content?: WalkthroughContent;
   writer?: ReturnType<typeof useWalkthroughWriter> | undefined;
+  files?: MetaFiles | null;
 }) {
   const model =
     writer?.settings?.models.find(
@@ -82,7 +85,14 @@ function Meta({
     )?.label ?? run.writer.model;
   return (
     <p className="whitespace-pre-line font-mono text-caption text-muted-foreground">
-      {walkthroughMeta(run, content, content ? model : undefined)}
+      {walkthroughMeta(run, content, content ? model : undefined, files)
+        .split(' · ')
+        .map((part, index) => (
+          <span key={part}>
+            {index > 0 && ' · '}
+            <span className="whitespace-nowrap">{part}</span>
+          </span>
+        ))}
       {!content && walkthroughEvidenceNotice(run)
         ? `\n${walkthroughEvidenceNotice(run)}`
         : ''}
@@ -273,7 +283,19 @@ function Written({
   );
   const header = (
     <header className="flex flex-col gap-3">
-      <Meta run={run} content={content} writer={writer} />
+      <Meta
+        run={run}
+        content={content}
+        writer={writer}
+        files={
+          code.branch
+            ? {
+                committed: code.branch.files.map((file) => file.path),
+                uncommitted: code.uncommitted,
+              }
+            : null
+        }
+      />
       <Headline content={content} />
       <WalkthroughStanding
         document={props}

@@ -3,6 +3,8 @@ export {
   walkthroughCodeScopes,
   reviewCodeSections,
   uncoveredPaths,
+  reviewCodeCount,
+  reviewCodeIn,
   eagerSections,
   plainText,
   richParts,
@@ -14,7 +16,6 @@ export {
   walkthroughPhase,
   walkthroughVerdict,
   type ReviewCode,
-  type StepFiles,
   type WalkthroughContent,
   type WalkthroughFailure,
   type WalkthroughRun,
@@ -56,6 +57,11 @@ export {
 } from './briefing.ts';
 export {
   attentionLabel,
+  CALL_DECIDING,
+  NEEDS_A_COMMIT,
+  callChoices,
+  decidedAgainstChange,
+  screenshotClaim,
   failureCopy,
   readyUpdate,
   initialWriteFailure,
@@ -63,6 +69,7 @@ export {
   foldedNotSaid,
   growthSign,
   walkthroughMeta,
+  type MetaFiles,
   walkthroughScope,
   walkthroughEvidenceNotice,
 } from './page.ts';

@@ -11,6 +11,7 @@ import {
 import type { PullRequestFile } from '@porcelain/reviews/models';
 import { PullRequestReviewer } from '@porcelain/reviews/ports';
 import type { Limits } from '../../config/limits.ts';
+import { lacksAccess, type GitHubAccessMemo } from './github-access-memo.ts';
 
 const FILES_PER_PAGE = 100;
 const MAX_FILE_PAGES = 30;
@@ -34,18 +35,25 @@ const unavailable = (error: {
     reason: error.reason === 'not-found' ? 'invalid-response' : error.reason,
   });
 
-export const ghPullRequestReviewerLayer = (limits: Limits['git']) =>
+export const ghPullRequestReviewerLayer = (
+  limits: Limits['git'],
+  access: GitHubAccessMemo,
+) =>
   Layer.effect(
     PullRequestReviewer,
     Effect.gen(function* () {
       const provide = yield* captureGitPlatform();
       const read = Effect.fn('PullRequestReviewer.read')(function* <T>(
-        account: string,
+        target: { account: string; owner: string; repo: string },
         endpoint: string,
         schema: Schema.Codec<T, string>,
       ) {
-        const json = yield* readGitHubApi({ account, endpoint }, limits).pipe(
+        const json = yield* readGitHubApi(
+          { account: target.account, endpoint },
+          limits,
+        ).pipe(
           provide,
+          access.forgetWhenRefused(target, lacksAccess),
           Effect.mapError(unavailable),
         );
         return yield* Schema.decodeEffect(schema)(json).pipe(
@@ -57,11 +65,11 @@ export const ghPullRequestReviewerLayer = (limits: Limits['git']) =>
       return PullRequestReviewer.of({
         diff: Effect.fn('PullRequestReviewer.diff')(function* (input) {
           const pull = `repos/${encodeURIComponent(input.owner)}/${encodeURIComponent(input.repo)}/pulls/${input.number}`;
-          const { head } = yield* read(input.account, pull, pullSchema);
+          const { head } = yield* read(input, pull, pullSchema);
           const files: PullRequestFile[] = [];
           for (let page = 1; page <= MAX_FILE_PAGES; page += 1) {
             const batch = yield* read(
-              input.account,
+              input,
               `${pull}/files?per_page=${FILES_PER_PAGE}&page=${page}`,
               filesSchema,
             );
@@ -74,6 +82,7 @@ export const ghPullRequestReviewerLayer = (limits: Limits['git']) =>
         post: (input) =>
           postGitHubPullRequestReview(input, limits).pipe(
             provide,
+            access.forgetWhenRefused(input, lacksAccess),
             Effect.map((url) => ({ url })),
             Effect.mapError(
               () =>

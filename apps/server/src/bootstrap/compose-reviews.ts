@@ -85,11 +85,17 @@ export function composeReviews(
 ) {
   const { stores, shared } = dependencies;
   const ports = Layer.mergeAll(
-    dependencies.githubReader(context.settings.limits.git),
+    dependencies.githubReader(
+      context.settings.limits.git,
+      context.githubAccess,
+    ),
     gitBranchArchiverLayer(context.settings.limits.git),
-    ghPullRequestMergerLayer(context.settings.limits.git),
-    ghCheckReaderLayer(context.settings.limits.git),
-    ghPullRequestActionsLayer(context.settings.limits.git),
+    ghPullRequestMergerLayer(context.settings.limits.git, context.githubAccess),
+    ghCheckReaderLayer(context.settings.limits.git, context.githubAccess),
+    ghPullRequestActionsLayer(
+      context.settings.limits.git,
+      context.githubAccess,
+    ),
     ReadRepositoryOriginService.layer.pipe(
       Layer.provide(
         gitProjectRepositoryReaderLayer(context.settings.limits.git),

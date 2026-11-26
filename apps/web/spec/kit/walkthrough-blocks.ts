@@ -83,6 +83,7 @@ export async function walkthroughBlocksFixture(world: World): Promise<string> {
                 rows: [
                   ['Browsing works immediately', 'The first view stays quiet'],
                 ],
+                implemented: 'Show all notes',
               },
             },
             {
