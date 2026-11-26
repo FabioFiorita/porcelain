@@ -33,6 +33,7 @@ import { CommitParentMenu } from './commit-parent-menu';
 import { commitRefLabel } from '../../../shared/rules/commit-ref';
 
 type CommitPageProps = {
+  surface?: 'screen' | 'pane' | undefined;
   selection: HistorySelection;
   oid: string;
   parent: number;
@@ -57,6 +58,7 @@ export function CommitPage(props: CommitPageProps) {
 }
 
 function CommitPageView({
+  surface,
   selection,
   oid,
   parent,
@@ -92,6 +94,7 @@ function CommitPageView({
             chunk={diffChunk(chunks, 0)}
           >
             <DiffPage
+              place={surface}
               page={JSON.stringify(['commit', oid, parent])}
               title={shortOid(oid)}
               subtitle={`${files.length} file${files.length === 1 ? '' : 's'} changed`}

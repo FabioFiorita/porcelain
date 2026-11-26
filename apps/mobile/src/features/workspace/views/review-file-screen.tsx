@@ -1,3 +1,4 @@
+import { TopBarActions } from '../../../shared/application/top-bar';
 import type { TopBarAction } from '../../../components/ui/top-bar-items';
 import type { ReviewComparison } from '../../../shared/rules/review-comparison';
 import { diffSelection } from '@porcelain/client/changes/rules';
@@ -85,7 +86,12 @@ type ReviewFileContentProps = {
   workspace: Workspace;
   path: string;
   comparison: ReviewComparison;
+  place?: 'screen' | 'pane' | undefined;
 };
+
+export function ReviewFilePane(props: Omit<ReviewFileContentProps, 'place'>) {
+  return <ReviewFileContent {...props} place="pane" />;
+}
 
 function ReviewFileContent(props: ReviewFileContentProps) {
   const focused = useIsFocused();
@@ -96,6 +102,7 @@ function FocusedReviewFileContent({
   workspace,
   path,
   comparison,
+  place = 'screen',
 }: ReviewFileContentProps) {
   const { result, refresh } = useReviewSnapshot(workspace, comparison);
   const snapshot = Option.getOrUndefined(AsyncResult.value(result));
@@ -107,6 +114,7 @@ function FocusedReviewFileContent({
           snapshot={snapshot}
           path={path}
           comparison={comparison}
+          place={place}
         />
       ) : (
         <ReviewReadState result={result} refresh={refresh} />
@@ -120,11 +128,13 @@ function ReviewedFile({
   snapshot,
   path,
   comparison,
+  place,
 }: {
   workspace: Workspace;
   snapshot: ReviewSnapshot;
   path: string;
   comparison: ReviewComparison;
+  place: 'screen' | 'pane';
 }) {
   const marks = useReviewMarks(workspace, snapshot);
   const reviewed = Option.getOrUndefined(AsyncResult.value(marks.result));
@@ -140,6 +150,7 @@ function ReviewedFile({
       snapshot={snapshot}
       file={file}
       comparison={comparison}
+      place={place}
     />
   );
 }
@@ -149,11 +160,13 @@ function ChangedFile({
   snapshot,
   file,
   comparison,
+  place,
 }: {
   workspace: Workspace;
   snapshot: ReviewSnapshot;
   file: ReviewFile;
   comparison: ReviewComparison;
+  place: 'screen' | 'pane';
 }) {
   const documentKey = reviewFileDocumentKey(file.path, comparison);
   const [comparisonScope, setComparisonScope] = useAtom(
@@ -206,7 +219,11 @@ function ChangedFile({
         path={file.path}
         details={[file.note, reviewStatusDetail(file.reviewStatus)]}
         actions={actions}
+        place={place}
       />
+      {place === 'pane' ? (
+        <TopBarActions owner="document-pane" actions={actions} />
+      ) : null}
       {reviewed.notice}
       {snapshot.kind === 'branch' ? (
         <BranchFile {...fileProps} snapshot={snapshot} />

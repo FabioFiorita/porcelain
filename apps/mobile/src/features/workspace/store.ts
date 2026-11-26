@@ -8,6 +8,10 @@ export const phoneReviewComparison = Atom.family((_workspace: string) =>
   Atom.make<ReviewComparison>({ kind: 'worktree' }).pipe(Atom.keepAlive),
 );
 
+export const changesBesideFile = Atom.family((_workspace: string) =>
+  Atom.make<string | undefined>(undefined).pipe(Atom.keepAlive),
+);
+
 export const reviewListOffset = Atom.family((_owner: string) =>
   Atom.make(0).pipe(Atom.keepAlive),
 );

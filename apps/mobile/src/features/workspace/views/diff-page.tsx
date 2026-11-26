@@ -1,3 +1,4 @@
+import { TopBarActions } from '../../../shared/application/top-bar';
 import type { TopBarAction } from '../../../components/ui/top-bar-items';
 import { useState, type ReactNode } from 'react';
 import { useAtomSet, useAtomValue } from '@effect/atom-react';
@@ -57,7 +58,9 @@ export function DiffPage<F extends DiffPageFile>({
   onFocused,
   onFirstHeadingLayout,
   overlay,
+  place = 'screen',
 }: {
+  place?: 'screen' | 'pane' | undefined;
   page: string;
   title: string;
   subtitle?: string | undefined;
@@ -116,10 +119,19 @@ export function DiffPage<F extends DiffPageFile>({
       <PageHeader
         title={title}
         subtitle={subtitle}
+        place={place}
         actions={
           beside || files.length < 2 ? actions : [...actions, filesAction]
         }
       />
+      {place === 'pane' ? (
+        <TopBarActions
+          owner="document-pane"
+          actions={
+            beside || files.length < 2 ? actions : [...actions, filesAction]
+          }
+        />
+      ) : null}
       <ListDetail
         collapse="detail"
         list={() => (

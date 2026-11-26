@@ -84,11 +84,11 @@ function TabBody({ tab, mode }: { tab: WorktreeTab; mode: ListDetailMode }) {
     case 'walkthrough':
       return <WalkthroughSection />;
     case 'changes':
-      return <WorktreeChangesPane />;
+      return <WorktreeChangesPane mode={mode} />;
     case 'files':
       return <FilesScreen mode={mode} nested />;
     case 'history':
-      return <HistoryScreen nested />;
+      return <HistoryScreen nested mode={mode} />;
   }
 }
 
