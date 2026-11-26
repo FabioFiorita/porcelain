@@ -47,6 +47,12 @@ import { useReviewedAction } from './review-actions';
 import type { DiffContent } from '@porcelain/client/changes/rules';
 import { useDocumentReadingLine } from '../../../shared/application/document-reading';
 import { reviewFileScope } from '../store';
+import { codeLines } from '../rules/line-comments';
+import {
+  LineSelectionBar,
+  useFileCommentAction,
+  useLineComments,
+} from './line-comments';
 
 export function ReviewFileScreen({
   workspaceKey,
@@ -161,8 +167,16 @@ function ChangedFile({
   const change =
     changes.find((entry) => entry.scope === comparisonScope) ?? changes[0];
   const reviewed = useReviewedAction(workspace, snapshot, file);
+  const commentOnFile = useFileCommentAction(workspace, file.path);
+  const page = JSON.stringify([
+    'review-file',
+    workspace.key,
+    documentKey,
+    change?.scope ?? null,
+  ]);
   const actions: TopBarAction[] = [
     ...(reviewed.action ? [reviewed.action] : []),
+    commentOnFile,
     ...(changes.length > 1
       ? [
           {
@@ -184,6 +198,7 @@ function ChangedFile({
     file,
     comparison,
     scope: change?.scope,
+    page,
   };
   return (
     <View className="flex-1">
@@ -204,6 +219,7 @@ function ChangedFile({
           change={change}
         />
       ) : null}
+      <LineSelectionBar workspace={workspace} page={page} />
     </View>
   );
 }
@@ -220,6 +236,7 @@ type FileProps = {
   file: ReviewFile;
   comparison: ReviewComparison;
   scope?: string | undefined;
+  page: string;
 };
 
 function WorktreeComparison(
@@ -363,6 +380,7 @@ function SelectableContent({
   file,
   comparison,
   scope,
+  page,
   source,
   lines,
 }: FileProps & {
@@ -370,6 +388,12 @@ function SelectableContent({
   lines?: Parameters<typeof DiffView>[0]['lines'];
 }) {
   const { preferences } = usePreferences();
+  const comments = useLineComments({
+    workspace,
+    page,
+    path: file.path,
+    lines: lines ?? codeLines(source ?? ''),
+  });
   const reading = useDocumentReadingLine(
     workspace.key,
     reviewFileReadingKey(file.path, comparison, scope),
@@ -378,6 +402,7 @@ function SelectableContent({
   return lines ? (
     <DiffView
       {...reading}
+      {...comments}
       lines={lines}
       language={sourceLanguage(file.path)}
       wrap={preferences.lineOverflow === 'wrap'}
@@ -385,6 +410,7 @@ function SelectableContent({
   ) : (
     <CodeView
       {...reading}
+      {...comments}
       source={source ?? ''}
       language={sourceLanguage(file.path)}
       wrap={preferences.lineOverflow === 'wrap'}

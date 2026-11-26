@@ -31,6 +31,7 @@ import {
 import { useOpenReviewFile } from './open-review-file';
 import { DiffPage, DiffPagePart, type DiffPagePartProps } from './diff-page';
 import { ReviewReadState } from './read-state';
+import { LineSelectionBar } from './line-comments';
 
 export function ChangesPageScreen({
   workspaceKey,
@@ -156,15 +157,17 @@ function ChangesReader({
   summary: { subtitle: string; description: string };
 }) {
   const openReviewFile = useOpenReviewFile(workspace.key);
+  const page = JSON.stringify([
+    'changes',
+    workspace.key,
+    comparison,
+    ...(walkthrough ? ['walkthrough'] : []),
+    reading?.page ?? null,
+  ]);
   return (
     <DiffPage
-      page={JSON.stringify([
-        'changes',
-        workspace.key,
-        comparison,
-        ...(walkthrough ? ['walkthrough'] : []),
-        reading?.page ?? null,
-      ])}
+      page={page}
+      overlay={<LineSelectionBar workspace={workspace} page={page} />}
       title={reading?.title ?? 'All changes'}
       subtitle={summary.subtitle}
       actions={reading?.actions ?? []}
@@ -200,6 +203,7 @@ function ChangesReader({
         return (
           <ChangePart
             {...props}
+            page={page}
             workspace={workspace}
             comparison={props.file.comparison}
             keys={diffChunk(
@@ -214,6 +218,7 @@ function ChangesReader({
 }
 
 type ChangePartProps = DiffPagePartProps<ComparedEntry> & {
+  page: string;
   workspace: Workspace;
   comparison: ReviewComparison;
   keys: readonly string[];
@@ -229,19 +234,26 @@ function ChangePart(props: ChangePartProps) {
   return <ChunkPart {...props} />;
 }
 
-function ChunkPart({ workspace, comparison, keys, ...props }: ChangePartProps) {
+function ChunkPart({
+  workspace,
+  comparison,
+  keys,
+  page,
+  ...props
+}: ChangePartProps) {
   const query = changePageDiffs({ workspace, comparison, keys });
   const result = useAtomValue(query);
   const refresh = useAtomSet(query);
   return (
     <DiffPagePart
       {...props}
+      comments={{ workspace, page }}
       state={chunkState(result, props.file.diffKey, refresh)}
     />
   );
 }
 
-function UntrackedPart({ workspace, ...props }: ChangePartProps) {
+function UntrackedPart({ workspace, page, ...props }: ChangePartProps) {
   const query = readTextFile({
     connection: workspace.connection,
     scope: workspace.scope,
@@ -249,7 +261,13 @@ function UntrackedPart({ workspace, ...props }: ChangePartProps) {
   });
   const result = useAtomValue(query);
   const refresh = useAtomRefresh(query);
-  return <DiffPagePart {...props} state={untrackedState(result, refresh)} />;
+  return (
+    <DiffPagePart
+      {...props}
+      comments={{ workspace, page }}
+      state={untrackedState(result, refresh)}
+    />
+  );
 }
 
 function untrackedState(

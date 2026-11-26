@@ -25,6 +25,8 @@ import {
   type DiffPageState,
 } from '../rules/diff-page';
 import { diffPageCurrent, diffPageOpening, diffPageStuck } from '../store';
+import type { Workspace } from '../../projects/index';
+import { useLineComments } from './line-comments';
 
 export type { DiffPageFile, DiffPageState } from '../rules/diff-page';
 
@@ -54,6 +56,7 @@ export function DiffPage<F extends DiffPageFile>({
   onOpenFile,
   onFocused,
   onFirstHeadingLayout,
+  overlay,
 }: {
   page: string;
   title: string;
@@ -67,6 +70,7 @@ export function DiffPage<F extends DiffPageFile>({
   onOpenFile: (file: F) => void;
   onFocused?: (() => void) | undefined;
   onFirstHeadingLayout?: (() => void) | undefined;
+  overlay?: ReactNode;
 }) {
   const reading = useAtomValue(diffPageOpening(page));
   const focused = files.findIndex((file) => file.key === initialFile);
@@ -191,6 +195,7 @@ export function DiffPage<F extends DiffPageFile>({
               part={part}
               onOpenFile={onOpenFile}
             />
+            {overlay}
           </View>
         }
       />
@@ -280,18 +285,22 @@ function DiffPageFiles<F extends DiffPageFile>({
   );
 }
 
+export type DiffPageComments = { workspace: Workspace; page: string };
+
 export function DiffPagePart({
   file,
   part,
   state,
   onOpen,
   openLabel = 'Open file',
+  comments,
 }: {
   file: DiffPageFile;
   part: DiffPageRow['kind'];
   state: DiffPageState;
   onOpen: () => void;
   openLabel?: 'Open file' | 'Open diff';
+  comments?: DiffPageComments | undefined;
 }) {
   return part === 'heading' ? (
     <DiffPageHeading file={file} state={state} onOpen={onOpen} />
@@ -301,6 +310,7 @@ export function DiffPagePart({
       state={state}
       onOpen={onOpen}
       openLabel={openLabel}
+      comments={comments}
     />
   );
 }
@@ -343,11 +353,13 @@ function DiffPageContent({
   state,
   onOpen,
   openLabel,
+  comments,
 }: {
   path: string;
   state: DiffPageState;
   onOpen: () => void;
   openLabel: 'Open file' | 'Open diff';
+  comments: DiffPageComments | undefined;
 }) {
   const { preferences } = usePreferences();
   switch (state.kind) {
@@ -379,15 +391,47 @@ function DiffPageContent({
     case 'lines':
       return (
         <View collapsable={false}>
-          <DiffView
-            lines={state.lines}
-            language={sourceLanguage(path)}
-            wrap={preferences.lineOverflow === 'wrap'}
-            fit
-          />
+          {comments ? (
+            <CommentedDiff
+              {...comments}
+              path={path}
+              lines={state.lines}
+              wrap={preferences.lineOverflow === 'wrap'}
+            />
+          ) : (
+            <DiffView
+              lines={state.lines}
+              language={sourceLanguage(path)}
+              wrap={preferences.lineOverflow === 'wrap'}
+              fit
+            />
+          )}
         </View>
       );
   }
+}
+
+function CommentedDiff({
+  workspace,
+  page,
+  path,
+  lines,
+  wrap,
+}: DiffPageComments & {
+  path: string;
+  lines: Extract<DiffPageState, { kind: 'lines' }>['lines'];
+  wrap: boolean;
+}) {
+  const comments = useLineComments({ workspace, page, path, lines });
+  return (
+    <DiffView
+      {...comments}
+      lines={lines}
+      language={sourceLanguage(path)}
+      wrap={wrap}
+      fit
+    />
+  );
 }
 
 function fileLabel(file: DiffPageFile) {

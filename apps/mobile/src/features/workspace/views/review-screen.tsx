@@ -36,6 +36,12 @@ import {
 } from '../rules/comparison';
 import { reviewParams } from '../rules/navigation';
 import { ReviewReadState } from './read-state';
+import { useDraftComments } from './line-comments';
+import { Badge } from '../../../components/ui/badge';
+import {
+  commentCountsByPath,
+  openComments,
+} from '@porcelain/client/comments/rules';
 import { phoneReviewComparison, useReviewListOffset } from '../store';
 import { ComparisonMenu } from './comparison-menu';
 
@@ -201,6 +207,10 @@ function ChangedFiles({
     AsyncResult.value(snapshotRead.result),
   );
   const marks = useReviewMarks(workspace, snapshot);
+  const drafts = useDraftComments(workspace);
+  const router = useRouter();
+  const counts = commentCountsByPath(drafts);
+  const draftCount = openComments(drafts).length;
   if (!snapshot)
     return (
       <ReviewReadState
@@ -222,6 +232,27 @@ function ChangedFiles({
             ? `${branch.head.branch ?? 'Detached HEAD'} compared with ${branch.base.ref} · ${branch.commits} commits`
             : 'No comparison base is available. Choose a base from the Branch menu.'}
         </Text>
+      ) : null}
+      {draftCount > 0 ? (
+        <Card>
+          <Item
+            title={
+              draftCount === 1
+                ? '1 draft comment'
+                : `${draftCount} draft comments`
+            }
+            leading={<Icon name="comment" tone="muted" />}
+            trailing={<Icon name="chevron" tone="muted" />}
+            testID="review-publish-comments"
+            accessibilityLabel={`Review and publish ${draftCount} draft ${draftCount === 1 ? 'comment' : 'comments'}`}
+            onPress={() =>
+              router.push({
+                pathname: '/publish-comments',
+                params: { workspace: workspace.key },
+              })
+            }
+          />
+        </Card>
       ) : null}
       {files.length === 0 ? (
         <Empty title="No changes" />
@@ -247,7 +278,16 @@ function ChangedFiles({
                 leading={
                   <ChangeStatusDot status={changes.files.get(file.path)} />
                 }
-                accessibilityLabel={`Review ${file.path}, ${changeLabel(changes.files.get(file.path))}, ${file.note}, ${reviewStatusLabel(file.reviewStatus)}`}
+                titleTrailing={
+                  counts.get(file.path) ? (
+                    <Badge
+                      variant="secondary"
+                      icon="comment"
+                      label={String(counts.get(file.path))}
+                    />
+                  ) : undefined
+                }
+                accessibilityLabel={`Review ${file.path}, ${changeLabel(changes.files.get(file.path))}, ${file.note}, ${reviewStatusLabel(file.reviewStatus)}${draftLabel(counts.get(file.path))}`}
                 onPress={() => onFile(file.path)}
                 onLayout={
                   index === 0 ? mobileLayout('changes-first-file') : undefined
@@ -283,6 +323,11 @@ function ChangeStatusDot({ status }: { status: ChangeStatus | undefined }) {
 
 function changeLabel(status: ChangeStatus | undefined) {
   return status ? changeStatusMarks[status].label : 'Changed';
+}
+
+function draftLabel(count: number | undefined) {
+  if (!count) return '';
+  return count === 1 ? ', 1 draft comment' : `, ${count} draft comments`;
 }
 
 function reviewStatusLabel(status: ReviewFile['reviewStatus']) {

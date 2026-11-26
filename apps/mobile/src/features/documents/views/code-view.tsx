@@ -1,5 +1,8 @@
 import { RenderSurface } from '../../../components/ui/render-surface';
-import type { RenderToken } from '../../../shared/rules/render-model';
+import type {
+  RenderLine,
+  RenderToken,
+} from '../../../shared/rules/render-model';
 import type { ReviewRange } from '../../../components/ui/code-range';
 import { useHighlightedCode } from '../queries/highlighted-code';
 import { View } from 'react-native';
@@ -15,6 +18,8 @@ export function CodeView({
   onSelect,
   initialLine,
   onReadingLine,
+  decorate,
+  onExpand,
 }: {
   source: string;
   initialLine?: number | undefined;
@@ -25,6 +30,10 @@ export function CodeView({
   lineNumbers?: boolean;
   selection?: ReviewRange | undefined;
   onSelect?: ((range: ReviewRange) => void) | undefined;
+  decorate?:
+    | ((lines: readonly RenderLine[]) => readonly RenderLine[])
+    | undefined;
+  onExpand?: ((id: string) => void) | undefined;
 }) {
   const result = useHighlightedCode(source, tokens ? undefined : language);
   const highlighted = tokens ?? result?.tokens;
@@ -49,11 +58,12 @@ export function CodeView({
       ) : null}
       <RenderSurface
         documentKey={source}
-        lines={lines}
+        lines={decorate ? decorate(lines) : lines}
         wrap={wrap}
         lineNumbers={lineNumbers}
         selection={selection}
         onSelect={onSelect}
+        onExpand={onExpand}
         initialLine={initialLine}
         onReadingLine={onReadingLine}
       />
