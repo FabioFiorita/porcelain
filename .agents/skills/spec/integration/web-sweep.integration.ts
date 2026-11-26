@@ -13,7 +13,7 @@ import { test } from '@porcelain/server/kit/server-test';
 import { list, record, text } from '@porcelain/server/kit/session';
 import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { join, relative } from 'node:path';
-import { expect, inject } from 'vite-plus/test';
+import { afterAll, beforeAll, expect, inject } from 'vite-plus/test';
 import { cli, repositoryRoot, started, WEB_CLI } from './verification-cli.ts';
 
 const themed = `<script>const media = matchMedia('(prefers-color-scheme: dark)'); const apply = () => document.documentElement.classList.toggle('dark', media.matches); apply(); media.addEventListener('change', apply);</script>`;
@@ -58,6 +58,20 @@ async function filesUnder(folder: string) {
     .toSorted();
 }
 
+const stops: Parameters<Parameters<typeof started>[0]>[0][] = [];
+let instance: Awaited<ReturnType<typeof started>>;
+beforeAll(async () => {
+  instance = await started(
+    (stop) => {
+      stops.push(stop);
+    },
+    { path: WEB_CLI },
+  );
+});
+afterAll(async () => {
+  for (const stop of stops.toReversed()) await stop();
+});
+
 test('a sweep records its complete state, theme and width matrix beside its boards', async ({
   onTestFinished,
 }) => {
@@ -66,7 +80,6 @@ test('a sweep records its complete state, theme and width matrix beside its boar
   const board = join(boards, 'Fixture.png');
   await writeFile(board, onePixelPng);
   await writeFile(join(boards, 'Fixture-D.png'), onePixelPng);
-  const instance = await started(onTestFinished, { path: WEB_CLI });
   const runSweep = (...args: string[]) =>
     cli(
       repositoryRoot,
