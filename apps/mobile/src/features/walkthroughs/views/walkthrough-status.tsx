@@ -30,7 +30,7 @@ export function WalkthroughStatus({
   const log = (
     <>
       <Button
-        label={open ? 'Hide update log' : 'Update log'}
+        label={open ? 'Hide writing log' : 'Writing log'}
         variant="plain"
         size="sm"
         onPress={() => setOpen(!open)}
@@ -44,7 +44,7 @@ export function WalkthroughStatus({
           ))}
           {progress.entries.length === 0 && (
             <Text variant="secondary" tone="muted">
-              This walkthrough predates the update log.
+              This walkthrough predates the writing log.
             </Text>
           )}
         </Box>
