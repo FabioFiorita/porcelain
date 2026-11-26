@@ -85,3 +85,5 @@ On a fresh desktop profile the right panel starts open. Hide it with the rail to
 With two commits, click the newest row in the docked History list. Its document opens while focus stays on the row. Down selects and focuses the next commit; Up returns to the previous one. Neither end wraps. Alt+Left/Right still steps document tabs. Opening to the side deliberately focuses the destination pane. At phone width selecting a commit closes the sheet and focuses its document tab.
 
 Regressions: `history-keyboard.test.tsx`, `review-panel-preference.test.tsx`.
+
+History starts with the branch, upstream and ahead/behind count when available. The collapsed panel remains scrollable with a long commit list, and Open graph reaches the full graph. In the worktree Change Summary, Recent commits provides another entry to a commit or the graph.

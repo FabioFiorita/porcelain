@@ -638,7 +638,7 @@ async function write() {
     headers['mcp-protocol-version'] = '2025-06-18';
     const listed = await rpc('tools/list', {});
     assert.deepEqual(listed.result.tools.map(tool => tool.name).sort(), [
-      'before_after','callout','checks','diff_excerpt','files',
+      'before_after','callout','checks','diagram','diff_excerpt','files',
     ]);
     const refused = await rpc('tools/call', {name:'checks',arguments:{headOid:42}});
     assert.equal(refused.result.isError, true);

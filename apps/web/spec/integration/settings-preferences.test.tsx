@@ -130,7 +130,7 @@ test('global Settings titles name Porcelain across sections and restore the work
   await expect
     .element(
       app.page.getByRole('heading', {
-        name: 'Settings. Computers',
+        name: 'Computers',
         exact: true,
       }),
     )

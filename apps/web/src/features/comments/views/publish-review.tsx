@@ -1,30 +1,30 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { openComments } from '@porcelain/client/comments/rules';
 import { Button } from '@/components/ui/button';
 import { useComments, type CommentOwner } from '../queries/comments';
 import { CommentsDialog } from './comments-dialog';
 
-export function useUnpublishedCount(owner: CommentOwner) {
-  return openComments(useComments(owner).view).length;
+function defaultTrigger(count: number, open: () => void) {
+  return (
+    <Button size="sm" variant="outline" onClick={open}>
+      Publish review ({count})
+    </Button>
+  );
 }
 
 export function PublishReviewButton({
   owner,
-  label,
-  variant = 'outline',
+  renderTrigger = defaultTrigger,
 }: {
   owner: CommentOwner;
-  label?: string;
-  variant?: 'outline' | 'ghost';
+  renderTrigger?: (count: number, open: () => void) => ReactNode;
 }) {
-  const count = useUnpublishedCount(owner);
+  const count = openComments(useComments(owner).view).length;
   const [open, setOpen] = useState(false);
-  if (count === 0) return null;
+  if (count === 0 && !open) return null;
   return (
     <>
-      <Button size="sm" variant={variant} onClick={() => setOpen(true)}>
-        {label ?? `Publish review (${count})`}
-      </Button>
+      {count > 0 && renderTrigger(count, () => setOpen(true))}
       <CommentsDialog
         owner={owner}
         open={open}

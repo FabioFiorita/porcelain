@@ -139,6 +139,42 @@ const githubToken = Effect.fn('Git.githubToken')(function* (
   return Redacted.make(value);
 });
 
+function githubJsonWrite(endpoint: string, method: 'POST' | 'PUT') {
+  return [
+    'api',
+    '--hostname',
+    'github.com',
+    endpoint,
+    '--method',
+    method,
+    '--input',
+    '-',
+  ];
+}
+
+const postGitHubComment = Effect.fn('Git.postGitHubComment')(function* (
+  account: string,
+  endpoint: string,
+  payload: object,
+  limits: GitLimits,
+) {
+  const token = yield* githubToken(account, limits);
+  const response = yield* output(
+    githubJsonWrite(endpoint, 'POST'),
+    limits,
+    token,
+    JSON.stringify(payload),
+  );
+  const decoded = yield* Schema.decodeEffect(githubCommentSchema)(
+    response,
+  ).pipe(
+    Effect.mapError(
+      () => new GitHubCommandError({ reason: 'invalid-response' }),
+    ),
+  );
+  return decoded.html_url;
+});
+
 export const postGitHubIssueComment = Effect.fn('Git.postGitHubIssueComment')(
   function* (
     input: {
@@ -150,30 +186,12 @@ export const postGitHubIssueComment = Effect.fn('Git.postGitHubIssueComment')(
     },
     limits: GitLimits,
   ) {
-    const token = yield* githubToken(input.account, limits);
-    const response = yield* output(
-      [
-        'api',
-        '--hostname',
-        'github.com',
-        `repos/${encodeURIComponent(input.owner)}/${encodeURIComponent(input.repo)}/issues/${input.number}/comments`,
-        '--method',
-        'POST',
-        '--input',
-        '-',
-      ],
+    return yield* postGitHubComment(
+      input.account,
+      `repos/${encodeURIComponent(input.owner)}/${encodeURIComponent(input.repo)}/issues/${input.number}/comments`,
+      { body: input.body },
       limits,
-      token,
-      JSON.stringify({ body: input.body }),
     );
-    const decoded = yield* Schema.decodeEffect(githubCommentSchema)(
-      response,
-    ).pipe(
-      Effect.mapError(
-        () => new GitHubCommandError({ reason: 'invalid-response' }),
-      ),
-    );
-    return decoded.html_url;
   },
 );
 
@@ -197,21 +215,10 @@ export const postGitHubPullRequestReview = Effect.fn(
   },
   limits: GitLimits,
 ) {
-  const token = yield* githubToken(input.account, limits);
-  const response = yield* output(
-    [
-      'api',
-      '--hostname',
-      'github.com',
-      `repos/${encodeURIComponent(input.owner)}/${encodeURIComponent(input.repo)}/pulls/${input.number}/reviews`,
-      '--method',
-      'POST',
-      '--input',
-      '-',
-    ],
-    limits,
-    token,
-    JSON.stringify({
+  return yield* postGitHubComment(
+    input.account,
+    `repos/${encodeURIComponent(input.owner)}/${encodeURIComponent(input.repo)}/pulls/${input.number}/reviews`,
+    {
       commit_id: input.commitId,
       event: 'COMMENT',
       body: input.body,
@@ -224,16 +231,9 @@ export const postGitHubPullRequestReview = Effect.fn(
           ? {}
           : { start_line: comment.startLine, start_side: comment.side }),
       })),
-    }),
+    },
+    limits,
   );
-  const decoded = yield* Schema.decodeEffect(githubCommentSchema)(
-    response,
-  ).pipe(
-    Effect.mapError(
-      () => new GitHubCommandError({ reason: 'invalid-response' }),
-    ),
-  );
-  return decoded.html_url;
 });
 
 export const readGitHubApi = Effect.fn('Git.readGitHubApi')(function* (
@@ -276,19 +276,27 @@ const githubMergeSchema = Schema.fromJsonString(
   }),
 );
 
-function githubRefusal(stderr: string, token: Redacted.Redacted<string>) {
-  const line = stderr
+function githubErrorLine(stderr: string, status: RegExp) {
+  return stderr
     .split('\n')
     .map((text) => text.trim())
-    .find((text) => /\(HTTP 40[59]\)$/.test(text));
-  if (!line) return undefined;
+    .find((text) => status.test(text));
+}
+
+function githubErrorDetail(line: string, token: Redacted.Redacted<string>) {
   const detail = line
     .replace(/^gh:\s*/, '')
-    .replace(/\s*\(HTTP 40[59]\)$/, '')
+    .replace(/\s*\(HTTP 4\d\d\)$/, '')
     .slice(0, 300);
+  return detail.includes(Redacted.value(token)) ? '' : detail;
+}
+
+function githubRefusal(stderr: string, token: Redacted.Redacted<string>) {
+  const line = githubErrorLine(stderr, /\(HTTP 40[59]\)$/);
+  if (!line) return undefined;
   return new GitHubMergeRefusedError({
     reason: line.endsWith('(HTTP 409)') ? 'head-changed' : 'not-mergeable',
-    detail: detail.includes(Redacted.value(token)) ? '' : detail,
+    detail: githubErrorDetail(line, token),
   });
 }
 
@@ -306,16 +314,10 @@ export const mergeGitHubPullRequest = Effect.fn('Git.mergeGitHubPullRequest')(
   ) {
     const token = yield* githubToken(input.account, limits);
     const result = yield* invoke(
-      [
-        'api',
-        '--hostname',
-        'github.com',
+      githubJsonWrite(
         `repos/${encodeURIComponent(input.owner)}/${encodeURIComponent(input.repo)}/pulls/${input.number}/merge`,
-        '--method',
         'PUT',
-        '--input',
-        '-',
-      ],
+      ),
       limits,
       token,
       JSON.stringify({ merge_method: input.method, sha: input.headSha }),
@@ -383,18 +385,11 @@ class GitHubWriteRefusedError extends Schema.TaggedError<GitHubWriteRefusedError
 ) {}
 
 function githubWriteRefusal(stderr: string, token: Redacted.Redacted<string>) {
-  const line = stderr
-    .split('\n')
-    .map((text) => text.trim())
-    .find((text) => /\(HTTP 4(0[0-9]|22)\)$/.test(text));
+  const line = githubErrorLine(stderr, /\(HTTP 4(0[0-9]|22)\)$/);
   if (!line || /\(HTTP 429\)$/.test(line)) return undefined;
   if (/rate limit/i.test(line)) return undefined;
-  const detail = line
-    .replace(/^gh:\s*/, '')
-    .replace(/\s*\(HTTP 4\d\d\)$/, '')
-    .slice(0, 300);
   return new GitHubWriteRefusedError({
-    detail: detail.includes(Redacted.value(token)) ? '' : detail,
+    detail: githubErrorDetail(line, token),
   });
 }
 

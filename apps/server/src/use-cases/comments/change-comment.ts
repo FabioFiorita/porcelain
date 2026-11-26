@@ -10,25 +10,19 @@ import {
   SaveDraftCommentService,
 } from '@porcelain/reviews/services';
 import type {
-  AddCommentRequest,
+  ChangeCommentInput,
   CommentsResponse,
 } from '@porcelain/contracts/comments';
-import type { WorktreeParams } from '@porcelain/contracts/shared';
 import { WorktreeAccess } from '../../runtime/worktree-access.ts';
 import { readCommentsView } from '../../runtime/read-comments-view.ts';
 import { EventPublisher } from '../../ports/event-publisher.ts';
 import type { WorktreeAccessFailure } from '../../ports/worktree-access-failure.ts';
 
-type Change =
-  | ({ readonly kind: 'add' } & AddCommentRequest)
-  | { readonly kind: 'edit'; readonly commentId: string; readonly text: string }
-  | { readonly kind: 'delete'; readonly commentId: string };
-
 export class ChangeCommentUseCase extends Context.Service<
   ChangeCommentUseCase,
   {
     readonly execute: (
-      input: WorktreeParams & Change,
+      input: ChangeCommentInput,
     ) => Effect.Effect<
       CommentsResponse,
       WorktreeAccessFailure | GitIoFailure | DraftCommentNotFoundError

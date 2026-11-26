@@ -3,6 +3,7 @@ import { expect, it } from 'vite-plus/test';
 import type { ReadInventoryResponse } from '@porcelain/contracts/projects';
 import { ReadInventoryUseCasePort } from '../../ports/read-inventory-use-case-port.ts';
 import { ListCommentsUseCasePort } from '../../ports/list-comments-use-case-port.ts';
+import { FindWorktreeForPathService } from '@porcelain/projects/services';
 import { ReadOwnerCommentsUseCase } from './read-owner-comments.ts';
 
 const worktree = (id: string, path: string) => ({
@@ -33,7 +34,11 @@ function read(path: string) {
   const asked: string[] = [];
   const program = ReadOwnerCommentsUseCase.pipe(
     Effect.flatMap((useCase) => useCase.execute({ path })),
-    Effect.provide(ReadOwnerCommentsUseCase.layer),
+    Effect.provide(
+      ReadOwnerCommentsUseCase.layer.pipe(
+        Layer.provide(FindWorktreeForPathService.layer),
+      ),
+    ),
     Effect.provide(
       Layer.mergeAll(
         Layer.succeed(ReadInventoryUseCasePort, {

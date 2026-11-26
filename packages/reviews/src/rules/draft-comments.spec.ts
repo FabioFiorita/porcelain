@@ -45,7 +45,14 @@ const lines = (
   end: number,
   text: string,
   side: 'additions' | 'deletions' = 'additions',
-) => ({ kind: 'lines' as const, path: 'src/search.ts', side, start, end, text });
+) => ({
+  kind: 'lines' as const,
+  path: 'src/search.ts',
+  side,
+  start,
+  end,
+  text,
+});
 
 describe('patchLines', () => {
   it('numbers both sides of each hunk, sharing context lines', () => {
@@ -250,20 +257,28 @@ describe('draftCommentsMarkdown', () => {
         draft('1', lines(2, 2, '  return notes;'), {
           text: 'Lower-case the query once.',
         }),
-        draft('2', { kind: 'step', title: 'Choose the empty search' }, {
-          text: 'Show no notes.',
-        }),
+        draft(
+          '2',
+          { kind: 'step', title: 'Choose the empty search' },
+          {
+            text: 'Show no notes.',
+          },
+        ),
         draft('3', lines(4, 4, '}'), {
           text: 'Close this earlier.',
           outdated: true,
         }),
-        draft('4', { kind: 'file', path: 'src/old.ts' }, {
-          publication: {
-            status: 'published',
-            url: 'u',
-            publishedAt: 'p',
+        draft(
+          '4',
+          { kind: 'file', path: 'src/old.ts' },
+          {
+            publication: {
+              status: 'published',
+              url: 'u',
+              publishedAt: 'p',
+            },
           },
-        }),
+        ),
       ],
     });
     expect(markdown).toBe(

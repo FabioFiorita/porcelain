@@ -27,7 +27,7 @@ function patchSize(patch: string): FileSize | undefined {
   return additions + deletions === 0 ? undefined : { additions, deletions };
 }
 
-export function openCitedFile(
+function openCitedFile(
   document: DocumentProps,
   path: string,
   opening: Opening,

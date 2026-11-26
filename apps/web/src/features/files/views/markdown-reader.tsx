@@ -24,7 +24,7 @@ import {
   type MarkdownFile,
 } from './markdown-view';
 
-export function markdownOutline(document: MarkdownDocument): MarkdownOutline {
+function markdownOutline(document: MarkdownDocument): MarkdownOutline {
   const all = document.headings ?? [];
   const titled =
     all[0]?.level === 1 &&

@@ -26,6 +26,7 @@ import { ListCommentsUseCase } from '../use-cases/comments/list-comments.ts';
 import { ChangeCommentUseCase } from '../use-cases/comments/change-comment.ts';
 import { PreviewCommentReviewUseCase } from '../use-cases/comments/preview-comment-review.ts';
 import { PublishCommentReviewUseCase } from '../use-cases/comments/publish-comment-review.ts';
+import { FindWorktreeForPathService } from '@porcelain/projects/services';
 import { ReadOwnerCommentsUseCase } from '../use-cases/comments/read-owner-comments.ts';
 import {
   commentsRoutes,
@@ -86,7 +87,12 @@ export function composeComments(
     PreviewCommentReviewUseCase.layer,
     PublishCommentReviewUseCase.layer,
     ReadOwnerCommentsUseCase.layer.pipe(
-      Layer.provide(Layer.effect(ListCommentsUseCasePort, ListCommentsUseCase)),
+      Layer.provide(
+        Layer.mergeAll(
+          FindWorktreeForPathService.layer,
+          Layer.effect(ListCommentsUseCasePort, ListCommentsUseCase),
+        ),
+      ),
     ),
   ).pipe(Layer.provideMerge(list));
   return Effect.gen(function* () {

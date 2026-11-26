@@ -1,4 +1,7 @@
-import type { ReadPullRequestResponse } from '@porcelain/contracts/projects';
+import type {
+  PullRequestStatus,
+  ReadPullRequestResponse,
+} from '@porcelain/contracts/projects';
 
 export type PullRequestRead = ReadPullRequestResponse;
 
@@ -6,7 +9,10 @@ type LinkedPullRequest = Extract<
   ReadPullRequestResponse,
   { kind: 'available' }
 >['pullRequest'];
-type PullCheck = LinkedPullRequest['checks'][number];
+type PullCheck = Pick<
+  LinkedPullRequest['checks'][number],
+  'name' | 'status' | 'conclusion'
+>;
 type GitHubUnavailableReason = Extract<
   ReadPullRequestResponse,
   { kind: 'unavailable' }
@@ -83,7 +89,7 @@ export type RecordedCheck = {
   readonly detail: string | undefined;
 };
 
-export function recordedChecks(checks: {
+type CapturedChecks = {
   readonly headOid: string;
   readonly state: string;
   readonly checksTruncated: boolean;
@@ -91,7 +97,13 @@ export function recordedChecks(checks: {
     readonly name: string;
     readonly status: string;
   }[];
-}): { label: string; more: boolean; results: readonly RecordedCheck[] } {
+};
+
+export function recordedChecks(checks: CapturedChecks): {
+  label: string;
+  more: boolean;
+  results: readonly RecordedCheck[];
+} {
   const rollup = pullRequestRollup(checks.state);
   const commit = checks.headOid.slice(0, 7);
   return {
@@ -156,6 +168,68 @@ export function pullRequestChecks(
     tone: 'passed',
     label: `${checksLabel} passed`,
     short: checksLabel,
+  };
+}
+
+export function currentWalkthroughChecks(
+  captured: CapturedChecks,
+  live:
+    | {
+        readonly headSha: string;
+        readonly checksTruncated: boolean;
+        readonly checksSummary?: string | undefined;
+        readonly checks: readonly PullCheck[];
+      }
+    | undefined,
+) {
+  if (!live || live.headSha !== captured.headOid) return undefined;
+  const { tone } = pullRequestChecks(
+    live.checks,
+    live.checksTruncated,
+    live.checksSummary,
+  );
+  if (
+    tone === 'none' &&
+    (live.checksTruncated || live.checksSummary !== undefined)
+  )
+    return undefined;
+  const capturedTone = pullRequestRollup(captured.state).tone;
+  const changed = live.checks.filter((check) => {
+    const previous = captured.results.find(
+      (result) => result.name === check.name,
+    );
+    return (
+      previous !== undefined &&
+      checkResultTone(previous.status) !== checkOutcome(check)
+    );
+  });
+  if (tone === capturedTone && changed.length === 0) return undefined;
+  const labels: Record<PullChecksTone, string> = {
+    failed: 'Now failing',
+    passed: 'Now passing',
+    running: 'Now running',
+    none: 'No checks now',
+  };
+  const names = live.checks
+    .filter((check) => checkOutcome(check) === tone)
+    .map((check) => check.name);
+  return { tone, label: labels[tone], names };
+}
+
+export function withPullRequestStatus(
+  pull: LinkedPullRequest,
+  status: PullRequestStatus | undefined,
+): LinkedPullRequest {
+  if (!status) return pull;
+  return {
+    ...pull,
+    state: status.state,
+    draft: status.draft,
+    headSha: status.headSha,
+    mergeable: status.mergeable,
+    checks: status.checks,
+    checksTruncated: status.checksTruncated,
+    checksSummary: status.checksSummary,
   };
 }
 
@@ -307,9 +381,7 @@ export function pullRequestMergeBlock(
     return checks.tone === 'failed'
       ? `${checks.label.replace(/^Checks failing$/, 'Checks are failing')}.`
       : `${checks.label.replace(/^Checks running$/, 'Checks are still running')}.`;
-  if (!review) return undefined;
-  if (review.headOid !== pull.headSha)
-    return `The walkthrough covers ${review.headOid.slice(0, 7)}; the pull request is at ${pull.headSha.slice(0, 7)}.`;
+  if (!review || review.headOid !== pull.headSha) return undefined;
   if (review.undecidedCallStep === 'reading')
     return 'Reading your decisions on the calls.';
   if (review.undecidedCallStep === 'unreadable')

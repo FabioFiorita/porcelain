@@ -100,9 +100,6 @@ const diagramSchema = Schema.Struct({
   nodes: Schema.Array(diagramNodeSchema),
   edges: Schema.Array(diagramEdgeSchema),
 });
-export type WalkthroughDiagram = typeof diagramSchema.Type;
-export type WalkthroughDiagramNode = WalkthroughDiagram['nodes'][number];
-export type WalkthroughDiagramEdge = WalkthroughDiagram['edges'][number];
 
 export const walkthroughBlockRequestSchema = Schema.Union([
   diffExcerptSchema,

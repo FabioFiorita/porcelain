@@ -1,3 +1,7 @@
+import { Option } from 'effect';
+import { AsyncResult } from 'effect/reactivity';
+import { branchTracking } from '@porcelain/client/history/rules';
+import { useReviewOverview } from '@/features/changes/index';
 import {
   historyPlace,
   readHistory,
@@ -24,5 +28,20 @@ export function useHistory(connection: Connection, scope: HistoryScope) {
     select: (selected: string) =>
       setPlace((current) => ({ ...current, selected })),
     readMore: () => readMore(undefined),
+  };
+}
+
+export function useHistoryOverview(
+  connection: Connection,
+  scope: HistoryScope,
+) {
+  const history = useHistory(connection, scope);
+  const overview = Option.getOrUndefined(
+    AsyncResult.value(useReviewOverview(scope, connection)),
+  );
+  return {
+    history,
+    overview,
+    tracking: branchTracking(overview?.branch, history.snapshot),
   };
 }

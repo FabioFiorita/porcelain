@@ -112,7 +112,7 @@ for (const { scenario, notice } of [
     await expect
       .element(
         page.getByRole('heading', {
-          name: /^Keep retries beside their owner\./,
+          name: /^Keep retries beside their owner$/,
         }),
       )
       .toBeVisible();
@@ -228,10 +228,7 @@ test('keeps a question in its original step and worktree', async ({
   });
   const step = (title: string) =>
     page
-      .getByRole('listitem')
-      .filter({
-        has: page.getByRole('heading', { name: title, exact: true }),
-      })
+      .getByRole('article', { name: new RegExp(`Step [0-9]+.*${title}$`) })
       .getByRole('textbox', {
         name: 'Comment on this step, or ask the agent',
         exact: true,

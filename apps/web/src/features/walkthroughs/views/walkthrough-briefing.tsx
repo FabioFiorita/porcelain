@@ -8,7 +8,10 @@ import {
   type WalkthroughContent,
   type WalkthroughRun,
 } from '@porcelain/client/walkthroughs/rules';
-import { recordedChecks } from '@porcelain/client/projects/rules';
+import {
+  currentWalkthroughChecks,
+  recordedChecks,
+} from '@porcelain/client/projects/rules';
 import { CheckResultIcon } from '@/features/workspace/index';
 import { RichText } from './rich-text';
 import { checksTone } from './walkthrough-blocks';
@@ -200,6 +203,7 @@ function Verified({
     <>
       {checks.map(({ block, step }) => {
         const recorded = recordedChecks(block.checks);
+        const live = currentWalkthroughChecks(block.checks, pull?.status);
         const moved =
           pull?.detail && pull.detail.headSha !== block.checks.headOid
             ? pull.detail.headSha.slice(0, 7)
@@ -210,11 +214,20 @@ function Verified({
             className="flex min-h-7 items-baseline gap-2 py-1 text-ui"
           >
             <span className="self-center">
-              <CheckResultIcon tone={checksTone(block.checks)} />
+              <CheckResultIcon tone={live?.tone ?? checksTone(block.checks)} />
             </span>
             <span className="min-w-0 flex-1 text-pretty">
+              {live && (
+                <>
+                  {live.label}
+                  {live.names.length > 0 && `: ${live.names.join(', ')}`}
+                  <span className="text-muted-foreground"> · Captured: </span>
+                </>
+              )}
               {recorded.label}
-              <span className="text-muted-foreground">: </span>
+              {recorded.results.length > 0 && (
+                <span className="text-muted-foreground">: </span>
+              )}
               {recorded.results.map((result, index) => (
                 <span key={`${result.name}:${index}`}>
                   <CheckLink

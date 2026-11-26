@@ -26,24 +26,26 @@ export class SaveDraftCommentService extends Context.Service<
       const ids = yield* IdSource;
       const clock = yield* Clock.Clock;
       return {
-        execute: Effect.fn('SaveDraftCommentService.execute')(function* (input) {
-          const now = DateTime.formatIso(
-            DateTime.makeUnsafe(yield* clock.currentTimeMillis),
-          );
-          const comment: StoredDraftComment = {
-            id: ids.next(),
-            worktreeId: input.worktreeId,
-            branch: input.branch,
-            headOid: input.headOid,
-            anchor: input.anchor,
-            text: input.text,
-            createdAt: now,
-            updatedAt: now,
-            publication: { status: 'draft' },
-          };
-          yield* store.insert(comment);
-          return comment;
-        }),
+        execute: Effect.fn('SaveDraftCommentService.execute')(
+          function* (input) {
+            const now = DateTime.formatIso(
+              DateTime.makeUnsafe(yield* clock.currentTimeMillis),
+            );
+            const comment: StoredDraftComment = {
+              id: ids.next(),
+              worktreeId: input.worktreeId,
+              branch: input.branch,
+              headOid: input.headOid,
+              anchor: input.anchor,
+              text: input.text,
+              createdAt: now,
+              updatedAt: now,
+              publication: { status: 'draft' },
+            };
+            yield* store.insert(comment);
+            return comment;
+          },
+        ),
       };
     }),
   );

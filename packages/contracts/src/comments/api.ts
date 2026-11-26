@@ -27,19 +27,27 @@ const notFound = httpFailure(DraftCommentNotFoundError, 'NotFound');
 export class CommentsApi extends porcelainApi.add(
   HttpApiGroup.make('comments')
     .add(
-      HttpApiEndpoint.get('listComments', '/api/worktrees/:worktreeId/comments', {
-        disableCodecs: true,
-        params: worktreeParamsSchema,
-        success: commentsResponseSchema,
-        error: readFailures,
-      }),
-      HttpApiEndpoint.post('addComment', '/api/worktrees/:worktreeId/comments', {
-        disableCodecs: true,
-        params: worktreeParamsSchema,
-        payload: addCommentRequestSchema,
-        success: commentsResponseSchema,
-        error: [...readFailures, notFound],
-      }),
+      HttpApiEndpoint.get(
+        'listComments',
+        '/api/worktrees/:worktreeId/comments',
+        {
+          disableCodecs: true,
+          params: worktreeParamsSchema,
+          success: commentsResponseSchema,
+          error: readFailures,
+        },
+      ),
+      HttpApiEndpoint.post(
+        'addComment',
+        '/api/worktrees/:worktreeId/comments',
+        {
+          disableCodecs: true,
+          params: worktreeParamsSchema,
+          payload: addCommentRequestSchema,
+          success: commentsResponseSchema,
+          error: [...readFailures, notFound],
+        },
+      ),
       HttpApiEndpoint.patch(
         'editComment',
         '/api/worktrees/:worktreeId/comments/:commentId',

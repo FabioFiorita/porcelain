@@ -116,7 +116,11 @@ export function useBranchStanding(
   const ready = phase?.kind === 'ready' ? phase : undefined;
   return {
     walkthroughHead: ready?.run.headOid,
-    walkthrough: ready && { runId: ready.run.id, content: ready.content },
+    walkthrough: ready && {
+      runId: ready.run.id,
+      headOid: ready.run.headOid,
+      content: ready.content,
+    },
     citations: checkCitations(
       (ready?.content.stops ?? []).map((stop, index) => ({
         number: index + 1,

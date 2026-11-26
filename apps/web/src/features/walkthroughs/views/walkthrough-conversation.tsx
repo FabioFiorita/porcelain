@@ -1,3 +1,4 @@
+import { useCommentSubmission } from '@/features/comments/index';
 import type { WalkthroughDraftPlacement } from '@porcelain/client/walkthroughs';
 import { useWorkspaceWriteBlock } from '@/shared/workspace/connection';
 import { useState } from 'react';
@@ -198,8 +199,6 @@ function Composer({
   placeholder: string;
   onComment?: ((text: string) => Promise<unknown>) | undefined;
 }) {
-  const [commenting, setCommenting] = useState(false);
-  const [commentFailure, setCommentFailure] = useState<string>();
   const writeBlock = useWorkspaceWriteBlock(owner.context);
   const {
     text,
@@ -211,21 +210,14 @@ function Composer({
   const send = () => {
     if (!writeBlock) submit();
   };
+  const {
+    waiting: commenting,
+    failure: commentFailure,
+    submit: saveComment,
+  } = useCommentSubmission(onComment, () => change(''));
   const comment = () => {
     const trimmed = text.trim();
-    if (!onComment || !trimmed || writeBlock || commenting) return;
-    setCommenting(true);
-    setCommentFailure(undefined);
-    onComment(trimmed).then(
-      () => {
-        setCommenting(false);
-        change('');
-      },
-      () => {
-        setCommenting(false);
-        setCommentFailure('The comment was not saved. Try again.');
-      },
-    );
+    if (trimmed && !writeBlock) void saveComment(trimmed);
   };
   return (
     <>

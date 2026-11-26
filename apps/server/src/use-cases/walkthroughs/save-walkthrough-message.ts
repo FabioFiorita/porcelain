@@ -36,16 +36,20 @@ export class SaveWalkthroughMessageUseCase extends Context.Service<
       return {
         execute: Effect.fn('SaveWalkthroughMessageUseCase.execute')(
           function* (input) {
-            const view = yield* access.write(input.worktreeId, () =>
-              save
-                .execute(input)
-                .pipe(Effect.andThen(conversations.execute(input))),
-            );
-            yield* events.worktreeChanged({
-              worktreeId: input.worktreeId,
-              change: 'walkthrough-conversations',
-            });
-            return view;
+            return yield* access
+              .write(input.worktreeId, () =>
+                save
+                  .execute(input)
+                  .pipe(Effect.andThen(conversations.execute(input))),
+              )
+              .pipe(
+                Effect.tap(() =>
+                  events.worktreeChanged({
+                    worktreeId: input.worktreeId,
+                    change: 'walkthrough-conversations',
+                  }),
+                ),
+              );
           },
         ),
       };

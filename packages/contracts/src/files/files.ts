@@ -156,7 +156,5 @@ export type ReadFileAssetResponse = typeof readFileAssetResponseSchema.Type;
 export type ReadTextFileResponse = typeof readTextFileResponseSchema.Type;
 export type ListWorktreePathsResponse =
   typeof listWorktreePathsResponseSchema.Type;
-export type ReadPreviewAssetsResponse =
-  typeof readPreviewAssetsResponseSchema.Type;
 export type EditFileResponse = typeof editFileResponseSchema.Type;
 export type EditFileRequest = typeof editFileRequestSchema.Type;

@@ -28,16 +28,14 @@ export function commentsRoutes(useCases: UseCases) {
       )
       .handle('editComment', ({ params, payload }) =>
         useCases.changeComment.execute({
-          worktreeId: params.worktreeId,
-          commentId: params.commentId,
-          text: payload.text,
+          ...params,
+          ...payload,
           kind: 'edit',
         }),
       )
       .handle('deleteComment', ({ params }) =>
         useCases.changeComment.execute({
-          worktreeId: params.worktreeId,
-          commentId: params.commentId,
+          ...params,
           kind: 'delete',
         }),
       )

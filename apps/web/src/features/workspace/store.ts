@@ -200,6 +200,7 @@ const diffFocusOwner = Atom.family(
       });
       get.set(focus, input.path);
       get.addFinalizer(() => {
+        if (!get.registry.getNodes().has(focus)) return;
         if (get.registry.get(focus) === input.path)
           get.registry.set(focus, null);
       });

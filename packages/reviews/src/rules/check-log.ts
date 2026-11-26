@@ -1,7 +1,7 @@
 import type { CheckLogExcerpt, CheckLogLine } from '../models/pull-request.ts';
 
-export const CHECK_LOG_LINES = 200;
-export const CHECK_LOG_BYTES = 64 * 1024;
+const CHECK_LOG_LINES = 200;
+const CHECK_LOG_BYTES = 64 * 1024;
 const LINE_CHARS = 2000;
 const STAMP = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z) ?/;
 const ESC = String.fromCharCode(27);

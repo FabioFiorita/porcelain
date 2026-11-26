@@ -3,8 +3,11 @@ export {
   walkthroughStartBinding,
 } from './commands/start-walkthrough.ts';
 export { walkthroughConversationCommands } from './commands/conversations.ts';
-export { walkthroughCommandBinding } from './commands/command-binding.ts';
-export { readWalkthroughConversations } from './queries/conversations.ts';
+export { commandBinding as walkthroughCommandBinding } from '../../shared/api/command-binding.ts';
+export {
+  readWalkthroughConversations,
+  readWalkthroughMergeReview,
+} from './queries/conversations.ts';
 export {
   readWalkthrough,
   readWalkthroughAsset,

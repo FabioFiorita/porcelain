@@ -24,3 +24,4 @@ export { SetFilePreferenceService } from './set-file-preference-service.ts';
 export { UpdateProjectAvailabilityService } from './update-project-availability-service.ts';
 
 export { ArchiveBranchService } from './archive-branch-service.ts';
+export { FindWorktreeForPathService } from './find-worktree-for-path-service.ts';

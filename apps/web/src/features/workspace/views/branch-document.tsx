@@ -441,10 +441,7 @@ function BranchHeader({
         </p>
       )}
       {omitted.length > 0 && (
-        <ul
-          className="space-y-1.5"
-          aria-label="Changes without code preview"
-        >
+        <ul className="space-y-1.5" aria-label="Changes without code preview">
           {omitted.map((item) => (
             <li
               key={item.path}

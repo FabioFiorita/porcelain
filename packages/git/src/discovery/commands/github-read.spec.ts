@@ -247,28 +247,34 @@ it('posts one COMMENT review at the given commit with single and multi-line comm
       ),
     ),
   ).toBe('https://github.com/o/r/pull/7#pullrequestreview-9');
-  expect(JSON.parse(await readFile(join(f.folder, 'review'), 'utf8'))).toEqual(
-    {
-      commit_id: 'abc123',
-      event: 'COMMENT',
-      body: 'Summary',
-      comments: [
-        { path: 'src/a.ts', side: 'RIGHT', line: 4, body: 'One line' },
-        {
-          path: 'src/b.ts',
-          side: 'LEFT',
-          line: 3,
-          body: 'Removed range',
-          start_line: 2,
-          start_side: 'LEFT',
-        },
-      ],
-    },
+  expect(JSON.parse(await readFile(join(f.folder, 'review'), 'utf8'))).toEqual({
+    commit_id: 'abc123',
+    event: 'COMMENT',
+    body: 'Summary',
+    comments: [
+      { path: 'src/a.ts', side: 'RIGHT', line: 4, body: 'One line' },
+      {
+        path: 'src/b.ts',
+        side: 'LEFT',
+        line: 3,
+        body: 'Removed range',
+        start_line: 2,
+        start_side: 'LEFT',
+      },
+    ],
+  });
+  const decodeCall = Schema.decodeUnknownSync(
+    Schema.fromJsonString(
+      Schema.Struct({
+        args: Schema.Array(Schema.String),
+        token: Schema.optional(Schema.String),
+      }),
+    ),
   );
   const reviewCall = (await readFile(f.calls, 'utf8'))
     .trim()
     .split('\n')
-    .map((line) => JSON.parse(line) as { args: string[]; token: string })
+    .map((line) => decodeCall(line))
     .find((call) => call.args.includes('repos/o/r/pulls/7/reviews'));
   expect(reviewCall).toEqual({
     args: [

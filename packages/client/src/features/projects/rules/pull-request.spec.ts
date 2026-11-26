@@ -1,5 +1,6 @@
 import { expect, it } from 'vite-plus/test';
 import {
+  currentWalkthroughChecks,
   githubUnavailable,
   pullRequestChecks,
   pullRequestConversation,
@@ -310,7 +311,7 @@ it.each([
   expect(pullRequestMergeBlock({ ...mergeablePull, ...change })).toBe(reason);
 });
 
-it('asks the walkthrough to cover the head that would merge and every call to be decided', () => {
+it('blocks an undecided call only for the head that would merge', () => {
   expect(
     pullRequestMergeBlock(mergeablePull, {
       headOid: mergeablePull.headSha,
@@ -320,9 +321,9 @@ it('asks the walkthrough to cover the head that would merge and every call to be
   expect(
     pullRequestMergeBlock(mergeablePull, {
       headOid: 'ba370399bd1b3ac1a2c5a1d0f00df00df00df00d',
-      undecidedCallStep: undefined,
+      undecidedCallStep: 2,
     }),
-  ).toBe('The walkthrough covers ba37039; the pull request is at 653d839.');
+  ).toBeUndefined();
   expect(
     pullRequestMergeBlock(mergeablePull, {
       headOid: mergeablePull.headSha,
@@ -335,6 +336,12 @@ it('asks the walkthrough to cover the head that would merge and every call to be
       undecidedCallStep: 'reading',
     }),
   ).toBe('Reading your decisions on the calls.');
+  expect(
+    pullRequestMergeBlock(mergeablePull, {
+      headOid: mergeablePull.headSha,
+      undecidedCallStep: 'unreadable',
+    }),
+  ).toBe('Your decisions on the calls could not be read.');
   expect(
     pullRequestMergeBlock(
       { ...mergeablePull, checks: [failed] },
@@ -354,4 +361,60 @@ it('offers the merge methods the repository allows, or all three when unknown', 
     'squash',
     'rebase',
   ]);
+});
+
+it('puts the live result first when the same captured head starts failing', () => {
+  const captured = {
+    headOid: 'abc1234',
+    state: 'SUCCESS',
+    checksTruncated: false,
+    results: [{ name: 'Browser tests', status: 'SUCCESS' }],
+  };
+  const live = {
+    headSha: 'abc1234',
+    checks: [
+      { name: 'Browser tests', status: 'COMPLETED', conclusion: 'FAILURE' },
+    ],
+    checksTruncated: false,
+  };
+  expect(currentWalkthroughChecks(captured, live)).toEqual({
+    tone: 'failed',
+    label: 'Now failing',
+    names: ['Browser tests'],
+  });
+  expect(recordedChecks(captured).label).toBe('Checks passing at abc1234');
+  expect(
+    currentWalkthroughChecks(captured, { ...live, headSha: 'def5678' }),
+  ).toBeUndefined();
+  expect(currentWalkthroughChecks(captured, undefined)).toBeUndefined();
+  expect(
+    currentWalkthroughChecks(captured, {
+      ...live,
+      checks: [
+        { name: 'Browser tests', status: 'COMPLETED', conclusion: 'SUCCESS' },
+      ],
+    }),
+  ).toBeUndefined();
+});
+
+it('recognizes that the failing check changed even when the overall rollup stayed red', () => {
+  const captured = {
+    headOid: 'abc1234',
+    state: 'FAILURE',
+    checksTruncated: false,
+    results: [
+      { name: 'Build', status: 'FAILURE' },
+      { name: 'Browser tests', status: 'SUCCESS' },
+    ],
+  };
+  expect(
+    currentWalkthroughChecks(captured, {
+      headSha: 'abc1234',
+      checksTruncated: false,
+      checks: [
+        { name: 'Build', status: 'COMPLETED', conclusion: 'SUCCESS' },
+        { name: 'Browser tests', status: 'COMPLETED', conclusion: 'FAILURE' },
+      ],
+    }),
+  ).toEqual({ tone: 'failed', label: 'Now failing', names: ['Browser tests'] });
 });

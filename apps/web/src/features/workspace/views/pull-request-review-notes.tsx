@@ -1,15 +1,5 @@
-import { useAtomValue } from '@effect/atom-react';
-import { Option } from 'effect';
-import { AsyncResult } from 'effect/reactivity';
-import { readWalkthroughConversations } from '@porcelain/client/walkthroughs';
-import {
-  undecidedCallStep,
-  type WalkthroughContent,
-} from '@porcelain/client/walkthroughs/rules';
-import {
-  PublishReviewButton,
-  useUnpublishedCount,
-} from '@/features/comments/index';
+import type { PullRequestMergeReview } from '@porcelain/client/projects/rules';
+import { PublishReviewButton } from '@/features/comments/index';
 import { Button } from '@/components/ui/button';
 import type { ConnectionContext } from '@/shared/workspace/connection';
 import { DecisionNote } from './pull-request-decision';
@@ -17,28 +7,12 @@ import { DecisionNote } from './pull-request-decision';
 type Checkout = { projectId: string; worktreeId: string };
 
 function UndecidedCall({
-  checkout,
-  context,
-  runId,
-  content,
+  step,
   onOpenStep,
 }: {
-  checkout: Checkout;
-  context: ConnectionContext;
-  runId: string;
-  content: WalkthroughContent;
+  step: number;
   onOpenStep: ((step: number) => void) | undefined;
 }) {
-  const result = useAtomValue(
-    readWalkthroughConversations({
-      connection: context.connection,
-      runId,
-      scope: checkout,
-    }),
-  );
-  const view = Option.getOrUndefined(AsyncResult.value(result));
-  const step = undecidedCallStep(content, view?.decisions, false);
-  if (typeof step !== 'number') return null;
   return (
     <DecisionNote
       action={
@@ -59,52 +33,38 @@ function UndecidedCall({
   );
 }
 
-function Unpublished({
-  checkout,
-  context,
-}: {
-  checkout: Checkout;
-  context: ConnectionContext;
-}) {
-  const owner = { scope: checkout, context };
-  const count = useUnpublishedCount(owner);
-  if (count === 0) return null;
-  return (
-    <DecisionNote
-      action={
-        <PublishReviewButton owner={owner} variant="ghost" label="Publish" />
-      }
-    >
-      {count === 1
-        ? '1 review comment is not published yet.'
-        : `${count} review comments are not published yet.`}
-    </DecisionNote>
-  );
-}
-
 export function PullRequestReviewNotes({
   checkout,
   context,
-  walkthrough,
+  undecidedCallStep,
   onOpenStep,
 }: {
   checkout: Checkout;
   context: ConnectionContext;
-  walkthrough: { runId: string; content: WalkthroughContent } | undefined;
+  undecidedCallStep: PullRequestMergeReview['undecidedCallStep'];
   onOpenStep: ((step: number) => void) | undefined;
 }) {
   return (
     <>
-      {walkthrough && (
-        <UndecidedCall
-          checkout={checkout}
-          context={context}
-          runId={walkthrough.runId}
-          content={walkthrough.content}
-          onOpenStep={onOpenStep}
-        />
+      {typeof undecidedCallStep === 'number' && (
+        <UndecidedCall step={undecidedCallStep} onOpenStep={onOpenStep} />
       )}
-      <Unpublished checkout={checkout} context={context} />
+      <PublishReviewButton
+        owner={{ scope: checkout, context }}
+        renderTrigger={(count, open) => (
+          <DecisionNote
+            action={
+              <Button size="sm" variant="ghost" onClick={open}>
+                Publish
+              </Button>
+            }
+          >
+            {count === 1
+              ? '1 review comment is not published yet.'
+              : `${count} review comments are not published yet.`}
+          </DecisionNote>
+        )}
+      />
     </>
   );
 }

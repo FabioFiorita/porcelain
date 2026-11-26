@@ -13,7 +13,7 @@ export type PatchLines = Record<CommentSide, ReadonlyMap<number, string>>;
 
 const HUNK = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/;
 
-export function splitLines(text: string): string[] {
+function splitLines(text: string): string[] {
   return text.split(/\r?\n/);
 }
 
@@ -50,7 +50,7 @@ export function patchLines(patch: string): PatchLines {
   return { additions, deletions };
 }
 
-export function anchoredText(
+function anchoredText(
   text: string,
   start: number,
   end: number,
@@ -89,7 +89,7 @@ function lineRange(start: number, end: number) {
   return start === end ? `${start}` : `${start}-${end}`;
 }
 
-export function commentLocation(anchor: DraftCommentAnchor): string {
+function commentLocation(anchor: DraftCommentAnchor): string {
   switch (anchor.kind) {
     case 'lines':
       return `${anchor.path}:${lineRange(anchor.start, anchor.end)}${anchor.side === 'deletions' ? ' (removed lines)' : ''}`;
@@ -158,7 +158,7 @@ export function planPullRequestReview(
   return { inline, general };
 }
 
-export function reviewBody(
+function reviewBody(
   summary: string,
   general: readonly Pick<GeneralReviewComment, 'location' | 'body'>[],
 ): string {
@@ -243,11 +243,6 @@ export function draftCommentsMarkdown(input: {
   return `${lines.join('\n')}\n`;
 }
 
-export function openDraftCount(comments: readonly DraftComment[]): number {
-  return comments.filter((comment) => comment.publication.status === 'draft')
-    .length;
-}
-
 export function confirmedReview(
   plan: ReviewPlan,
   confirmed: {
@@ -282,7 +277,9 @@ export function confirmedReview(
     ids,
     body:
       body ||
-      (comments.length === 1 ? '1 inline comment.' : `${comments.length} inline comments.`),
+      (comments.length === 1
+        ? '1 inline comment.'
+        : `${comments.length} inline comments.`),
     comments,
   };
 }

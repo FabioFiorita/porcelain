@@ -1,6 +1,6 @@
 import type { FileDiffMetadata, SelectedLineRange } from '@pierre/diffs';
 
-export type CommentSide = 'additions' | 'deletions';
+type CommentSide = 'additions' | 'deletions';
 export type LineRange = { side: CommentSide; start: number; end: number };
 
 const clean = (line: string | undefined) => line?.replace(/\r?\n$/, '');
@@ -25,10 +25,7 @@ function diffLine(
   return undefined;
 }
 
-export function diffLineText(
-  diff: FileDiffMetadata,
-  range: LineRange,
-): string {
+export function diffLineText(diff: FileDiffMetadata, range: LineRange): string {
   const lines: string[] = [];
   for (let line = range.start; line <= range.end; line += 1)
     lines.push(diffLine(diff, range.side, line) ?? '');
@@ -42,9 +39,7 @@ export function fileLineText(contents: string, range: LineRange): string {
     .join('\n');
 }
 
-export function commentRange(
-  range: SelectedLineRange,
-): LineRange | undefined {
+export function commentRange(range: SelectedLineRange): LineRange | undefined {
   const side = range.side ?? 'additions';
   if ((range.endSide ?? side) !== side) return undefined;
   return {

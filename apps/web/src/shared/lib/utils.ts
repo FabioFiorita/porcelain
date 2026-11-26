@@ -21,9 +21,7 @@ export const cn = createCn({
           ],
         },
       ],
-      tracking: [
-        { tracking: ['title', 'lead', 'pr-title', 'pr-subheading'] },
-      ],
+      tracking: [{ tracking: ['title', 'lead', 'pr-title', 'pr-subheading'] }],
       rounded: [{ rounded: ['paper', 'check'] }],
       shadow: [{ shadow: ['paper', 'row', 'pop'] }],
       'max-w': [{ 'max-w': ['code-wide', 'reading', 'commit'] }],

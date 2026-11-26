@@ -7,7 +7,6 @@ export {
   richParts,
   stopPaths,
   walkthroughCalls,
-  undecidedCallStep,
   callDecisionProgress,
   walkthroughFailureCopy,
   walkthroughTabTitle,
@@ -21,7 +20,6 @@ export {
 } from './walkthrough.ts';
 export {
   stepScreenshots,
-  type DiagramEdge,
   type DiagramNode,
   type StepBlock,
   type StepDiagram,
@@ -79,8 +77,6 @@ export {
   diagramNeighbours,
   diagramStep,
   layoutDiagram,
-  type DiagramGeometry,
   type DiagramKey,
   type DiagramMeasure,
-  type DiagramPlacement,
 } from './diagram-layout.ts';

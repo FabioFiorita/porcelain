@@ -21,9 +21,8 @@ export const draftCommentAnchorSchema = Schema.Union([
   }),
 ]);
 export type DraftCommentAnchor = typeof draftCommentAnchorSchema.Type;
-export type LinesAnchor = Extract<DraftCommentAnchor, { kind: 'lines' }>;
 
-export const draftCommentPublicationSchema = Schema.Union([
+const draftCommentPublicationSchema = Schema.Union([
   Schema.Struct({ status: Schema.Literal('draft') }),
   Schema.Struct({
     status: Schema.Literal('published'),
@@ -31,9 +30,8 @@ export const draftCommentPublicationSchema = Schema.Union([
     publishedAt: Schema.String,
   }),
 ]);
-export type DraftCommentPublication = typeof draftCommentPublicationSchema.Type;
 
-export const draftCommentSchema = Schema.Struct({
+const draftCommentSchema = Schema.Struct({
   id: Schema.String,
   anchor: draftCommentAnchorSchema,
   text: Schema.String,
@@ -67,7 +65,7 @@ export type PullRequestDiff = {
   readonly files: readonly PullRequestFile[];
 };
 
-export const reviewSideSchema = Schema.Literals(['LEFT', 'RIGHT']);
+const reviewSideSchema = Schema.Literals(['LEFT', 'RIGHT']);
 
 export const inlineReviewCommentSchema = Schema.Struct({
   id: Schema.String,

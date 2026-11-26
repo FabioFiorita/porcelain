@@ -108,7 +108,11 @@ describe('PublishPullRequestReviewService', () => {
       },
     ]);
     expect(
-      [...store.comments.values()].map((comment) => comment.publication),
+      (
+        await Effect.runPromise(
+          store.list({ worktreeId, branch: 'feature/search' }),
+        )
+      ).map((comment) => comment.publication),
     ).toEqual([
       {
         status: 'published',
@@ -141,9 +145,11 @@ describe('PublishPullRequestReviewService', () => {
     expect(JSON.stringify(exit)).toContain('ReviewChangedError');
     expect(posted).toEqual([]);
     expect(
-      [...store.comments.values()].every(
-        (comment) => comment.publication.status === 'draft',
-      ),
+      (
+        await Effect.runPromise(
+          store.list({ worktreeId, branch: 'feature/search' }),
+        )
+      ).every((comment) => comment.publication.status === 'draft'),
     ).toBe(true);
   });
 

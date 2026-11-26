@@ -219,7 +219,7 @@ export type RequestedRerun = {
   readonly at: number;
 };
 
-export const RERUN_WAIT_MS = 3 * 60_000;
+const RERUN_WAIT_MS = 3 * 60_000;
 
 export function rerunsStillPending(
   status: PullStatus,
@@ -237,8 +237,8 @@ export function rerunsStillPending(
   });
 }
 
-export const POLL_MIN_MS = 20_000;
-export const POLL_MAX_MS = 120_000;
+const POLL_MIN_MS = 20_000;
+const POLL_MAX_MS = 120_000;
 
 export function nextPollDelay(
   previousMs: number | undefined,

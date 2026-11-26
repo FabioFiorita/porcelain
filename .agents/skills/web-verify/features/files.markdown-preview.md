@@ -74,3 +74,5 @@ Automated coverage: `files-markdown-preview.test.tsx`.
 - The display default is a per-browser preference: if an earlier feature in this instance set Documents open as to Source in Settings, the file opens on "Source"; click "Reader".
 - The limit is the server's 1 MiB limit; a file just under it opens normally.
 - The desktop app uses inline previews for files on remote computers. Its media policy only allows the app origin and inline sources.
+
+Reader styles headings, lists, quotes, tables and code as a reading document. Open a Markdown file with those elements and an inline repository image. Verify the rendered roles and media, then switch to Source and verify the original markup and unchanged file contents.

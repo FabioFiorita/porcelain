@@ -1,16 +1,10 @@
-import { Option } from 'effect';
-import { AsyncResult } from 'effect/reactivity';
 import { ChevronRightIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { HISTORY_GRAPH_ROW_HEIGHT, RECENT_COMMIT_ROWS } from '@/config/limits';
-import { useReviewOverview } from '@/features/changes/index';
-import {
-  branchTracking,
-  type HistoryScope,
-} from '@porcelain/client/history/rules';
+import { type HistoryScope } from '@porcelain/client/history/rules';
 import { type Connection } from '@/shared/workspace/connection';
-import { useHistory } from '../queries/history';
+import { useHistoryOverview } from '../queries/history';
 import { BranchTracking } from './branch-tracking';
 import { CommitRow } from './commit-row';
 
@@ -29,11 +23,7 @@ export function RecentHistory({
   onOpenCommit: (oid: string, toSide?: boolean) => void;
   onOpenGraph: () => void;
 }) {
-  const history = useHistory(connection, scope);
-  const overview = Option.getOrUndefined(
-    AsyncResult.value(useReviewOverview(scope, connection)),
-  );
-  const tracking = branchTracking(overview?.branch, history.snapshot);
+  const { history, tracking } = useHistoryOverview(connection, scope);
   const headRef =
     history.snapshot?.head.kind === 'attached'
       ? history.snapshot.head.ref

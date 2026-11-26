@@ -1,11 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { ArrowLeftIcon, ExternalLinkIcon } from 'lucide-react';
-import type { ReviewPreviewResponse } from '@porcelain/contracts/comments';
-import {
-  anchorLabel,
-  openComments,
-  reviewUnavailableText,
-} from '@porcelain/client/comments/rules';
+import { anchorLabel, openComments } from '@porcelain/client/comments/rules';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -19,14 +14,18 @@ import { Textarea } from '@/components/ui/textarea';
 import { PendingSpinner } from '@/shared/views/state-notice';
 import { copyText } from '@/shared/workspace/copy';
 import { useWorkspaceWriteBlock } from '@/shared/workspace/connection';
-import { failureText, useCommentCommands } from '../commands/comments';
+import { TruncatedText } from '@/shared/views/truncated-text';
+import {
+  usePostReview,
+  useReviewPreview,
+  type ReviewPreview,
+} from '../commands/comments';
 import { useComments, type CommentOwner } from '../queries/comments';
 import { DraftCard } from './comment-thread';
 
 const COMMAND = 'porcelain comments';
 
 type Step = 'list' | 'publish' | 'review';
-type Preview = Extract<ReviewPreviewResponse, { kind: 'available' }>;
 
 function OutputRow({
   title,
@@ -62,28 +61,30 @@ function ReviewComment({
   return (
     <li className="flex flex-col gap-1.5">
       <span className="flex items-baseline gap-2 text-caption">
-        <span className="min-w-0 truncate font-mono text-foreground-2">
-          {location}
-        </span>
+        <TruncatedText
+          className="min-w-0 font-mono text-foreground-2"
+          text={location}
+        />
         {note && <span className="shrink-0 text-muted-foreground">{note}</span>}
       </span>
       <Textarea
         value={value}
         aria-label={`Comment on ${location}`}
-        className="min-h-10 text-ui md:text-ui"
+        className="min-h-10"
         onChange={(event) => onChange(event.target.value)}
       />
     </li>
   );
 }
 
-const BODY_REASON: Record<Preview['general'][number]['reason'], string> = {
-  'not-in-pull-request': 'not in the pull request diff',
-  outdated: 'outdated',
-  file: 'whole file',
-  step: 'Walkthrough step',
-  node: 'diagram node',
-};
+const BODY_REASON: Record<ReviewPreview['general'][number]['reason'], string> =
+  {
+    'not-in-pull-request': 'not in the pull request diff',
+    outdated: 'outdated',
+    file: 'whole file',
+    step: 'Walkthrough step',
+    node: 'diagram node',
+  };
 
 function ReviewStep({
   owner,
@@ -92,11 +93,11 @@ function ReviewStep({
   onPosted,
 }: {
   owner: CommentOwner;
-  preview: Preview;
+  preview: ReviewPreview;
   onBack: () => void;
   onPosted: (url: string) => void;
 }) {
-  const commands = useCommentCommands(owner);
+  const { failure, waiting, post } = usePostReview(owner, onPosted);
   const writeBlock = useWorkspaceWriteBlock(owner.context);
   const [summary, setSummary] = useState('');
   const [bodies, setBodies] = useState<Record<string, string>>(() =>
@@ -107,26 +108,9 @@ function ReviewStep({
       ]),
     ),
   );
-  const [failure, setFailure] = useState<string>();
   const edit = (id: string) => (text: string) =>
     setBodies((current) => ({ ...current, [id]: text }));
   const empty = Object.values(bodies).some((text) => !text.trim());
-  const post = () => {
-    setFailure(undefined);
-    commands.publish
-      .run({
-        headOid: preview.headOid,
-        summary,
-        bodies: Object.fromEntries(
-          Object.entries(bodies).map(([id, text]) => [id, text.trim()]),
-        ),
-      })
-      .then(
-        (answer) => onPosted(answer.url),
-        (error: unknown) =>
-          setFailure(failureText(error, 'Nothing was posted. Try again.')),
-      );
-  };
   return (
     <>
       <DialogHeader>
@@ -143,7 +127,7 @@ function ReviewStep({
           <Textarea
             value={summary}
             placeholder="Optional"
-            className="min-h-10 text-ui md:text-ui"
+            className="min-h-10"
             onChange={(event) => setSummary(event.target.value)}
           />
         </label>
@@ -194,9 +178,17 @@ function ReviewStep({
           Back
         </Button>
         <Button
-          disabled={empty || commands.publish.waiting || Boolean(writeBlock)}
+          disabled={empty || waiting || Boolean(writeBlock)}
           aria-description={writeBlock}
-          onClick={post}
+          onClick={() =>
+            void post({
+              headOid: preview.headOid,
+              summary,
+              bodies: Object.fromEntries(
+                Object.entries(bodies).map(([id, text]) => [id, text.trim()]),
+              ),
+            })
+          }
         >
           Post review
         </Button>
@@ -216,21 +208,9 @@ function PublishStep({
   count: number;
   markdown: string;
   onBack: () => void;
-  onReview: (preview: Preview) => void;
+  onReview: (preview: ReviewPreview) => void;
 }) {
-  const commands = useCommentCommands(owner);
-  const [unavailable, setUnavailable] = useState<string>();
-  const preview = () => {
-    setUnavailable(undefined);
-    commands.preview.run(undefined).then(
-      (answer) => {
-        if (answer.kind === 'available') onReview(answer);
-        else setUnavailable(reviewUnavailableText(answer.reason));
-      },
-      (error: unknown) =>
-        setUnavailable(failureText(error, 'GitHub could not be read.')),
-    );
-  };
+  const { unavailable, waiting, read } = useReviewPreview(owner, onReview);
   return (
     <>
       <DialogHeader>
@@ -245,11 +225,7 @@ function PublishStep({
             unavailable ?? 'One review, each comment on its file and line.'
           }
           action={
-            <Button
-              size="sm"
-              disabled={commands.preview.waiting}
-              onClick={preview}
-            >
+            <Button size="sm" disabled={waiting} onClick={() => void read()}>
               Preview review
             </Button>
           }
@@ -387,10 +363,55 @@ export function CommentsDialog({
   initialStep?: Exclude<Step, 'review'>;
 }) {
   const [step, setStep] = useState<Step>(initialStep);
-  const [preview, setPreview] = useState<Preview>();
+  const [preview, setPreview] = useState<ReviewPreview>();
   const [posted, setPosted] = useState<string>();
   const { view } = useComments(owner);
   const count = openComments(view).length;
+  const content = () => {
+    if (posted)
+      return (
+        <>
+          <DialogHeader>
+            <DialogTitle>Review posted</DialogTitle>
+            <DialogDescription>
+              The comments are marked as posted.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              render={<a href={posted} target="_blank" rel="noreferrer" />}
+            >
+              Open on GitHub
+              <ExternalLinkIcon data-icon="inline-end" />
+            </Button>
+          </DialogFooter>
+        </>
+      );
+    if (step === 'review' && preview)
+      return (
+        <ReviewStep
+          owner={owner}
+          preview={preview}
+          onBack={() => setStep('publish')}
+          onPosted={setPosted}
+        />
+      );
+    if (step === 'publish')
+      return (
+        <PublishStep
+          owner={owner}
+          count={count}
+          markdown={view?.markdown ?? ''}
+          onBack={() => setStep('list')}
+          onReview={(next) => {
+            setPreview(next);
+            setStep('review');
+          }}
+        />
+      );
+    return <ListStep owner={owner} onPublish={() => setStep('publish')} />;
+  };
   return (
     <Dialog
       open={open}
@@ -403,45 +424,7 @@ export function CommentsDialog({
       }}
     >
       <DialogContent className="sm:max-w-[min(92vw,40rem)]">
-        {posted ? (
-          <>
-            <DialogHeader>
-              <DialogTitle>Review posted</DialogTitle>
-              <DialogDescription>
-                The comments are marked as posted.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                render={<a href={posted} target="_blank" rel="noreferrer" />}
-              >
-                Open on GitHub
-                <ExternalLinkIcon data-icon="inline-end" />
-              </Button>
-            </DialogFooter>
-          </>
-        ) : step === 'review' && preview ? (
-          <ReviewStep
-            owner={owner}
-            preview={preview}
-            onBack={() => setStep('publish')}
-            onPosted={setPosted}
-          />
-        ) : step === 'publish' ? (
-          <PublishStep
-            owner={owner}
-            count={count}
-            markdown={view?.markdown ?? ''}
-            onBack={() => setStep('list')}
-            onReview={(next) => {
-              setPreview(next);
-              setStep('review');
-            }}
-          />
-        ) : (
-          <ListStep owner={owner} onPublish={() => setStep('publish')} />
-        )}
+        {content()}
       </DialogContent>
     </Dialog>
   );

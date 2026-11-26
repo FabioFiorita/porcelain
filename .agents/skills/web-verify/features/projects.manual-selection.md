@@ -71,3 +71,5 @@ Automated coverage: `projects-manual-selection.e2e.ts`.
 
 - Open selected leaves the navigator sheet open. Registration persists and changes default workspace selection; remove selected through its labelled Project actions menu → Remove from Porcelain, or reset.
 - Use unique folder names: home/repository/state/web already exist in the fixture home.
+
+With a second computer configured, verify the plus menu opens above the workspace, can be dismissed with Escape or an outside click, and opens the appropriate folder chooser when a computer is selected. The single-computer plus opens the local chooser directly.

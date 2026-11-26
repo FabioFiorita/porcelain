@@ -203,6 +203,7 @@ export const PIERRE_FILE_CSS = `
 `;
 
 export const PIERRE_COMMENT_CSS = `
+[data-line-number-content] { margin-inline-end: 18px; }
 [data-utility-button] {
   width: 16px;
   height: 16px;

@@ -58,14 +58,12 @@ export { saveDefaultWalkthroughWriter } from './commands/projects.ts';
 
 export {
   readProjectPullRequest,
+  readProjectPullStatus,
   readProjectPullRequests,
   readProjectGitHubAccount,
   readProjectCheckLog,
 } from './queries/pull-requests.ts';
-export {
-  watchProjectPullStatus,
-  type PullStatusWatch,
-} from './queries/pull-request-status.ts';
+export { watchProjectPullStatus } from './queries/pull-request-status.ts';
 export { requestedReruns } from './store/pull-request-reruns.ts';
 export type { PageActivity } from './ports/page-activity.ts';
 export { setProjectGitHubAccount } from './commands/github-account.ts';

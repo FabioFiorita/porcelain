@@ -138,7 +138,11 @@ test('reading more of a long branch keeps its diffs during loading and after a n
     .poll(async () => (await server.branchChanges()).files.length)
     .toBe(28);
   await expect
-    .element(workspace.getByText('28 files changed', { exact: true }))
+    .element(
+      workspace
+        .getByRole('tabpanel', { name: 'Branch', exact: true })
+        .getByText('Added after reading more', { exact: true }),
+    )
     .toBeVisible();
   await expect
     .element(

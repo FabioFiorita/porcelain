@@ -167,7 +167,11 @@ export class CliOperations extends Context.Service<
             .realPath(host.currentDirectory)
             .pipe(Effect.orElseSucceed(() => host.currentDirectory));
           yield* printComments(
-            { dataDirectory: settings.dataDirectory, directory, json: settings.json },
+            {
+              dataDirectory: settings.dataDirectory,
+              directory,
+              json: settings.json,
+            },
             stdout,
             limits,
           );

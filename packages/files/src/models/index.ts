@@ -16,5 +16,5 @@ export type {
   WorktreePathsRead,
   WorktreePathsReadInput,
 } from './worktree-paths-read.ts';
-export type { PreviewFile, PreviewFileBytes } from './preview-file.ts';
+export type { PreviewFile } from './preview-file.ts';
 export type { ReadPreviewAssetsResult } from './read-preview-assets.ts';

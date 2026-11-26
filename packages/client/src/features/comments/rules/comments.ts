@@ -38,7 +38,7 @@ export function commentsAt(
   return openComments(view).filter((comment) => match(comment.anchor));
 }
 
-export function lineRangeLabel(start: number, end: number): string {
+function lineRangeLabel(start: number, end: number): string {
   return start === end ? `Line ${start}` : `Lines ${start}–${end}`;
 }
 
@@ -53,14 +53,6 @@ export function anchorLabel(anchor: CommentAnchor): string {
     case 'node':
       return `${anchor.node} · ${anchor.title}`;
   }
-}
-
-export function snapshotLines(
-  lines: readonly string[],
-  start: number,
-  end: number,
-): string {
-  return lines.slice(start - 1, end).join('\n');
 }
 
 export function reviewUnavailableText(

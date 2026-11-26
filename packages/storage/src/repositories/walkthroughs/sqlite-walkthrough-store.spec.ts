@@ -4,6 +4,7 @@ import { prepareNativeDatabase } from '../../../spec/kit/native-database.ts';
 import { NodeServices } from '@effect/platform-node';
 import { Effect, Layer, ManagedRuntime } from 'effect';
 import {
+  WalkthroughModelReader,
   WalkthroughStore,
   WalkthroughWriter,
 } from '@porcelain/walkthroughs/ports';
@@ -171,6 +172,11 @@ it('resolves every comment answer from request, project, changed default and bui
     AnswerWalkthroughMessageService.layer.pipe(
       Layer.provideMerge(ResolveWalkthroughWriterService.layer),
       Layer.provideMerge(database),
+      Layer.provide(
+        Layer.succeed(WalkthroughModelReader, {
+          read: () => Effect.succeed([]),
+        }),
+      ),
       Layer.provide(
         Layer.succeed(WalkthroughWriter, {
           write: () => Effect.die('Not used'),

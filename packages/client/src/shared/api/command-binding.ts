@@ -1,7 +1,7 @@
 import { Cause, Exit } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 
-export function walkthroughCommandBinding<I, A, E>([result, send]: readonly [
+export function commandBinding<I, A, E>([result, send]: readonly [
   AsyncResult.AsyncResult<A, E>,
   (input: I) => Promise<Exit.Exit<A, E>>,
 ]) {

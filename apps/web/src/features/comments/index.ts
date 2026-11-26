@@ -1,10 +1,6 @@
-export { useComments, type CommentOwner } from './queries/comments';
+export { useComments } from './queries/comments';
 export { useCommentCommands } from './commands/comments';
-export {
-  CommentComposer,
-  CommentThread,
-  DraftCard,
-} from './views/comment-thread';
+export { CommentThread, DraftCard } from './views/comment-thread';
 export {
   commentRange,
   diffLineText,
@@ -13,7 +9,5 @@ export {
 } from './adapters/diff-lines';
 export { useFileComments } from './views/file-comments';
 export { CommentsSummary } from './views/comments-summary';
-export {
-  PublishReviewButton,
-  useUnpublishedCount,
-} from './views/publish-review';
+export { PublishReviewButton } from './views/publish-review';
+export { useCommentSubmission } from './commands/comments';

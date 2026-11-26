@@ -19,27 +19,26 @@ test('an expanded project shows main and its five most recently touched worktree
     name: 'Projects and worktrees',
     exact: true,
   });
-  const rows = sidebar.getByRole('listitem').filter({
-    has: page.getByRole('button', {
-      name: new RegExp(`^[^,]+, (?:[^,]+, )?${project.name}, `),
-    }),
+  const rows = sidebar.getByRole('button', {
+    name: new RegExp(`^[^,]+, (?:[^,]+, )?${project.name}, `),
   });
-  const titles = (expected: readonly string[]) =>
-    expected.map((name) => new RegExp(`^${name}(?:\\d+ files?)?$`));
-  await expect(rows).toHaveText(
-    titles([mainBranch, 'zz-dated', ...names.slice(0, 4)]),
-  );
+  const expectOrder = async (expected: readonly string[]) => {
+    await expect(rows).toHaveCount(expected.length);
+    for (const [index, branch] of expected.entries())
+      await expect(rows.nth(index)).toHaveAccessibleName(
+        new RegExp(`^${branch}, `),
+      );
+  };
+  await expectOrder([mainBranch, 'zz-dated', ...names.slice(0, 4)]);
   await sidebar
     .getByRole('button', { name: 'Show 3 more', exact: true })
     .click();
-  await expect(rows).toHaveText(titles([mainBranch, 'zz-dated', ...names]));
+  await expectOrder([mainBranch, 'zz-dated', ...names]);
   const older = sidebar.getByRole('button', { name: /^recent-5, / });
   await older.click();
   await expect(older).toHaveAttribute('aria-current', 'page');
   await sidebar.getByRole('button', { name: 'Show less', exact: true }).click();
-  await expect(rows).toHaveText(
-    titles([mainBranch, 'zz-dated', ...names.slice(0, 4), 'recent-5']),
-  );
+  await expectOrder([mainBranch, 'zz-dated', ...names.slice(0, 4), 'recent-5']);
   await expect(
     sidebar.getByRole('button', { name: 'Show 2 more', exact: true }),
   ).toBeVisible();
@@ -50,18 +49,15 @@ test('an expanded project shows main and its five most recently touched worktree
     page.getByRole('tooltip', { name: /^recent-5 · \// }),
   ).toBeVisible();
   await repo.writeInWorktree('recent-7', 'agent-notes.md', 'In progress\n');
-  await expect(rows).toHaveText(
-    titles([
-      mainBranch,
-      'recent-7',
-      'zz-dated',
-      ...names.slice(0, 3),
-      'recent-5',
-    ]),
-    { timeout: 45_000 },
-  );
+  await expectOrder([
+    mainBranch,
+    'recent-7',
+    'zz-dated',
+    ...names.slice(0, 3),
+    'recent-5',
+  ]);
   await sidebar
     .getByRole('searchbox', { name: 'Search worktrees', exact: true })
     .fill('recent-6');
-  await expect(rows).toHaveText(titles(['recent-6']));
+  await expectOrder(['recent-6']);
 });

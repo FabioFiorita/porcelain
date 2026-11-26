@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { PencilIcon, Trash2Icon } from 'lucide-react';
-import type { AddCommentRequest } from '@porcelain/contracts/comments';
-import type { DraftComment } from '@porcelain/client/comments/rules';
+import type {
+  CommentAnchor,
+  DraftComment,
+} from '@porcelain/client/comments/rules';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -11,12 +13,17 @@ import {
 } from '@/components/ui/tooltip';
 import { cn } from '@/shared/lib/utils';
 import { useWorkspaceWriteBlock } from '@/shared/workspace/connection';
-import { failureText, useCommentCommands } from '../commands/comments';
+import { TruncatedText } from '@/shared/views/truncated-text';
+import {
+  useCommentCommands,
+  useCommentSubmission,
+  useRemoveComment,
+} from '../commands/comments';
 import type { CommentOwner } from '../queries/comments';
 
 const MAX_LENGTH = 8000;
 
-export function CommentComposer({
+function CommentComposer({
   owner,
   initial = '',
   label,
@@ -32,24 +39,16 @@ export function CommentComposer({
   onClose: () => void;
 }) {
   const [text, setText] = useState(initial);
-  const [waiting, setWaiting] = useState(false);
-  const [failure, setFailure] = useState<string>();
+  const {
+    waiting,
+    failure,
+    submit: save,
+  } = useCommentSubmission(onSubmit, onClose);
   const writeBlock = useWorkspaceWriteBlock(owner.context);
   const trimmed = text.trim();
   const submit = () => {
     if (!trimmed || waiting || writeBlock) return;
-    setWaiting(true);
-    setFailure(undefined);
-    onSubmit(trimmed).then(
-      () => {
-        setWaiting(false);
-        onClose();
-      },
-      (error: unknown) => {
-        setWaiting(false);
-        setFailure(failureText(error, 'The comment was not saved. Try again.'));
-      },
-    );
+    void save(trimmed);
   };
   return (
     <div className="flex flex-col gap-2 font-sans" data-comment-composer="">
@@ -60,7 +59,7 @@ export function CommentComposer({
         rows={2}
         aria-label={label}
         placeholder="Leave a comment"
-        className="min-h-14 bg-background text-ui md:text-ui"
+        className="min-h-14"
         onChange={(event) => setText(event.target.value)}
         onKeyDown={(event) => {
           if (event.key === 'Escape') {
@@ -140,7 +139,7 @@ export function DraftCard({
   location?: string;
 }) {
   const [editing, setEditing] = useState(false);
-  const [failure, setFailure] = useState<string>();
+  const { failure, waiting, remove } = useRemoveComment(owner, comment.id);
   const commands = useCommentCommands(owner);
   const writeBlock = useWorkspaceWriteBlock(owner.context);
   const published = comment.publication.status === 'published';
@@ -151,9 +150,7 @@ export function DraftCard({
         initial={comment.text}
         label="Edit comment"
         submitLabel="Save"
-        onSubmit={(text) =>
-          commands.edit.run({ commentId: comment.id, text })
-        }
+        onSubmit={(text) => commands.edit.run({ commentId: comment.id, text })}
         onClose={() => setEditing(false)}
       />
     );
@@ -165,9 +162,10 @@ export function DraftCard({
     >
       <header className="flex min-h-6 items-center gap-2 text-caption text-muted-foreground">
         {location && (
-          <span className="min-w-0 truncate font-mono text-foreground-2">
-            {location}
-          </span>
+          <TruncatedText
+            className="min-w-0 font-mono text-foreground-2"
+            text={location}
+          />
         )}
         {published && comment.publication.status === 'published' ? (
           <a
@@ -195,17 +193,8 @@ export function DraftCard({
             <IconAction
               label="Delete comment"
               icon={Trash2Icon}
-              disabled={Boolean(writeBlock) || commands.remove.waiting}
-              onClick={() => {
-                setFailure(undefined);
-                commands.remove
-                  .run(comment.id)
-                  .catch((error: unknown) =>
-                    setFailure(
-                      failureText(error, 'The comment was not deleted.'),
-                    ),
-                  );
-              }}
+              disabled={Boolean(writeBlock) || waiting}
+              onClick={() => void remove()}
             />
           </span>
         )}
@@ -232,7 +221,7 @@ export function CommentThread({
 }: {
   owner: CommentOwner;
   drafts: readonly DraftComment[];
-  anchor: AddCommentRequest['anchor'] | undefined;
+  anchor: CommentAnchor | undefined;
   composing: boolean;
   onClose: () => void;
   className?: string;

@@ -14,7 +14,9 @@ type PullRequestTarget = GitHubRepository & {
 };
 
 export interface PullRequestReviewer {
-  diff(input: PullRequestTarget): Effect.Effect<PullRequestDiff, GitHubReadError>;
+  diff(
+    input: PullRequestTarget,
+  ): Effect.Effect<PullRequestDiff, GitHubReadError>;
   post(
     input: PullRequestTarget & {
       readonly commitId: string;

@@ -1,6 +1,6 @@
 import type { DiagramEdge, DiagramNode, StepDiagram } from './blocks.ts';
 
-export type DiagramPlacement = 'right' | 'down' | 'sequence';
+type DiagramPlacement = 'right' | 'down' | 'sequence';
 
 export type DiagramMeasure = {
   readonly node: (node: DiagramNode) => {

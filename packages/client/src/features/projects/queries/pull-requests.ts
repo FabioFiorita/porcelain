@@ -34,6 +34,14 @@ function query<A, E>(
       Atom.setIdleTTL(0),
     );
 }
+export const readProjectPullStatus = Atom.family((input: PullInput) =>
+  query(input, (api) =>
+    api.pullRequests.readProjectPullStatus({
+      params: { projectId: input.projectId, number: input.number },
+    }),
+  ),
+);
+
 export const readProjectPullRequest = Atom.family((input: PullInput) =>
   query(
     input,

@@ -21,10 +21,7 @@ import {
   InventoryStore,
   WorktreePresenceStore,
 } from '@porcelain/projects/ports';
-import {
-  DraftCommentStore,
-  ReviewedFileStore,
-} from '@porcelain/reviews/ports';
+import { DraftCommentStore, ReviewedFileStore } from '@porcelain/reviews/ports';
 import { inMemoryDeviceSightingStoreLayer } from '../adapters/access/in-memory-device-sighting-store.ts';
 import { inMemoryPairingAttemptStoreLayer } from '../adapters/access/in-memory-pairing-attempt-store.ts';
 import { inMemoryRouteStateStoreLayer } from '../adapters/access/in-memory-route-state-store.ts';

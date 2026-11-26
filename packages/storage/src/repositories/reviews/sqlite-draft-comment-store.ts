@@ -43,7 +43,10 @@ export const sqliteDraftCommentStoreLayer = Layer.effect(
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const list = SqlSchema.findAll({
-      Request: Schema.Struct({ worktreeId: Schema.String, branch: Schema.String }),
+      Request: Schema.Struct({
+        worktreeId: Schema.String,
+        branch: Schema.String,
+      }),
       Result: columns,
       execute: (input) =>
         sql`SELECT id, worktree_id, branch, head_oid, anchor, text, created_at, updated_at, published_url, published_at FROM draft_comments WHERE worktree_id = ${input.worktreeId} AND branch = ${input.branch} ORDER BY sequence`,
@@ -95,14 +98,14 @@ export const sqliteDraftCommentStoreLayer = Layer.effect(
           Effect.orDie,
         );
       }),
-      markPublished: Effect.fn('DraftCommentStore.markPublished')(function* (
-        input,
-      ) {
-        if (!input.ids.length) return;
-        yield* sql`UPDATE draft_comments SET published_url = ${input.url}, published_at = ${input.publishedAt} WHERE worktree_id = ${input.worktreeId} AND ${sql.in('id', input.ids)}`.pipe(
-          Effect.orDie,
-        );
-      }),
+      markPublished: Effect.fn('DraftCommentStore.markPublished')(
+        function* (input) {
+          if (!input.ids.length) return;
+          yield* sql`UPDATE draft_comments SET published_url = ${input.url}, published_at = ${input.publishedAt} WHERE worktree_id = ${input.worktreeId} AND ${sql.in('id', input.ids)}`.pipe(
+            Effect.orDie,
+          );
+        },
+      ),
     });
   }),
 );

@@ -21,23 +21,23 @@ export class ListDraftCommentsService extends Context.Service<
     Effect.gen(function* () {
       const store = yield* DraftCommentStore;
       return {
-        execute: Effect.fn('ListDraftCommentsService.execute')(function* (
-          input,
-        ) {
-          const stored = yield* store.list(input);
-          return stored.map(
-            ({ worktreeId: _worktree, branch: _branch, ...comment }) => ({
-              ...comment,
-              outdated:
-                comment.publication.status === 'draft' &&
-                comment.anchor.kind === 'lines' &&
-                draftOutdated(
-                  comment.anchor,
-                  input.texts.get(comment.anchor.path),
-                ),
-            }),
-          );
-        }),
+        execute: Effect.fn('ListDraftCommentsService.execute')(
+          function* (input) {
+            const stored = yield* store.list(input);
+            return stored.map(
+              ({ worktreeId: _worktree, branch: _branch, ...comment }) => ({
+                ...comment,
+                outdated:
+                  comment.publication.status === 'draft' &&
+                  comment.anchor.kind === 'lines' &&
+                  draftOutdated(
+                    comment.anchor,
+                    input.texts.get(comment.anchor.path),
+                  ),
+              }),
+            );
+          },
+        ),
       };
     }),
   );

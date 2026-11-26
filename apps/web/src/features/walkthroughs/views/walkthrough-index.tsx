@@ -1,6 +1,9 @@
 import { useState, type ComponentProps, type ReactNode } from 'react';
 import { GitBranchIcon, MessageSquareIcon } from 'lucide-react';
-import { commentCountsByPath, commentsAt } from '@porcelain/client/comments/rules';
+import {
+  commentCountsByPath,
+  commentsAt,
+} from '@porcelain/client/comments/rules';
 import { useComments } from '@/features/comments/index';
 import type { ReviewScope } from '@porcelain/client/changes/rules';
 import {

@@ -58,23 +58,24 @@ const authorSchema = Schema.NullOr(
   }),
 );
 const pageInfoSchema = Schema.Struct({ hasNextPage: Schema.Boolean });
-const checkSchema = Schema.Union([
-  Schema.Struct({
-    __typename: Schema.Literal('CheckRun'),
-    name: Schema.String,
-    status: Schema.String,
-    conclusion: Schema.NullOr(Schema.String),
-    detailsUrl: Schema.NullOr(Schema.String),
-    startedAt: Schema.optional(Schema.NullOr(Schema.String)),
-    completedAt: Schema.optional(Schema.NullOr(Schema.String)),
-  }),
-  Schema.Struct({
-    __typename: Schema.Literal('StatusContext'),
-    context: Schema.String,
-    state: Schema.String,
-    targetUrl: Schema.NullOr(Schema.String),
-  }),
-]);
+const checkRunSchema = Schema.Struct({
+  __typename: Schema.Literal('CheckRun'),
+  name: Schema.String,
+  status: Schema.String,
+  conclusion: Schema.NullOr(Schema.String),
+  detailsUrl: Schema.NullOr(Schema.String),
+  startedAt: Schema.optional(Schema.NullOr(Schema.String)),
+  completedAt: Schema.optional(Schema.NullOr(Schema.String)),
+});
+const statusContextSchema = Schema.Struct({
+  __typename: Schema.Literal('StatusContext'),
+  context: Schema.String,
+  state: Schema.String,
+  targetUrl: Schema.NullOr(Schema.String),
+});
+const checkSchema = Schema.Union([checkRunSchema, statusContextSchema]);
+const rollupSchema = Schema.Struct({ state: Schema.String });
+const checkContextSchema = Schema.Struct({ pageInfo: pageInfoSchema });
 export const githubPullSummarySchema = Schema.Struct({
   number: Schema.Int,
   title: Schema.String,
@@ -89,11 +90,7 @@ export const githubPullSummarySchema = Schema.Struct({
     nodes: Schema.Array(
       Schema.Struct({
         commit: Schema.Struct({
-          statusCheckRollup: Schema.NullOr(
-            Schema.Struct({
-              state: Schema.String,
-            }),
-          ),
+          statusCheckRollup: Schema.NullOr(rollupSchema),
         }),
       }),
     ),
@@ -114,10 +111,10 @@ export const githubPullRequestSchema = Schema.Struct({
         commit: Schema.Struct({
           statusCheckRollup: Schema.NullOr(
             Schema.Struct({
-              state: Schema.String,
+              ...rollupSchema.fields,
               contexts: Schema.Struct({
                 nodes: Schema.Array(checkSchema),
-                pageInfo: pageInfoSchema,
+                ...checkContextSchema.fields,
               }),
             }),
           ),
@@ -283,14 +280,8 @@ const githubAnnotationSchema = Schema.Struct({
 });
 const githubStatusCheckSchema = Schema.Union([
   Schema.Struct({
-    __typename: Schema.Literal('CheckRun'),
+    ...checkRunSchema.fields,
     databaseId: Schema.optional(Schema.NullOr(Schema.Int)),
-    name: Schema.String,
-    status: Schema.String,
-    conclusion: Schema.NullOr(Schema.String),
-    detailsUrl: Schema.NullOr(Schema.String),
-    startedAt: Schema.optional(Schema.NullOr(Schema.String)),
-    completedAt: Schema.optional(Schema.NullOr(Schema.String)),
     isRequired: Schema.optional(Schema.Boolean),
     title: Schema.optional(Schema.NullOr(Schema.String)),
     summary: Schema.optional(Schema.NullOr(Schema.String)),
@@ -328,10 +319,7 @@ const githubStatusCheckSchema = Schema.Union([
     ),
   }),
   Schema.Struct({
-    __typename: Schema.Literal('StatusContext'),
-    context: Schema.String,
-    state: Schema.String,
-    targetUrl: Schema.NullOr(Schema.String),
+    ...statusContextSchema.fields,
     description: Schema.optional(Schema.NullOr(Schema.String)),
     isRequired: Schema.optional(Schema.Boolean),
   }),
@@ -345,6 +333,22 @@ const githubReviewerSchema = Schema.Struct({
     }),
   ),
 });
+const githubStatusContextsSchema = Schema.Struct({
+  ...checkContextSchema.fields,
+  nodes: Schema.Array(githubStatusCheckSchema),
+});
+const githubStatusRollupSchema = Schema.NullOr(
+  Schema.Struct({
+    contexts: githubStatusContextsSchema,
+    ...rollupSchema.fields,
+  }),
+);
+const githubStatusCommitSchema = Schema.Struct({
+  commit: Schema.Struct({ statusCheckRollup: githubStatusRollupSchema }),
+});
+const githubStatusCommitsSchema = Schema.Struct({
+  nodes: Schema.Array(githubStatusCommitSchema),
+});
 export const githubPullStatusSchema = Schema.Struct({
   number: Schema.Int,
   state: Schema.Literals(['OPEN', 'CLOSED', 'MERGED']),
@@ -356,23 +360,7 @@ export const githubPullStatusSchema = Schema.Struct({
   reviewRequests: Schema.optional(
     Schema.NullOr(Schema.Struct({ nodes: Schema.Array(githubReviewerSchema) })),
   ),
-  commits: Schema.Struct({
-    nodes: Schema.Array(
-      Schema.Struct({
-        commit: Schema.Struct({
-          statusCheckRollup: Schema.NullOr(
-            Schema.Struct({
-              state: Schema.String,
-              contexts: Schema.Struct({
-                nodes: Schema.Array(githubStatusCheckSchema),
-                pageInfo: pageInfoSchema,
-              }),
-            }),
-          ),
-        }),
-      }),
-    ),
-  }),
+  commits: githubStatusCommitsSchema,
 });
 export type GitHubPullStatus = typeof githubPullStatusSchema.Type & {
   readonly viewerPermission: string | undefined;
@@ -393,7 +381,7 @@ const pullCheckAnnotationSchema = Schema.Struct({
   path: Schema.optional(Schema.String),
   line: Schema.optional(Schema.Int),
 });
-export const pullCheckDetailSchema = Schema.Struct({
+const pullCheckDetailSchema = Schema.Struct({
   key: Schema.String,
   kind: Schema.Literals(['actions', 'check', 'status']),
   name: Schema.String,
@@ -427,7 +415,7 @@ export const pullRequestStatusSchema = Schema.Struct({
 });
 export type PullRequestStatus = typeof pullRequestStatusSchema.Type;
 
-export const checkLogLineSchema = Schema.Struct({
+const checkLogLineSchema = Schema.Struct({
   text: Schema.String,
   level: Schema.Literals(['plain', 'error', 'warning', 'group', 'command']),
 });

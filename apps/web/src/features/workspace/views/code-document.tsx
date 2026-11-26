@@ -65,11 +65,7 @@ import { groupSpecPaths, isSpecPath } from '@porcelain/client/changes/rules';
 import type { DocumentInteraction } from '../rules/documents';
 import { type ReviewScope } from '@porcelain/client/changes/rules';
 import type { ReviewRange } from '@porcelain/client/changes/rules';
-import {
-  useCodeFolds,
-  useCodeViewScroll,
-  usePublishDiffFocus,
-} from '../store';
+import { useCodeFolds, useCodeViewScroll, usePublishDiffFocus } from '../store';
 
 import { type ConnectionContext } from '@/shared/workspace/connection';
 import {

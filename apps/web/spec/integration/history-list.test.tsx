@@ -231,8 +231,13 @@ test.for(['refs/heads/topic', 'refs/tags/release'])(
       name: 'Review sidebar',
       exact: true,
     });
-    await expect
-      .element(history.getByRole('button', { name: branch, exact: true }))
-      .toHaveTextContent(branch);
+    await history
+      .getByRole('button', { name: 'Show 1 more ref', exact: true })
+      .click();
+    const more = workspace.getByRole('dialog', {
+      name: 'More refs',
+      exact: true,
+    });
+    await expect.element(more.getByText(branch, { exact: true })).toBeVisible();
   },
 );

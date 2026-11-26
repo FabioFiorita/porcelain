@@ -1,5 +1,6 @@
+import { useAtomValue } from '@effect/atom-react';
+import { readWalkthroughMergeReview } from '@porcelain/client/walkthroughs';
 import {
-  undecidedCallStep,
   type WalkthroughContent,
   type WalkthroughRun,
 } from '@porcelain/client/walkthroughs/rules';
@@ -8,7 +9,6 @@ import {
   MergePullRequest,
 } from '@/features/projects/index';
 import type { DocumentProps } from '@/features/workspace/index';
-import { useConversations } from '../queries/conversations';
 import { useWalkthroughPull } from '../queries/pull';
 
 export function WalkthroughMerge({
@@ -22,7 +22,15 @@ export function WalkthroughMerge({
 }) {
   const { projectId } = document.scope;
   const found = useWalkthroughPull(document, run);
-  const { view, failed } = useConversations({ ...document, run });
+  const review = useAtomValue(
+    readWalkthroughMergeReview({
+      connection: document.context.connection,
+      scope: document.scope,
+      runId: run.id,
+      headOid: run.headOid,
+      content,
+    }),
+  );
   const pull = found?.detail;
   if (!found || !pull) return null;
   const number = found.number;
@@ -37,14 +45,7 @@ export function WalkthroughMerge({
           projectId={projectId}
           pull={pull}
           label={`Merge #${number}`}
-          review={{
-            headOid: run.headOid,
-            undecidedCallStep: undecidedCallStep(
-              content,
-              view?.decisions,
-              failed,
-            ),
-          }}
+          review={review}
         />
       ) : (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">

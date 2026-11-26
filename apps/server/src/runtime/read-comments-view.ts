@@ -7,7 +7,7 @@ import type {
 } from '@porcelain/reviews/services';
 import { draftCommentsMarkdown } from '@porcelain/reviews/rules';
 
-export const COMMENTS_COMMAND = 'porcelain comments';
+const COMMENTS_COMMAND = 'porcelain comments';
 
 export const readCommentsView = Effect.fn('Comments.readView')(function* (
   capabilities: {

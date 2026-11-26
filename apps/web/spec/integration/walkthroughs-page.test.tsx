@@ -74,7 +74,7 @@ test('a developer writes a walkthrough, watches it run and reads each step with 
   await expect
     .element(
       page.getByRole('heading', {
-        name: /^Teach the sample to explain itself\. One call is yours\.$/,
+        name: /^Teach the sample to explain itself$/,
       }),
     )
     .toBeVisible();
@@ -103,6 +103,9 @@ test('a developer writes a walkthrough, watches it run and reads each step with 
   const notesStep = page
     .getByRole('listitem')
     .filter({ hasText: 'Step about notes.md' });
+  await notesStep
+    .getByRole('button', { name: /^Full diff of this step/ })
+    .click();
   await expect
     .element(
       notesStep
@@ -121,11 +124,15 @@ test('a developer writes a walkthrough, watches it run and reads each step with 
       }),
     )
     .toBeVisible();
+  const readmeStep = page
+    .getByRole('listitem')
+    .filter({ hasText: 'Step about README.md' });
+  await readmeStep
+    .getByRole('button', { name: /^Full diff of this step/ })
+    .click();
   await expect
     .element(
-      page
-        .getByRole('listitem')
-        .filter({ hasText: 'Step about README.md' })
+      readmeStep
         .getByRole('region', { name: /^Step \d: branch$/ })
         .getByText('A change to review.', { exact: true }),
     )
@@ -209,7 +216,7 @@ test('local edits group by step, and files the walkthrough never read stand apar
   await expect
     .element(
       page.getByRole('heading', {
-        name: /^Teach the sample to explain itself\. One call is yours\.$/,
+        name: /^Teach the sample to explain itself$/,
       }),
     )
     .toBeVisible();
@@ -252,7 +259,7 @@ test('with Spec files on, specs outside the walkthrough get their own list', asy
   await expect
     .element(
       page.getByRole('heading', {
-        name: /^Teach the sample to explain itself\. One call is yours\.$/,
+        name: /^Teach the sample to explain itself$/,
       }),
     )
     .toBeVisible();
@@ -308,7 +315,7 @@ test('a later commit lists its file outside the steps, and a refused Update says
   await expect
     .element(
       page.getByRole('heading', {
-        name: /^Teach the sample to explain itself\. One call is yours\.$/,
+        name: /^Teach the sample to explain itself$/,
       }),
     )
     .toBeVisible();
@@ -369,7 +376,7 @@ test('a later commit lists its file outside the steps, and a refused Update says
   await expect
     .element(
       page.getByRole('heading', {
-        name: /^Teach the sample to explain itself\. One call is yours\.$/,
+        name: /^Teach the sample to explain itself$/,
       }),
     )
     .toBeVisible();
@@ -392,7 +399,7 @@ test('a commit marks the walkthrough out of date and Update writes it again', as
   await expect
     .element(
       page.getByRole('heading', {
-        name: /^Teach the sample to explain itself\. One call is yours\.$/,
+        name: /^Teach the sample to explain itself$/,
       }),
     )
     .toBeVisible();
@@ -416,7 +423,7 @@ test('a commit marks the walkthrough out of date and Update writes it again', as
   await expect
     .element(
       page.getByRole('heading', {
-        name: /^Teach the sample to explain itself\. One call is yours\.$/,
+        name: /^Teach the sample to explain itself$/,
       }),
     )
     .toBeVisible();
@@ -438,7 +445,7 @@ test('a commit marks the walkthrough out of date and Update writes it again', as
   await expect
     .element(
       page.getByRole('heading', {
-        name: /^Teach the sample to explain itself\. One call is yours\.$/,
+        name: /^Teach the sample to explain itself$/,
       }),
     )
     .toBeVisible();
@@ -455,7 +462,7 @@ test('a commit marks the walkthrough out of date and Update writes it again', as
   await expect
     .element(
       page.getByRole('heading', {
-        name: /^Teach the sample to explain itself\. One call is yours\.$/,
+        name: /^Teach the sample to explain itself$/,
       }),
     )
     .toBeVisible();
@@ -494,7 +501,7 @@ test('a signed-out writer names the sign-in command and Try again runs it again'
   await expect
     .element(
       page.getByRole('heading', {
-        name: /^Teach the sample to explain itself\. One call is yours\.$/,
+        name: /^Teach the sample to explain itself$/,
       }),
     )
     .toBeVisible();
@@ -517,7 +524,7 @@ test('a walkthrough with nothing to say shows the short page above every changed
   await expect
     .element(
       page.getByRole('heading', {
-        name: /^A small routine change\. Nothing needs you\.$/,
+        name: /^A small routine change$/,
       }),
     )
     .toBeVisible();
@@ -566,7 +573,11 @@ test('uncommitted-only work opens the review with its diffs and stays fresh when
     .getByRole('button', { name: 'Write walkthrough', exact: true })
     .click();
   await expect
-    .element(page.getByRole('heading', { name: /One call is yours/ }))
+    .element(
+      page.getByRole('heading', {
+        name: /^Teach the sample to explain itself$/,
+      }),
+    )
     .toBeVisible();
   await expect
     .element(page.getByText(/written for .* and uncommitted work/))
@@ -658,7 +669,11 @@ test('uncommitted-only work opens the review with its diffs and stays fresh when
     walkthrough: { id: before?.id },
   });
   await expect
-    .element(page.getByRole('heading', { name: /One call is yours/ }))
+    .element(
+      page.getByRole('heading', {
+        name: /^Teach the sample to explain itself$/,
+      }),
+    )
     .toBeVisible();
 });
 
@@ -686,8 +701,16 @@ for (const state of ['uncommitted', 'mixed', 'committed'] as const) {
       .getByRole('button', { name: 'Write walkthrough', exact: true })
       .click();
     await expect
-      .element(page.getByRole('heading', { name: /One call is yours/ }))
+      .element(
+        page.getByRole('heading', {
+          name: /^Teach the sample to explain itself$/,
+        }),
+      )
       .toBeVisible();
+    await page
+      .getByRole('article', { name: /^Step 1.*README\.md/ })
+      .getByRole('button', { name: /^Full diff of this step/ })
+      .click();
     const branch = page.getByRole('region', {
       name: 'Step 1: branch',
       exact: true,
@@ -889,6 +912,7 @@ test('a step citing a staged rename shows the committed file and its local edit 
   const step = page
     .getByRole('listitem')
     .filter({ hasText: 'Step about new-name.md' });
+  await step.getByRole('button', { name: /^Full diff of this step/ }).click();
   await expect
     .element(
       step
@@ -914,7 +938,7 @@ test('a step citing a staged rename shows the committed file and its local edit 
 });
 
 for (const side of ['old', 'new'] as const) {
-  test(`See the lines shows the ${side} side of a captured dirty rename and returns to the same step`, async ({
+  test(`the inline excerpt shows the ${side} side of a captured dirty rename and stays in its step`, async ({
     repo,
     codingTool,
     render,
@@ -947,40 +971,31 @@ for (const side of ['old', 'new'] as const) {
     const step = page
       .getByRole('listitem')
       .filter({ hasText: 'Step about renamed notes.txt' });
-    const open = step.getByRole('button', {
-      name: 'See the lines',
+    const location =
+      side === 'old'
+        ? 'original notes.txt · Old line 10'
+        : 'renamed notes.txt · New line 16';
+    const hide = step.getByRole('button', {
+      name: `Hide the lines: ${location}`,
       exact: true,
     });
-    const excerpt = page.getByRole('dialog', {
-      name: 'Captured diff',
+    const show = step.getByRole('button', {
+      name: `Show the lines: ${location}`,
       exact: true,
     });
     const expectedLine =
       side === 'old'
         ? 'Unchanged line 10'
         : 'Rule from the captured local edit';
-    const qualifiedLine = excerpt.getByText(expectedLine, { exact: true });
-    await open.click();
-    await expect
-      .element(
-        excerpt.getByText(
-          side === 'old'
-            ? 'original notes.txt · Old line 10'
-            : 'renamed notes.txt · New line 16',
-          { exact: true },
-        ),
-      )
-      .toBeVisible();
+    const qualifiedLine = step.getByText(expectedLine, { exact: true });
+    await expect.element(hide).toBeVisible();
     await expect.element(qualifiedLine).toBeVisible();
     await expect
-      .element(
-        excerpt.getByText('Rule committed on the branch', { exact: true }),
-      )
+      .element(step.getByText('Rule committed on the branch', { exact: true }))
       .not.toBeInTheDocument();
-    await excerpt
-      .getByRole('button', { name: 'Back to step', exact: true })
-      .click();
-    await expect.element(open).toHaveFocus();
+    await hide.click();
+    await expect.element(show).toHaveFocus();
+    await expect.element(qualifiedLine).not.toBeInTheDocument();
     if (side === 'old') return;
     const firstRunId = (await server.walkthrough()).walkthrough?.id;
 
@@ -994,15 +1009,11 @@ for (const side of ['old', 'new'] as const) {
       .getByRole('status');
     const stale = status.filter({ hasText: 'Behind the current work' });
     await expect.element(stale).toBeVisible();
-    await open.click();
+    await show.click();
     await expect.element(qualifiedLine).toBeVisible();
     await expect
-      .element(
-        excerpt.getByText('Rule in the current worktree', { exact: true }),
-      )
+      .element(step.getByText('Rule in the current worktree', { exact: true }))
       .not.toBeInTheDocument();
-    await userEvent.keyboard('{Escape}');
-    await expect.element(open).toHaveFocus();
     await repo.write(SCENARIO, 'hold');
     await page
       .getByRole('button', { name: 'Update walkthrough', exact: true })
@@ -1017,21 +1028,21 @@ for (const side of ['old', 'new'] as const) {
     await expect.element(stale).not.toBeInTheDocument();
     await expect.poll(savedId).toBeTypeOf('string');
     await expect.poll(savedId).not.toBe(firstRunId);
-    await open.click();
     await expect
       .element(
-        excerpt.getByText('renamed notes.txt · New line 17', { exact: true }),
+        step.getByRole('button', {
+          name: 'Hide the lines: renamed notes.txt · New line 17',
+          exact: true,
+        }),
       )
       .toBeVisible();
     await expect
-      .element(
-        excerpt.getByText('Rule in the current worktree', { exact: true }),
-      )
+      .element(step.getByText('Rule in the current worktree', { exact: true }))
       .toBeVisible();
   });
 }
 
-test('a long walkthrough loads a step code only when the step comes near view', async ({
+test('a long walkthrough loads code when a distant step diff is opened', async ({
   repo,
   codingTool,
   render,
@@ -1056,26 +1067,25 @@ test('a long walkthrough loads a step code only when the step comes near view', 
   await page
     .getByRole('button', { name: 'Write walkthrough', exact: true })
     .click();
-  const first = page
-    .getByRole('group', { name: /^Code: Step \d+$/ })
-    .filter({ hasText: 'step-01.md' });
+  await page
+    .getByRole('article', { name: /step-01\.md/ })
+    .getByRole('button', { name: /^Full diff of this step/ })
+    .click();
+  const distantStep = page.getByRole('article', { name: /step-30\.md/ });
+  const distantDiff = distantStep.getByRole('button', {
+    name: /^Full diff of this step/,
+  });
+  await expect.element(distantDiff).toHaveAttribute('aria-expanded', 'false');
   await expect
-    .element(first.getByText('Step 01 line 1', { exact: true }))
-    .toBeVisible();
-  const far = page
-    .getByRole('group', { name: /^Code: Step \d+$/ })
-    .filter({ hasText: 'step-30.md' });
-  await expect.element(far).toBeInTheDocument();
-  await expect
-    .element(far.getByRole('region', { name: /^Step \d+: branch$/ }))
+    .element(distantStep.getByText('Step 30 line 1', { exact: true }))
     .not.toBeInTheDocument();
-  await far.getByText('step-30.md', { exact: true }).click();
+  await distantDiff.click();
   await expect
-    .element(far.getByText('Step 30 line 1', { exact: true }))
+    .element(distantStep.getByText('Step 30 line 1', { exact: true }))
     .toBeVisible();
 });
 
-test('a deferred step loads its code once it becomes visible without a scroll', async ({
+test('a newly visible distant step keeps its diff collapsed until opened', async ({
   repo,
   codingTool,
   render,
@@ -1096,16 +1106,19 @@ test('a deferred step loads its code once it becomes visible without a scroll', 
     await page
       .getByRole('button', { name: 'Write walkthrough', exact: true })
       .click();
-    const far = page
-      .getByRole('group', { name: /^Code: Step \d+$/ })
-      .filter({ hasText: 'wide-26.md' });
-    await expect.element(far).toBeInTheDocument();
-    await expect
-      .element(far.getByRole('region', { name: /^Step \d+: branch$/ }))
-      .not.toBeInTheDocument();
+    const distantStep = page.getByRole('article', { name: /wide-26\.md/ });
+    const distantDiff = distantStep.getByRole('button', {
+      name: /^Full diff of this step/,
+    });
+    await expect.element(distantDiff).toHaveAttribute('aria-expanded', 'false');
     await browserPage.viewport(1280, 30000);
+    await expect.element(distantDiff).toBeInViewport();
     await expect
-      .element(far.getByText('Wide 26 line', { exact: true }))
+      .element(distantStep.getByText('Wide 26 line', { exact: true }))
+      .not.toBeInTheDocument();
+    await distantDiff.click();
+    await expect
+      .element(distantStep.getByText('Wide 26 line', { exact: true }))
       .toBeVisible();
   } finally {
     await browserPage.viewport(414, 896);

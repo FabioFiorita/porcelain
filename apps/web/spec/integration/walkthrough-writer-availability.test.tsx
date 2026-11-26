@@ -30,7 +30,10 @@ test('an unwritten walkthrough offers one action: checking writers until one is 
     .click();
   await expect
     .element(
-      page.getByText('Since main · Claude / Opus 5.5 · high', { exact: true }),
+      page.getByRole('button', {
+        name: 'Writer: Claude / Opus 5.5 · high',
+        exact: true,
+      }),
     )
     .toBeVisible();
   await expect.element(write).toBeEnabled();
@@ -171,7 +174,12 @@ test('an unavailable project override opens its own settings and clearing it ena
     .toEqual({ mode: 'manual' });
   await expect.element(dialog).not.toBeInTheDocument();
   await expect
-    .element(page.getByText(/^Since .+ · Claude \/ Opus 5\.5 · high$/u))
+    .element(
+      page.getByRole('button', {
+        name: 'Writer: Claude / Opus 5.5 · high',
+        exact: true,
+      }),
+    )
     .toBeVisible();
   await expect.element(write).toBeEnabled();
 });

@@ -1,3 +1,4 @@
+import type { WorktreeParams } from '../shared/worktree-params.ts';
 import { Schema } from 'effect';
 import {
   commentSideSchema,
@@ -24,7 +25,7 @@ const title = Schema.String.check(
   Schema.isMaxLength(MAX_TITLE_LENGTH),
 );
 
-export const commentAnchorRequestSchema = Schema.Union([
+const commentAnchorRequestSchema = Schema.Union([
   Schema.Struct({
     kind: Schema.Literal('lines'),
     path: relativePathSchema,
@@ -42,7 +43,7 @@ export const commentParamsSchema = Schema.Struct({
   ...worktreeParamsSchema.fields,
   commentId: Schema.String.check(Schema.isMinLength(1)),
 });
-export type CommentParams = typeof commentParamsSchema.Type;
+type CommentParams = typeof commentParamsSchema.Type;
 
 export const addCommentRequestSchema = Schema.Struct({
   anchor: commentAnchorRequestSchema,
@@ -51,7 +52,7 @@ export const addCommentRequestSchema = Schema.Struct({
 export type AddCommentRequest = typeof addCommentRequestSchema.Type;
 
 export const editCommentRequestSchema = Schema.Struct({ text: commentText });
-export type EditCommentRequest = typeof editCommentRequestSchema.Type;
+type EditCommentRequest = typeof editCommentRequestSchema.Type;
 
 export const commentsResponseSchema = Schema.Struct({
   branch: Schema.String,
@@ -99,3 +100,9 @@ export type PublishReviewResponse = typeof publishReviewResponseSchema.Type;
 export const ownerCommentsQuerySchema = Schema.Struct({
   path: Schema.String.check(Schema.isMinLength(1)),
 });
+export type OwnerCommentsQuery = typeof ownerCommentsQuerySchema.Type;
+
+export type ChangeCommentInput =
+  | (WorktreeParams & AddCommentRequest & { readonly kind: 'add' })
+  | (CommentParams & EditCommentRequest & { readonly kind: 'edit' })
+  | (CommentParams & { readonly kind: 'delete' });

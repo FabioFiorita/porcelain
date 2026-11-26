@@ -52,6 +52,7 @@ import {
 } from './pull-request-checks';
 import { PullRequestDecision } from './pull-request-decision';
 import { PullRequestComposer } from './pull-request-composer';
+import { readWalkthroughMergeReview } from '@porcelain/client/walkthroughs';
 import { PullRequestReviewNotes } from './pull-request-review-notes';
 import { pullRequestCheckFocus } from '../store';
 import { PublishReviewButton } from '@/features/comments/index';
@@ -632,6 +633,16 @@ function PullRequestLive({
     if (status) void rerun.rerun(status, target, keys);
   };
   const standing = useBranchStanding(connection, checkout);
+  const review = useAtomValue(
+    readWalkthroughMergeReview(
+      checkout && standing.walkthrough
+        ? { connection, scope: checkout, ...standing.walkthrough }
+        : undefined,
+    ),
+  );
+  const headSha = status?.headSha ?? pull.headSha;
+  const call =
+    review?.headOid === headSha ? review.undecidedCallStep : undefined;
   const blockers = status ? pullRequestBlockers(status, pull.baseBranch) : [];
   const openStep = onOpen
     ? (step: number) => onOpen({ kind: 'walkthrough-step', step })
@@ -664,13 +675,14 @@ function PullRequestLive({
               }
             : undefined
         }
+        review={review}
         changedSinceReview={standing.changedSinceReview}
         notes={
           checkout && (
             <PullRequestReviewNotes
               checkout={checkout}
               context={context}
-              walkthrough={standing.walkthrough}
+              undecidedCallStep={call}
               onOpenStep={openStep}
             />
           )

@@ -16,7 +16,6 @@ export {
   type ReadPreviewFileQuery,
   type ReadFileAssetResponse,
   type ReadPreviewAssetsRequest,
-  type ReadPreviewAssetsResponse,
   type ReadTextFileQuery,
   type ReadTextFileResponse,
 } from './files.ts';

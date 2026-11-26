@@ -4,7 +4,9 @@ import { Atom, AsyncResult } from 'effect/reactivity';
 import {
   readProjectPullRequest,
   readProjectPullRequests,
+  readProjectPullStatus,
 } from '@porcelain/client/projects';
+import { withPullRequestStatus } from '@porcelain/client/projects/rules';
 import type { WalkthroughRun } from '@porcelain/client/walkthroughs/rules';
 import {
   pullRequestCheckFocus,
@@ -15,6 +17,10 @@ const noPull = Atom.make(
   AsyncResult.initial<
     Atom.Success<ReturnType<typeof readProjectPullRequest>>
   >(),
+);
+
+const noStatus = Atom.make(
+  AsyncResult.initial<Atom.Success<ReturnType<typeof readProjectPullStatus>>>(),
 );
 
 export function useWalkthroughPull(
@@ -48,10 +54,29 @@ export function useWalkthroughPull(
       ),
     ),
   );
+  const statusRead = Option.getOrUndefined(
+    AsyncResult.value(
+      useAtomValue(
+        pull
+          ? readProjectPullStatus({
+              connection,
+              projectId,
+              number: pull.number,
+            })
+          : noStatus,
+      ),
+    ),
+  );
   if (!pull) return undefined;
+  const status =
+    statusRead?.kind === 'available' ? statusRead.status : undefined;
   return {
     number: pull.number,
-    detail: read?.kind === 'available' ? read.pullRequest : undefined,
+    detail:
+      read?.kind === 'available'
+        ? withPullRequestStatus(read.pullRequest, status)
+        : undefined,
+    status,
     openCheck: (name: string | undefined) => {
       focus(
         name === undefined

@@ -41,7 +41,9 @@ function FileCommentDialog({
     >
       <DialogContent className="sm:max-w-[min(92vw,34rem)]">
         <DialogHeader>
-          <DialogTitle className="font-mono text-ui">{path}</DialogTitle>
+          <DialogTitle>
+            <span className="font-mono text-ui">{path}</span>
+          </DialogTitle>
         </DialogHeader>
         {path !== undefined && (
           <CommentThread
@@ -71,11 +73,7 @@ export function useFileComments(owner: CommentOwner) {
           <span className="min-w-0 flex-1">
             {count === 1 ? '1 comment' : `${count} comments`} not posted
           </span>
-          <Button
-            size="xs"
-            variant="ghost"
-            onClick={() => setListOpen(true)}
-          >
+          <Button size="xs" variant="ghost" onClick={() => setListOpen(true)}>
             Review and publish
           </Button>
         </div>

@@ -13,7 +13,7 @@ async function ready(page: Page) {
   await expect
     .element(
       page.getByRole('heading', {
-        name: 'Find notes by title. One call is yours.',
+        name: 'Find notes by title',
         exact: true,
       }),
     )
@@ -48,50 +48,36 @@ test('a call shows its comparison as a table, and each excerpt opens its own sav
     .toBeVisible();
 
   const first = stepItem(page, 'Choose the empty search behavior');
-  await expect
-    .element(first.getByText('src/search.ts · New line 2', { exact: true }))
-    .toBeVisible();
-  const lines = first.getByRole('button', {
-    name: 'See the lines',
-    exact: true,
-  });
-  await expect
-    .element(first.getByText('src/labels.ts · New line 1', { exact: true }))
-    .toBeVisible();
-  await lines.nth(1).click();
-  const dialog = page.getByRole('dialog', {
-    name: 'Captured diff',
-    exact: true,
-  });
-  await expect
-    .element(dialog.getByText('src/labels.ts · New line 1', { exact: true }))
-    .toBeVisible();
+  const labels = 'src/labels.ts · New line 1';
+  const search = 'src/search.ts · New line 2';
+  const labelLine = first.getByText(LABEL_LINE, { exact: true });
+  const filterLine = first.getByText(FILTER_LINE, { exact: true });
+  const hide = (location: string) =>
+    first.getByRole('button', {
+      name: `Hide the lines: ${location}`,
+      exact: true,
+    });
+  const show = (location: string) =>
+    first.getByRole('button', {
+      name: `Show the lines: ${location}`,
+      exact: true,
+    });
+  await expect.element(labelLine).toBeVisible();
+  await expect.element(filterLine).toBeVisible();
   await expect
     .element(
-      dialog.getByText('An empty list gets its own words.', { exact: true }),
+      first.getByText('An empty list gets its own words.', { exact: true }),
     )
     .toBeVisible();
-  await expect
-    .element(dialog.getByText(LABEL_LINE, { exact: true }))
-    .toBeVisible();
-  await userEvent.keyboard('{Escape}');
-  await expect.element(dialog).not.toBeInTheDocument();
-  await expect.element(lines.nth(1)).toHaveFocus();
-
-  await lines.first().click();
-  await expect
-    .element(dialog.getByText('src/search.ts · New line 2', { exact: true }))
-    .toBeVisible();
-  await expect
-    .element(dialog.getByText(FILTER_LINE, { exact: true }))
-    .toBeVisible();
-  await expect
-    .element(dialog.getByText(LABEL_LINE, { exact: true }))
-    .not.toBeInTheDocument();
-  await dialog
-    .getByRole('button', { name: 'Back to step', exact: true })
-    .click();
-  await expect.element(lines.first()).toHaveFocus();
+  await hide(labels).click();
+  await expect.element(labelLine).not.toBeInTheDocument();
+  await expect.element(filterLine).toBeVisible();
+  await expect.element(show(labels)).toHaveFocus();
+  await hide(search).click();
+  await expect.element(filterLine).not.toBeInTheDocument();
+  await show(labels).click();
+  await expect.element(labelLine).toBeVisible();
+  await expect.element(filterLine).not.toBeInTheDocument();
 });
 
 test('files open the file, checks list their results, and screenshots come as a before and after pair', async ({
@@ -196,7 +182,7 @@ test('a deleted file opens the comparison that shows its deletion', async ({
   });
   await files
     .getByRole('button', {
-      name: 'src/legacy.ts Removed in the branch.',
+      name: /^src\/legacy\.ts\b/,
       exact: true,
     })
     .click();
@@ -206,7 +192,7 @@ test('a deleted file opens the comparison that shows its deletion', async ({
   await page.getByRole('tab', { name: 'Review', exact: true }).click();
   await files
     .getByRole('button', {
-      name: 'src/obsolete.ts Removed locally.',
+      name: /^src\/obsolete\.ts\b/,
       exact: true,
     })
     .click();
@@ -225,7 +211,7 @@ test('a file trimmed in the index and then deleted opens on its deletion', async
   await stepItem(page, 'Retire the old helpers')
     .getByRole('list', { name: 'Files', exact: true })
     .getByRole('button', {
-      name: 'src/drafts.ts Trimmed, then removed.',
+      name: /^src\/drafts\.ts\b/,
       exact: true,
     })
     .click();
@@ -260,14 +246,14 @@ test('a cited local file opens while the branch is still being compared', async 
     await expect
       .element(
         files.getByRole('button', {
-          name: 'src/legacy.ts Removed in the branch.',
+          name: /^src\/legacy\.ts\b/,
           exact: true,
         }),
       )
       .toBeDisabled();
     await files
       .getByRole('button', {
-        name: 'notes/scratch.md A new note.',
+        name: /^notes\/scratch\.md\b/,
         exact: true,
       })
       .click();

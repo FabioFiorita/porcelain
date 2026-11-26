@@ -2,9 +2,9 @@ import { Clock, Effect, Option, Queue, Stream } from 'effect';
 import { Atom } from 'effect/reactivity';
 import type { ReadPullStatusResponse } from '@porcelain/contracts/projects';
 import type { RuntimeConnection } from '../../../shared/api/connection.ts';
-import { requestApi } from '../../../shared/api/client.ts';
 import { clientRuntime } from '../../../shared/api/runtime.ts';
 import { queryKeys } from '../../../shared/api/query-keys.ts';
+import { readProjectPullStatus } from './pull-requests.ts';
 import type { PageActivity } from '../ports/page-activity.ts';
 import { requestedReruns } from '../store/pull-request-reruns.ts';
 import {
@@ -54,11 +54,16 @@ export const watchProjectPullStatus = Atom.family(
             number: input.number,
           }),
         );
-        const read = requestApi(input.connection, (api) =>
-          api.pullRequests.readProjectPullStatus({
-            params: { projectId: input.projectId, number: input.number },
-          }),
-        );
+        const query = readProjectPullStatus({
+          connection: input.connection,
+          projectId: input.projectId,
+          number: input.number,
+        });
+        const read = Effect.suspend(() => {
+          if (get.registry.getNodes().has(query) && !get.once(query).waiting)
+            get.refresh(query);
+          return get.resultOnce(query, { suspendOnWaiting: true });
+        });
         return Stream.callback((queue: Queue.Queue<PullStatusWatch, unknown>) =>
           Effect.gen(function* () {
             let delay: number | undefined;

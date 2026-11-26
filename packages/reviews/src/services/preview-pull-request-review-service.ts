@@ -1,9 +1,6 @@
 import { Context, Effect, Layer } from 'effect';
 import type { GitHubReadError } from '../errors/github-read-error.ts';
-import type {
-  DraftCommentView,
-  ReviewPlan,
-} from '../models/draft-comment.ts';
+import type { DraftCommentView, ReviewPlan } from '../models/draft-comment.ts';
 import type { GitHubRepository } from '../models/pull-request.ts';
 import { PullRequestReviewer } from '../ports/pull-request-reviewer.ts';
 import { planPullRequestReview } from '../rules/draft-comments.ts';

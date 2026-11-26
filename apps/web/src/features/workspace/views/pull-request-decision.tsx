@@ -2,6 +2,8 @@ import type { ReactNode } from 'react';
 import { FileDiffIcon } from 'lucide-react';
 import {
   pullRequestMergeable,
+  withPullRequestStatus,
+  type PullRequestMergeReview,
   type MergeBlocker,
   type PullRequestRead,
   type PullStatus,
@@ -55,6 +57,7 @@ export function PullRequestDecision({
   blockers,
   walkthrough,
   changedSinceReview,
+  review,
   notes,
   onOpenFile,
   onFocusCheck,
@@ -66,22 +69,12 @@ export function PullRequestDecision({
   projectId: string;
   blockers: readonly MergeBlocker[];
   walkthrough: WalkthroughStanding | undefined;
+  review: PullRequestMergeReview | undefined;
   changedSinceReview: readonly string[];
   onOpenFile: ((path: string) => void) | undefined;
   onFocusCheck: (key: string) => void;
 }) {
-  const live = status
-    ? {
-        ...pull,
-        state: status.state,
-        draft: status.draft,
-        headSha: status.headSha,
-        mergeable: status.mergeable,
-        checks: status.checks,
-        checksTruncated: status.checksTruncated,
-        checksSummary: status.checksSummary,
-      }
-    : pull;
+  const live = withPullRequestStatus(pull, status);
   const mergeable = pullRequestMergeable(live.mergeable);
   const staleWalkthrough =
     walkthrough !== undefined && walkthrough.headOid !== live.headSha;
@@ -203,7 +196,12 @@ export function PullRequestDecision({
           context={context}
           projectId={projectId}
           pull={live}
-          showBlock={status === undefined}
+          review={review}
+          showBlock={
+            status === undefined ||
+            review?.undecidedCallStep === 'reading' ||
+            review?.undecidedCallStep === 'unreadable'
+          }
           className={cn('mt-2 border-t pt-3')}
         />
       )}

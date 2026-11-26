@@ -1,9 +1,14 @@
-import { Effect } from 'effect';
-import { Atom } from 'effect/reactivity';
+import { Effect, Option } from 'effect';
+import { AsyncResult, Atom } from 'effect/reactivity';
 import type { WorktreeSelection } from '../../../shared/api/connection.ts';
 import { requestApi } from '../../../shared/api/client.ts';
 import { clientRuntime } from '../../../shared/api/runtime.ts';
 import { retainRead, worktreeRead } from '../../../shared/api/worktree-read.ts';
+
+import {
+  undecidedCallStep,
+  type WalkthroughContent,
+} from '../rules/walkthrough.ts';
 
 const readConversationsSnapshot = Effect.fn('Walkthroughs.readConversations')(
   function* ({
@@ -28,4 +33,36 @@ export const readWalkthroughConversations = Atom.family(
       readConversationsSnapshot(selection),
       clientRuntime(selection.connection),
     ).pipe(retainRead),
+);
+
+type MergeReviewSelection = WorktreeSelection & {
+  runId: string;
+  headOid: string;
+  content: WalkthroughContent;
+};
+
+export const readWalkthroughMergeReview = Atom.family(
+  (selection: MergeReviewSelection | undefined) =>
+    Atom.make((get) => {
+      if (!selection) return undefined;
+      const result = get(
+        readWalkthroughConversations({
+          connection: selection.connection,
+          scope: {
+            projectId: selection.scope.projectId,
+            worktreeId: selection.scope.worktreeId,
+          },
+          runId: selection.runId,
+        }),
+      );
+      const view = Option.getOrUndefined(AsyncResult.value(result));
+      return {
+        headOid: selection.headOid,
+        undecidedCallStep: undecidedCallStep(
+          selection.content,
+          view?.decisions,
+          AsyncResult.isFailure(result),
+        ),
+      };
+    }),
 );

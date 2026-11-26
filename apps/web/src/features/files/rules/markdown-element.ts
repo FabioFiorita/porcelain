@@ -3,12 +3,12 @@ import {
   type RepositoryReference,
 } from '@porcelain/client/links/rules';
 
-export type MarkdownProps = Record<
+type MarkdownProps = Record<
   string,
   string | number | boolean | { textAlign: string }
 >;
 
-export type MarkdownRole =
+type MarkdownRole =
   | 'alert-note'
   | 'alert-tip'
   | 'alert-important'

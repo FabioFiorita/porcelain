@@ -18,22 +18,24 @@ export class EditDraftCommentService extends Context.Service<
       const store = yield* DraftCommentStore;
       const clock = yield* Clock.Clock;
       return {
-        execute: Effect.fn('EditDraftCommentService.execute')(function* (input) {
-          const found = yield* store.find(input);
-          if (!found) return yield* new DraftCommentNotFoundError();
-          if (input.text === undefined) {
-            yield* store.remove(input);
-            return;
-          }
-          yield* store.updateText({
-            worktreeId: input.worktreeId,
-            id: input.id,
-            text: input.text,
-            updatedAt: DateTime.formatIso(
-              DateTime.makeUnsafe(yield* clock.currentTimeMillis),
-            ),
-          });
-        }),
+        execute: Effect.fn('EditDraftCommentService.execute')(
+          function* (input) {
+            const found = yield* store.find(input);
+            if (!found) return yield* new DraftCommentNotFoundError();
+            if (input.text === undefined) {
+              yield* store.remove(input);
+              return;
+            }
+            yield* store.updateText({
+              worktreeId: input.worktreeId,
+              id: input.id,
+              text: input.text,
+              updatedAt: DateTime.formatIso(
+                DateTime.makeUnsafe(yield* clock.currentTimeMillis),
+              ),
+            });
+          },
+        ),
       };
     }),
   );

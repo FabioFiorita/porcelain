@@ -61,7 +61,7 @@ export const walkthroughCallParamsSchema = Schema.Struct({
     Schema.isGreaterThanOrEqualTo(0),
   ),
 });
-export type WalkthroughCallParams = typeof walkthroughCallParamsSchema.Type;
+type WalkthroughCallParams = typeof walkthroughCallParamsSchema.Type;
 export const decideWalkthroughCallRequestSchema = Schema.Union([
   Schema.Struct({ decided: Schema.Literal(false) }),
   Schema.Struct({
