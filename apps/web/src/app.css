@@ -106,6 +106,7 @@
   --font-heading: var(--font-sans);
   --font-sans: 'Geist Variable', 'Geist Fallback', sans-serif;
   --font-mono: 'Geist Mono Variable', 'Geist Mono Fallback', monospace;
+  --color-selection: var(--selection);
 }
 
 :root {
@@ -194,6 +195,26 @@
   font-size: 0.875rem;
 }
 
+[data-scroll-strip] {
+  --strip-start: 0px;
+  --strip-end: 0px;
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 var(--strip-start),
+    #000 calc(100% - var(--strip-end)),
+    transparent
+  );
+}
+
+[data-scroll-strip]:not([data-at-x-start]) {
+  --strip-start: 1.25rem;
+}
+
+[data-scroll-strip]:not([data-at-x-end]) {
+  --strip-end: 1.25rem;
+}
+
 [data-slot='toast-viewport'] {
   z-index: 60;
 }
@@ -215,6 +236,7 @@
 }
 
 :root {
+  --selection: var(--brand-soft);
   --workspace-stage: var(--muted);
   --workspace-selected: var(--background);
   --workspace-glass: var(--sidebar);

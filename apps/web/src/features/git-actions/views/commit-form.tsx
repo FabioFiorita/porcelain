@@ -185,6 +185,7 @@ export function CommitForm(
           <Button
             type="button"
             variant="outline"
+            className="self-start"
             disabled={working}
             onClick={form.lookAgain}
           >
@@ -192,12 +193,18 @@ export function CommitForm(
           </Button>
         )}
       {git.operation && !working && (
-        <Button type="button" variant="outline" onClick={form.checkOutcome}>
+        <Button
+          type="button"
+          variant="outline"
+          className="self-start"
+          onClick={form.checkOutcome}
+        >
           Check outcome
         </Button>
       )}
       <Button
         type="submit"
+        className="self-end"
         aria-description={writeBlock}
         disabled={
           Boolean(writeBlock) ||

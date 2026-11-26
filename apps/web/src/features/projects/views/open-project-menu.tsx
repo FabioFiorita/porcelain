@@ -62,7 +62,7 @@ export function OpenProjectMenu({
         </TooltipTrigger>
         <TooltipContent role="tooltip">Open project</TooltipContent>
       </Tooltip>
-      <DropdownMenuContent align="end" className="w-56">
+      <DropdownMenuContent align="end">
         <DropdownMenuGroup>
           <DropdownMenuLabel>Open project on</DropdownMenuLabel>
           <DropdownMenuItem onSelect={() => openProject(null)}>

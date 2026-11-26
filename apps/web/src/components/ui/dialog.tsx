@@ -179,7 +179,10 @@ function DialogTitle({
   return (
     <DialogTitlePrimitive
       data-slot="dialog-title"
-      className={cn('font-heading text-sm font-medium', className)}
+      className={cn(
+        'font-heading text-sm font-medium [overflow-wrap:anywhere]',
+        className,
+      )}
       {...props}
     />
   );

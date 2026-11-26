@@ -459,8 +459,8 @@ export function ProjectNavigator({
                               data-navigator-card=""
                               className={
                                 active
-                                  ? 'relative rounded-md bg-card'
-                                  : 'relative rounded-md hover:bg-card'
+                                  ? 'relative rounded-md bg-selection'
+                                  : 'relative rounded-md hover:bg-accent'
                               }
                             >
                               <TruncatedText
@@ -574,11 +574,9 @@ export function ProjectNavigator({
             </Empty>
           )}
           {!loading && projects.length === 0 && !neverRead && (
-            <Empty>
-              <EmptyHeader>
-                <EmptyTitle>{emptyTitle}</EmptyTitle>
-              </EmptyHeader>
-            </Empty>
+            <p className="px-4 py-3 text-xs text-muted-foreground">
+              {emptyTitle}
+            </p>
           )}
         </SidebarContent>
         <footer

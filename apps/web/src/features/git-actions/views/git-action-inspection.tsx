@@ -274,7 +274,7 @@ function ActionForm({
         {action === 'stash-create' && (
           <p className="text-xs text-muted-foreground">
             {option
-              ? 'Tracked changes and new files are set aside. The handoff stays empty until you restore the stash.'
+              ? 'Tracked changes and new files are set aside until you pop the stash.'
               : 'Tracked changes are set aside. New files stay in the worktree.'}
           </p>
         )}
@@ -351,6 +351,7 @@ function ActionForm({
         <Button
           type="button"
           variant="outline"
+          className="self-start"
           disabled={busy}
           onClick={git.lookAgain}
         >
@@ -358,12 +359,18 @@ function ActionForm({
         </Button>
       )}
       {git.operation && !busy && !stale && (
-        <Button type="button" variant="outline" onClick={git.checkOutcome}>
+        <Button
+          type="button"
+          variant="outline"
+          className="self-start"
+          onClick={git.checkOutcome}
+        >
           Check outcome
         </Button>
       )}
       <Button
         type="submit"
+        className="self-end"
         aria-description={writeBlock}
         disabled={Boolean(writeBlock) || busy || uncertain || stale}
       >

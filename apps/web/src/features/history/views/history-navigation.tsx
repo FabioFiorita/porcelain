@@ -35,7 +35,10 @@ export function HistoryNavigation({
   onOpenGraph: () => void;
   onOpenChanges: () => void;
 }) {
-  const { history, overview, tracking } = useHistoryOverview(connection, scope);
+  const { history, overview, overviewPending, tracking } = useHistoryOverview(
+    connection,
+    scope,
+  );
   const uncommitted = overview?.changes.length ?? 0;
   const scroll = useHistoryScroll(
     historyPlace({ connection, scope, kind: 'commits' }),
@@ -71,9 +74,8 @@ export function HistoryNavigation({
             </button>
           </div>
         )}
-        {history.commits.length === 0 ? (
-          <NoCommits />
-        ) : (
+        {!overviewPending && history.commits.length === 0 && <NoCommits />}
+        {!overviewPending && history.commits.length > 0 && (
           <GraphRows
             label="Commits"
             layout="stacked"

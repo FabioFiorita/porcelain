@@ -31,9 +31,9 @@ export function RecentHistory({
   const commits = history.commits.slice(0, RECENT_COMMIT_ROWS);
   return (
     <div className="flex flex-col gap-5">
-      <section aria-label="Branch" className="flex flex-col gap-2 px-2">
-        <BranchTracking tracking={tracking} />
-        {status}
+      <section aria-label="Branch" className="flex flex-col gap-3 px-2">
+        <BranchTracking tracking={tracking} title />
+        <div className="pl-6">{status}</div>
       </section>
       {commits.length > 0 && (
         <section

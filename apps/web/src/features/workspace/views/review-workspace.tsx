@@ -250,10 +250,13 @@ export function ReviewWorkspace({
     browseTrigger.attach(trigger);
     showSurface(next);
   };
+  const changeScope =
+    search.scope ??
+    (firstDocument.guided && !onlyUncommitted ? 'branch' : 'uncommitted');
   const changes: PaneContext['changes'] = {
-    scope:
-      search.scope ??
-      (firstDocument.guided && !onlyUncommitted ? 'branch' : 'uncommitted'),
+    scope: changeScope,
+    baseInPanel:
+      desktop && panelOpen && surface === 'changes' && changeScope === 'branch',
     onScope: (next) => onSearch({ scope: next }),
     onBase: (next) => onSearch({ base: next }),
   };
@@ -452,6 +455,7 @@ type PaneContext = ReviewContentProps & {
   base: string | undefined;
   changes: {
     scope: ChangeScope;
+    baseInPanel: boolean;
     onScope: (scope: ChangeScope) => void;
     onBase: (base: string | undefined) => void;
   };
@@ -712,36 +716,40 @@ function PaneView({
               aria-label="Document controls"
               className="flex items-center gap-1 empty:hidden"
             >
-              {activeDocument?.kind === 'branch' && !firstDocument.guided && (
-                <BranchBasePicker
-                  scope={scope}
-                  connection={context.connection}
-                  base={base}
-                  onBase={changes.onBase}
-                  compact
-                />
-              )}
+              {activeDocument?.kind === 'branch' &&
+                !firstDocument.guided &&
+                !changes.baseInPanel && (
+                  <BranchBasePicker
+                    scope={scope}
+                    connection={context.connection}
+                    base={base}
+                    onBase={changes.onBase}
+                    compact
+                  />
+                )}
             </div>
             {(!split || index === 1) && tabControls(index)}
           </>
         }
       />
-      {activeDocument?.kind === 'branch-file' && !firstDocument.guided && (
-        <div
-          role="group"
-          aria-label="Branch comparison"
-          className="flex items-center gap-2 border-b px-3.5 py-2 text-xs text-muted-foreground"
-        >
-          <span>Branch comparison</span>
-          <BranchBasePicker
-            scope={scope}
-            connection={context.connection}
-            base={base}
-            onBase={changes.onBase}
-            compact
-          />
-        </div>
-      )}
+      {activeDocument?.kind === 'branch-file' &&
+        !firstDocument.guided &&
+        !changes.baseInPanel && (
+          <div
+            role="group"
+            aria-label="Branch comparison"
+            className="flex items-center gap-2 border-b px-3.5 py-2 text-xs text-muted-foreground"
+          >
+            <span>Branch comparison</span>
+            <BranchBasePicker
+              scope={scope}
+              connection={context.connection}
+              base={base}
+              onBase={changes.onBase}
+              compact
+            />
+          </div>
+        )}
       {[
         {
           slot: REVIEW_TAB,

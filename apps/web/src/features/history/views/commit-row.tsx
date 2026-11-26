@@ -89,13 +89,12 @@ export function CommitRow({
           <div
             style={{ height, paddingLeft: inset }}
             className={cn(
-              'relative flex w-full rounded-lg px-2 text-left transition-colors hover:bg-accent',
+              'relative flex w-full rounded-lg px-2 text-left transition-colors hover:bg-accent has-[button:focus-visible]:ring-2 has-[button:focus-visible]:ring-ring/60',
               layout === 'stacked'
                 ? 'flex-col justify-center gap-0.5'
                 : 'items-center gap-3',
               height === undefined && 'py-1.5',
-              selected && 'bg-muted ring-1 ring-border ring-inset',
-              head && 'bg-muted ring-1 ring-border ring-inset',
+              selected && 'bg-selection hover:bg-selection',
             )}
           />
         }
@@ -106,7 +105,7 @@ export function CommitRow({
               type="button"
               aria-pressed={selected}
               onClick={select}
-              className="block min-w-0 flex-1 text-left before:absolute before:inset-0 before:rounded-lg"
+              className="block min-w-0 flex-1 text-left outline-none before:absolute before:inset-0 before:rounded-lg"
             >
               {subject}
               <span
@@ -143,7 +142,7 @@ export function CommitRow({
                 type="button"
                 aria-pressed={selected}
                 onClick={select}
-                className="flex min-w-0 items-center text-left before:absolute before:inset-0 before:rounded-lg"
+                className="flex min-w-0 items-center text-left outline-none before:absolute before:inset-0 before:rounded-lg"
               >
                 {subject}
                 <span className="sr-only">
@@ -162,7 +161,7 @@ export function CommitRow({
               </div>
             </div>
             <TruncatedText
-              className="hidden w-28 shrink-0 text-xs text-muted-foreground @2xl/graph:block"
+              className="hidden w-28 shrink-0 text-xs text-muted-foreground @2xl/graph:block @3xl/graph:w-40"
               text={commit.author.name}
             />
             <span

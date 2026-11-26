@@ -11,7 +11,8 @@ import {
   useRefreshGitLook,
   useReviewOverview,
 } from '@/features/changes/index';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { cn } from '@/shared/lib/utils';
 import { ButtonGroup } from '@/components/ui/button-group';
 import {
   Dialog,
@@ -150,7 +151,26 @@ export function GitButton({
     refreshLook,
     onLooked: setOpenedStatus,
   });
-  if (overview === null || overview === undefined) return null;
+  if (overview === null || overview === undefined)
+    return (
+      <span aria-hidden="true" className="invisible flex shrink-0">
+        <span
+          className={cn(
+            buttonVariants({ variant: 'outline' }),
+            'rounded-r-none @max-lg/pane:w-7 @max-lg/pane:px-0',
+          )}
+        >
+          <GitActionIcon action="commit" className="size-3.5" />
+          <span className="hidden @min-lg/pane:inline">Commit</span>
+        </span>
+        <span
+          className={cn(
+            buttonVariants({ variant: 'outline', size: 'icon' }),
+            'rounded-l-none border-l-0',
+          )}
+        />
+      </span>
+    );
   const status = {
     ...statusFromChanges(overview),
     branch: shownBranch(
@@ -257,7 +277,7 @@ export function GitButton({
                   )}
                 </PopoverHeader>
               ) : (
-                <>
+                <div className="flex flex-col gap-2.5">
                   <PopoverTitle>
                     {running ? `${networkLabel(running.name)}…` : 'Git action…'}
                   </PopoverTitle>
@@ -284,13 +304,14 @@ export function GitButton({
                   {running && (
                     <PendingButton
                       variant="outline"
+                      className="self-start"
                       pending={running.checking}
                       onClick={menu.checkOutcome}
                     >
                       Check outcome
                     </PendingButton>
                   )}
-                </>
+                </div>
               )}
             </PopoverContent>
           </Popover>
@@ -461,9 +482,11 @@ export function GitButton({
             {selected?.id !== 'commit' && selected?.id !== 'amend' && (
               <DialogHeader>
                 <DialogTitle>{selected?.label ?? 'Git action'}</DialogTitle>
-                <DialogDescription>
-                  {stashDescription(selected?.id)}
-                </DialogDescription>
+                {selected?.id !== 'stash-create' && (
+                  <DialogDescription>
+                    {stashDescription(selected?.id)}
+                  </DialogDescription>
+                )}
               </DialogHeader>
             )}
             <GitActionInspection

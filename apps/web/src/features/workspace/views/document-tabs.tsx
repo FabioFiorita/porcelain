@@ -47,7 +47,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import {
   ScrollAreaRoot,
-  ScrollAreaViewport,
+  ScrollStripViewport,
   ScrollBar,
 } from '@/components/ui/scroll-area';
 import { shortOid } from '@porcelain/client/history/rules';
@@ -230,7 +230,7 @@ export function DocumentTabs({
           </span>
         )}
         <ScrollAreaRoot className="@container/tabs relative h-full min-w-0 flex-1">
-          <ScrollAreaViewport
+          <ScrollStripViewport
             data-tab-viewport=""
             className="size-full overflow-y-hidden"
             ref={(viewport) => {
@@ -298,7 +298,7 @@ export function DocumentTabs({
                   );
                 })}
             </div>
-          </ScrollAreaViewport>
+          </ScrollStripViewport>
           <ScrollBar
             orientation="horizontal"
             className="absolute inset-x-0 bottom-0 data-horizontal:h-1.5"
@@ -326,10 +326,7 @@ export function DocumentTabs({
             </TooltipTrigger>
             <TooltipContent>Open document list</TooltipContent>
           </Tooltip>
-          <DropdownMenuContent
-            align="end"
-            className="w-auto max-w-[min(28rem,90vw)] min-w-56"
-          >
+          <DropdownMenuContent align="end">
             <DropdownMenuRadioGroup
               value={active ?? ''}
               onValueChange={(key: unknown) => {
@@ -437,10 +434,10 @@ function DocumentTab({
                   aria-label={commitSubject ? tabTitle : accessibleName}
                   data-entry={tabKey}
                   className={cn(
-                    'group flex h-7 min-w-0 max-w-[min(100cqw,calc(var(--spacing)*45))] cursor-default items-center gap-1.5 rounded-md px-2 text-xs font-medium transition-colors',
+                    'group flex h-7 min-w-0 max-w-[min(100cqw,calc(var(--spacing)*45))] cursor-default items-center gap-1.5 rounded-md px-2 text-xs font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/60',
                     active
                       ? 'bg-muted text-foreground ring-1 ring-border ring-inset'
-                      : 'text-muted-foreground hover:bg-accent/50',
+                      : 'text-muted-foreground hover:bg-accent hover:text-foreground',
                     active && !permanentTab(tabKey) && !pinned && 'pr-0.5',
                   )}
                   onClick={() => onActivate(tabKey)}
@@ -517,10 +514,7 @@ function DocumentTab({
         >
           {tabTitle}
         </TruncatedText>
-        <ContextMenuContent
-          className="min-w-52"
-          finalFocus={openingSide ? 'none' : 'trigger'}
-        >
+        <ContextMenuContent finalFocus={openingSide ? 'none' : 'trigger'}>
           <ContextMenuItem
             disabled={permanentTab(tabKey)}
             onSelect={() => onTogglePin(tabKey)}

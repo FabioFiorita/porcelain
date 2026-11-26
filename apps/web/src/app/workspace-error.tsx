@@ -11,9 +11,13 @@ export function WorkspaceError({ reset }: ErrorComponentProps) {
   useWorkspaceRetry(retry);
 
   return (
-    <StateFailure
-      description="Could not display the workspace."
-      onRetry={retry}
-    />
+    <div className="flex h-svh w-full bg-frame p-2">
+      <div className="grid min-w-0 flex-1 place-items-center rounded-paper border bg-card [&>[data-slot=state-notice]]:justify-center">
+        <StateFailure
+          description="Could not display the workspace."
+          onRetry={retry}
+        />
+      </div>
+    </div>
   );
 }

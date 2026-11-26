@@ -333,7 +333,7 @@ export function MarkAllReviewed({
           render={
             <Button
               type="button"
-              size={compact ? 'icon-xs' : 'xs'}
+              size={compact ? 'icon-xs' : 'sm'}
               variant="outline"
               disabled={disabled}
               aria-label={plan.label}

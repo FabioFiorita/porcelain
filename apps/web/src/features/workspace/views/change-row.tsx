@@ -16,7 +16,7 @@ import {
 import { SidebarActionMenu } from './sidebar-action-menu';
 
 export const ROW =
-  'flex h-7 w-full min-w-0 items-center gap-1.5 rounded-md px-2 text-left text-caption transition-colors hover:bg-accent aria-pressed:bg-accent aria-pressed:font-medium';
+  'flex h-7 w-full min-w-0 items-center gap-1.5 rounded-md px-2 text-left text-caption transition-colors outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring/60 aria-pressed:bg-selection aria-pressed:font-medium aria-pressed:text-foreground';
 
 export function ChangeRow({
   path,
@@ -121,7 +121,9 @@ export function ChangeRow({
               ROW,
               'flex-1 text-muted-foreground',
               indented && 'pl-7',
-              (active || current) && 'bg-accent font-medium text-foreground',
+              active
+                ? 'bg-selection font-medium text-foreground'
+                : current && 'bg-accent text-foreground',
             )}
             onClick={(event) => onOpen(document, { toSide: event.altKey })}
           >

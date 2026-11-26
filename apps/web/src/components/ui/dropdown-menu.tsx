@@ -20,7 +20,7 @@ import { pageRoot } from '@/components/ui/page-root';
 import { ChevronRightIcon, CheckIcon } from 'lucide-react';
 
 const contentClassName =
-  'max-h-(--available-height) min-w-32 origin-(--transform-origin) overflow-x-hidden overflow-y-auto rounded-lg p-1 text-xs text-popover-foreground shadow-md ring-1 ring-foreground/10 outline-none relative bg-popover/70 before:pointer-events-none before:absolute before:inset-0 before:-z-1 before:rounded-[inherit] before:backdrop-blur-2xl before:backdrop-saturate-150 **:data-[slot$=-item]:focus:bg-foreground/10 **:data-[slot$=-item]:data-highlighted:bg-foreground/10 **:data-[slot$=-separator]:bg-foreground/5 **:data-[slot$=-trigger]:focus:bg-foreground/10 **:data-[slot$=-trigger]:aria-expanded:bg-foreground/10! **:data-destructive:focus:bg-foreground/10! **:data-destructive:text-accent-foreground! **:data-destructive:**:text-accent-foreground!';
+  'max-h-(--available-height) w-max min-w-[max(var(--anchor-width,0px),--spacing(40))] max-w-[min(24rem,calc(100vw-1rem))] origin-(--transform-origin) overflow-x-hidden overflow-y-auto rounded-lg p-1 text-xs text-popover-foreground shadow-md ring-1 ring-foreground/10 outline-none relative bg-popover/70 before:pointer-events-none before:absolute before:inset-0 before:-z-1 before:rounded-[inherit] before:backdrop-blur-2xl before:backdrop-saturate-150 **:data-[slot$=-item]:focus:bg-foreground/10 **:data-[slot$=-item]:data-highlighted:bg-foreground/10 **:data-[slot$=-separator]:bg-foreground/5 **:data-[slot$=-trigger]:focus:bg-foreground/10 **:data-[slot$=-trigger]:aria-expanded:bg-foreground/10! **:data-destructive:focus:bg-foreground/10! **:data-destructive:text-accent-foreground! **:data-destructive:**:text-accent-foreground!';
 
 const choiceClassName =
   "relative flex min-h-7 cursor-default items-center gap-2 rounded-md py-1.5 pr-8 pl-2 text-xs outline-hidden select-none focus:bg-accent focus:text-accent-foreground focus:**:text-accent-foreground data-inset:pl-7.5 data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3.5";
@@ -73,7 +73,7 @@ function DropdownMenuContent({
       alignOffset={alignOffset}
       side={side}
       sideOffset={sideOffset}
-      className={cn('w-(--anchor-width)', contentClassName, className)}
+      className={cn(contentClassName, className)}
       {...props}
     />
   );
@@ -163,7 +163,7 @@ function DropdownMenuSubContent({
       alignOffset={alignOffset}
       side={side}
       sideOffset={sideOffset}
-      className={cn('w-auto', contentClassName, className)}
+      className={cn(contentClassName, className)}
       {...props}
     />
   );
@@ -254,7 +254,7 @@ function DropdownMenuShortcut({
     <span
       data-slot="dropdown-menu-shortcut"
       className={cn(
-        'ml-auto text-[0.625rem] tracking-widest text-muted-foreground group-focus/dropdown-menu-item:text-accent-foreground',
+        'ml-auto pl-6 text-xs text-muted-foreground tabular-nums group-focus/dropdown-menu-item:text-accent-foreground',
         className,
       )}
       {...props}

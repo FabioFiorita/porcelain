@@ -36,12 +36,12 @@ export function useHistoryOverview(
   scope: HistoryScope,
 ) {
   const history = useHistory(connection, scope);
-  const overview = Option.getOrUndefined(
-    AsyncResult.value(useReviewOverview(scope, connection)),
-  );
+  const overviewResult = useReviewOverview(scope, connection);
+  const overview = Option.getOrUndefined(AsyncResult.value(overviewResult));
   return {
     history,
     overview,
+    overviewPending: AsyncResult.isInitial(overviewResult),
     tracking: branchTracking(overview?.branch, history.snapshot),
   };
 }

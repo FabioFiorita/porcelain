@@ -1,5 +1,9 @@
 import { Component, type ReactNode, Suspense } from 'react';
-import { StateFailure, StateSpinner } from '@/shared/views/state-notice';
+import {
+  StateFailure,
+  StateNotice,
+  StateSpinner,
+} from '@/shared/views/state-notice';
 import { reviewErrorMessage } from '@porcelain/client/changes/rules';
 import { useRetryReview } from '../commands/read-retry';
 import type { Connection } from '@/shared/workspace/connection';
@@ -14,10 +18,13 @@ class ReviewErrorBoundary extends Component<
     return { error };
   }
   override render() {
-    if (this.state.error)
+    const error: unknown = this.state.error;
+    if (error instanceof Error && error.name === 'CommitNotFoundError')
+      return <StateNotice message="This commit is not in this repository." />;
+    if (error)
       return (
         <StateFailure
-          description={reviewErrorMessage(this.state.error)}
+          description={reviewErrorMessage(error)}
           onRetry={() => this.props.reset(() => this.setState({ error: null }))}
         />
       );

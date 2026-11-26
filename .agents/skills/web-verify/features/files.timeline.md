@@ -84,7 +84,7 @@ Automated coverage: `files-timeline.test.tsx`, `reviews-reopen-document.test.tsx
 
 ### Older history and return
 
-Create more than 100 commits touching one file, including a rename. Load older commits and compare the complete OID/path sequence with Git. Open an older row, then return through its existing timeline tab: loaded rows, selected commit and reading position remain. Fail a later page and Retry; keep confirmed rows and use the same continuation. A rewritten checkout replaces the old page window with an explicit restart; shallow history names its boundary. The shared query rereads current data to the retained depth when the timeline is reopened, without retaining hidden live subscriptions.
+Create more than 100 commits touching one file, including a rename. Load older commits and compare the complete OID/path sequence with Git. Open an older row, then return through its existing timeline tab: loaded rows, selected commit and reading position remain. Fail a later page and Try again; keep confirmed rows and use the same continuation. A rewritten checkout replaces the old page window with an explicit restart; shallow history names its boundary. The shared query rereads current data to the retained depth when the timeline is reopened, without retaining hidden live subscriptions.
 
 ## Gotchas
 

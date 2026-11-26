@@ -47,7 +47,7 @@ function ScrollBar({
       data-orientation={orientation}
       orientation={orientation}
       className={cn(
-        'flex touch-none p-px transition-colors select-none data-horizontal:h-2.5 data-horizontal:flex-col data-horizontal:border-t data-horizontal:border-t-transparent data-vertical:h-full data-vertical:w-2.5 data-vertical:border-l data-vertical:border-l-transparent',
+        'flex touch-none p-px transition-[color,opacity] select-none data-horizontal:opacity-0 data-horizontal:data-hovering:opacity-100 data-horizontal:data-scrolling:opacity-100 data-horizontal:h-2.5 data-horizontal:flex-col data-horizontal:border-t data-horizontal:border-t-transparent data-vertical:h-full data-vertical:w-2.5 data-vertical:border-l data-vertical:border-l-transparent',
         className,
       )}
       {...props}
@@ -60,4 +60,23 @@ function ScrollBar({
   );
 }
 
-export { ScrollArea, ScrollAreaRoot, ScrollAreaViewport, ScrollBar };
+function ScrollStripViewport({
+  className,
+  ...props
+}: ClassNamed<typeof ScrollAreaViewport>) {
+  return (
+    <ScrollAreaViewport
+      data-scroll-strip=""
+      className={cn(className)}
+      {...props}
+    />
+  );
+}
+
+export {
+  ScrollArea,
+  ScrollAreaRoot,
+  ScrollAreaViewport,
+  ScrollBar,
+  ScrollStripViewport,
+};

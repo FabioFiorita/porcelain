@@ -139,9 +139,9 @@ function HistoryStatus({ history }: { history: History }) {
   if (AsyncResult.isFailure(history.result))
     return (
       <div className="flex items-center gap-2 px-2 py-2 text-2xs text-muted-foreground">
-        <span>Couldn&apos;t load older commits</span>
+        <span>Older commits could not be loaded.</span>
         <Button size="xs" variant="outline" onClick={history.readMore}>
-          Retry
+          Try again
         </Button>
       </div>
     );

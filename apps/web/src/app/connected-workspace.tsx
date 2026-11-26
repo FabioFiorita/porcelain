@@ -330,7 +330,7 @@ function EmptyWorkspace({
   children: ReactNode;
 }) {
   return (
-    <div className="relative grid h-full min-h-0 place-items-center rounded-paper border bg-card p-8">
+    <div className="relative grid h-full min-h-0 place-items-center rounded-paper border bg-card p-8 [&>[data-slot=state-notice]]:justify-center [&>[data-slot=state-notice]]:text-center">
       <Tooltip>
         <TooltipTrigger
           render={
@@ -368,7 +368,7 @@ function EmptyWorkspaceAction({
 }) {
   if (firstRun)
     return (
-      <Button variant="outline" size="sm" onClick={onOpenProject}>
+      <Button size="sm" onClick={onOpenProject}>
         Open project
       </Button>
     );
