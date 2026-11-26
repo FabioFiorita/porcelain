@@ -35,6 +35,7 @@ import {
   navigatorEntryLabel,
   navigatorEntrySelected,
   navigatorCardChangesLabel,
+  nameEnd,
   navigatorChecksLabel,
   navigatorRowTitle,
   navigatorRowTrailing,
@@ -512,6 +513,9 @@ export function ProjectNavigator({
                                           active
                                             ? 'min-w-0 flex-1 font-semibold'
                                             : 'min-w-0 flex-1 font-medium',
+                                          entry.displayTitle === undefined
+                                            ? { keep: nameEnd(title) }
+                                            : 'end',
                                         )}
                                         {failed && (
                                           <CircleAlertIcon
@@ -660,15 +664,29 @@ function NavigatorRowMeta({
   pullRequest: string | undefined;
 }) {
   const branch = entry.displayTitle === undefined ? undefined : entry.branch;
-  const changes = navigatorCardChangesLabel(entry.changes);
-  const detail = [branch, changes === '—' ? undefined : changes]
-    .filter(Boolean)
-    .join(' · ');
+  const label = navigatorCardChangesLabel(entry.changes);
+  const changes = label === '—' || label === '' ? undefined : label;
   const touched = navigatorTouchedAt(entry);
   return (
     <div className="flex h-4 min-w-0 items-center gap-2 text-2xs leading-4 text-muted-foreground">
       <div className="flex h-4 min-w-0 flex-1 flex-wrap justify-between gap-x-2 overflow-hidden">
-        <TruncatedText className="max-w-full min-w-0" text={detail} />
+        {(branch || changes) && (
+          <span className="flex max-w-full min-w-0">
+            {branch && (
+              <TruncatedText
+                className="max-w-full shrink-0"
+                text={branch}
+                cut={{ keep: nameEnd(branch) }}
+              />
+            )}
+            {changes && (
+              <TruncatedText
+                className="min-w-0"
+                text={branch ? `\u00a0· ${changes}` : changes}
+              />
+            )}
+          </span>
+        )}
         {touched && (
           <span className="shrink-0 tabular-nums">
             {relativeTime(touched, Date.now())}

@@ -304,3 +304,39 @@ it.each([
   expect(result.stops[0]?.blocks).toEqual([]);
   expect(result.outcome).toBe('worth_knowing');
 });
+
+it.each([
+  { implemented: 'Keep', kept: 'Keep' },
+  { implemented: 'Rename everything', kept: undefined },
+])(
+  'keeps the option a change implements only when it is one of the columns: $implemented',
+  ({ implemented, kept }) => {
+    const result = qualifyWalkthrough(
+      {
+        ...content,
+        stops: [
+          stop('Decision', {
+            ...decision,
+            comparison: {
+              columns: ['Keep', 'Replace'],
+              rows: [['Two names', 'One name']],
+              implemented,
+            },
+          }),
+        ],
+      },
+      job,
+      evidence,
+    );
+    expect(result.stops[0]?.blocks).toEqual([
+      {
+        ...decision,
+        comparison: {
+          columns: ['Keep', 'Replace'],
+          rows: [['Two names', 'One name']],
+          ...(kept === undefined ? {} : { implemented: kept }),
+        },
+      },
+    ]);
+  },
+);

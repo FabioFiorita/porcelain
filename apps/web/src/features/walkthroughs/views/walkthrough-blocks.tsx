@@ -26,7 +26,7 @@ type Files = Extract<StepBlock, { kind: 'files' }>;
 type Checks = Extract<StepBlock, { kind: 'checks' }>;
 type Tone = ReturnType<typeof recordedChecks>['results'][number]['tone'];
 
-function Size({ size }: { size: FileSize }) {
+export function FileChangeSize({ size }: { size: FileSize }) {
   return (
     <span className="shrink-0 font-mono text-caption tabular-nums">
       <span
@@ -56,7 +56,7 @@ function FileChange({
 }) {
   return (
     <span className="flex shrink-0 items-baseline gap-2">
-      {size && <Size size={size} />}
+      {size && <FileChangeSize size={size} />}
       {uncommitted && (
         <span className="text-caption text-muted-foreground">Uncommitted</span>
       )}

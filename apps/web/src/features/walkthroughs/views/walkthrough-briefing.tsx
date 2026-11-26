@@ -3,6 +3,9 @@ import { CheckIcon } from 'lucide-react';
 import {
   attentionLabel,
   callDecisionProgress,
+  decidedAgainstChange,
+  NEEDS_A_COMMIT,
+  screenshotClaim,
   walkthroughCalls,
   walkthroughEvidenceNotice,
   walkthroughScope,
@@ -57,13 +60,6 @@ export function scrollToTarget(
 export const stepId = (step: number) => `walkthrough-step-${step}`;
 export const callId = (step: number, index: number) =>
   `walkthrough-call-${step}-${index}`;
-
-function stepsLabel(steps: readonly number[]) {
-  const unique = [...new Set(steps)];
-  return unique.length === 1
-    ? `Step ${unique[0]}`
-    : `Steps ${unique.join(', ')}`;
-}
 
 function BriefingRow({
   label,
@@ -131,7 +127,7 @@ function Calls({
         Nothing needs your decision.
       </p>
     );
-  return calls.map(({ attention, stop, step, callIndex }) => {
+  return calls.map(({ attention, comparison, stop, step, callIndex }) => {
     const decided = decisions?.find(
       (entry) => entry.step === step && entry.call === callIndex,
     );
@@ -166,6 +162,9 @@ function Calls({
                 </span>
               )}
             </span>
+            {decidedAgainstChange(comparison, decided?.option) && (
+              <span className="text-caption text-warn">{NEEDS_A_COMMIT}</span>
+            )}
             <span className="text-pretty text-foreground-2">
               <RichText text={stop.explanation} />
             </span>
@@ -327,7 +326,6 @@ function Verified({
     ),
   );
   const notice = walkthroughEvidenceNotice(run);
-  const first = pairs[0];
   return (
     <>
       {checks.map(({ block, step }) => (
@@ -340,27 +338,31 @@ function Verified({
           onJump={onJump}
         />
       ))}
-      {first && (
+      {pairs.map(({ step, block }, index) => (
         <Line
-          target={stepsLabel(pairs.map((pair) => pair.step))}
+          key={`images:${step}:${index}`}
+          target={`Step ${step}`}
           centered
-          onClick={() => onJump(stepId(first.step))}
+          onClick={() => onJump(stepId(step))}
         >
           <span className="flex min-w-0 flex-1 items-center gap-3">
             <EvidenceThumbnails
               scope={owner.scope}
               context={owner.context}
               run={run}
-              items={first.block.screenshots}
+              items={block.screenshots}
             />
-            <span className="min-w-0">
-              {pairs.length === 1
-                ? 'Before and after screenshots'
-                : `${pairs.length} before and after pairs`}
+            <span className="flex min-w-0 flex-col gap-0.5">
+              <span className="text-pretty">
+                <RichText text={screenshotClaim(block.screenshots)} />
+              </span>
+              <span className="text-caption text-muted-foreground">
+                Shown in the before and after screenshots
+              </span>
             </span>
           </span>
         </Line>
-      )}
+      ))}
       {notice && <p className="py-1 text-ui text-muted-foreground">{notice}</p>}
       {!notice && checks.length === 0 && pairs.length === 0 && (
         <p className="py-1 text-ui text-muted-foreground">

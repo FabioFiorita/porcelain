@@ -4,6 +4,7 @@ import { ChevronDownIcon, ChevronRightIcon, ChevronUpIcon } from 'lucide-react';
 import {
   attentionLabel,
   plainText,
+  reviewCodeCount,
   type ReviewCode as ReviewCodeFiles,
   type WalkthroughContent,
   type WalkthroughRun,
@@ -185,8 +186,7 @@ function FullDiff({
   open: boolean;
   onOpen: (open: boolean) => void;
 }) {
-  const files = new Set([...(branch ? code.branch : []), ...code.worktree])
-    .size;
+  const files = reviewCodeCount(branch ? code : { ...code, branch: [] });
   if (files === 0) return null;
   return (
     <div className="flex flex-col">

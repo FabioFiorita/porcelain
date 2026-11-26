@@ -160,6 +160,26 @@ test('a developer writes a walkthrough, watches it run and reads each step with 
     .element(sidebar.getByRole('img', { name: 'Your call', exact: true }))
     .toBeVisible();
 
+  const firstStep = sidebar.getByRole('group', { name: 'Step 1', exact: true });
+  await expect
+    .element(
+      firstStep.getByRole('button', {
+        name: 'README.md · modified',
+        exact: true,
+      }),
+    )
+    .toBeVisible();
+  const tick = firstStep.getByRole('checkbox', {
+    name: 'README.md reviewed',
+    exact: true,
+  });
+  await expect.element(tick).not.toBeChecked();
+  await tick.click();
+  await expect.element(tick).toBeChecked();
+  await expect
+    .element(sidebar.getByText(/^1 of \d+ files? reviewed$/))
+    .toBeVisible();
+
   await sidebar.getByRole('button', { name: 'Step 1', exact: true }).click();
   await expect
     .element(page.getByRole('region', { name: 'Right pane', exact: true }))
@@ -580,7 +600,11 @@ test('uncommitted-only work opens the review with its diffs and stays fresh when
     )
     .toBeVisible();
   await expect
-    .element(page.getByText(/written for .* and uncommitted work/))
+    .element(
+      page.getByText(
+        /\d+ files?, \d+ uncommitted · written for .* and uncommitted work/,
+      ),
+    )
     .toBeVisible();
   const sidebar = page.getByRole('complementary', {
     name: 'Review sidebar',

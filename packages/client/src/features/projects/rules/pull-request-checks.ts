@@ -318,7 +318,7 @@ export function pullRequestBlockers(
       key: `check:${check.key}`,
       tone: 'failed',
       checkKey: check.key,
-      text: `${check.name} failed${step ? ` at step ${step.number}, ${step.name}` : ''}${check.required ? ' · required' : ''}.`,
+      text: `${check.name}${check.required ? ' (required)' : ''} failed${step ? ` at step ${step.number}: ${step.name}` : ''}.`,
     });
   }
   if (failed.length > 3)

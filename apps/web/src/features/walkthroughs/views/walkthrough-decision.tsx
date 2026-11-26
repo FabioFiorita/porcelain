@@ -1,5 +1,12 @@
 import { CheckIcon } from 'lucide-react';
-import type { WalkthroughStop } from '@porcelain/client/walkthroughs/rules';
+import {
+  CALL_DECIDING,
+  NEEDS_A_COMMIT,
+  callChoices,
+  decidedAgainstChange,
+  type WalkthroughStop,
+} from '@porcelain/client/walkthroughs/rules';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useWorkspaceWriteBlock } from '@/shared/workspace/connection';
 import { useDecideCall } from '../commands/conversations';
@@ -35,7 +42,67 @@ export function CallDecision({
   const decision = view?.decisions.find(
     (entry) => entry.step === step && entry.call === index,
   );
-  const options = comparison?.columns ?? [];
+  const choices = callChoices(comparison);
+  const choose =
+    choices.length > 0 ? (
+      <div className="flex flex-col gap-1.5">
+        <ul
+          aria-label="Options"
+          className="grid grid-cols-1 gap-x-2.5 gap-y-1.5 @xl:grid-cols-[minmax(0,auto)_minmax(16rem,1fr)]"
+        >
+          {choices.map(({ option, implemented, effect }) => (
+            <li
+              key={option}
+              className="col-span-full grid grid-cols-subgrid items-center gap-y-1"
+            >
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-auto min-h-6 max-w-full justify-self-start text-left whitespace-normal"
+                disabled={disabled}
+                aria-description={
+                  [
+                    implemented ? 'In this change.' : undefined,
+                    effect,
+                    writeBlock,
+                  ]
+                    .filter(Boolean)
+                    .join(' ') || undefined
+                }
+                onClick={() =>
+                  decide({ step, call: index, decided: true, option })
+                }
+              >
+                {option}
+              </Button>
+              <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
+                {implemented && <Badge variant="outline">In this change</Badge>}
+                {effect && (
+                  <span className="text-caption text-pretty text-muted-foreground">
+                    {effect}
+                  </span>
+                )}
+              </span>
+            </li>
+          ))}
+        </ul>
+        <p className="text-caption text-muted-foreground">{CALL_DECIDING}</p>
+      </div>
+    ) : (
+      <div className="flex flex-col gap-1.5">
+        <Button
+          size="sm"
+          variant="outline"
+          className="self-start"
+          disabled={disabled}
+          aria-description={writeBlock}
+          onClick={() => decide({ step, call: index, decided: true })}
+        >
+          Mark decided
+        </Button>
+        <p className="text-caption text-muted-foreground">{CALL_DECIDING}</p>
+      </div>
+    );
   return (
     <div className="flex flex-col gap-1.5 pt-1">
       {decision ? (
@@ -67,34 +134,10 @@ export function CallDecision({
           </Button>
         </p>
       ) : (
-        <div className="flex flex-wrap items-center gap-2">
-          {options.length > 0 ? (
-            options.map((option) => (
-              <Button
-                key={option}
-                size="sm"
-                variant="outline"
-                disabled={disabled}
-                aria-description={writeBlock}
-                onClick={() =>
-                  decide({ step, call: index, decided: true, option })
-                }
-              >
-                Choose {option}
-              </Button>
-            ))
-          ) : (
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={disabled}
-              aria-description={writeBlock}
-              onClick={() => decide({ step, call: index, decided: true })}
-            >
-              Mark decided
-            </Button>
-          )}
-        </div>
+        choose
+      )}
+      {decision && decidedAgainstChange(comparison, decision.option) && (
+        <p className="text-caption text-warn">{NEEDS_A_COMMIT}</p>
       )}
       {(failure ?? (failed ? 'Decisions could not be read.' : undefined)) && (
         <p role="alert" className="text-caption text-destructive">

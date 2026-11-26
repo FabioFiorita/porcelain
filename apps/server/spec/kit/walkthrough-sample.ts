@@ -145,6 +145,7 @@ export async function seedWalkthroughSample(
                             'The first view stays quiet',
                           ],
                         ],
+                        implemented: 'Show all notes',
                       },
                     },
                     {

@@ -338,6 +338,19 @@ export function walkthroughCodeScopes({
 
 export type ReviewCode = { branch: string[]; worktree: string[] };
 
+export function reviewCodeCount(code: ReviewCode) {
+  return new Set([...code.branch, ...code.worktree]).size;
+}
+
+export function reviewCodeIn(code: ReviewCode, side: keyof ReviewCode) {
+  const here = new Set(code[side]);
+  const other = side === 'branch' ? code.worktree : code.branch;
+  return {
+    here: code[side],
+    elsewhere: other.filter((path) => !here.has(path)),
+  };
+}
+
 export function eagerSections(
   sections: { steps: readonly ReviewCode[]; outside: ReviewCode },
   withBranch: boolean,

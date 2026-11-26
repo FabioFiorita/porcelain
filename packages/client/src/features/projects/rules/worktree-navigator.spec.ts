@@ -13,6 +13,7 @@ import {
   type NavigatorPullRequest,
   navigatorFilterSections,
   navigatorEntrySelected,
+  nameEnd,
   navigatorWorktreeOrder,
   type NavigatorEntry,
 } from './worktree-navigator.ts';
@@ -327,4 +328,15 @@ it('keeps the main worktree first, then the most recently touched by commit or u
     'catalog-only',
     'unborn',
   ]);
+});
+
+it.each([
+  ['fix/interview-engine-persistence', '-persistence'],
+  ['feature/note-search', '/note-search'],
+  ['chore/update-docs', '/update-docs'],
+  ['main', 'main'],
+  ['averyveryverylongbranchname', 'rylongbranchname'],
+])('keeps the distinguishing end of %s', (name, end) => {
+  expect(nameEnd(name)).toBe(end);
+  expect(name.endsWith(end)).toBe(true);
 });

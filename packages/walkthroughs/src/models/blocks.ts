@@ -52,6 +52,7 @@ const walkthroughCalloutSchema = Schema.Struct({
     Schema.Struct({
       columns: Schema.Array(Schema.String),
       rows: Schema.Array(Schema.Array(Schema.String)),
+      implemented: Schema.optional(Schema.String),
     }),
   ),
 });

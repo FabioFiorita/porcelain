@@ -30,7 +30,7 @@ import {
 
 import { type BranchFileGrouping, BranchIndex } from './branch-index';
 import { useDiffFocus } from '../store';
-import { ChangeRow } from './change-row';
+import { ChangeRow, type ChangeRowExtra } from './change-row';
 import { useFileComments } from '@/features/comments/index';
 import { worktreeChangeMarks } from '@porcelain/client/files/rules';
 
@@ -64,7 +64,7 @@ export type UncommittedFileGrouping = ComponentType<{
   scope: ReviewScope;
   context: ConnectionContext;
   paths: readonly string[];
-  row: (path: string) => ReactNode;
+  row: (path: string, extra?: ChangeRowExtra) => ReactNode;
   activeEntry: string | undefined;
   onOpen: OpenDocument;
 }>;
@@ -187,8 +187,9 @@ function LayersView({
       </SidebarDocumentRow>
     );
   };
-  const renderChange = (path: string) => (
+  const renderChange = (path: string, extra?: ChangeRowExtra) => (
     <ChangeRow
+      {...extra}
       key={path}
       path={path}
       document={{ kind: 'change', path }}
@@ -266,7 +267,7 @@ function LayersView({
               setGroups({ changes: expanded, specs: expanded })
             }
           >
-            {mainPaths.map(renderChange)}
+            {mainPaths.map((path) => renderChange(path))}
           </SidebarGroup>
         )}
         {!Grouping && specPaths.length > 0 && (
@@ -288,7 +289,7 @@ function LayersView({
             >
               Open all specs
             </SidebarDocumentRow>
-            {specPaths.map(renderChange)}
+            {specPaths.map((path) => renderChange(path))}
           </SidebarGroup>
         )}
         {discard && (

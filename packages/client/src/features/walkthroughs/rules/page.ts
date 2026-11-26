@@ -6,7 +6,7 @@ import {
   type WalkthroughContent,
   type WalkthroughRun,
 } from './walkthrough.ts';
-import type { WalkthroughStop } from './blocks.ts';
+import type { WalkthroughScreenshot, WalkthroughStop } from './blocks.ts';
 
 type Attention = WalkthroughStop['callouts'][number]['attention'];
 type Growth = WalkthroughContent['growth'][number];
@@ -21,6 +21,45 @@ const ATTENTION_LABELS: Record<Attention['kind'], string> = {
 
 export function attentionLabel(attention: Attention) {
   return ATTENTION_LABELS[attention.kind];
+}
+
+type Comparison = WalkthroughStop['callouts'][number]['comparison'];
+
+export const NEEDS_A_COMMIT =
+  'Needs a new commit: this change does not do this yet.';
+
+export const CALL_DECIDING =
+  'Choosing records your call, and Merge stops waiting for it. Porcelain changes no code.';
+
+export function callChoices(comparison: Comparison) {
+  const implemented = comparison?.implemented;
+  return (comparison?.columns ?? []).map((option) => ({
+    option,
+    implemented: option === implemented,
+    effect:
+      implemented === undefined
+        ? undefined
+        : option === implemented
+          ? 'Keeps the code as it is.'
+          : NEEDS_A_COMMIT,
+  }));
+}
+
+export function screenshotClaim(screenshots: readonly WalkthroughScreenshot[]) {
+  return (
+    screenshots.find((screenshot) => screenshot.label === 'After')?.shows ??
+    'Before and after screenshots'
+  );
+}
+
+export function decidedAgainstChange(
+  comparison: Comparison,
+  option: string | undefined,
+) {
+  const implemented = comparison?.implemented;
+  return (
+    option !== undefined && implemented !== undefined && option !== implemented
+  );
 }
 
 const GROWTH_SIGNS: Record<Growth['change'], string> = {
@@ -64,17 +103,44 @@ export function foldedNotSaid(content: WalkthroughContent, open: boolean) {
   };
 }
 
+export type MetaFiles = {
+  readonly committed: readonly string[];
+  readonly uncommitted: readonly string[];
+};
+
+const fileCount = (count: number) =>
+  count === 1 ? '1 file' : `${count} files`;
+
+function filesLabel(
+  content: WalkthroughContent | undefined,
+  files: MetaFiles | null | undefined,
+) {
+  if (files === null) return undefined;
+  if (files === undefined) {
+    const cited = content ? walkthroughFileCount(content) : 0;
+    return cited === 0 ? undefined : fileCount(cited);
+  }
+  const committed = new Set(files.committed);
+  const local = new Set(
+    files.uncommitted.filter((path) => !committed.has(path)),
+  ).size;
+  const total = committed.size + local;
+  if (total === 0) return undefined;
+  return `${fileCount(total)}${local > 0 ? `, ${local} uncommitted` : ''}`;
+}
+
 export function walkthroughMeta(
   run: WalkthroughRun,
   content?: WalkthroughContent,
   writerModel?: string,
+  files?: MetaFiles | null,
 ) {
-  const files = content ? walkthroughFileCount(content) : 0;
+  const label = filesLabel(content, files);
   return [
     ...(run.pullRequestNumber === undefined
       ? []
       : [`#${run.pullRequestNumber}`]),
-    ...(files > 0 ? [files === 1 ? '1 file' : `${files} files`] : []),
+    ...(label === undefined ? [] : [label]),
     `written for ${run.headOid.slice(0, SHORT_OID)}${run.includesUncommitted ? ' and uncommitted work' : ''}`,
     ...(writerModel === undefined
       ? []

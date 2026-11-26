@@ -4,6 +4,7 @@ export * from './rules/documents';
 export * from './rules/tab-strip';
 
 export { SidebarDocumentRow } from './views/sidebar-section';
+export { ROW } from './views/change-row';
 export { CheckResultIcon } from './views/pull-request-parts';
 
 export {

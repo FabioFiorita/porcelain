@@ -18,6 +18,11 @@ import {
   type StepDiagram,
 } from '@porcelain/client/walkthroughs/rules';
 import { Button } from '@/components/ui/button';
+import {
+  ScrollAreaRoot,
+  ScrollBar,
+  ScrollStripViewport,
+} from '@/components/ui/scroll-area';
 import type { DocumentProps } from '@/features/workspace/index';
 import { cn } from '@/shared/lib/utils';
 import { TruncatedText } from '@/shared/views/truncated-text';
@@ -231,7 +236,7 @@ export function WalkthroughDiagram({
   const near =
     active === undefined ? undefined : diagramNeighbours(diagram, active);
   const chosenNode = diagram.nodes.find((node) => node.id === chosen);
-  const fits = geometry.width <= width;
+  const fits = width === 0 || geometry.width <= width;
   const labelX = (x: number, text: string) => {
     const half = MEASURE.label(text) / 2 + LABEL_PAD;
     return Math.min(Math.max(x, half), geometry.width - half);
@@ -258,248 +263,260 @@ export function WalkthroughDiagram({
   return (
     <figure className="flex min-w-0 flex-col gap-2">
       <div className="min-w-0 overflow-hidden rounded-md border">
-        {diagram.title && (
-          <figcaption className="flex min-h-8 items-center border-b bg-muted/50 px-3 py-1 text-caption text-muted-foreground">
-            {diagram.title}
+        {(diagram.title || !fits) && (
+          <figcaption className="flex min-h-8 items-center gap-3 border-b bg-muted/50 px-3 py-1 text-caption text-muted-foreground">
+            <span className="min-w-0 flex-1">{diagram.title}</span>
+            {!fits && <span className="shrink-0">Scrolls sideways</span>}
           </figcaption>
         )}
-        <div ref={frame} className="min-w-0 overflow-x-auto">
-          <div
-            className={cn('relative', fits && 'mx-auto')}
-            style={{ width: geometry.width, height: geometry.height }}
+        <ScrollAreaRoot className="relative min-w-0">
+          <ScrollStripViewport
+            ref={frame}
+            data-wide-fade=""
+            className="min-w-0 overflow-y-hidden"
           >
-            <svg
-              aria-hidden
-              width={geometry.width}
-              height={geometry.height}
-              className="absolute inset-0 overflow-visible"
+            <div
+              className={cn('relative', fits && 'mx-auto')}
+              style={{ width: geometry.width, height: geometry.height }}
             >
-              {geometry.lifelines.map((line, index) => (
-                <line
-                  key={index}
-                  x1={line.x}
-                  x2={line.x}
-                  y1={line.top}
-                  y2={line.bottom}
-                  className="stroke-border"
-                />
-              ))}
-              {geometry.edges.map((placed) => {
-                const edge = diagram.edges[placed.index];
-                if (edge === undefined) return null;
-                const lit = near?.edges.has(placed.index) === true;
-                const dim = near !== undefined && !lit;
-                const tone = edgeTone(edge, lit);
-                return (
-                  <g
-                    key={placed.index}
-                    className={cn(
-                      'transition-opacity duration-100',
-                      dim && 'opacity-25',
-                    )}
-                  >
-                    <path
-                      d={placed.path}
-                      fill="none"
-                      strokeWidth={1}
-                      strokeDasharray={
-                        edge.mark === 'removed' ? '4 3' : undefined
-                      }
+              <svg
+                aria-hidden
+                width={geometry.width}
+                height={geometry.height}
+                className="absolute inset-0 overflow-visible"
+              >
+                {geometry.lifelines.map((line, index) => (
+                  <line
+                    key={index}
+                    x1={line.x}
+                    x2={line.x}
+                    y1={line.top}
+                    y2={line.bottom}
+                    className="stroke-border"
+                  />
+                ))}
+                {geometry.edges.map((placed) => {
+                  const edge = diagram.edges[placed.index];
+                  if (edge === undefined) return null;
+                  const lit = near?.edges.has(placed.index) === true;
+                  const dim = near !== undefined && !lit;
+                  const tone = edgeTone(edge, lit);
+                  return (
+                    <g
+                      key={placed.index}
                       className={cn(
-                        tone === 'add' && 'stroke-add-fg',
-                        tone === 'del' && 'stroke-del-fg',
-                        tone === 'lit' && 'stroke-foreground',
-                        tone === 'rest' && 'stroke-muted-foreground/60',
+                        'transition-opacity duration-100',
+                        dim && 'opacity-25',
                       )}
-                    />
-                    <polygon
-                      points={placed.arrow}
+                    >
+                      <path
+                        d={placed.path}
+                        fill="none"
+                        strokeWidth={1}
+                        strokeDasharray={
+                          edge.mark === 'removed' ? '4 3' : undefined
+                        }
+                        className={cn(
+                          tone === 'add' && 'stroke-add-fg',
+                          tone === 'del' && 'stroke-del-fg',
+                          tone === 'lit' && 'stroke-foreground',
+                          tone === 'rest' && 'stroke-muted-foreground/60',
+                        )}
+                      />
+                      <polygon
+                        points={placed.arrow}
+                        className={cn(
+                          tone === 'add' && 'fill-add-fg',
+                          tone === 'del' && 'fill-del-fg',
+                          tone === 'lit' && 'fill-foreground',
+                          tone === 'rest' && 'fill-muted-foreground/60',
+                        )}
+                      />
+                    </g>
+                  );
+                })}
+              </svg>
+              <ul
+                aria-label={diagram.title ?? 'Diagram'}
+                className="absolute inset-0"
+                onKeyDown={move}
+                onBlur={(event) => {
+                  if (!event.currentTarget.contains(event.relatedTarget))
+                    setFocused(undefined);
+                }}
+              >
+                {geometry.nodes.map((placed) => {
+                  const node = diagram.nodes.find(
+                    (item) => item.id === placed.id,
+                  );
+                  if (node === undefined) return null;
+                  const sign = nodeSign(node);
+                  const isChosen = chosen === node.id;
+                  const dim = near !== undefined && !near.nodes.has(node.id);
+                  const code = node.kind !== 'external';
+                  const body = (
+                    <>
+                      <span className="flex min-w-0 items-baseline gap-1 text-caption">
+                        {sign && (
+                          <span
+                            aria-hidden
+                            className={cn(
+                              'w-2 shrink-0 font-mono',
+                              node.mark === 'added' && 'text-add-fg',
+                              node.mark === 'removed' && 'text-del-fg',
+                              node.mark === 'changed' &&
+                                'text-muted-foreground',
+                            )}
+                          >
+                            {sign}
+                          </span>
+                        )}
+                        <TruncatedText
+                          text={node.label}
+                          className={cn(
+                            'min-w-0 flex-1',
+                            code && 'font-mono',
+                            node.mark === 'removed' &&
+                              'text-muted-foreground line-through',
+                            node.mark === 'unchanged' && 'text-foreground-2',
+                          )}
+                        />
+                        {node.anchor && (
+                          <ChevronRightIcon
+                            aria-hidden
+                            className={cn(
+                              'size-3 shrink-0 self-center text-muted-foreground',
+                              isChosen && 'rotate-90 text-foreground',
+                            )}
+                          />
+                        )}
+                      </span>
+                      {node.note && (
+                        <span className="flex min-w-0 text-2xs">
+                          <TruncatedText
+                            text={node.note}
+                            className={cn(
+                              'min-w-0 flex-1 text-muted-foreground',
+                              sign && 'pl-3',
+                            )}
+                          />
+                        </span>
+                      )}
+                      <span className="sr-only">
+                        {' '}
+                        {nodeDescription(diagram, node)}
+                      </span>
+                    </>
+                  );
+                  const shared = {
+                    'data-node': node.id,
+                    tabIndex: node.id === current ? 0 : -1,
+                    onFocus: () => {
+                      setCurrent(node.id);
+                      setFocused(node.id);
+                    },
+                    onPointerEnter: () => setHovered(node.id),
+                    onPointerLeave: () => setHovered(undefined),
+                    className: cn(
+                      'flex size-full flex-col justify-center gap-0.5 rounded-md border px-2.5 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
+                      node.mark === 'added' && 'border-add-fg/40 bg-add-bg',
+                      node.mark === 'removed' &&
+                        'border-dashed border-del-fg/50 bg-card',
+                      node.mark !== 'added' &&
+                        node.mark !== 'removed' &&
+                        'bg-card',
+                      node.anchor
+                        ? 'cursor-pointer shadow-row hover:border-foreground/40'
+                        : 'cursor-default',
+                      isChosen &&
+                        'border-foreground/60 ring-1 ring-foreground/20',
+                    ),
+                  };
+                  return (
+                    <li
+                      key={node.id}
                       className={cn(
+                        'absolute transition-opacity duration-100',
+                        dim && 'opacity-35',
+                      )}
+                      style={{
+                        left: placed.x,
+                        top: placed.y,
+                        width: placed.width,
+                        height: placed.height,
+                      }}
+                    >
+                      {commented.has(node.label) && (
+                        <span
+                          role="img"
+                          aria-label={`${commented.get(node.label)} comments`}
+                          className="pointer-events-none absolute -top-1.5 -right-1.5 flex size-4 items-center justify-center rounded-full border bg-card text-muted-foreground"
+                        >
+                          <MessageSquareIcon aria-hidden className="size-2.5" />
+                        </span>
+                      )}
+                      {node.anchor ? (
+                        <button
+                          type="button"
+                          {...shared}
+                          aria-expanded={isChosen}
+                          aria-controls={isChosen ? detail : undefined}
+                          onClick={() => {
+                            setCurrent(node.id);
+                            setChosen(isChosen ? undefined : node.id);
+                          }}
+                        >
+                          {body}
+                        </button>
+                      ) : (
+                        <div {...shared}>{body}</div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+              <svg
+                aria-hidden
+                width={geometry.width}
+                height={geometry.height}
+                className="pointer-events-none absolute inset-0 overflow-visible"
+              >
+                {geometry.edges.map((placed) => {
+                  const edge = diagram.edges[placed.index];
+                  if (!placed.label || !edge?.label) return null;
+                  const lit = near?.edges.has(placed.index) === true;
+                  const tone = edgeTone(edge, lit);
+                  return (
+                    <text
+                      key={placed.index}
+                      x={labelX(placed.label.x, edge.label)}
+                      y={placed.label.y}
+                      textAnchor="middle"
+                      dominantBaseline="middle"
+                      paintOrder="stroke"
+                      strokeWidth={4}
+                      strokeLinejoin="round"
+                      className={cn(
+                        'stroke-card text-2xs transition-opacity duration-100',
+                        near !== undefined && !lit && 'opacity-25',
                         tone === 'add' && 'fill-add-fg',
                         tone === 'del' && 'fill-del-fg',
                         tone === 'lit' && 'fill-foreground',
-                        tone === 'rest' && 'fill-muted-foreground/60',
+                        tone === 'rest' && 'fill-muted-foreground',
                       )}
-                    />
-                  </g>
-                );
-              })}
-            </svg>
-            <ul
-              aria-label={diagram.title ?? 'Diagram'}
-              className="absolute inset-0"
-              onKeyDown={move}
-              onBlur={(event) => {
-                if (!event.currentTarget.contains(event.relatedTarget))
-                  setFocused(undefined);
-              }}
-            >
-              {geometry.nodes.map((placed) => {
-                const node = diagram.nodes.find(
-                  (item) => item.id === placed.id,
-                );
-                if (node === undefined) return null;
-                const sign = nodeSign(node);
-                const isChosen = chosen === node.id;
-                const dim = near !== undefined && !near.nodes.has(node.id);
-                const code = node.kind !== 'external';
-                const body = (
-                  <>
-                    <span className="flex min-w-0 items-baseline gap-1 text-caption">
-                      {sign && (
-                        <span
-                          aria-hidden
-                          className={cn(
-                            'w-2 shrink-0 font-mono',
-                            node.mark === 'added' && 'text-add-fg',
-                            node.mark === 'removed' && 'text-del-fg',
-                            node.mark === 'changed' && 'text-muted-foreground',
-                          )}
-                        >
-                          {sign}
-                        </span>
-                      )}
-                      <TruncatedText
-                        text={node.label}
-                        className={cn(
-                          'min-w-0 flex-1',
-                          code && 'font-mono',
-                          node.mark === 'removed' &&
-                            'text-muted-foreground line-through',
-                          node.mark === 'unchanged' && 'text-foreground-2',
-                        )}
-                      />
-                      {node.anchor && (
-                        <ChevronRightIcon
-                          aria-hidden
-                          className={cn(
-                            'size-3 shrink-0 self-center text-muted-foreground',
-                            isChosen && 'rotate-90 text-foreground',
-                          )}
-                        />
-                      )}
-                    </span>
-                    {node.note && (
-                      <span className="flex min-w-0 text-2xs">
-                        <TruncatedText
-                          text={node.note}
-                          className={cn(
-                            'min-w-0 flex-1 text-muted-foreground',
-                            sign && 'pl-3',
-                          )}
-                        />
-                      </span>
-                    )}
-                    <span className="sr-only">
-                      {' '}
-                      {nodeDescription(diagram, node)}
-                    </span>
-                  </>
-                );
-                const shared = {
-                  'data-node': node.id,
-                  tabIndex: node.id === current ? 0 : -1,
-                  onFocus: () => {
-                    setCurrent(node.id);
-                    setFocused(node.id);
-                  },
-                  onPointerEnter: () => setHovered(node.id),
-                  onPointerLeave: () => setHovered(undefined),
-                  className: cn(
-                    'flex size-full flex-col justify-center gap-0.5 rounded-md border px-2.5 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
-                    node.mark === 'added' && 'border-add-fg/40 bg-add-bg',
-                    node.mark === 'removed' &&
-                      'border-dashed border-del-fg/50 bg-card',
-                    node.mark !== 'added' &&
-                      node.mark !== 'removed' &&
-                      'bg-card',
-                    node.anchor
-                      ? 'cursor-pointer shadow-row hover:border-foreground/40'
-                      : 'cursor-default',
-                    isChosen &&
-                      'border-foreground/60 ring-1 ring-foreground/20',
-                  ),
-                };
-                return (
-                  <li
-                    key={node.id}
-                    className={cn(
-                      'absolute transition-opacity duration-100',
-                      dim && 'opacity-35',
-                    )}
-                    style={{
-                      left: placed.x,
-                      top: placed.y,
-                      width: placed.width,
-                      height: placed.height,
-                    }}
-                  >
-                    {commented.has(node.label) && (
-                      <span
-                        role="img"
-                        aria-label={`${commented.get(node.label)} comments`}
-                        className="pointer-events-none absolute -top-1.5 -right-1.5 flex size-4 items-center justify-center rounded-full border bg-card text-muted-foreground"
-                      >
-                        <MessageSquareIcon aria-hidden className="size-2.5" />
-                      </span>
-                    )}
-                    {node.anchor ? (
-                      <button
-                        type="button"
-                        {...shared}
-                        aria-expanded={isChosen}
-                        aria-controls={isChosen ? detail : undefined}
-                        onClick={() => {
-                          setCurrent(node.id);
-                          setChosen(isChosen ? undefined : node.id);
-                        }}
-                      >
-                        {body}
-                      </button>
-                    ) : (
-                      <div {...shared}>{body}</div>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-            <svg
-              aria-hidden
-              width={geometry.width}
-              height={geometry.height}
-              className="pointer-events-none absolute inset-0 overflow-visible"
-            >
-              {geometry.edges.map((placed) => {
-                const edge = diagram.edges[placed.index];
-                if (!placed.label || !edge?.label) return null;
-                const lit = near?.edges.has(placed.index) === true;
-                const tone = edgeTone(edge, lit);
-                return (
-                  <text
-                    key={placed.index}
-                    x={labelX(placed.label.x, edge.label)}
-                    y={placed.label.y}
-                    textAnchor="middle"
-                    dominantBaseline="middle"
-                    paintOrder="stroke"
-                    strokeWidth={4}
-                    strokeLinejoin="round"
-                    className={cn(
-                      'stroke-card text-2xs transition-opacity duration-100',
-                      near !== undefined && !lit && 'opacity-25',
-                      tone === 'add' && 'fill-add-fg',
-                      tone === 'del' && 'fill-del-fg',
-                      tone === 'lit' && 'fill-foreground',
-                      tone === 'rest' && 'fill-muted-foreground',
-                    )}
-                  >
-                    {edge.label}
-                  </text>
-                );
-              })}
-            </svg>
-          </div>
-        </div>
+                    >
+                      {edge.label}
+                    </text>
+                  );
+                })}
+              </svg>
+            </div>
+          </ScrollStripViewport>
+          <ScrollBar
+            orientation="horizontal"
+            className="absolute inset-x-0 bottom-0"
+          />
+        </ScrollAreaRoot>
       </div>
       {chosenNode?.anchor && (
         <div id={detail} className="flex min-w-0 flex-col gap-2">

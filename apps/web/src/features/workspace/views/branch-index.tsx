@@ -19,7 +19,7 @@ import { branchReviewRange } from '@porcelain/client/changes/rules';
 import { BranchBasePicker } from './branch-base-picker';
 import { branchChangeStatus } from '@porcelain/client/files/rules';
 import { ReviewedCount, SidebarDocumentRow } from './sidebar-section';
-import { ChangeRow } from './change-row';
+import { ChangeRow, type ChangeRowExtra } from './change-row';
 import { useFileComments } from '@/features/comments/index';
 import { groupSpecPaths } from '@porcelain/client/changes/rules';
 import { useSpecsApart } from '@/features/preferences/index';
@@ -30,8 +30,9 @@ import type { BranchChangeItem } from '@porcelain/client/changes/rules';
 export type BranchFileGrouping = ComponentType<{
   scope: ReviewScope;
   context: ConnectionContext;
+  base: string | undefined;
   items: readonly BranchChangeItem[];
-  row: (item: BranchChangeItem) => ReactNode;
+  row: (item: BranchChangeItem, extra?: ChangeRowExtra) => ReactNode;
   activeEntry: string | undefined;
   onOpen: OpenDocument;
 }>;
@@ -101,6 +102,7 @@ function BranchFiles({
         <BranchFileList
           scope={scope}
           context={context}
+          base={base}
           branch={branch}
           activeEntry={activeEntry}
           onOpen={onOpen}
@@ -115,6 +117,7 @@ function BranchFiles({
 function BranchFileList({
   scope,
   context,
+  base,
   branch,
   activeEntry,
   onOpen,
@@ -124,6 +127,7 @@ function BranchFileList({
   grouping: BranchFileGrouping | undefined;
   scope: ReviewScope;
   context: ConnectionContext;
+  base: string | undefined;
   branch: AsyncResult.AsyncResult.Success<
     ReturnType<typeof useBranchChanges>['result']
   >;
@@ -150,8 +154,9 @@ function BranchFileList({
       : refLabel(branch.head.branch);
   const commits = counted(branch.commits, 'commit');
   const allLabel = Grouping ? 'All changes' : 'All branch changes';
-  const row = (item: BranchChangeItem) => (
+  const row = (item: BranchChangeItem, extra?: ChangeRowExtra) => (
     <ChangeRow
+      {...extra}
       key={item.path}
       path={item.path}
       document={{ kind: 'branch-file', path: item.path }}
@@ -212,13 +217,14 @@ function BranchFileList({
           <Grouping
             scope={scope}
             context={context}
+            base={base}
             items={items}
             row={row}
             activeEntry={activeEntry}
             onOpen={onOpen}
           />
         ) : (
-          groupSpecPaths(items, specsApart).map(row)
+          groupSpecPaths(items, specsApart).map((item) => row(item))
         )}
       </div>
     </ScrollArea>

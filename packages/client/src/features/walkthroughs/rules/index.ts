@@ -2,6 +2,8 @@ export {
   groupFilesByStep,
   walkthroughCodeScopes,
   reviewCodeSections,
+  reviewCodeCount,
+  reviewCodeIn,
   eagerSections,
   plainText,
   richParts,
@@ -13,7 +15,6 @@ export {
   walkthroughPhase,
   walkthroughVerdict,
   type ReviewCode,
-  type StepFiles,
   type WalkthroughContent,
   type WalkthroughFailure,
   type WalkthroughRun,
@@ -54,6 +55,11 @@ export {
 export { worktreeOpening, type WorktreeOpening } from './opening.ts';
 export {
   attentionLabel,
+  CALL_DECIDING,
+  NEEDS_A_COMMIT,
+  callChoices,
+  decidedAgainstChange,
+  screenshotClaim,
   failureCopy,
   readyUpdate,
   initialWriteFailure,
@@ -61,6 +67,7 @@ export {
   foldedNotSaid,
   growthSign,
   walkthroughMeta,
+  type MetaFiles,
   walkthroughScope,
   walkthroughEvidenceNotice,
 } from './page.ts';

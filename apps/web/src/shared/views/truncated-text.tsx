@@ -37,10 +37,16 @@ type Label = HTMLAttributes<HTMLElement> & {
   'data-clipped'?: '' | undefined;
 };
 
-type Cut = 'end' | 'start';
+type Cut = 'end' | 'start' | { readonly keep: string };
 
 function cutContent(cut: Cut, content: ReactNode) {
   return cut === 'start' ? <bdi dir="ltr">{content}</bdi> : content;
+}
+
+function middleParts(value: string, keep: string) {
+  return value.endsWith(keep) && keep.length < value.length
+    ? { head: value.slice(0, value.length - keep.length), tail: keep }
+    : { head: value, tail: '' };
 }
 
 function isClipped(element: HTMLElement, lines: 1 | 3) {
@@ -144,19 +150,29 @@ export function TruncatedText({
   });
 
   const standalone = !triggered && !owned;
-  const clip = (value: string, styles?: string, edge: Cut = 'end') => (
-    <span
-      dir={edge === 'start' ? 'rtl' : undefined}
-      className={cn(
-        'min-w-0 truncate',
-        edge === 'start' && 'text-left',
-        styles,
-      )}
-      data-truncated={id}
-    >
-      {cutContent(edge, value)}
-    </span>
-  );
+  const clip = (value: string, styles?: string, edge: Cut = 'end') =>
+    typeof edge === 'object' ? (
+      <span className={cn('flex min-w-0', styles)}>
+        <span className="min-w-0 truncate" data-truncated={id}>
+          {middleParts(value, edge.keep).head}
+        </span>
+        <span className="shrink-0 whitespace-pre">
+          {middleParts(value, edge.keep).tail}
+        </span>
+      </span>
+    ) : (
+      <span
+        dir={edge === 'start' ? 'rtl' : undefined}
+        className={cn(
+          'min-w-0 truncate',
+          edge === 'start' && 'text-left',
+          styles,
+        )}
+        data-truncated={id}
+      >
+        {cutContent(edge, value)}
+      </span>
+    );
   const element: ReactElement<Label> = render ?? <span />;
   const label = cloneElement(
     element,
@@ -168,13 +184,17 @@ export function TruncatedText({
       'data-clipped': !triggered && disclosed ? '' : undefined,
       className: cn(
         'relative min-w-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
-        lines === 3 ? 'line-clamp-3 whitespace-normal' : 'truncate',
+        typeof cut === 'object' && 'flex',
+        typeof cut !== 'object' &&
+          (lines === 3 ? 'line-clamp-3 whitespace-normal' : 'truncate'),
         cut === 'start' && 'text-left',
         render?.props.className,
         className,
       ),
     },
-    cutContent(cut, children ?? text),
+    typeof cut === 'object'
+      ? clip(text, undefined, cut)
+      : cutContent(cut, children ?? text),
   );
   const trigger = renderTrigger?.(label, clip) ?? label;
   if (!disclosed && !triggered)
