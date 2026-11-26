@@ -3,10 +3,7 @@ import type { GitHubReadError } from '../errors/github-read-error.ts';
 import type { DraftCommentView, ReviewPlan } from '../models/draft-comment.ts';
 import type { GitHubRepository } from '../models/pull-request.ts';
 import { PullRequestReviewer } from '../ports/pull-request-reviewer.ts';
-import {
-  openDraftRevision,
-  planPullRequestReview,
-} from '../rules/draft-comments.ts';
+import { planPullRequestReview } from '../rules/draft-comments.ts';
 
 export class PreviewPullRequestReviewService extends Context.Service<
   PreviewPullRequestReviewService,
@@ -17,10 +14,7 @@ export class PreviewPullRequestReviewService extends Context.Service<
         readonly number: number;
       };
       readonly comments: readonly DraftCommentView[];
-    }) => Effect.Effect<
-      ReviewPlan & { headOid: string; draftRevision: string },
-      GitHubReadError
-    >;
+    }) => Effect.Effect<ReviewPlan & { headOid: string }, GitHubReadError>;
   }
 >()('@porcelain/reviews/PreviewPullRequestReviewService') {
   static readonly layer = Layer.effect(
@@ -33,7 +27,6 @@ export class PreviewPullRequestReviewService extends Context.Service<
             const diff = yield* reviewer.diff(input.target);
             return {
               headOid: diff.headOid,
-              draftRevision: openDraftRevision(input.comments),
               ...planPullRequestReview(input.comments, diff),
             };
           },

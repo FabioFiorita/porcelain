@@ -1,5 +1,9 @@
 export { CommentsApi, OwnerCommentsApi } from './api.ts';
-export { addCommentRequestSchema } from './comments.ts';
+export {
+  addCommentRequestSchema,
+  publishReviewRequestSchema,
+  reviewPreviewResponseSchema,
+} from './comments.ts';
 export type {
   AddCommentRequest,
   ChangeCommentInput,

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vite-plus/test';
 import type { DraftCommentView } from '../models/draft-comment.ts';
 import {
-  confirmedReview,
+  reviewPayload,
   draftCommentsMarkdown,
   draftOutdated,
   patchLines,
@@ -186,7 +186,7 @@ describe('planPullRequestReview', () => {
   });
 });
 
-describe('confirmedReview', () => {
+describe('reviewPayload', () => {
   const plan = {
     inline: [
       {
@@ -194,7 +194,7 @@ describe('confirmedReview', () => {
         path: 'src/search.ts',
         side: 'RIGHT' as const,
         line: 3,
-        body: 'original a',
+        body: 'Edited a',
       },
     ],
     general: [
@@ -202,18 +202,13 @@ describe('confirmedReview', () => {
         id: 'b',
         location: 'Walkthrough step “Search”',
         reason: 'step' as const,
-        body: 'original b',
+        body: 'Edited b\n',
       },
     ],
   };
 
-  it('posts exactly the confirmed text, with body comments after the summary', () => {
-    expect(
-      confirmedReview(plan, {
-        summary: '  Looks close.  ',
-        bodies: { a: 'Edited a', b: 'Edited b\n' },
-      }),
-    ).toEqual({
+  it('puts general comments after the summary', () => {
+    expect(reviewPayload(plan, '  Looks close.  ')).toEqual({
       ids: ['a', 'b'],
       body: 'Looks close.\n\n**Walkthrough step “Search”**\n\nEdited b',
       comments: [
@@ -222,28 +217,10 @@ describe('confirmedReview', () => {
     });
   });
 
-  it('refuses a confirmation that drops, adds or empties a comment', () => {
-    expect(confirmedReview(plan, { summary: '', bodies: { a: 'x' } })).toBe(
-      undefined,
-    );
-    expect(
-      confirmedReview(plan, {
-        summary: '',
-        bodies: { a: 'x', b: 'y', c: 'new point' },
-      }),
-    ).toBe(undefined);
-    expect(
-      confirmedReview(plan, { summary: '', bodies: { a: 'x', b: '  ' } }),
-    ).toBe(undefined);
-  });
-
   it('gives GitHub a body when only inline comments are confirmed', () => {
-    expect(
-      confirmedReview(
-        { inline: plan.inline, general: [] },
-        { summary: '', bodies: { a: 'x' } },
-      )?.body,
-    ).toBe('1 inline comment.');
+    expect(reviewPayload({ inline: plan.inline, general: [] }, '').body).toBe(
+      '1 inline comment.',
+    );
   });
 });
 

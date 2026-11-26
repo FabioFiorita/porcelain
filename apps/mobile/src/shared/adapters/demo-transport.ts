@@ -38,6 +38,8 @@ import {
 } from '@porcelain/contracts/walkthroughs';
 import {
   addCommentRequestSchema,
+  publishReviewRequestSchema,
+  reviewPreviewResponseSchema,
   type CommentsResponse,
 } from '@porcelain/contracts/comments';
 import { anchorLabel } from '@porcelain/client/comments/rules';
@@ -61,7 +63,7 @@ import {
   demoWalkthrough,
 } from './demo-data';
 import {
-  demoPullRequestNumber,
+  demoPullRequestIdentity,
   demoPullRequestUrl,
   demoPullRequests,
 } from './demo-pull-request';
@@ -573,13 +575,14 @@ export function createDemoTransport(): Transport {
     const drafts = () =>
       comments.filter((comment) => comment.publication.status === 'draft');
     if (path === `${commentsPath}/review` && method === 'GET')
-      return jsonResponse(
+      return json(
+        reviewPreviewResponseSchema,
         drafts().length === 0
           ? { kind: 'unavailable', reason: 'no-comments' }
           : {
               kind: 'available',
               pullRequest: {
-                number: demoPullRequestNumber,
+                ...demoPullRequestIdentity,
                 url: demoPullRequestUrl,
                 title: 'A warmer welcome for every visitor',
               },
@@ -590,7 +593,10 @@ export function createDemoTransport(): Transport {
                       {
                         id: comment.id,
                         path: comment.anchor.path,
-                        side: comment.anchor.side,
+                        side:
+                          comment.anchor.side === 'additions'
+                            ? ('RIGHT' as const)
+                            : ('LEFT' as const),
                         ...(comment.anchor.start === comment.anchor.end
                           ? {}
                           : { startLine: comment.anchor.start }),
@@ -615,9 +621,13 @@ export function createDemoTransport(): Transport {
             },
       );
     if (path === `${commentsPath}/review` && method === 'POST') {
+      const { bodies } = Schema.decodeUnknownSync(publishReviewRequestSchema)(
+        body,
+      );
       const review = `${demoPullRequestUrl}#pullrequestreview-${commentCount + 2}`;
       comments = comments.map((comment) =>
-        comment.publication.status === 'draft'
+        comment.publication.status === 'draft' &&
+        Object.hasOwn(bodies, comment.id)
           ? {
               ...comment,
               publication: {

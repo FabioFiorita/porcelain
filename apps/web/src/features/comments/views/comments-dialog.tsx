@@ -132,7 +132,7 @@ function ReviewStep({
           Review on #{preview.pullRequest.number} · {preview.pullRequest.title}
         </StepTitle>
         <DialogDescription>
-          This is exactly what will be posted, as one review.
+          These drafts will be posted as one review if they are still open.
         </DialogDescription>
       </DialogHeader>
       <div className="-mx-1 flex max-h-[60vh] flex-col gap-4 overflow-auto px-1">

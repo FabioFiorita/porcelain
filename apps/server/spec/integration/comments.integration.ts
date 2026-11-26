@@ -20,7 +20,7 @@ function commentsView(value: unknown) {
 
 const PATCH = '@@ -0,0 +1,3 @@\n+const a = 1;\n+const b = 2;\n+const c = 3;';
 
-test('keeps draft comments across refreshes, edits and deletes them, and publishes them once as one review on the branch pull request', async ({
+test('publishes only current drafts from the preview with confirmed text and posts a concurrent confirmation once', async ({
   session,
   server,
 }) => {
@@ -182,12 +182,7 @@ else console.log('{}');
         (comment) => comment.text === 'Remove this draft.',
       )?.id,
     );
-    expect(await view('DELETE', `${root}/${temporaryId}`)).toEqual(edited);
-
-    const { draftRevision: initialRevision, ...planned } = record(
-      await preview(),
-    );
-    expect(text(initialRevision)).toMatch(/^[0-9a-f]{64}$/);
+    const { general, ...planned } = record(await preview());
     expect(planned).toEqual({
       kind: 'available',
       pullRequest: {
@@ -208,36 +203,34 @@ else console.log('{}');
           body: 'Name these constants',
         },
       ],
-      general: [
+    });
+    expect(list(general)).toHaveLength(2);
+    expect(list(general)).toEqual(
+      expect.arrayContaining([
         expect.objectContaining({
           id: fileId,
           reason: 'file',
           body: 'Is this still true?',
         }),
-      ],
-    });
-    await server.advanceTime(1_000);
-    const unchanged = await view('PATCH', `${root}/${lineId}`, {
-      text: 'Name these constants',
-    });
-    expect(unchanged.comments).toEqual(edited.comments);
-    expect(text(record(await preview()).draftRevision)).toBe(
-      text(initialRevision),
+        expect.objectContaining({
+          id: temporaryId,
+          reason: 'file',
+          body: 'Remove this draft.',
+        }),
+      ]),
     );
-    const bodies = {
-      [lineId]: 'Name these constants',
-      [fileId]: 'Is this still true?',
-    };
     const publish = (body: object) =>
       session.send({ method: 'POST', path: `${root}/review`, body });
 
     const confirmation = {
       pullRequest: { owner: 'fixture', repo: 'project', number: 7 },
       headOid,
-      inlineIds: [lineId],
-      draftRevision: text(initialRevision),
       summary: 'Two notes.',
-      bodies,
+      bodies: {
+        [lineId]: 'Keep the names and document why.',
+        [fileId]: 'Is this still true?',
+        [temporaryId]: 'Remove this draft.',
+      },
     };
     const stale = await publish({ ...confirmation, headOid: 'f'.repeat(40) });
     expect(stale.status).toBe(409);
@@ -246,18 +239,6 @@ else console.log('{}');
         409,
         'Conflict',
         'The pull request has new commits since this preview. Review it again before posting.',
-      ),
-    );
-    const changed = await publish({
-      ...confirmation,
-      bodies: { [lineId]: 'Name these constants' },
-    });
-    expect(changed.status).toBe(409);
-    expect(changed.body).toEqual(
-      apiError(
-        409,
-        'Conflict',
-        'The comments changed since this preview. Review them again before posting.',
       ),
     );
     expect(await readFile(reviewsPath, 'utf8')).toBe('');
@@ -280,20 +261,6 @@ else console.log('{}');
       'src/app.ts',
       'const a = 10;\nconst b = 2;\nconst c = 3;\n',
     );
-    const misplaced = await publish(confirmation);
-    expect(misplaced.status).toBe(409);
-    expect(misplaced.body).toEqual(
-      apiError(
-        409,
-        'Conflict',
-        'Where a comment will appear changed. Go back and preview the review again.',
-      ),
-    );
-    await session.writeFile(
-      'src/app.ts',
-      'const a = 1;\nconst b = 2;\nconst c = 3;\n',
-    );
-
     const phoneEdit = await read(session, {
       method: 'PATCH',
       path: `${root}/${lineId}`,
@@ -306,38 +273,20 @@ else console.log('{}');
         text: 'Keep the names but explain why.',
       }),
     );
-    const staleDraft = await publish(confirmation);
-    expect(staleDraft.status).toBe(409);
-    expect(staleDraft.body).toEqual(
-      apiError(
-        409,
-        'Conflict',
-        'The comments changed since this preview. Review them again before posting.',
-      ),
+    const afterDelete = await view('DELETE', `${root}/${temporaryId}`);
+    expect(afterDelete.comments.map(({ id }) => id)).toEqual(
+      expect.arrayContaining([lineId, fileId]),
     );
-    expect(await readFile(reviewsPath, 'utf8')).toBe('');
-    expect((await view('GET', root)).comments).toContainEqual(
-      expect.objectContaining({
-        id: lineId,
-        text: 'Keep the names but explain why.',
-        publication: { status: 'draft' },
-      }),
+    expect(afterDelete.comments).toHaveLength(2);
+    const addedLater = await view('POST', root, {
+      anchor: { kind: 'file', path: 'README.md' },
+      text: 'Leave this for a later review.',
+    });
+    const addedLaterId = text(
+      addedLater.comments.find(
+        (comment) => comment.text === 'Leave this for a later review.',
+      )?.id,
     );
-
-    const refreshed = record(await preview());
-    const draftRevision = text(refreshed.draftRevision);
-    expect(draftRevision).not.toBe(confirmation.draftRevision);
-    expect(list(refreshed.inline).map(record)).toContainEqual(
-      expect.objectContaining({
-        id: lineId,
-        body: 'Keep the names but explain why.',
-      }),
-    );
-    const reviewedAgain = {
-      ...confirmation,
-      draftRevision,
-      bodies: { ...bodies, [lineId]: 'Keep the names and document why.' },
-    };
 
     await new Promise<void>((resolve, reject) => {
       gate.once('error', reject);
@@ -346,8 +295,8 @@ else console.log('{}');
     state.gate = true;
     await save();
     const responses = await Promise.all([
-      publish(reviewedAgain),
-      publish(reviewedAgain),
+      publish(confirmation),
+      publish(confirmation),
     ]);
     expect(responses.map((result) => result.status)).toEqual(
       expect.arrayContaining([200, 409]),
@@ -367,14 +316,16 @@ else console.log('{}');
     const url = 'https://github.com/fixture/project/pull/7#pullrequestreview-1';
     expect(answer.url).toBe(url);
     expect(
-      commentsView(answer.view).comments.map((comment) => {
-        const publication = record(comment.publication);
-        return {
-          status: publication.status,
-          url: publication.url,
-          dated: typeof publication.publishedAt === 'string',
-        };
-      }),
+      commentsView(answer.view)
+        .comments.filter(({ id }) => id !== addedLaterId)
+        .map((comment) => {
+          const publication = record(comment.publication);
+          return {
+            status: publication.status,
+            url: publication.url,
+            dated: typeof publication.publishedAt === 'string',
+          };
+        }),
     ).toEqual([
       { status: 'published', url, dated: true },
       { status: 'published', url, dated: true },
@@ -384,29 +335,29 @@ else console.log('{}');
       .filter(Boolean)
       .map((line): unknown => JSON.parse(line));
     expect(posted).toHaveLength(1);
+    expect(posted[0]).toMatchObject({
+      commit_id: headOid,
+      event: 'COMMENT',
+    });
     const review = record(posted[0]);
-    expect(text(review.body)).toContain('Is this still true?');
+    expect(text(review.body)).toContain(
+      '**src/app.ts:1-2**\n\nKeep the names and document why.',
+    );
     expect(text(review.body)).toContain('Two notes.');
-    expect([{ ...review, body: '' }]).toEqual([
-      {
-        commit_id: headOid,
-        event: 'COMMENT',
-        body: '',
-        comments: [
-          {
-            path: 'src/app.ts',
-            side: 'RIGHT',
-            start_line: 1,
-            start_side: 'RIGHT',
-            line: 2,
-            body: 'Keep the names and document why.',
-          },
-        ],
-      },
-    ]);
-    expect(await preview()).toEqual({
-      kind: 'unavailable',
-      reason: 'no-comments',
+    expect(text(review.body)).toContain('Is this still true?');
+    expect(text(review.body)).not.toContain('Keep the names but explain why.');
+    expect(text(review.body)).not.toContain('Remove this draft.');
+    expect(text(review.body)).not.toContain('Leave this for a later review.');
+    expect(review.comments ?? []).toEqual([]);
+    expect(await preview()).toMatchObject({
+      kind: 'available',
+      inline: [],
+      general: [
+        expect.objectContaining({
+          id: addedLaterId,
+          body: 'Leave this for a later review.',
+        }),
+      ],
     });
 
     for (const request of [

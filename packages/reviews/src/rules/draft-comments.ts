@@ -1,4 +1,3 @@
-import { sha256Hex } from '@porcelain/kernel/rules';
 import type {
   CommentSide,
   DraftComment,
@@ -137,14 +136,6 @@ function inlineComment(
   };
 }
 
-export function openDraftRevision(drafts: readonly DraftCommentView[]): string {
-  const revisions = drafts
-    .filter(({ publication }) => publication.status === 'draft')
-    .toSorted((first, second) => first.id.localeCompare(second.id))
-    .map(({ id, text, updatedAt }) => [id, text, updatedAt]);
-  return sha256Hex(JSON.stringify(revisions));
-}
-
 export function planPullRequestReview(
   drafts: readonly DraftCommentView[],
   diff: PullRequestDiff,
@@ -252,36 +243,10 @@ export function draftCommentsMarkdown(input: {
   return `${lines.join('\n')}\n`;
 }
 
-export function confirmedReview(
-  plan: ReviewPlan,
-  confirmed: {
-    readonly summary: string;
-    readonly bodies: Readonly<Record<string, string>>;
-  },
-):
-  | {
-      readonly ids: readonly string[];
-      readonly body: string;
-      readonly comments: readonly Omit<InlineReviewComment, 'id'>[];
-    }
-  | undefined {
+export function reviewPayload(plan: ReviewPlan, summary: string) {
   const ids = [...plan.inline, ...plan.general].map((comment) => comment.id);
-  const given = Object.keys(confirmed.bodies);
-  if (
-    ids.length === 0 ||
-    given.length !== ids.length ||
-    ids.some((id) => !confirmed.bodies[id]?.trim())
-  )
-    return undefined;
-  const text = (id: string) => confirmed.bodies[id]!.trim();
-  const comments = plan.inline.map(({ id, ...comment }) => ({
-    ...comment,
-    body: text(id),
-  }));
-  const body = reviewBody(
-    confirmed.summary,
-    plan.general.map((comment) => ({ ...comment, body: text(comment.id) })),
-  );
+  const comments = plan.inline.map(({ id: _id, ...comment }) => comment);
+  const body = reviewBody(summary, plan.general);
   return {
     ids,
     body:

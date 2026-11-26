@@ -32,7 +32,6 @@ export class EditDraftCommentService extends Context.Service<
               yield* store.remove(input);
               return;
             }
-            if (input.text === found.text) return;
             yield* store.updateText({
               worktreeId: input.worktreeId,
               id: input.id,

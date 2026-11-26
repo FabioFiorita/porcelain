@@ -265,7 +265,7 @@ function ReviewStep({
         Review on #{preview.pullRequest.number} · {preview.pullRequest.title}
       </Text>
       <Text variant="secondary" tone="muted">
-        This is exactly what will be posted, as one review.
+        These drafts will be posted as one review if they are still open.
       </Text>
       <Field label="Summary">
         <Input
