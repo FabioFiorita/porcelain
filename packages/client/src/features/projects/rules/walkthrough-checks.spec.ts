@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vite-plus/test';
 import {
   movedPullHead,
+  stepChecksCard,
   verifiedChecks,
   verifiedChecksLine,
 } from './walkthrough-checks.ts';
@@ -9,6 +10,43 @@ it('names the pull request head only when it moved past the captured commit', ()
   expect(movedPullHead('b'.repeat(40), 'a'.repeat(40))).toBe('bbbbbbb');
   expect(movedPullHead('a'.repeat(40), 'a'.repeat(40))).toBeUndefined();
   expect(movedPullHead(undefined, 'a'.repeat(40))).toBeUndefined();
+});
+
+it('heads a step’s checks card with what fails now, the written result second', () => {
+  const captured = {
+    headOid: 'abc1234',
+    state: 'SUCCESS',
+    checksTruncated: false,
+    results: [
+      { name: 'Unit tests', status: 'SUCCESS' },
+      { name: 'Browser tests', status: 'SUCCESS' },
+    ],
+  };
+  const card = stepChecksCard(captured, {
+    status: {
+      headSha: 'abc1234',
+      checksTruncated: false,
+      checks: [
+        { name: 'Unit tests', status: 'COMPLETED', conclusion: 'FAILURE' },
+        { name: 'Browser tests', status: 'COMPLETED', conclusion: 'FAILURE' },
+      ],
+    },
+    detail: { headSha: 'd'.repeat(40) },
+  });
+  expect({
+    lead: card.lead,
+    note: card.headline.note,
+    tone: card.headline.tone,
+    moved: card.moved,
+  }).toEqual({
+    lead: 'Failing now: Unit tests, Browser tests',
+    note: 'Passing when written, at abc1234',
+    tone: 'failed',
+    moved: 'ddddddd',
+  });
+  expect(stepChecksCard(captured, undefined).lead).toBe(
+    'Checks passing at abc1234',
+  );
 });
 
 describe('verifiedChecksLine', () => {

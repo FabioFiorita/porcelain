@@ -73,6 +73,7 @@ export {
   capturedCheckNames,
   capturedCheckRest,
   movedPullHead,
+  stepChecksCard,
   verifiedChecks,
 } from './walkthrough-checks.ts';
 export * from './pull-request-checks.ts';

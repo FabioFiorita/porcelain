@@ -4,11 +4,8 @@ import type {
   WalkthroughRun,
 } from '@porcelain/client/walkthroughs/rules';
 import {
-  checksHeadline,
-  currentWalkthroughChecks,
-  movedPullHead,
   recordedCheckNow,
-  recordedChecks,
+  stepChecksCard,
 } from '@porcelain/client/projects/rules';
 import {
   CheckResultIcon,
@@ -114,14 +111,10 @@ function FileList({
 }
 
 function CheckList({ block, pull }: { block: Checks; pull: WalkthroughPull }) {
-  const checks = recordedChecks(block.checks);
-  const live = currentWalkthroughChecks(block.checks, pull?.status);
-  const headline = checksHeadline(block.checks, pull?.status);
-  const lead =
-    headline.names.length > 0
-      ? `${headline.label}: ${headline.names.join(', ')}`
-      : headline.label;
-  const moved = movedPullHead(pull?.detail?.headSha, block.checks.headOid);
+  const { checks, live, headline, lead, moved } = stepChecksCard(
+    block.checks,
+    pull,
+  );
   return (
     <EvidenceBox
       label={headline.note ? `${lead}. ${headline.note}` : lead}

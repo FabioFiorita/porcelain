@@ -1,10 +1,8 @@
 import type { ReactNode } from 'react';
 import {
-  checksHeadline,
-  currentWalkthroughChecks,
-  movedPullHead,
+  type currentWalkthroughChecks,
   recordedCheckNow,
-  recordedChecks,
+  stepChecksCard,
   type RecordedCheck,
 } from '@porcelain/client/projects/rules';
 import {
@@ -102,16 +100,12 @@ function CheckRow({
   );
 }
 
-function CheckList({ block, pull }: { block: Checks; pull: WalkthroughPull }) {
-  const checks = recordedChecks(block.checks);
-  const live = currentWalkthroughChecks(block.checks, pull?.status);
-  const headline = checksHeadline(block.checks, pull?.status);
+function StepChecks({ block, pull }: { block: Checks; pull: WalkthroughPull }) {
+  const { checks, live, headline, lead, moved } = stepChecksCard(
+    block.checks,
+    pull,
+  );
   const icon = RESULT_ICONS[headline.tone];
-  const lead =
-    headline.names.length > 0
-      ? `${headline.label}: ${headline.names.join(', ')}`
-      : headline.label;
-  const moved = movedPullHead(pull?.detail?.headSha, block.checks.headOid);
   return (
     <Card>
       <Box
@@ -203,7 +197,7 @@ export function StepBlocks({
       case 'files':
         return <FileList key={index} workspace={workspace} block={block} />;
       case 'checks':
-        return <CheckList key={index} block={block} pull={pull} />;
+        return <StepChecks key={index} block={block} pull={pull} />;
       case 'diagram':
         return (
           <WalkthroughDiagram

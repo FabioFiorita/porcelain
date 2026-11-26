@@ -1,5 +1,6 @@
 import {
-  type currentWalkthroughChecks,
+  checksHeadline,
+  currentWalkthroughChecks,
   pullRequestRollup,
   recordedChecks,
   walkthroughCheckRows,
@@ -22,6 +23,25 @@ export function movedPullHead(
 
 const named = (label: string, names: readonly string[]) =>
   names.length > 0 ? `${label}: ${names.join(', ')}` : label;
+
+export function stepChecksCard(
+  captured: CapturedChecks,
+  pull:
+    | {
+        readonly status?: LiveChecks | undefined;
+        readonly detail?: { readonly headSha: string } | undefined;
+      }
+    | undefined,
+) {
+  const headline = checksHeadline(captured, pull?.status);
+  return {
+    checks: recordedChecks(captured),
+    live: currentWalkthroughChecks(captured, pull?.status),
+    headline,
+    lead: named(headline.label, headline.names),
+    moved: movedPullHead(pull?.detail?.headSha, captured.headOid),
+  };
+}
 
 type RecordedLine = {
   readonly label: string;
