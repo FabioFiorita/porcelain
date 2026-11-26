@@ -50,10 +50,12 @@ test('the owner names this computer and picks its icon in Settings, tab titles a
     .toEqual({ name: 'Workstation', custom: true });
   await expect(name).not.toBeAttached();
   await expect(
-    settings.getByRole('heading', {
-      name: 'Computers. Workstation',
-      exact: true,
-    }),
+    settings.getByRole('heading', { name: 'This computer', exact: true }),
+  ).toBeVisible();
+  await expect(
+    settings
+      .getByRole('group', { name: 'Overview', exact: true })
+      .getByText('Workstation', { exact: true }),
   ).toBeVisible();
   await expect.poll(() => app.title()).toBe('Settings — Porcelain');
   await closeSettings(settings.page());
