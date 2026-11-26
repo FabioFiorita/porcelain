@@ -29,7 +29,9 @@ export function SettingsScreen({
   onOpenComputers,
   onOpenComponentLibrary,
   onOpenShortcuts,
+  selected,
 }: {
+  selected?: 'general' | 'reviews-git' | 'computers' | undefined;
   onOpenGeneral: () => void;
   onOpenReviewsGit: () => void;
   onOpenComputers: () => void;
@@ -64,6 +66,7 @@ export function SettingsScreen({
             accessibilityLabel={`General, ${generalSettingsSummary(preferences)}`}
             leading={<Icon name="sliders" tone="muted" />}
             trailing={<Icon name="chevron" tone="muted" />}
+            selected={selected === 'general'}
             onPress={onOpenGeneral}
           />
           <Item
@@ -73,6 +76,7 @@ export function SettingsScreen({
             accessibilityLabel={`Reviews & Git, ${REVIEWS_GIT_SETTINGS_SUMMARY}`}
             leading={<Icon name="checklist" tone="muted" />}
             trailing={<Icon name="chevron" tone="muted" />}
+            selected={selected === 'reviews-git'}
             onPress={onOpenReviewsGit}
           />
           {onOpenShortcuts ? (
@@ -95,6 +99,7 @@ export function SettingsScreen({
                 .join(', ')}
               leading={<Icon name="environments" tone="muted" />}
               trailing={<Icon name="chevron" tone="muted" />}
+              selected={selected === 'computers'}
               onPress={onOpenComputers}
             >
               <Text variant="caption" tone="muted" numberOfLines={1}>
