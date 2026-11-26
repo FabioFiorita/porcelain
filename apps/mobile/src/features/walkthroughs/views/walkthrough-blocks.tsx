@@ -1,4 +1,5 @@
 import {
+  currentWalkthroughChecks,
   movedPullHead,
   pullRequestRollup,
   recordedChecks,
@@ -95,6 +96,8 @@ function CheckRow({ result }: { result: RecordedCheck }) {
 function CheckList({ block, pull }: { block: Checks; pull: WalkthroughPull }) {
   const checks = recordedChecks(block.checks);
   const icon = RESULT_ICONS[pullRequestRollup(block.checks.state).tone];
+  const live = currentWalkthroughChecks(block.checks, pull?.status);
+  const now = live ? RESULT_ICONS[live.tone] : undefined;
   const moved = movedPullHead(pull?.detail?.headSha, block.checks.headOid);
   return (
     <Card>
@@ -107,8 +110,16 @@ function CheckList({ block, pull }: { block: Checks; pull: WalkthroughPull }) {
       >
         <Icon name={icon.name} tone={icon.tone} size="small" />
         <Text variant="secondary" weight="medium">
-          {checks.label}
+          {live ? checks.whenWritten : checks.label}
         </Text>
+        {live && now ? (
+          <Box className="flex-row items-center" gap={1}>
+            <Icon name={now.name} tone={now.tone} size="small" />
+            <Text variant="secondary" weight="medium">
+              {live.label}
+            </Text>
+          </Box>
+        ) : null}
         {moved && pull ? (
           <Text variant="caption" tone="warn">
             #{pull.number} is now at {moved}

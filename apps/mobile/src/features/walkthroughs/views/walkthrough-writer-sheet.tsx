@@ -63,9 +63,9 @@ function WriterChoice({ workspace }: { workspace: Workspace }) {
   if (!settings || !writer)
     return check.failed ? (
       <ErrorState
-        message="Could not check writers on the connected computer."
+        message="Could not check Claude Code or Codex on the connected computer."
         retry={{
-          label: 'Check writers again',
+          label: 'Check again',
           onPress: check.refresh,
           pending: check.checking,
         }}

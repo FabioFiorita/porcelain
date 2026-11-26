@@ -130,7 +130,9 @@ function PullRequestPage({
               <Text variant="caption" tone="muted" numberOfLines={1}>
                 {[
                   pull.author ? `by ${pull.author}` : undefined,
-                  pull.createdAt ? relativeTime(pull.createdAt, Date.now()) : undefined,
+                  pull.createdAt
+                    ? relativeTime(pull.createdAt, Date.now())
+                    : undefined,
                 ]
                   .filter(Boolean)
                   .join(' · ')}

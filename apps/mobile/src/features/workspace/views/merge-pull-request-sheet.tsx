@@ -158,7 +158,16 @@ function MergeConfirmation({
       ) : null}
       {block ? (
         <Box className="flex-row items-center" gap={2}>
-          <StateIcon state={merge.blockShown || moved ? 'pending' : 'failed'} />
+          <StateIcon
+            state={
+              moved ||
+              merge.status === undefined ||
+              merge.review?.undecidedCallStep === 'reading' ||
+              merge.review?.undecidedCallStep === 'unreadable'
+                ? 'pending'
+                : 'failed'
+            }
+          />
           <Text variant="secondary" className="flex-1">
             {block}
           </Text>

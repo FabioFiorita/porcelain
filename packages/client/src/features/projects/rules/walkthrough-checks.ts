@@ -1,7 +1,8 @@
 import {
-  currentWalkthroughChecks,
+  type currentWalkthroughChecks,
   pullRequestRollup,
   recordedChecks,
+  walkthroughCheckRows,
   type PullChecksTone,
 } from './pull-request.ts';
 
@@ -25,6 +26,7 @@ const named = (label: string, names: readonly string[]) =>
 export function verifiedChecksLine(
   recorded: {
     readonly label: string;
+    readonly whenWritten: string;
     readonly more: boolean;
     readonly results: readonly { readonly name: string }[];
   },
@@ -32,13 +34,14 @@ export function verifiedChecksLine(
     | { readonly label: string; readonly names: readonly string[] }
     | undefined,
 ): { readonly text: string; readonly captured: string | undefined } {
-  const captured = `${named(
-    recorded.label,
-    recorded.results.map((result) => result.name),
-  )}${recorded.more ? ' and more' : ''}`;
+  const names = recorded.results.map((result) => result.name);
+  const more = recorded.more ? ' and more' : '';
   return live
-    ? { text: named(live.label, live.names), captured: `Captured: ${captured}` }
-    : { text: captured, captured: undefined };
+    ? {
+        text: named(live.label, live.names),
+        captured: `${named(recorded.whenWritten, names)}${more}`,
+      }
+    : { text: `${named(recorded.label, names)}${more}`, captured: undefined };
 }
 
 export function verifiedChecks(
@@ -53,9 +56,11 @@ export function verifiedChecks(
       }
     | undefined,
 ) {
-  return captured.map(({ checks, step }) => {
+  const row = (
+    { checks, step }: (typeof captured)[number],
+    live: ReturnType<typeof currentWalkthroughChecks>,
+  ) => {
     const recorded = recordedChecks(checks);
-    const live = currentWalkthroughChecks(checks, pull?.status);
     const tone: PullChecksTone =
       live?.tone ?? pullRequestRollup(checks.state).tone;
     return {
@@ -66,5 +71,10 @@ export function verifiedChecks(
       moved: movedPullHead(pull?.detail?.headSha, checks.headOid),
       line: verifiedChecksLine(recorded, live),
     };
-  });
+  };
+  const { changed, unchanged } = walkthroughCheckRows(captured, pull?.status);
+  return {
+    changed: changed.map((entry) => row(entry, entry.live)),
+    unchanged: unchanged.map((entry) => row(entry, undefined)),
+  };
 }

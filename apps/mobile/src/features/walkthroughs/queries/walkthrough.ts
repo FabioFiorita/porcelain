@@ -7,7 +7,12 @@ import {
   readWalkthrough,
   readWalkthroughAsset,
 } from '@porcelain/client/walkthroughs';
-import { walkthroughPhase } from '@porcelain/client/walkthroughs/rules';
+import {
+  reviewCodeSections,
+  uncoveredPaths,
+  walkthroughPhase,
+  type WalkthroughContent,
+} from '@porcelain/client/walkthroughs/rules';
 import type { Workspace } from '../../projects/index';
 
 type Selection = Pick<Workspace, 'connection' | 'scope'>;
@@ -100,4 +105,30 @@ export function useCapturedExcerpt(input: {
     },
   });
   return { result: useAtomValue(atom), retry: useAtomRefresh(atom) };
+}
+
+export function useWalkthroughScope(
+  workspace: Selection,
+  content: WalkthroughContent,
+) {
+  const branch = Option.getOrUndefined(
+    AsyncResult.value(
+      useAtomValue(readBranchChanges(walkthroughSelection(workspace))),
+    ),
+  )?.files;
+  const worktree =
+    Option.getOrUndefined(
+      AsyncResult.value(
+        useAtomValue(readChanges(walkthroughSelection(workspace))),
+      ),
+    )?.changes ?? [];
+  const sections = reviewCodeSections({
+    content,
+    branch: branch ?? [],
+    worktree,
+  });
+  return {
+    uncommitted: worktree.map((change) => change.path),
+    uncovered: uncoveredPaths(sections.outside, branch !== undefined),
+  };
 }

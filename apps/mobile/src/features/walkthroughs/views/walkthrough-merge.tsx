@@ -1,7 +1,11 @@
 import { useAtomValue } from '@effect/atom-react';
 import { useRouter } from 'expo-router';
 import { readWalkthroughMergeReview } from '@porcelain/client/walkthroughs';
-import { pullRequestMergeBlock } from '@porcelain/client/projects/rules';
+import {
+  mergeButtonReason,
+  mergeReadiness,
+  pullRequestMergeBlock,
+} from '@porcelain/client/projects/rules';
 import type {
   WalkthroughContent,
   WalkthroughRun,
@@ -47,6 +51,15 @@ export function WalkthroughMerge({
   const { projectId } = workspace.scope;
   const environmentId = workspace.connection.environmentId;
   const block = pullRequestMergeBlock(pull, review);
+  const reason = mergeButtonReason(
+    block,
+    mergeReadiness({
+      status: found.status,
+      baseBranch: pull.baseBranch,
+      mergeMethods: pull.mergeMethods,
+      review,
+    }).waitsFor,
+  );
   return (
     <Box gap={3} accessibilityLabel={`Pull request #${number}`}>
       <Separator />
@@ -77,9 +90,9 @@ export function WalkthroughMerge({
               }
             />
           </Box>
-          {block ? (
-            <Text variant="secondary" tone="muted" numberOfLines={2}>
-              {block}
+          {reason ? (
+            <Text variant="secondary" tone="muted">
+              {reason}
             </Text>
           ) : null}
         </>

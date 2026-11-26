@@ -17,7 +17,11 @@ import {
   type PullCheck,
   type PullStatus,
 } from './pull-request-checks.ts';
-import { mergeReadiness } from './merge-readiness.ts';
+import {
+  mergeButtonReason,
+  mergeReadiness,
+  walkthroughStanding,
+} from './merge-readiness.ts';
 import {
   pullRequestMergeBlock,
   type PullRequestMergeReview,
@@ -529,4 +533,78 @@ it('reports an unread, merged or closed pull request without a verdict', () => {
       baseBranch: 'main',
     }).label,
   ).toBe('Closed without merging');
+});
+
+const detail = { state: 'open', draft: false, baseBranch: 'main' };
+
+it('stands behind the merge rule at the top of the Walkthrough, with the pull request state', () => {
+  expect(
+    walkthroughStanding({
+      pull: {
+        status: pull([job('Browser tests', 'failed')], { draft: true }),
+        statusUnread: false,
+        detail,
+      },
+      review: { headOid: head, undecidedCallStep: 1, undecidedCalls: 1 },
+    }),
+  ).toEqual({
+    label: 'Not ready to merge: draft, 1 check failing, 1 call open',
+    icon: 'failed',
+    quiet: false,
+    pullState: 'Draft',
+  });
+  expect(
+    walkthroughStanding({
+      pull: {
+        status: pull([job('Unit tests', 'passed')]),
+        statusUnread: false,
+        detail,
+      },
+      review: decided,
+    }),
+  ).toMatchObject({
+    label: 'Ready to merge',
+    icon: 'passed',
+    pullState: 'Open',
+  });
+});
+
+it('counts only open calls when there is no pull request or its status cannot be read', () => {
+  const calls = { headOid: head, undecidedCallStep: 2, undecidedCalls: 2 };
+  expect(walkthroughStanding({ pull: undefined, review: calls })).toEqual({
+    label: '2 calls open',
+    icon: 'none',
+    quiet: false,
+    pullState: undefined,
+  });
+  expect(
+    walkthroughStanding({
+      pull: { status: undefined, statusUnread: true, detail },
+      review: calls,
+    }),
+  ).toMatchObject({ label: '2 calls open', pullState: 'Open' });
+  expect(walkthroughStanding({ pull: undefined, review: decided })).toBe(
+    undefined,
+  );
+  expect(
+    walkthroughStanding({
+      pull: { status: undefined, statusUnread: false, detail },
+      review: decided,
+    }),
+  ).toMatchObject({ label: 'Reading the merge status', quiet: true });
+});
+
+it('gives the Merge button the merge rule reason only while it is held', () => {
+  expect(mergeButtonReason(undefined, 'Merge waits for: 1 call open.')).toBe(
+    undefined,
+  );
+  expect(
+    mergeButtonReason(
+      'Decide the call first.',
+      'Merge waits for: 1 call open.',
+    ),
+  ).toBe('Merge waits for: 1 call open.');
+  expect(mergeButtonReason('Decide the call first.', undefined)).toBe(
+    'Decide the call first.',
+  );
 });

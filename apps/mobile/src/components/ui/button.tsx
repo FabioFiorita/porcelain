@@ -1,6 +1,7 @@
 import {
   ButtonSurface,
   buttonTones,
+  heldFilled,
   type ButtonSurfaceProps,
 } from './button-surface';
 import { Text } from './text';
@@ -15,6 +16,11 @@ export function Button({
   accessibilityLabel?: string;
   size?: 'default' | 'sm';
 }) {
+  const held = heldFilled(
+    variant,
+    props.disabled === true,
+    props.pending === true,
+  );
   return (
     <ButtonSurface
       {...props}
@@ -26,7 +32,7 @@ export function Button({
         accessible={false}
         variant={size === 'sm' ? 'secondary' : 'body'}
         weight={size === 'sm' ? 'medium' : 'semibold'}
-        tone={buttonTones[variant]}
+        tone={held ? 'muted' : buttonTones[variant]}
         className="shrink text-center"
       >
         {label}

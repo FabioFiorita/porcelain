@@ -10,6 +10,7 @@ import {
   readyUpdate,
   initialWriteFailure,
   reviewCodeSections,
+  uncoveredPaths,
   eagerSections,
   walkthroughMeta,
   walkthroughEvidenceNotice,
@@ -226,12 +227,10 @@ function Written({
     foldedNotSaid(content, false).total > 0 ? (
       <NotSaid content={content} />
     ) : undefined;
-  const uncovered = [
-    ...new Set([
-      ...(code.branch ? code.sections.outside.branch : []),
-      ...code.sections.outside.worktree,
-    ]),
-  ];
+  const uncovered = uncoveredPaths(
+    code.sections.outside,
+    code.branch !== undefined,
+  );
   const outsideCount = uncovered.length;
   const conversation: Conversation = ({ step }) => {
     const title = content.stops[step - 1]!.title;

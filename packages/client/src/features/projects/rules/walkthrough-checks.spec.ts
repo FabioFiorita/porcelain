@@ -14,6 +14,7 @@ it('names the pull request head only when it moved past the captured commit', ()
 describe('verifiedChecksLine', () => {
   const recorded = {
     label: 'Checks passing at abcdef1',
+    whenWritten: 'Passing when written, at abcdef1',
     more: true,
     results: [{ name: 'Unit tests' }, { name: 'Browser tests' }],
   };
@@ -25,16 +26,16 @@ describe('verifiedChecksLine', () => {
     });
   });
 
-  it('leads with the live result and keeps the captured one beneath it', () => {
+  it('leads with the live result and says what passed when it was written', () => {
     expect(
       verifiedChecksLine(recorded, {
-        label: 'Now failing',
+        label: 'Failing now',
         names: ['Browser tests'],
       }),
     ).toEqual({
-      text: 'Now failing: Browser tests',
+      text: 'Failing now: Browser tests',
       captured:
-        'Captured: Checks passing at abcdef1: Unit tests, Browser tests and more',
+        'Passing when written, at abcdef1: Unit tests, Browser tests and more',
     });
     expect(
       verifiedChecksLine(
@@ -46,7 +47,7 @@ describe('verifiedChecksLine', () => {
       ),
     ).toEqual({
       text: 'No checks now',
-      captured: 'Captured: Checks passing at abcdef1',
+      captured: 'Passing when written, at abcdef1',
     });
   });
 });
@@ -59,22 +60,21 @@ describe('verifiedChecks', () => {
     results: [{ name: 'Unit tests', status: 'SUCCESS' }],
   };
 
-  it('keeps the captured result while the pull request has not been read', () => {
-    expect(verifiedChecks([{ checks: captured, step: 2 }], undefined)).toEqual([
-      expect.objectContaining({
-        step: 2,
-        tone: 'passed',
-        live: undefined,
-        moved: undefined,
-        line: {
-          text: 'Checks passing at ccccccc: Unit tests',
-          captured: undefined,
-        },
-      }),
-    ]);
+  it('keeps the captured result under Verified while the pull request has not been read', () => {
+    const { changed, unchanged } = verifiedChecks(
+      [{ checks: captured, step: 2 }],
+      undefined,
+    );
+    expect(changed).toHaveLength(0);
+    expect(unchanged).toHaveLength(1);
+    expect(unchanged[0]?.step).toBe(2);
+    expect(unchanged[0]?.tone).toBe('passed');
+    expect(unchanged[0]?.line.text).toBe(
+      'Checks passing at ccccccc: Unit tests',
+    );
   });
 
-  it('shows a newer failure on the same commit and names a moved head', () => {
+  it('moves a newer failure on the same commit out of Verified and names a moved head', () => {
     const failing = {
       headSha: 'c'.repeat(40),
       checksTruncated: false,
@@ -82,12 +82,19 @@ describe('verifiedChecks', () => {
         { name: 'Unit tests', status: 'COMPLETED', conclusion: 'FAILURE' },
       ],
     };
-    const [row] = verifiedChecks([{ checks: captured, step: 1 }], {
-      status: failing,
-      detail: { headSha: 'd'.repeat(40) },
-    });
-    expect(row?.tone).toBe('failed');
-    expect(row?.line.text).toBe('Now failing: Unit tests');
-    expect(row?.moved).toBe('ddddddd');
+    const { changed, unchanged } = verifiedChecks(
+      [{ checks: captured, step: 1 }],
+      {
+        status: failing,
+        detail: { headSha: 'd'.repeat(40) },
+      },
+    );
+    expect(unchanged).toHaveLength(0);
+    expect(changed[0]?.tone).toBe('failed');
+    expect(changed[0]?.line.text).toBe('Failing now: Unit tests');
+    expect(changed[0]?.line.captured).toBe(
+      'Passing when written, at ccccccc: Unit tests',
+    );
+    expect(changed[0]?.moved).toBe('ddddddd');
   });
 });

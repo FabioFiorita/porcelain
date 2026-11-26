@@ -418,3 +418,9 @@ export function reviewCodeSections({
     },
   };
 }
+
+export function uncoveredPaths(outside: ReviewCode, branchRead: boolean) {
+  return [
+    ...new Set([...(branchRead ? outside.branch : []), ...outside.worktree]),
+  ];
+}

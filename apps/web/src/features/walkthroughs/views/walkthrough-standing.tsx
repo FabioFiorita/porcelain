@@ -1,40 +1,17 @@
 import { useAtomValue } from '@effect/atom-react';
 import { GitPullRequestIcon } from 'lucide-react';
 import { readWalkthroughMergeReview } from '@porcelain/client/walkthroughs';
-import {
-  callDecisionProgress,
-  type WalkthroughContent,
-  type WalkthroughRun,
+import type {
+  WalkthroughContent,
+  WalkthroughRun,
 } from '@porcelain/client/walkthroughs/rules';
-import {
-  mergeReadiness,
-  type MergeReadinessTone,
-} from '@porcelain/client/projects/rules';
+import { walkthroughStanding } from '@porcelain/client/projects/rules';
 import {
   CheckResultIcon,
   type DocumentProps,
 } from '@/features/workspace/index';
 import { cn } from '@/shared/lib/utils';
 import type { WalkthroughPull } from '../queries/pull';
-
-const tones: Record<
-  MergeReadinessTone,
-  'passed' | 'failed' | 'running' | 'none'
-> = {
-  ready: 'passed',
-  failed: 'failed',
-  waiting: 'none',
-  unknown: 'running',
-  merged: 'passed',
-  closed: 'none',
-};
-
-function stateWord(pull: NonNullable<WalkthroughPull>) {
-  const detail = pull.status ?? pull.detail;
-  if (!detail) return undefined;
-  if (detail.state === 'open') return detail.draft ? 'Draft' : 'Open';
-  return detail.state === 'merged' ? 'Merged' : 'Closed';
-}
 
 export function WalkthroughStanding({
   document,
@@ -56,27 +33,9 @@ export function WalkthroughStanding({
       content,
     }),
   );
-  const progress = callDecisionProgress(content, undefined);
-  if (!pull && progress.total === 0) return null;
-  const open =
-    review && typeof review.undecidedCallStep === 'number'
-      ? (review.undecidedCalls ?? 1)
-      : 0;
-  const readiness =
-    pull && !pull.statusUnread
-      ? mergeReadiness({
-          status: pull.status,
-          baseBranch: pull.detail?.baseBranch ?? 'the base branch',
-          mergeMethods: pull.detail?.mergeMethods,
-          review,
-        })
-      : undefined;
-  const label =
-    readiness?.label ??
-    (open > 0 ? `${open === 1 ? '1 call' : `${open} calls`} open` : undefined);
-  if (!label && !pull) return null;
-  const tone = readiness ? tones[readiness.tone] : 'none';
-  const state = pull ? stateWord(pull) : undefined;
+  const standing = walkthroughStanding({ pull, review });
+  if (!standing) return null;
+  const { label, icon, quiet, pullState: state } = standing;
   return (
     <div
       role="status"
@@ -87,12 +46,11 @@ export function WalkthroughStanding({
         <p
           className={cn(
             'flex min-w-0 items-start gap-2 text-ui font-medium text-pretty',
-            readiness?.tone === 'unknown' &&
-              'font-normal text-muted-foreground',
+            quiet && 'font-normal text-muted-foreground',
           )}
         >
           <span className="flex h-4.5 shrink-0 items-center">
-            <CheckResultIcon tone={tone} />
+            <CheckResultIcon tone={icon} />
           </span>
           <span className="min-w-0">{label}</span>
         </p>

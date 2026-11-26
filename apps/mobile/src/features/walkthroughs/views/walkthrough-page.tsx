@@ -35,6 +35,7 @@ import { useStartWalkthrough } from '../commands/start-walkthrough';
 import type { ConversationOwner } from '../queries/conversations';
 import type { WalkthroughPull } from '@porcelain/client/walkthroughs';
 import { useWalkthroughPull } from '../queries/pull';
+import { useWalkthroughScope } from '../queries/walkthrough';
 import {
   useWalkthroughWriter,
   type WalkthroughWriter,
@@ -54,7 +55,11 @@ import {
 } from './walkthrough-briefing';
 import { CallDecision } from './walkthrough-decision';
 import { WalkthroughMerge } from './walkthrough-merge';
-import { WalkthroughWriterRow } from './walkthrough-writer';
+import { WalkthroughStanding } from './walkthrough-standing';
+import {
+  WalkthroughWriterRow,
+  walkthroughWriterUnavailable,
+} from './walkthrough-writer';
 import { useWritesBlocked } from '../../access';
 
 type Phase = ReturnType<typeof walkthroughPhase>;
@@ -393,6 +398,7 @@ function Written({
   const router = useRouter();
   const owner = { workspace, run };
   const pull = useWalkthroughPull(workspace, run);
+  const scope = useWalkthroughScope(workspace, content);
   const seeChange = () =>
     router.push({
       pathname: '/review-changes',
@@ -405,6 +411,12 @@ function Written({
     <Box gap={3}>
       <Meta run={run} content={content} writer={writer} />
       <Headline content={content} />
+      <WalkthroughStanding
+        workspace={workspace}
+        run={run}
+        content={content}
+        pull={pull}
+      />
       <RichText text={content.summary} />
       <WalkthroughStatus
         run={progressRun}
@@ -438,6 +450,8 @@ function Written({
             content={content}
             pull={pull}
             jump={jump}
+            scope={content.outcome === 'nothing' ? undefined : scope}
+            onUncovered={seeChange}
           />
           {content.outcome !== 'nothing' && content.growth.length > 0 ? (
             <Growth content={content} />
@@ -507,20 +521,17 @@ function Unwritten({
             No walkthrough yet.
           </Text>
           {!writer.status && !writer.failed && (
-            <Text tone="muted">Checking Walkthrough writer…</Text>
+            <Text tone="muted">Checking the connected computer…</Text>
           )}
-          <WalkthroughWriterRow workspace={workspace} writer={writer} />
-          <Button
-            label="Write walkthrough"
-            pending={waiting}
-            disabled={
-              !writer.status ||
-              writer.noWriters ||
-              Boolean(writer.status.block) ||
-              blocked
-            }
-            onPress={onWrite}
-          />
+          <WalkthroughWriterRow workspace={workspace} writer={writer} primary />
+          {walkthroughWriterUnavailable(writer) ? null : (
+            <Button
+              label="Write walkthrough"
+              pending={waiting}
+              disabled={!writer.status || blocked}
+              onPress={onWrite}
+            />
+          )}
         </Box>
       )}
     </Column>
@@ -578,13 +589,16 @@ function Failed({
             writer={writer}
             existingMessage={copy.message}
             signedOut={failure.kind === 'signed_out'}
+            primary={walkthroughWriterUnavailable(writer)}
           />
-          <Button
-            label="Try again"
-            pending={waiting}
-            disabled={Boolean(writer.status?.block) || blocked}
-            onPress={onRetry}
-          />
+          {walkthroughWriterUnavailable(writer) ? null : (
+            <Button
+              label="Try again"
+              pending={waiting}
+              disabled={blocked}
+              onPress={onRetry}
+            />
+          )}
         </Box>
       )}
     </Column>

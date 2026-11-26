@@ -141,7 +141,7 @@ export function PullRequestMergeArea({
             ) : undefined
           }
         >
-          {`Your call in Walkthrough step ${step} is not decided yet.`}
+          {`Your call in Walkthrough step ${step} is not decided yet. Merge waits for it.`}
         </Note>
       ) : null}
       {open && merge.checkout ? (
@@ -153,11 +153,10 @@ export function PullRequestMergeArea({
       ) : null}
       {open ? <Separator /> : null}
       {open ? (
-        <Box paddingTop={2} gap={1}>
+        <Box paddingTop={2} gap={3} className="flex-row items-center">
           <Button
             label="Merge"
             size="sm"
-            className="self-start"
             disabled={merge.block !== undefined}
             onPress={() =>
               router.push({
@@ -170,9 +169,9 @@ export function PullRequestMergeArea({
               })
             }
           />
-          {merge.block && merge.blockShown ? (
-            <Text variant="caption" tone="muted">
-              {merge.block}
+          {merge.reason ? (
+            <Text variant="secondary" tone="muted" className="min-w-0 flex-1">
+              {merge.reason}
             </Text>
           ) : null}
         </Box>

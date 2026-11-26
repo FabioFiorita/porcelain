@@ -4,6 +4,7 @@ import {
   firstDocument,
   walkthroughCodeScopes,
   reviewCodeSections,
+  uncoveredPaths,
   eagerSections,
   groupFilesByStep,
   plainText,
@@ -803,6 +804,12 @@ describe('review code sections', () => {
       branch: ['committed-elsewhere.ts'],
       worktree: ['dirty-elsewhere.ts'],
     });
+  });
+
+  it('names each uncovered file once, and committed ones only after the branch is read', () => {
+    const outside = { branch: ['a.ts', 'b.ts'], worktree: ['b.ts', 'c.ts'] };
+    expect(uncoveredPaths(outside, true)).toEqual(['a.ts', 'b.ts', 'c.ts']);
+    expect(uncoveredPaths(outside, false)).toEqual(['b.ts', 'c.ts']);
   });
 
   it('keeps a committed file and its staged rename in the step that cites the new name', () => {

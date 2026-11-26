@@ -7,6 +7,7 @@ import {
   plainText,
   walkthroughCalls,
   walkthroughEvidenceNotice,
+  walkthroughScope,
   walkthroughVerified,
   type WalkthroughContent,
   type WalkthroughRun,
@@ -88,7 +89,7 @@ function Calls({
         </Text>
       </Line>
     );
-  return calls.map(({ attention, step, callIndex }) => {
+  return calls.map(({ attention, stop, step, callIndex }) => {
     const decided = decisions?.find(
       (entry) => entry.step === step && entry.call === callIndex,
     );
@@ -113,51 +114,68 @@ function Calls({
         }
         accessibilityLabel={`${decided ? 'Decided' : label}: ${plainText(attention.question)}${decided?.option ? `, ${decided.option}` : ''}, step ${step}`}
         onPress={() => jump(callTarget(step, callIndex))}
-      />
+      >
+        <RichText text={stop.explanation} variant="secondary" tone="muted" />
+      </Item>
+    );
+  });
+}
+
+type CheckRow = ReturnType<typeof verifiedChecks>['unchanged'][number];
+
+function CheckLines({
+  rows,
+  pull,
+  jump,
+}: {
+  rows: readonly CheckRow[];
+  pull: WalkthroughPull;
+  jump: Jump;
+}) {
+  return rows.map(({ step, tone, moved, line }) => {
+    const icon = RESULT_ICONS[tone];
+    return (
+      <Item
+        key={`checks:${step}`}
+        size="compact"
+        title={line.text}
+        {...(line.captured ? { description: line.captured } : {})}
+        leading={<Icon name={icon.name} tone={icon.tone} size="small" />}
+        trailing={
+          <Text variant="caption" tone="muted">
+            Step {step}
+          </Text>
+        }
+        accessibilityLabel={`${line.text}${line.captured ? `. ${line.captured}` : ''}, step ${step}`}
+        onPress={() => jump(stepTarget(step))}
+      >
+        {moved && pull ? (
+          <Text variant="caption" tone="warn">
+            #{pull.number} is now at {moved}
+          </Text>
+        ) : null}
+      </Item>
     );
   });
 }
 
 function Verified({
   run,
-  verified: { checks: captured, screenshots },
+  checks,
+  screenshots,
   pull,
   jump,
 }: {
   run: WalkthroughRun;
-  verified: ReturnType<typeof walkthroughVerified>;
+  checks: readonly CheckRow[];
+  screenshots: ReturnType<typeof walkthroughVerified>['screenshots'];
   pull: WalkthroughPull;
   jump: Jump;
 }) {
   const notice = walkthroughEvidenceNotice(run);
-  const checks = verifiedChecks(captured, pull);
   return (
     <>
-      {checks.map(({ step, tone, moved, line }) => {
-        const icon = RESULT_ICONS[tone];
-        return (
-          <Item
-            key={`checks:${step}`}
-            size="compact"
-            title={line.text}
-            {...(line.captured ? { description: line.captured } : {})}
-            leading={<Icon name={icon.name} tone={icon.tone} size="small" />}
-            trailing={
-              <Text variant="caption" tone="muted">
-                Step {step}
-              </Text>
-            }
-            accessibilityLabel={`${line.text}, step ${step}`}
-            onPress={() => jump(stepTarget(step))}
-          >
-            {moved && pull ? (
-              <Text variant="caption" tone="warn">
-                #{pull.number} is now at {moved}
-              </Text>
-            ) : null}
-          </Item>
-        );
-      })}
+      <CheckLines rows={checks} pull={pull} jump={jump} />
       {screenshots ? (
         <Item
           size="compact"
@@ -184,6 +202,39 @@ function Verified({
             {nothingCaptured(run)}
           </Text>
         </Line>
+      ) : null}
+    </>
+  );
+}
+
+export type BriefingScope = {
+  readonly uncommitted: readonly string[];
+  readonly uncovered: readonly string[];
+};
+
+function Scope({
+  notes,
+  onUncovered,
+}: {
+  notes: ReturnType<typeof walkthroughScope>;
+  onUncovered: () => void;
+}) {
+  return (
+    <>
+      {notes.uncommitted ? (
+        <Line>
+          <Text variant="secondary">{notes.uncommitted}</Text>
+        </Line>
+      ) : null}
+      {notes.uncovered ? (
+        <Item
+          size="compact"
+          title={notes.uncovered}
+          titleNumberOfLines={3}
+          trailing={<Icon name="chevron" tone="muted" size="small" />}
+          accessibilityLabel={`${notes.uncovered} See every changed file`}
+          onPress={onUncovered}
+        />
       ) : null}
     </>
   );
@@ -224,6 +275,8 @@ export function Briefing({
   content,
   pull,
   jump,
+  scope,
+  onUncovered,
 }: {
   workspace: Workspace;
   owner: ConversationOwner;
@@ -231,9 +284,20 @@ export function Briefing({
   content: WalkthroughContent;
   pull: WalkthroughPull;
   jump: Jump;
+  scope?: BriefingScope | undefined;
+  onUncovered: () => void;
 }) {
   const { view } = useConversations(owner);
   const progress = callDecisionProgress(content, view?.decisions);
+  const verified = walkthroughVerified(content);
+  const { changed, unchanged } = verifiedChecks(verified.checks, pull);
+  const notes = scope
+    ? walkthroughScope({
+        ...scope,
+        pullRequest: pull?.number,
+        checkedCommit: verified.checks[0]?.checks.headOid,
+      })
+    : undefined;
   return (
     <Box gap={2}>
       <Text variant="secondary" weight="semibold" accessibilityRole="header">
@@ -250,14 +314,29 @@ export function Briefing({
         >
           <Calls content={content} decisions={view?.decisions} jump={jump} />
         </Row>
-        <Row label="Verified">
-          <Verified
-            run={run}
-            verified={walkthroughVerified(content)}
-            pull={pull}
-            jump={jump}
-          />
-        </Row>
+        {changed.length > 0 ? (
+          <Row label="Checks">
+            <CheckLines rows={changed} pull={pull} jump={jump} />
+          </Row>
+        ) : null}
+        {unchanged.length > 0 ||
+        changed.length === 0 ||
+        verified.screenshots ? (
+          <Row label="Verified">
+            <Verified
+              run={run}
+              checks={unchanged}
+              screenshots={verified.screenshots}
+              pull={pull}
+              jump={jump}
+            />
+          </Row>
+        ) : null}
+        {notes?.uncommitted || notes?.uncovered ? (
+          <Row label="Scope">
+            <Scope notes={notes} onUncovered={onUncovered} />
+          </Row>
+        ) : null}
         {foldedNotSaid(content, false).total > 0 ? (
           <Row label="Not verified">
             <NotVerified content={content} />

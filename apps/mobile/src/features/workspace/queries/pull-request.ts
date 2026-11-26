@@ -9,6 +9,8 @@ import {
   type PageActivity,
 } from '@porcelain/client/projects';
 import {
+  mergeButtonReason,
+  mergeReadiness,
   pullRequestBlockers,
   pullRequestCheckout,
   pullRequestMergeBlock,
@@ -109,6 +111,9 @@ export function usePullRequestMerge(
   );
   const offline = useWritesBlocked(target.connection.environmentId);
   const merged = withPullRequestStatus(pull, live.status);
+  const block = offline
+    ? 'The computer is offline.'
+    : pullRequestMergeBlock(merged, review);
   return {
     ...live,
     pull: merged,
@@ -116,15 +121,20 @@ export function usePullRequestMerge(
     walkthroughHead: ready?.run.headOid,
     review,
     blockers: live.status
-      ? pullRequestBlockers(live.status, merged.baseBranch)
+      ? pullRequestBlockers(live.status, merged.baseBranch, merged.mergeMethods)
       : [],
     undecidedCall: undecidedCallAtHead(review, merged.headSha),
-    block: offline
-      ? 'The computer is offline.'
-      : pullRequestMergeBlock(merged, review),
-    blockShown:
-      live.status === undefined ||
-      review?.undecidedCallStep === 'reading' ||
-      review?.undecidedCallStep === 'unreadable',
+    block,
+    reason: offline
+      ? block
+      : mergeButtonReason(
+          block,
+          mergeReadiness({
+            status: live.status,
+            baseBranch: merged.baseBranch,
+            mergeMethods: merged.mergeMethods,
+            review,
+          }).waitsFor,
+        ),
   };
 }
