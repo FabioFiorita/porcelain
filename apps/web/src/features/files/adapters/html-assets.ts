@@ -288,7 +288,10 @@ export const inlineHtmlAssets = Effect.fn('BrowserHtmlPreview.inlineAssets')(
       ),
     ];
     policy.content = previewPolicy(mediaSources);
-    const nonce = crypto.randomUUID();
+    const nonce = Array.from(
+      crypto.getRandomValues(new Uint8Array(16)),
+      (byte) => byte.toString(16).padStart(2, '0'),
+    ).join('');
     const bridge = document.createElement('script');
     bridge.setAttribute('nonce', nonce);
     bridge.textContent = PREVIEW_BRIDGE_SCRIPT;

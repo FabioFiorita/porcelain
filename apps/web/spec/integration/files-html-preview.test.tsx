@@ -1,4 +1,10 @@
-import { expect, test, type Render, type Repo } from './fixtures.tsx';
+import {
+  expect,
+  test,
+  withoutRandomUUID,
+  type Render,
+  type Repo,
+} from './fixtures.tsx';
 
 async function openPage(
   render: Render,
@@ -36,6 +42,21 @@ test('an HTML page opened from the file tree previews with its local images and 
   await expect
     .element(opened.getByText(/^Not loaded: .*logo\.svg/))
     .not.toBeInTheDocument();
+});
+
+test('an HTML page previews on an HTTP LAN address, where crypto.randomUUID does not exist', async ({
+  render,
+  repo,
+  onTestFinished,
+}) => {
+  withoutRandomUUID(onTestFinished);
+  const opened = await openPage(render, repo);
+  await expect
+    .element(opened.getByLabelText('page.html HTML preview', { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(opened.getByText('Not loaded: missing.png', { exact: true }))
+    .toBeVisible();
 });
 
 test.for([
