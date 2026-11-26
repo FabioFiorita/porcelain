@@ -24,7 +24,7 @@ export function CommentsSummary({ workspace }: { workspace: Workspace }) {
   if (open.length === 0 && posted === 0)
     return (
       <Text variant="secondary" tone="muted">
-        None yet
+        No draft comments
       </Text>
     );
   return (

@@ -1,6 +1,7 @@
 import { expect, it } from 'vite-plus/test';
 import {
   currentWalkthroughChecks,
+  recordedCheckNow,
   mergeConfirmation,
   pullRequestCheckout,
   undecidedCallAtHead,
@@ -404,6 +405,37 @@ it('puts the live result first when the same captured head starts failing', () =
       ],
     }),
   ).toBeUndefined();
+});
+
+it('says what each check does now beside what it did when written', () => {
+  const captured = {
+    headOid: 'abc1234',
+    state: 'SUCCESS',
+    checksTruncated: false,
+    results: [
+      { name: 'Browser tests', status: 'SUCCESS' },
+      { name: 'Unit tests', status: 'SUCCESS' },
+    ],
+  };
+  const live = currentWalkthroughChecks(captured, {
+    headSha: 'abc1234',
+    checks: [
+      { name: 'Browser tests', status: 'COMPLETED', conclusion: 'FAILURE' },
+      { name: 'Unit tests', status: 'COMPLETED', conclusion: 'SUCCESS' },
+    ],
+    checksTruncated: false,
+  });
+  const [browser, unit] = recordedChecks(captured).results;
+  expect(browser && recordedCheckNow(browser, live)).toEqual({
+    tone: 'failed',
+    label: 'Failing now',
+    detail: 'Failing now · passed when written',
+  });
+  expect(unit && recordedCheckNow(unit, live)).toEqual({
+    tone: 'passed',
+    label: 'Passed',
+    detail: 'Passed',
+  });
 });
 
 it('moves a step’s checks out of Verified only while GitHub now disagrees with what was written', () => {

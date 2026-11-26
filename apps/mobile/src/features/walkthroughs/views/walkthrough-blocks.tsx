@@ -2,6 +2,7 @@ import {
   currentWalkthroughChecks,
   movedPullHead,
   pullRequestRollup,
+  recordedCheckNow,
   recordedChecks,
   type RecordedCheck,
 } from '@porcelain/client/projects/rules';
@@ -70,15 +71,22 @@ export const RESULT_ICONS = {
   none: { name: 'neutral', tone: 'muted' },
 } as const;
 
-function CheckRow({ result }: { result: RecordedCheck }) {
-  const icon = RESULT_ICONS[result.tone];
+function CheckRow({
+  result,
+  live,
+}: {
+  result: RecordedCheck;
+  live: ReturnType<typeof currentWalkthroughChecks>;
+}) {
+  const now = recordedCheckNow(result, live);
+  const icon = RESULT_ICONS[now.tone];
   return (
     <Box
       className="min-h-8 flex-row items-center"
       paddingX={4}
       gap={2}
       accessible
-      accessibilityLabel={`${result.name}: ${result.label}`}
+      accessibilityLabel={`${result.name}: ${now.detail}`}
     >
       <Icon name={icon.name} tone={icon.tone} size="small" />
       <Box className="min-w-0 flex-1">
@@ -87,7 +95,7 @@ function CheckRow({ result }: { result: RecordedCheck }) {
         </Text>
       </Box>
       <Text variant="caption" tone="muted">
-        {result.detail ?? result.label}
+        {now.detail}
       </Text>
     </Box>
   );
@@ -129,7 +137,11 @@ function CheckList({ block, pull }: { block: Checks; pull: WalkthroughPull }) {
       <Separator />
       <Box paddingY={1}>
         {checks.results.map((result, index) => (
-          <CheckRow key={`${result.name}:${index}`} result={result} />
+          <CheckRow
+            key={`${result.name}:${index}`}
+            result={result}
+            live={live}
+          />
         ))}
       </Box>
       {checks.more ? (

@@ -12,7 +12,11 @@ selectors:
   - 'Verified'
   - 'Not verified'
   - 'Comments'
-  - 'None yet'
+  - 'No draft comments'
+  - 'Checks'
+  - 'Scope'
+  - 'Ready to merge'
+  - 'Merge status'
   - 'Review and publish'
   - 'Before and after screenshots'
   - 'How the system grew'
@@ -31,7 +35,7 @@ selectors:
   - 'The work changed after this walkthrough’s snapshot. Update to include the latest changes.'
   - 'Update walkthrough'
   - 'Try again'
-  - 'Check writers again'
+  - 'Check again'
   - 'Walkthrough agent'
   - 'spinner'
   - 'Read all'
@@ -69,7 +73,7 @@ api:
 
 # reviews.walkthrough-page
 
-The Walkthrough tab, the first of the four worktree tabs, shows the page a fresh agent wrote about the change. It reads like the web's Walkthrough: the meta line, the title and verdict, the summary, then a one-line status (Saved · freshness, the writer, Update walkthrough, Update log; the full stage list only while writing or after a failure), then the briefing "Before you merge" (Your call(s), Verified, Not verified, Comments), "How the system grew", one section per step and, when the branch has a pull request, the merge footer. Each call sits in its step with "Choose <option>" per comparison column (or Mark decided); each step carries its evidence (excerpts, diagrams, files, checks, screenshots), its draft comments, See the code, Comment and Ask about this. Without a current-branch run, every worktree opens on Changes regardless of commits, with Walkthrough one tap away. The wording follows the web map [reviews.walkthrough-page](../../web-verify/features/reviews.walkthrough-page.md).
+The Walkthrough tab, the first of the four worktree tabs, shows the page a fresh agent wrote about the change. It reads like the web's Walkthrough: the meta line, the title and verdict, the merge status line (from the same shared rule as the pull request's Merge: "Ready to merge" or "Not ready to merge: <reasons>", or only "n calls open" when there is no pull request or its status cannot be read) with a "#n · Open" button that opens the pull request, the summary, then a one-line status (Saved · freshness, the writer, Update walkthrough, Update log; the full stage list only while writing or after a failure), then the briefing "Before you merge" (Your call(s) with each call's step explanation, Checks when GitHub now disagrees with what was written, Verified, Scope, Not verified, Comments), "How the system grew", one section per step and, when the branch has a pull request, the merge footer. Each call sits in its step with "Choose <option>" per comparison column (or Mark decided); each step carries its evidence (excerpts, diagrams, files, checks, screenshots), its draft comments, See the code, Comment and Ask about this. Without a current-branch run, every worktree opens on Changes regardless of commits, with Walkthrough one tap away. The wording follows the web map [reviews.walkthrough-page](../../web-verify/features/reviews.walkthrough-page.md).
 
 On tablets with at least 700 units of content width the steps sit beside the page: All changes with its count, By step with each step's file count and a Your call dot, then Not in the walkthrough yet. Empty step groups and their By step heading are hidden.
 
@@ -96,8 +100,8 @@ git -C "$REPO" add --all && git -C "$REPO" commit -m "Add notes"
 ### 1. Writing and reading
 
 1. Open the worktree. With no run, Changes is selected; choose Walkthrough for "No walkthrough yet.", the writer button and "Write walkthrough".
-2. `printf hold > "$REPO/.git/porcelain-fake-walkthrough"`, press Write walkthrough. Expect "Writing the walkthrough" under the `written for <sha>` line. With a saved effort the connected computer reports as unsupported, Write, Update and Try again are disabled and the note names the model and effort. A failed check, missing writer or signed-out run shows Check writers again.
-3. `rm "$REPO/.git/porcelain-fake-walkthrough"`. Without leaving, expect the heading ending "One call is yours.", "Before you merge" with "Your call · 0 of 1 decided", "Verified" with "No checks or screenshots were captured for <sha>.", "Not verified", "Comments · None yet", then "How the system grew" and the steps. Tap the call row: the page scrolls to the call inside its step.
+2. `printf hold > "$REPO/.git/porcelain-fake-walkthrough"`, press Write walkthrough. Expect "Writing the walkthrough" under the `written for <sha>` line. With a saved effort the connected computer reports as unsupported, Write, Update and Try again are disabled and the note names the model and effort. A failed check, missing writer or signed-out run shows one bordered notice ("Sign in to Claude Code or Codex on the connected computer." or "Could not check Claude Code or Codex on the connected computer.") with a single Check again button; on "No walkthrough yet." and a failed first write it replaces Write walkthrough / Try again as the page's one primary action.
+3. `rm "$REPO/.git/porcelain-fake-walkthrough"`. Without leaving, expect the heading ending "One call is yours.", "Before you merge" with "Your call · 0 of 1 decided", "Verified" with "No checks or screenshots were captured for <sha>.", "Not verified", "Comments · No draft comments", then "How the system grew" and the steps. Tap the call row: the page scrolls to the call inside its step.
 
 ### 2. Out of date, failure and the short page
 
@@ -107,7 +111,7 @@ git -C "$REPO" add --all && git -C "$REPO" commit -m "Add notes"
 
 ### 3. The full sample: calls, diagrams, evidence, comments
 
-7. `$C walkthrough sample` writes the shared note-search sample for pull request #423 (the server's web sample plus a second call on step 2), with checks and two screenshots on step 2; reopen the worktree. Expect "Your calls · 0 of 2 decided", Verified with "Checks failing at <sha>: …" and "Before and after screenshots · Step 2".
+7. `$C walkthrough sample` writes the shared note-search sample for pull request #423 (the server's web sample plus a second call on step 2), with checks and two screenshots on step 2; reopen the worktree. Expect "Your calls · 0 of 2 decided", Verified with "Checks failing at <sha>: …" and "Before and after screenshots · Step 2". With the fake GitHub of [the pull request page](reviews.pull-request.md) installed and its checks failing on the same head, the line under the title reads "Not ready to merge: …, 2 calls open" beside "#423 · Open"; the briefing gains a Checks row ("Failing now: <names>", quieter "Passing when written, at <sha>: …") and step 2's checks heading reads "Passing when written, at <sha>" with "Failing now" and each changed check "Failing now · passed when written". With an uncommitted file, Scope reads "<file> is uncommitted, so not in #423. The checks cover <sha> only." and, for files no step cites, "No step covers <file>." which opens every changed file.
 8. Step 1's call: "Choose Show all notes" → "Decided: Show all notes · by the owner · <time>" with Undo, and the briefing reads "1 of 2 decided" with the option beside the question. Undo restores the choices. With writes blocked (a revoked or offline computer) the buttons are disabled.
 9. Step 1's sequence diagram "An empty query, end to end" scrolls sideways on a phone; tap renderSearch: the detail shows "function, new", its connections and the captured lines. Comment on renderSearch → type → Comment: the sheet closes, the node shows a comment badge and the draft appears under the diagram; the briefing reads "1 draft comment · 1 on the Walkthrough".
 10. Step 2's flow diagram "Matching and wording stay apart" lays out downwards on a phone and across on a tablet in landscape.

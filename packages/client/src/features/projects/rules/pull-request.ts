@@ -234,6 +234,24 @@ export function currentWalkthroughChecks(
   };
 }
 
+export function recordedCheckNow(
+  result: RecordedCheck,
+  live: ReturnType<typeof currentWalkthroughChecks>,
+): { tone: PullChecksTone; label: string; detail: string } {
+  const now = live?.changed.find((check) => check.name === result.name);
+  return now
+    ? {
+        tone: now.tone,
+        label: now.label,
+        detail: `${now.label} · ${result.label.toLowerCase()} when written`,
+      }
+    : {
+        tone: result.tone,
+        label: result.label,
+        detail: result.detail ?? result.label,
+      };
+}
+
 export function walkthroughCheckRows<
   Entry extends { readonly checks: CapturedChecks },
 >(

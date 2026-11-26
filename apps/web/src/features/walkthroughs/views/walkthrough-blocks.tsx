@@ -7,6 +7,7 @@ import {
   currentWalkthroughChecks,
   movedPullHead,
   pullRequestRollup,
+  recordedCheckNow,
   recordedChecks,
 } from '@porcelain/client/projects/rules';
 import {
@@ -148,7 +149,7 @@ function CheckList({ block, pull }: { block: Checks; pull: WalkthroughPull }) {
     >
       <ul className="flex flex-col py-1">
         {checks.results.map((result, index) => {
-          const now = live?.changed.find((check) => check.name === result.name);
+          const now = recordedCheckNow(result, live);
           return (
             <li key={`${result.name}:${index}`}>
               <button
@@ -158,15 +159,10 @@ function CheckList({ block, pull }: { block: Checks; pull: WalkthroughPull }) {
                 onClick={() => pull?.openCheck(result.name)}
                 className="flex h-7 w-full min-w-0 items-center gap-2 px-3 text-left text-ui hover:bg-muted focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring disabled:hover:bg-transparent"
               >
-                <CheckResultIcon
-                  tone={now?.tone ?? result.tone}
-                  label={now?.label ?? result.label}
-                />
+                <CheckResultIcon tone={now.tone} label={now.label} />
                 <TruncatedText text={result.name} className="min-w-0 flex-1" />
                 <span className="shrink-0 text-caption text-muted-foreground">
-                  {now
-                    ? `${now.label} · ${result.label.toLowerCase()} when written`
-                    : (result.detail ?? result.label)}
+                  {now.detail}
                 </span>
               </button>
             </li>
