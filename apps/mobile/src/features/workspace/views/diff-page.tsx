@@ -307,6 +307,7 @@ export function DiffPagePart({
   ) : (
     <DiffPageContent
       path={file.path}
+      section={file.key}
       state={state}
       onOpen={onOpen}
       openLabel={openLabel}
@@ -350,12 +351,14 @@ function DiffPageHeading({
 
 function DiffPageContent({
   path,
+  section,
   state,
   onOpen,
   openLabel,
   comments,
 }: {
   path: string;
+  section: string;
   state: DiffPageState;
   onOpen: () => void;
   openLabel: 'Open file' | 'Open diff';
@@ -395,6 +398,7 @@ function DiffPageContent({
             <CommentedDiff
               {...comments}
               path={path}
+              section={section}
               lines={state.lines}
               wrap={preferences.lineOverflow === 'wrap'}
             />
@@ -415,14 +419,16 @@ function CommentedDiff({
   workspace,
   page,
   path,
+  section,
   lines,
   wrap,
 }: DiffPageComments & {
   path: string;
+  section: string;
   lines: Extract<DiffPageState, { kind: 'lines' }>['lines'];
   wrap: boolean;
 }) {
-  const comments = useLineComments({ workspace, page, path, lines });
+  const comments = useLineComments({ workspace, page, path, section, lines });
   return (
     <DiffView
       {...comments}

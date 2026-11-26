@@ -20,6 +20,7 @@ function screenActivity() {
   return {
     port,
     focus: (value: boolean) => {
+      if (focused === value) return;
       focused = value;
       for (const changed of [...listeners]) changed();
     },

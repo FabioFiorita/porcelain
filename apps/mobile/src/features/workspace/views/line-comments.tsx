@@ -55,11 +55,13 @@ export function useLineComments({
   workspace,
   page,
   path,
+  section = path,
   lines,
 }: {
   workspace: Workspace;
   page: string;
   path: string;
+  section?: string | undefined;
   lines: readonly RenderLine[];
 }): LineComments {
   const view = useDraftComments(workspace);
@@ -67,10 +69,10 @@ export function useLineComments({
   const [selected, setSelected] = useAtom(lineSelection(page));
   const drafts = commentsAt(view, (anchor) => anchorPath(anchor) === path);
   return {
-    selection: selected?.path === path ? selected.range : undefined,
+    selection: selected?.section === section ? selected.range : undefined,
     onSelect: (range) =>
       setSelected({
-        path,
+        section,
         range,
         comment: lineCommentAnchor(path, lines, range),
       }),

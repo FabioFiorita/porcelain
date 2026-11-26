@@ -20,7 +20,6 @@ import {
   useFileCommentAction,
   useLineComments,
 } from '../../workspace/index';
-import type { ReviewRange } from '../../../components/ui/code-range';
 import { usePreferences } from '../../preferences/index';
 import { useTextFile, type FileContents } from '../queries/text';
 import { usePreviewLink } from '../../../shared/adapters/preview-link';
@@ -305,8 +304,6 @@ function FileContentsPreview({
   text,
   rendered,
   onLink,
-  selection,
-  onSelect,
 }: {
   workspace: Workspace;
   page: string;
@@ -314,8 +311,6 @@ function FileContentsPreview({
   text: string;
   rendered: boolean;
   onLink: (url: string) => void;
-  selection?: ReviewRange | undefined;
-  onSelect?: ((range: ReviewRange) => void) | undefined;
 }) {
   const { preferences } = usePreferences();
   if (text === '') return <Empty title="Empty file" />;
@@ -326,8 +321,6 @@ function FileContentsPreview({
         onLink={onLink}
         mode={rendered ? 'reader' : 'source'}
         wrap={preferences.lineOverflow === 'wrap'}
-        selection={selection}
-        onSelect={onSelect}
       />
     );
   if (/\.html?$/i.test(path))
@@ -343,8 +336,6 @@ function FileContentsPreview({
           onLink={onLink}
           mode={rendered ? 'preview' : 'source'}
           wrap={preferences.lineOverflow === 'wrap'}
-          selection={selection}
-          onSelect={onSelect}
         />
       </View>
     );

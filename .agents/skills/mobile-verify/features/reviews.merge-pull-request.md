@@ -26,7 +26,7 @@ The Merge sheet confirms one merge. It computes the same block as the pull reque
 
 ## Driving it with agent-device
 
-Preconditions: [surface baseline](README.md) with the pull request fixture of [the pull request page](reviews.pull-request.md), or the demo's Pull request #7 (Lint fails until Re-run failed jobs; then Merge works).
+Preconditions: [surface baseline](README.md) with the pull request fixture of [the pull request page](reviews.pull-request.md), or the demo's Pull request #7: Lint fails until Re-run failed jobs; then the demo Walkthrough's undecided call at the same head still blocks the merge (`Your call in step n is not decided yet.`) until the call is decided on the Walkthrough tab.
 
 1. The sheet title is `Merge #n`. The line `<head> at <short sha> goes into <base> on GitHub. A merge cannot be undone.` names the pinned head.
 2. With more than one allowed method, a list chooses it; the button is named after the method (`Squash and merge`, …). One allowed method shows no list.

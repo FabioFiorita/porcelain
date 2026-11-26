@@ -413,6 +413,14 @@ test('the demo branch has a pull request whose failing check can be re-run befor
     }),
   );
   const after = await status();
+  expect(
+    after.kind === 'available' &&
+      after.status.checks.map((check) => [check.name, check.jobId]),
+  ).toEqual([
+    ['Unit tests', 201],
+    ['Lint', 203],
+    ['docs-preview', undefined],
+  ]);
   expect(after.kind === 'available' && after.status.checksSummary).toBe(
     'SUCCESS',
   );

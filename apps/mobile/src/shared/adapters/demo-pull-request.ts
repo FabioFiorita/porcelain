@@ -155,7 +155,7 @@ export function demoPullRequests() {
   let drafts: DraftView[] = [];
   const checks = () => [
     job('Unit tests', 201, false),
-    job('Lint', 202, lintFailed),
+    job('Lint', lintFailed ? 202 : 203, lintFailed),
     preview,
   ];
   const status = (): Status => ({
@@ -256,10 +256,9 @@ export function demoPullRequests() {
         kind: 'available',
         excerpt: {
           source: 'step',
-          lines:
-            path.includes('/202/') && lintFailed
-              ? lintLog
-              : [{ text: 'Done.', level: 'plain' }],
+          lines: path.includes('/202/')
+            ? lintLog
+            : [{ text: 'Done.', level: 'plain' }],
           omitted: 0,
         },
       });

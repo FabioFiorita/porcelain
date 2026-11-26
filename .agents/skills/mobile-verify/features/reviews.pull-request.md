@@ -17,6 +17,7 @@ selectors:
   - 'Try again'
   - 'spinner'
   - 'Archive'
+  - 'Image unavailable'
 tests:
   - apps/mobile/src/features/workspace/rules/pull-request-checks.spec.ts
   - apps/mobile/src/shared/application/notice.spec.ts
@@ -44,7 +45,7 @@ A pull request reads as one page scoped to its project, number and computer, mat
 
 ## Driving it with agent-device
 
-Preconditions: [surface baseline](README.md). GitHub needs a fake `gh` on the server's PATH: run `$C walkthrough sample` (branch `walkthrough-sample`, pull request #423, origin `example/sample`), then install the web previews' fake `gh` with its config pointed at that branch and number (see the builder report). The bundled demo answers the same page without a server: Settings → Try the demo → Changes → Pull request #7.
+Preconditions: [surface baseline](README.md). Run `$C walkthrough sample` for branch `walkthrough-sample` with a ready Walkthrough on pull request #423 (origin `example/sample`). Its `gh` answers only a bare pull request; checks with steps and logs, reviews, merge and re-run need a `gh` on the sandbox's `bin` folder (the server manifest's `bin`, under `fixtures.projectHome`) that answers `gh api` for `repos/example/sample/pulls/423`, its status GraphQL, `actions/jobs/:id/logs`, re-runs, merge and issue comments for that branch and head. Install it after `$C walkthrough sample`, which writes its own `gh` into the same folder. The bundled demo answers the same page without a server: Settings → Try the demo → Changes → Pull request #7.
 
 1. Header: `#n` and title, the state badge (Open, Draft, Merged, Closed), author, `base ← head`, updated time and labels.
 2. Merge: the heading shows `No conflicts`/`Conflicts`/`Not known yet` and the short head. Each blocker is one line with its state icon: failed checks name their failing step and `· required`, a running check its step, conflicts, behind base, review required, changes requested, a branch rule. `Nothing on GitHub blocks the merge.` when none. With the pull request's branch selected as the worktree and a Walkthrough at the same head, an undecided call adds `Your call in Walkthrough step n is not decided yet.` with Open step n, which switches to the Walkthrough tab on that step. A Walkthrough at another head adds the covers/at line with Open Walkthrough. Draft comments on the branch add `n draft comments are not published yet.` with Publish. Uncommitted work never blocks. Merge is disabled while anything blocks and opens the [Merge sheet](reviews.merge-pull-request.md). A merged or closed pull request says so and offers Archive ([archive](projects.archive-pull-request.md)).
@@ -53,6 +54,10 @@ Preconditions: [surface baseline](README.md). GitHub needs a fake `gh` on the se
 5. Leave the screen or background the app: the server's call log shows status reads stop; return and one read happens at once.
 
 Verify loading (one delayed spinner), missing PR, rate limit and disconnected states, then retry after recovery. Verify an Android phone and a tablet in landscape and portrait (one column, capped width). Report iOS proof separately.
+
+## Description evidence
+
+Seed the pull request description with a heading, a list, inline code, a fenced block, a link, a Markdown image with a reachable URL, one unreachable image with a meaningful alt label and one image with an unsafe URL scheme. Description shows them as text inside the page: headings, bullets, code and a tappable link; reachable images fit the content width and keep their aspect ratio, and tapping one opens it; an unreachable or rejected image shows `Image unavailable: <alt>`. Repeat with light and dark appearance.
 
 ## Gotchas
 

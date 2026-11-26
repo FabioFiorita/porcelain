@@ -25,13 +25,13 @@ export const diffPageOpening = Atom.family((page: string) =>
 );
 
 export type LineSelection = {
-  readonly path: string;
+  readonly section: string;
   readonly range: ReviewRange;
   readonly comment: ReturnType<typeof lineCommentAnchor>;
 };
 
 export const lineSelection = Atom.family((_page: string) =>
-  Atom.make<LineSelection | undefined>(undefined).pipe(Atom.keepAlive),
+  Atom.make<LineSelection | undefined>(undefined),
 );
 
 export const diffPageStuck = Atom.family((_page: string) =>

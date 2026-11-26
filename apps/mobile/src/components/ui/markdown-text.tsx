@@ -1,4 +1,5 @@
-import { View } from 'react-native';
+import { useState } from 'react';
+import { Image, Pressable, View } from 'react-native';
 import { externalLink } from '@porcelain/client/links/rules';
 import { parseMarkdown, type MarkdownBlock } from '../../shared/rules/markdown';
 import { Text } from './text';
@@ -28,6 +29,46 @@ function Runs({
       </Text>
     );
   });
+}
+
+function MarkdownImage({
+  block,
+  onLink,
+}: {
+  block: MarkdownBlock;
+  onLink: ((url: string) => void) | undefined;
+}) {
+  const alt = block.runs.map((run) => run.text).join('');
+  const url =
+    block.url !== undefined && externalLink(block.url) ? block.url : undefined;
+  const [shape, setShape] = useState<number | 'failed'>();
+  if (url === undefined || shape === 'failed')
+    return (
+      <Text variant="caption" tone="muted">
+        {`Image unavailable: ${alt}`}
+      </Text>
+    );
+  return (
+    <Pressable
+      accessibilityRole="imagebutton"
+      accessibilityLabel={alt}
+      disabled={!onLink}
+      onPress={() => onLink?.(url)}
+      className="w-full overflow-hidden rounded-md border border-border bg-muted"
+    >
+      <Image
+        source={{ uri: url }}
+        accessible={false}
+        resizeMode="contain"
+        className="w-full"
+        style={{ aspectRatio: typeof shape === 'number' ? shape : 16 / 9 }}
+        onLoad={({ nativeEvent: { source } }) =>
+          setShape(source.height > 0 ? source.width / source.height : 16 / 9)
+        }
+        onError={() => setShape('failed')}
+      />
+    </Pressable>
+  );
 }
 
 export function MarkdownText({
@@ -70,26 +111,10 @@ export function MarkdownText({
                 </Text>
               </View>
             );
-          case 'image': {
-            const url = block.url;
-            const link =
-              url !== undefined && externalLink(url) ? url : undefined;
+          case 'image':
             return (
-              <Text
-                key={block.id}
-                variant="secondary"
-                tone={link ? 'brand' : 'muted'}
-                {...(link && onLink
-                  ? {
-                      accessibilityRole: 'link' as const,
-                      onPress: () => onLink(link),
-                    }
-                  : {})}
-              >
-                {`Image: ${block.runs.map((run) => run.text).join('')}`}
-              </Text>
+              <MarkdownImage key={block.id} block={block} onLink={onLink} />
             );
-          }
           default:
             return (
               <View
