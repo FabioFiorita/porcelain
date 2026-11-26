@@ -24,7 +24,7 @@ Porcelain does not run your coding agent. It sits beside the one you already use
 - **One page per change.** The calls that need you first, then how the system grew, then one step per decision. When nothing needs you, it says so in one line.
 - **What the code doesn't say.** The agent reads the pull request, the diff and the repository first. Then it reads only your own messages to the builder, and writes down whatever only those explained.
 - **Proof where it belongs.** Screenshots from the pull request sit on the step they prove. The agent never edits code and never makes evidence up: no proof, nothing shown.
-- **Ask, then post.** Comment on a call or a step and the walkthrough agent answers. A requested change goes on the pull request in one click, alone or saved and posted together, or is copied as a brief when there is no pull request.
+- **Ask, then publish.** Comment on a call or a step and the walkthrough agent answers. Add the answer to the review as a draft comment, next to the ones you leave on lines and files. Nothing is posted until you publish: one review on the pull request, or Markdown to copy for your coding agent when there is no pull request.
 - **Code by step.** The Changes panel groups committed and uncommitted work by step. Reviewed checkboxes stay on plain Changes.
 - **Made for big repositories.** Pin the files you read, hide the ones you never open, and browse History as a commit graph with a timeline for each file, with commit, pull and push in the same place.
 - **Every machine, one place.** Run a server where each repository lives and reach all of them from one Porcelain, locally, over your network or remotely.

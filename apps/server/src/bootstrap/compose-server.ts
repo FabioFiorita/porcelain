@@ -371,7 +371,6 @@ function serverResources(
           projects.readInventory,
           reviews.listProjectPullRequests,
           adapters.githubReader,
-          reviews.resolveProjectGitHub,
         );
         yield* walkthroughs.workflow.recover();
         const comments = yield* composeComments(context, {

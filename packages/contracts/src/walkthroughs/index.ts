@@ -25,14 +25,11 @@ export {
   walkthroughConversationsResponseSchema,
   type WalkthroughConversationsResponse,
   type AddWalkthroughMessageRequest,
-  type SaveWalkthroughMessageRequest,
   type DecideWalkthroughCallRequest,
   type DecideWalkthroughCallInput,
   type WalkthroughMessageParams,
   type WalkthroughConversationParams,
-  type WalkthroughPostInput,
   type WalkthroughConversationsResult,
-  type WalkthroughPostResult,
 } from './conversations.ts';
 
 export {

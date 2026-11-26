@@ -245,7 +245,6 @@ it('resolves every comment answer from request, project, changed default and bui
           stopTitle: undefined,
           text: 'Why?',
           createdAt: '2026-11-09T00:00:00.000Z',
-          post: { status: 'none' },
           answer: { status: 'answering' },
           writer,
         }),

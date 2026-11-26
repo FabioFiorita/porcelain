@@ -9,10 +9,6 @@ import { HttpApiBuilder } from 'effect/http-api';
 import { HttpServerResponse } from 'effect/http';
 import { WalkthroughsApi } from '@porcelain/contracts/walkthroughs';
 import { RequestCaller } from '@porcelain/contracts/shared';
-import type {
-  WalkthroughConversationsResult,
-  WalkthroughPostResult,
-} from '@porcelain/contracts/walkthroughs';
 import { requestBody } from '../../hooks/request-body.ts';
 import { handlerAudit } from '../../diagnostics.ts';
 import type { StartWalkthroughUseCase } from '../../../use-cases/walkthroughs/start-walkthrough.ts';
@@ -21,10 +17,7 @@ import type { ReadWalkthroughAssetUseCase } from '../../../use-cases/walkthrough
 import type { ListWalkthroughConversationsUseCase } from '../../../use-cases/walkthroughs/list-walkthrough-conversations.ts';
 import type { AddWalkthroughMessageUseCase } from '../../../use-cases/walkthroughs/add-walkthrough-message.ts';
 import type { RetryWalkthroughAnswerUseCase } from '../../../use-cases/walkthroughs/retry-walkthrough-answer.ts';
-import type { SaveWalkthroughMessageUseCase } from '../../../use-cases/walkthroughs/save-walkthrough-message.ts';
 import type { DecideWalkthroughCallUseCase } from '../../../use-cases/walkthroughs/decide-walkthrough-call.ts';
-import type { PostWalkthroughMessagesUseCase } from '../../../use-cases/walkthroughs/post-walkthrough-messages.ts';
-import type { ReadWalkthroughBriefUseCase } from '../../../use-cases/walkthroughs/read-walkthrough-brief.ts';
 export function walkthroughsRoutes(useCases: {
   writerSettings: Context.Service.Shape<
     typeof ReadWalkthroughWriterSettingsUseCase
@@ -40,18 +33,8 @@ export function walkthroughsRoutes(useCases: {
   >;
   addMessage: Context.Service.Shape<typeof AddWalkthroughMessageUseCase>;
   retryAnswer: Context.Service.Shape<typeof RetryWalkthroughAnswerUseCase>;
-  saveMessage: Context.Service.Shape<typeof SaveWalkthroughMessageUseCase>;
   decideCall: Context.Service.Shape<typeof DecideWalkthroughCallUseCase>;
-  postMessages: Context.Service.Shape<typeof PostWalkthroughMessagesUseCase>;
-  brief: Context.Service.Shape<typeof ReadWalkthroughBriefUseCase>;
 }) {
-  const presentPost = (result: {
-    outcome: WalkthroughPostResult;
-    view: WalkthroughConversationsResult;
-  }) => ({
-    outcome: result.outcome,
-    view: presentWalkthroughConversations(result.view),
-  });
   const handlers = HttpApiBuilder.group(
     WalkthroughsApi,
     'walkthroughs',
@@ -120,22 +103,6 @@ export function walkthroughsRoutes(useCases: {
             });
             return presentWalkthroughConversations(view);
           }),
-        )
-        .handle('saveWalkthroughMessage', ({ params, payload }) =>
-          useCases.saveMessage
-            .execute({ ...params, ...payload })
-            .pipe(Effect.map(presentWalkthroughConversations)),
-        )
-        .handle('postWalkthroughMessage', ({ params }) =>
-          useCases.postMessages.execute(params).pipe(Effect.map(presentPost)),
-        )
-        .handle('postSavedWalkthroughMessages', ({ params }) =>
-          useCases.postMessages.execute(params).pipe(Effect.map(presentPost)),
-        )
-        .handle('readWalkthroughBrief', ({ params, query }) =>
-          useCases.brief
-            .execute({ ...params, ...query })
-            .pipe(Effect.map((text) => ({ text }))),
         ),
   );
   return HttpApiBuilder.layer(WalkthroughsApi).pipe(

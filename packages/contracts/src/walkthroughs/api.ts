@@ -13,8 +13,6 @@ import {
   WalkthroughAssetNotFoundError,
   WalkthroughCallNotFoundError,
   WalkthroughMessageNotFoundError,
-  WalkthroughPostFailedError,
-  WalkthroughRepositoryChangedError,
   WalkthroughTargetNotFoundError,
 } from '@porcelain/walkthroughs/errors';
 import { nullableAsUndefined } from '../shared/schema.ts';
@@ -27,10 +25,6 @@ import {
   addWalkthroughMessageRequestSchema,
   decideWalkthroughCallRequestSchema,
   walkthroughCallParamsSchema,
-  postWalkthroughMessagesResponseSchema,
-  readWalkthroughBriefQuery,
-  saveWalkthroughMessageRequestSchema,
-  walkthroughBriefResponseSchema,
   walkthroughConversationsResponseSchema,
   walkthroughMessageParamsSchema,
   walkthroughConversationParamsSchema,
@@ -110,17 +104,6 @@ export function isUnsupportedWalkthroughEffortFailure(error: unknown): boolean {
 }
 
 export type SaveDefaultWalkthroughWriterRequest = typeof writerSchema.Type;
-const postWalkthroughFailures = [
-  ...worktreeFailures,
-  httpFailure(WalkthroughTargetNotFoundError, 'NotFound'),
-  httpFailure(WalkthroughMessageNotFoundError, 'NotFound'),
-  httpFailure(WalkthroughPostFailedError, 'BadGateway', {
-    message: { fromError: true },
-  }),
-  httpFailure(WalkthroughRepositoryChangedError, 'Conflict', {
-    message: { fromError: true },
-  }),
-] as const;
 
 export class WalkthroughsApi extends porcelainApi.add(
   HttpApiGroup.make('walkthroughs')
@@ -242,56 +225,6 @@ export class WalkthroughsApi extends porcelainApi.add(
             ...worktreeFailures,
             httpFailure(WalkthroughTargetNotFoundError, 'NotFound'),
             httpFailure(WalkthroughCallNotFoundError, 'NotFound'),
-          ],
-        },
-      ),
-      HttpApiEndpoint.put(
-        'saveWalkthroughMessage',
-        '/api/worktrees/:worktreeId/walkthrough/:runId/conversations/messages/:messageId/saved',
-        {
-          disableCodecs: true,
-          params: walkthroughMessageParamsSchema,
-          payload: saveWalkthroughMessageRequestSchema,
-          success: walkthroughConversationsResponseSchema,
-          error: [
-            ...worktreeFailures,
-            httpFailure(WalkthroughTargetNotFoundError, 'NotFound'),
-            httpFailure(WalkthroughMessageNotFoundError, 'NotFound'),
-          ],
-        },
-      ),
-      HttpApiEndpoint.post(
-        'postWalkthroughMessage',
-        '/api/worktrees/:worktreeId/walkthrough/:runId/conversations/messages/:messageId/post',
-        {
-          disableCodecs: true,
-          params: walkthroughMessageParamsSchema,
-          success: postWalkthroughMessagesResponseSchema,
-          error: postWalkthroughFailures,
-        },
-      ),
-      HttpApiEndpoint.post(
-        'postSavedWalkthroughMessages',
-        '/api/worktrees/:worktreeId/walkthrough/:runId/conversations/post-saved',
-        {
-          disableCodecs: true,
-          params: walkthroughConversationParamsSchema,
-          success: postWalkthroughMessagesResponseSchema,
-          error: postWalkthroughFailures,
-        },
-      ),
-      HttpApiEndpoint.get(
-        'readWalkthroughBrief',
-        '/api/worktrees/:worktreeId/walkthrough/:runId/conversations/brief',
-        {
-          disableCodecs: true,
-          params: walkthroughConversationParamsSchema,
-          query: readWalkthroughBriefQuery,
-          success: walkthroughBriefResponseSchema,
-          error: [
-            ...worktreeFailures,
-            httpFailure(WalkthroughTargetNotFoundError, 'NotFound'),
-            httpFailure(WalkthroughMessageNotFoundError, 'NotFound'),
           ],
         },
       ),

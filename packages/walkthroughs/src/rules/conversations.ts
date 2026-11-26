@@ -1,7 +1,5 @@
 import type {
   ConversationAnchor,
-  PostPlan,
-  PostSelection,
   StoredWalkthroughMessage,
   WalkthroughConversation,
   WalkthroughConversationsView,
@@ -23,7 +21,6 @@ function messagesOf(
       id: stored.id,
       text: stored.text,
       createdAt: stored.createdAt,
-      post: stored.post,
     },
     {
       author: 'agent',
@@ -70,131 +67,5 @@ export function conversationsView(
     pullRequestNumber: latest?.pullRequestNumber,
     conversations: [...grouped.values()],
     decisions,
-  };
-}
-
-export type BriefItem = {
-  readonly text: string;
-  readonly stopTitle: string | undefined;
-  readonly paths: readonly string[];
-  readonly answer: string | undefined;
-};
-
-const inOneLine = (text: string) => text.replace(/\s+/g, ' ').trim();
-const quoted = (text: string) =>
-  text
-    .split('\n')
-    .map((line) => `> ${line}`)
-    .join('\n');
-const pathList = (paths: readonly string[]) =>
-  paths.map((path) => `\`${path}\``).join(', ');
-
-export function composeBrief(items: readonly BriefItem[]): string {
-  const [only] = items;
-  if (items.length === 1 && only !== undefined) {
-    const lines = [quoted(only.text), ''];
-    if (only.stopTitle !== undefined)
-      lines.push(
-        `**Step:** ${only.stopTitle}${only.paths.length ? ` (${pathList(only.paths)})` : ''}`,
-      );
-    if (only.answer !== undefined)
-      lines.push(`**Agent's answer:** ${only.answer}`);
-    return `From the walkthrough of this change:\n\n${lines.join('\n').trimEnd()}\n`;
-  }
-  return `From the walkthrough of this change:\n\n${items
-    .map((item) => {
-      const where =
-        item.stopTitle === undefined
-          ? 'Whole walkthrough'
-          : `${item.stopTitle}${item.paths.length ? ` (${pathList(item.paths)})` : ''}`;
-      const answer =
-        item.answer === undefined
-          ? ''
-          : ` Agent's answer: ${inOneLine(item.answer)}`;
-      return `- **${where}:** ${inOneLine(item.text)}${answer}`;
-    })
-    .join('\n')}\n`;
-}
-
-function briefItem(
-  stored: StoredWalkthroughMessage,
-  runs: ReadonlyMap<string, WalkthroughRun>,
-): BriefItem {
-  const stop = stopsOf(runs.get(stored.runId)).find(
-    (candidate) => candidate.title === stored.stopTitle,
-  );
-  return {
-    text: stored.text,
-    stopTitle: stored.stopTitle,
-    paths: [
-      ...new Set([
-        ...(stop?.blocks ?? []).flatMap((block) => {
-          if (block.kind === 'diff_excerpt') return [block.path];
-          if (block.kind === 'files')
-            return block.files.map((file) => file.path);
-          return [];
-        }),
-      ]),
-    ],
-    answer:
-      stored.answer.status === 'answered' ? stored.answer.text : undefined,
-  };
-}
-
-type Repository = WalkthroughRun['pullRequestRepository'];
-
-export function sameRepository(left: Repository, right: Repository): boolean {
-  return (
-    left !== undefined &&
-    right !== undefined &&
-    left.owner.toLowerCase() === right.owner.toLowerCase() &&
-    left.repo.toLowerCase() === right.repo.toLowerCase()
-  );
-}
-
-export const messagePostSnapshot = (message: StoredWalkthroughMessage) => ({
-  id: message.id,
-  runId: message.runId,
-  stopTitle: message.stopTitle,
-  text: message.text,
-  post: message.post,
-});
-
-export function planPost(input: {
-  readonly selection: PostSelection;
-  readonly target: WalkthroughRun;
-  readonly readyRuns: readonly WalkthroughRun[];
-  readonly messages: readonly StoredWalkthroughMessage[];
-}): PostPlan {
-  const selected =
-    input.selection.kind === 'saved'
-      ? input.messages.filter((message) => message.post.status === 'saved')
-      : input.messages.filter(
-          (message) =>
-            input.selection.kind === 'message' &&
-            message.id === input.selection.messageId,
-        );
-  const [first] = selected;
-  if (first === undefined) return { kind: 'nothing' };
-  if (first.post.status === 'posted')
-    return { kind: 'already-posted', url: first.post.url };
-  const runs = new Map(input.readyRuns.map((run) => [run.id, run]));
-  const repository = input.target.pullRequestRepository;
-  const eligible = selected.filter((message) =>
-    sameRepository(runs.get(message.runId)?.pullRequestRepository, repository),
-  );
-  return {
-    kind: 'write',
-    target: input.target,
-    selection: input.selection,
-    snapshots: selected.map(messagePostSnapshot),
-    pullRequestNumber: input.target.pullRequestNumber,
-    repository,
-    messageIds: eligible.map((message) => message.id),
-    notPosted: selected
-      .filter((message) => !eligible.includes(message))
-      .map((message) => message.id),
-    comment: composeBrief(eligible.map((message) => briefItem(message, runs))),
-    text: composeBrief(selected.map((message) => briefItem(message, runs))),
   };
 }

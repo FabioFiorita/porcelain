@@ -566,8 +566,8 @@ const treeRows = [
           </h2>
           <p data-reveal class="mt-7 max-w-xl text-lg leading-relaxed text-muted-foreground">
             Comment on a call or a step and the walkthrough agent answers, with the change in front of it. When you want
-            something changed, post it on the pull request in one click, alone or saved up and posted together. No pull
-            request yet? Copy it as a brief.
+            something changed, add the answer to the review as a draft comment. Publish sends every draft as one review on
+            the pull request. No pull request yet? Copy them as Markdown for your coding agent.
           </p>
           <p data-reveal class="mt-5 max-w-xl text-lg leading-relaxed text-muted-foreground">
             Your coding agent is never interrupted, and you never have to tell it “I left comments”. The request is on the
@@ -597,21 +597,17 @@ const treeRows = [
             </p>
             <div data-chat-actions class="mt-4 text-sm">
               <span data-chat-available class="hidden flex-wrap items-center gap-3">
-                <span class="inline-flex h-8 items-center rounded-lg border border-border bg-background px-3 font-medium">Post on #42</span>
-                <span data-chat-save class="inline-flex h-8 items-center rounded-lg px-1 font-medium">Save for later</span>
+                <span data-chat-save class="inline-flex h-8 items-center rounded-lg px-1 font-medium">Add to review</span>
               </span>
-              <span data-chat-saved class="flex items-center gap-2 text-xs text-muted-foreground">
-                Saved for later
-                <span class="font-medium text-foreground underline-offset-4">Undo</span>
-              </span>
+              <span data-chat-saved class="flex h-8 items-center text-xs text-muted-foreground">Added to the review</span>
             </div>
           </div>
           <div
             data-chat-bar
             class="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-foreground px-4 py-3 text-sm text-background"
           >
-            <span>2 comments saved</span>
-            <span class="inline-flex h-8 items-center rounded-lg bg-background px-3 font-medium text-foreground">Post together on #42</span>
+            <span>2 draft comments</span>
+            <span class="inline-flex h-8 items-center rounded-lg bg-background px-3 font-medium text-foreground">Publish review (2)</span>
           </div>
         </div>
       </div>
@@ -1044,7 +1040,7 @@ const treeRows = [
       }
     }
 
-    /* A question goes in, the walkthrough agent works on it and answers, and the comment is saved for the pull request. */
+    /* A question goes in, the walkthrough agent works on it and answers, and the answer is added to the review as a draft comment. */
     function playConversation() {
       const chat = one('[data-chat]');
       if (!chat) return;

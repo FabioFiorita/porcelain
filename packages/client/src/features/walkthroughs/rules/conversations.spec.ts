@@ -14,18 +14,11 @@ import {
 
 type Conversation = WalkthroughConversationsResponse['conversations'][number];
 
-const developer = (
-  id: string,
-  post:
-    | { status: 'none' }
-    | { status: 'saved' }
-    | { status: 'posted'; url: string; postedAt: string },
-) => ({
+const developer = (id: string) => ({
   author: 'developer' as const,
   id,
   text: `Question ${id}`,
   createdAt: '2026-11-09T00:00:00.000Z',
-  post,
 });
 const agent = (
   id: string,
@@ -65,14 +58,11 @@ const view = (
 });
 
 describe('walkthrough conversation rules', () => {
-  const first = stop('Keep sessions', [
-    developer('a', { status: 'saved' }),
-    agent('a', failed),
-  ]);
+  const first = stop('Keep sessions', [developer('a'), agent('a', failed)]);
   const whole: Conversation = {
     runId: 'old',
     anchor: { kind: 'walkthrough' },
-    messages: [developer('b', { status: 'none' }), agent('b', answering)],
+    messages: [developer('b'), agent('b', answering)],
   };
 
   it('returns only the conversations of one stop, or only the whole-walkthrough ones', () => {
@@ -102,22 +92,22 @@ describe('walkthrough conversation rules', () => {
   });
 });
 
-const posted = developer('a', { status: 'none' });
+const question = developer('a');
 it('keeps whole-walkthrough and removed-stop threads together near the end', () => {
   const whole = {
     runId: 'old',
     anchor: { kind: 'walkthrough' as const },
-    messages: [posted],
+    messages: [question],
   };
   const removed = {
     runId: 'old',
     anchor: { kind: 'stop' as const, title: 'Removed stop' },
-    messages: [posted],
+    messages: [question],
   };
   const current = {
     runId: 'run',
     anchor: { kind: 'stop' as const, title: 'Kept stop' },
-    messages: [posted],
+    messages: [question],
   };
   expect(
     earlierConversations(
@@ -147,9 +137,9 @@ describe('turns', () => {
     costUsd: undefined,
   };
   const asked = stop('Keep sessions', [
-    developer('a', { status: 'saved' }),
+    developer('a'),
     agent('a', answered),
-    developer('b', { status: 'saved' }),
+    developer('b'),
   ]);
 
   it('pairs each developer message with its answer, if any', () => {

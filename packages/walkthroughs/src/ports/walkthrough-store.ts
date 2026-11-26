@@ -62,11 +62,6 @@ export interface WalkthroughStore {
   ): Effect.Effect<void>;
   failAnswering(failure: WalkthroughFailure): Effect.Effect<readonly string[]>;
   requeueAnswer(worktreeId: string, messageId: string): Effect.Effect<boolean>;
-  saveForLater(
-    worktreeId: string,
-    messageId: string,
-    saved: boolean,
-  ): Effect.Effect<void>;
   listDecisions(
     worktreeId: string,
     runId: string,
@@ -74,12 +69,6 @@ export interface WalkthroughStore {
   saveDecision(
     target: CallTarget,
     decision: Omit<CallDecision, 'step' | 'call'> | undefined,
-  ): Effect.Effect<void>;
-  markPosted(
-    worktreeId: string,
-    messageIds: readonly string[],
-    url: string,
-    postedAt: string,
   ): Effect.Effect<void>;
 }
 export const WalkthroughStore = Context.Service<

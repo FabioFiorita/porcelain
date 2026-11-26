@@ -26,7 +26,6 @@ const conversations = (messageIds: readonly string[]) =>
           id,
           text: `Message ${id}`,
           createdAt: '2026-11-09T00:00:00.000Z',
-          post: { status: 'none' },
         },
         {
           author: 'agent',

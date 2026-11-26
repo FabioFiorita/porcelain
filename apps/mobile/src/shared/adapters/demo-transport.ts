@@ -507,7 +507,6 @@ export function createDemoTransport(): Transport {
             id,
             text: value.text,
             createdAt: demoTime,
-            post: { status: 'none' },
           },
           {
             author: 'agent',

@@ -1,7 +1,14 @@
 import { expect } from 'vite-plus/test';
 import { test } from '../kit/server-test.ts';
 
-test('old review and worktree discussion routes are absent while walkthrough and reviewed routes stay registered', async ({
+const RETIRED_CONVERSATION_POSTING_ROUTES = [
+  'GET /api/worktrees/:worktreeId/walkthrough/:runId/conversations/brief',
+  'POST /api/worktrees/:worktreeId/walkthrough/:runId/conversations/messages/:messageId/post',
+  'POST /api/worktrees/:worktreeId/walkthrough/:runId/conversations/post-saved',
+  'PUT /api/worktrees/:worktreeId/walkthrough/:runId/conversations/messages/:messageId/saved',
+];
+
+test('old review, worktree discussion and conversation posting routes are absent while walkthrough and reviewed routes stay registered', async ({
   session,
   server,
 }) => {
@@ -13,6 +20,11 @@ test('old review and worktree discussion routes are absent while walkthrough and
         /\/comments\/(?::threadId|resolved)/.test(route),
     ),
   ).toBe(false);
+  expect(
+    server.routes.filter((route) =>
+      RETIRED_CONVERSATION_POSTING_ROUTES.includes(route),
+    ),
+  ).toEqual([]);
   for (const path of [
     `/api/worktrees/${session.worktreeId}/review`,
     `/api/worktrees/${session.worktreeId}/comments/00000000-0000-4000-8000-000000000001/messages`,
