@@ -58,7 +58,7 @@ import { PullRequestDocument } from './pull-request-document';
 import type { ComponentType } from 'react';
 
 import { type ConnectionContext } from '@/shared/workspace/connection';
-import { counted } from '@porcelain/client/changes/rules';
+import { counted, shownChangesText } from '@porcelain/client/changes/rules';
 
 export type WalkthroughCodeProps = DocumentProps & {
   document: Extract<DocumentRef, { kind: 'walkthrough-step' }>;
@@ -306,10 +306,10 @@ function TimelineDocument({
   );
 }
 
-function changesLabel(specsOnly: boolean, count: number) {
-  return counted(
-    count,
-    specsOnly ? 'uncommitted spec change' : 'uncommitted change',
+function changesLabel(specsOnly: boolean, count: number, omitted?: number) {
+  return (
+    (specsOnly ? undefined : shownChangesText(count, omitted)) ??
+    counted(count, specsOnly ? 'uncommitted spec change' : 'uncommitted change')
   );
 }
 
@@ -366,6 +366,8 @@ export function PlainChangesDocument({
   const inScope = (path: string) =>
     only ? only.includes(path) : !specsOnly || isSpecPath(path);
   const changes = allChanges.filter((item) => inScope(item.path));
+  const omitted =
+    changes.length === allChanges.length ? list.omittedChanges : undefined;
   const shown = limit === undefined ? changes : changes.slice(0, limit);
   const singleHeader = heading !== undefined;
   if (!specsOnly && changes.length === 0 && actionsOpen) setActionsOpen(false);
@@ -416,7 +418,7 @@ export function PlainChangesDocument({
                   {...(heading
                     ? { title: heading.title, titleLabel: heading.titleLabel }
                     : { title: 'All changes' })}
-                  subtitle={changesLabel(specsOnly, changes.length)}
+                  subtitle={changesLabel(specsOnly, changes.length, omitted)}
                 >
                   {collapse}
                   {heading?.after}
@@ -429,7 +431,7 @@ export function PlainChangesDocument({
                   <ChangeTable
                     scope={scope}
                     context={context}
-                    label={changesLabel(specsOnly, changes.length)}
+                    label={changesLabel(specsOnly, changes.length, omitted)}
                     items={changes}
                     rows={shown.length}
                     controls={controls}

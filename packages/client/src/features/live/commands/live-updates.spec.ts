@@ -630,7 +630,7 @@ it.effect(
     }),
 );
 
-const observedSession = Effect.fn(function* (initialReady: boolean = true) {
+const observedSession = Effect.fn(function* (silentAttempts: number = 0) {
   const fixture = yield* reconnectionFixture;
   const activity = activityFixture();
   const ready = yield* Queue.make<void>();
@@ -661,7 +661,7 @@ const observedSession = Effect.fn(function* (initialReady: boolean = true) {
       return recordedSocket(
         fixture.serverScope,
         fixture.openings,
-        initialReady || attempts > 1,
+        attempts > silentAttempts,
       );
     }),
     context,
@@ -840,12 +840,17 @@ it.effect(
     }),
 );
 
+const unavailableAfterSilence = Effect.fn(function* (silentAttempts: number) {
+  const subject = yield* observedSession(silentAttempts);
+  const first = yield* Queue.take(subject.openings);
+  yield* TestClock.adjust(10000);
+  yield* Queue.take(first.closed);
+  return subject;
+});
+
 it.effect('bounds an RPC session that never becomes ready', () =>
   Effect.gen(function* () {
-    const subject = yield* observedSession(false);
-    const first = yield* Queue.take(subject.openings);
-    yield* TestClock.adjust(10000);
-    yield* Queue.take(first.closed);
+    const subject = yield* unavailableAfterSilence(1);
     expect(subject.port.state.value).toBe('unavailable');
     subject.port.retry();
     yield* Queue.take(subject.ready);
@@ -853,6 +858,25 @@ it.effect('bounds an RPC session that never becomes ready', () =>
     expect(subject.diagnostics).toContainEqual({
       at: 10000,
       event: 'Ready timeout',
+    });
+    expect(subject.port.state.value).toBe('connected');
+    yield* Scope.close(subject.scope, Exit.void);
+  }),
+);
+
+it.effect('lets Try again abandon a first attempt that is still silent', () =>
+  Effect.gen(function* () {
+    const subject = yield* unavailableAfterSilence(2);
+    expect(subject.port.state.value).toBe('unavailable');
+    yield* TestClock.adjust(500);
+    const second = yield* Queue.take(subject.openings);
+    subject.port.retry();
+    yield* Queue.take(second.closed);
+    yield* Queue.take(subject.ready);
+    expect(subject.attempts()).toBe(3);
+    expect(subject.diagnostics).toContainEqual({
+      at: 10500,
+      event: 'Retry requested',
     });
     expect(subject.port.state.value).toBe('connected');
     yield* Scope.close(subject.scope, Exit.void);

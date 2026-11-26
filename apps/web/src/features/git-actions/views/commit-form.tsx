@@ -23,7 +23,10 @@ import {
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { FileTreeIcon } from '@/features/files/index';
-import { groupedCommitModels } from '@porcelain/client/git-actions/rules';
+import {
+  groupedCommitModels,
+  unlistedCommitNote,
+} from '@porcelain/client/git-actions/rules';
 import {
   changedSinceLooked,
   gitErrorMessage,
@@ -607,7 +610,7 @@ function commitNote(
   if (status.inProgress === 'merge') {
     return 'This finishes the merge and commits every staged resolution, including staged files outside your selection.';
   }
-  return null;
+  return unlistedCommitNote(status);
 }
 
 function submitLabel({

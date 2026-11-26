@@ -8,7 +8,6 @@ import { withReadLease } from '@porcelain/effects/worktree';
 import { describe, expect, it } from 'vite-plus/test';
 import {
   ContentChangedError,
-  DirectoryTooLargeError,
   PathNotFoundError,
   PathNotReadableError,
   UnsupportedEntryNameError,
@@ -23,12 +22,12 @@ const roomy = { maxEntries: 100, maxResponseBytes: 1024 * 1024 };
 
 function listed(
   entries: readonly (readonly [string, EntryKind])[],
-  truncated = false,
+  omitted = 0,
 ): DirectoryRead {
   return {
     kind: 'listed',
     entries: entries.map(([name, kind]) => ({ name, kind })),
-    truncated,
+    omitted,
   };
 }
 
@@ -139,7 +138,7 @@ describe('ListDirectoryService', () => {
     ).resolves.toMatchObject({ entries: { length: 3 } });
   });
 
-  it('lists a folder at the entry limit and refuses one entry more', async () => {
+  it('lists a folder at the entry limit and counts the entries past it', async () => {
     const options = { maxEntries: 3, maxResponseBytes: 1024 };
     await expect(
       Effect.runPromise(
@@ -151,7 +150,11 @@ describe('ListDirectoryService', () => {
           }),
         ),
       ),
-    ).resolves.toMatchObject({ entries: { length: 3 } });
+    ).resolves.toEqual({
+      worktreeId,
+      path: '',
+      entries: files(3).map(([name, kind]) => ({ name, kind })),
+    });
     await expect(
       Effect.runPromise(
         withReadLease(
@@ -162,28 +165,47 @@ describe('ListDirectoryService', () => {
           }),
         ),
       ),
-    ).rejects.toThrow(DirectoryTooLargeError);
+    ).resolves.toEqual({
+      worktreeId,
+      path: '',
+      entries: files(3).map(([name, kind]) => ({ name, kind })),
+      omitted: 1,
+    });
   });
 
-  it('refuses a folder the reader stopped listing at its limit', async () => {
-    const service = serviceWith({ '': listed(files(1), true) });
+  it('counts the entries the reader left out of a large folder', async () => {
+    const service = serviceWith({ '': listed(files(1), 19_999) });
     await expect(
       Effect.runPromise(
         withReadLease(worktreeId, service.execute({ worktreeId, path: '' })),
       ),
-    ).rejects.toThrow(DirectoryTooLargeError);
+    ).resolves.toEqual({
+      worktreeId,
+      path: '',
+      entries: [{ name: 'f0', kind: 'file' }],
+      omitted: 19_999,
+    });
   });
 
-  it('refuses a listing whose answer exceeds the response limit', async () => {
+  it('shortens a listing that would exceed the response limit and counts the rest', async () => {
+    const long = (letter: string): [string, EntryKind] => [
+      `${letter.repeat(100)}.md`,
+      'file',
+    ];
     const service = serviceWith(
-      { '': listed([[`${'n'.repeat(200)}.md`, 'file']]) },
-      { maxEntries: 10, maxResponseBytes: 200 },
+      { '': listed([long('a'), long('b'), long('c')]) },
+      { maxEntries: 10, maxResponseBytes: 300 },
     );
     await expect(
       Effect.runPromise(
         withReadLease(worktreeId, service.execute({ worktreeId, path: '' })),
       ),
-    ).rejects.toThrow(DirectoryTooLargeError);
+    ).resolves.toEqual({
+      worktreeId,
+      path: '',
+      entries: [{ name: `${'a'.repeat(100)}.md`, kind: 'file' }],
+      omitted: 2,
+    });
   });
 
   it('reports a missing folder as not found', async () => {

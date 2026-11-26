@@ -15,8 +15,10 @@ export {
   fileTreeExpansion,
   mergeFileTreeEntries,
   movedPath,
+  omittedEntriesText,
   pathInside,
   visibleFileTreeRows,
+  withUnlistedSelection,
   type FileTreeEntry,
 } from './file-tree.ts';
 export {

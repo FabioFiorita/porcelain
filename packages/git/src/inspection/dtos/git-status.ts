@@ -61,4 +61,5 @@ export type GitStatusObservation = {
   mergeHeadOid?: string | null;
   headCommit?: { subject: string; body?: string } | null;
   changes: GitChange[];
+  omittedChanges: number;
 };

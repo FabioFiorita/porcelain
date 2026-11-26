@@ -6,7 +6,7 @@ import type { ReviewIndexProps } from './review-index';
 import { StateSpinner } from '@/shared/views/state-notice';
 import { useElement, type ElementTarget } from '@/shared/hooks/use-element';
 import { AsyncResult } from 'effect/reactivity';
-import { Cause, Option } from 'effect';
+import { Option } from 'effect';
 import {
   detectPlatform,
   formatForDisplay,
@@ -160,12 +160,14 @@ export function ReviewWorkspace({
       0 &&
     (Option.getOrUndefined(AsyncResult.value(overview))?.changes.length ?? 0) >
       0;
-  const awaitingChanges = Option.isNone(AsyncResult.value(overview));
+  const awaitingChanges = awaitingOverview(overview);
   const needsDefault =
     !saved && !parseEntry(search.entry) && !parseEntry(search.side);
   const ready = !needsDefault || (!awaitingChanges && !firstDocument.pending);
   const defaultEntry =
     firstDocument.guided ||
+    (AsyncResult.isFailure(overview) &&
+      Option.isNone(AsyncResult.value(overview))) ||
     (Option.getOrUndefined(AsyncResult.value(overview))?.changes.length ?? 0) >
       0
       ? REVIEW_TAB
@@ -481,14 +483,15 @@ type DocumentAreaProps = PaneContext & {
   needsDefault: boolean;
 };
 
+function awaitingOverview(overview: DocumentAreaProps['overview']) {
+  return (
+    Option.isNone(AsyncResult.value(overview)) &&
+    !AsyncResult.isFailure(overview)
+  );
+}
+
 function DocumentArea(props: DocumentAreaProps) {
-  const awaitingChanges = Option.isNone(AsyncResult.value(props.overview));
-  if (
-    props.needsDefault &&
-    awaitingChanges &&
-    AsyncResult.isFailure(props.overview)
-  )
-    throw Cause.squash(props.overview.cause);
+  const awaitingChanges = awaitingOverview(props.overview);
   if (props.needsDefault && (awaitingChanges || props.firstDocument.pending)) {
     return <StateSpinner label="Loading review" />;
   }

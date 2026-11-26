@@ -2,6 +2,7 @@ import { walkthroughCodeScopes } from '@porcelain/client/walkthroughs/rules';
 import type { ReviewComparison } from '../../../shared/rules/review-comparison';
 import {
   diffSelection,
+  shownChangesText,
   type Change,
   type ChangeSelection,
 } from '@porcelain/client/changes/rules';
@@ -69,10 +70,20 @@ function worktreeRead(
   return { kind: 'diff', selection, fingerprint };
 }
 
-export function changesSummary(snapshot: ReviewSnapshot, files: number) {
+export function changesSummary(
+  snapshot: ReviewSnapshot,
+  files: number,
+  wholeList = true,
+) {
   const count = `${files} ${files === 1 ? 'change' : 'changes'}`;
   if (snapshot.kind === 'worktree')
-    return { subtitle: 'Uncommitted', description: `${count}, not committed` };
+    return {
+      subtitle: 'Uncommitted',
+      description:
+        (wholeList
+          ? shownChangesText(files, snapshot.answer.omittedChanges)
+          : undefined) ?? `${count}, not committed`,
+    };
   const { base, head, commits } = snapshot.answer;
   if (!base)
     return {

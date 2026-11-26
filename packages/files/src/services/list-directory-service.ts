@@ -4,7 +4,6 @@ import { type WorktreeRead } from '@porcelain/effects/worktree';
 import { utf8ByteLength, withoutGitDirectory } from '@porcelain/kernel/rules';
 import { Effect, Context, Layer } from 'effect';
 import type { ContentChangedError } from '../errors/content-changed-error.ts';
-import { DirectoryTooLargeError } from '../errors/directory-too-large-error.ts';
 import type { PathNotFoundError } from '../errors/path-not-found-error.ts';
 import type { PathNotReadableError } from '../errors/path-not-readable-error.ts';
 import type { UnsupportedEntryNameError } from '../errors/unsupported-entry-name-error.ts';
@@ -22,7 +21,7 @@ type ListFailureError =
   | ContentChangedError
   | UnsupportedEntryNameError;
 
-export type ListDirectoryFailure = ListFailureError | DirectoryTooLargeError;
+export type ListDirectoryFailure = ListFailureError;
 
 export class ListDirectoryService extends Context.Service<
   ListDirectoryService,
@@ -49,37 +48,55 @@ export class ListDirectoryService extends Context.Service<
           const read = yield* directoryReaderCapability.list({
             worktreeId: input.worktreeId,
             path: input.path,
-            limit: optionsCapability.maxEntries + 1,
+            limit: optionsCapability.maxEntries,
           });
           if (read.kind === 'failed')
             return yield* Effect.fail(fileFailure[read.failure]());
-          const entries = withoutGitDirectory(read.entries).toSorted(byName);
-          if (read.truncated || entries.length > optionsCapability.maxEntries)
-            return yield* new DirectoryTooLargeError();
+          const listed = withoutGitDirectory(read.entries);
           const prefix = input.path === '' ? '' : `${input.path}/`;
           const ignored = yield* ignoredEntriesReaderCapability.read({
             worktreeId: input.worktreeId,
-            paths: entries.map((entry) => `${prefix}${entry.name}`),
+            paths: listed.map((entry) => `${prefix}${entry.name}`),
           });
-          const listing = {
+          const flagged = listed.map((entry) =>
+            ignored.has(`${prefix}${entry.name}`)
+              ? { ...entry, ignored: true }
+              : entry,
+          );
+          const shown = withinResponseBytes(
+            flagged.slice(0, optionsCapability.maxEntries),
+            optionsCapability.maxResponseBytes -
+              utf8ByteLength(
+                JSON.stringify({
+                  worktreeId: input.worktreeId,
+                  path: input.path,
+                  entries: [],
+                  omitted: Number.MAX_SAFE_INTEGER,
+                }),
+              ),
+          );
+          const omitted = read.omitted + flagged.length - shown.length;
+          return {
             worktreeId: input.worktreeId,
             path: input.path,
-            entries: entries.map((entry) =>
-              ignored.has(`${prefix}${entry.name}`)
-                ? { ...entry, ignored: true }
-                : entry,
-            ),
+            entries: shown.toSorted(byName),
+            ...(omitted > 0 && { omitted }),
           };
-          if (
-            utf8ByteLength(JSON.stringify(listing)) >
-            optionsCapability.maxResponseBytes
-          )
-            return yield* new DirectoryTooLargeError();
-          return listing;
         }),
       };
     }),
   );
+}
+
+function withinResponseBytes(entries: DirectoryEntry[], budget: number) {
+  let used = 0;
+  let count = 0;
+  for (const entry of entries) {
+    used += utf8ByteLength(JSON.stringify(entry)) + 1;
+    if (used > budget) break;
+    count += 1;
+  }
+  return entries.slice(0, count);
 }
 
 function byName(left: DirectoryEntry, right: DirectoryEntry) {

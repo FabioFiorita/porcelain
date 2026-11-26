@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vite-plus/test';
 import {
+  gitActionBlocker,
   primaryGitAction,
   shownBranch,
+  unlistedCommitNote,
   statusFromChanges,
   suggestedCount,
 } from './status.ts';
@@ -51,6 +53,53 @@ describe('statusFromChanges', () => {
         { path: 'conflict.ts', fingerprint: undefined },
       ],
     });
+  });
+});
+
+describe('gitActionBlocker with changes left out of the list', () => {
+  const partial = {
+    statusToken: 'token',
+    headOid: 'a'.repeat(40),
+    changes: [{ scope: 'untracked' as const, path: 'bulk/file-00000.txt' }],
+    omittedChanges: 4999,
+    branch: { name: 'main', upstream: 'origin/main', ahead: 0, behind: 0 },
+  };
+
+  it('sends stashing and restoring a stash to a terminal', () => {
+    expect(gitActionBlocker('stash-create', partial)).toBe(
+      'Not every change is listed here, so stash these changes in a terminal.',
+    );
+    expect(gitActionBlocker('stash-pop', partial)).toBe(
+      'Not every change is listed here, so pop this stash in a terminal.',
+    );
+  });
+
+  it('sends a merge commit to a terminal but still commits listed files', () => {
+    expect(
+      gitActionBlocker('commit', {
+        ...partial,
+        inProgress: 'merge',
+        mergeHeadOid: 'b'.repeat(40),
+      }),
+    ).toBe(
+      'Not every change is listed here, so commit this merge in a terminal.',
+    );
+    expect(gitActionBlocker('commit', partial)).toBeNull();
+    expect(
+      gitActionBlocker('stash-create', {
+        ...partial,
+        omittedChanges: undefined,
+      }),
+    ).toBeNull();
+  });
+
+  it('notes in the commit form that unlisted changes stay out of the commit', () => {
+    expect(unlistedCommitNote(partial)).toBe(
+      '4,999 more changes are not listed and stay out of this commit.',
+    );
+    expect(
+      unlistedCommitNote({ ...partial, omittedChanges: undefined }),
+    ).toBeNull();
   });
 });
 

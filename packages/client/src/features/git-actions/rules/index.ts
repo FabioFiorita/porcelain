@@ -25,6 +25,7 @@ export {
   shownBranch,
   statusFromChanges,
   suggestedCount,
+  unlistedCommitNote,
   type GitActionStatus,
 } from './status.ts';
 export { actionFormInput, type FormAction } from './action-form.ts';

@@ -134,6 +134,23 @@ describe('all changes of a worktree', () => {
   });
 });
 
+it('says how many uncommitted changes are shown when the computer left some out', () => {
+  if (worktree.kind !== 'worktree') throw new Error('Expected a worktree');
+  const partial: ReviewSnapshot = {
+    kind: 'worktree',
+    answer: { ...worktree.answer, omittedChanges: 4996 },
+  };
+  expect(changesSummary(partial, 4).description).toBe(
+    '4 of 5,000 changes shown',
+  );
+  expect(changesSummary(partial, 1, false).description).toBe(
+    '1 change, not committed',
+  );
+  expect(changesSummary(worktree, 4).description).toBe(
+    '4 changes, not committed',
+  );
+});
+
 it('walkthrough code includes the dirty step and the whole change after committed code, with the file comparison retained', () => {
   const branch = branchSnapshot(true);
   expect(

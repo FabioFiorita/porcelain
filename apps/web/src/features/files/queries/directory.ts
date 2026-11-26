@@ -31,7 +31,12 @@ export function useDirectories(
     if (AsyncResult.isFailure(result)) return { path, status: 'unavailable' };
     const value = Option.getOrUndefined(AsyncResult.value(result));
     return value
-      ? { path, status: 'loaded', entries: value.entries }
+      ? {
+          path,
+          status: 'loaded',
+          entries: value.entries,
+          omitted: value.omitted,
+        }
       : { path, status: 'loading' };
   });
   return { results, states, retry };
