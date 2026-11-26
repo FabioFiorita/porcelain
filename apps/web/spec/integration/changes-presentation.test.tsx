@@ -33,7 +33,7 @@ test('All changes and the Branch document keep the same reading width', async ({
       .toBeVisible();
     const uncommitted = reviewLayout.codeContentEdges(code('All changes'));
     await app.navigate(`${location}?entry=branch`);
-    const content = code('Branch');
+    const content = code('All branch changes');
     await expect
       .element(
         page.getByRole('heading', { name: 'feature since main', exact: true }),
