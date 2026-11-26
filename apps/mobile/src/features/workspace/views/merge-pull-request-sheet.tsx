@@ -1,9 +1,7 @@
 import { Fragment, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { Option, Schema } from 'effect';
-import { AsyncResult } from 'effect/reactivity';
 import {
-  githubUnavailable,
   mergeConfirmation,
   pullRequestMergeMethods,
   type PullRequestMergeMethod,
@@ -17,7 +15,6 @@ import { Icon } from '../../../components/ui/icon';
 import { Item } from '../../../components/ui/item';
 import { Separator } from '../../../components/ui/separator';
 import { Sheet } from '../../../components/ui/sheet';
-import { Spinner } from '../../../components/ui/spinner';
 import { StateIcon } from '../../../components/ui/state-icon';
 import { Text } from '../../../components/ui/text';
 import {
@@ -33,9 +30,9 @@ import { useScreenActivity } from '../adapters/page-activity';
 import { useMergePullRequest } from '../commands/pull-request';
 import {
   usePullRequestMerge,
-  usePullRequestRead,
   type PullRequestRef,
 } from '../queries/pull-request';
+import { PullRequestReadState } from './pull-request-read';
 
 type PullRequest = Extract<
   PullRequestRead,
@@ -85,26 +82,11 @@ function ConnectedMerge({ target }: { target: PullRequestTarget }) {
 }
 
 function ReadMerge({ target }: { target: PullRequestRef }) {
-  const { result, refresh } = usePullRequestRead(target);
-  const value = Option.getOrUndefined(AsyncResult.value(result));
-  if (!value && AsyncResult.isFailure(result))
-    return (
-      <Box gap={2}>
-        <Text variant="secondary" tone="destructive" accessibilityRole="alert">
-          The pull request could not be read.
-        </Text>
-        <Button
-          label="Read pull request again"
-          variant="tonal"
-          pending={result.waiting}
-          onPress={refresh}
-        />
-      </Box>
-    );
-  if (!value) return <Spinner />;
-  if (value.kind === 'unavailable')
-    return <Empty title={githubUnavailable(value.reason).description} />;
-  return <MergeConfirmation target={target} pull={value.pullRequest} />;
+  return (
+    <PullRequestReadState target={target}>
+      {(pull) => <MergeConfirmation target={target} pull={pull} />}
+    </PullRequestReadState>
+  );
 }
 
 function MergeConfirmation({

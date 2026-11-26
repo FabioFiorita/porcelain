@@ -4,15 +4,14 @@ import { Atom, AsyncResult } from 'effect/reactivity';
 import {
   readProjectCheckLog,
   readProjectPullRequest,
-  requestedReruns,
   watchProjectPullStatus,
+  watchPullStatusView,
   type PageActivity,
 } from '@porcelain/client/projects';
 import {
   pullRequestBlockers,
   pullRequestCheckout,
   pullRequestMergeBlock,
-  rerunsStillPending,
   undecidedCallAtHead,
   withPullRequestStatus,
 } from '@porcelain/client/projects/rules';
@@ -41,33 +40,10 @@ export function usePullRequestStatus(
   target: PullRequestRef,
   activity: PageActivity,
 ) {
-  const atom = watchProjectPullStatus({ ...target, activity });
-  const result = useAtomValue(atom);
-  const refresh = useAtomRefresh(atom);
-  const watch = Option.getOrUndefined(AsyncResult.value(result));
-  const requested = useAtomValue(
-    requestedReruns({
-      environmentId: target.connection.environmentId,
-      projectId: target.projectId,
-      number: target.number,
-    }),
-  );
-  const status = watch?.status;
-  const pending = [
-    ...(watch?.pending ?? []),
-    ...(status && result.waiting
-      ? rerunsStillPending(status, requested, Date.now()).map(
-          (entry) => entry.key,
-        )
-      : []),
-  ];
+  const input = { ...target, activity };
   return {
-    status,
-    problem:
-      watch?.problem ?? (AsyncResult.isFailure(result) ? 'failed' : undefined),
-    reading: result.waiting,
-    refresh,
-    pendingReruns: new Set(pending),
+    ...useAtomValue(watchPullStatusView(input)),
+    refresh: useAtomRefresh(watchProjectPullStatus(input)),
   };
 }
 

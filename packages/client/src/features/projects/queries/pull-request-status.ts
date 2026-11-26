@@ -1,5 +1,5 @@
 import { Clock, Effect, Option, Queue, Stream } from 'effect';
-import { Atom } from 'effect/reactivity';
+import { AsyncResult, Atom } from 'effect/reactivity';
 import type { ReadPullStatusResponse } from '@porcelain/contracts/projects';
 import type { RuntimeConnection } from '../../../shared/api/connection.ts';
 import { clientRuntime } from '../../../shared/api/runtime.ts';
@@ -9,6 +9,7 @@ import type { PageActivity } from '../ports/page-activity.ts';
 import { requestedReruns } from '../store/pull-request-reruns.ts';
 import {
   nextPollDelay,
+  pullStatusView,
   rerunsStillPending,
   statusFingerprint,
   statusIsMoving,
@@ -22,6 +23,7 @@ export type PullStatusWatch = {
     | 'failed'
     | undefined;
   readonly pending: readonly string[];
+  readonly readAt: number;
 };
 
 const untilActive = (activity: PageActivity | undefined) =>
@@ -104,6 +106,7 @@ export const watchProjectPullStatus = Atom.family(
                 status,
                 problem,
                 pending: pending.map((entry) => entry.key),
+                readAt: now,
               });
               if (
                 status === undefined ||
@@ -128,4 +131,23 @@ export const watchProjectPullStatus = Atom.family(
         Atom.makeRefreshOnSignal(activitySignal(input.activity)),
         Atom.setIdleTTL(0),
       ),
+);
+
+export const watchPullStatusView = Atom.family(
+  (input: Parameters<typeof watchProjectPullStatus>[0]) =>
+    Atom.make((get) => {
+      const result = get(watchProjectPullStatus(input));
+      return pullStatusView({
+        watch: Option.getOrUndefined(AsyncResult.value(result)),
+        failed: AsyncResult.isFailure(result),
+        waiting: result.waiting,
+        requested: get(
+          requestedReruns({
+            environmentId: input.connection.environmentId,
+            projectId: input.projectId,
+            number: input.number,
+          }),
+        ),
+      });
+    }).pipe(Atom.setIdleTTL(0)),
 );

@@ -1,7 +1,5 @@
 import { useState, type ReactNode } from 'react';
 import { ScrollView } from 'react-native';
-import { Option } from 'effect';
-import { AsyncResult } from 'effect/reactivity';
 import {
   githubUnavailable,
   pullRequestConversation,
@@ -27,7 +25,6 @@ import { IconButton } from '../../../components/ui/icon-button';
 import { MarkdownText } from '../../../components/ui/markdown-text';
 import { MessageComposer } from '../../../components/ui/message-composer';
 import { SectionHeading } from '../../../components/ui/section-heading';
-import { Spinner } from '../../../components/ui/spinner';
 import { Text } from '../../../components/ui/text';
 import { usePreviewLink } from '../../../shared/adapters/preview-link';
 import type { PullRequestTarget } from '../../../shared/rules/pull-request-target';
@@ -35,9 +32,9 @@ import { useScreenActivity } from '../adapters/page-activity';
 import { useCommentOnPullRequest } from '../commands/pull-request';
 import {
   usePullRequestMerge,
-  usePullRequestRead,
   type PullRequestRef,
 } from '../queries/pull-request';
+import { PullRequestReadState } from './pull-request-read';
 import { PullRequestChecks } from './pull-request-checks';
 import { PullRequestMergeArea } from './pull-request-merge';
 
@@ -71,36 +68,11 @@ export function PullRequestContent({ target }: { target: PullRequestTarget }) {
 }
 
 function ConnectedPullRequest({ target }: { target: PullRequestRef }) {
-  const { result, refresh } = usePullRequestRead(target);
-  const value = Option.getOrUndefined(AsyncResult.value(result));
-  if (!value && AsyncResult.isFailure(result))
-    return (
-      <Box padding={4}>
-        <ErrorState
-          message="The pull request could not be read."
-          retry={{
-            label: 'Read pull request again',
-            onPress: refresh,
-            pending: result.waiting,
-          }}
-        />
-      </Box>
-    );
-  if (!value) return <Spinner />;
-  if (value.kind === 'unavailable')
-    return (
-      <Box padding={4}>
-        <ErrorState
-          message={githubUnavailable(value.reason).description}
-          retry={{
-            label: 'Read pull request again',
-            onPress: refresh,
-            pending: result.waiting,
-          }}
-        />
-      </Box>
-    );
-  return <PullRequestPage target={target} pull={value.pullRequest} />;
+  return (
+    <PullRequestReadState target={target}>
+      {(pull) => <PullRequestPage target={target} pull={pull} />}
+    </PullRequestReadState>
+  );
 }
 
 function PullRequestPage({

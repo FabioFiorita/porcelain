@@ -1,5 +1,7 @@
 import { expect, it } from 'vite-plus/test';
 import {
+  pullStatusView,
+  toggledKey,
   checkDurationLabel,
   checkLogUnavailable,
   failedJobsRerunRequest,
@@ -322,4 +324,48 @@ it('explains a missing job log in one sentence', () => {
     'The job log is larger than 16 MB.',
   );
   expect(checkLogUnavailable('offline')).toBe('GitHub did not return the log.');
+});
+
+it('keeps a requested re-run pending while a read is in flight', () => {
+  const status = pull([job('unit', 'failed', { jobId: 31 })]);
+  const requested = [{ key: 'actions:CI:unit', jobId: 31, at: 1_000 }];
+  const view = (waiting: boolean) =>
+    pullStatusView({
+      watch: { status, problem: undefined, pending: [], readAt: 2_000 },
+      failed: false,
+      waiting,
+      requested,
+    });
+  expect([...view(true).pendingReruns]).toEqual(['actions:CI:unit']);
+  expect([...view(false).pendingReruns]).toEqual([]);
+});
+
+it('reports a failed first read as failed, and a later problem as itself', () => {
+  const view = pullStatusView({
+    watch: undefined,
+    failed: true,
+    waiting: false,
+    requested: [],
+  });
+  expect(view).toMatchObject({ status: undefined, problem: 'failed' });
+  expect(
+    pullStatusView({
+      watch: {
+        status: undefined,
+        problem: 'rate-limited',
+        pending: [],
+        readAt: 0,
+      },
+      failed: false,
+      waiting: false,
+      requested: [],
+    }).problem,
+  ).toBe('rate-limited');
+});
+
+it('toggles one key without changing the set it was given', () => {
+  const open = new Set(['a']);
+  expect([...toggledKey(open, 'b')]).toEqual(['a', 'b']);
+  expect([...toggledKey(open, 'a')]).toEqual([]);
+  expect([...open]).toEqual(['a']);
 });

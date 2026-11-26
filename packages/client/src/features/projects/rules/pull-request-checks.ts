@@ -434,3 +434,41 @@ export function checkLogHeading(
 ) {
   return `${excerpt.source === 'step' ? `Step ${step}` : 'End of the job log'} · ${excerpt.omitted > 0 ? 'last ' : ''}${excerpt.lines.length} lines`;
 }
+
+export function toggledKey<K>(current: ReadonlySet<K>, key: K): ReadonlySet<K> {
+  const next = new Set(current);
+  if (next.has(key)) next.delete(key);
+  else next.add(key);
+  return next;
+}
+
+export function pullStatusView<P>(input: {
+  readonly watch:
+    | {
+        readonly status: PullStatus | undefined;
+        readonly problem: P | undefined;
+        readonly pending: readonly string[];
+        readonly readAt: number;
+      }
+    | undefined;
+  readonly failed: boolean;
+  readonly waiting: boolean;
+  readonly requested: readonly RequestedRerun[];
+}) {
+  const status = input.watch?.status;
+  const requested =
+    status && input.waiting
+      ? rerunsStillPending(
+          status,
+          input.requested,
+          input.watch?.readAt ?? 0,
+        ).map((entry) => entry.key)
+      : [];
+  return {
+    status,
+    problem:
+      input.watch?.problem ?? (input.failed ? ('failed' as const) : undefined),
+    reading: input.waiting,
+    pendingReruns: new Set([...(input.watch?.pending ?? []), ...requested]),
+  };
+}

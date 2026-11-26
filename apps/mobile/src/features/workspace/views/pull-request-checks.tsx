@@ -12,6 +12,7 @@ import {
   jobRerunOffer,
   jobRerunRequest,
   stepState,
+  toggledKey,
   type CheckGroup,
   type PullCheck,
   type PullCheckStep,
@@ -57,12 +58,7 @@ export function PullRequestChecks({
   const counts = checkCounts(status.checks);
   const now = Date.now();
   const toggle = (key: string) =>
-    setOpen((current) => {
-      const next = new Set(current);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
+    setOpen((current) => toggledKey(current, key));
   const request = (item: RerunRequest, confirm: boolean) => {
     const start = () => void rerun.rerun(status, item);
     if (!confirm) {
@@ -349,12 +345,9 @@ function ActionsJob({
                 onPress={
                   expandable
                     ? () =>
-                        setOpenSteps((current) => {
-                          const next = new Set(current);
-                          if (next.has(step.number)) next.delete(step.number);
-                          else next.add(step.number);
-                          return next;
-                        })
+                        setOpenSteps((current) =>
+                          toggledKey(current, step.number),
+                        )
                     : undefined
                 }
               />

@@ -27,6 +27,7 @@ import {
   jobRerunOffer,
   jobRerunRequest,
   stepState,
+  toggledKey,
   type CheckGroup,
   type PullCheck,
   type PullCheckStep,
@@ -593,12 +594,7 @@ function ActionsJob({
               now={now}
               open={openSteps.has(step.number)}
               onToggle={() =>
-                setOpenSteps((current) => {
-                  const next = new Set(current);
-                  if (next.has(step.number)) next.delete(step.number);
-                  else next.add(step.number);
-                  return next;
-                })
+                setOpenSteps((current) => toggledKey(current, step.number))
               }
               log={
                 jobId === undefined ? undefined : (
