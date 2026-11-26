@@ -6,6 +6,7 @@ import {
   checkLogUnavailable,
   failedJobsRerunRequest,
   jobRerunRequest,
+  checkNameInGroup,
   checkProgress,
   checkState,
   groupChecks,
@@ -692,4 +693,19 @@ it('holds the Merge button for every merge rule reason, reviews included', () =>
     'Decide the call first.',
   );
   expect(mergeButtonReason(undefined, undefined)).toBeUndefined();
+});
+
+it('names a check under its group without repeating the group name before it', () => {
+  expect(
+    checkNameInGroup({ name: 'reviewdog / eslint', group: 'reviewdog' }),
+  ).toBe('eslint');
+  expect(checkNameInGroup({ name: 'Browser tests', group: 'CI' })).toBe(
+    'Browser tests',
+  );
+  expect(checkNameInGroup({ name: 'reviewdog', group: 'reviewdog' })).toBe(
+    'reviewdog',
+  );
+  expect(
+    checkNameInGroup({ name: 'reviewdog-lint / eslint', group: 'reviewdog' }),
+  ).toBe('reviewdog-lint / eslint');
 });

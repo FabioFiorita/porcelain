@@ -52,6 +52,14 @@ export const reviewLayout = {
       position: { x: 8, y: 8 },
     });
   },
+  fileHeaders(locator: Locator) {
+    return [...locator.element().querySelectorAll('diffs-container')].flatMap(
+      (host) =>
+        [
+          ...(host.shadowRoot?.querySelectorAll('[data-diffs-header]') ?? []),
+        ].map((header) => header.textContent ?? ''),
+    );
+  },
   codeContentEdges(locator: Locator) {
     const content = locator.element().querySelector('diffs-container');
     if (!content) throw new Error('The code content has no rendered file');

@@ -5,7 +5,6 @@ import { PencilIcon } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { Item, ItemActions, ItemContent } from '@/components/ui/item';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   SettingsGroup,
@@ -96,12 +95,9 @@ export function ComputerSettings({
         <SettingsGroup>
           <Item>
             <ItemContent className="min-w-0">
-              <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-                <span className="min-w-0 text-sm leading-5 font-medium wrap-anywhere">
-                  {environment.name}
-                </span>
-                <Badge variant="secondary">This computer</Badge>
-              </div>
+              <span className="min-w-0 text-sm leading-5 font-medium wrap-anywhere">
+                {environment.name}
+              </span>
               <div className="flex min-w-0 items-center gap-1.5 text-xs leading-4.5 text-muted-foreground">
                 <span
                   aria-hidden

@@ -291,7 +291,10 @@ export function walkthroughStanding({
     label,
     icon: readiness ? STANDING_ICONS[readiness.tone] : 'none',
     quiet: readiness?.tone === 'unknown',
-    pullState: pull ? pullStateWord(pull) : undefined,
+    pullState:
+      pull && readiness?.tone !== 'merged' && readiness?.tone !== 'closed'
+        ? pullStateWord(pull)
+        : undefined,
   };
 }
 

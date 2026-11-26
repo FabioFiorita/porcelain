@@ -9,6 +9,7 @@ export function DocumentToolbar({
   title,
   titleLabel,
   subtitle,
+  aside,
   children,
   className,
   inline = false,
@@ -17,6 +18,7 @@ export function DocumentToolbar({
   target?: HTMLElement | null | undefined;
   barActions?: ReactNode;
   subtitle?: string;
+  aside?: ReactNode;
   children?: ReactNode;
   className?: string;
 } & (
@@ -55,13 +57,16 @@ export function DocumentToolbar({
             target,
           )}
         <div className="shrink-0 px-3.5 py-2">
-          <TruncatedText
-            text={titleLabel ?? (typeof title === 'string' ? title : '')}
-            render={<h1 />}
-            className="text-ui font-semibold"
-          >
-            {title}
-          </TruncatedText>
+          <div className="flex min-w-0 items-baseline gap-2">
+            <TruncatedText
+              text={titleLabel ?? (typeof title === 'string' ? title : '')}
+              render={<h1 />}
+              className="min-w-0 text-ui font-semibold"
+            >
+              {title}
+            </TruncatedText>
+            {aside}
+          </div>
           {subtitle && (
             <p className="text-2xs text-muted-foreground">{subtitle}</p>
           )}
@@ -82,13 +87,16 @@ export function DocumentToolbar({
       )}
     >
       <div className="flex min-w-0 flex-auto flex-col">
-        <TruncatedText
-          text={titleLabel ?? (typeof title === 'string' ? title : '')}
-          render={<h1 />}
-          className="text-ui leading-tight font-semibold"
-        >
-          {title}
-        </TruncatedText>
+        <div className="flex min-w-0 items-baseline gap-2">
+          <TruncatedText
+            text={titleLabel ?? (typeof title === 'string' ? title : '')}
+            render={<h1 />}
+            className="min-w-0 text-ui leading-tight font-semibold"
+          >
+            {title}
+          </TruncatedText>
+          {aside}
+        </div>
         {subtitle !== null && subtitle !== undefined && (
           <TruncatedText
             text={subtitle}

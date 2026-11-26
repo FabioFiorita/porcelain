@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import type {
   StepBlock,
   WalkthroughComparison,
@@ -236,8 +237,10 @@ export function StepBlocks({
 
 export function ComparisonTable({
   comparison,
+  choose,
 }: {
   comparison: WalkthroughComparison;
+  choose?: ((column: string) => ReactNode) | undefined;
 }) {
   return (
     <div className="overflow-hidden rounded-md border bg-background">
@@ -269,6 +272,20 @@ export function ComparisonTable({
             </tr>
           ))}
         </tbody>
+        {choose && (
+          <tfoot>
+            <tr className="border-t bg-muted/30">
+              {comparison.columns.map((column, index) => (
+                <td
+                  key={index}
+                  className="px-3 py-2 align-top not-last:border-r"
+                >
+                  {choose(column)}
+                </td>
+              ))}
+            </tr>
+          </tfoot>
+        )}
       </table>
     </div>
   );

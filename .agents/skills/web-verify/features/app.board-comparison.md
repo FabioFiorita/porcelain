@@ -40,12 +40,12 @@ Each role below names explicit board and app CSS selectors. `index` deliberately
 | Name                          | Approved HTML                    | App setup                                                        |
 | ----------------------------- | -------------------------------- | ---------------------------------------------------------------- |
 | sidebar                       | selected-direction               | Main first; include a linked topic PR; phone opens the navigator |
-| changes                       | Narrative-desktop-no-review      | Worktree without a Walkthrough                              |
+| changes                       | Narrative-desktop-no-review      | Worktree without a Walkthrough                                   |
 | settings-general              | Narrative-settings-general       | `/settings/general`                                              |
 | settings-git                  | Narrative-settings-reviews-git   | `/settings/git`                                                  |
 | settings-computers            | Narrative-settings-computers     | `/settings/computers`                                            |
 | settings-this-computer        | Narrative-settings-this-computer | `/settings/computers/this-computer`                              |
-| commit                        | Narrative-desktop-history        | Worktree with `?entry=commit:<oid>`                              |
+| commit                        | Narrative-desktop-history        | Worktree with `?entry=commit:<oid>` of a commit with 2+ files    |
 | history                       | Narrative-desktop-history        | Worktree with `?entry=commit:<oid>&surface=history`              |
 | graph                         | Narrative-desktop-graph          | Worktree with `?entry=graph`                                     |
 | pr-linked                     | Narrative-desktop-pr-linked      | Linked PR in the Changes panel                                   |

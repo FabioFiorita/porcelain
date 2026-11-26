@@ -173,3 +173,19 @@ test('the rename field closes on Save, Cancel and Escape and gives focus back to
   await expect.element(field).not.toBeInTheDocument();
   await expect.element(rename).toHaveFocus();
 });
+
+test('this computer’s overview names the computer once, without repeating the page it is on', async ({
+  render,
+}) => {
+  const app = await render.route('/settings/computers/this-computer');
+  const overview = app.page.getByRole('group', {
+    name: 'Overview',
+    exact: true,
+  });
+  await expect
+    .element(overview.getByRole('button', { name: 'Rename', exact: true }))
+    .toBeVisible();
+  await expect
+    .element(overview.getByText('This computer', { exact: true }))
+    .not.toBeInTheDocument();
+});
