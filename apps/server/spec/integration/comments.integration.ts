@@ -173,6 +173,17 @@ else console.log('{}');
       );
     }
 
+    const temporary = await view('POST', root, {
+      anchor: { kind: 'file', path: 'README.md' },
+      text: 'Remove this draft.',
+    });
+    const temporaryId = text(
+      temporary.comments.find(
+        (comment) => comment.text === 'Remove this draft.',
+      )?.id,
+    );
+    expect(await view('DELETE', `${root}/${temporaryId}`)).toEqual(edited);
+
     const { draftRevision: initialRevision, ...planned } = record(
       await preview(),
     );
@@ -205,6 +216,14 @@ else console.log('{}');
         }),
       ],
     });
+    await server.advanceTime(1_000);
+    const unchanged = await view('PATCH', `${root}/${lineId}`, {
+      text: 'Name these constants',
+    });
+    expect(unchanged.comments).toEqual(edited.comments);
+    expect(text(record(await preview()).draftRevision)).toBe(
+      text(initialRevision),
+    );
     const bodies = {
       [lineId]: 'Name these constants',
       [fileId]: 'Is this still true?',
@@ -390,9 +409,25 @@ else console.log('{}');
       reason: 'no-comments',
     });
 
-    const remaining = await view('DELETE', `${root}/${fileId}`);
-    expect(remaining.comments.map((comment) => comment.id)).toEqual([lineId]);
-    expect(await view('GET', root)).toEqual(remaining);
+    for (const request of [
+      {
+        method: 'PATCH',
+        path: `${root}/${lineId}`,
+        body: { text: 'Too late.' },
+      },
+      { method: 'DELETE', path: `${root}/${fileId}` },
+    ] as const) {
+      const refused = await session.send(request);
+      expect(refused.status, request.method).toBe(409);
+      expect(refused.body).toEqual(
+        apiError(
+          409,
+          'Conflict',
+          'This comment has already been posted. Refresh to see the published review.',
+        ),
+      );
+    }
+    expect(await view('GET', root)).toEqual(commentsView(answer.view));
 
     const registered = server.routes.filter(
       (route) => route.includes('/worktree') && route.includes('comments'),

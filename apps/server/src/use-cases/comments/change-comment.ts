@@ -2,7 +2,10 @@ import { Context, Effect, Layer } from 'effect';
 import type { GitIoFailure } from '@porcelain/git/errors';
 import { ReadWorktreeStatusService } from '@porcelain/changes/services';
 import { ReadTextFileService } from '@porcelain/files/services';
-import type { DraftCommentNotFoundError } from '@porcelain/reviews/errors';
+import type {
+  DraftCommentNotFoundError,
+  DraftCommentPublishedError,
+} from '@porcelain/reviews/errors';
 import {
   EditDraftCommentService,
   ListCommentedPathsService,
@@ -25,7 +28,10 @@ export class ChangeCommentUseCase extends Context.Service<
       input: ChangeCommentInput,
     ) => Effect.Effect<
       CommentsResponse,
-      WorktreeAccessFailure | GitIoFailure | DraftCommentNotFoundError
+      | WorktreeAccessFailure
+      | GitIoFailure
+      | DraftCommentNotFoundError
+      | DraftCommentPublishedError
     >;
   }
 >()('@porcelain/server/ChangeCommentUseCase') {
