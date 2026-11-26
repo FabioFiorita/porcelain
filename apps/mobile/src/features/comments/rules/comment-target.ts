@@ -14,7 +14,6 @@ export const commentTargetSchema = Schema.Union([
     commentId: Schema.String.check(Schema.isMinLength(1)),
   }),
 ]);
-type CommentTarget = typeof commentTargetSchema.Type;
 
 export function newCommentParams(workspaceKey: string, anchor: CommentAnchor) {
   return { workspace: workspaceKey, anchor: JSON.stringify(anchor) };
