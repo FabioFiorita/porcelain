@@ -45,7 +45,7 @@ a fresh instance has README.md modified ("# Sample repository\n\nA change to rev
 2. Click button `README.md · unstaged`
    Expect: the sheet closes; a README.md change document with button "Discard changes to README.md".
 3. Click button `Discard changes to README.md`
-   Expect: alertdialog "Discard README.md?" reading "The file goes back to the last commit. You can restore the changes."; buttons "Cancel" and "Discard".
+   Expect: alertdialog "Discard README.md?" reading "The file goes back to the last commit. You can restore the changes." (for an untracked file: "The new file is deleted. You can restore it."); buttons "Cancel" and "Discard".
 4. Click button `Discard`
    Expect: the alertdialog is gone; in region "Notifications", dialog "Discarded README.md" with button "Restore"; the document reads "This change is no longer present."; the Git button in group "Git controls" now reads "Apply stash" (the discarded change is kept as a stash until Restore). Disk: `cat "$REPO/README.md"` prints `# Sample repository`.
 5. Click button `Restore` (within 10 s of step 4)

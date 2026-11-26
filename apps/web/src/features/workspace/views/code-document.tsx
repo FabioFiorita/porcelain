@@ -35,6 +35,7 @@ import {
   PIERRE_DECISION_CSS,
   PIERRE_DECISION_THEME,
   PIERRE_HEADER_CSS,
+  PIERRE_INSET_CSS,
   PIERRE_SURFACE_CSS,
   PIERRE_THEME,
   PIERRE_HIGHLIGHTER,
@@ -391,6 +392,7 @@ function CodeSurface({
       firstReviewEntryByPath.set(entry.review.path, entry.id);
   }
   const paddingBottom = fullHeight || footer ? 12 : 160;
+  const card = decision || column || framed;
   const options: CodeViewReactOptions<CommentNote, undefined> = {
     preferredHighlighter: PIERRE_HIGHLIGHTER,
     theme:
@@ -416,7 +418,7 @@ function CodeSurface({
     onLineClick: (_, context) => setFocusedId(context.item.id),
     onLineNumberClick: (_, context) => setFocusedId(context.item.id),
     lineHoverHighlight: 'number',
-    unsafeCSS: `${compactThreads ? '[data-line-annotation]:has([data-file-thread-marker]) { margin-left: 0; }' : ''}${fileChangeBars(fileDiff)}${decision || column || framed ? PIERRE_DECISION_CSS : ''}${column ? PIERRE_CHANGES_HEADER_CSS : ''}${PIERRE_SURFACE_CSS}${commentDrafts === undefined ? '' : PIERRE_COMMENT_CSS}${disableFileHeader || compactHeight ? '[data-code] { padding-top: 0 !important; }' : PIERRE_HEADER_CSS}${compactThreads ? PIERRE_FILE_CSS : ''}${compactHeight ? '[data-diffs-header], pre { border: 0; border-radius: 0; }' : ''}`,
+    unsafeCSS: `${compactThreads ? '[data-line-annotation]:has([data-file-thread-marker]) { margin-left: 0; }' : ''}${fileChangeBars(fileDiff)}${card ? PIERRE_DECISION_CSS : ''}${column ? PIERRE_CHANGES_HEADER_CSS : ''}${PIERRE_SURFACE_CSS}${commentDrafts === undefined ? '' : PIERRE_COMMENT_CSS}${disableFileHeader || compactHeight ? '[data-code] { padding-top: 0 !important; }' : PIERRE_HEADER_CSS}${disableFileHeader || compactHeight || card ? '' : PIERRE_INSET_CSS}${compactThreads ? PIERRE_FILE_CSS : ''}${compactHeight ? '[data-diffs-header], pre { border: 0; border-radius: 0; }' : ''}`,
     ...(column
       ? { itemMetrics: { lineHeight: 22, diffHeaderHeight: 41 } }
       : {}),

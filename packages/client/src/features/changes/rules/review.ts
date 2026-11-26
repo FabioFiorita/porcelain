@@ -114,10 +114,14 @@ export function mergeBranchChanges(
 }
 
 export function reviewErrorMessage(error: unknown) {
+  return readFailureMessage(error, 'These changes');
+}
+
+export function readFailureMessage(error: unknown, subject: string) {
   return error instanceof Error &&
     (error.name === 'ConnectionError' || error.name === 'WriteNotSentError')
-    ? error.message
-    : 'These changes could not be loaded. Try again.';
+    ? error.message.replace(/\s*Try again\.$/, '')
+    : `${subject} could not be loaded.`;
 }
 
 export function isFingerprintable<

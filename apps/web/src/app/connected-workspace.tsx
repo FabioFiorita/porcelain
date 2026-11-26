@@ -15,7 +15,7 @@ import {
 import { Link, useNavigate, useRouter } from '@tanstack/react-router';
 import { type ComponentProps, type ReactNode, useState } from 'react';
 import type { Sheet } from '@/components/ui/sheet';
-import { StateNotice } from '@/shared/views/state-notice';
+import { StateNotice, StateSpinner } from '@/shared/views/state-notice';
 import { Sidebar, SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Kbd } from '@/components/ui/kbd';
@@ -42,6 +42,7 @@ import { WorkspaceReview } from './workspace-review';
 import {
   entryKey,
   firstDocumentTitle,
+  pullRequestDocument,
   workspaceTitle,
 } from '@/features/workspace/index';
 import { useDocumentTitle } from '@/shared/hooks/use-document-title';
@@ -78,6 +79,7 @@ export function ConnectedWorkspace({
   review,
   remote,
   unavailable,
+  connecting = false,
   remoteStatus,
   showRemoteNotice,
   notice,
@@ -87,6 +89,7 @@ export function ConnectedWorkspace({
   review?: Review;
   remote?: RemoteConnection;
   unavailable?: RemoteStatus;
+  connecting?: boolean;
   remoteStatus?: ConnectionContext['remoteStatus'];
   showRemoteNotice?: boolean | undefined;
   notice?: 'not-found' | 'missing-worktree' | undefined;
@@ -134,9 +137,7 @@ export function ConnectedWorkspace({
     firstAvailableWorktree(localInventory)?.id,
   );
   const firstRun = !notice && localInventory.projects.length === 0;
-  const message = firstRun
-    ? 'Open your first project'
-    : workspaceMessages[notice ?? 'empty'];
+  const message = workspaceMessages[notice ?? 'empty'];
   const remotes = useRemoteConnections();
   const context = { ...useConnectedContext(remote?.connection), remoteStatus };
   const shownOn = remote?.remote.environmentId ?? null;
@@ -183,12 +184,6 @@ export function ConnectedWorkspace({
     onOpenPullRequest: (entry: NavigatorEntry) => {
       if (entry.pullRequest.state !== 'available' || !entry.pullRequest.number)
         return;
-      const key = entryKey({
-        kind: 'pull-request',
-        projectId: entry.projectId,
-        number: entry.pullRequest.number,
-        environmentId: entry.environmentId,
-      });
       setOpenMobile(false);
       const target =
         shown ??
@@ -203,6 +198,14 @@ export function ConnectedWorkspace({
             }
           : undefined);
       if (!target) return;
+      const key = entryKey(
+        pullRequestDocument({
+          projectId: entry.projectId,
+          number: entry.pullRequest.number,
+          environmentId: entry.environmentId,
+          shownOn: target.remote ?? local.connection.environmentId,
+        }),
+      );
       void navigate({
         ...worktreeLocation(target),
         search: { ...(review?.search ?? {}), entry: key },
@@ -283,30 +286,25 @@ export function ConnectedWorkspace({
             open={open}
             openMobile={openMobile}
           >
-            {remote && unavailable ? (
-              <RemoteUnavailable
-                name={remote.remote.name}
-                status={unavailable}
-                onOpenRemotes={() =>
-                  navigator.onOpenRemotes(remote.remote.environmentId)
-                }
-              />
-            ) : (
-              <StateNotice
-                message={message}
-                action={
-                  <EmptyWorkspaceAction
-                    firstRun={firstRun}
-                    notice={notice}
-                    recovery={recovery}
-                    onOpenProject={() => {
-                      setOpenMobile(false);
-                      openHere();
-                    }}
-                  />
-                }
-              />
-            )}
+            <EmptyWorkspaceContent
+              remote={remote}
+              connecting={connecting}
+              unavailable={unavailable}
+              firstRun={firstRun}
+              onOpenRemotes={navigator.onOpenRemotes}
+              onOpenProject={() => {
+                setOpenMobile(false);
+                openHere();
+              }}
+              notice={
+                <StateNotice
+                  message={message}
+                  action={
+                    <EmptyWorkspaceAction notice={notice} recovery={recovery} />
+                  }
+                />
+              }
+            />
           </EmptyWorkspace>
         )}
       </ProjectWorkspace>
@@ -355,23 +353,49 @@ function EmptyWorkspace({
   );
 }
 
-function EmptyWorkspaceAction({
+function EmptyWorkspaceContent({
+  remote,
+  connecting,
+  unavailable,
   firstRun,
-  notice,
-  recovery,
+  onOpenRemotes,
   onOpenProject,
+  notice,
 }: {
+  remote: RemoteConnection | undefined;
+  connecting: boolean;
+  unavailable: RemoteStatus | undefined;
   firstRun: boolean;
-  notice: keyof typeof workspaceMessages | undefined;
-  recovery: ReturnType<typeof selectedWorktreeInProject>;
+  onOpenRemotes: (environmentId: string) => void;
   onOpenProject: () => void;
+  notice: ReactNode;
 }) {
+  if (remote && connecting)
+    return <StateSpinner label={`Connecting to ${remote.remote.name}`} />;
+  if (remote && unavailable)
+    return (
+      <RemoteUnavailable
+        name={remote.remote.name}
+        status={unavailable}
+        onOpenRemotes={() => onOpenRemotes(remote.remote.environmentId)}
+      />
+    );
   if (firstRun)
     return (
       <Button size="sm" onClick={onOpenProject}>
         Open project
       </Button>
     );
+  return notice;
+}
+
+function EmptyWorkspaceAction({
+  notice,
+  recovery,
+}: {
+  notice: keyof typeof workspaceMessages | undefined;
+  recovery: ReturnType<typeof selectedWorktreeInProject>;
+}) {
   if (notice === 'missing-worktree' && recovery)
     return (
       <Link

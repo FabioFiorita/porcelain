@@ -147,7 +147,7 @@ it('does not check update permissions for configured settings but still checks t
       ),
     );
     expect(Option.getOrThrow(blocked)).toBe(
-      'An owner must trust this device on the computer that runs Porcelain before it can change Reviews & Git settings.',
+      'An owner must trust this device on the computer that runs Porcelain before it can change Changes & Git settings.',
     );
     expect(requests).toEqual([
       '/api/review-git-settings',

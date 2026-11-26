@@ -9,6 +9,7 @@ import type {
   DesktopPowerState,
 } from '@porcelain/contracts/desktop';
 import { desktopShell } from '@/shared/shell';
+import { detectPlatform } from '@tanstack/react-hotkeys';
 
 declare global {
   interface Window {
@@ -41,6 +42,10 @@ export function setDesktopAppearance(appearance: DesktopAppearance): void {
 export function connectDesktopChrome(): () => void {
   if (!desktopShell || !window.porcelainDesktop) return () => undefined;
   document.documentElement.classList.add('desktop-shell');
+  document.documentElement.classList.toggle(
+    'desktop-mac',
+    detectPlatform() === 'mac',
+  );
   const fullscreen = (value: boolean) =>
     document.documentElement.classList.toggle('desktop-fullscreen', value);
   fullscreen(window.porcelainDesktop?.isFullscreen() ?? false);
@@ -49,6 +54,7 @@ export function connectDesktopChrome(): () => void {
     unsubscribe?.();
     document.documentElement.classList.remove(
       'desktop-shell',
+      'desktop-mac',
       'desktop-fullscreen',
     );
   };

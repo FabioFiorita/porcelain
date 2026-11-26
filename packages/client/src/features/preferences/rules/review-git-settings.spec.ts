@@ -37,7 +37,7 @@ const missingRoute = new RequestError({
   code: undefined,
 });
 const unreadable =
-  'Reviews & Git settings could not be read. The computer is offline.';
+  'Changes & Git settings could not be read. The computer is offline.';
 
 it('allows first-use Pull with merge and honors a configured strategy only while readable', () => {
   expect(defaultReviewGitSettings).toEqual({
@@ -60,7 +60,7 @@ it.each([
     read: { confirmed: undefined, failure: undefined },
     view: { kind: 'reading' },
     usable: undefined,
-    block: 'Reading Reviews & Git settings for this computer…',
+    block: 'Reading Changes & Git settings for this computer…',
     apart: false,
     shown: undefined,
   },
@@ -70,7 +70,7 @@ it.each([
     view: { kind: 'unsupported' },
     usable: undefined,
     block:
-      'Update Porcelain on this computer to use its Reviews & Git settings.',
+      'Update Porcelain on this computer to use its Changes & Git settings.',
     apart: false,
     shown: undefined,
   },
@@ -88,7 +88,7 @@ it.each([
     read: { confirmed: { kind: 'unconfigured' }, failure: undefined },
     view: { kind: 'unconfigured' },
     usable: undefined,
-    block: 'Choose Reviews & Git settings for this computer in Settings first.',
+    block: 'Choose Changes & Git settings for this computer in Settings first.',
     apart: false,
     shown: candidate,
   },
@@ -138,14 +138,14 @@ it('explains a refused save with the computer’s reason', () => {
   expect(
     reviewGitSettingsSaveMessage(
       new Error(
-        'An owner must trust this device on the computer that runs Porcelain before it can change Reviews & Git settings',
+        'An owner must trust this device on the computer that runs Porcelain before it can change Changes & Git settings',
       ),
     ),
   ).toBe(
-    'An owner must trust this device on the computer that runs Porcelain before it can change Reviews & Git settings',
+    'An owner must trust this device on the computer that runs Porcelain before it can change Changes & Git settings',
   );
   expect(reviewGitSettingsSaveMessage(undefined)).toBe(
-    'Reviews & Git settings could not be saved. Try again.',
+    'Changes & Git settings could not be saved. Try again.',
   );
 });
 
@@ -180,13 +180,13 @@ it.each([
     state: 'trust not known yet or its refresh failed',
     canChange: undefined,
     block:
-      'Device trust could not be confirmed. Check again before changing Reviews & Git settings.',
+      'Device trust could not be confirmed. Check again before changing Changes & Git settings.',
   },
   {
     state: 'a device the computer does not trust',
     canChange: false,
     block:
-      'An owner must trust this device on the computer that runs Porcelain before it can change Reviews & Git settings.',
+      'An owner must trust this device on the computer that runs Porcelain before it can change Changes & Git settings.',
   },
 ] as const)('$state: explains why it cannot import', ({ canChange, block }) => {
   expect(reviewGitSettingsTrustBlock(canChange)).toBe(block);

@@ -259,7 +259,7 @@ export function githubUnavailable(reason: GitHubUnavailableReason): {
     case 'no-access':
       return {
         description:
-          'The chosen or detected GitHub account cannot open this repository. Choose another account or reset the choice in Settings › Reviews & Git.',
+          'The chosen or detected GitHub account cannot open this repository. Choose another account or reset the choice in Settings › Changes & Git.',
         action: { kind: 'settings', label: 'Choose an account' },
       };
     case 'gh-not-installed':
