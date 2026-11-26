@@ -169,9 +169,9 @@ export function PullRequestMergeArea({
               })
             }
           />
-          {merge.reason ? (
+          {merge.block ? (
             <Text variant="secondary" tone="muted" className="min-w-0 flex-1">
-              {merge.reason}
+              {merge.block}
             </Text>
           ) : null}
         </Box>

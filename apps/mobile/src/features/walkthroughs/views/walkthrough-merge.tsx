@@ -52,11 +52,8 @@ export function WalkthroughMerge({
   const environmentId = workspace.connection.environmentId;
   const block = blocked
     ? 'The computer is offline.'
-    : pullRequestMergeBlock(pull, review);
-  const reason = blocked
-    ? block
     : mergeButtonReason(
-        block,
+        pullRequestMergeBlock(pull, review),
         mergeReadiness({
           status: found.status,
           baseBranch: pull.baseBranch,
@@ -94,9 +91,9 @@ export function WalkthroughMerge({
               }
             />
           </Box>
-          {reason ? (
+          {block ? (
             <Text variant="secondary" tone="muted">
-              {reason}
+              {block}
             </Text>
           ) : null}
         </>

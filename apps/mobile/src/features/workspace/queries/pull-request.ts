@@ -113,7 +113,15 @@ export function usePullRequestMerge(
   const merged = withPullRequestStatus(pull, live.status);
   const block = offline
     ? 'The computer is offline.'
-    : pullRequestMergeBlock(merged, review);
+    : mergeButtonReason(
+        pullRequestMergeBlock(merged, review),
+        mergeReadiness({
+          status: live.status,
+          baseBranch: merged.baseBranch,
+          mergeMethods: merged.mergeMethods,
+          review,
+        }).waitsFor,
+      );
   return {
     ...live,
     pull: merged,
@@ -125,16 +133,5 @@ export function usePullRequestMerge(
       : [],
     undecidedCall: undecidedCallAtHead(review, merged.headSha),
     block,
-    reason: offline
-      ? block
-      : mergeButtonReason(
-          block,
-          mergeReadiness({
-            status: live.status,
-            baseBranch: merged.baseBranch,
-            mergeMethods: merged.mergeMethods,
-            review,
-          }).waitsFor,
-        ),
   };
 }

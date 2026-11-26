@@ -291,5 +291,5 @@ export function mergeButtonReason(
   block: string | undefined,
   waitsFor: string | undefined,
 ) {
-  return block === undefined ? undefined : (waitsFor ?? block);
+  return waitsFor ?? block;
 }

@@ -620,10 +620,10 @@ it('counts only open calls when there is no pull request or its status cannot be
   ).toMatchObject({ label: 'Reading the merge status', quiet: true });
 });
 
-it('gives the Merge button the merge rule reason only while it is held', () => {
-  expect(mergeButtonReason(undefined, 'Merge waits for: 1 call open.')).toBe(
-    undefined,
-  );
+it('holds the Merge button for every merge rule reason, reviews included', () => {
+  expect(
+    mergeButtonReason(undefined, 'Merge waits for: review required.'),
+  ).toBe('Merge waits for: review required.');
   expect(
     mergeButtonReason(
       'Decide the call first.',
@@ -633,4 +633,5 @@ it('gives the Merge button the merge rule reason only while it is held', () => {
   expect(mergeButtonReason('Decide the call first.', undefined)).toBe(
     'Decide the call first.',
   );
+  expect(mergeButtonReason(undefined, undefined)).toBeUndefined();
 });
