@@ -88,7 +88,7 @@ function FileEditor({
           <span className="flex-1">
             {changedOnDisk
               ? 'The file changed on disk since you opened it. Reload it before saving.'
-              : fileErrorMessage(state.error)}{' '}
+              : sentence(fileErrorMessage(state.error))}{' '}
             Your draft is kept here.
           </span>
           <Button size="xs" variant="outline" onClick={copyDraft}>
@@ -132,4 +132,8 @@ function saveLabel(
 function SaveShortcut({ onSave }: { onSave: () => void }) {
   useHotkey(SHORTCUTS.saveFile, onSave, { ignoreInputs: false });
   return null;
+}
+
+function sentence(text: string) {
+  return /[.!?]$/.test(text.trim()) ? text : `${text.trim()}.`;
 }

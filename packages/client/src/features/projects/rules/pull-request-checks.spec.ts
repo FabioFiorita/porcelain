@@ -187,6 +187,9 @@ it('explains a draft, a branch behind its base and a bare branch rule', () => {
   ).toEqual(['A branch rule on GitHub blocks the merge.']);
   expect(pullRequestBlockers(pull([]), 'main')).toEqual([]);
   expect(
+    pullRequestBlockers(pull([]), 'main', []).map((blocker) => blocker.text),
+  ).toEqual(['This repository allows no merge method.']);
+  expect(
     pullRequestBlockers(
       pull([job('x', 'failed')], { state: 'merged' }),
       'main',

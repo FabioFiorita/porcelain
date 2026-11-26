@@ -1,4 +1,5 @@
 import { Cause, Option } from 'effect';
+import { RetryAlert } from '@/shared/views/retry-alert';
 import { AsyncResult } from 'effect/reactivity';
 import { PencilIcon } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
@@ -56,19 +57,7 @@ function SharingGate({
     : undefined;
   if (!answer)
     return failure ? (
-      <Alert variant="destructive">
-        <AlertDescription>
-          {failure}
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={access.waiting}
-            onClick={retry}
-          >
-            Try again
-          </Button>
-        </AlertDescription>
-      </Alert>
+      <RetryAlert message={failure} waiting={access.waiting} onRetry={retry} />
     ) : null;
   return children(answer, failure);
 }

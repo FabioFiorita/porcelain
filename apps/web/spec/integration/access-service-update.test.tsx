@@ -65,7 +65,7 @@ test.for([1280, 414])(
         .toBeVisible();
       await expect
         .element(settings.getByText('Up to date', { exact: true }))
-        .toBeVisible();
+        .not.toBeInTheDocument();
       await expect
         .element(settings.getByRole('button', { name: 'Reload', exact: true }))
         .toBeVisible();

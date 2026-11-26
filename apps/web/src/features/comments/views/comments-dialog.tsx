@@ -311,7 +311,7 @@ function ListStep({
         {failed && (
           <p role="alert" className="text-ui">
             Comments could not be read.{' '}
-            <Button variant="link" size="sm" onClick={refresh}>
+            <Button variant="link" size="flush" onClick={refresh}>
               Try again
             </Button>
           </p>

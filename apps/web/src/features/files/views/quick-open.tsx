@@ -78,6 +78,7 @@ function QuickOpen({ scope, connection, openFiles, onOpen, bindPopup }: Props) {
       <CommandInput
         aria-label="Find a file by name"
         placeholder="Find a file by name"
+        onFocus={(event) => event.currentTarget.select()}
       />
       {visibility === undefined && (
         <div className="p-3 text-xs text-muted-foreground">

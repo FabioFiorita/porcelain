@@ -93,14 +93,14 @@ function AgentReply({
         </Bubble>
         <div className="flex flex-wrap items-center gap-3">
           {state.status === 'answered' && !open && clipped && (
-            <Button variant="link" size="sm" onClick={() => setOpen(true)}>
+            <Button variant="link" size="flush" onClick={() => setOpen(true)}>
               Read all
             </Button>
           )}
           {state.status === 'failed' && (
             <Button
               variant="link"
-              size="sm"
+              size="flush"
               disabled={waiting || Boolean(writeBlock)}
               aria-description={writeBlock}
               onClick={() => retry()}
@@ -147,7 +147,7 @@ function AddToReview({
     <>
       <Button
         variant="link"
-        size="sm"
+        size="flush"
         disabled={review.waiting || Boolean(writeBlock)}
         aria-description={writeBlock}
         onClick={() => review.add(text)}
@@ -324,7 +324,7 @@ export function WalkthroughConversation({
       {failed && (
         <p role="alert" className="text-caption">
           Comments could not be read.{' '}
-          <Button variant="link" size="sm" onClick={refresh}>
+          <Button variant="link" size="flush" onClick={refresh}>
             Try again
           </Button>
         </p>

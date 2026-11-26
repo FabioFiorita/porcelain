@@ -126,20 +126,18 @@ export function BranchBasePicker({
             </p>
           )}
           {AsyncResult.isFailure(bases.result) && (
-            <div className="p-3 text-xs text-muted-foreground">
-              <span className="block">The branches could not be read.</span>
-              <Button
-                variant="outline"
-                size="xs"
-                className="mt-2"
-                onClick={bases.refresh}
-              >
+            <div
+              role="alert"
+              className="flex items-center justify-center gap-2 py-6 text-xs/relaxed text-muted-foreground"
+            >
+              Branches could not be read.
+              <Button variant="link" size="flush" onClick={bases.refresh}>
                 Try again
               </Button>
             </div>
           )}
           {AsyncResult.isSuccess(bases.result) && (
-            <CommandEmpty>No branch matches.</CommandEmpty>
+            <CommandEmpty>No matching branch</CommandEmpty>
           )}
           <CommandList aria-label="Base branches">
             {(state) =>

@@ -1,10 +1,9 @@
 import { useAtomRefresh } from '@effect/atom-react';
+import { RetryAlert } from '@/shared/views/retry-alert';
 import { readServiceUpdate } from '@porcelain/client/access';
-import { Button } from '@/components/ui/button';
 import { Cause } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { connectionErrorMessage } from '@porcelain/client/access/rules';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useServiceUpdate } from '../queries/share';
 import { type Connection } from '@/shared/workspace/connection';
 import { useLocalConnection } from '../store';
@@ -28,19 +27,11 @@ function ServiceUpdate({
   if (row) return <SettingsUpdateRow row={row} prominent={prominent} />;
   if (AsyncResult.isFailure(result))
     return (
-      <Alert variant="destructive">
-        <AlertDescription>
-          {connectionErrorMessage(Cause.squash(result.cause))}
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={result.waiting}
-            onClick={refresh}
-          >
-            Try again
-          </Button>
-        </AlertDescription>
-      </Alert>
+      <RetryAlert
+        message={connectionErrorMessage(Cause.squash(result.cause))}
+        waiting={result.waiting}
+        onRetry={refresh}
+      />
     );
   return null;
 }

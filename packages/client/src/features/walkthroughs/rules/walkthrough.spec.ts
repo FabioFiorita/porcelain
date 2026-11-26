@@ -1044,6 +1044,9 @@ describe('walkthrough update status', () => {
       active: false,
     });
     expect(status.entries.at(-1)?.message).toBe('Writer disconnected.');
+    expect(walkthroughProgress(stopped, false, true).label).toBe(
+      'Writing failed',
+    );
     expect(walkthroughProgress(saved(), false)).toMatchObject({
       label: 'Walkthrough saved',
       completed: 5,

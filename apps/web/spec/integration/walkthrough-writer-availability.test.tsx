@@ -415,13 +415,8 @@ test.for(['default', 'project'] as const)(
     await codingTool.codexEffort(false);
     await save.click();
     await expect
-      .element(
-        form.getByText(
-          `UnsupportedWalkthroughEffortError: ${unsupportedNote}`,
-          { exact: true },
-        ),
-      )
-      .toBeVisible();
+      .element(form.getByRole('alert'))
+      .toHaveTextContent(unsupportedNote);
     await expect.element(save).toBeDisabled();
     await effort.click();
     await expect

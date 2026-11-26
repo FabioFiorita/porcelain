@@ -93,7 +93,7 @@ Then Wait for button named `Mark README.md as reviewed`.
 2. On disk, with the dialog open:
    `printf 'Changed after the draft\n' > "$REPO/README.md"; printf 'Written after the draft\n' > "$REPO/LATER.md"`
 3. Click button `Commit selected files`, then wait for button `Look again`
-   Expect: alert "changed since looked"; button "Look again". Disk: `git -C "$REPO" status --porcelain` prints ` M README.md` and `?? LATER.md`; newest commit still "Commit the sample change first".
+   Expect: alert "The files changed after you looked at them."; button "Look again". Disk: `git -C "$REPO" status --porcelain` prints ` M README.md` and `?? LATER.md`; newest commit still "Commit the sample change first".
 4. Click button `Look again`
    Expect: "Files (2 of 2)" with "LATER.md changed" and "README.md modified".
 5. Click button `Generate with AI`, then wait for '/did not cover/'

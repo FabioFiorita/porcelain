@@ -44,6 +44,19 @@ const stateWords: Record<Receipt['state'], string> = {
   interrupted: 'Git stopped before Porcelain could confirm the result.',
 };
 
+const reasonWords: Record<NonNullable<Receipt['reason']>, string> = {
+  CHANGED_SINCE_LOOKED: 'The files changed after you looked at them.',
+  STALE_PREPARATION: 'The worktree changed while Git was preparing this.',
+  REQUEST_MISMATCH: 'The request no longer matches the worktree.',
+  CHECKOUT_BUSY: 'Another Git action is running in this worktree.',
+  UNSUPPORTED_CONFIGURATION: 'Porcelain does not support this Git setup.',
+  NON_FAST_FORWARD: 'The remote has commits this branch does not. Pull first.',
+  GIT_REJECTED: 'Git refused the change.',
+  DEADLINE_EXCEEDED: 'Git took too long and was stopped.',
+  OUTCOME_UNKNOWN: 'Porcelain could not confirm the outcome.',
+  PROCESS_GROUP_UNCONFIRMED: 'Porcelain could not confirm that Git stopped.',
+};
+
 export function receiptWords(receipt: Receipt) {
   if (receipt.action.startsWith('stash-')) {
     if (receipt.state === 'interrupted' || receipt.state === 'conflicted')
@@ -55,9 +68,7 @@ export function receiptWords(receipt: Receipt) {
   }
   return (
     receipt.message ??
-    (receipt.reason
-      ? receipt.reason.replaceAll('_', ' ').toLowerCase()
-      : stateWords[receipt.state])
+    (receipt.reason ? reasonWords[receipt.reason] : stateWords[receipt.state])
   );
 }
 

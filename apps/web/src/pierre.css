@@ -35,6 +35,10 @@ diffs-container {
   --trees-font-family-override: var(--font-mono);
   --trees-font-size-override: var(--text-ui);
   --trees-status-modified-override: var(--brand);
+  --trees-status-renamed-override: var(--brand);
+  --trees-status-added-override: var(--add-fg);
+  --trees-status-untracked-override: var(--add-fg);
+  --trees-status-deleted-override: var(--del-fg);
 }
 
 [data-file-tree-row] {

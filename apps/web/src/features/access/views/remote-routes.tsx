@@ -159,7 +159,6 @@ function RouteRow({
 }) {
   const title = remoteRouteTitles[name];
   const [open, setOpen] = useState(false);
-  const encrypted = name !== 'lan' || route.status.kind !== 'on';
   return (
     <Item>
       <Collapsible
@@ -171,12 +170,6 @@ function RouteRow({
           <ItemTitle className="flex-wrap">
             {title}
             <RouteStatus name={name} route={route} />
-            {!encrypted && (
-              <span className="flex items-center gap-1 text-xs leading-4 font-medium text-warn">
-                <ShieldAlertIcon aria-hidden className="size-3.5" />
-                Not encrypted
-              </span>
-            )}
           </ItemTitle>
           <RouteReach name={name} route={route} note={note} />
         </ItemContent>

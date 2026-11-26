@@ -184,7 +184,7 @@ test('a commit the worktree has moved past since the draft is refused, and a new
   await commit.click();
   await expect
     .element(dialog.getByRole('alert'))
-    .toMatchTextContent(/changed since looked/i);
+    .toMatchTextContent(/changed after you looked/i);
   await expect
     .element(dialog.getByRole('button', { name: 'Look again', exact: true }))
     .toBeVisible();

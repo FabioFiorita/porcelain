@@ -648,7 +648,9 @@ function PullRequestLive({
   const headSha = status?.headSha ?? pull.headSha;
   const call =
     review?.headOid === headSha ? review.undecidedCallStep : undefined;
-  const blockers = status ? pullRequestBlockers(status, pull.baseBranch) : [];
+  const blockers = status
+    ? pullRequestBlockers(status, pull.baseBranch, pull.mergeMethods)
+    : [];
   const openStep = onOpen
     ? (step: number) => onOpen({ kind: 'walkthrough-step', step })
     : undefined;

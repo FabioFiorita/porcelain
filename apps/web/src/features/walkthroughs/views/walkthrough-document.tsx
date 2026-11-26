@@ -374,7 +374,7 @@ function Writing({
     <Column>
       <header className="flex flex-col gap-3">
         <Meta run={run} />
-        <WalkthroughStatus run={run} />
+        <WalkthroughStatus run={run} first />
       </header>
       {children}
     </Column>
@@ -407,7 +407,7 @@ function Failed({
         <h1 className="text-subpage-title font-semibold tracking-tight">
           {copy.title}
         </h1>
-        {run && <WalkthroughStatus run={run} requesting={waiting} />}
+        {run && <WalkthroughStatus run={run} requesting={waiting} first />}
         {copy.message && (
           <p className="text-prose text-foreground-2">{copy.message}</p>
         )}

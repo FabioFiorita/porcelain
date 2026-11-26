@@ -23,7 +23,7 @@ In the branch review, choosing another base branch compares the checked-out bran
 - In the Branch document (`entry=branch`, or "All branch changes" in the Changes panel), the `Compare against <actual base>` button in the Document controls toolbar opens the base picker without opening the side panel. A narrow pane shows the base name without the Against prefix.
 - A single branch-file document keeps its base picker in the Branch comparison group below its tabs, so document tabs and Reviewed/Comment controls remain reachable at phone width.
 - The Changes side panel also provides the same picker under Branch → Changed files. While the docked side panel shows Changes → Branch, the toolbar and Branch comparison pickers are hidden so the picker appears once; they return when the panel closes, switches surface or becomes a sheet (below 1280 px).
-- The picker has textbox Find a base branch, local/remote options, loading, failed read with Try again, and No branch matches. The actual default base is named (for example main); selecting it removes `base=` from the address.
+- The picker has textbox Find a base branch, local/remote options, loading, failed read with Try again, and No matching branch. The actual default base is named (for example main); selecting it removes `base=` from the address.
 - Direct address: `?scope=branch&base=refs/heads/<branch>` on the workspace route.
 
 ## Driving it with browser

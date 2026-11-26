@@ -132,6 +132,7 @@ export function ReviewedControl({
               variant={reviewed ? 'ghost' : 'outline'}
               aria-pressed={reviewed}
               disabled={pending || Boolean(writeBlock) || !current}
+              focusableWhenDisabled
               aria-description={writeBlock}
               aria-label={label}
               onClick={() => {
@@ -336,6 +337,7 @@ export function MarkAllReviewed({
               size={compact ? 'icon-xs' : 'sm'}
               variant="outline"
               disabled={disabled}
+              focusableWhenDisabled
               aria-label={plan.label}
               aria-description={writeBlock}
               onClick={submit}

@@ -28,7 +28,7 @@ test('a commit is refused when the worktree switched branch after the dialog ope
     .click();
   await expect
     .element(dialog.getByRole('alert'))
-    .toMatchTextContent(/changed since looked/i);
+    .toMatchTextContent(/changed after you looked/i);
   await expect
     .poll(async () => (await server.commits()).commits[0]?.subject)
     .toBe(newest);
