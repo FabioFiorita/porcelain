@@ -9,7 +9,7 @@ import { HistoryList } from '../../../components/ui/history-list';
 import { Text } from '../../../components/ui/text';
 import { WorkspaceGate } from '../../projects';
 import { useFileTimeline, type HistorySelection } from '../queries/history';
-import { commitAge } from '../rules/commit-age';
+import { commitAge } from '@porcelain/client/history/rules';
 import { HistoryFooter } from './history-navigation';
 
 function FileTimelineContent({

@@ -56,3 +56,13 @@ test('a replaced notice does not dismiss the notice that replaced it', async () 
   await expect.poll(visible).toBeNull();
   expect(announced).toEqual(['Fetched', 'Copied brief']);
 });
+
+test('a pull request notice names the pull request it changed', async () => {
+  const { send, visible, shown, announced } = harness(true);
+  send({ kind: 'pull-request', action: 'merged', number: 57 });
+  await expect.poll(() => shown.length).toBe(1);
+  expect(visible()).toBe('Merged #57');
+  send({ kind: 'pull-request', action: 'commented', number: 57 });
+  await expect.poll(() => shown.length).toBe(2);
+  expect(announced).toEqual(['Merged #57', 'Commented on #57']);
+});

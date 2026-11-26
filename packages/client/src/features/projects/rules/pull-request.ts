@@ -435,3 +435,50 @@ export function pullRequestConversation(
           : [],
     }));
 }
+
+export function pullRequestCheckout(
+  projects: readonly {
+    readonly id: string;
+    readonly available: boolean;
+    readonly worktrees: readonly {
+      readonly id: string;
+      readonly available: boolean;
+      readonly branch?: string | undefined;
+    }[];
+  }[],
+  projectId: string,
+  headBranch: string,
+): { projectId: string; worktreeId: string } | undefined {
+  const project = projects.find(
+    (entry) => entry.id === projectId && entry.available,
+  );
+  const worktree = project?.worktrees.find(
+    (entry) => entry.available && entry.branch === headBranch,
+  );
+  return worktree ? { projectId, worktreeId: worktree.id } : undefined;
+}
+
+export function undecidedCallAtHead(
+  review: PullRequestMergeReview | undefined,
+  headSha: string,
+) {
+  return review?.headOid === headSha ? review.undecidedCallStep : undefined;
+}
+
+export function pullRequestActionFailure(error: unknown) {
+  return error instanceof Error && error.message
+    ? error.message
+    : 'GitHub did not take the request. Try again.';
+}
+
+export function mergeConfirmation(pull: {
+  readonly number: number;
+  readonly headBranch: string;
+  readonly baseBranch: string;
+  readonly headSha: string;
+}) {
+  return {
+    title: `Merge pull request #${pull.number}?`,
+    description: `${pull.headBranch} at ${pull.headSha.slice(0, 7)} goes into ${pull.baseBranch} on GitHub. A merge cannot be undone.`,
+  };
+}

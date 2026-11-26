@@ -4,18 +4,16 @@ import {
   commentOnPullRequest,
   rerunPullRequestChecks,
 } from '@porcelain/client/projects';
-import type {
-  PullRequestRerunTarget,
-  PullStatus,
+import {
+  pullRequestActionFailure,
+  type PullRequestRerunTarget,
+  type PullStatus,
 } from '@porcelain/client/projects/rules';
 import type { Connection } from '@/shared/workspace/connection';
 import { notify } from '@/shared/views/notify';
 
 export function actionFailureMessage(cause: Cause.Cause<unknown>) {
-  const error = Cause.squash(cause);
-  return error instanceof Error && error.message
-    ? error.message
-    : 'GitHub did not take the request. Try again.';
+  return pullRequestActionFailure(Cause.squash(cause));
 }
 
 export function useRerunChecks(

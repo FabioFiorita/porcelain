@@ -26,6 +26,7 @@ import chevronRight from '@expo/material-symbols/chevron_right.xml';
 import checklist from '@expo/material-symbols/checklist.xml';
 import difference from '@expo/material-symbols/difference.xml';
 import fileCopy from '@expo/material-symbols/file_copy.xml';
+import openInNew from '@expo/material-symbols/open_in_new.xml';
 import type { ImageSourcePropType } from 'react-native';
 import { type HeaderIconName } from './icon';
 
@@ -60,6 +61,7 @@ const symbols = {
   hideList: leftPanelClose,
   previous: chevronLeft,
   next: chevronRight,
+  openExternal: openInNew,
 } satisfies Record<HeaderIconName, ImageSourcePropType>;
 
 export function headerIcon(name: HeaderIconName) {

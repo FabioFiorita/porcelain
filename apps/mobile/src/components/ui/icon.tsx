@@ -49,6 +49,13 @@ const symbols = {
   reviewDone: { ios: 'checkmark.circle', android: 'task_alt' },
   reviewReading: { ios: 'hourglass', android: 'hourglass_empty' },
   neutral: { ios: 'minus.circle', android: 'do_not_disturb_on' },
+  passed: { ios: 'checkmark.circle', android: 'check_circle' },
+  failed: { ios: 'xmark.circle', android: 'cancel' },
+  pending: { ios: 'circle.dashed', android: 'radio_button_unchecked' },
+  external: { ios: 'arrow.up.right', android: 'open_in_new' },
+  rerun: { ios: 'arrow.counterclockwise', android: 'replay' },
+  merge: { ios: 'arrow.triangle.merge', android: 'merge' },
+  pullRequest: { ios: 'arrow.triangle.pull', android: 'call_merge' },
 } satisfies Record<string, SymbolViewProps['name']>;
 const tones = {
   default: 'accent-foreground',

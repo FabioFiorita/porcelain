@@ -1,6 +1,9 @@
 import { expect, it } from 'vite-plus/test';
 import {
   currentWalkthroughChecks,
+  mergeConfirmation,
+  pullRequestCheckout,
+  undecidedCallAtHead,
   githubUnavailable,
   pullRequestChecks,
   pullRequestConversation,
@@ -417,4 +420,46 @@ it('recognizes that the failing check changed even when the overall rollup staye
       ],
     }),
   ).toEqual({ tone: 'failed', label: 'Now failing', names: ['Browser tests'] });
+});
+
+it('finds the checkout of a pull request by its head branch', () => {
+  const projects = [
+    {
+      id: 'p',
+      available: true,
+      worktrees: [
+        { id: 'main', available: true, branch: 'main' },
+        { id: 'gone', available: false, branch: 'feature' },
+        { id: 'w', available: true, branch: 'feature' },
+      ],
+    },
+  ];
+  expect(pullRequestCheckout(projects, 'p', 'feature')).toEqual({
+    projectId: 'p',
+    worktreeId: 'w',
+  });
+  expect(pullRequestCheckout(projects, 'p', 'other')).toBeUndefined();
+  expect(pullRequestCheckout(projects, 'q', 'feature')).toBeUndefined();
+});
+
+it('counts an undecided call only at the pull request head', () => {
+  const review = { headOid: 'abc', undecidedCallStep: 2 };
+  expect(undecidedCallAtHead(review, 'abc')).toBe(2);
+  expect(undecidedCallAtHead(review, 'def')).toBeUndefined();
+  expect(undecidedCallAtHead(undefined, 'abc')).toBeUndefined();
+});
+
+it('names the pinned head in the merge confirmation', () => {
+  expect(
+    mergeConfirmation({
+      number: 57,
+      headBranch: 'feature/search',
+      baseBranch: 'main',
+      headSha: '46b9389f'.padEnd(40, '0'),
+    }),
+  ).toEqual({
+    title: 'Merge pull request #57?',
+    description:
+      'feature/search at 46b9389 goes into main on GitHub. A merge cannot be undone.',
+  });
 });

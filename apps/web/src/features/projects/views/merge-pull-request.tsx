@@ -2,6 +2,7 @@ import { useId, useState } from 'react';
 import { Cause } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import {
+  mergeConfirmation,
   mergeFailureMessage,
   pullRequestMergeBlock,
   pullRequestMergeMethods,
@@ -9,7 +10,6 @@ import {
   type PullRequestMergeReview,
   type PullRequestRead,
 } from '@porcelain/client/projects/rules';
-import { shortOid } from '@porcelain/client/history/rules';
 import {
   useWorkspaceWriteBlock,
   type ConnectionContext,
@@ -145,13 +145,18 @@ function MergeContent({
     () => mergePullRequestDialog.close(),
   );
   const chosen = options.find((option) => option.method === method);
+  const confirmation = mergeConfirmation({
+    number,
+    headBranch,
+    baseBranch,
+    headSha,
+  });
   return (
     <AlertDialogContent>
       <AlertDialogHeader>
-        <AlertDialogTitle>Merge pull request #{number}?</AlertDialogTitle>
+        <AlertDialogTitle>{confirmation.title}</AlertDialogTitle>
         <AlertDialogDescription className="[overflow-wrap:anywhere]">
-          {headBranch} at {shortOid(headSha)} goes into {baseBranch} on GitHub.
-          A merge cannot be undone.
+          {confirmation.description}
         </AlertDialogDescription>
       </AlertDialogHeader>
       {options.length > 1 && (

@@ -32,6 +32,7 @@ const symbols = {
   hideList: 'sidebar.left',
   previous: 'chevron.left',
   next: 'chevron.right',
+  openExternal: 'arrow.up.right.square',
 } satisfies Record<HeaderIconName, NonNullable<SFSymbolIcon['sf']>>;
 
 export function headerIcon(name: HeaderIconName) {

@@ -1,8 +1,7 @@
-import { DateTime } from 'effect';
 import { expect, test } from 'vite-plus/test';
-import { commitAge } from './commit-age';
+import { commitAge } from './commit-age.ts';
 
-const now = DateTime.makeUnsafe('2026-11-01T12:00:00Z');
+const now = Date.parse('2026-11-01T12:00:00Z');
 
 test.each([
   ['2026-11-01T12:00:00Z', '0 seconds ago'],

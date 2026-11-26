@@ -16,7 +16,7 @@ tests:
   - packages/client/src/features/projects/rules/workspace-selection.spec.ts
   - apps/mobile/src/features/history/rules/status.spec.ts
   - packages/client/src/features/history/rules/presentation.spec.ts
-  - apps/mobile/src/features/history/rules/commit-age.spec.ts
+  - packages/client/src/features/history/rules/commit-age.spec.ts
 api:
   - GET /api/inventory
   - GET /api/worktrees/:worktreeId/commits
