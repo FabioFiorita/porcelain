@@ -62,11 +62,17 @@ export const commentsResponseSchema = Schema.Struct({
 });
 export type CommentsResponse = typeof commentsResponseSchema.Type;
 
+const reviewPullRequestIdentity = Schema.Struct({
+  owner: Schema.String.check(Schema.isMinLength(1)),
+  repo: Schema.String.check(Schema.isMinLength(1)),
+  number: lineNumber,
+});
+
 export const reviewPreviewResponseSchema = Schema.Union([
   Schema.Struct({
     kind: Schema.Literal('available'),
     pullRequest: Schema.Struct({
-      number: Schema.Int,
+      ...reviewPullRequestIdentity.fields,
       url: Schema.String,
       title: Schema.String,
     }),
@@ -85,6 +91,8 @@ export const reviewPreviewResponseSchema = Schema.Union([
 export type ReviewPreviewResponse = typeof reviewPreviewResponseSchema.Type;
 
 export const publishReviewRequestSchema = Schema.Struct({
+  pullRequest: reviewPullRequestIdentity,
+  inlineIds: Schema.Array(Schema.String),
   headOid: Schema.String.check(Schema.isMinLength(1)),
   summary: Schema.String.check(Schema.isMaxLength(MAX_COMMENT_LENGTH)),
   bodies: Schema.Record(Schema.String, commentText),

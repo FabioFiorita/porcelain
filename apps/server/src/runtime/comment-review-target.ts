@@ -44,7 +44,12 @@ export const commentReviewTarget = Effect.fn('Comments.reviewTarget')(
       open,
       found: {
         kind: 'available' as const,
-        pullRequest: { number: pull.number, url: pull.url, title: pull.title },
+        pullRequest: {
+          ...repository,
+          number: pull.number,
+          url: pull.url,
+          title: pull.title,
+        },
         target: {
           ...repository,
           account: selection.choice.account,

@@ -39,7 +39,9 @@ export class PublishPullRequestReviewService extends Context.Service<
         | { readonly unavailable: string };
       readonly comments: readonly DraftCommentView[];
       readonly confirmed: {
+        readonly pullRequest: GitHubRepository & { readonly number: number };
         readonly headOid: string;
+        readonly inlineIds: readonly string[];
         readonly summary: string;
         readonly bodies: Readonly<Record<string, string>>;
       };
@@ -59,8 +61,27 @@ export class PublishPullRequestReviewService extends Context.Service<
         execute: Effect.fn('PublishPullRequestReviewService.execute')(
           function* (input) {
             const target = input.target;
+            if (
+              !input.comments.some(
+                ({ publication }) => publication.status === 'draft',
+              )
+            )
+              return yield* new ReviewChangedError({
+                message:
+                  'There are no drafts left to post. Go back to see the current comments.',
+              });
             if ('unavailable' in target)
               return yield* failure(target.unavailable);
+            const previewed = input.confirmed.pullRequest;
+            if (
+              target.owner.toLowerCase() !== previewed.owner.toLowerCase() ||
+              target.repo.toLowerCase() !== previewed.repo.toLowerCase() ||
+              target.number !== previewed.number
+            )
+              return yield* new ReviewChangedError({
+                message:
+                  'The destination pull request changed. Go back and preview the review again.',
+              });
             const diff = yield* reviewer
               .diff(target)
               .pipe(
@@ -73,14 +94,21 @@ export class PublishPullRequestReviewService extends Context.Service<
                 message:
                   'The pull request has new commits since this preview. Review it again before posting.',
               });
-            const review = confirmedReview(
-              planPullRequestReview(input.comments, diff),
-              input.confirmed,
-            );
+            const plan = planPullRequestReview(input.comments, diff);
+            const review = confirmedReview(plan, input.confirmed);
             if (review === undefined)
               return yield* new ReviewChangedError({
                 message:
                   'The comments changed since this preview. Review them again before posting.',
+              });
+            const inlineIds = new Set(input.confirmed.inlineIds);
+            if (
+              plan.inline.length !== inlineIds.size ||
+              plan.inline.some(({ id }) => !inlineIds.has(id))
+            )
+              return yield* new ReviewChangedError({
+                message:
+                  'Where a comment will appear changed. Go back and preview the review again.',
               });
             const posted = yield* reviewer.post({
               ...target,

@@ -1,4 +1,5 @@
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { createServer, type Socket } from 'node:net';
 import { join } from 'node:path';
 import { expect } from 'vite-plus/test';
 import { apiError } from '../kit/answers.ts';
@@ -44,7 +45,14 @@ test('keeps draft comments across refreshes, edits and deletes them, and publish
   await session.git('add', 'src/app.ts');
   await session.git('commit', '-m', 'Add the reviewed file');
   const headOid = (await session.git('rev-parse', 'HEAD')).trim();
-  const state = { head: headOid };
+  const state = { head: headOid, number: 7, gate: false };
+  const gatePath = join(session.projectHome, 'reviews.sock');
+  const waiting = new Set<Socket>();
+  const gate = createServer((socket) => {
+    waiting.add(socket);
+    socket.once('close', () => waiting.delete(socket));
+    if (waiting.size === 2) for (const peer of waiting) peer.end();
+  });
   const save = () => writeFile(statePath, JSON.stringify(state));
   await save();
   await writeFile(reviewsPath, '');
@@ -52,19 +60,29 @@ test('keeps draft comments across refreshes, edits and deletes them, and publish
     ghPath,
     `#!${process.execPath}
 import fs from 'node:fs';
+import { connect } from 'node:net';
 const args = process.argv.slice(2);
 const fixture = JSON.parse(fs.readFileSync(${JSON.stringify(statePath)}, 'utf8'));
 const endpoint = args.find(arg => arg.startsWith('repos/')) ?? '';
 const empty = { nodes: [], pageInfo: { hasNextPage: false } };
-const pr = { number: 7, title: 'Comment fixture', url: 'https://github.com/fixture/project/pull/7', state: 'OPEN', isDraft: false, author: { login: 'fixture' }, headRefName: ${JSON.stringify(branch)}, baseRefName: 'main', updatedAt: '2026-11-10T00:00:00Z', headRefOid: fixture.head, body: '', bodyHTML: '', mergeable: 'MERGEABLE', commits: { nodes: [] }, labels: empty, comments: empty, reviews: empty };
+const pr = { number: fixture.number, title: 'Comment fixture', url: 'https://github.com/fixture/project/pull/' + fixture.number, state: 'OPEN', isDraft: false, author: { login: 'fixture' }, headRefName: ${JSON.stringify(branch)}, baseRefName: 'main', updatedAt: '2026-11-10T00:00:00Z', headRefOid: fixture.head, body: '', bodyHTML: '', mergeable: 'MERGEABLE', commits: { nodes: [] }, labels: empty, comments: empty, reviews: empty };
 if (args[0] === 'auth' && args[1] === 'status') console.log(JSON.stringify(['fixture']));
 else if (args[0] === 'auth' && args[1] === 'token') console.log('fixture-token');
-else if (endpoint.endsWith('/pulls/7/reviews')) {
+else if (endpoint.endsWith('/reviews')) {
   fs.appendFileSync(${JSON.stringify(reviewsPath)}, fs.readFileSync(0, 'utf8') + '\\n');
   console.log(JSON.stringify({ html_url: 'https://github.com/fixture/project/pull/7#pullrequestreview-1' }));
-} else if (endpoint.includes('/pulls/7/files')) console.log(JSON.stringify([{ filename: 'src/app.ts', patch: ${JSON.stringify(PATCH)} }]));
-else if (endpoint.endsWith('/pulls/7')) console.log(JSON.stringify({ head: { sha: fixture.head } }));
-else if (args.includes('graphql')) console.log(JSON.stringify({ data: { repository: { pullRequest: pr, open: { nodes: [pr], pageInfo: { hasNextPage: false, endCursor: null } }, recent: empty } } }));
+} else if (endpoint.includes('/files')) console.log(JSON.stringify([{ filename: 'src/app.ts', patch: ${JSON.stringify(PATCH)} }]));
+else if (endpoint.endsWith('/pulls/' + fixture.number)) console.log(JSON.stringify({ head: { sha: fixture.head } }));
+else if (args.includes('graphql')) {
+  if (fixture.gate && args.some(arg => arg.includes('open:'))) {
+    await new Promise((resolve, reject) => {
+      const socket = connect(${JSON.stringify(gatePath)});
+      socket.once('end', resolve);
+      socket.once('error', reject);
+    });
+  }
+  console.log(JSON.stringify({ data: { repository: { pullRequest: pr, open: { nodes: [pr], pageInfo: { hasNextPage: false, endCursor: null } }, recent: empty } } }));
+}
 else console.log('{}');
 `,
     { mode: 0o755 },
@@ -159,6 +177,8 @@ else console.log('{}');
     expect(planned).toEqual({
       kind: 'available',
       pullRequest: {
+        owner: 'fixture',
+        repo: 'project',
         number: 7,
         url: 'https://github.com/fixture/project/pull/7',
         title: 'Comment fixture',
@@ -189,11 +209,14 @@ else console.log('{}');
     const publish = (body: object) =>
       session.send({ method: 'POST', path: `${root}/review`, body });
 
-    const stale = await publish({
-      headOid: 'f'.repeat(40),
-      summary: '',
+    const confirmation = {
+      pullRequest: { owner: 'fixture', repo: 'project', number: 7 },
+      headOid,
+      inlineIds: [lineId],
+      summary: 'Two notes.',
       bodies,
-    });
+    };
+    const stale = await publish({ ...confirmation, headOid: 'f'.repeat(40) });
     expect(stale.status).toBe(409);
     expect(stale.body).toEqual(
       apiError(
@@ -203,8 +226,7 @@ else console.log('{}');
       ),
     );
     const changed = await publish({
-      headOid,
-      summary: '',
+      ...confirmation,
       bodies: { [lineId]: 'Name these constants' },
     });
     expect(changed.status).toBe(409);
@@ -217,12 +239,62 @@ else console.log('{}');
     );
     expect(await readFile(reviewsPath, 'utf8')).toBe('');
 
-    const published = await publish({
-      headOid,
-      summary: 'Two notes.',
-      bodies,
+    state.number = 8;
+    await save();
+    const redirected = await publish(confirmation);
+    expect(redirected.status).toBe(409);
+    expect(redirected.body).toEqual(
+      apiError(
+        409,
+        'Conflict',
+        'The destination pull request changed. Go back and preview the review again.',
+      ),
+    );
+    state.number = 7;
+    await save();
+
+    await session.writeFile(
+      'src/app.ts',
+      'const a = 10;\nconst b = 2;\nconst c = 3;\n',
+    );
+    const misplaced = await publish(confirmation);
+    expect(misplaced.status).toBe(409);
+    expect(misplaced.body).toEqual(
+      apiError(
+        409,
+        'Conflict',
+        'Where a comment will appear changed. Go back and preview the review again.',
+      ),
+    );
+    await session.writeFile(
+      'src/app.ts',
+      'const a = 1;\nconst b = 2;\nconst c = 3;\n',
+    );
+
+    await new Promise<void>((resolve, reject) => {
+      gate.once('error', reject);
+      gate.listen(gatePath, resolve);
     });
-    expect(published.status).toBe(200);
+    state.gate = true;
+    await save();
+    const responses = await Promise.all([
+      publish(confirmation),
+      publish(confirmation),
+    ]);
+    expect(responses.map((result) => result.status)).toEqual(
+      expect.arrayContaining([200, 409]),
+    );
+    state.gate = false;
+    await save();
+    const refused = responses.find((result) => result.status === 409);
+    expect(refused?.body).toEqual(
+      apiError(
+        409,
+        'Conflict',
+        'There are no drafts left to post. Go back to see the current comments.',
+      ),
+    );
+    const published = responses.find((result) => result.status === 200)!;
     const answer = record(published.body);
     const url = 'https://github.com/fixture/project/pull/7#pullrequestreview-1';
     expect(answer.url).toBe(url);
@@ -288,6 +360,9 @@ else console.log('{}');
     const requested = await server.requestedRoutes();
     expect(() => handlerCoverage([{ registered, requested }])).not.toThrow();
   } finally {
+    for (const socket of waiting) socket.destroy();
+    if (gate.listening)
+      await new Promise<void>((resolve) => gate.close(() => resolve()));
     await rm(ghPath, { force: true });
   }
 });
