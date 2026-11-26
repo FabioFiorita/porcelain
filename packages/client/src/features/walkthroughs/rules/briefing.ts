@@ -1,4 +1,5 @@
 import type { StepBlock } from './blocks.ts';
+import { screenshotClaim } from './page.ts';
 import type { WalkthroughContent, WalkthroughRun } from './walkthrough.ts';
 
 type ListedPull = {
@@ -45,7 +46,9 @@ export function walkthroughVerified(content: WalkthroughContent): {
   );
   const pairs = content.stops.flatMap((stop, index) =>
     stop.blocks.flatMap((block) =>
-      block.kind === 'images' ? [index + 1] : [],
+      block.kind === 'images'
+        ? [{ step: index + 1, screenshots: block.screenshots }]
+        : [],
     ),
   );
   const first = pairs[0];
@@ -57,10 +60,10 @@ export function walkthroughVerified(content: WalkthroughContent): {
         : {
             text:
               pairs.length === 1
-                ? 'Before and after screenshots'
+                ? screenshotClaim(first.screenshots)
                 : `${pairs.length} before and after pairs`,
-            steps: stepsLabel(pairs),
-            first,
+            steps: stepsLabel(pairs.map((pair) => pair.step)),
+            first: first.step,
           },
   };
 }
@@ -83,12 +86,6 @@ export function callDecision<D extends Decision>(
   call: number,
 ): D | undefined {
   return decisions?.find((entry) => entry.step === step && entry.call === call);
-}
-
-export function callOptions(
-  comparison: { readonly columns: readonly string[] } | undefined,
-): readonly string[] {
-  return comparison?.columns ?? [];
 }
 
 export function decidedWhen(at: string): string {

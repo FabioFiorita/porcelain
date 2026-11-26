@@ -12,6 +12,7 @@ import {
   initialWriteFailure,
   stopPaths,
   walkthroughMeta,
+  type MetaFiles,
   walkthroughEvidenceNotice,
   acknowledgedWalkthroughPhase,
   type walkthroughPhase,
@@ -124,10 +125,12 @@ function Meta({
   run,
   content,
   writer,
+  files,
 }: {
   run: WalkthroughRun;
   content?: WalkthroughContent;
   writer?: WalkthroughWriter | undefined;
+  files?: MetaFiles | null;
 }) {
   const model = content
     ? (writer?.settings?.models.find(
@@ -139,7 +142,7 @@ function Meta({
   const notice = content ? undefined : walkthroughEvidenceNotice(run);
   return (
     <Text variant="mono" tone="muted">
-      {walkthroughMeta(run, content, model)}
+      {walkthroughMeta(run, content, model, files)}
       {notice ? `\n${notice}` : ''}
     </Text>
   );
@@ -409,7 +412,7 @@ function Written({
     });
   const header = (
     <Box gap={3}>
-      <Meta run={run} content={content} writer={writer} />
+      <Meta run={run} content={content} writer={writer} files={scope.files} />
       <Headline content={content} />
       <WalkthroughStanding
         workspace={workspace}

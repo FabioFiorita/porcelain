@@ -180,6 +180,7 @@ function Verified({
         <Item
           size="compact"
           title={screenshots.text}
+          description="Shown in the before and after screenshots"
           leading={<Icon name="image" tone="muted" size="small" />}
           trailing={
             <Text variant="caption" tone="muted">

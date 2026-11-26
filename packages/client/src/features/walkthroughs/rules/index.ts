@@ -48,7 +48,6 @@ export { worktreeOpening, type WorktreeOpening } from './opening.ts';
 export {
   callDecision,
   callDecisionRequest,
-  callOptions,
   decidedOption,
   decidedWhen,
   decisionAuthor,

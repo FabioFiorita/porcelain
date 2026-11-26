@@ -127,8 +127,12 @@ export function useWalkthroughScope(
     branch: branch ?? [],
     worktree,
   });
+  const uncommitted = worktree.map((change) => change.path);
   return {
-    uncommitted: worktree.map((change) => change.path),
+    uncommitted,
     uncovered: uncoveredPaths(sections.outside, branch !== undefined),
+    files: branch
+      ? { committed: branch.map((file) => file.path), uncommitted }
+      : null,
   };
 }

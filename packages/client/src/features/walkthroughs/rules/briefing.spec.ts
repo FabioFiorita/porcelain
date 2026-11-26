@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vite-plus/test';
 import {
   callDecision,
   callDecisionRequest,
-  callOptions,
   decidedOption,
   decisionAuthor,
   nothingCaptured,
@@ -102,6 +101,30 @@ describe('walkthroughVerified', () => {
       undefined,
     );
   });
+
+  it('names what the after screenshot shows when there is one pair', () => {
+    const shot = (label: 'Before' | 'After', shows: string) => ({
+      label,
+      shows,
+      enlarge: `Enlarge ${label}`,
+      assetId: 'a'.repeat(64),
+    });
+    expect(
+      walkthroughVerified(
+        content([
+          stop([
+            {
+              ...images,
+              screenshots: [
+                shot('Before', 'No count'),
+                shot('After', 'The results with “3 notes found”'),
+              ],
+            },
+          ]),
+        ]),
+      ).screenshots?.text,
+    ).toBe('The results with “3 notes found”');
+  });
 });
 
 it('names the commit nothing was captured for', () => {
@@ -134,14 +157,6 @@ describe('call decisions', () => {
     expect(callDecision([decided], 1, 0)).toBe(decided);
     expect(callDecision([decided], 1, 1)).toBeUndefined();
     expect(callDecision(undefined, 1, 0)).toBeUndefined();
-  });
-
-  it('offers each comparison column as an option, or none', () => {
-    expect(callOptions({ columns: ['Show all', 'Show none'] })).toEqual([
-      'Show all',
-      'Show none',
-    ]);
-    expect(callOptions(undefined)).toEqual([]);
   });
 
   it('sends the chosen option with a decision and nothing else with an undo', () => {

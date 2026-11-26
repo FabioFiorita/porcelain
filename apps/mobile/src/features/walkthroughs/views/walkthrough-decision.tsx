@@ -1,11 +1,15 @@
 import {
+  CALL_DECIDING,
+  NEEDS_A_COMMIT,
+  callChoices,
   callDecision,
-  callOptions,
+  decidedAgainstChange,
   decidedOption,
   decidedWhen,
   decisionAuthor,
   type WalkthroughComparison,
 } from '@porcelain/client/walkthroughs/rules';
+import { Badge } from '../../../components/ui/badge';
 import { Box } from '../../../components/ui/box';
 import { Button } from '../../../components/ui/button';
 import { Icon } from '../../../components/ui/icon';
@@ -33,7 +37,7 @@ export function CallDecision({
   const blocked = useWritesBlocked(owner.workspace.connection.environmentId);
   const disabled = waiting || blocked || view === undefined;
   const decision = callDecision(view?.decisions, step, index);
-  const options = callOptions(comparison);
+  const choices = callChoices(comparison);
   const problem =
     failure ?? (failed ? 'Decisions could not be read.' : undefined);
   return (
@@ -60,19 +64,36 @@ export function CallDecision({
           />
         </Box>
       ) : (
-        <Box className="flex-row flex-wrap" gap={2}>
-          {options.length > 0 ? (
-            options.map((option) => (
-              <Button
-                key={option}
-                label={`Choose ${option}`}
-                variant="tonal"
-                size="sm"
-                disabled={disabled}
-                onPress={() =>
-                  decide({ step, call: index, decided: true, option })
-                }
-              />
+        <Box gap={2}>
+          {choices.length > 0 ? (
+            choices.map(({ option, implemented, effect }) => (
+              <Box key={option} gap={1}>
+                <Box className="flex-row flex-wrap items-center" gap={2}>
+                  <Button
+                    label={`Choose ${option}`}
+                    accessibilityLabel={[
+                      `Choose ${option}`,
+                      implemented ? 'In this change' : undefined,
+                    ]
+                      .filter(Boolean)
+                      .join(', ')}
+                    variant="tonal"
+                    size="sm"
+                    disabled={disabled}
+                    onPress={() =>
+                      decide({ step, call: index, decided: true, option })
+                    }
+                  />
+                  {implemented ? (
+                    <Badge label="In this change" variant="outline" />
+                  ) : null}
+                </Box>
+                {effect ? (
+                  <Text variant="caption" tone="muted">
+                    {effect}
+                  </Text>
+                ) : null}
+              </Box>
             ))
           ) : (
             <Button
@@ -83,8 +104,16 @@ export function CallDecision({
               onPress={() => decide({ step, call: index, decided: true })}
             />
           )}
+          <Text variant="caption" tone="muted">
+            {CALL_DECIDING}
+          </Text>
         </Box>
       )}
+      {decision && decidedAgainstChange(comparison, decision.option) ? (
+        <Text variant="caption" tone="warn">
+          {NEEDS_A_COMMIT}
+        </Text>
+      ) : null}
       {problem ? (
         <Text variant="caption" tone="destructive" accessibilityRole="alert">
           {problem}
