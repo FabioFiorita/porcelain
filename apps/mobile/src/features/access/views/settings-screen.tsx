@@ -71,9 +71,9 @@ export function SettingsScreen({
           />
           <Item
             testID="settings-reviews-git"
-            title="Reviews & Git"
+            title="Changes & Git"
             description={REVIEWS_GIT_SETTINGS_SUMMARY}
-            accessibilityLabel={`Reviews & Git, ${REVIEWS_GIT_SETTINGS_SUMMARY}`}
+            accessibilityLabel={`Changes & Git, ${REVIEWS_GIT_SETTINGS_SUMMARY}`}
             leading={<Icon name="checklist" tone="muted" />}
             trailing={<Icon name="chevron" tone="muted" />}
             selected={selected === 'reviews-git'}

@@ -50,7 +50,7 @@ function ComputerReviewGitSettings({
       {view.kind === 'reading' ? <Spinner /> : null}
       {view.kind === 'unsupported' ? (
         <ErrorState
-          message={`Update Porcelain on ${computer} to use its Reviews & Git settings.`}
+          message={`Update Porcelain on ${computer} to use its Changes & Git settings.`}
         />
       ) : null}
       {block && (view.kind === 'unreadable' || view.kind === 'configured') ? (
@@ -152,7 +152,7 @@ export function ReviewsGitSettings() {
           {computers.length > 1 && computer ? (
             <PreferenceChoice
               label="Computer"
-              description="Each computer keeps its own Reviews & Git settings."
+              description="Each computer keeps its own Changes & Git settings."
               value={computer.remote.environmentId}
               options={computers.map((entry) => ({
                 value: entry.remote.environmentId,
@@ -170,7 +170,7 @@ export function ReviewsGitSettings() {
           ) : null}
           {computer ? null : (
             <Text variant="secondary" tone="muted">
-              Pair a computer to choose its Reviews & Git settings.
+              Pair a computer to choose its Changes & Git settings.
             </Text>
           )}
           {computer ? (

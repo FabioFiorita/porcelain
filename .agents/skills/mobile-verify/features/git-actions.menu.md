@@ -20,7 +20,7 @@ api:
 
 # git-actions.menu
 
-Worktrees → selected worktree → History → on a phone, the top bar's three dots, whose menu holds Fetch and Pull under the other destinations; on a tablet, the top-bar Git actions button (a branch icon: SF Symbols `arrow.triangle.branch` on iOS, Material `call_split` on Android). Only Fetch and Pull appear. When a Git status read fails, Fetch and Pull stay disabled and the menu adds Read Git status again. Leaving History removes its menu. Progress, unconfirmed outcomes and errors appear inside History, leaving commits readable; a successful Fetch or Pull shows a short Fetched or Pulled notice near the bottom edge, clear of the top bar and above any open sheet, instead. Shared client rules, receipt recovery and the computer's Reviews & Git pull strategy match web.
+Worktrees → selected worktree → History → on a phone, the top bar's three dots, whose menu holds Fetch and Pull under the other destinations; on a tablet, the top-bar Git actions button (a branch icon: SF Symbols `arrow.triangle.branch` on iOS, Material `call_split` on Android). Only Fetch and Pull appear. When a Git status read fails, Fetch and Pull stay disabled and the menu adds Read Git status again. Leaving History removes its menu. Progress, unconfirmed outcomes and errors appear inside History, leaving commits readable; a successful Fetch or Pull shows a short Fetched or Pulled notice near the bottom edge, clear of the top bar and above any open sheet, instead. Shared client rules, receipt recovery and the computer's Changes & Git pull strategy match web.
 
 ## Driving it with agent-device
 

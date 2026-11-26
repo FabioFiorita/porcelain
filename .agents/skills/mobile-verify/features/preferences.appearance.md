@@ -46,4 +46,4 @@ Automated coverage: `store.spec.ts`, `saved-preferences.spec.ts`.
 ## Gotchas
 
 - A failed read must not write defaults over saved data; a failed write keeps the last successful choices.
-- Destination-specific consumption needs Files/History/Review proof. Diff layout/Spec files are absent; archive switches are under Reviews & Git.
+- Destination-specific consumption needs Files/History/Review proof. Diff layout/Spec files are absent; archive switches are under Changes & Git.

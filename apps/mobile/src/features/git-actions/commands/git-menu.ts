@@ -88,7 +88,7 @@ export function useGitMenu(selection: Pick<Workspace, 'connection' | 'scope'>) {
           kind: 'blocked',
           reason:
             reviewGitSettingsBlock(settings) ??
-            'Reviews & Git settings for this computer are unavailable.',
+            'Changes & Git settings for this computer are unavailable.',
         },
     notify: (notice) => remember(attempt, notice),
     onProgress: (open) => {
