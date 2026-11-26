@@ -84,3 +84,26 @@ export const readWorktreeSnapshot = Effect.fn('WorktreeSnapshots.watch')(
     );
   },
 );
+
+export function collectWorktreeSnapshots<
+  Computer extends { remote: Remote },
+  Snapshot,
+  E,
+>(
+  computerSnapshot: (
+    computer: Computer,
+  ) => Atom.Atom<AsyncResult.AsyncResult<Snapshot | undefined, E>>,
+) {
+  return Atom.family((computers: readonly Computer[]) =>
+    Atom.readable((get) =>
+      computers.flatMap((computer) => {
+        const snapshot = Option.getOrUndefined(
+          AsyncResult.value(get(computerSnapshot(computer))),
+        );
+        return snapshot
+          ? [{ environmentId: computer.remote.environmentId, snapshot }]
+          : [];
+      }),
+    ),
+  );
+}

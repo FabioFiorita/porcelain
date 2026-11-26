@@ -606,17 +606,24 @@ async function pendingLifecycle() {
   };
 }
 
-it('uses the live session as connection truth when independent HTTP probes fail, and exposes recovery and revocation', async () => {
-  const subject = await lifecycleFixture({ outage: true });
-  const state = liveSessionState();
-  state.set('connected');
-  const atom = readRemoteConnectionStatus(subject.platform, remote, {
+function statusFromLiveSession(
+  subject: Awaited<ReturnType<typeof lifecycleFixture>>,
+  state: ReturnType<typeof liveSessionState>,
+) {
+  return readRemoteConnectionStatus(subject.platform, remote, {
     liveUpdates: {
       state,
       retry: () => undefined,
       connect: () => Effect.die('Reading status must not own a live session'),
     },
   });
+}
+
+it('uses the live session as connection truth when independent HTTP probes fail, and exposes recovery and revocation', async () => {
+  const subject = await lifecycleFixture({ outage: true });
+  const state = liveSessionState();
+  state.set('connected');
+  const atom = statusFromLiveSession(subject, state);
   const stop = subject.registry.mount(atom);
   await subject.flush();
   expect(subject.status()).toEqual({ kind: 'offline' });
@@ -638,13 +645,7 @@ it('shows a computer whose initial live handshake failed as offline even when HT
   const subject = await lifecycleFixture();
   const state = liveSessionState();
   state.set('connecting');
-  const atom = readRemoteConnectionStatus(subject.platform, remote, {
-    liveUpdates: {
-      state,
-      retry: () => undefined,
-      connect: () => Effect.die('Reading status must not own a live session'),
-    },
-  });
+  const atom = statusFromLiveSession(subject, state);
   const stop = subject.registry.mount(atom);
   try {
     await subject.flush();

@@ -1,12 +1,15 @@
-import { Option, Stream } from 'effect';
-import { AsyncResult, Atom } from 'effect/reactivity';
+import { Stream } from 'effect';
+import { Atom } from 'effect/reactivity';
 import type { RemoteStatus } from '@porcelain/client/access/rules';
 import { useAtomValue } from '@effect/atom-react';
 import {
   readRemoteConnectionStatus,
   type RemoteConnection,
 } from '@porcelain/client/access';
-import { readWorktreeSnapshot } from '@porcelain/client/projects';
+import {
+  collectWorktreeSnapshots,
+  readWorktreeSnapshot,
+} from '@porcelain/client/projects';
 import type { Remote } from '@porcelain/client/access/rules';
 import {
   environmentRuntime,
@@ -48,22 +51,10 @@ export const rememberRemoteWorkspace = Atom.family((environmentId: string) =>
   Atom.make((get) => get.set(shownRemoteWorkspace(environmentId), true)),
 );
 
-const computerSnapshot = Atom.family((computer: RemoteConnection) =>
-  environmentRuntime
-    .atom(Stream.unwrap(readWorktreeSnapshot(computer)))
-    .pipe(Atom.setIdleTTL(0)),
-);
-
-export const remoteWorktreeSnapshots = Atom.family(
-  (computers: readonly RemoteConnection[]) =>
-    Atom.readable((get) =>
-      computers.flatMap((computer) => {
-        const snapshot = Option.getOrUndefined(
-          AsyncResult.value(get(computerSnapshot(computer))),
-        );
-        return snapshot
-          ? [{ environmentId: computer.remote.environmentId, snapshot }]
-          : [];
-      }),
-    ),
+export const remoteWorktreeSnapshots = collectWorktreeSnapshots(
+  Atom.family((computer: RemoteConnection) =>
+    environmentRuntime
+      .atom(Stream.unwrap(readWorktreeSnapshot(computer)))
+      .pipe(Atom.setIdleTTL(0)),
+  ),
 );
