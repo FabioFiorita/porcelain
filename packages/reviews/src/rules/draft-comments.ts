@@ -1,3 +1,4 @@
+import { sha256Hex } from '@porcelain/kernel/rules';
 import type {
   CommentSide,
   DraftComment,
@@ -134,6 +135,14 @@ function inlineComment(
     line: anchor.end,
     body: draft.text,
   };
+}
+
+export function openDraftRevision(drafts: readonly DraftCommentView[]): string {
+  const revisions = drafts
+    .filter(({ publication }) => publication.status === 'draft')
+    .toSorted((first, second) => first.id.localeCompare(second.id))
+    .map(({ id, text, updatedAt }) => [id, text, updatedAt]);
+  return sha256Hex(JSON.stringify(revisions));
 }
 
 export function planPullRequestReview(

@@ -187,6 +187,7 @@ export function reviewRequest(
   return {
     pullRequest: { owner, repo, number },
     headOid: preview.headOid,
+    draftRevision: preview.draftRevision,
     inlineIds: preview.inline.map(({ id }) => id),
     summary: form.summary,
     bodies,
