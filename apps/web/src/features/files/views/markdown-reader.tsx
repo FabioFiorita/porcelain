@@ -17,6 +17,7 @@ import {
 import { cn } from '@/shared/lib/utils';
 import { TruncatedText } from '@/shared/views/truncated-text';
 import { useReaderPlaces } from '../store';
+import { markdownOutline, topHeadingLevel } from '../rules/markdown-outline';
 import { parseMarkdownDocument, type MarkdownOutline } from './markdown-html';
 import {
   MarkdownView,
@@ -24,20 +25,10 @@ import {
   type MarkdownFile,
 } from './markdown-view';
 
-function markdownOutline(document: MarkdownDocument): MarkdownOutline {
-  const all = document.headings ?? [];
-  const titled =
-    all[0]?.level === 1 &&
-    all.filter((heading) => heading.level === 1).length === 1;
-  const headings = titled ? all.slice(1) : all;
-  const top = Math.min(...headings.map((heading) => heading.level));
-  const shown = headings.filter((heading) => heading.level < top + 2);
-  return shown.length >= 2 ? shown : [];
-}
-
 export function useMarkdownDocument(text: string) {
   const document = parseMarkdownDocument(text);
-  return { document, outline: markdownOutline(document) };
+  const outline: MarkdownOutline = markdownOutline(document.headings ?? []);
+  return { document, outline };
 }
 
 function jump(root: Element | null | undefined, id: string) {
@@ -46,7 +37,7 @@ function jump(root: Element | null | undefined, id: string) {
 }
 
 function OutlineList({ outline }: { outline: MarkdownOutline }) {
-  const top = Math.min(...outline.map((heading) => heading.level));
+  const top = topHeadingLevel(outline);
   return (
     <nav aria-label="On this page" className="text-caption">
       <p className="mb-2 font-medium text-foreground">On this page</p>
@@ -84,7 +75,7 @@ export function MarkdownOutlineMenu({
   root: Element | null;
 }) {
   if (outline.length === 0) return null;
-  const top = Math.min(...outline.map((heading) => heading.level));
+  const top = topHeadingLevel(outline);
   return (
     <DropdownMenu>
       <Tooltip>

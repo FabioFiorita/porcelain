@@ -236,7 +236,9 @@ function ReadableFileDocument({
     useElement<HTMLDivElement>();
   const { element: reader, attach: attachReader } =
     useElement<HTMLDivElement>();
-  const markdown = useMarkdownDocument(kind === 'markdown' ? text : '');
+  const reading =
+    kind === 'markdown' && mode === 'rendered' && (!large || renderLarge);
+  const markdown = useMarkdownDocument(reading ? text : '');
   const places = useReaderPlaces();
   const openPath = (target: string, hash: string) => {
     if (target !== path) {
