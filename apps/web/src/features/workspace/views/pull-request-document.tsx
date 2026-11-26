@@ -646,8 +646,7 @@ function PullRequestLive({
     ),
   );
   const headSha = status?.headSha ?? pull.headSha;
-  const call =
-    review?.headOid === headSha ? review.undecidedCallStep : undefined;
+  const current = review?.headOid === headSha ? review : undefined;
   const blockers = status
     ? pullRequestBlockers(status, pull.baseBranch, pull.mergeMethods)
     : [];
@@ -689,7 +688,8 @@ function PullRequestLive({
             <PullRequestReviewNotes
               checkout={checkout}
               context={context}
-              undecidedCallStep={call}
+              undecidedCallStep={current?.undecidedCallStep}
+              callNeedingCommit={current?.callsNeedingCommit?.[0]}
               onOpenStep={openStep}
             />
           )

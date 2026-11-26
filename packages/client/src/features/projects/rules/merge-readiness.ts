@@ -145,15 +145,23 @@ function callReasons(
         failed: false,
       },
     ];
-  if (review.undecidedCallStep === undefined) return [];
-  const open = Math.max(review.undecidedCalls ?? 1, 1);
-  return [
-    {
+  const reasons: MergeReason[] = [];
+  if (review.undecidedCallStep !== undefined) {
+    const open = Math.max(review.undecidedCalls ?? 1, 1);
+    reasons.push({
       text: `${plural(open, 'call', 'calls')} open`,
       blocksMerge: true,
       failed: false,
-    },
-  ];
+    });
+  }
+  const needsCommit = review.callsNeedingCommit?.length ?? 0;
+  if (needsCommit > 0)
+    reasons.push({
+      text: `${plural(needsCommit, 'call needs', 'calls need')} a new commit`,
+      blocksMerge: true,
+      failed: false,
+    });
+  return reasons;
 }
 
 export function mergeReadiness({

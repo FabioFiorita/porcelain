@@ -5965,7 +5965,6 @@ const configRequiredRules = [
   'typescript/no-unsafe-type-assertion',
   'typescript/only-throw-error',
   'shadcn/no-raw-colors',
-  'shadcn/no-restyle',
   'porcelain/no-node-globals',
 ];
 const styleConfigCases = [

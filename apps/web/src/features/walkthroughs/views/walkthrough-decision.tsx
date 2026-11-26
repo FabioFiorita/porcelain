@@ -1,8 +1,8 @@
 import { CheckIcon } from 'lucide-react';
 import {
-  CALL_DECIDING,
   NEEDS_A_COMMIT,
   callChoices,
+  callDeciding,
   decidedAgainstChange,
   type WalkthroughStop,
 } from '@porcelain/client/walkthroughs/rules';
@@ -86,7 +86,9 @@ export function CallDecision({
             </li>
           ))}
         </ul>
-        <p className="text-caption text-muted-foreground">{CALL_DECIDING}</p>
+        <p className="text-caption text-muted-foreground">
+          {callDeciding(comparison)}
+        </p>
       </div>
     ) : (
       <div className="flex flex-col gap-1.5">
@@ -100,7 +102,9 @@ export function CallDecision({
         >
           Mark decided
         </Button>
-        <p className="text-caption text-muted-foreground">{CALL_DECIDING}</p>
+        <p className="text-caption text-muted-foreground">
+          {callDeciding(comparison)}
+        </p>
       </div>
     );
   return (

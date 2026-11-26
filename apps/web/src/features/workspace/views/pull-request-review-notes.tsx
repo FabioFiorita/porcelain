@@ -6,11 +6,13 @@ import { DecisionNote } from './pull-request-decision';
 
 type Checkout = { projectId: string; worktreeId: string };
 
-function UndecidedCall({
+function CallNote({
   step,
+  state,
   onOpenStep,
 }: {
   step: number;
+  state: string;
   onOpenStep: ((step: number) => void) | undefined;
 }) {
   return (
@@ -28,8 +30,7 @@ function UndecidedCall({
         )
       }
     >
-      Your call in Walkthrough step {step} is not decided yet. Merge waits for
-      it.
+      Your call in Walkthrough step {step} {state}. Merge waits for it.
     </DecisionNote>
   );
 }
@@ -38,17 +39,30 @@ export function PullRequestReviewNotes({
   checkout,
   context,
   undecidedCallStep,
+  callNeedingCommit,
   onOpenStep,
 }: {
   checkout: Checkout;
   context: ConnectionContext;
   undecidedCallStep: PullRequestMergeReview['undecidedCallStep'];
+  callNeedingCommit: number | undefined;
   onOpenStep: ((step: number) => void) | undefined;
 }) {
   return (
     <>
       {typeof undecidedCallStep === 'number' && (
-        <UndecidedCall step={undecidedCallStep} onOpenStep={onOpenStep} />
+        <CallNote
+          step={undecidedCallStep}
+          state="is not decided yet"
+          onOpenStep={onOpenStep}
+        />
+      )}
+      {callNeedingCommit !== undefined && (
+        <CallNote
+          step={callNeedingCommit}
+          state="needs a new commit"
+          onOpenStep={onOpenStep}
+        />
       )}
       <PublishReviewButton
         owner={{ scope: checkout, context }}

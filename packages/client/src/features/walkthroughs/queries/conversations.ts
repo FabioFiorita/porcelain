@@ -10,6 +10,7 @@ import {
   undecidedCallCount,
   type WalkthroughContent,
 } from '../rules/walkthrough.ts';
+import { callsNeedingCommit } from '../rules/page.ts';
 
 const readConversationsSnapshot = Effect.fn('Walkthroughs.readConversations')(
   function* ({
@@ -65,6 +66,10 @@ export const readWalkthroughMergeReview = Atom.family(
           AsyncResult.isFailure(result),
         ),
         undecidedCalls: undecidedCallCount(selection.content, view?.decisions),
+        callsNeedingCommit: callsNeedingCommit(
+          selection.content,
+          view?.decisions,
+        ),
       };
     }),
 );

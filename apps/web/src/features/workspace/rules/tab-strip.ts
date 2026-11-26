@@ -19,10 +19,6 @@ export function permanentTab(key: string) {
   return key === REVIEW_TAB;
 }
 
-export function previewTab(key: string, pinned: boolean) {
-  return !pinned && parseEntry(key)?.kind === 'file';
-}
-
 export type DocumentIds = { tab: string; panel: string };
 
 export function documentIds(pane: string, key: string): DocumentIds {

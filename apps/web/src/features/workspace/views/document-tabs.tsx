@@ -55,7 +55,6 @@ import { cn } from '@/shared/lib/utils';
 import { parseEntry } from '../rules/documents';
 import {
   permanentTab,
-  previewTab,
   openToSideText,
   REVIEW_TAB,
   type DocumentIds,
@@ -432,10 +431,7 @@ function DocumentTab({
         }}
       >
         <TruncatedText
-          className={cn(
-            'min-w-0 flex-1',
-            previewTab(tabKey, pinned) && 'pe-0.5 italic',
-          )}
+          className="min-w-0 flex-1"
           text={pinned ? `${tabHint} · pinned` : tabHint}
           disclose="always"
           renderTrigger={(label) => (
