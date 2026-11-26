@@ -66,7 +66,8 @@ export function MergePullRequest({
   const reasonId = useId();
   const writeBlock = useWorkspaceWriteBlock(context);
   const block =
-    writeBlock ?? mergeButtonReason(pullRequestMergeBlock(pull, review), reason);
+    writeBlock ??
+    mergeButtonReason(pullRequestMergeBlock(pull, review), reason);
   return (
     <div
       className={cn(

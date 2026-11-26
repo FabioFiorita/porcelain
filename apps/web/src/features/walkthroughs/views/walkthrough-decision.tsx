@@ -106,9 +106,7 @@ export function CallDecision({
           className="flex flex-wrap items-center gap-x-2 gap-y-1 text-ui"
         >
           <CheckIcon aria-hidden className="size-3.5 shrink-0 text-add-fg" />
-          <span className="font-medium">
-            {decidedOption(decision)}
-          </span>
+          <span className="font-medium">{decidedOption(decision)}</span>
           <span className="text-caption text-muted-foreground">
             {decisionAuthor(decision)} ·{' '}
             <time dateTime={decision.decidedAt}>
