@@ -55,6 +55,7 @@ import {
   demoCommits,
   demoWalkthrough,
 } from './demo-data';
+import { demoPullRequests } from './demo-pull-request';
 
 function jsonResponse(value: unknown, init?: ResponseInit) {
   return new Response(JSON.stringify(value), {
@@ -120,6 +121,7 @@ export function createDemoTransport(): Transport {
   >();
   let conversations: WalkthroughConversationsResponse['conversations'] = [];
   let preferences: { path: string; pinned: boolean; hidden: boolean }[] = [];
+  const pullRequests = demoPullRequests();
   const worktree = `/api/worktrees/${demoWorktreeId}`;
   const original = (path: string) =>
     path === 'src/welcome.ts' ? demoOldText : (demoFiles[path] ?? '');
@@ -153,6 +155,8 @@ export function createDemoTransport(): Transport {
     const body: unknown = init?.body
       ? await new Response(init.body).json()
       : {};
+    const pullRequest = pullRequests(path, method, body);
+    if (pullRequest) return pullRequest;
     if (path === '/api/service/update' && method === 'GET')
       return json(readServiceUpdateResponseSchema, {
         managed: false,
@@ -193,14 +197,6 @@ export function createDemoTransport(): Transport {
       }
       return json(listFilePreferencesResponseSchema, { preferences });
     }
-    if (path.endsWith('/pull-requests'))
-      return jsonResponse({
-        kind: 'available',
-        account: 'demo',
-        pullRequests: [],
-        truncated: false,
-        recentlyClosedSince: demoTime,
-      });
     if (path === `${worktree}/summary`)
       return json(readWorktreeSummaryResponseSchema, {
         environmentId: demoRemote.environmentId,
