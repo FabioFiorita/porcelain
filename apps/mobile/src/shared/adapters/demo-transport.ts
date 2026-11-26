@@ -176,7 +176,7 @@ export function createDemoTransport(): Transport {
     )
       return jsonResponse({ message: 'Not a demo resource.' }, { status: 404 });
     const body: unknown = init?.body
-      ? await new Response(init.body).json()
+      ? JSON.parse(await requestText(init.body))
       : {};
     const pullRequest = pullRequests(path, method, body);
     if (pullRequest) return pullRequest;
@@ -676,4 +676,11 @@ export function createDemoTransport(): Transport {
       { status: method === 'GET' ? 404 : 422 },
     );
   };
+}
+
+async function requestText(body: BodyInit): Promise<string> {
+  if (typeof body === 'string') return body;
+  if (body instanceof ArrayBuffer) return new TextDecoder().decode(body);
+  if (ArrayBuffer.isView(body)) return new TextDecoder().decode(body);
+  return new Response(body).text();
 }
