@@ -10,23 +10,33 @@ it.each([
   {
     tablet: true,
     width: 1280,
+    nativeSidebar: false,
     mode: 'pinned',
-    why: 'a landscape tablet keeps the worktrees beside the content',
+    why: 'a landscape tablet keeps the sidebar beside the content',
   },
   {
     tablet: true,
     width: 800,
-    mode: 'overlay',
-    why: 'a portrait tablet slides them over',
+    nativeSidebar: false,
+    mode: 'rail',
+    why: 'a portrait tablet keeps a rail of sections and slides the sidebar over',
   },
   {
     tablet: false,
     width: 1100,
+    nativeSidebar: false,
     mode: 'overlay',
-    why: 'a phone in landscape still slides them over',
+    why: 'a phone in landscape still slides the worktrees over',
   },
-] as const)('$why', ({ tablet, width, mode }) => {
-  expect(drawerMode({ tablet, width })).toBe(mode);
+  {
+    tablet: true,
+    width: 1280,
+    nativeSidebar: true,
+    mode: 'overlay',
+    why: 'a tablet whose platform draws the section sidebar slides the worktrees over',
+  },
+] as const)('$why', ({ tablet, width, nativeSidebar, mode }) => {
+  expect(drawerMode({ tablet, width, nativeSidebar })).toBe(mode);
 });
 
 it('the drawer is 320 wide, or 85% of a narrow screen', () => {

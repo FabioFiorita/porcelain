@@ -25,6 +25,7 @@ const symbols = {
   openFolder: { ios: 'folder.fill', android: 'folder_open' },
   files: { ios: 'folder', android: 'folder' },
   review: { ios: 'plus.minus.capsule', android: 'compare_arrows' },
+  changes: { ios: 'plus.forwardslash.minus', android: 'difference' },
   settings: { ios: 'gearshape', android: 'settings' },
   appearance: { ios: 'paintbrush', android: 'palette' },
   environments: { ios: 'desktopcomputer', android: 'computer' },

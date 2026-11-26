@@ -1,5 +1,6 @@
 import { expect, it } from 'vite-plus/test';
 import {
+  listColumnWidth,
   listDetailMode,
   layoutMove,
   listDetailModeChange,
@@ -182,3 +183,23 @@ it.each([
     ).toBe(kind);
   },
 );
+
+it.each([
+  {
+    width: 720,
+    list: 302,
+    why: 'a portrait tablet beside its rail gives the reading pane most of the width',
+  },
+  {
+    width: 960,
+    list: 340,
+    why: 'a landscape tablet beside its sidebar keeps the full list column',
+  },
+  {
+    width: 600,
+    list: 280,
+    why: 'the list never narrows past readable titles',
+  },
+] as const)('$why', ({ width, list }) => {
+  expect(listColumnWidth(width)).toBe(list);
+});

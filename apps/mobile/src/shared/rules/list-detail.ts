@@ -1,6 +1,16 @@
 export type ListDetailMode = 'beside' | 'stack';
 
 const BESIDE_MINIMUM_WIDTH = 700;
+const LIST_WIDEST = 340;
+const LIST_NARROWEST = 280;
+const LIST_SHARE = 0.42;
+
+export function listColumnWidth(width: number | undefined) {
+  if (width === undefined) return LIST_WIDEST;
+  return Math.round(
+    Math.min(LIST_WIDEST, Math.max(LIST_NARROWEST, width * LIST_SHARE)),
+  );
+}
 
 export function listDetailMode({
   tablet,

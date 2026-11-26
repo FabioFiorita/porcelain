@@ -4,7 +4,9 @@ import { SideDrawer } from '../components/ui/side-drawer';
 import { useWorktreeDrawer } from '../features/projects';
 import { tabIcon } from '../shared/icons/tab-icon';
 import { appTabs } from './app-tab-list';
+import { SectionRail } from './sidebar-sections';
 import { useTabBarColors } from './tab-bar-colors';
+import { tabPlacement } from './tab-placement';
 import { WorktreeDrawer } from './worktree-drawer';
 
 const tabRoots: ReadonlySet<string> = new Set(appTabs.map((tab) => tab.root));
@@ -18,9 +20,12 @@ export function AppTabs() {
       hidden={drawer.hidden}
       swipe={tabRoots.has(segments.at(-1) ?? '')}
       onOpenChange={drawer.setOpen}
-      drawer={<WorktreeDrawer />}
+      drawer={
+        <WorktreeDrawer sections={drawer.mode === 'pinned' && !drawer.hidden} />
+      }
+      rail={<SectionRail />}
     >
-      <NativeTabs sidebarAdaptable {...useTabBarColors()}>
+      <NativeTabs {...tabPlacement(drawer.mode)} {...useTabBarColors()}>
         {appTabs.map((tab) => (
           <NativeTabs.Trigger
             key={tab.name}

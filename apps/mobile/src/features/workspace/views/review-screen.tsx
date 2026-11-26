@@ -81,6 +81,8 @@ function PhoneReview({
     phoneReviewComparison(workspace.key),
   );
   const [opened, setOpened] = useAtom(changesBesideFile(workspace.key));
+  const first = useFirstReviewFile(workspace, comparison);
+  const shown = opened ?? first;
   const navigation = (selected: string | undefined) => (
     <ReviewNavigation
       workspace={workspace}
@@ -110,13 +112,13 @@ function PhoneReview({
   if (mode === 'stack') return navigation(undefined);
   return (
     <ListDetail
-      list={() => navigation(opened)}
+      list={() => navigation(shown)}
       detail={
-        opened ? (
+        shown ? (
           <ReviewFilePane
-            key={`${opened}:${JSON.stringify(comparison)}`}
+            key={`${shown}:${JSON.stringify(comparison)}`}
             workspace={workspace}
-            path={opened}
+            path={shown}
             comparison={comparison}
           />
         ) : (
@@ -125,6 +127,20 @@ function PhoneReview({
       }
     />
   );
+}
+
+function useFirstReviewFile(
+  workspace: Workspace,
+  comparison: ReviewComparison,
+) {
+  const snapshot = Option.getOrUndefined(
+    AsyncResult.value(useReviewSnapshot(workspace, comparison).result),
+  );
+  const marks = useReviewMarks(workspace, snapshot);
+  const reviewed = Option.getOrUndefined(AsyncResult.value(marks.result));
+  return snapshot && reviewed
+    ? reviewFiles(snapshot, reviewed)[0]?.path
+    : undefined;
 }
 
 type ReviewNavigationProps = {
@@ -190,7 +206,7 @@ function ReviewNavigation({
             className="flex-row items-center justify-between"
             gap={2}
             onLayout={({ nativeEvent: { layout } }) =>
-              setComparisonWidth(layout.width / 2)
+              setComparisonWidth(layout.width * 0.58)
             }
           >
             <Text variant="headline" tone="muted" accessibilityRole="header">

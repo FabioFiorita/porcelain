@@ -17,6 +17,7 @@ import { useAtomMount } from '@effect/atom-react';
 import { scheduleOnRN } from 'react-native-worklets';
 import { Atom } from 'effect/reactivity';
 import { reservedDrawerEdge } from './drawer-edge';
+import { nativeTabSidebar } from './native-sidebar';
 import {
   drawerMode,
   drawerWidth,
@@ -44,7 +45,11 @@ const closeOnBack = Atom.family((close: () => void) =>
 const keepBack = Atom.make(undefined);
 
 export function useDrawerMode(): DrawerMode {
-  return drawerMode({ tablet, width: useWindowDimensions().width });
+  return drawerMode({
+    tablet,
+    width: useWindowDimensions().width,
+    nativeSidebar: nativeTabSidebar,
+  });
 }
 
 export function SideDrawer({
@@ -53,6 +58,7 @@ export function SideDrawer({
   swipe,
   onOpenChange,
   drawer,
+  rail,
   children,
 }: {
   open: boolean;
@@ -60,6 +66,7 @@ export function SideDrawer({
   swipe: boolean;
   onOpenChange: (open: boolean) => void;
   drawer: ReactNode;
+  rail: ReactNode;
   children: ReactNode;
 }) {
   const { width } = useWindowDimensions();
@@ -75,22 +82,37 @@ export function SideDrawer({
       {drawer}
     </View>
   );
-  if (mode === 'pinned')
+  if (mode === 'pinned' && !hidden)
     return (
       <View className="flex-1 flex-row bg-background" collapsable={false}>
-        {hidden ? null : (
-          <View
-            className="border-r border-border"
-            style={{ width: size }}
-            collapsable={false}
-          >
-            {panel}
-          </View>
-        )}
+        <View
+          className="border-r border-border"
+          style={{ width: size }}
+          collapsable={false}
+        >
+          {panel}
+        </View>
         <View className="flex-1" collapsable={false}>
           {children}
         </View>
       </View>
+    );
+  if (mode !== 'overlay')
+    return (
+      <SlidingDrawer
+        open={open}
+        swipe={swipe}
+        size={size}
+        onOpenChange={onOpenChange}
+        panel={panel}
+      >
+        <View className="flex-1 flex-row" collapsable={false}>
+          {rail}
+          <View className="flex-1" collapsable={false}>
+            {children}
+          </View>
+        </View>
+      </SlidingDrawer>
     );
   return (
     <SlidingDrawer

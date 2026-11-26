@@ -1,4 +1,4 @@
-export type DrawerMode = 'pinned' | 'overlay';
+export type DrawerMode = 'pinned' | 'rail' | 'overlay';
 
 const PINNED_MINIMUM_WIDTH = 1000;
 const DRAWER_WIDTH = 320;
@@ -11,11 +11,14 @@ const FLING = 0.5;
 export function drawerMode({
   tablet,
   width,
+  nativeSidebar,
 }: {
   tablet: boolean;
   width: number;
+  nativeSidebar: boolean;
 }): DrawerMode {
-  return tablet && width >= PINNED_MINIMUM_WIDTH ? 'pinned' : 'overlay';
+  if (!tablet || nativeSidebar) return 'overlay';
+  return width >= PINNED_MINIMUM_WIDTH ? 'pinned' : 'rail';
 }
 
 export function drawerWidth(width: number) {
