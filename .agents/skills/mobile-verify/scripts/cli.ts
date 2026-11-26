@@ -39,8 +39,8 @@ const usage = `Usage: .agents/skills/mobile-verify/scripts/cli <command> [--inst
   evidence                 list retained evidence
   stop                     close this run's sessions, release its simulator and stop owned processes
   pairing-link             print a fresh one-time pairing link
-  walkthrough sample|answer long|answer short|moved|posts
-                           write a ready walkthrough on pull request #423 with screenshots, set the next answer, refuse posts, read posted comments
+  walkthrough sample|answer long|answer short
+                           write a ready walkthrough on pull request #423 with two calls, diagrams, checks and screenshots, or set the next answer
   server reviewed-files|project|devices|pending-links|receipt ...
                            read back the disposable server's state
 Drive the app with the full agent-device invocation from the connection card.
