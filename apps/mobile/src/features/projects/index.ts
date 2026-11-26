@@ -7,6 +7,8 @@ export { WorktreeTitleButton } from './views/worktree-title';
 export { useOpenPullRequest } from './views/open-pull-request';
 export { useWorkspace } from './views/workspace';
 export { PullRequestArchive } from './views/archive-pull-request';
+export { useInventory } from './queries/inventory';
+export { workspaceKey } from './rules/workspace-key';
 export {
   WorktreeActionsSheet,
   worktreeActionKind,

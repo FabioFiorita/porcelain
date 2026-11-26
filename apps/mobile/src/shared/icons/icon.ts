@@ -28,7 +28,8 @@ export type HeaderIconName =
   | 'showList'
   | 'hideList'
   | 'previous'
-  | 'next';
+  | 'next'
+  | 'openExternal';
 
 export type TabIconName =
   | 'walkthrough'

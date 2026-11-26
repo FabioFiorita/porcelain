@@ -14,7 +14,7 @@ import {
 } from '../queries/history';
 import { commitEntry, historyBoundary } from '@porcelain/client/history/rules';
 import { historyStatus } from '../rules/status';
-import { commitAge } from '../rules/commit-age';
+import { commitAge } from '../../../shared/rules/commit-age';
 import { GitMenu } from '../../git-actions';
 import { Button } from '../../../components/ui/button';
 import { useListCursor } from '../../../shared/application/key-commands';
