@@ -53,5 +53,5 @@ Automated coverage: `changes-page.spec.ts` (sections, order, requests) and `diff
 
 ## Gotchas
 
-- On a tablet with at least 700 units of content width the Changes tab shows the changed-file list beside the chosen file's diff (Select a file until one is chosen); Mark reviewed and Comment on this file join the tab's top bar. All changes still pushes. Changing the comparison clears the open file.
+- On a tablet with at least 700 units of content width the Changes section shows the changed-file list beside the chosen file's diff, opening the first changed file until you choose one; Mark reviewed and Comment on this file join the tab's top bar. All changes still pushes. Changing the comparison clears the open file.
 - Files are requested twenty at a time as they approach the screen; the per-file screen keeps its own reading place.

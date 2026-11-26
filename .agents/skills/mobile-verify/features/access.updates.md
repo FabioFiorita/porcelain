@@ -23,7 +23,7 @@ Computer updates live in Settings → Computers: Check for updates rereads offer
 
 ## How to get to it (user POV)
 
-- Drawer → Settings → Computers.
+- Header Settings (left) → Computers.
 
 ## Driving it with agent-device
 
