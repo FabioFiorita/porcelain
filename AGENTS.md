@@ -13,6 +13,8 @@ Porcelain is a companion to coding agents: it is where a developer reviews what 
 
 Simple systems, the smallest model that makes the correct behaviour unsurprising, and no machinery because it looks impressive. Fight scope creep; honour the developer's intent in a minimal and realistic way. Everything below is a good default, and the developer's request overrides it. Work autonomously and ask only when the answer would change the result.
 
+Weigh a fix against what it costs to keep. Before fixing a problem, judge how often it can really happen and what the person using Porcelain experiences when it does, and set that beside the code, states and tests the fix adds for good. Decide case by case and say what you weighed.
+
 Agents author this codebase. Prefer one enforced, typed abstraction per responsibility; dependency requirements and invalid alternatives should fail before runtime. Familiarity with the old implementation is not a reason to preserve it: when a new path replaces an old one, move every caller and delete the old path and its tests in the same change.
 
 The codebase is the example. Copy the nearest feature's shape, and extract a second copy into its owner rather than pasting it. Patched TypeScript, Vite+ lint and format, and the architecture check are the rulebook, and every lint message says why its rule exists: when one blocks you, change the code. When a rule fights the task itself, say so and ask before changing the rule. Code comments, including `@ts-ignore`, are banned by `no-comments`: express rules in code or a verification skill, because comment prose can drift from the behavior enforced by executable checks.
