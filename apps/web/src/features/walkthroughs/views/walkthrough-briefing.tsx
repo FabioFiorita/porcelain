@@ -3,10 +3,10 @@ import { CheckIcon, CircleAlertIcon } from 'lucide-react';
 import {
   attentionLabel,
   callDecisionProgress,
-  callState,
+  briefingCalls,
+  callStateLabel,
   NEEDS_A_COMMIT,
   screenshotClaim,
-  walkthroughCalls,
   walkthroughEvidenceNotice,
   walkthroughScope,
   type WalkthroughContent,
@@ -123,18 +123,14 @@ function Calls({
   decisions: readonly Decided[] | undefined;
   onJump: Jump;
 }) {
-  const calls = walkthroughCalls(content);
+  const calls = briefingCalls(content, decisions);
   if (calls.length === 0)
     return (
       <p className="py-1 text-ui text-muted-foreground">
         Nothing needs your decision.
       </p>
     );
-  return calls.map(({ attention, comparison, stop, step, callIndex }) => {
-    const decided = decisions?.find(
-      (entry) => entry.step === step && entry.call === callIndex,
-    );
-    const state = callState(comparison, decided);
+  return calls.map(({ attention, stop, step, callIndex, decided, state }) => {
     return (
       <Line
         key={`${step}:${callIndex}`}
@@ -151,14 +147,14 @@ function Calls({
             {state === 'decided' && (
               <CheckIcon
                 role="img"
-                aria-label="Decided"
+                aria-label={callStateLabel(state, '')}
                 className="size-3 shrink-0 self-center text-add-fg"
               />
             )}
             {state === 'needs-commit' && (
               <CircleAlertIcon
                 role="img"
-                aria-label="Decided, needs a new commit"
+                aria-label={callStateLabel(state, '')}
                 className="size-3 shrink-0 self-center"
               />
             )}

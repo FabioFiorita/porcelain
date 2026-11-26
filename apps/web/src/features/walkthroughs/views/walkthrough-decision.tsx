@@ -1,8 +1,6 @@
 import { useAtomValue } from '@effect/atom-react';
-import { Option } from 'effect';
-import { AsyncResult } from 'effect/reactivity';
 import { CheckIcon, CircleAlertIcon } from 'lucide-react';
-import { readDeviceLabels, readViewer } from '@porcelain/client/access';
+import { readDecisionPlace } from '@porcelain/client/walkthroughs';
 import {
   NEEDS_A_COMMIT,
   callChoices,
@@ -11,7 +9,6 @@ import {
   callState,
   decidedOption,
   decidedWhen,
-  decisionPlace,
   type WalkthroughStop,
 } from '@porcelain/client/walkthroughs/rules';
 import type { Connection } from '@/shared/workspace/connection';
@@ -26,44 +23,15 @@ import {
 
 type Comparison = WalkthroughStop['callouts'][number]['comparison'];
 
-type Decider = { kind: 'owner' } | { kind: 'device'; deviceId: string };
-
-function DeviceLabels({
-  connection,
-  decidedBy,
-  viewer,
-}: {
-  connection: Connection;
-  decidedBy: Decider;
-  viewer: Decider | undefined;
-}) {
-  const result = useAtomValue(readDeviceLabels(connection));
-  if (AsyncResult.isInitial(result)) return null;
-  const labels = Option.getOrUndefined(AsyncResult.value(result));
-  const place = decisionPlace(decidedBy, viewer, labels);
-  return place ? <>{place} · </> : null;
-}
-
 function DecisionPlace({
   connection,
   decidedBy,
 }: {
   connection: Connection;
-  decidedBy: Decider;
+  decidedBy: Parameters<typeof readDecisionPlace>[0]['decidedBy'];
 }) {
-  const viewer = Option.getOrUndefined(
-    AsyncResult.value(useAtomValue(readViewer(connection))),
-  );
-  const place = decisionPlace(decidedBy, viewer, undefined);
-  if (place === undefined) return null;
-  if (decidedBy.kind === 'owner') return <>{place} · </>;
-  return (
-    <DeviceLabels
-      connection={connection}
-      decidedBy={decidedBy}
-      viewer={viewer}
-    />
-  );
+  const place = useAtomValue(readDecisionPlace({ connection, decidedBy }));
+  return place ? <>{place} · </> : null;
 }
 
 export function CallDecision({

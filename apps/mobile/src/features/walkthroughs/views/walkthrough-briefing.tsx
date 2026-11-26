@@ -2,12 +2,12 @@ import { useState, type ReactNode } from 'react';
 import {
   attentionLabel,
   callDecisionProgress,
-  callState,
+  briefingCalls,
+  callStateLabel,
   NEEDS_A_COMMIT,
   foldedNotSaid,
   nothingCaptured,
   plainText,
-  walkthroughCalls,
   walkthroughEvidenceNotice,
   walkthroughScope,
   walkthroughVerified,
@@ -82,7 +82,7 @@ function Calls({
     | undefined;
   jump: Jump;
 }) {
-  const calls = walkthroughCalls(content);
+  const calls = briefingCalls(content, decisions);
   if (calls.length === 0)
     return (
       <Line>
@@ -91,18 +91,9 @@ function Calls({
         </Text>
       </Line>
     );
-  return calls.map(({ attention, comparison, stop, step, callIndex }) => {
-    const decided = decisions?.find(
-      (entry) => entry.step === step && entry.call === callIndex,
-    );
-    const state = callState(comparison, decided);
+  return calls.map(({ attention, stop, step, callIndex, decided, state }) => {
     const label = attentionLabel(attention);
-    const stateLabel =
-      state === 'decided'
-        ? 'Decided'
-        : state === 'needs-commit'
-          ? 'Decided, needs a new commit'
-          : label;
+    const stateLabel = callStateLabel(state, label);
     return (
       <Item
         key={`${step}:${callIndex}`}

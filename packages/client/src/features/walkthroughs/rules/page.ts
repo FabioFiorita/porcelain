@@ -100,6 +100,27 @@ export function callState(
     : 'decided';
 }
 
+export function briefingCalls<D extends DecidedOption>(
+  content: WalkthroughContent,
+  decisions: readonly D[] | undefined,
+) {
+  return walkthroughCalls(content).map((call) => {
+    const decided = decisions?.find(
+      (entry) => entry.step === call.step && entry.call === call.callIndex,
+    );
+    return { ...call, decided, state: callState(call.comparison, decided) };
+  });
+}
+
+const CALL_STATE_LABELS: Record<Exclude<CallState, 'open'>, string> = {
+  decided: 'Decided',
+  'needs-commit': 'Decided, needs a new commit',
+};
+
+export function callStateLabel(state: CallState, open: string) {
+  return state === 'open' ? open : CALL_STATE_LABELS[state];
+}
+
 const CALL_STATE_ORDER: readonly CallState[] = [
   'open',
   'needs-commit',
@@ -124,7 +145,7 @@ export function stepCallState(
   return CALL_STATE_ORDER.find((state) => states.includes(state));
 }
 
-type Decider =
+export type Decider =
   | { readonly kind: 'owner' }
   | { readonly kind: 'device'; readonly deviceId: string };
 
