@@ -14,6 +14,7 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DeviceType, deviceType } from 'expo-device';
 import { useAtomMount } from '@effect/atom-react';
+import { scheduleOnRN } from 'react-native-worklets';
 import { Atom } from 'effect/reactivity';
 import { reservedDrawerEdge } from './drawer-edge';
 import {
@@ -121,9 +122,18 @@ function SlidingDrawer({
 }) {
   const offset = useSharedValue(open ? size : 0);
   const [shown, setShown] = useState(open);
+  const [hidden, setHidden] = useState(!open);
+  const [dragging, setDragging] = useState(false);
+  const slide = (to: boolean) =>
+    offset.set(
+      withTiming(to ? size : 0, { duration: SLIDE_MS }, (finished) => {
+        if (finished && !to) scheduleOnRN(setHidden, true);
+      }),
+    );
   if (shown !== open) {
     setShown(open);
-    offset.set(withTiming(open ? size : 0, { duration: SLIDE_MS }));
+    if (open) setHidden(false);
+    slide(open);
   }
   useAtomMount(open ? closeOnBack(() => onOpenChange(false)) : keepBack);
   const responder = PanResponder.create({
@@ -136,6 +146,10 @@ function SlidingDrawer({
         dy: gesture.dy,
         reservedEdge: reservedDrawerEdge,
       }),
+    onPanResponderGrant: () => {
+      setHidden(false);
+      setDragging(true);
+    },
     onPanResponderMove: (_event, gesture) => {
       const base = open ? size : 0;
       offset.set(Math.max(0, Math.min(size, base + gesture.dx)));
@@ -147,11 +161,13 @@ function SlidingDrawer({
         vx: gesture.vx,
         width: size,
       });
-      offset.set(withTiming(next ? size : 0, { duration: SLIDE_MS }));
+      setDragging(false);
+      slide(next);
       if (next !== open) onOpenChange(next);
     },
     onPanResponderTerminate: () => {
-      offset.set(withTiming(open ? size : 0, { duration: SLIDE_MS }));
+      setDragging(false);
+      slide(open);
     },
   });
   const content = useAnimatedStyle(() => ({
@@ -164,7 +180,10 @@ function SlidingDrawer({
     <View className="flex-1 bg-background" collapsable={false}>
       <View
         className="absolute top-0 bottom-0 left-0"
-        style={{ width: size }}
+        style={{
+          width: size,
+          display: hidden && !dragging && !open ? 'none' : 'flex',
+        }}
         pointerEvents={open ? 'auto' : 'none'}
         accessibilityElementsHidden={!open}
         importantForAccessibility={open ? 'auto' : 'no-hide-descendants'}
