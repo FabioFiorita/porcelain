@@ -19,7 +19,7 @@ A commit file opens a read-only diff with its original comparison parent and lin
 
 ## How to get to it (user POV)
 
-- Worktrees → worktree → History → commit → a file heading or compact row on the commit page; direct diff route. Back returns to the commit page at the same scroll place.
+- History tab → commit → a file heading or compact row on the commit page; direct diff route. Back returns to the commit page at the same scroll place.
 
 ## Driving it with agent-device
 

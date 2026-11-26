@@ -9,6 +9,7 @@ export function MessageComposer({
   sending = false,
   disabled = false,
   error,
+  maxLength = 8000,
   onChangeText,
   onSend,
   scroller = null,
@@ -18,6 +19,7 @@ export function MessageComposer({
   sending?: boolean;
   disabled?: boolean;
   error?: string | undefined;
+  maxLength?: number;
   onChangeText: (value: string) => void;
   onSend: () => void;
   scroller?: KeyboardScroller | undefined;
@@ -32,7 +34,7 @@ export function MessageComposer({
         <TextInput
           value={value}
           multiline
-          maxLength={8000}
+          maxLength={maxLength}
           accessibilityLabel={placeholder}
           placeholder={placeholder}
           placeholderTextColorClassName="accent-muted-foreground"

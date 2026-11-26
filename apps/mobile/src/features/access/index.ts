@@ -13,5 +13,4 @@ export { useWriteAllowed, useWritesBlocked } from './queries/environments';
 export { useReadEnvironments } from './commands/pairing';
 export { useEnvironments, useEnvironmentStorageStatus } from './store';
 
-export { SettingsToolbar } from './views/settings-toolbar';
 export { receivePairingLink } from './store';

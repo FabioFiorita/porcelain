@@ -234,6 +234,24 @@ export function currentWalkthroughChecks(
   };
 }
 
+export function recordedCheckNow(
+  result: RecordedCheck,
+  live: ReturnType<typeof currentWalkthroughChecks>,
+): { tone: PullChecksTone; label: string; detail: string } {
+  const now = live?.changed.find((check) => check.name === result.name);
+  return now
+    ? {
+        tone: now.tone,
+        label: now.label,
+        detail: `${now.label} · ${result.label.toLowerCase()} when written`,
+      }
+    : {
+        tone: result.tone,
+        label: result.label,
+        detail: result.detail ?? result.label,
+      };
+}
+
 export function checksHeadline(
   captured: CapturedChecks,
   live: Parameters<typeof currentWalkthroughChecks>[1],
@@ -270,11 +288,15 @@ export function walkthroughCheckRows<
     ...entry,
     live: currentWalkthroughChecks(entry.checks, live),
   }));
+  const settled = (row: (typeof rows)[number]) => {
+    const tone = pullRequestRollup(row.checks.state).tone;
+    return !row.live && tone !== 'failed' && tone !== 'running';
+  };
   return {
-    changed: rows.flatMap(({ live: now, ...entry }) =>
-      now ? [{ ...entry, live: now }] : [],
-    ),
-    unchanged: rows.flatMap(({ live: now, ...entry }) => (now ? [] : [entry])),
+    changed: rows.filter((row) => !settled(row)),
+    unchanged: rows
+      .filter(settled)
+      .map(({ live: _settled, ...entry }) => entry),
   };
 }
 
@@ -501,4 +523,61 @@ export function pullRequestConversation(
             )
           : [],
     }));
+}
+
+export function pullRequestCheckout(
+  projects: readonly {
+    readonly id: string;
+    readonly available: boolean;
+    readonly worktrees: readonly {
+      readonly id: string;
+      readonly available: boolean;
+      readonly branch?: string | undefined;
+    }[];
+  }[],
+  projectId: string,
+  headBranch: string,
+): { projectId: string; worktreeId: string } | undefined {
+  const project = projects.find(
+    (entry) => entry.id === projectId && entry.available,
+  );
+  const worktree = project?.worktrees.find(
+    (entry) => entry.available && entry.branch === headBranch,
+  );
+  return worktree ? { projectId, worktreeId: worktree.id } : undefined;
+}
+
+export function callNotesAtHead(
+  review: PullRequestMergeReview | undefined,
+  headSha: string,
+): readonly { readonly step: number; readonly state: string }[] {
+  if (review?.headOid !== headSha) return [];
+  const undecided = review.undecidedCallStep;
+  const needsCommit = review.callsNeedingCommit?.[0];
+  return [
+    ...(typeof undecided === 'number'
+      ? [{ step: undecided, state: 'is not decided yet' }]
+      : []),
+    ...(needsCommit === undefined
+      ? []
+      : [{ step: needsCommit, state: 'needs a new commit' }]),
+  ];
+}
+
+export function pullRequestActionFailure(error: unknown) {
+  return error instanceof Error && error.message
+    ? error.message
+    : 'GitHub did not take the request. Try again.';
+}
+
+export function mergeConfirmation(pull: {
+  readonly number: number;
+  readonly headBranch: string;
+  readonly baseBranch: string;
+  readonly headSha: string;
+}) {
+  return {
+    title: `Merge pull request #${pull.number}?`,
+    description: `${pull.headBranch} at ${pull.headSha.slice(0, 7)} goes into ${pull.baseBranch} on GitHub. A merge cannot be undone.`,
+  };
 }

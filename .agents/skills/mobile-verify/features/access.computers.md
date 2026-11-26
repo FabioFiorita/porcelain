@@ -31,7 +31,7 @@ Computers manages saved connections and shows status, trust and update offers, w
 
 ## How to get to it (user POV)
 
-- Settings gear (Reviews or Worktrees header) → Computers. The header + (Add computer) pairs another computer.
+- Worktree drawer → Settings → Computers. The header + (Add computer) pairs another computer.
 
 ## Driving it with agent-device
 

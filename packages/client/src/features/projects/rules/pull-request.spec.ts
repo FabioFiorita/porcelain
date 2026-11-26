@@ -2,6 +2,10 @@ import { expect, it } from 'vite-plus/test';
 import {
   checksHeadline,
   currentWalkthroughChecks,
+  recordedCheckNow,
+  mergeConfirmation,
+  pullRequestCheckout,
+  callNotesAtHead,
   walkthroughCheckRows,
   githubUnavailable,
   pullRequestChecks,
@@ -404,7 +408,38 @@ it('puts the live result first when the same captured head starts failing', () =
   ).toBeUndefined();
 });
 
-it('moves a step’s checks out of Verified only while GitHub now disagrees with what was written', () => {
+it('says what each check does now beside what it did when written', () => {
+  const captured = {
+    headOid: 'abc1234',
+    state: 'SUCCESS',
+    checksTruncated: false,
+    results: [
+      { name: 'Browser tests', status: 'SUCCESS' },
+      { name: 'Unit tests', status: 'SUCCESS' },
+    ],
+  };
+  const live = currentWalkthroughChecks(captured, {
+    headSha: 'abc1234',
+    checks: [
+      { name: 'Browser tests', status: 'COMPLETED', conclusion: 'FAILURE' },
+      { name: 'Unit tests', status: 'COMPLETED', conclusion: 'SUCCESS' },
+    ],
+    checksTruncated: false,
+  });
+  const [browser, unit] = recordedChecks(captured).results;
+  expect(browser && recordedCheckNow(browser, live)).toEqual({
+    tone: 'failed',
+    label: 'Failing now',
+    detail: 'Failing now · passed when written',
+  });
+  expect(unit && recordedCheckNow(unit, live)).toEqual({
+    tone: 'passed',
+    label: 'Passed',
+    detail: 'Passed',
+  });
+});
+
+it('moves passing checks out of Verified while GitHub now disagrees with what was written', () => {
   const passing = {
     headOid: 'abc1234',
     state: 'SUCCESS',
@@ -445,6 +480,28 @@ it('moves a step’s checks out of Verified only while GitHub now disagrees with
   ).toEqual({ changed: [], unchanged: [{ step: 1, checks: passing }] });
 });
 
+it('never keeps checks that failed or were still running when written under Verified', () => {
+  const written = (state: string) => ({
+    headOid: 'abc1234',
+    state,
+    checksTruncated: false,
+    results: [{ name: 'Browser tests', status: state }],
+  });
+  const rows = walkthroughCheckRows(
+    [
+      { step: 1, checks: written('FAILURE') },
+      { step: 2, checks: written('PENDING') },
+      { step: 3, checks: written('SUCCESS') },
+    ],
+    undefined,
+  );
+  expect(rows.changed.map((row) => [row.step, row.live])).toEqual([
+    [1, undefined],
+    [2, undefined],
+  ]);
+  expect(rows.unchanged.map((row) => row.step)).toEqual([3]);
+});
+
 it('recognizes that the failing check changed even when the overall rollup stayed red', () => {
   const captured = {
     headOid: 'abc1234',
@@ -472,6 +529,58 @@ it('recognizes that the failing check changed even when the overall rollup staye
       { name: 'Build', tone: 'passed', label: 'Passing now' },
       { name: 'Browser tests', tone: 'failed', label: 'Failing now' },
     ],
+  });
+});
+
+it('finds the checkout of a pull request by its head branch', () => {
+  const projects = [
+    {
+      id: 'p',
+      available: true,
+      worktrees: [
+        { id: 'main', available: true, branch: 'main' },
+        { id: 'gone', available: false, branch: 'feature' },
+        { id: 'w', available: true, branch: 'feature' },
+      ],
+    },
+  ];
+  expect(pullRequestCheckout(projects, 'p', 'feature')).toEqual({
+    projectId: 'p',
+    worktreeId: 'w',
+  });
+  expect(pullRequestCheckout(projects, 'p', 'other')).toBeUndefined();
+  expect(pullRequestCheckout(projects, 'q', 'feature')).toBeUndefined();
+});
+
+it('notes an undecided call and a call needing a commit only at the pull request head', () => {
+  const review = {
+    headOid: 'abc',
+    undecidedCallStep: 2,
+    callsNeedingCommit: [1, 3],
+  };
+  expect(callNotesAtHead(review, 'abc')).toEqual([
+    { step: 2, state: 'is not decided yet' },
+    { step: 1, state: 'needs a new commit' },
+  ]);
+  expect(callNotesAtHead(review, 'def')).toEqual([]);
+  expect(callNotesAtHead(undefined, 'abc')).toEqual([]);
+  expect(
+    callNotesAtHead({ headOid: 'abc', undecidedCallStep: 'reading' }, 'abc'),
+  ).toEqual([]);
+});
+
+it('names the pinned head in the merge confirmation', () => {
+  expect(
+    mergeConfirmation({
+      number: 57,
+      headBranch: 'feature/search',
+      baseBranch: 'main',
+      headSha: '46b9389f'.padEnd(40, '0'),
+    }),
+  ).toEqual({
+    title: 'Merge pull request #57?',
+    description:
+      'feature/search at 46b9389 goes into main on GitHub. A merge cannot be undone.',
   });
 });
 

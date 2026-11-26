@@ -1,5 +1,3 @@
-import type { SearchBarCommands } from 'react-native-screens';
-import { useRouter } from 'expo-router';
 import { useAtomRef, useAtomSet, useAtomValue } from '@effect/atom-react';
 import { readWorktreeNavigator } from '@porcelain/client/projects';
 import {
@@ -8,43 +6,22 @@ import {
 } from '@porcelain/client/projects/rules';
 import { remoteConnectionState } from '../../../shared/application/store';
 import { profileMobileScreen } from '../../../shared/application/mobile-timing';
-import type {
-  ListDetailMode,
-  ListPlace,
-} from '../../../shared/rules/list-detail';
 import { worktreeRow } from '../rules/worktree-row';
 import { openedWorktree } from '../store';
 import { WorktreeNavigator } from './worktree-navigator';
+import { useWorktreeDrawer } from './worktree-drawer';
 import type { WorktreeDetails } from '../store';
 import { useWorkspacePickerModel } from './workspace-picker-model';
 
-export function WorktreesScreen({
-  mode,
-  onOpen,
-  onSearchFocusChange,
-  searchBarRef,
-  presentation = 'beside',
-}: {
-  mode: ListDetailMode;
-  onOpen?: (() => void) | undefined;
-  onSearchFocusChange?: ((focused: boolean) => void) | undefined;
-  searchBarRef?: { current: SearchBarCommands | null } | undefined;
-  presentation?: ListPlace | undefined;
-}) {
-  const router = useRouter();
+export function WorktreesScreen() {
   const remember = useAtomSet(openedWorktree);
+  const drawer = useWorktreeDrawer();
   return profileMobileScreen(
     'worktrees',
     <WorktreeNavigator
-      hidden={presentation === 'away'}
-      over={presentation === 'over'}
-      onSearchFocusChange={onSearchFocusChange}
-      searchBarRef={searchBarRef}
       onOpenWorktree={(entry) => {
-        const details = worktreeDetails(entry);
-        onOpen?.();
-        if (mode === 'beside') remember(details);
-        else router.push({ pathname: '/worktree', params: details });
+        remember(worktreeDetails(entry));
+        drawer.close();
       }}
     />,
   );

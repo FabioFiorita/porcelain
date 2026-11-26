@@ -1,6 +1,11 @@
 import { expect, it } from 'vite-plus/test';
 import {
+  pullStatusView,
+  toggledKey,
   checkDurationLabel,
+  checkLogUnavailable,
+  failedJobsRerunRequest,
+  jobRerunRequest,
   checkNameInGroup,
   checkProgress,
   checkState,
@@ -13,7 +18,11 @@ import {
   type PullCheck,
   type PullStatus,
 } from './pull-request-checks.ts';
-import { mergeReadiness } from './merge-readiness.ts';
+import {
+  mergeButtonReason,
+  mergeReadiness,
+  walkthroughStanding,
+} from './merge-readiness.ts';
 import {
   pullRequestMergeBlock,
   type PullRequestMergeReview,
@@ -294,6 +303,87 @@ it('treats an expected status as still running', () => {
   );
 });
 
+it('asks to re-run only the failed Actions jobs of a workflow run', () => {
+  const [group] = groupChecks([
+    job('unit', 'failed', { runId: 9, group: 'CI' }),
+    job('lint', 'failed', { runId: 9, group: 'CI' }),
+    job('build', 'passed', { runId: 9, group: 'CI' }),
+  ]);
+  expect(group && failedJobsRerunRequest(group)).toEqual({
+    title: 'Re-run 2 failed jobs in CI?',
+    description:
+      'GitHub starts a new attempt of the failed jobs and of the jobs that depend on them.',
+    target: { kind: 'failed-jobs', runId: 9 },
+    keys: ['actions:CI:unit', 'actions:CI:lint'],
+  });
+  const [external] = groupChecks([
+    job('vercel', 'failed', { kind: 'check', runId: undefined }),
+  ]);
+  expect(external && failedJobsRerunRequest(external)).toBeUndefined();
+});
+
+it('asks to re-run one job by its id, and nothing without one', () => {
+  expect(jobRerunRequest(job('unit', 'failed', { jobId: 31 }))).toMatchObject({
+    title: 'Re-run unit?',
+    target: { kind: 'job', jobId: 31 },
+    keys: ['actions:CI:unit'],
+  });
+  expect(
+    jobRerunRequest(job('unit', 'failed', { jobId: undefined })),
+  ).toBeUndefined();
+});
+
+it('explains a missing job log in one sentence', () => {
+  expect(checkLogUnavailable('log-too-large')).toBe(
+    'The job log is larger than 16 MB.',
+  );
+  expect(checkLogUnavailable('offline')).toBe('GitHub did not return the log.');
+});
+
+it('keeps a requested re-run pending while a read is in flight', () => {
+  const status = pull([job('unit', 'failed', { jobId: 31 })]);
+  const requested = [{ key: 'actions:CI:unit', jobId: 31, at: 1_000 }];
+  const view = (waiting: boolean) =>
+    pullStatusView({
+      watch: { status, problem: undefined, pending: [], readAt: 2_000 },
+      failed: false,
+      waiting,
+      requested,
+    });
+  expect([...view(true).pendingReruns]).toEqual(['actions:CI:unit']);
+  expect([...view(false).pendingReruns]).toEqual([]);
+});
+
+it('reports a failed first read as failed, and a later problem as itself', () => {
+  const view = pullStatusView({
+    watch: undefined,
+    failed: true,
+    waiting: false,
+    requested: [],
+  });
+  expect(view).toMatchObject({ status: undefined, problem: 'failed' });
+  expect(
+    pullStatusView({
+      watch: {
+        status: undefined,
+        problem: 'rate-limited',
+        pending: [],
+        readAt: 0,
+      },
+      failed: false,
+      waiting: false,
+      requested: [],
+    }).problem,
+  ).toBe('rate-limited');
+});
+
+it('toggles one key without changing the set it was given', () => {
+  const open = new Set(['a']);
+  expect([...toggledKey(open, 'b')]).toEqual(['a', 'b']);
+  expect([...toggledKey(open, 'a')]).toEqual([]);
+  expect([...open]).toEqual(['a']);
+});
+
 const head = 'a'.repeat(40);
 
 const decided: PullRequestMergeReview = {
@@ -528,6 +618,81 @@ it('reports an unread, merged or closed pull request without a verdict', () => {
       baseBranch: 'main',
     }).label,
   ).toBe('Closed without merging');
+});
+
+const detail = { state: 'open', draft: false, baseBranch: 'main' };
+
+it('stands behind the merge rule at the top of the Walkthrough, with the pull request state', () => {
+  expect(
+    walkthroughStanding({
+      pull: {
+        status: pull([job('Browser tests', 'failed')], { draft: true }),
+        statusUnread: false,
+        detail,
+      },
+      review: { headOid: head, undecidedCallStep: 1, undecidedCalls: 1 },
+    }),
+  ).toEqual({
+    label: 'Not ready to merge: draft, 1 check failing, 1 call open',
+    icon: 'failed',
+    quiet: false,
+    pullState: 'Draft',
+  });
+  expect(
+    walkthroughStanding({
+      pull: {
+        status: pull([job('Unit tests', 'passed')]),
+        statusUnread: false,
+        detail,
+      },
+      review: decided,
+    }),
+  ).toMatchObject({
+    label: 'Ready to merge',
+    icon: 'passed',
+    pullState: 'Open',
+  });
+});
+
+it('counts only open calls when there is no pull request or its status cannot be read', () => {
+  const calls = { headOid: head, undecidedCallStep: 2, undecidedCalls: 2 };
+  expect(walkthroughStanding({ pull: undefined, review: calls })).toEqual({
+    label: '2 calls open',
+    icon: 'none',
+    quiet: false,
+    pullState: undefined,
+  });
+  expect(
+    walkthroughStanding({
+      pull: { status: undefined, statusUnread: true, detail },
+      review: calls,
+    }),
+  ).toMatchObject({ label: '2 calls open', pullState: 'Open' });
+  expect(walkthroughStanding({ pull: undefined, review: decided })).toBe(
+    undefined,
+  );
+  expect(
+    walkthroughStanding({
+      pull: { status: undefined, statusUnread: false, detail },
+      review: decided,
+    }),
+  ).toMatchObject({ label: 'Reading the merge status', quiet: true });
+});
+
+it('holds the Merge button for every merge rule reason, reviews included', () => {
+  expect(
+    mergeButtonReason(undefined, 'Merge waits for: review required.'),
+  ).toBe('Merge waits for: review required.');
+  expect(
+    mergeButtonReason(
+      'Decide the call first.',
+      'Merge waits for: 1 call open.',
+    ),
+  ).toBe('Merge waits for: 1 call open.');
+  expect(mergeButtonReason('Decide the call first.', undefined)).toBe(
+    'Decide the call first.',
+  );
+  expect(mergeButtonReason(undefined, undefined)).toBeUndefined();
 });
 
 it('names a check under its group without repeating the group name before it', () => {

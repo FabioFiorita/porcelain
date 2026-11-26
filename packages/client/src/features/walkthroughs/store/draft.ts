@@ -2,8 +2,6 @@ import { Atom } from 'effect/reactivity';
 import type { WorktreeSelection } from '../../../shared/api/connection.ts';
 import type { WalkthroughRun } from '../rules/walkthrough.ts';
 
-export type WalkthroughDraftPlacement = 'call' | 'step';
-
 export type WalkthroughDraft = {
   text: string;
   failure: { runId: string; message: string } | undefined;
@@ -28,7 +26,6 @@ export function walkthroughDraft(
   },
   run: Pick<WalkthroughRun, 'id' | 'branch'>,
   title: string,
-  placement: WalkthroughDraftPlacement,
 ) {
   return drafts(
     JSON.stringify([
@@ -37,7 +34,6 @@ export function walkthroughDraft(
       scope.worktreeId,
       run.branch === undefined ? ['run', run.id] : ['branch', run.branch],
       title,
-      placement,
     ]),
   );
 }

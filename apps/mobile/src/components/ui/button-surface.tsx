@@ -52,6 +52,12 @@ export type ButtonSurfaceProps = Omit<
   expanded?: boolean;
   align?: 'center' | 'start';
 };
+export const heldFilled = (
+  variant: keyof typeof variants,
+  disabled: boolean,
+  pending: boolean,
+) => variant === 'filled' && disabled && !pending;
+
 export function ButtonSurface({
   children,
   variant = 'filled',
@@ -65,6 +71,7 @@ export function ButtonSurface({
   ...props
 }: ButtonSurfaceProps) {
   const unavailable = disabled || pending;
+  const held = heldFilled(variant, disabled, pending);
   const icon = size === 'icon' || size === 'iconSm';
   const surface = variants[variant] !== '';
   const ripple = usePressRipple('glyph');
@@ -79,7 +86,8 @@ export function ButtonSurface({
       {...(icon && !surface && ripple ? { android_ripple: ripple } : {})}
       className={[
         hitTarget,
-        'items-center justify-center rounded-full border border-transparent focus:border-ring disabled:opacity-50',
+        'items-center justify-center rounded-full border border-transparent focus:border-ring',
+        held ? '' : 'disabled:opacity-50',
         className,
       ]
         .filter(Boolean)
@@ -91,7 +99,7 @@ export function ButtonSurface({
             'flex-row items-center rounded-full',
             align === 'start' ? 'justify-start' : 'justify-center',
             icon ? '' : 'self-stretch',
-            variants[variant],
+            held ? 'border border-border bg-muted' : variants[variant],
             sizes[size].surface,
             pressed ? (surface ? 'opacity-70' : 'opacity-50') : '',
           ]

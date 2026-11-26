@@ -2,6 +2,7 @@ import { useId, useState } from 'react';
 import { Cause } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import {
+  mergeButtonReason,
   mergeFailureMessage,
   pullRequestMergeBlock,
   pullRequestMergeMethods,
@@ -64,7 +65,9 @@ export function MergePullRequest({
 }) {
   const reasonId = useId();
   const writeBlock = useWorkspaceWriteBlock(context);
-  const block = writeBlock ?? reason ?? pullRequestMergeBlock(pull, review);
+  const block =
+    writeBlock ??
+    mergeButtonReason(pullRequestMergeBlock(pull, review), reason);
   return (
     <div
       className={cn(

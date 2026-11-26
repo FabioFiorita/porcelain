@@ -8,7 +8,13 @@ import {
 } from '@porcelain/client/transport';
 import { scheduledRegistry } from '../../../spec/kit/atom-registry';
 import { readServiceUpdateResponseSchema } from '@porcelain/contracts/access';
-import { readInventoryResponseSchema } from '@porcelain/contracts/projects';
+import {
+  listPullRequestsResponseSchema,
+  readCheckLogResponseSchema,
+  readInventoryResponseSchema,
+  readPullRequestResponseSchema,
+  readPullStatusResponseSchema,
+} from '@porcelain/contracts/projects';
 import { readTextFileResponseSchema } from '@porcelain/contracts/files';
 import {
   readChangesResponseSchema,
@@ -313,55 +319,194 @@ test('the sample branch comparison loads through the shared client using its adv
   }
 });
 
-test('copied briefs contain only the chosen question or the saved questions', async () => {
+test('draft comments are added, edited and deleted, and an empty review has nothing to post', async () => {
   const send = createDemoTransport();
-  const conversation = `${worktree}/walkthrough/demo-welcome/conversations`;
-  const add = (text: string) =>
-    send(
-      `${conversation}/messages`,
-      request('POST', { anchor: { kind: 'walkthrough' }, text }),
-    );
-  await add('First question');
-  const view = Schema.decodeUnknownSync(walkthroughConversationsResponseSchema)(
-    await (await add('Second question')).json(),
-  );
-  const messages = view.conversations.flatMap((entry) => entry.messages);
-  const firstId = messages.find(
-    (message) =>
-      message.author === 'developer' && message.text === 'First question',
-  )?.id;
-  const secondId = messages.find(
-    (message) =>
-      message.author === 'developer' && message.text === 'Second question',
-  )?.id;
-  expect(firstId).toBeTypeOf('string');
-  expect(secondId).toBeTypeOf('string');
-  const brief = async (messageId?: string) => {
-    const answer: unknown = await (
-      await send(
-        `${conversation}/brief${messageId ? `?messageId=${encodeURIComponent(messageId)}` : ''}`,
-      )
-    ).json();
-    return answer;
+  const comments = `${worktree}/comments`;
+  const read = async (response: Response) => {
+    const view: unknown = await response.json();
+    return Schema.decodeUnknownSync(
+      Schema.Struct({
+        markdown: Schema.String,
+        comments: Schema.Array(
+          Schema.Struct({ id: Schema.String, text: Schema.String }),
+        ),
+      }),
+    )(view);
   };
-  expect(await brief(firstId)).toEqual({ text: 'First question' });
-  expect(await brief(secondId)).toEqual({ text: 'Second question' });
-  expect(await brief()).toEqual({ text: null });
-  await send(
-    `${conversation}/messages/${secondId}/saved`,
-    request('PUT', { saved: true }),
+  const added = await read(
+    await send(
+      comments,
+      request('POST', {
+        anchor: {
+          kind: 'node',
+          title: 'Choose the fallback greeting',
+          node: 'greet',
+        },
+        text: 'Keep this short.',
+      }),
+    ),
   );
-  expect(await brief()).toEqual({ text: 'Second question' });
-  expect(await brief(firstId)).toEqual({ text: 'First question' });
-  expect(await brief('missing-message')).toEqual({ text: null });
-  await send(
-    `${conversation}/messages/${firstId}/saved`,
-    request('PUT', { saved: true }),
+  const id = added.comments[0]?.id ?? '';
+  expect(added.markdown).toContain(
+    'greet · Choose the fallback greeting: Keep this short.',
   );
-  expect(await brief()).toEqual({ text: 'First question\n\nSecond question' });
-  await send(
-    `${conversation}/messages/${secondId}/saved`,
-    request('PUT', { saved: false }),
+  const edited = await read(
+    await send(`${comments}/${id}`, request('PATCH', { text: 'Shorter.' })),
   );
-  expect(await brief()).toEqual({ text: 'First question' });
+  expect(edited.comments.map((comment) => comment.text)).toEqual(['Shorter.']);
+  expect(
+    (await read(await send(`${comments}/${id}`, { method: 'DELETE' })))
+      .comments,
+  ).toEqual([]);
+  const preview: unknown = await (await send(`${comments}/review`)).json();
+  expect(preview).toEqual({ kind: 'unavailable', reason: 'no-comments' });
+});
+
+test('a call is decided with its option and undone', async () => {
+  const send = createDemoTransport();
+  const decision = `${worktree}/walkthrough/demo-welcome/calls/1/0/decision`;
+  const decide = async (body: unknown) =>
+    Schema.decodeUnknownSync(walkthroughConversationsResponseSchema)(
+      await (await send(decision, request('PUT', body))).json(),
+    ).decisions;
+  expect(await decide({ decided: true, option: 'Keep “friend”' })).toEqual([
+    expect.objectContaining({ step: 1, call: 0, option: 'Keep “friend”' }),
+  ]);
+  expect(await decide({ decided: false })).toEqual([]);
+});
+
+const pull = '/api/projects/f5dd81bf-c039-4345-927a-e55315a50029/pull-requests';
+
+test('the demo branch has a pull request whose failing check can be re-run before merging', async () => {
+  const send = createDemoTransport();
+  const list = Schema.decodeUnknownSync(listPullRequestsResponseSchema)(
+    await (await send(pull)).json(),
+  );
+  expect(list).toMatchObject({
+    kind: 'available',
+    pullRequests: [
+      { number: 7, headBranch: 'feat/welcome-message', state: 'open' },
+    ],
+  });
+  const status = async () =>
+    Schema.decodeUnknownSync(readPullStatusResponseSchema)(
+      await (await send(`${pull}/7/status`)).json(),
+    );
+  const before = await status();
+  expect(
+    before.kind === 'available' &&
+      before.status.checks.map((check) => [check.name, check.conclusion]),
+  ).toEqual([
+    ['Unit tests', 'SUCCESS'],
+    ['Lint', 'FAILURE'],
+    ['docs-preview', 'SUCCESS'],
+  ]);
+  const log = Schema.decodeUnknownSync(readCheckLogResponseSchema)(
+    await (await send(`${pull}/7/jobs/202/log`)).json(),
+  );
+  expect(log.kind === 'available' && log.excerpt.lines.at(-1)).toEqual({
+    text: 'Process completed with exit code 1.',
+    level: 'error',
+  });
+  await send(
+    `${pull}/7/rerun`,
+    request('POST', {
+      headSha: 'a'.repeat(40),
+      target: { kind: 'failed-jobs', runId: 101 },
+    }),
+  );
+  const after = await status();
+  expect(
+    after.kind === 'available' &&
+      after.status.checks.map((check) => [check.name, check.jobId]),
+  ).toEqual([
+    ['Unit tests', 201],
+    ['Lint', 203],
+    ['docs-preview', undefined],
+  ]);
+  expect(after.kind === 'available' && after.status.checksSummary).toBe(
+    'SUCCESS',
+  );
+  await send(
+    `${pull}/7/merge`,
+    request('POST', { method: 'squash', headSha: 'a'.repeat(40) }),
+  );
+  const merged = Schema.decodeUnknownSync(readPullRequestResponseSchema)(
+    await (await send(`${pull}/7`)).json(),
+  );
+  expect(merged.kind === 'available' && merged.pullRequest.state).toBe(
+    'merged',
+  );
+});
+
+test('a comment on the demo pull request joins its conversation', async () => {
+  const send = createDemoTransport();
+  await send(`${pull}/7/comments`, request('POST', { body: 'Ship it' }));
+  const read = Schema.decodeUnknownSync(readPullRequestResponseSchema)(
+    await (await send(`${pull}/7`)).json(),
+  );
+  expect(
+    read.kind === 'available' && read.pullRequest.timeline.at(-1),
+  ).toMatchObject({
+    kind: 'comment',
+    body: 'Ship it',
+  });
+});
+
+const draftsSchema = Schema.Struct({
+  comments: Schema.Array(
+    Schema.Struct({
+      id: Schema.String,
+      text: Schema.String,
+      publication: Schema.Struct({ status: Schema.String }),
+    }),
+  ),
+});
+
+async function drafts(response: Response) {
+  return Schema.decodeUnknownSync(draftsSchema)(await response.json()).comments;
+}
+
+test('a draft on demo lines is previewed inline on pull request #7 and published', async () => {
+  const send = createDemoTransport();
+  const comments = `${worktree}/comments`;
+  const added = await drafts(
+    await send(
+      comments,
+      request('POST', {
+        anchor: {
+          kind: 'lines',
+          path: 'src/welcome.ts',
+          side: 'additions',
+          start: 2,
+          end: 2,
+          text: '  const trimmed = name.trim();',
+        },
+        text: 'Why trim here?',
+      }),
+    ),
+  );
+  const id = added[0]?.id ?? '';
+  await send(`${comments}/${id}`, request('PATCH', { text: 'Trim earlier?' }));
+  const preview: unknown = await (await send(`${comments}/review`)).json();
+  expect(preview).toMatchObject({
+    kind: 'available',
+    pullRequest: { number: 7 },
+    inline: [
+      {
+        path: 'src/welcome.ts',
+        side: 'additions',
+        line: 2,
+        body: 'Trim earlier?',
+      },
+    ],
+    general: [],
+  });
+  await send(
+    `${comments}/review`,
+    request('POST', { headOid: 'demo', summary: '', bodies: {} }),
+  );
+  expect((await drafts(await send(comments)))[0]?.publication).toMatchObject({
+    status: 'published',
+  });
 });

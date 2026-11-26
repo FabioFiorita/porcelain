@@ -1,6 +1,8 @@
 import type {
   PullCheckDetail,
+  PullRequestRerunTarget,
   PullRequestStatus,
+  ReadCheckLogResponse,
 } from '@porcelain/contracts/projects';
 export type {
   CheckLogLine,
@@ -400,4 +402,98 @@ export function checkCitations(
     for (const name of step.names)
       if (!cited.has(name)) cited.set(name, step.number);
   return cited;
+}
+
+export type RerunRequest = {
+  readonly title: string;
+  readonly description: string;
+  readonly target: PullRequestRerunTarget;
+  readonly keys: readonly string[];
+};
+
+export function failedJobsRerunRequest(
+  group: CheckGroup,
+): RerunRequest | undefined {
+  const failed = group.failed.filter((check) => check.kind === 'actions');
+  if (group.runId === undefined || failed.length === 0) return undefined;
+  return {
+    title: `Re-run ${failed.length} failed ${failed.length === 1 ? 'job' : 'jobs'} in ${group.name}?`,
+    description:
+      'GitHub starts a new attempt of the failed jobs and of the jobs that depend on them.',
+    target: { kind: 'failed-jobs', runId: group.runId },
+    keys: failed.map((check) => check.key),
+  };
+}
+
+export function jobRerunRequest(check: PullCheck): RerunRequest | undefined {
+  if (check.jobId === undefined) return undefined;
+  return {
+    title: `Re-run ${check.name}?`,
+    description:
+      'GitHub starts a new attempt of this job and re-runs the jobs in its workflow that depend on it, including ones that already finished.',
+    target: { kind: 'job', jobId: check.jobId },
+    keys: [check.key],
+  };
+}
+
+const logUnavailableText: Partial<
+  Record<
+    Extract<ReadCheckLogResponse, { kind: 'unavailable' }>['reason'],
+    string
+  >
+> = {
+  'log-missing': 'GitHub has no log for this job yet, or it has expired.',
+  'log-too-large': 'The job log is larger than 16 MB.',
+  'rate-limited': 'GitHub rate limit reached.',
+};
+
+export function checkLogUnavailable(
+  reason: Extract<ReadCheckLogResponse, { kind: 'unavailable' }>['reason'],
+) {
+  return logUnavailableText[reason] ?? 'GitHub did not return the log.';
+}
+
+export function checkLogHeading(
+  excerpt: Extract<ReadCheckLogResponse, { kind: 'available' }>['excerpt'],
+  step: number,
+) {
+  return `${excerpt.source === 'step' ? `Step ${step}` : 'End of the job log'} · ${excerpt.omitted > 0 ? 'last ' : ''}${excerpt.lines.length} lines`;
+}
+
+export function toggledKey<K>(current: ReadonlySet<K>, key: K): ReadonlySet<K> {
+  const next = new Set(current);
+  if (next.has(key)) next.delete(key);
+  else next.add(key);
+  return next;
+}
+
+export function pullStatusView<P>(input: {
+  readonly watch:
+    | {
+        readonly status: PullStatus | undefined;
+        readonly problem: P | undefined;
+        readonly pending: readonly string[];
+        readonly readAt: number;
+      }
+    | undefined;
+  readonly failed: boolean;
+  readonly waiting: boolean;
+  readonly requested: readonly RequestedRerun[];
+}) {
+  const status = input.watch?.status;
+  const requested =
+    status && input.waiting
+      ? rerunsStillPending(
+          status,
+          input.requested,
+          input.watch?.readAt ?? 0,
+        ).map((entry) => entry.key)
+      : [];
+  return {
+    status,
+    problem:
+      input.watch?.problem ?? (input.failed ? ('failed' as const) : undefined),
+    reading: input.waiting,
+    pendingReruns: new Set([...(input.watch?.pending ?? []), ...requested]),
+  };
 }

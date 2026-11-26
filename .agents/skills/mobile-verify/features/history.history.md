@@ -16,7 +16,7 @@ tests:
   - packages/client/src/features/projects/rules/workspace-selection.spec.ts
   - apps/mobile/src/features/history/rules/status.spec.ts
   - packages/client/src/features/history/rules/presentation.spec.ts
-  - apps/mobile/src/features/history/rules/commit-age.spec.ts
+  - packages/client/src/features/history/rules/relative-time.spec.ts
 api:
   - GET /api/inventory
   - GET /api/worktrees/:worktreeId/commits
@@ -29,7 +29,7 @@ History offers Fetch and Pull in its native top-bar Git actions menu; see [git-a
 
 ## How to get to it (user POV)
 
-- Worktrees tab → worktree → the History button in the [Worktree](projects.worktree.md) page's top bar, or `porcelain.dev://history` for the selected worktree.
+- The History tab ([worktree tabs](projects.worktree.md)), or `porcelain.dev://history` for the selected worktree.
 
 ## Driving it with agent-device
 
@@ -50,5 +50,6 @@ Automated coverage: `workspace-selection.spec.ts`, `status.spec.ts` (empty repos
 
 ## Gotchas
 
+- On a tablet with at least 700 units of content width the History section shows the commit list beside the chosen commit, opening the newest commit until you choose one; the commit's actions join the tab's top bar and a file in it still pushes its diff. Narrower content pushes the commit as on a phone.
 - Use [Worktrees recovery](projects.worktrees.md) for shared inventory/loading/unavailable states.
 - Emulator loopback proof does not cover iOS, physical-device LAN permissions or remote routing.

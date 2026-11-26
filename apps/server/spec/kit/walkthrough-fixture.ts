@@ -61,7 +61,7 @@ export function seedStoredWalkthroughs(
     for (const message of input.messages ?? [])
       database
         .prepare(
-          'INSERT INTO walkthrough_messages (id,run_id,worktree_id,stop_title,text,created_at,post_status,post_url,posted_at,answer_status,answer,writer) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
+          'INSERT INTO walkthrough_messages (id,run_id,worktree_id,stop_title,text,created_at,answer_status,answer,writer) VALUES (?,?,?,?,?,?,?,?,?)',
         )
         .run(
           message.id,
@@ -70,9 +70,6 @@ export function seedStoredWalkthroughs(
           message.stopTitle ?? null,
           message.text,
           message.createdAt,
-          message.post.status,
-          message.post.status === 'posted' ? message.post.url : null,
-          message.post.status === 'posted' ? message.post.postedAt : null,
           message.answer.status,
           JSON.stringify(message.answer),
           message.writer === undefined ? null : JSON.stringify(message.writer),
@@ -219,12 +216,7 @@ else if (endpoint) {
   );
   return {
     reply: (answer: string) => writeFile(answerPath, JSON.stringify(answer)),
-    comment: async (
-      runId: string,
-      title: string,
-      message: string,
-      post: 'saved' | 'posted',
-    ) => {
+    comment: async (runId: string, title: string, message: string) => {
       const root = `/api/worktrees/${session.worktreeId}/walkthrough/${runId}/conversations`;
       const live = await followWorktree(session);
       try {
@@ -264,16 +256,6 @@ else if (endpoint) {
               notice.worktreeId === session.worktreeId,
           );
         }
-        await read(
-          session,
-          post === 'saved'
-            ? {
-                method: 'PUT',
-                path: `${root}/messages/${developer.id}/saved`,
-                body: { saved: true },
-              }
-            : { method: 'POST', path: `${root}/messages/${developer.id}/post` },
-        );
       } finally {
         await live.close();
       }

@@ -15,7 +15,7 @@ const unpairedRoutes = new Set([
   'POST /api/pair',
 ]);
 
-const PAIRED_ROUTES = 84;
+const PAIRED_ROUTES = 80;
 
 const methods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as const;
 
@@ -96,12 +96,8 @@ test.for<{ credential: string; auth: NonNullable<HttpRequest['auth']> }>([
         'GET /api/worktrees/:worktreeId/walkthrough',
         'GET /api/worktrees/:worktreeId/walkthrough/:runId/assets/:assetId',
         'GET /api/worktrees/:worktreeId/walkthrough/:runId/conversations',
-        'GET /api/worktrees/:worktreeId/walkthrough/:runId/conversations/brief',
         'POST /api/worktrees/:worktreeId/walkthrough/:runId/conversations/messages',
         'POST /api/worktrees/:worktreeId/walkthrough/:runId/conversations/messages/:messageId/retry',
-        'PUT /api/worktrees/:worktreeId/walkthrough/:runId/conversations/messages/:messageId/saved',
-        'POST /api/worktrees/:worktreeId/walkthrough/:runId/conversations/messages/:messageId/post',
-        'POST /api/worktrees/:worktreeId/walkthrough/:runId/conversations/post-saved',
         'PUT /api/worktrees/:worktreeId/walkthrough/:runId/calls/:step/:call/decision',
         'GET /api/worktrees/:worktreeId/comments',
         'POST /api/worktrees/:worktreeId/comments',

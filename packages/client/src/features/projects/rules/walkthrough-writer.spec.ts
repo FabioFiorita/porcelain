@@ -2,6 +2,8 @@ import { expect, it } from 'vite-plus/test';
 import {
   canSaveWalkthroughWriter,
   chooseWalkthroughWriter,
+  isProjectDefaultWriter,
+  walkthroughEfforts,
   walkthroughWriterMenu,
   walkthroughWriterNotice,
   walkthroughWriterStatus,
@@ -184,4 +186,43 @@ it('keeps the effort when the chosen model supports it and follows the family wh
   expect(
     chooseWalkthroughWriter('codex:house-model', current, codexModels),
   ).toEqual({ provider: 'codex', model: 'house-model', effort: 'medium' });
+});
+
+it('calls the chosen writer the project default only when the saved family and effort match', () => {
+  const chosen = {
+    provider: 'codex',
+    model: 'gpt-6.2-sol',
+    effort: 'high',
+    latest: 'Sol',
+  } as const;
+  const saved = {
+    provider: 'codex',
+    model: 'gpt-6.1-sol',
+    effort: 'high',
+    latest: 'Sol',
+  } as const;
+  expect(isProjectDefaultWriter(saved, chosen, codexModels)).toBe(true);
+  expect(
+    isProjectDefaultWriter({ ...saved, effort: 'low' }, chosen, codexModels),
+  ).toBe(false);
+  expect(
+    isProjectDefaultWriter(
+      { provider: 'codex', model: 'gpt-6.1-sol', effort: 'high' },
+      chosen,
+      codexModels,
+    ),
+  ).toBe(false);
+  expect(isProjectDefaultWriter(undefined, chosen, codexModels)).toBe(false);
+});
+
+it('offers the efforts of the chosen exact model and none for an unknown one', () => {
+  expect(
+    walkthroughEfforts(
+      { provider: 'codex', model: 'gpt-6.1-sol' },
+      codexModels,
+    ),
+  ).toEqual(['low', 'medium', 'high', 'xhigh']);
+  expect(
+    walkthroughEfforts({ provider: 'codex', model: 'gone' }, codexModels),
+  ).toEqual([]);
 });

@@ -30,7 +30,7 @@ function FocusedReadingConnection({ remote }: { remote: Remote }) {
             size="sm"
             onPress={() => {
               pairAgain(remote.environmentId);
-              router.push('/pair-computer', { withAnchor: true });
+              router.navigate('/pair-computer', { withAnchor: true });
             }}
           />
         ) : undefined

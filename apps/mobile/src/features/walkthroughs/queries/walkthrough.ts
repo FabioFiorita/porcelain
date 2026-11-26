@@ -4,15 +4,16 @@ import { Base64 } from 'effect/encoding';
 import { Atom, AsyncResult } from 'effect/reactivity';
 import { readBranchChanges, readChanges } from '@porcelain/client/changes';
 import {
-  readingOf,
   readWalkthrough,
   readWalkthroughAsset,
 } from '@porcelain/client/walkthroughs';
 import {
+  reviewCodeSections,
+  uncoveredPaths,
   walkthroughPhase,
-  worktreeOpening,
+  type WalkthroughContent,
 } from '@porcelain/client/walkthroughs/rules';
-import type { Workspace, WorktreeGuide } from '../../projects/index';
+import type { Workspace } from '../../projects/index';
 
 type Selection = Pick<Workspace, 'connection' | 'scope'>;
 
@@ -49,18 +50,6 @@ export function useWalkthroughFiles(workspace: Selection) {
   const worktree =
     Option.getOrUndefined(AsyncResult.value(result))?.changes ?? [];
   return { branch, worktree };
-}
-
-export function useWorktreeGuide(workspace: Selection): WorktreeGuide {
-  const selection = walkthroughSelection(workspace);
-  const walkthrough = useAtomValue(readWalkthrough(selection));
-  const opening = worktreeOpening({
-    walkthrough: readingOf(walkthrough, (read) => read),
-  });
-  return {
-    walkthrough: opening.name === 'walkthrough',
-    pending: opening.pending,
-  };
 }
 
 const assetData = Atom.family(
@@ -104,10 +93,46 @@ export function useCapturedExcerpt(input: {
   runId: string;
   step: number;
   block: number;
+  node: string | undefined;
 }) {
   const atom = readWalkthrough({
     ...walkthroughSelection(input.workspace),
-    excerpt: { runId: input.runId, step: input.step, block: input.block },
+    excerpt: {
+      runId: input.runId,
+      step: input.step,
+      block: input.block,
+      ...(input.node === undefined ? {} : { node: input.node }),
+    },
   });
   return { result: useAtomValue(atom), retry: useAtomRefresh(atom) };
+}
+
+export function useWalkthroughScope(
+  workspace: Selection,
+  content: WalkthroughContent,
+) {
+  const branch = Option.getOrUndefined(
+    AsyncResult.value(
+      useAtomValue(readBranchChanges(walkthroughSelection(workspace))),
+    ),
+  )?.files;
+  const worktree =
+    Option.getOrUndefined(
+      AsyncResult.value(
+        useAtomValue(readChanges(walkthroughSelection(workspace))),
+      ),
+    )?.changes ?? [];
+  const sections = reviewCodeSections({
+    content,
+    branch: branch ?? [],
+    worktree,
+  });
+  const uncommitted = worktree.map((change) => change.path);
+  return {
+    uncommitted,
+    uncovered: uncoveredPaths(sections.outside, branch !== undefined),
+    files: branch
+      ? { committed: branch.map((file) => file.path), uncommitted }
+      : null,
+  };
 }

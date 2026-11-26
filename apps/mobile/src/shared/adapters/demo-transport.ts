@@ -37,6 +37,11 @@ import {
   type WalkthroughConversationsResponse,
 } from '@porcelain/contracts/walkthroughs';
 import {
+  addCommentRequestSchema,
+  type CommentsResponse,
+} from '@porcelain/contracts/comments';
+import { anchorLabel } from '@porcelain/client/comments/rules';
+import {
   demoRemote,
   demoProjectId,
   demoWorktreeId,
@@ -55,6 +60,11 @@ import {
   demoCommits,
   demoWalkthrough,
 } from './demo-data';
+import {
+  demoPullRequestNumber,
+  demoPullRequestUrl,
+  demoPullRequests,
+} from './demo-pull-request';
 
 function jsonResponse(value: unknown, init?: ResponseInit) {
   return new Response(JSON.stringify(value), {
@@ -119,7 +129,22 @@ export function createDemoTransport(): Transport {
     Map<string, { path: string; fingerprint: string; reviewedAt: string }>
   >();
   let conversations: WalkthroughConversationsResponse['conversations'] = [];
+  let decisions: WalkthroughConversationsResponse['decisions'] = [];
+  let comments: CommentsResponse['comments'] = [];
+  let commentCount = 0;
+  const commentsView = (): CommentsResponse => ({
+    branch: demoBranch,
+    headOid: demoHead,
+    comments,
+    markdown: [
+      `Comments on ${demoBranch} at ${demoHead.slice(0, 7)}:`,
+      ...comments
+        .filter((comment) => comment.publication.status === 'draft')
+        .map((comment) => `- ${anchorLabel(comment.anchor)}: ${comment.text}`),
+    ].join('\n'),
+  });
   let preferences: { path: string; pinned: boolean; hidden: boolean }[] = [];
+  const pullRequests = demoPullRequests();
   const worktree = `/api/worktrees/${demoWorktreeId}`;
   const original = (path: string) =>
     path === 'src/welcome.ts' ? demoOldText : (demoFiles[path] ?? '');
@@ -151,8 +176,10 @@ export function createDemoTransport(): Transport {
     )
       return jsonResponse({ message: 'Not a demo resource.' }, { status: 404 });
     const body: unknown = init?.body
-      ? await new Response(init.body).json()
+      ? JSON.parse(await requestText(init.body))
       : {};
+    const pullRequest = pullRequests(path, method, body);
+    if (pullRequest) return pullRequest;
     if (path === '/api/service/update' && method === 'GET')
       return json(readServiceUpdateResponseSchema, {
         managed: false,
@@ -193,14 +220,6 @@ export function createDemoTransport(): Transport {
       }
       return json(listFilePreferencesResponseSchema, { preferences });
     }
-    if (path.endsWith('/pull-requests'))
-      return jsonResponse({
-        kind: 'available',
-        account: 'demo',
-        pullRequests: [],
-        truncated: false,
-        recentlyClosedSince: demoTime,
-      });
     if (path === `${worktree}/summary`)
       return json(readWorktreeSummaryResponseSchema, {
         environmentId: demoRemote.environmentId,
@@ -476,7 +495,7 @@ export function createDemoTransport(): Transport {
       runId: demoWalkthrough.id,
       pullRequestNumber: undefined,
       conversations,
-      decisions: [],
+      decisions,
     });
     if (path === `${conversationPath}/messages` && method === 'POST') {
       const value = Schema.decodeUnknownSync(questionInput)(body);
@@ -488,7 +507,6 @@ export function createDemoTransport(): Transport {
             id,
             text: value.text,
             createdAt: demoTime,
-            post: { status: 'none' },
           },
           {
             author: 'agent',
@@ -520,43 +538,132 @@ export function createDemoTransport(): Transport {
     }
     if (path === conversationPath)
       return json(walkthroughConversationsResponseSchema, view());
-    if (path.startsWith(`${conversationPath}/`) && path.endsWith('/brief')) {
-      const messageId = url.searchParams.get('messageId');
-      return jsonResponse({
-        text:
-          conversations
-            .flatMap((entry) =>
-              entry.messages.flatMap((message) =>
-                message.author === 'developer' &&
-                (messageId === null
-                  ? message.post.status === 'saved'
-                  : message.id === messageId)
-                  ? [message.text]
-                  : [],
-              ),
-            )
-            .join('\n\n') || null,
-      });
-    }
-    if (
-      path.startsWith(`${conversationPath}/messages/`) &&
-      path.endsWith('/saved') &&
-      method === 'PUT'
-    ) {
-      const { saved } = Schema.decodeUnknownSync(
-        Schema.Struct({ saved: Schema.Boolean }),
+    const decisionPath = `${worktree}/walkthrough/${demoWalkthrough.id}/calls/`;
+    if (path.startsWith(decisionPath) && method === 'PUT') {
+      const [step, call] = path
+        .slice(decisionPath.length)
+        .split('/')
+        .map((part) => Number(part));
+      const choice = Schema.decodeUnknownSync(
+        Schema.Struct({
+          decided: Schema.Boolean,
+          option: Schema.optional(Schema.String),
+        }),
       )(body);
-      const id = path.split('/').at(-2);
-      conversations = conversations.map((entry) => ({
-        ...entry,
-        messages: entry.messages.map((message) =>
-          message.author === 'developer' && message.id === id
-            ? { ...message, post: { status: saved ? 'saved' : 'none' } }
-            : message,
-        ),
-      }));
+      decisions = decisions.filter(
+        (entry) => entry.step !== step || entry.call !== call,
+      );
+      if (choice.decided && step !== undefined && call !== undefined)
+        decisions = [
+          ...decisions,
+          {
+            step,
+            call,
+            option: choice.option,
+            decidedBy: {
+              kind: 'device',
+              deviceId: demoRemote.environmentId,
+            },
+            decidedAt: demoTime,
+          },
+        ];
       return json(walkthroughConversationsResponseSchema, view());
     }
+    const commentsPath = `${worktree}/comments`;
+    const drafts = () =>
+      comments.filter((comment) => comment.publication.status === 'draft');
+    if (path === `${commentsPath}/review` && method === 'GET')
+      return jsonResponse(
+        drafts().length === 0
+          ? { kind: 'unavailable', reason: 'no-comments' }
+          : {
+              kind: 'available',
+              pullRequest: {
+                number: demoPullRequestNumber,
+                url: demoPullRequestUrl,
+                title: 'A warmer welcome for every visitor',
+              },
+              headOid: demoHead,
+              inline: drafts().flatMap((comment) =>
+                comment.anchor.kind === 'lines'
+                  ? [
+                      {
+                        id: comment.id,
+                        path: comment.anchor.path,
+                        side: comment.anchor.side,
+                        ...(comment.anchor.start === comment.anchor.end
+                          ? {}
+                          : { startLine: comment.anchor.start }),
+                        line: comment.anchor.end,
+                        body: comment.text,
+                      },
+                    ]
+                  : [],
+              ),
+              general: drafts().flatMap((comment) =>
+                comment.anchor.kind === 'lines'
+                  ? []
+                  : [
+                      {
+                        id: comment.id,
+                        location: anchorLabel(comment.anchor),
+                        reason: comment.anchor.kind,
+                        body: comment.text,
+                      },
+                    ],
+              ),
+            },
+      );
+    if (path === `${commentsPath}/review` && method === 'POST') {
+      const review = `${demoPullRequestUrl}#pullrequestreview-${commentCount + 2}`;
+      comments = comments.map((comment) =>
+        comment.publication.status === 'draft'
+          ? {
+              ...comment,
+              publication: {
+                status: 'published',
+                url: review,
+                publishedAt: demoTime,
+              },
+            }
+          : comment,
+      );
+      return jsonResponse({ url: review, view: commentsView() });
+    }
+    if (path === commentsPath && method === 'POST') {
+      const value = Schema.decodeUnknownSync(addCommentRequestSchema)(body);
+      commentCount += 1;
+      comments = [
+        ...comments,
+        {
+          id: `demo-comment-${commentCount}`,
+          anchor: value.anchor,
+          text: value.text,
+          headOid: demoHead,
+          createdAt: demoTime,
+          updatedAt: demoTime,
+          publication: { status: 'draft' },
+          outdated: false,
+        },
+      ];
+      return jsonResponse(commentsView());
+    }
+    if (path.startsWith(`${commentsPath}/`) && method === 'PATCH') {
+      const { text } = Schema.decodeUnknownSync(
+        Schema.Struct({ text: Schema.String }),
+      )(body);
+      const id = path.slice(commentsPath.length + 1);
+      comments = comments.map((comment) =>
+        comment.id === id ? { ...comment, text } : comment,
+      );
+      return jsonResponse(commentsView());
+    }
+    if (path.startsWith(`${commentsPath}/`) && method === 'DELETE') {
+      const id = path.slice(commentsPath.length + 1);
+      comments = comments.filter((comment) => comment.id !== id);
+      return jsonResponse(commentsView());
+    }
+    if (path === commentsPath) return jsonResponse(commentsView());
     if (
       path === '/api/health' ||
       path === '/api/environment' ||
@@ -571,4 +678,11 @@ export function createDemoTransport(): Transport {
       { status: method === 'GET' ? 404 : 422 },
     );
   };
+}
+
+async function requestText(body: BodyInit): Promise<string> {
+  if (typeof body === 'string') return body;
+  if (body instanceof ArrayBuffer) return new TextDecoder().decode(body);
+  if (ArrayBuffer.isView(body)) return new TextDecoder().decode(body);
+  return new Response(body).text();
 }

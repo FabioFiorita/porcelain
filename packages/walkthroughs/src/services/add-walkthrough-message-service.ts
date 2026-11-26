@@ -48,7 +48,6 @@ export class AddWalkthroughMessageService extends Context.Service<
               createdAt: yield* DateTime.now.pipe(
                 Effect.map(DateTime.formatIso),
               ),
-              post: { status: 'none' },
               answer: { status: 'answering' },
             });
             return id;

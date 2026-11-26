@@ -3,13 +3,10 @@ import { Option } from 'effect';
 import { Atom, AsyncResult } from 'effect/reactivity';
 import {
   readProjectCheckLog,
-  requestedReruns,
   watchProjectPullStatus,
+  watchPullStatusView,
 } from '@porcelain/client/projects';
-import {
-  checkCitations,
-  rerunsStillPending,
-} from '@porcelain/client/projects/rules';
+import { checkCitations } from '@porcelain/client/projects/rules';
 import { readWalkthrough } from '@porcelain/client/walkthroughs';
 import { walkthroughPhase } from '@porcelain/client/walkthroughs/rules';
 import { readReviewedFiles } from '@porcelain/client/changes';
@@ -26,38 +23,10 @@ export function usePullRequestStatus(
   projectId: string,
   number: number,
 ) {
-  const atom = watchProjectPullStatus({
-    connection,
-    projectId,
-    number,
-    activity: pageActivity,
-  });
-  const result = useAtomValue(atom);
-  const refresh = useAtomRefresh(atom);
-  const watch = Option.getOrUndefined(AsyncResult.value(result));
-  const requested = useAtomValue(
-    requestedReruns({
-      environmentId: connection.environmentId,
-      projectId,
-      number,
-    }),
-  );
-  const status = watch?.status;
-  const pending = [
-    ...(watch?.pending ?? []),
-    ...(status && result.waiting
-      ? rerunsStillPending(status, requested, Date.now()).map(
-          (entry) => entry.key,
-        )
-      : []),
-  ];
+  const input = { connection, projectId, number, activity: pageActivity };
   return {
-    status: watch?.status,
-    problem:
-      watch?.problem ?? (AsyncResult.isFailure(result) ? 'failed' : undefined),
-    reading: result.waiting,
-    refresh,
-    pendingReruns: new Set(pending),
+    ...useAtomValue(watchPullStatusView(input)),
+    refresh: useAtomRefresh(watchProjectPullStatus(input)),
   };
 }
 

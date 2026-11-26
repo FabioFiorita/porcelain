@@ -1,9 +1,15 @@
 import { useAtomSet, useAtomValue } from '@effect/atom-react';
 import type { ReviewComparison } from '../../shared/rules/review-comparison';
 import { Atom } from 'effect/reactivity';
+import type { ReviewRange } from '../../components/ui/code-range';
+import type { lineCommentAnchor } from './rules/line-comments';
 
 export const phoneReviewComparison = Atom.family((_workspace: string) =>
   Atom.make<ReviewComparison>({ kind: 'worktree' }).pipe(Atom.keepAlive),
+);
+
+export const changesBesideFile = Atom.family((_workspace: string) =>
+  Atom.make<string | undefined>(undefined).pipe(Atom.keepAlive),
 );
 
 export const reviewListOffset = Atom.family((_owner: string) =>
@@ -20,6 +26,16 @@ export const diffPageCurrent = Atom.family((_page: string) =>
 
 export const diffPageOpening = Atom.family((page: string) =>
   Atom.make((get) => get.once(diffPageCurrent(page))).pipe(Atom.setIdleTTL(0)),
+);
+
+export type LineSelection = {
+  readonly section: string;
+  readonly range: ReviewRange;
+  readonly comment: ReturnType<typeof lineCommentAnchor>;
+};
+
+export const lineSelection = Atom.family((_page: string) =>
+  Atom.make<LineSelection | undefined>(undefined),
 );
 
 export const diffPageStuck = Atom.family((_page: string) =>

@@ -23,7 +23,7 @@ Computer updates live in Settings → Computers: Check for updates rereads offer
 
 ## How to get to it (user POV)
 
-- Settings gear (Reviews or Worktrees header) → Computers.
+- Worktree drawer → Settings → Computers.
 
 ## Driving it with agent-device
 

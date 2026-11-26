@@ -4,7 +4,6 @@ import check from '@expo/material-symbols/check.xml';
 import add from '@expo/material-symbols/add.xml';
 import merge from '@expo/material-symbols/merge.xml';
 import refresh from '@expo/material-symbols/refresh.xml';
-import settings from '@expo/material-symbols/settings.xml';
 import taskAlt from '@expo/material-symbols/task_alt.xml';
 import undo from '@expo/material-symbols/undo.xml';
 import history from '@expo/material-symbols/history.xml';
@@ -26,12 +25,12 @@ import chevronRight from '@expo/material-symbols/chevron_right.xml';
 import checklist from '@expo/material-symbols/checklist.xml';
 import difference from '@expo/material-symbols/difference.xml';
 import fileCopy from '@expo/material-symbols/file_copy.xml';
+import openInNew from '@expo/material-symbols/open_in_new.xml';
 import type { ImageSourcePropType } from 'react-native';
 import { type HeaderIconName } from './icon';
 
 const symbols = {
   add,
-  settings,
   refresh,
   done: check,
   close,
@@ -60,6 +59,7 @@ const symbols = {
   hideList: leftPanelClose,
   previous: chevronLeft,
   next: chevronRight,
+  openExternal: openInNew,
 } satisfies Record<HeaderIconName, ImageSourcePropType>;
 
 export function headerIcon(name: HeaderIconName) {

@@ -4,6 +4,7 @@ import {
   firstDocument,
   walkthroughCodeScopes,
   reviewCodeSections,
+  uncoveredPaths,
   reviewCodeCount,
   reviewCodeIn,
   eagerSections,
@@ -33,7 +34,9 @@ import {
   callChoices,
   callDeciding,
   callsNeedingCommit,
+  briefingCalls,
   callState,
+  callStateLabel,
   decidedAgainstChange,
   decisionPlace,
   stepCallState,
@@ -824,6 +827,12 @@ describe('review code sections', () => {
     });
   });
 
+  it('names each uncovered file once, and committed ones only after the branch is read', () => {
+    const outside = { branch: ['a.ts', 'b.ts'], worktree: ['b.ts', 'c.ts'] };
+    expect(uncoveredPaths(outside, true)).toEqual(['a.ts', 'b.ts', 'c.ts']);
+    expect(uncoveredPaths(outside, false)).toEqual(['b.ts', 'c.ts']);
+  });
+
   it('keeps a committed file and its staged rename in the step that cites the new name', () => {
     const renamed = content({
       stops: [stop({ files: [{ path: 'new-name.ts', note: 'Renamed.' }] })],
@@ -1296,9 +1305,9 @@ describe('call choices', () => {
     expect(callState(undefined, { option: undefined })).toBe('decided');
   });
 
-  it('gives a step the state of its least settled call', () => {
+  const implementedCalls = (second: ReturnType<typeof stop>) => {
     const implemented = { ...comparison, implemented: 'Show all notes' };
-    const calls = content({
+    return content({
       stops: [
         stop({
           callouts: [
@@ -1306,9 +1315,13 @@ describe('call choices', () => {
             { attention, comparison: implemented },
           ],
         }),
-        stop({}),
+        second,
       ],
     });
+  };
+
+  it('gives a step the state of its least settled call', () => {
+    const calls = implementedCalls(stop({}));
     expect(stepCallState(calls, 1, undefined)).toBe('open');
     expect(
       stepCallState(calls, 1, [{ step: 1, call: 0, option: 'Show no notes' }]),
@@ -1326,6 +1339,54 @@ describe('call choices', () => {
       ]),
     ).toBe('decided');
     expect(stepCallState(calls, 2, [])).toBeUndefined();
+  });
+
+  it('lists each call in the briefing with its decision, state and spoken label', () => {
+    const calls = implementedCalls(
+      stop({
+        callouts: [
+          {
+            attention,
+            comparison: { ...comparison, implemented: 'Show all notes' },
+          },
+        ],
+      }),
+    );
+    const rows = briefingCalls(calls, [
+      { step: 1, call: 1, option: 'Show no notes' },
+      { step: 2, call: 0, option: 'Show all notes' },
+    ]);
+    expect(
+      rows.map(({ step, callIndex, decided, state }) => ({
+        step,
+        callIndex,
+        option: decided?.option,
+        state,
+        label: callStateLabel(state, 'Your call'),
+      })),
+    ).toEqual([
+      {
+        step: 1,
+        callIndex: 0,
+        option: undefined,
+        state: 'open',
+        label: 'Your call',
+      },
+      {
+        step: 1,
+        callIndex: 1,
+        option: 'Show no notes',
+        state: 'needs-commit',
+        label: 'Decided, needs a new commit',
+      },
+      {
+        step: 2,
+        callIndex: 0,
+        option: 'Show all notes',
+        state: 'decided',
+        label: 'Decided',
+      },
+    ]);
   });
 });
 

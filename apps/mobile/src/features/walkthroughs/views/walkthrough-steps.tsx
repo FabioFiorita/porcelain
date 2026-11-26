@@ -3,7 +3,10 @@ import { useRouter } from 'expo-router';
 import {
   groupFilesByStep,
   plainText,
+  stepCallState,
+  type CallState,
   type WalkthroughContent,
+  type WalkthroughRun,
 } from '@porcelain/client/walkthroughs/rules';
 import { Box } from '../../../components/ui/box';
 import { Icon } from '../../../components/ui/icon';
@@ -13,6 +16,7 @@ import { Text } from '../../../components/ui/text';
 import { documentHeading } from '../../../shared/rules/document-heading';
 import type { Workspace } from '../../projects/index';
 import { reviewParams } from '../../workspace/index';
+import { useConversations } from '../queries/conversations';
 import { useWalkthroughFiles } from '../queries/walkthrough';
 import { useChangedFileOpening } from './changed-file-opening';
 
@@ -28,14 +32,29 @@ function GroupLabel({ children }: { children: string }) {
   );
 }
 
+const CALL_MARKS: Record<
+  CallState,
+  { label: string; tone: 'foreground' | 'warning' | 'muted' }
+> = {
+  open: { label: 'Your call', tone: 'foreground' },
+  'needs-commit': {
+    label: 'Your call, needs a new commit',
+    tone: 'warning',
+  },
+  decided: { label: 'Your call, decided', tone: 'muted' },
+};
+
 export function WalkthroughSteps({
   workspace,
+  run,
   content,
 }: {
   workspace: Workspace;
+  run: Pick<WalkthroughRun, 'id' | 'branch'>;
   content: WalkthroughContent;
 }) {
   const router = useRouter();
+  const { view } = useConversations({ workspace, run });
   const { branch, worktree } = useWalkthroughFiles(workspace);
   const opening = useChangedFileOpening(workspace);
   const files = [
@@ -72,36 +91,40 @@ export function WalkthroughSteps({
         }
       />
       {steps.length > 0 ? <GroupLabel>By step</GroupLabel> : null}
-      {steps.map(({ stop, step, files: owned }) => (
-        <Item
-          key={step}
-          size="compact"
-          title={plainText(stop.title)}
-          titleNumberOfLines={2}
-          accessibilityLabel={`Step ${step}: ${plainText(stop.title)}${stop.callouts.length > 0 ? ', your call' : ''}, ${owned.length === 1 ? '1 file' : `${owned.length} files`}`}
-          leading={
-            <Text variant="mono" tone="muted" className="w-4">
-              {step}
-            </Text>
-          }
-          trailing={
-            <Box className="flex-row items-center" gap={2}>
-              {stop.callouts.length > 0 ? (
-                <StatusDot label="Your call" tone="foreground" />
-              ) : null}
-              <Text variant="caption" tone="muted">
-                {owned.length}
+      {steps.map(({ stop, step, files: owned }) => {
+        const call = stepCallState(content, step, view?.decisions);
+        const mark = call ? CALL_MARKS[call] : undefined;
+        return (
+          <Item
+            key={step}
+            size="compact"
+            title={plainText(stop.title)}
+            titleNumberOfLines={2}
+            accessibilityLabel={`Step ${step}: ${plainText(stop.title)}${mark ? `, ${mark.label.toLowerCase()}` : ''}, ${owned.length === 1 ? '1 file' : `${owned.length} files`}`}
+            leading={
+              <Text variant="mono" tone="muted" className="w-4">
+                {step}
               </Text>
-            </Box>
-          }
-          onPress={() =>
-            router.push({
-              pathname: '/walkthrough-step',
-              params: { workspace: workspace.key, step: String(step) },
-            })
-          }
-        />
-      ))}
+            }
+            trailing={
+              <Box className="flex-row items-center" gap={2}>
+                {mark ? (
+                  <StatusDot label={mark.label} tone={mark.tone} />
+                ) : null}
+                <Text variant="caption" tone="muted">
+                  {owned.length}
+                </Text>
+              </Box>
+            }
+            onPress={() =>
+              router.push({
+                pathname: '/walkthrough-step',
+                params: { workspace: workspace.key, step: String(step) },
+              })
+            }
+          />
+        );
+      })}
       {grouped.outside.length > 0 ? (
         <>
           <GroupLabel>Not in the walkthrough yet</GroupLabel>

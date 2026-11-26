@@ -1,19 +1,14 @@
 export { WorkspaceGate } from './views/workspace-gate';
 export { useSelectedWorkspaceKey } from './views/workspace';
 export type { Workspace } from './commands/workspace-connection';
-export {
-  useComputerConnection,
-  useWorktreeNavigator,
-  worktreeSection,
-  worktreeListHidden,
-} from './store';
+export { useComputerConnection } from './store';
 export { WorktreesScreen, useSelectedWorktree } from './views/worktrees-screen';
-export { WorktreeScreen, WorktreeDetail } from './views/worktree-screen';
-export type { WorktreeSectionContent } from './views/worktree-screen';
-export { useWorktreeBarItems } from './views/worktree-switcher';
-export type { WorktreeSwitcher } from './views/worktree-switcher';
-export type { WorktreeGuide, WorktreeSection } from './rules/worktree-section';
+export { WorktreeTitleButton } from './views/worktree-title';
+export { useWorktreeDrawer } from './views/worktree-drawer';
+export { useOpenPullRequest } from './views/open-pull-request';
 export { PullRequestArchive } from './views/archive-pull-request';
+export { useInventory } from './queries/inventory';
+export { workspaceKey } from './rules/workspace-key';
 export {
   WorktreeActionsSheet,
   worktreeActionKind,

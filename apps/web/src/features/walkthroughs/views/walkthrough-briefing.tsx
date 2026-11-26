@@ -3,17 +3,21 @@ import { CheckIcon, CircleAlertIcon } from 'lucide-react';
 import {
   attentionLabel,
   callDecisionProgress,
-  callState,
+  briefingCalls,
+  callStateLabel,
   NEEDS_A_COMMIT,
   screenshotClaim,
-  walkthroughCalls,
   walkthroughEvidenceNotice,
   walkthroughScope,
   type WalkthroughContent,
   type WalkthroughRun,
 } from '@porcelain/client/walkthroughs/rules';
 import {
+  capturedCheckNames,
+  capturedCheckRest,
   checksHeadline,
+  movedPullHead,
+  pullRequestRollup,
   recordedChecks,
   walkthroughCheckRows,
 } from '@porcelain/client/projects/rules';
@@ -119,18 +123,14 @@ function Calls({
   decisions: readonly Decided[] | undefined;
   onJump: Jump;
 }) {
-  const calls = walkthroughCalls(content);
+  const calls = briefingCalls(content, decisions);
   if (calls.length === 0)
     return (
       <p className="py-1 text-ui text-muted-foreground">
         Nothing needs your decision.
       </p>
     );
-  return calls.map(({ attention, comparison, stop, step, callIndex }) => {
-    const decided = decisions?.find(
-      (entry) => entry.step === step && entry.call === callIndex,
-    );
-    const state = callState(comparison, decided);
+  return calls.map(({ attention, stop, step, callIndex, decided, state }) => {
     return (
       <Line
         key={`${step}:${callIndex}`}
@@ -147,14 +147,14 @@ function Calls({
             {state === 'decided' && (
               <CheckIcon
                 role="img"
-                aria-label="Decided"
+                aria-label={callStateLabel(state, '')}
                 className="size-3 shrink-0 self-center text-add-fg"
               />
             )}
             {state === 'needs-commit' && (
               <CircleAlertIcon
                 role="img"
-                aria-label="Decided, needs a new commit"
+                aria-label={callStateLabel(state, '')}
                 className="size-3 shrink-0 self-center"
               />
             )}
@@ -255,20 +255,17 @@ function CheckLine({
   onJump: Jump;
 }) {
   const recorded = recordedChecks(block.checks);
+  const captured = capturedCheckNames(
+    recorded,
+    pullRequestRollup(block.checks.state).tone,
+  );
+  const rest = capturedCheckRest(captured);
   const headline = checksHeadline(block.checks, pull?.status);
-  const moved =
-    pull?.detail && pull.detail.headSha !== block.checks.headOid
-      ? pull.detail.headSha.slice(0, 7)
-      : undefined;
+  const moved = movedPullHead(pull?.detail?.headSha, block.checks.headOid);
   const names = (
     <>
-      <CheckNames
-        names={recorded.results.map((result) => result.name)}
-        pull={pull}
-      />
-      {recorded.more && (
-        <span className="text-muted-foreground"> and more</span>
-      )}
+      <CheckNames names={captured.names} pull={pull} />
+      {rest && <span className="text-muted-foreground">{rest}</span>}
     </>
   );
   return (
@@ -288,14 +285,14 @@ function CheckLine({
             </span>
             <span className="text-caption text-muted-foreground">
               <ShortOid label={headline.note} />
-              {recorded.results.length > 0 && ': '}
+              {captured.names.length > 0 && ': '}
               {names}
             </span>
           </>
         ) : (
           <span>
             <ShortOid label={recorded.label} />
-            {recorded.results.length > 0 && (
+            {captured.names.length > 0 && (
               <span className="text-muted-foreground">: </span>
             )}
             {names}

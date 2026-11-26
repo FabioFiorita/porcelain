@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vite-plus/test';
 import type { WalkthroughRun } from '../models/walkthrough.ts';
 import type { StoredWalkthroughMessage } from '../models/conversation.ts';
-import { composeBrief, conversationsView, planPost } from './conversations.ts';
+import { conversationsView } from './conversations.ts';
 
 const run = (
   id: string,
@@ -64,7 +64,6 @@ const message = (
   stopTitle,
   text: `Why ${id}?`,
   createdAt: '2026-11-09T00:00:00.000Z',
-  post: { status: 'none' },
   answer: { status: 'answering' },
   ...overrides,
 });
@@ -109,159 +108,5 @@ describe('conversationsView', () => {
       conversationsView([run('old', [], 3), run('new', [], 9)], [])
         .pullRequestNumber,
     ).toBe(9);
-  });
-});
-
-describe('composeBrief', () => {
-  it('names the step and its files and carries the answer for one message', () => {
-    expect(
-      composeBrief([
-        {
-          text: 'Keep the retry?\nIt repeats.',
-          stopTitle: 'Retries stay local',
-          paths: ['src/a.ts', 'src/b.ts'],
-          answer: 'It is a decision. Remove the retry from src/a.ts.',
-        },
-      ]),
-    ).toBe(
-      'From the walkthrough of this change:\n\n' +
-        '> Keep the retry?\n> It repeats.\n\n' +
-        '**Step:** Retries stay local (`src/a.ts`, `src/b.ts`)\n' +
-        "**Agent's answer:** It is a decision. Remove the retry from src/a.ts.\n",
-    );
-  });
-
-  it('leaves out an answer that does not exist', () => {
-    const brief = composeBrief([
-      {
-        text: 'Why?',
-        stopTitle: undefined,
-        paths: [],
-        answer: undefined,
-      },
-    ]);
-    expect(brief).toBe('From the walkthrough of this change:\n\n> Why?\n');
-    expect(brief).not.toContain("Agent's answer");
-  });
-
-  it('writes one line per item when several go together', () => {
-    expect(
-      composeBrief([
-        {
-          text: 'First\nquestion',
-          stopTitle: 'Step',
-          paths: ['src/a.ts'],
-          answer: undefined,
-        },
-        {
-          text: 'Second',
-          stopTitle: undefined,
-          paths: [],
-          answer: 'Long\nanswer.',
-        },
-      ]),
-    ).toBe(
-      'From the walkthrough of this change:\n\n' +
-        '- **Step (`src/a.ts`):** First question\n' +
-        "- **Whole walkthrough:** Second Agent's answer: Long answer.\n",
-    );
-  });
-});
-
-describe('planPost', () => {
-  const runs = [
-    {
-      ...run('run', ['Step'], 7),
-      pullRequestRepository: { owner: 'o', repo: 'r' },
-    },
-  ];
-  const posted = message('m', 'run', 'Step', {
-    post: {
-      status: 'posted',
-      url: 'https://github.com/o/r/pull/7#issuecomment-1',
-      postedAt: '2026-11-09T00:00:00.000Z',
-    },
-  });
-
-  it('never rewrites a posted message', () => {
-    expect(
-      planPost({
-        selection: { kind: 'message', messageId: 'm' },
-        readyRuns: runs,
-        target: runs[0]!,
-        messages: [posted],
-      }),
-    ).toEqual({
-      kind: 'already-posted',
-      url: 'https://github.com/o/r/pull/7#issuecomment-1',
-    });
-  });
-
-  it('collects only saved messages into one write with the step files', () => {
-    const plan = planPost({
-      selection: { kind: 'saved' },
-      readyRuns: runs,
-      target: runs[0]!,
-      messages: [
-        message('a', 'run', 'Step', { post: { status: 'saved' } }),
-        message('b', 'run', undefined),
-        message('c', 'run', undefined, { post: { status: 'saved' } }),
-        posted,
-      ],
-    });
-    expect(plan.kind).toBe('write');
-    if (plan.kind !== 'write') return;
-    expect(plan.messageIds).toEqual(['a', 'c']);
-    expect(plan.pullRequestNumber).toBe(7);
-    expect(plan.text).toContain('**Step (`src/a.ts`, `src/b.ts`):** Why a?');
-  });
-
-  it('does nothing when nothing is saved', () => {
-    expect(
-      planPost({
-        selection: { kind: 'saved' },
-        readyRuns: runs,
-        target: runs[0]!,
-        messages: [message('b', 'run', undefined)],
-      }),
-    ).toEqual({ kind: 'nothing' });
-  });
-
-  it('has no pull request to post to on a walkthrough without one', () => {
-    const plan = planPost({
-      selection: { kind: 'message', messageId: 'm' },
-      readyRuns: [run('run', ['Step'])],
-      target: run('run', ['Step']),
-      messages: [message('m', 'run', 'Step')],
-    });
-    expect(plan.kind === 'write' && plan.pullRequestNumber).toBe(undefined);
-  });
-});
-
-describe('planPost across repositories', () => {
-  const pinned = (id: string, repo: string) => ({
-    ...run(id, ['Step'], 7),
-    pullRequestRepository: { owner: 'o', repo },
-  });
-  it('comments only messages whose own run was on the destination repository and keeps all of them in the brief', () => {
-    const plan = planPost({
-      selection: { kind: 'saved' },
-      readyRuns: [pinned('private', 'private'), pinned('fork', 'Fork')],
-      target: pinned('fork', 'Fork'),
-      messages: [
-        message('old', 'private', 'Step', { post: { status: 'saved' } }),
-        message('new', 'fork', 'Step', { post: { status: 'saved' } }),
-      ],
-    });
-    expect(plan).toMatchObject({
-      kind: 'write',
-      repository: { owner: 'o', repo: 'Fork' },
-      messageIds: ['new'],
-      notPosted: ['old'],
-    });
-    if (plan.kind !== 'write') return;
-    expect(plan.comment).toContain('Why new?');
-    expect(plan.comment).not.toContain('Why old?');
-    expect(plan.text).toContain('Why old?');
   });
 });

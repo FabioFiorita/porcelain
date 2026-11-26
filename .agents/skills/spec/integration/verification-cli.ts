@@ -11,7 +11,7 @@ import {
 } from 'node:fs/promises';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { afterAll, expect, type TestContext } from 'vite-plus/test';
+import { afterAll, expect } from 'vite-plus/test';
 import { registryHome } from '../../verify-core/registry.ts';
 import { list, record, text } from '@porcelain/server/kit/session';
 
@@ -33,7 +33,7 @@ const copiedAway = new Set([
 ]);
 
 export type Run = { code: number; stdout: string; stderr: string };
-type Finished = TestContext['onTestFinished'];
+type Finished = (cleanup: () => Promise<void> | void) => void;
 
 export function cli(
   root: string,

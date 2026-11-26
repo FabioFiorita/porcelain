@@ -75,7 +75,7 @@ try {
   assert.ok(!bundle.includes('Wrapping and selection'));
   assert.ok(!bundle.includes('Use development server'));
   assert.ok(bundle.includes('Pair a computer'));
-  assert.ok(bundle.includes('Reviews & Git'));
+  assert.ok(bundle.includes('Changes & Git'));
 } finally {
   await rm(directory, { recursive: true, force: true });
 }

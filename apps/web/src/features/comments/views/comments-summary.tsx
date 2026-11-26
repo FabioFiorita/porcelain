@@ -1,35 +1,20 @@
 import { useState, type ReactNode } from 'react';
-import { anchorPath, openComments } from '@porcelain/client/comments/rules';
+import {
+  commentSpread,
+  draftCountLabel,
+  openComments,
+  postedComments,
+} from '@porcelain/client/comments/rules';
 import { useComments, type CommentOwner } from '../queries/comments';
 import { CommentsDialog } from './comments-dialog';
-
-function spread(comments: ReturnType<typeof openComments>) {
-  const files = new Set(
-    comments.flatMap((comment) => {
-      const path = anchorPath(comment.anchor);
-      return path === undefined ? [] : [path];
-    }),
-  ).size;
-  const elsewhere = comments.filter(
-    (comment) => anchorPath(comment.anchor) === undefined,
-  ).length;
-  return [
-    files > 0 ? `on ${files} ${files === 1 ? 'file' : 'files'}` : '',
-    elsewhere > 0 ? `${elsewhere} on the Walkthrough` : '',
-  ]
-    .filter(Boolean)
-    .join(', ');
-}
 
 export function CommentsSummary({ owner }: { owner: CommentOwner }) {
   const { view } = useComments(owner);
   const [open, setOpen] = useState(false);
   const comments = openComments(view);
   const count = comments.length;
-  const posted = (view?.comments ?? []).filter(
-    (comment) => comment.publication.status === 'published',
-  ).length;
-  const label = count === 1 ? '1 draft comment' : `${count} draft comments`;
+  const posted = postedComments(view).length;
+  const label = draftCountLabel(count);
   const row = (text: ReactNode, action: string) => (
     <button
       type="button"
@@ -48,7 +33,10 @@ export function CommentsSummary({ owner }: { owner: CommentOwner }) {
         row(
           <>
             {label}
-            <span className="text-muted-foreground"> · {spread(comments)}</span>
+            <span className="text-muted-foreground">
+              {' '}
+              · {commentSpread(comments)}
+            </span>
           </>,
           'Publish review',
         )}

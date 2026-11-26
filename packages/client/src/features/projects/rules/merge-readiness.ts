@@ -5,10 +5,11 @@ import {
 } from './pull-request-checks.ts';
 import {
   pullRequestMergeBlock,
+  type PullChecksTone,
   type PullRequestMergeReview,
 } from './pull-request.ts';
 
-export type MergeReadinessTone =
+type MergeReadinessTone =
   | 'ready'
   | 'failed'
   | 'waiting'
@@ -224,4 +225,82 @@ export function mergeReadiness({
     reasons,
     waitsFor,
   };
+}
+
+const STANDING_ICONS: Record<MergeReadinessTone, PullChecksTone> = {
+  ready: 'passed',
+  failed: 'failed',
+  waiting: 'none',
+  unknown: 'running',
+  merged: 'passed',
+  closed: 'none',
+};
+
+type StandingPull = {
+  readonly status: PullStatus | undefined;
+  readonly statusUnread: boolean;
+  readonly detail:
+    | {
+        readonly state: string;
+        readonly draft: boolean;
+        readonly baseBranch: string;
+        readonly mergeMethods?: readonly string[] | undefined;
+      }
+    | undefined;
+};
+
+function pullStateWord(pull: StandingPull) {
+  const detail = pull.status ?? pull.detail;
+  if (!detail) return undefined;
+  if (detail.state === 'open') return detail.draft ? 'Draft' : 'Open';
+  return detail.state === 'merged' ? 'Merged' : 'Closed';
+}
+
+export function walkthroughStanding({
+  pull,
+  review,
+}: {
+  pull: StandingPull | undefined;
+  review: PullRequestMergeReview | undefined;
+}):
+  | {
+      readonly label: string | undefined;
+      readonly icon: PullChecksTone;
+      readonly quiet: boolean;
+      readonly pullState: string | undefined;
+    }
+  | undefined {
+  const open =
+    review && typeof review.undecidedCallStep === 'number'
+      ? Math.max(review.undecidedCalls ?? 1, 1)
+      : 0;
+  const readiness =
+    pull && !pull.statusUnread
+      ? mergeReadiness({
+          status: pull.status,
+          baseBranch: pull.detail?.baseBranch ?? 'the base branch',
+          mergeMethods: pull.detail?.mergeMethods,
+          review,
+        })
+      : undefined;
+  const label =
+    readiness?.label ??
+    (open > 0 ? `${plural(open, 'call', 'calls')} open` : undefined);
+  if (!label && !pull) return undefined;
+  return {
+    label,
+    icon: readiness ? STANDING_ICONS[readiness.tone] : 'none',
+    quiet: readiness?.tone === 'unknown',
+    pullState:
+      pull && readiness?.tone !== 'merged' && readiness?.tone !== 'closed'
+        ? pullStateWord(pull)
+        : undefined,
+  };
+}
+
+export function mergeButtonReason(
+  block: string | undefined,
+  waitsFor: string | undefined,
+) {
+  return waitsFor ?? block;
 }

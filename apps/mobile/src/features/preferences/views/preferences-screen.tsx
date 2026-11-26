@@ -32,7 +32,7 @@ export function PreferencesScreen() {
               value={preferences.lineOverflow === 'wrap'}
               options={[
                 { value: false, label: 'Scroll', id: 'lines-scroll' },
-                { value: true, label: 'Wrap long lines', id: 'lines-wrap' },
+                { value: true, label: 'Wrap', id: 'lines-wrap' },
               ]}
               disabled={disabled}
               onChange={(wrapLongLines) =>
@@ -45,7 +45,7 @@ export function PreferencesScreen() {
           <Box>
             <GroupHeader variant="section" label="Documents" />
             <PreferenceChoice<Preferences['documentsDefault']>
-              label="Documents open as"
+              label="Open as"
               description="Markdown and HTML. You can switch per file; HTML previews run in a sandbox with no access to Porcelain."
               value={preferences.documentsDefault}
               options={[

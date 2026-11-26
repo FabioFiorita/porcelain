@@ -12,7 +12,7 @@ Read [mobile verification](../SKILL.md) for lifecycle and device setup, then cho
 
 - Preserve the card's complete agent-device invocation, including config, session, platform and device flags, on every command. Open `mobile.bundleIdentifier` with `--foreground`; iOS then needs `prepare ios-runner`. Refresh `snapshot -i` before pressing refs; use a full snapshot without `-i` for static text and counters. Use screenshots to confirm native tabs whose selected trait is absent.
 - For deep links and cold launches follow [driving](../references/driving.md): keep the development flags and reconnect to `mobile.metroUrl`. Pairing links expire and work once; wait for keyboard animation before Pair.
-- Phones and tablets use the Worktrees navigation stack without a tab bar, platform Back/swipe and the Settings modal from the header gear. Shared tablet journeys use a proper Android tablet in landscape and portrait; see [profile requirements](../references/android.md#phone-and-tablet-profiles). Verify entry and return paths, retained selection and draft protection. Native iPad tab sidebars and other explicitly iOS-specific behavior retain their separate iOS journeys.
+- Phones use a native tab bar (Walkthrough, Changes, Files, History); tablets show the same sections in a sidebar (the iPad's native tab sidebar; on Android tablets a pinned sidebar in landscape and a rail in portrait). Each section has a stack and platform Back/swipe; a worktree drawer (swipe right, the header sidebar button or the worktree title) holds the worktree list with Settings as its last row. Shared tablet journeys use a proper Android tablet in landscape and portrait; see [profile requirements](../references/android.md#phone-and-tablet-profiles). Verify entry and return paths, retained selection and draft protection. Native iPad tab sidebars and other explicitly iOS-specific behavior retain their separate iOS journeys.
 - Quiet feedback: a slow read shows nothing, then one `spinner` after a short delay; no loading words. A failed background read keeps its last content without text. An error appears where the person acted, with one action. Empty states are one line with at most one button.
 - Run fixture operations through `$C agent …` and independent readbacks through `$C server …`; run shell/Git setup in `REPO`. Selected-workspace loading, unavailable and retry journeys are shared in [Worktrees](projects.worktrees.md).
 - Preference storage readbacks use the owned development app's `porcelain-preferences.db`. Keep tokens, pairing links and driver configuration private.
@@ -46,7 +46,7 @@ Use the [shared evidence reference](../../verify-core/evidence.md) for screensho
 - [app.catalog-text](app.catalog-text.md) — Text styles, wrapping and native selection.
 - [app.deep-links](app.deep-links.md) — Warm, cold and unpaired destinations.
 - [app.keyboard-shortcuts](app.keyboard-shortcuts.md) — Hardware keyboard shortcuts in the ⌘ overlay, list highlight and the Keyboard Shortcuts sheet.
-- [app.shell](app.shell.md) — Worktrees stack, Settings modal and startup navigation.
+- [app.shell](app.shell.md) — Tab bar, worktree drawer with Settings, and startup navigation.
 - [files.file-action](files.file-action.md) — New file, New folder and Rename sheets; Move to trash alert.
 - [files.files](files.files.md) — Browse, search, create, rename, trash and preferences.
 - [files.preview](files.preview.md) — Source, document and image previews.
@@ -57,13 +57,17 @@ Use the [shared evidence reference](../../verify-core/evidence.md) for screensho
 - [preferences.reviews-git](preferences.reviews-git.md) — Each computer's archive, spec and pull settings, and this app's commit model.
 - [projects.archive-pull-request](projects.archive-pull-request.md) — Archive a merged or closed review from its pull request.
 - [projects.rename-project](projects.rename-project.md) — Rename a project; remove it with a platform alert.
-- [projects.worktree](projects.worktree.md) — A selected worktree's Walkthrough, Changes, Files and History, switched from four top-bar buttons.
+- [projects.worktree](projects.worktree.md) — A selected worktree's Walkthrough, Changes, Files and History tabs and the worktree title button.
 - [projects.worktree-actions](projects.worktree-actions.md) — A worktree's long-press actions: copy path, switch branch, delete.
 - [projects.worktrees](projects.worktrees.md) — Projects, worktrees, review progress, search and filters.
 - [reviews.all-changes](reviews.all-changes.md) — Every changed file of a comparison as one scrolling page.
 - [reviews.file](reviews.file.md) — Review diffs, source selection and feedback.
-- [reviews.pull-request](reviews.pull-request.md) — Scoped read-only PR document, native return path and archive.
-- [reviews.walkthrough-page](reviews.walkthrough-page.md) — The Walkthrough a fresh agent wrote: calls, growth, steps, conversations, posting and saving.
+- [reviews.pull-request](reviews.pull-request.md) — Pull request page: merge blockers, live checks with steps and logs, re-run, conversation and comment.
+- [reviews.merge-pull-request](reviews.merge-pull-request.md) — Merge sheet: allowed methods, the same blockers, pinned head, archive offer.
+- [reviews.walkthrough-page](reviews.walkthrough-page.md) — The Walkthrough a fresh agent wrote: the briefing, calls and decisions, diagrams, steps, questions, draft comments and merge.
+- [reviews.comment](reviews.comment.md) — Add, edit or delete one draft comment on a step, node, file or lines.
+- [reviews.publish-comments](reviews.publish-comments.md) — Post the drafts as one pull request review or copy them for an agent.
+- [reviews.walkthrough-writer](reviews.walkthrough-writer.md) — Choose the writer, model and effort for the next Walkthrough run.
 - [reviews.walkthrough-step](reviews.walkthrough-step.md) — One step's files as a page of diffs, with previous and next step in the top bar.
 - [reviews.walkthrough-screenshot](reviews.walkthrough-screenshot.md) — A step's screenshot larger in a sheet.
 - [history.timeline](history.timeline.md) — file timeline, older commits and return context.

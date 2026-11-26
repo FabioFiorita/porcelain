@@ -27,6 +27,62 @@ export function WalkthroughStatus({
 }) {
   const [open, setOpen] = useState(false);
   const progress = walkthroughProgress(run, requesting);
+  const log = (
+    <>
+      <Button
+        label={open ? 'Hide writing log' : 'Writing log'}
+        variant="plain"
+        size="sm"
+        onPress={() => setOpen(!open)}
+      />
+      {open && (
+        <Box gap={2} className="w-full">
+          {progress.entries.map((entry, index) => (
+            <Text key={`${entry.at}:${index}`} variant="secondary" tone="muted">
+              {new Date(entry.at).toLocaleString()} · {entry.message}
+            </Text>
+          ))}
+          {progress.entries.length === 0 && (
+            <Text variant="secondary" tone="muted">
+              This walkthrough predates the writing log.
+            </Text>
+          )}
+        </Box>
+      )}
+    </>
+  );
+  if (
+    run.state.status === 'ready' &&
+    !progress.active &&
+    !requesting &&
+    !failure &&
+    !reused
+  )
+    return (
+      <Box gap={1}>
+        <Text variant="secondary" tone="muted" accessibilityLiveRegion="polite">
+          {[
+            `Saved ${new Date(run.state.writtenAt).toLocaleString()}`,
+            freshness ? walkthroughFreshnessText(freshness) : undefined,
+          ]
+            .filter(Boolean)
+            .join(' · ')}
+        </Text>
+        <Box className="flex-row flex-wrap items-center" gap={2}>
+          {writerNotice}
+          {onUpdate ? (
+            <Button
+              label="Update walkthrough"
+              variant="tonal"
+              size="sm"
+              disabled={Boolean(writeBlock) || updateDisabled}
+              onPress={onUpdate}
+            />
+          ) : null}
+          {log}
+        </Box>
+      </Box>
+    );
   return (
     <Box gap={3} padding={4} surface="panel">
       <Text weight="medium" accessibilityLiveRegion="polite">
@@ -82,27 +138,7 @@ export function WalkthroughStatus({
           onPress={onUpdate}
         />
       )}
-      <Button
-        label={open ? 'Hide update log' : 'Update log'}
-        variant="plain"
-        size="sm"
-        onPress={() => setOpen(!open)}
-      />
-      {open && (
-        <Box gap={2}>
-          {progress.entries.map((entry, index) => (
-            <Text key={`${entry.at}:${index}`} variant="secondary" tone="muted">
-              {new Date(entry.at).toLocaleString()} · {entry.message}
-            </Text>
-          ))}
-          {progress.entries.length === 0 && (
-            <Text variant="secondary" tone="muted">
-              This walkthrough predates the update log. Its recorded status is
-              shown above.
-            </Text>
-          )}
-        </Box>
-      )}
+      {log}
     </Box>
   );
 }

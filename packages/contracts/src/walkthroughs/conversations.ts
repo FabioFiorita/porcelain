@@ -3,14 +3,10 @@ import {
   writerSchema,
   answerStateSchema,
   callDecisionSchema,
-  postStateSchema,
   walkthroughFailureSchema,
 } from '@porcelain/walkthroughs/models';
-import type {
-  PostResult,
-  WalkthroughConversationsView,
-} from '@porcelain/walkthroughs/models';
 import { nullableAsUndefined } from '../shared/schema.ts';
+import type { WalkthroughConversationsView } from '@porcelain/walkthroughs/models';
 import type { Principal } from '../access/principal.ts';
 import { worktreeParamsSchema } from '../shared/worktree-params.ts';
 
@@ -35,13 +31,7 @@ export const walkthroughMessageParamsSchema = Schema.Struct({
 });
 export type WalkthroughMessageParams =
   typeof walkthroughMessageParamsSchema.Type;
-export type WalkthroughPostInput = WalkthroughConversationParams & {
-  readonly messageId?: string | undefined;
-};
-export type SaveWalkthroughMessageRequest =
-  typeof saveWalkthroughMessageRequestSchema.Type;
 export type WalkthroughConversationsResult = WalkthroughConversationsView;
-export type WalkthroughPostResult = PostResult;
 export const addWalkthroughMessageRequestSchema = Schema.Struct({
   writer: Schema.optional(writerSchema),
   anchor: walkthroughAnchorSchema,
@@ -75,12 +65,6 @@ export type DecideWalkthroughCallRequest =
   typeof decideWalkthroughCallRequestSchema.Type;
 export type DecideWalkthroughCallInput = WalkthroughCallParams &
   DecideWalkthroughCallRequest & { readonly caller: Principal };
-export const saveWalkthroughMessageRequestSchema = Schema.Struct({
-  saved: Schema.Boolean,
-});
-export const readWalkthroughBriefQuery = {
-  messageId: Schema.optional(Schema.String.check(Schema.isMinLength(1))),
-};
 
 const answeredSchema = Schema.Struct({
   ...answerStateSchema.members[1].fields,
@@ -91,7 +75,6 @@ const developerMessageSchema = Schema.Struct({
   id: Schema.String,
   text: Schema.String,
   createdAt: Schema.String,
-  post: postStateSchema,
 });
 const agentMessageSchema = Schema.Struct({
   author: Schema.Literal('agent'),
@@ -127,18 +110,3 @@ export const walkthroughConversationsResponseSchema = Schema.Struct({
 });
 export type WalkthroughConversationsResponse =
   typeof walkthroughConversationsResponseSchema.Type;
-export const postWalkthroughMessagesResponseSchema = Schema.Struct({
-  outcome: Schema.Union([
-    Schema.Struct({ status: Schema.Literal('nothing') }),
-    Schema.Struct({
-      status: Schema.Literal('posted'),
-      url: Schema.String,
-      notPosted: Schema.Array(Schema.String),
-    }),
-    Schema.Struct({ status: Schema.Literal('brief'), text: Schema.String }),
-  ]),
-  view: walkthroughConversationsResponseSchema,
-});
-export const walkthroughBriefResponseSchema = Schema.Struct({
-  text: nullableAsUndefined(Schema.String),
-});

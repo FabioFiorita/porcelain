@@ -1,5 +1,3 @@
-import { ReadRepositoryOriginService } from '@porcelain/projects/services';
-import { gitProjectRepositoryReaderLayer } from '../adapters/projects/git-project-repository-reader.ts';
 import { gitWalkthroughHeadReaderLayer } from '../adapters/walkthroughs/git-walkthrough-head-reader.ts';
 import { ReadWalkthroughWriterSettingsUseCase } from '../use-cases/walkthroughs/read-walkthrough-writer-settings.ts';
 import { SaveDefaultWalkthroughWriterUseCase } from '../use-cases/walkthroughs/save-default-walkthrough-writer.ts';
@@ -27,11 +25,8 @@ import {
   ListWalkthroughConversationsService,
   AddWalkthroughMessageService,
   RetryWalkthroughAnswerService,
-  SaveWalkthroughMessageService,
   DecideWalkthroughCallService,
   AnswerWalkthroughMessageService,
-  PlanWalkthroughPostService,
-  PostWalkthroughMessagesService,
 } from '@porcelain/walkthroughs/services';
 import {
   WalkthroughStore,
@@ -63,12 +58,7 @@ import { ReadWalkthroughAssetUseCase } from '../use-cases/walkthroughs/read-walk
 import { ListWalkthroughConversationsUseCase } from '../use-cases/walkthroughs/list-walkthrough-conversations.ts';
 import { AddWalkthroughMessageUseCase } from '../use-cases/walkthroughs/add-walkthrough-message.ts';
 import { RetryWalkthroughAnswerUseCase } from '../use-cases/walkthroughs/retry-walkthrough-answer.ts';
-import { SaveWalkthroughMessageUseCase } from '../use-cases/walkthroughs/save-walkthrough-message.ts';
 import { DecideWalkthroughCallUseCase } from '../use-cases/walkthroughs/decide-walkthrough-call.ts';
-import { PostWalkthroughMessagesUseCase } from '../use-cases/walkthroughs/post-walkthrough-messages.ts';
-import { ReadWalkthroughBriefUseCase } from '../use-cases/walkthroughs/read-walkthrough-brief.ts';
-import { ResolveProjectGitHubUseCasePort } from '../ports/resolve-project-github-use-case-port.ts';
-import { ghPullRequestCommenterLayer } from '../adapters/walkthroughs/gh-pull-request-commenter.ts';
 import { walkthroughsRoutes } from '../http/routes/walkthroughs/walkthroughs-api.ts';
 import type { ComposeContext } from './compose-context.ts';
 import type { Shared } from './compose-shared.ts';
@@ -82,16 +72,10 @@ export function composeWalkthroughs(
   inventory: Context.Service.Shape<typeof ReadInventoryUseCase>,
   pulls: Context.Service.Shape<typeof ListProjectPullRequestsUseCase>,
   githubReader: typeof ghPullRequestReaderLayer,
-  resolveProjectGitHub: ResolveProjectGitHubUseCasePort,
 ) {
   const modelReader = Layer.succeed(WalkthroughModelReader, walkthroughModels);
   const ports = Layer.mergeAll(
     modelReader,
-    ReadRepositoryOriginService.layer.pipe(
-      Layer.provide(
-        gitProjectRepositoryReaderLayer(context.settings.limits.git),
-      ),
-    ),
     gitWalkthroughHeadReaderLayer(context.settings.limits.git).pipe(
       Layer.provide(
         Layer.mergeAll(
@@ -117,11 +101,6 @@ export function composeWalkthroughs(
     Layer.succeed(BranchRangeReader, shared.branchRangeReader),
     Layer.succeed(ChangeStatusReader, shared.changeStatusReader),
     Layer.succeed(EventPublisher, context.events),
-    Layer.succeed(ResolveProjectGitHubUseCasePort, resolveProjectGitHub),
-    ghPullRequestCommenterLayer(
-      context.settings.limits.git,
-      context.githubAccess,
-    ),
     Layer.succeed(IdSource, context.ids),
     gitWalkthroughSourceReaderLayer(context.settings.limits.git).pipe(
       Layer.provide(Layer.succeed(BranchRangeReader, shared.branchRangeReader)),
@@ -153,12 +132,8 @@ export function composeWalkthroughs(
     ListWalkthroughConversationsService.layer,
     AddWalkthroughMessageService.layer,
     RetryWalkthroughAnswerService.layer,
-    SaveWalkthroughMessageService.layer,
     DecideWalkthroughCallService.layer,
     AnswerWalkthroughMessageService.layer,
-    PostWalkthroughMessagesService.layer.pipe(
-      Layer.provideMerge(PlanWalkthroughPostService.layer),
-    ),
     Layer.effect(AnnounceWalkthroughUseCasePort, AnnounceWalkthroughUseCase),
   ).pipe(
     Layer.provide(ResolveWalkthroughWriterService.layer),
@@ -184,10 +159,7 @@ export function composeWalkthroughs(
     ListWalkthroughConversationsUseCase.layer,
     AddWalkthroughMessageUseCase.layer,
     RetryWalkthroughAnswerUseCase.layer,
-    SaveWalkthroughMessageUseCase.layer,
     DecideWalkthroughCallUseCase.layer,
-    PostWalkthroughMessagesUseCase.layer,
-    ReadWalkthroughBriefUseCase.layer,
   ).pipe(Layer.provideMerge(workflow));
   const queued = Layer.effect(
     QueueWalkthroughUseCasePort,
@@ -221,10 +193,7 @@ export function composeWalkthroughs(
       conversations: Context.get(runtime, ListWalkthroughConversationsUseCase),
       addMessage: Context.get(runtime, AddWalkthroughMessageUseCase),
       retryAnswer: Context.get(runtime, RetryWalkthroughAnswerUseCase),
-      saveMessage: Context.get(runtime, SaveWalkthroughMessageUseCase),
       decideCall: Context.get(runtime, DecideWalkthroughCallUseCase),
-      postMessages: Context.get(runtime, PostWalkthroughMessagesUseCase),
-      brief: Context.get(runtime, ReadWalkthroughBriefUseCase),
     };
     return {
       poll: Context.get(runtime, PollAutomaticWalkthroughsUseCase),

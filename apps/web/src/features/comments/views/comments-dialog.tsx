@@ -1,6 +1,14 @@
 import { useState, type ComponentProps, type ReactNode } from 'react';
 import { ArrowLeftIcon, ExternalLinkIcon } from 'lucide-react';
-import { anchorLabel, openComments } from '@porcelain/client/comments/rules';
+import {
+  anchorLabel,
+  generalReviewNote,
+  inlineReviewLocation,
+  openComments,
+  postedComments,
+  reviewForm,
+} from '@porcelain/client/comments/rules';
+import { reviewFormBinding } from '@porcelain/client/comments';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -98,17 +106,6 @@ function ReviewComment({
   );
 }
 
-const BODY_REASON: Record<
-  ReviewPreview['general'][number]['reason'],
-  string | undefined
-> = {
-  'not-in-pull-request': 'not in the pull request diff',
-  outdated: 'outdated',
-  file: 'whole file',
-  step: undefined,
-  node: undefined,
-};
-
 function ReviewStep({
   arrived,
   owner,
@@ -124,18 +121,10 @@ function ReviewStep({
 }) {
   const { failure, waiting, post } = usePostReview(owner, onPosted);
   const writeBlock = useWorkspaceWriteBlock(owner.context);
-  const [summary, setSummary] = useState('');
-  const [bodies, setBodies] = useState<Record<string, string>>(() =>
-    Object.fromEntries(
-      [...preview.inline, ...preview.general].map((comment) => [
-        comment.id,
-        comment.body,
-      ]),
-    ),
+  const review = reviewFormBinding(
+    useState(() => reviewForm(preview)),
+    preview,
   );
-  const edit = (id: string) => (text: string) =>
-    setBodies((current) => ({ ...current, [id]: text }));
-  const empty = Object.values(bodies).some((text) => !text.trim());
   return (
     <>
       <DialogHeader>
@@ -150,10 +139,10 @@ function ReviewStep({
         <label className="flex flex-col gap-1.5">
           <span className="text-caption text-muted-foreground">Summary</span>
           <Textarea
-            value={summary}
+            value={review.summary}
             placeholder="Optional"
             className="min-h-10"
-            onChange={(event) => setSummary(event.target.value)}
+            onChange={(event) => review.setSummary(event.target.value)}
           />
         </label>
         {preview.inline.length > 0 && (
@@ -165,9 +154,9 @@ function ReviewStep({
               {preview.inline.map((comment) => (
                 <ReviewComment
                   key={comment.id}
-                  location={`${comment.path}:${comment.startLine ? `${comment.startLine}-` : ''}${comment.line}${comment.side === 'LEFT' ? ' (removed)' : ''}`}
-                  value={bodies[comment.id] ?? ''}
-                  onChange={edit(comment.id)}
+                  location={inlineReviewLocation(comment)}
+                  value={review.body(comment.id)}
+                  onChange={review.edit(comment.id)}
                 />
               ))}
             </ul>
@@ -184,9 +173,9 @@ function ReviewStep({
                   key={comment.id}
                   location={comment.location}
                   code={comment.reason !== 'step' && comment.reason !== 'node'}
-                  note={BODY_REASON[comment.reason]}
-                  value={bodies[comment.id] ?? ''}
-                  onChange={edit(comment.id)}
+                  note={generalReviewNote(comment.reason)}
+                  value={review.body(comment.id)}
+                  onChange={review.edit(comment.id)}
                 />
               ))}
             </ul>
@@ -204,17 +193,11 @@ function ReviewStep({
           Back
         </Button>
         <Button
-          disabled={empty || waiting || Boolean(writeBlock)}
+          disabled={!review.request || waiting || Boolean(writeBlock)}
           aria-description={writeBlock}
-          onClick={() =>
-            void post({
-              headOid: preview.headOid,
-              summary,
-              bodies: Object.fromEntries(
-                Object.entries(bodies).map(([id, text]) => [id, text.trim()]),
-              ),
-            })
-          }
+          onClick={() => {
+            if (review.request) void post(review.request);
+          }}
         >
           Post review
         </Button>
@@ -313,9 +296,7 @@ function ListStep({
 }) {
   const { view, failed, refresh } = useComments(owner);
   const open = openComments(view);
-  const posted = (view?.comments ?? []).filter(
-    (comment) => comment.publication.status === 'published',
-  );
+  const posted = postedComments(view);
   return (
     <>
       <DialogHeader>

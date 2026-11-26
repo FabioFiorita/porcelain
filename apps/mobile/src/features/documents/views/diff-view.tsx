@@ -17,6 +17,7 @@ export function DiffView({
   onExpand,
   initialLine,
   onReadingLine,
+  decorate,
 }: {
   lines: readonly RenderLine[];
   language?: string | undefined;
@@ -27,17 +28,21 @@ export function DiffView({
   onExpand?: ((id: string) => void) | undefined;
   initialLine?: number | undefined;
   onReadingLine?: ((line: number) => void) | undefined;
+  decorate?:
+    | ((lines: readonly RenderLine[]) => readonly RenderLine[])
+    | undefined;
 }) {
   const { oldSource, newSource } = diffSources(lines);
   const oldHighlight = useHighlightedCode(oldSource, language);
   const newHighlight = useHighlightedCode(newSource, language);
+  const highlighted = highlightDiffLines(
+    lines,
+    oldHighlight?.tokens,
+    newHighlight?.tokens,
+  );
   return (
     <RenderSurface
-      lines={highlightDiffLines(
-        lines,
-        oldHighlight?.tokens,
-        newHighlight?.tokens,
-      )}
+      lines={decorate ? decorate(highlighted) : highlighted}
       wrap={wrap}
       fit={fit}
       selection={selection}

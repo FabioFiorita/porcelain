@@ -23,11 +23,12 @@ export function ShellStartup() {
       })}
     >
       <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="(settings)" options={{ presentation: 'modal' }} />
+      <Stack.Screen name="index" options={{ animation: 'none' }} />
       <Stack.Screen
         name="archive-pull-request"
         options={{ title: 'Archive pull request', ...sheetOptions('tall') }}
       />
-      <Stack.Screen name="(settings)" options={{ presentation: 'modal' }} />
       <Stack.Screen
         name="worktree-actions"
         options={{ title: 'Worktree', ...sheetOptions('half') }}
@@ -43,6 +44,22 @@ export function ShellStartup() {
       <Stack.Screen
         name="walkthrough-screenshot"
         options={{ title: 'Screenshot', ...sheetOptions('tall') }}
+      />
+      <Stack.Screen
+        name="comment"
+        options={{ title: 'Comment', ...sheetOptions('half') }}
+      />
+      <Stack.Screen
+        name="publish-comments"
+        options={{ title: 'Publish review', ...sheetOptions('tall') }}
+      />
+      <Stack.Screen
+        name="walkthrough-writer"
+        options={{ title: 'Writer', ...sheetOptions('tall') }}
+      />
+      <Stack.Screen
+        name="merge-pull-request"
+        options={{ title: 'Merge', ...sheetOptions('half') }}
       />
       <Stack.Screen
         name="keyboard-shortcuts"
