@@ -28,6 +28,7 @@ import {
   changedSinceLooked,
   gitErrorMessage,
   receiptFailed,
+  receiptSettled,
 } from '@porcelain/client/git-actions/rules';
 import { BranchTracking } from '@/features/history/index';
 import { branchTracking } from '@porcelain/client/history/rules';
@@ -192,7 +193,7 @@ export function CommitForm(
             Look again
           </Button>
         )}
-      {git.operation && !working && (
+      {git.operation && !working && !(receipt && receiptSettled(receipt)) && (
         <Button
           type="button"
           variant="outline"
@@ -403,18 +404,6 @@ function CommitGeneration({
         <p className="w-full text-xs text-muted-foreground" role="status">
           {reason}
         </p>
-      )}
-      {AsyncResult.isFailure(form.generator.result) && !form.working && (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={blocked || form.uncertain}
-          aria-description={writeBlock}
-          onClick={form.generate}
-        >
-          Try again
-        </Button>
       )}
     </div>
   );
@@ -627,8 +616,7 @@ function submitLabel({
   groups,
   commitAction,
 }: CommitFormState) {
-  if (working) {
-    if (generator.result.waiting) return 'Generating…';
+  if (working && !generator.result.waiting) {
     if (commitAction === 'amend') return 'Amending…';
     return 'Committing…';
   }

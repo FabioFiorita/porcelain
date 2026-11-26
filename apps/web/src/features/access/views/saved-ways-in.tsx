@@ -32,7 +32,9 @@ export function SavedWaysIn({ remote }: { remote: Remote }) {
           <Item key={address}>
             <ItemContent>
               <ItemTitle>{connectionRouteTitle(address)}</ItemTitle>
-              <ItemDescription className="break-all">{address}</ItemDescription>
+              <ItemDescription className="break-all">
+                <span className="font-mono">{address}</span>
+              </ItemDescription>
             </ItemContent>
             <ItemActions>
               <Tooltip>

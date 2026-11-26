@@ -116,7 +116,11 @@ function AgentReply({
             />
           )}
         </div>
-        {failure && <p role="alert">{failure}</p>}
+        {failure && (
+          <p role="alert" className="text-caption text-destructive">
+            {failure}
+          </p>
+        )}
       </MessageContent>
     </Message>
   );

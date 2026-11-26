@@ -416,6 +416,7 @@ function Failed({
           writer={writer}
           existingMessage={copy.message}
           signedOut={failure.kind === 'signed_out'}
+          actionFirst
           action={{
             label: 'Try again',
             variant: 'default',
@@ -508,6 +509,7 @@ export function ReviewDocument(props: DocumentProps) {
       <div data-review-scroll="" className="@container h-full overflow-auto">
         <Column>
           <StateFailure
+            className="px-0"
             description="The walkthrough could not be read."
             onRetry={refresh}
           />

@@ -31,11 +31,23 @@ export function expectationFor(
 export const receiptFailed = (receipt: Receipt) =>
   !['succeeded', 'no-change'].includes(receipt.state);
 
+export const receiptSettled = (receipt: Receipt) =>
+  !['running', 'interrupted'].includes(receipt.state);
+
+const stateWords: Record<Receipt['state'], string> = {
+  running: 'Git is still working.',
+  succeeded: 'Git finished.',
+  'no-change': 'Nothing changed.',
+  rejected: 'Git refused the change.',
+  conflicted: 'Some files conflict. Resolve them, then commit.',
+  interrupted: 'Git stopped before Porcelain could confirm the result.',
+};
+
 export const receiptWords = (receipt: Receipt) =>
   receipt.message ??
   (receipt.reason
     ? receipt.reason.replaceAll('_', ' ').toLowerCase()
-    : `Git ${receipt.state}`);
+    : stateWords[receipt.state]);
 
 export const changedSinceLooked = (receipt: Receipt) =>
   receipt.state === 'rejected' && receipt.reason === 'CHANGED_SINCE_LOOKED';

@@ -22,6 +22,7 @@ import {
   SelectItem,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { TruncatedText } from '@/shared/views/truncated-text';
 import { shortOid } from '@porcelain/client/history/rules';
 import { useActionForm } from '../commands/action-form';
 import {
@@ -36,6 +37,7 @@ import {
   changedSinceLookedText,
   gitErrorMessage,
   receiptFailed,
+  receiptSettled,
 } from '@porcelain/client/git-actions/rules';
 import type { GitActionStatus } from '@porcelain/client/git-actions/rules';
 import { CommitForm } from './commit-form';
@@ -310,7 +312,10 @@ function ActionForm({
                 <SelectContent>
                   {branch.stashes.map((stash) => (
                     <SelectItem key={stash.oid} value={stash.oid}>
-                      {stash.message} · {shortOid(stash.oid)}
+                      <TruncatedText text={stash.message} />
+                      <span className="font-mono text-muted-foreground">
+                        {shortOid(stash.oid)}
+                      </span>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -326,7 +331,7 @@ function ActionForm({
             )}
           </Field>
         )}
-        <label className="flex items-center gap-2 text-sm">
+        <label className="flex items-center gap-2 text-xs">
           <Checkbox
             checked={option}
             onCheckedChange={(checked) => setOption(checked === true)}
@@ -358,16 +363,19 @@ function ActionForm({
           Look again
         </Button>
       )}
-      {git.operation && !busy && !stale && (
-        <Button
-          type="button"
-          variant="outline"
-          className="self-start"
-          onClick={git.checkOutcome}
-        >
-          Check outcome
-        </Button>
-      )}
+      {git.operation &&
+        !busy &&
+        !stale &&
+        !(outcome && receiptSettled(outcome)) && (
+          <Button
+            type="button"
+            variant="outline"
+            className="self-start"
+            onClick={git.checkOutcome}
+          >
+            Check outcome
+          </Button>
+        )}
       <Button
         type="submit"
         className="self-end"
