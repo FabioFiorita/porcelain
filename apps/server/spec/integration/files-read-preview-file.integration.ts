@@ -55,6 +55,16 @@ test('streams an authorized worktree file and byte slice, and confines the ticke
 
   await session.read({ ...request, query: { path: 'demo.mp4' } }, 401);
   await session.read({ ...request, query: { path: 'other.mp4', ticket } }, 401);
+  await session.read(
+    {
+      ...request,
+      query: {
+        path: 'demo.mp4',
+        ticket: `${ticket.startsWith('A') ? 'B' : 'A'}${ticket.slice(1)}`,
+      },
+    },
+    401,
+  );
   await server.advanceTime(30 * 60 * 1000);
   await session.read(request, 401);
 });

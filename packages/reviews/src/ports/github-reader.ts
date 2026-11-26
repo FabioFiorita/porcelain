@@ -7,10 +7,13 @@ import type {
   GitHubPullSummary,
   GitHubRepository,
 } from '../models/pull-request.ts';
+export type GitHubFreshness = { readonly fresh?: true };
 export interface GitHubReader {
-  accounts(): Effect.Effect<readonly string[], GitHubReadError>;
+  accounts(
+    freshness?: GitHubFreshness,
+  ): Effect.Effect<readonly string[], GitHubReadError>;
   canRead(
-    input: GitHubRepository & { account: string },
+    input: GitHubRepository & { account: string } & GitHubFreshness,
   ): Effect.Effect<boolean, GitHubReadError>;
   read(
     input: GitHubRepository & { account: string; number: number },

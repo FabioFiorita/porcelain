@@ -31,6 +31,7 @@ const WALKTHROUGH_ROUTES = [
   'POST /api/worktrees/:worktreeId/walkthrough/:runId/conversations/messages/:messageId/retry',
   'POST /api/worktrees/:worktreeId/walkthrough/:runId/conversations/post-saved',
   'PUT /api/worktrees/:worktreeId/walkthrough/:runId/conversations/messages/:messageId/saved',
+  'PUT /api/worktrees/:worktreeId/walkthrough/:runId/calls/:step/:call/decision',
 ].toSorted();
 
 test('reads the latest attempt and reports when its pinned head is out of date', async ({
@@ -249,6 +250,7 @@ test('serves stored evidence bytes for a finished walkthrough and refuses assets
     (route) =>
       route.includes('/walkthrough') &&
       !route.includes('/conversations') &&
+      !route.includes('/calls/') &&
       !route.includes('/walkthrough-settings'),
   );
   const requested = await server.requestedRoutes();
@@ -391,6 +393,7 @@ test('answers a walkthrough comment, keeps it after a refresh, copies a brief wi
     runId: firstRunId,
     pullRequestNumber: undefined,
     conversations: [],
+    decisions: [],
   });
   const add = async (
     title: string | undefined,
@@ -862,4 +865,130 @@ test('announces screenshots attached to a ready walkthrough to a client that is 
   expect(Buffer.from(await asset.arrayBuffer())).toEqual(
     Buffer.from([137, 80, 78, 71]),
   );
+});
+
+test('records a decision on a call with who made it, keeps it after a refresh, clears it and refuses a call or option the walkthrough does not offer', async ({
+  session,
+  server,
+}) => {
+  const writer = await scriptedWalkthroughs(session, server.manifestPath, {
+    answer: 'Unused.',
+    costUsd: 0.01,
+    failurePath: join(session.projectHome, 'decision-writer-fails'),
+    postsPath: join(session.projectHome, 'decision-posts'),
+  });
+  await session.git('branch', 'decision-base');
+  await session.writeFile('decision.txt', 'A change with a call to make.\n');
+  await session.git('add', 'decision.txt');
+  await session.git('commit', '-m', 'Add a change with a call');
+  const run = await writer.write(
+    {
+      version: 1,
+      outcome: 'worth_knowing',
+      title: 'Decision fixture',
+      summary: 'A walkthrough with two calls.',
+      growth: [],
+      stops: [
+        {
+          title: 'Choose the storage',
+          explanation: 'The change needs a place to keep its state.',
+          blocks: [
+            {
+              kind: 'callout',
+              attention: {
+                kind: 'tradeoff',
+                note: 'Both work.',
+                question: 'Which store?',
+              },
+              comparison: {
+                columns: ['SQLite', 'Files'],
+                rows: [['Durable', 'Simple']],
+              },
+            },
+            {
+              kind: 'callout',
+              attention: {
+                kind: 'risk',
+                note: 'It writes on every change.',
+                question: 'Is that acceptable?',
+              },
+            },
+          ],
+        },
+      ],
+      onlyInTranscript: [],
+      stillUnclear: [],
+    },
+    { base: 'refs/heads/decision-base' },
+  );
+  const root = `/api/worktrees/${session.worktreeId}/walkthrough/${run.id}`;
+  const decide = (step: number, call: number, body: object, runId = run.id) =>
+    session.send({
+      method: 'PUT',
+      path: `/api/worktrees/${session.worktreeId}/walkthrough/${runId}/calls/${step}/${call}/decision`,
+      body,
+    });
+  const summary = (body: unknown) =>
+    Schema.decodeUnknownSync(walkthroughConversationsResponseSchema)(
+      body,
+    ).decisions.map(({ decidedBy, decidedAt, ...decision }) => ({
+      ...decision,
+      decidedBy: decidedBy.kind,
+      dated: /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(decidedAt),
+    }));
+  const decisions = async () =>
+    summary(
+      await read(session, { method: 'GET', path: `${root}/conversations` }),
+    );
+  expect(await decisions()).toEqual([]);
+
+  const chosen = await decide(1, 0, { decided: true, option: 'SQLite' });
+  expect(chosen.status).toBe(200);
+  const afterChoice = summary(chosen.body);
+  expect(afterChoice).toEqual([
+    { step: 1, call: 0, option: 'SQLite', decidedBy: 'device', dated: true },
+  ]);
+  expect(await decisions()).toEqual(afterChoice);
+
+  expect((await decide(1, 1, { decided: true })).status).toBe(200);
+  expect(await decisions()).toEqual([
+    afterChoice[0],
+    { step: 1, call: 1, option: undefined, decidedBy: 'device', dated: true },
+  ]);
+
+  const before = await decisions();
+  for (const [step, call, body] of [
+    [1, 0, { decided: true, option: 'Postgres' }],
+    [1, 1, { decided: true, option: 'Yes' }],
+    [1, 2, { decided: true }],
+    [2, 0, { decided: true }],
+  ] as const) {
+    const refused = await decide(step, call, body);
+    expect(refused.status, `${step}/${call}`).toBe(404);
+    expect(refused.body).toEqual(
+      apiError(
+        404,
+        'Not Found',
+        'This call or option is not in the walkthrough',
+      ),
+    );
+  }
+  const foreign = await decide(
+    1,
+    0,
+    { decided: true, option: 'Files' },
+    '00000000-0000-4000-8000-000000000001',
+  );
+  expect(foreign.status).toBe(404);
+  expect(await decisions()).toEqual(before);
+
+  expect((await decide(1, 0, { decided: false })).status).toBe(200);
+  expect((await decisions()).map(({ step, call }) => [step, call])).toEqual([
+    [1, 1],
+  ]);
+
+  const registered = server.routes.filter((route) => route.includes('/calls/'));
+  expect(registered).toHaveLength(1);
+  const requested = await server.requestedRoutes();
+  expect(() => handlerCoverage([{ registered, requested }])).not.toThrow();
 });

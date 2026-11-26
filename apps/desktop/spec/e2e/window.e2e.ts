@@ -22,6 +22,10 @@ type RendererElement = {
 };
 type RendererStyle = {
   readonly paddingLeft: string;
+  readonly position: string;
+  readonly inset: string;
+  readonly width: string;
+  readonly height: string;
   getPropertyValue(name: string): string;
 };
 declare const porcelainDesktop: DesktopBridge;
@@ -174,21 +178,39 @@ test('the sidebar leaves room for the traffic lights with its button clickable, 
   expect(
     await page.evaluate(() => {
       const header = document.querySelector('.desktop-sidebar-header');
+      const region = header?.querySelector(':scope > .window-drag-region');
       const button = header?.querySelector('button');
       if (
         header === null ||
         header === undefined ||
+        region === null ||
+        region === undefined ||
         button === null ||
         button === undefined
       )
-        throw new Error('The sidebar header and its button are missing');
+        throw new Error(
+          'The sidebar header, its drag region and its button are missing',
+        );
+      const headerStyle = getComputedStyle(header);
+      const regionStyle = getComputedStyle(region);
       return {
-        inset: getComputedStyle(header).paddingLeft,
-        drag: getComputedStyle(header).getPropertyValue('app-region'),
+        inset: headerStyle.paddingLeft,
+        drag: regionStyle.getPropertyValue('app-region'),
+        regionCoversHeader:
+          headerStyle.position === 'relative' &&
+          regionStyle.position === 'absolute' &&
+          regionStyle.inset === '0px' &&
+          regionStyle.width === headerStyle.width &&
+          regionStyle.height === headerStyle.height,
         buttonDrag: getComputedStyle(button).getPropertyValue('app-region'),
       };
     }),
-  ).toEqual({ inset: '82px', drag: 'drag', buttonDrag: 'no-drag' });
+  ).toEqual({
+    inset: '82px',
+    drag: 'drag',
+    regionCoversHeader: true,
+    buttonDrag: 'no-drag',
+  });
 
   await fullscreen(app, true);
   await expect(page.locator('html')).toHaveClass(/desktop-fullscreen/);

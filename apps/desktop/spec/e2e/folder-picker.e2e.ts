@@ -130,7 +130,9 @@ test('the Open project button opens the chosen Git repository through the native
   if (sheet) await reviewToggle.click();
   await openView('History');
   await expect(
-    page.getByRole('button', { name: 'Create smoke project', exact: false }),
+    page
+      .getByLabel('Commits', { exact: true })
+      .getByRole('button', { name: 'Create smoke project', exact: false }),
   ).toBeVisible();
   await openView('Files');
   await page
