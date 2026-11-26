@@ -39,11 +39,13 @@ export type DiagramGeometry = {
 
 const PAD = 16;
 const STACK_GAP = { right: 16, down: 24 };
-const RANK_GAP = { right: 56, down: 48 };
+const HALF_GAP = { right: 12, down: 20 };
+const SPAN = { right: 32, down: 8 };
 const LABEL_ROOM = 24;
+const LABEL_HEIGHT = 16;
+const WAYPOINT = 2;
 const ARROW = 6;
 const PAIR_OFFSET = 8;
-const LANE_GAP = 14;
 const SEQUENCE_HEAD_GAP = 28;
 const SEQUENCE_ROW = 32;
 const SEQUENCE_SIDE_GAP = 32;
@@ -81,27 +83,6 @@ function curve(start: Point, end: Point, horizontal: boolean) {
       x: round((start.x + 3 * first.x + 3 * second.x + end.x) / 8),
       y: round((start.y + 3 * first.y + 3 * second.y + end.y) / 8),
     },
-  };
-}
-
-function bowed(start: Point, end: Point, lane: number, horizontal: boolean) {
-  const point = (along: number, across: number) =>
-    horizontal ? { x: along, y: across } : { x: across, y: along };
-  const a = (item: Point) => (horizontal ? item.x : item.y);
-  const c = (item: Point) => (horizontal ? item.y : item.x);
-  const middle = (a(start) + a(end)) / 2;
-  const first = (middle - a(start)) / 2;
-  const second = (a(end) - middle) / 2;
-  const p1 = point(a(start) + first, c(start));
-  const p2 = point(middle - first, lane);
-  const p3 = point(middle, lane);
-  const p4 = point(middle + second, lane);
-  const p5 = point(a(end) - second, c(end));
-  const text = (item: Point) => `${round(item.x)} ${round(item.y)}`;
-  return {
-    path: `M${text(start)} C${text(p1)} ${text(p2)} ${text(p3)} C${text(p4)} ${text(p5)} ${text(end)}`,
-    arrow: arrowHead(end, p5),
-    middle: { x: round(p3.x), y: round(p3.y) },
   };
 }
 
@@ -193,6 +174,44 @@ function orderRanks(
   return layers;
 }
 
+type Placed = { x: number; y: number; width: number; height: number };
+
+type Waypoint = {
+  readonly id: string;
+  readonly edge: number;
+  readonly label: boolean;
+};
+
+function waypoints(
+  edges: readonly DiagramEdge[],
+  rank: ReadonlyMap<string, number>,
+) {
+  const points = new Map<string, Waypoint>();
+  const chains = edges.map((edge, index) => {
+    const from = (rank.get(edge.from) ?? 0) * 2;
+    const to = (rank.get(edge.to) ?? 0) * 2;
+    const low = Math.min(from, to);
+    const high = Math.max(from, to);
+    const middle = low + 1 + 2 * Math.floor((high - low - 1) / 4);
+    const between: string[] = [];
+    for (let level = low + 1; level < high; level += 1) {
+      const id = `\u0000${index}:${level}`;
+      points.set(id, {
+        id,
+        edge: index,
+        label: edge.label !== undefined && level === middle,
+      });
+      between.push(id);
+    }
+    return {
+      levels: [low, ...between.map((_, at) => low + 1 + at), high],
+      ids: from <= to ? between : [...between].reverse(),
+      ahead: from <= to,
+    };
+  });
+  return { points, chains };
+}
+
 function layered(
   diagram: StepDiagram,
   measure: DiagramMeasure,
@@ -204,38 +223,58 @@ function layered(
     diagram.nodes.map((node) => [node.id, measure.node(node)]),
   );
   const rank = rankNodes(ids, diagram.edges);
-  const layers = orderRanks(ids, diagram.edges, rank);
+  const { points, chains } = waypoints(diagram.edges, rank);
+  for (const point of points.values()) {
+    const text = diagram.edges[point.edge]?.label;
+    const long =
+      point.label && text !== undefined ? measure.label(text) : WAYPOINT;
+    size.set(point.id, {
+      width: long,
+      height: point.label ? LABEL_HEIGHT : WAYPOINT,
+    });
+  }
+  const level = new Map<string, number>([
+    ...ids.map((id) => [id, (rank.get(id) ?? 0) * 2] as const),
+    ...chains.flatMap((chain) =>
+      chain.ids.map((id) => {
+        const at = chain.ahead
+          ? chain.levels[1 + chain.ids.indexOf(id)]
+          : chain.levels[chain.ids.length - chain.ids.indexOf(id)];
+        return [id, at ?? 0] as const;
+      }),
+    ),
+  ]);
+  const links = diagram.edges.flatMap((edge, index) => {
+    const chain = chains[index];
+    if (chain === undefined) return [];
+    const path = [edge.from, ...chain.ids, edge.to];
+    return path.slice(1).map((to, at) => ({ from: path[at] ?? to, to }));
+  });
+  const all = [...ids, ...points.keys()];
+  const layers = orderRanks(all, links, level);
   const along = (id: string) =>
     horizontal ? (size.get(id)?.width ?? 0) : (size.get(id)?.height ?? 0);
   const across = (id: string) =>
     horizontal ? (size.get(id)?.height ?? 0) : (size.get(id)?.width ?? 0);
-  const depth = layers.map((layer) => Math.max(0, ...layer.map(along)));
+  const depth = layers.map((layer, index) =>
+    Math.max(index % 2 === 1 ? SPAN[placement] : 0, ...layer.map(along)),
+  );
   const breadth = layers.map(
     (layer) =>
       layer.reduce((sum, id) => sum + across(id), 0) +
       Math.max(0, layer.length - 1) * STACK_GAP[placement],
   );
-  const gaps = layers.slice(1).map((_, index) => {
-    const labels = diagram.edges.flatMap((edge) => {
-      const low = Math.min(rank.get(edge.from) ?? 0, rank.get(edge.to) ?? 0);
-      return low === index && edge.label ? [measure.label(edge.label)] : [];
-    });
-    return horizontal
-      ? Math.max(RANK_GAP.right, Math.max(0, ...labels) + LABEL_ROOM)
-      : RANK_GAP.down + (labels.length > 0 ? 8 : 0);
-  });
   const widest = Math.max(...breadth);
-  const box = new Map<
-    string,
-    { x: number; y: number; width: number; height: number }
-  >();
+  const box = new Map<string, Placed>();
+  const bands: { start: number; end: number }[] = [];
   let offset = PAD;
   layers.forEach((layer, index) => {
     let cursor = PAD + (widest - (breadth[index] ?? 0)) / 2;
+    const deep = depth[index] ?? 0;
     for (const id of layer) {
       const width = size.get(id)?.width ?? 0;
       const height = size.get(id)?.height ?? 0;
-      const lead = offset + ((depth[index] ?? 0) - along(id)) / 2;
+      const lead = offset + (deep - along(id)) / 2;
       box.set(
         id,
         horizontal
@@ -244,71 +283,102 @@ function layered(
       );
       cursor += across(id) + STACK_GAP[placement];
     }
-    offset += (depth[index] ?? 0) + (gaps[index] ?? 0);
+    bands.push({ start: offset, end: offset + deep });
+    offset += deep + (index < layers.length - 1 ? HALF_GAP[placement] : 0);
   });
   const pairs = new Map<string, number[]>();
   diagram.edges.forEach((edge, index) => {
     const key = [edge.from, edge.to].sort().join('\0');
     pairs.set(key, [...(pairs.get(key) ?? []), index]);
   });
-  let reach = widest + PAD * 2;
+  const point = (along: number, across: number): Point =>
+    horizontal ? { x: along, y: across } : { x: across, y: along };
+  const centre = (placed: Placed) =>
+    horizontal ? placed.y + placed.height / 2 : placed.x + placed.width / 2;
   const edges = diagram.edges.flatMap((edge, index) => {
     const from = box.get(edge.from);
     const to = box.get(edge.to);
-    if (from === undefined || to === undefined) return [];
+    const chain = chains[index];
+    if (from === undefined || to === undefined || chain === undefined)
+      return [];
     const siblings = pairs.get([edge.from, edge.to].sort().join('\0')) ?? [];
     const shift =
       (siblings.indexOf(index) - (siblings.length - 1) / 2) * 2 * PAIR_OFFSET;
-    const ahead = (rank.get(edge.to) ?? 0) >= (rank.get(edge.from) ?? 0);
-    const start = horizontal
-      ? {
-          x: ahead ? from.x + from.width : from.x,
-          y: from.y + from.height / 2 + shift,
-        }
-      : {
-          x: from.x + from.width / 2 + shift,
-          y: ahead ? from.y + from.height : from.y,
-        };
-    const end = horizontal
-      ? { x: ahead ? to.x : to.x + to.width, y: to.y + to.height / 2 + shift }
-      : {
-          x: to.x + to.width / 2 + shift,
-          y: ahead ? to.y : to.y + to.height,
-        };
-    const low = Math.min(rank.get(edge.from) ?? 0, rank.get(edge.to) ?? 0);
-    const high = Math.max(rank.get(edge.from) ?? 0, rank.get(edge.to) ?? 0);
-    const between = layers
-      .slice(low + 1, high)
-      .flat()
-      .flatMap((id) => {
-        const placed = box.get(id);
-        if (placed === undefined) return [];
-        return horizontal
-          ? [[placed.y, placed.y + placed.height] as const]
-          : [[placed.x, placed.x + placed.width] as const];
-      });
-    let drawn = curve(start, end, horizontal);
-    if (between.length > 0) {
-      const mean = horizontal ? (start.y + end.y) / 2 : (start.x + end.x) / 2;
-      const before = Math.min(...between.map(([first]) => first)) - LANE_GAP;
-      const after = Math.max(...between.map(([, last]) => last)) + LANE_GAP;
-      const lane =
-        before >= PAD / 2 && Math.abs(before - mean) < Math.abs(after - mean)
-          ? before
-          : after;
-      reach = Math.max(reach, lane + LANE_GAP);
-      drawn = bowed(start, end, lane, horizontal);
+    const sign = chain.ahead ? 1 : -1;
+    const band = (id: string) => bands[level.get(id) ?? 0];
+    const fromBand = band(edge.from);
+    const toBand = band(edge.to);
+    if (fromBand === undefined || toBand === undefined) return [];
+    const near = (placed: Placed) =>
+      horizontal
+        ? chain.ahead
+          ? placed.x + placed.width
+          : placed.x
+        : chain.ahead
+          ? placed.y + placed.height
+          : placed.y;
+    const far = (placed: Placed) =>
+      horizontal
+        ? chain.ahead
+          ? placed.x
+          : placed.x + placed.width
+        : chain.ahead
+          ? placed.y
+          : placed.y + placed.height;
+    const route: Point[] = [
+      point(near(from), centre(from) + shift),
+      point(chain.ahead ? fromBand.end : fromBand.start, centre(from) + shift),
+    ];
+    let label: Point | undefined;
+    for (const id of chain.ids) {
+      const placed = box.get(id);
+      const lane = band(id);
+      if (placed === undefined || lane === undefined) continue;
+      const line = centre(placed);
+      route.push(
+        point(chain.ahead ? lane.start : lane.end, line),
+        point(chain.ahead ? lane.end : lane.start, line),
+      );
+      if (points.get(id)?.label)
+        label = point((lane.start + lane.end) / 2, line);
     }
+    route.push(
+      point(chain.ahead ? toBand.start : toBand.end, centre(to) + shift),
+      point(far(to), centre(to) + shift),
+    );
+    const segments: string[] = [];
+    for (let at = 1; at < route.length; at += 1) {
+      const start = route[at - 1]!;
+      const end = route[at]!;
+      const straight = horizontal ? start.y === end.y : start.x === end.x;
+      segments.push(
+        straight
+          ? `L${round(end.x)} ${round(end.y)}`
+          : curve(start, end, horizontal).path.replace(/^M\S+ \S+ /, ''),
+      );
+    }
+    const first = route[0]!;
+    const last = route.at(-1)!;
+    const before = point(
+      (horizontal ? last.x : last.y) - sign * ARROW,
+      horizontal ? last.y : last.x,
+    );
+    const middle =
+      label ?? route[Math.floor(route.length / 2) - 1] ?? point(0, 0);
     return [
       {
         index,
-        path: drawn.path,
-        arrow: drawn.arrow,
-        label: edge.label === undefined ? undefined : drawn.middle,
+        path: `M${round(first.x)} ${round(first.y)} ${segments.join(' ')}`,
+        arrow: arrowHead(last, before),
+        label:
+          edge.label === undefined
+            ? undefined
+            : { x: round(middle.x), y: round(middle.y) },
       },
     ];
   });
   const total = offset + PAD;
+  const reach = widest + PAD * 2;
   return {
     placement,
     width: round(horizontal ? total : reach),
