@@ -68,7 +68,10 @@ function StepList<File>({
   if (steps.length === 0) return null;
   return (
     <div className="mt-1 flex flex-col">
-      <p className="px-2 pt-2 pb-1 text-2xs text-muted-foreground">By step</p>
+      <p className="flex px-2 pt-2 pb-1 text-2xs text-muted-foreground">
+        <span>By step</span>
+        <span className="ml-auto">Files</span>
+      </p>
       {steps.map((entry) => {
         const { stop, step, files } = entry;
         const commented = comments(entry);
@@ -96,8 +99,10 @@ function StepList<File>({
                 <span
                   role="img"
                   aria-label="Your call"
-                  className="size-1.5 shrink-0 rounded-full bg-foreground"
-                />
+                  className="shrink-0 text-2xs font-medium text-warn"
+                >
+                  Call
+                </span>
               )}
               {commented > 0 && (
                 <span
@@ -110,7 +115,12 @@ function StepList<File>({
                   {commented}
                 </span>
               )}
-              <span className="ml-auto text-2xs text-muted-foreground tabular-nums">
+              <span
+                aria-label={
+                  files.length === 1 ? '1 file' : `${files.length} files`
+                }
+                className="ml-auto text-2xs text-muted-foreground tabular-nums"
+              >
                 {files.length}
               </span>
             </SidebarDocumentRow>

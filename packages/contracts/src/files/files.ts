@@ -40,6 +40,9 @@ export const listDirectoryResponseSchema = Schema.toStandardSchemaV1(
         target: Schema.optional(Schema.String),
       }),
     ),
+    omitted: Schema.optional(
+      Schema.Number.check(Schema.isInt()).check(Schema.isGreaterThan(0)),
+    ),
   }),
 );
 

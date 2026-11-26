@@ -33,8 +33,9 @@ export const readWalkthroughPull = Atom.family(
       const read = Option.getOrUndefined(
         AsyncResult.value(get(readProjectPullRequest(target))),
       );
+      const statusResult = get(readProjectPullStatus(target));
       const statusRead = Option.getOrUndefined(
-        AsyncResult.value(get(readProjectPullStatus(target))),
+        AsyncResult.value(statusResult),
       );
       const status =
         statusRead?.kind === 'available' ? statusRead.status : undefined;
@@ -45,6 +46,9 @@ export const readWalkthroughPull = Atom.family(
             ? withPullRequestStatus(read.pullRequest, status)
             : undefined,
         status,
+        statusUnread:
+          (AsyncResult.isFailure(statusResult) && !statusResult.waiting) ||
+          (statusRead !== undefined && statusRead.kind !== 'available'),
       };
     }),
 );

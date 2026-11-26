@@ -23,6 +23,12 @@ function fileTreeEntries(directory: Directory): FileTreeEntry[] {
 
 const withoutTrailingSlash = (path: string) => path.replace(/\/$/, '');
 
+export function omittedEntriesText(directory: Directory) {
+  if (!directory.omitted) return undefined;
+  const folder = directory.path === '' ? 'This worktree' : directory.path;
+  return `${folder}: ${directory.omitted.toLocaleString('en-US')} more not shown; search to find them.`;
+}
+
 export function pathInside(path: string, root: string): boolean {
   const base = withoutTrailingSlash(root);
   const target = withoutTrailingSlash(path);
@@ -100,6 +106,20 @@ export function mergeFileTreeEntries(
   return [...entries.values()].sort((left, right) =>
     comparePaths(left.path, right.path),
   );
+}
+
+export function withUnlistedSelection(
+  entries: FileTreeEntry[],
+  directories: readonly Directory[],
+  selected: string,
+): FileTreeEntry[] {
+  if (selected === '' || entries.some((entry) => entry.path === selected))
+    return entries;
+  const parent = fileTreeAncestors(selected).at(-1) ?? '';
+  const listing = directories.find((directory) => directory.path === parent);
+  return listing?.omitted
+    ? [...entries, { path: selected, kind: 'file' }]
+    : entries;
 }
 
 export function visibleFileTreeRows(

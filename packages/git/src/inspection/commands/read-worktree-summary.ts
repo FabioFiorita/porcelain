@@ -29,6 +29,8 @@ export const readWorktreeSummary = Effect.fn('Git.readWorktreeSummary')(
   function* (session: EffectCheckoutSession, limits: GitLimits) {
     yield* session.verify();
     const status = yield* readStatus(session, limits);
+    if (status.omittedChanges > 0)
+      return yield* Effect.fail(new InspectionLimitError());
     const config = yield* sessionConversionFilters(session, limits);
     const base =
       status.headOid ??

@@ -59,7 +59,7 @@ Fresh instance, or after case 1's Restore.
    Expect: alertdialog "Discard README.md?".
 2. On disk, with the dialog open: `printf 'Changed on disk after the discard dialog opened\n' > "$REPO/README.md"`
 3. Click button `Discard`
-   Expect: an alert in the alertdialog reads "changed since looked Look at the diff again before discarding."; the "Cancel" button is now named `Look again` and the "Discard" button is gone. Disk: `cat "$REPO/README.md"` prints `Changed on disk after the discard dialog opened`.
+   Expect: an alert in the alertdialog reads "The files changed after you looked at them. Look at the diff again before discarding."; the "Cancel" button is now named `Look again` and the "Discard" button is gone. Disk: `cat "$REPO/README.md"` prints `Changed on disk after the discard dialog opened`.
 4. Click button `Look again`
    Expect: the alertdialog closes; the change document shows the newer text.
 

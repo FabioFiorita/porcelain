@@ -137,6 +137,25 @@ export const operationStoreLayer = Layer.effect(
             }),
           ),
       ),
+      clear: Effect.fn('OperationStore.clear')(
+        (key: string, missingRequestId?: string) =>
+          write(() =>
+            Effect.gen(function* () {
+              const current = state.value.operations.get(key);
+              if (!current) return false;
+              if (
+                current.receipt
+                  ? !isTerminal(current.receipt)
+                  : current.requestId !== missingRequestId
+              )
+                return false;
+              const next = new Map(state.value.operations);
+              next.delete(key);
+              yield* persist(next);
+              return true;
+            }),
+          ),
+      ),
       accept: Effect.fn('OperationStore.accept')((receipt: Receipt) =>
         write(() =>
           Effect.gen(function* () {

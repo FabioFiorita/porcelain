@@ -5,8 +5,7 @@ import {
   devicePlatformName,
   type DeviceKind,
 } from '../rules/settings';
-import { relativeTime } from '@/shared/lib/relative-time';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { relativeTime } from '@porcelain/client/history/rules';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { GlobeIcon, LinkIcon, SmartphoneIcon, TabletIcon } from 'lucide-react';
@@ -80,7 +79,7 @@ export function PairedDevices({
                 </Badge>
               </ItemTitle>
               <ItemDescription>
-                Last seen {relativeTime(device.lastSeenAt)} ·{' '}
+                Last seen {relativeTime(device.lastSeenAt, Date.now())} ·{' '}
                 {devicePlatformName(device.platform)}
               </ItemDescription>
               {device.routeInferred && (
@@ -265,11 +264,12 @@ function PermissionControl({
         onCheckedChange={onChange}
       />
       {AsyncResult.isFailure(result) && (
-        <Alert variant="destructive" className="col-span-2">
-          <AlertDescription>
-            {connectionErrorMessage(Cause.squash(result.cause))}
-          </AlertDescription>
-        </Alert>
+        <p
+          role="alert"
+          className="col-span-2 max-w-56 text-right text-xs leading-4 text-destructive"
+        >
+          {connectionErrorMessage(Cause.squash(result.cause))}
+        </p>
       )}
     </>
   );
@@ -303,11 +303,12 @@ function RevokeControl({
         {cancelLink ? 'Cancel' : 'Revoke'}
       </Button>
       {AsyncResult.isFailure(revoke) && (
-        <Alert variant="destructive">
-          <AlertDescription>
-            {connectionErrorMessage(Cause.squash(revoke.cause))}
-          </AlertDescription>
-        </Alert>
+        <p
+          role="alert"
+          className="max-w-40 text-right text-xs leading-4 text-destructive"
+        >
+          {connectionErrorMessage(Cause.squash(revoke.cause))}
+        </p>
       )}
     </>
   );

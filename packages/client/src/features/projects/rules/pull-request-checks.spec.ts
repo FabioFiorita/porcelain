@@ -17,6 +17,11 @@ import {
   type PullCheck,
   type PullStatus,
 } from './pull-request-checks.ts';
+import { mergeReadiness } from './merge-readiness.ts';
+import {
+  pullRequestMergeBlock,
+  type PullRequestMergeReview,
+} from './pull-request.ts';
 
 function job(
   name: string,
@@ -191,6 +196,9 @@ it('explains a draft, a branch behind its base and a bare branch rule', () => {
     ),
   ).toEqual(['A branch rule on GitHub blocks the merge.']);
   expect(pullRequestBlockers(pull([]), 'main')).toEqual([]);
+  expect(
+    pullRequestBlockers(pull([]), 'main', []).map((blocker) => blocker.text),
+  ).toEqual(['This repository allows no merge method.']);
   expect(
     pullRequestBlockers(
       pull([job('x', 'failed')], { state: 'merged' }),
@@ -368,4 +376,157 @@ it('toggles one key without changing the set it was given', () => {
   expect([...toggledKey(open, 'b')]).toEqual(['a', 'b']);
   expect([...toggledKey(open, 'a')]).toEqual([]);
   expect([...open]).toEqual(['a']);
+});
+
+const head = 'a'.repeat(40);
+
+const decided: PullRequestMergeReview = {
+  headOid: head,
+  undecidedCallStep: undefined,
+  undecidedCalls: 0,
+};
+
+function buttonBlock(
+  live: PullStatus,
+  review: PullRequestMergeReview | undefined,
+) {
+  return pullRequestMergeBlock(
+    { ...live, baseBranch: 'main', checksSummary: live.checksSummary },
+    review,
+  );
+}
+
+it('lists every reason the pull request cannot merge and which of them hold the Merge button', () => {
+  const readiness = mergeReadiness({
+    status: pull(
+      [
+        job('Browser tests', 'failed'),
+        job('Lint', 'failed'),
+        job('Server', 'running'),
+      ],
+      { reviewDecision: 'REVIEW_REQUIRED' },
+    ),
+    baseBranch: 'main',
+    review: { headOid: head, undecidedCallStep: 1, undecidedCalls: 1 },
+  });
+  expect(readiness).toMatchObject({
+    tone: 'failed',
+    label:
+      'Not ready to merge: 2 checks failing, 1 check running, review required, 1 call open',
+    waitsFor:
+      'Merge waits for: 2 checks failing, 1 check running, 1 call open.',
+  });
+});
+
+it('says ready only when GitHub lists nothing and every call is decided', () => {
+  const live = pull([job('Unit tests', 'passed')]);
+  const readiness = mergeReadiness({
+    status: live,
+    baseBranch: 'main',
+    review: decided,
+  });
+  expect(readiness).toEqual({
+    tone: 'ready',
+    label: 'Ready to merge',
+    reasons: [],
+    waitsFor: undefined,
+  });
+  expect(pullRequestBlockers(live, 'main')).toEqual([]);
+  expect(buttonBlock(live, decided)).toBeUndefined();
+});
+
+it.each([
+  ['a failed check', pull([job('Unit tests', 'failed')]), decided],
+  ['a running check', pull([job('Unit tests', 'running')]), decided],
+  ['a draft', pull([], { draft: true }), decided],
+  ['a conflict', pull([], { mergeable: 'CONFLICTING' }), decided],
+  ['a branch behind its base', pull([], { mergeState: 'BEHIND' }), decided],
+  [
+    'requested changes',
+    pull([], { reviewDecision: 'CHANGES_REQUESTED' }),
+    decided,
+  ],
+  [
+    'a required review',
+    pull([], { reviewDecision: 'REVIEW_REQUIRED' }),
+    decided,
+  ],
+  ['a branch rule', pull([], { mergeState: 'BLOCKED' }), decided],
+  [
+    'more checks than GitHub lists',
+    pull([job('Unit tests', 'passed')], { checksTruncated: true }),
+    decided,
+  ],
+  [
+    'calls still being read',
+    pull([]),
+    { headOid: head, undecidedCallStep: 'reading' },
+  ],
+  [
+    'calls that could not be read',
+    pull([]),
+    { headOid: head, undecidedCallStep: 'unreadable' },
+  ],
+  [
+    'open calls',
+    pull([]),
+    { headOid: head, undecidedCallStep: 2, undecidedCalls: 2 },
+  ],
+  [
+    'a Walkthrough for another commit',
+    pull([]),
+    { ...decided, headOid: 'b'.repeat(40) },
+  ],
+] satisfies [string, PullStatus, PullRequestMergeReview][])(
+  'never says ready with %s, and names what holds the Merge button',
+  (_case, live, review) => {
+    const readiness = mergeReadiness({
+      status: live,
+      baseBranch: 'main',
+      review,
+    });
+    expect(readiness.label).toMatch(/^Not ready to merge: \S/);
+    expect(readiness.waitsFor === undefined).toBe(
+      buttonBlock(live, review) === undefined,
+    );
+  },
+);
+
+it('names the open calls and a Walkthrough written for another commit', () => {
+  expect(
+    mergeReadiness({
+      status: pull([]),
+      baseBranch: 'main',
+      review: { headOid: head, undecidedCallStep: 1, undecidedCalls: 2 },
+    }).label,
+  ).toBe('Not ready to merge: 2 calls open');
+  expect(
+    mergeReadiness({
+      status: pull([]),
+      baseBranch: 'main',
+      review: { ...decided, headOid: 'b'.repeat(40) },
+    }),
+  ).toMatchObject({
+    tone: 'waiting',
+    label: 'Not ready to merge: the Walkthrough is for another commit',
+    waitsFor: undefined,
+  });
+});
+
+it('reports an unread, merged or closed pull request without a verdict', () => {
+  expect(
+    mergeReadiness({ status: undefined, baseBranch: 'main' }),
+  ).toMatchObject({ tone: 'unknown', label: 'Reading the merge status' });
+  expect(
+    mergeReadiness({
+      status: pull([], { state: 'merged' }),
+      baseBranch: 'main',
+    }).label,
+  ).toBe('Merged');
+  expect(
+    mergeReadiness({
+      status: pull([], { state: 'closed' }),
+      baseBranch: 'main',
+    }).label,
+  ).toBe('Closed without merging');
 });

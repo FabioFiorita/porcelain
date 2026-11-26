@@ -17,6 +17,7 @@ const status: ChangeStatusObservation = {
   inProgress: undefined,
   mergeHeadOid: undefined,
   branch: undefined,
+  omittedChanges: 0,
   changes: [
     modified('unstaged', 'a.md'),
     renamed,

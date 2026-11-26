@@ -1,6 +1,5 @@
 import { PendingButton } from '@/shared/views/pending-button';
 import { PendingSpinner } from '@/shared/views/state-notice';
-import { ContextMenuItem } from '@/components/ui/context-menu';
 import { type ReactNode, useState } from 'react';
 import { archivePullRequestDialog } from '../overlays';
 import { AsyncResult } from 'effect/reactivity';
@@ -42,13 +41,11 @@ export function ArchivePullRequest({
   projectId,
   number,
   beforeLeave = () => {},
-  menuItem = false,
 }: {
   context: ConnectionContext;
   projectId: string;
   number: number;
   beforeLeave?: () => void;
-  menuItem?: boolean;
 }) {
   const { connection } = context;
   const writeBlock = useWorkspaceWriteBlock(context);
@@ -73,23 +70,6 @@ export function ArchivePullRequest({
     });
     void submit({ options });
   };
-  if (menuItem)
-    return (
-      <ContextMenuItem
-        disabled={!settings || Boolean(writeBlock)}
-        aria-description={writeBlock}
-        onSelect={open}
-      >
-        <span className="flex min-w-0 flex-col">
-          Archive
-          {!settings && block && (
-            <span className="text-xs whitespace-normal text-muted-foreground">
-              {block}
-            </span>
-          )}
-        </span>
-      </ContextMenuItem>
-    );
   const button = (
     <Button
       variant="outline"
@@ -147,6 +127,8 @@ function ArchivePullRequestContent({
   const [discardChanges, setDiscardChanges] = useState(false);
   const answer = AsyncResult.isSuccess(result) ? result.value : undefined;
   const plan = answer?.plan;
+  const [confirmed, setConfirmed] = useState(false);
+  const archiving = result.waiting && confirmed;
   let description: ReactNode = (
     <PendingSpinner label="Checking the worktree and branches" />
   );
@@ -162,7 +144,9 @@ function ArchivePullRequestContent({
         </AlertDialogDescription>
       </AlertDialogHeader>
       {AsyncResult.isFailure(result) ? (
-        <p role="alert">{archiveFailureMessage(Cause.squash(result.cause))}</p>
+        <p role="alert" className="text-ui text-destructive">
+          {archiveFailureMessage(Cause.squash(result.cause))}
+        </p>
       ) : null}
       {plan && (plan.dirty || plan.unpushed) ? (
         <Field orientation="horizontal">
@@ -177,9 +161,9 @@ function ArchivePullRequestContent({
         </Field>
       ) : null}
       <AlertDialogFooter>
-        <AlertDialogCancel disabled={result.waiting}>Cancel</AlertDialogCancel>
+        <AlertDialogCancel disabled={archiving}>Cancel</AlertDialogCancel>
         <PendingButton
-          pending={result.waiting}
+          pending={archiving}
           variant="destructive"
           disabled={
             Boolean(writeBlock) ||
@@ -189,11 +173,13 @@ function ArchivePullRequestContent({
           }
           aria-description={writeBlock}
           onClick={() => {
-            if (plan && !writeBlock)
+            if (plan && !writeBlock) {
+              setConfirmed(true);
               void submit({
                 options,
                 confirmation: { plan, discardChanges },
               });
+            }
           }}
         >
           Archive pull request

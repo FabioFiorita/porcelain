@@ -1,9 +1,8 @@
 import { Cause, Option } from 'effect';
+import { RetryAlert } from '@/shared/views/retry-alert';
 import { AsyncResult } from 'effect/reactivity';
 import type { ReactNode } from 'react';
 import { SettingsSection } from '@/shared/views/settings-section';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
 import {
   connectionErrorMessage,
   waysInRefusal,
@@ -31,19 +30,11 @@ export function WaysInGate({
     );
   if (AsyncResult.isFailure(remote))
     return (
-      <Alert variant="destructive">
-        <AlertDescription>
-          {connectionErrorMessage(Cause.squash(remote.cause))}
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={remote.waiting}
-            onClick={retry}
-          >
-            Try again
-          </Button>
-        </AlertDescription>
-      </Alert>
+      <RetryAlert
+        message={connectionErrorMessage(Cause.squash(remote.cause))}
+        waiting={remote.waiting}
+        onRetry={retry}
+      />
     );
   if (!answer) return null;
   return children(answer);

@@ -14,7 +14,7 @@ import {
 } from '../queries/history';
 import { commitEntry, historyBoundary } from '@porcelain/client/history/rules';
 import { historyStatus } from '../rules/status';
-import { commitAge } from '@porcelain/client/history/rules';
+import { relativeTime } from '@porcelain/client/history/rules';
 import { GitMenu } from '../../git-actions';
 import { Button } from '../../../components/ui/button';
 import { useListCursor } from '../../../shared/application/key-commands';
@@ -88,7 +88,7 @@ function HistoryNavigationContent({
         entries={
           value?.commits.map((commit) => ({
             ...commitEntry(commit),
-            time: commitAge(commit.author.timestamp),
+            time: relativeTime(commit.author.timestamp, Date.now()),
           })) ?? []
         }
         loading={history.result.waiting || (!value && !failed)}

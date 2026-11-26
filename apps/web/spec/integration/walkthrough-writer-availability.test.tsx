@@ -25,9 +25,7 @@ test('an unwritten walkthrough offers one action: checking writers until one is 
   });
   await expect.element(write).not.toBeInTheDocument();
   await codingTool.install();
-  await page
-    .getByRole('button', { name: 'Check writers again', exact: true })
-    .click();
+  await page.getByRole('button', { name: 'Check again', exact: true }).click();
   await expect
     .element(
       page.getByRole('button', {
@@ -110,7 +108,7 @@ test('project automation stays editable when no writers are available and checki
   await expect.element(dialog).not.toBeInTheDocument();
   await open();
   const check = dialog.getByRole('button', {
-    name: 'Check writers again',
+    name: 'Check again',
     exact: true,
   });
   await check.click();
@@ -308,7 +306,7 @@ test('a failed writer check leaves Update usable and can be checked again', asyn
   try {
     const { page } = await render.route('/');
     const note = page.getByText(
-      'Could not check writers on the connected computer.',
+      'Could not check Claude Code or Codex on the connected computer.',
       {
         exact: true,
       },
@@ -320,7 +318,7 @@ test('a failed writer check leaves Update usable and can be checked again', asyn
       )
       .toBeEnabled();
     const check = page.getByRole('button', {
-      name: 'Check writers again',
+      name: 'Check again',
       exact: true,
     });
     restore();
@@ -360,7 +358,7 @@ test('checks a missing writer again after sign-in without leaving a ready walkth
   await codingTool.codexEffort(true);
   await page
     .getByRole('button', {
-      name: 'Check writers again',
+      name: 'Check again',
       exact: true,
     })
     .click();
@@ -415,13 +413,8 @@ test.for(['default', 'project'] as const)(
     await codingTool.codexEffort(false);
     await save.click();
     await expect
-      .element(
-        form.getByText(
-          `UnsupportedWalkthroughEffortError: ${unsupportedNote}`,
-          { exact: true },
-        ),
-      )
-      .toBeVisible();
+      .element(form.getByRole('alert'))
+      .toHaveTextContent(unsupportedNote);
     await expect.element(save).toBeDisabled();
     await effort.click();
     await expect

@@ -34,7 +34,7 @@ import { ChangeRow } from './change-row';
 import { useFileComments } from '@/features/comments/index';
 import { worktreeChangeMarks } from '@porcelain/client/files/rules';
 
-import { isSpecPath } from '@porcelain/client/changes/rules';
+import { isSpecPath, shownChangesText } from '@porcelain/client/changes/rules';
 import { useSpecsApart } from '@/features/preferences/index';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
@@ -240,6 +240,11 @@ function LayersView({
             }
             total={paths.length}
           />
+        )}
+        {shownChangesText(paths.length, list.omittedChanges) && (
+          <p className="px-2 py-1 text-caption text-muted-foreground">
+            {shownChangesText(paths.length, list.omittedChanges)}
+          </p>
         )}
         {comments.summary}
         {comments.dialogs}

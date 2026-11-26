@@ -10,6 +10,7 @@ export const gitActionReasonSchema = Schema.Union([
   Schema.Literal('DEADLINE_EXCEEDED'),
   Schema.Literal('OUTCOME_UNKNOWN'),
   Schema.Literal('PROCESS_GROUP_UNCONFIRMED'),
+  Schema.Literal('TOO_MANY_CHANGES'),
 ]);
 
 export type GitActionReason = typeof gitActionReasonSchema.Type;

@@ -196,6 +196,27 @@ export function createFetchGate(filePath: string) {
         refused: () => refused,
       };
     },
+    failChangeReads() {
+      const original = window.fetch;
+      let failing = true;
+      window.fetch = (input, init) =>
+        failing &&
+        (init?.method ?? 'GET') === 'GET' &&
+        requestUrl(input).pathname.endsWith('/changes')
+          ? Promise.resolve(
+              Response.json(
+                { message: 'Changes unavailable' },
+                { status: 413 },
+              ),
+            )
+          : original(input, init);
+      restores.push(() => {
+        window.fetch = original;
+      });
+      return () => {
+        failing = false;
+      };
+    },
     failWalkthroughReads() {
       const original = window.fetch;
       window.fetch = (input, init) =>

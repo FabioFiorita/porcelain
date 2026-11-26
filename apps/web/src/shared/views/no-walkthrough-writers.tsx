@@ -26,7 +26,7 @@ export function NoWalkthroughWriters({
         size="sm"
         onClick={onCheck}
       >
-        Check writers again
+        Check again
       </PendingButton>
     </div>
   );

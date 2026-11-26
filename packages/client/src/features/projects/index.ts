@@ -25,7 +25,10 @@ export { readProjectFolder } from './queries/folders.ts';
 export { projectSelectionSnapshotSchema } from './store/selection-snapshot.ts';
 export { WorktreeSnapshotStorage } from './ports/worktree-snapshot-storage.ts';
 export { WorktreeSnapshots } from './store/worktree-snapshot.ts';
-export { readWorktreeSnapshot } from './queries/worktree-snapshot.ts';
+export {
+  collectWorktreeSnapshots,
+  readWorktreeSnapshot,
+} from './queries/worktree-snapshot.ts';
 export { ProjectSelectionCommands } from './commands/selection.ts';
 export { WorkspaceSelectionCleanup } from './ports/workspace-selection-cleanup.ts';
 export { openProject } from './commands/open-project.ts';

@@ -49,6 +49,7 @@ export function MergePullRequest({
   review,
   label = 'Merge',
   showBlock = true,
+  reason,
   className,
 }: {
   context: ConnectionContext;
@@ -57,11 +58,14 @@ export function MergePullRequest({
   review?: PullRequestMergeReview | undefined;
   label?: string;
   showBlock?: boolean;
+  reason?: string | undefined;
   className?: string;
 }) {
   const reasonId = useId();
-  const block =
-    useWorkspaceWriteBlock(context) ?? pullRequestMergeBlock(pull, review);
+  const writeBlock = useWorkspaceWriteBlock(context);
+  const block = writeBlock ?? pullRequestMergeBlock(pull, review);
+  const shown =
+    writeBlock ?? (block === undefined ? undefined : (reason ?? block));
   return (
     <div
       className={cn(
@@ -93,7 +97,7 @@ export function MergePullRequest({
       >
         {label}
       </Button>
-      {block && (
+      {shown && (
         <p
           id={reasonId}
           className={cn(
@@ -101,7 +105,7 @@ export function MergePullRequest({
             !showBlock && 'sr-only',
           )}
         >
-          {block}
+          {shown}
         </p>
       )}
     </div>

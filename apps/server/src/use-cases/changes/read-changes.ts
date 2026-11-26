@@ -65,6 +65,9 @@ export class ReadChangesUseCase extends Context.Service<
                   mergeHeadOid: status.mergeHeadOid,
                   branch: status.branch,
                   changes,
+                  ...(status.omittedChanges > 0 && {
+                    omittedChanges: status.omittedChanges,
+                  }),
                   ...(interrupted.kind === 'interrupted' && {
                     interrupted: {
                       requestId: interrupted.receipt.requestId,

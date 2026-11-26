@@ -35,7 +35,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { MarkdownView } from '@/features/files/index';
-import { relativeTime } from '@/shared/lib/relative-time';
+import { relativeTime } from '@porcelain/client/history/rules';
 import { cn } from '@/shared/lib/utils';
 import {
   StateFailure,
@@ -582,7 +582,7 @@ function UnavailablePullRequest({
 
 function timeAgo(time: string) {
   return Number.isFinite(Date.parse(time))
-    ? relativeTime(time)
+    ? relativeTime(time, Date.now())
     : 'unknown time';
 }
 
@@ -648,7 +648,9 @@ function PullRequestLive({
   );
   const headSha = status?.headSha ?? pull.headSha;
   const call = undecidedCallAtHead(review, headSha);
-  const blockers = status ? pullRequestBlockers(status, pull.baseBranch) : [];
+  const blockers = status
+    ? pullRequestBlockers(status, pull.baseBranch, pull.mergeMethods)
+    : [];
   const openStep = onOpen
     ? (step: number) => onOpen({ kind: 'walkthrough-step', step })
     : undefined;

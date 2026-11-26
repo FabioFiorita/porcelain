@@ -24,7 +24,7 @@ type Selection = {
   readonly scope: WorktreeScope;
   readonly action: RunGitActionRequest['input']['action'];
 };
-class GitOperationStateError extends Schema.TaggedError<GitOperationStateError>()(
+export class GitOperationStateError extends Schema.TaggedError<GitOperationStateError>()(
   'GitOperationStateError',
   {
     reason: Schema.Literals([
@@ -33,6 +33,7 @@ class GitOperationStateError extends Schema.TaggedError<GitOperationStateError>(
       'mismatch',
       'receipt-unavailable',
     ]),
+    requestId: Schema.optional(Schema.String),
   },
 ) {
   override get message() {
@@ -153,7 +154,10 @@ const makeController = Effect.fn('GitActionController.make')(function* ({
           const receipt = yield* readGitReceipt(connection, current).pipe(
             Effect.catchTag('GitActionNotFoundError', () =>
               Effect.fail(
-                new GitOperationStateError({ reason: 'receipt-unavailable' }),
+                new GitOperationStateError({
+                  reason: 'receipt-unavailable',
+                  requestId: current.requestId,
+                }),
               ),
             ),
             Effect.mapError(
@@ -165,6 +169,7 @@ const makeController = Effect.fn('GitActionController.make')(function* ({
                 error instanceof RequestError && error.status === 404
                   ? new GitOperationStateError({
                       reason: 'receipt-unavailable',
+                      requestId: current.requestId,
                     })
                   : error,
             ),
@@ -175,16 +180,10 @@ const makeController = Effect.fn('GitActionController.make')(function* ({
         }),
       );
     }),
-    startNew: Effect.fn('GitActionController.startNew')(function* () {
-      return yield* admission.withPermit(
-        Effect.gen(function* () {
-          const receipt = operations.state.value.operations.get(key)?.receipt;
-          if (!receipt || !isTerminal(receipt)) return false;
-          yield* operations.set(key, null);
-          return true;
-        }),
-      );
-    }),
+    startNew: Effect.fn('GitActionController.startNew')(
+      (missingRequestId?: string) =>
+        admission.withPermit(operations.clear(key, missingRequestId)),
+    ),
   };
 });
 
@@ -221,8 +220,10 @@ export const recoverGitAction = Atom.family((selection: Selection) =>
   ),
 );
 export const startNewGitAction = Atom.family((selection: Selection) =>
-  controllerRuntime(selection).fn((_: void) =>
-    GitActionController.use((controller) => controller.startNew()),
+  controllerRuntime(selection).fn((missingRequestId: string | void) =>
+    GitActionController.use((controller) =>
+      controller.startNew(missingRequestId ?? undefined),
+    ),
   ),
 );
 
@@ -254,8 +255,10 @@ export function gitActionCommands(
         suspendOnWaiting: true,
       });
     }),
-    startNew: Effect.fn('GitActions.startNew')(function* () {
-      registry.set(start, undefined);
+    startNew: Effect.fn('GitActions.startNew')(function* (
+      missingRequestId?: string,
+    ) {
+      registry.set(start, missingRequestId);
       if (
         yield* AtomRegistry.getResult(registry, start, {
           suspendOnWaiting: true,

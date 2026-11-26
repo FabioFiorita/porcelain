@@ -283,9 +283,16 @@ function reviewers(names: readonly string[]) {
 export function pullRequestBlockers(
   status: PullStatus,
   baseBranch: string,
+  mergeMethods?: readonly string[],
 ): MergeBlocker[] {
   if (status.state !== 'open') return [];
   const blockers: MergeBlocker[] = [];
+  if (mergeMethods?.length === 0)
+    blockers.push({
+      key: 'methods',
+      tone: 'none',
+      text: 'This repository allows no merge method.',
+    });
   if (status.draft)
     blockers.push({
       key: 'draft',

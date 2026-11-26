@@ -339,14 +339,14 @@ function WriterForm({
         </form.Field>
       )}
       {unavailable && (
-        <Alert variant="destructive">
+        <Alert variant="destructive" className="w-0 min-w-full">
           <AlertDescription>{unavailable}</AlertDescription>
         </Alert>
       )}
       {AsyncResult.isFailure(result) && (
-        <Alert variant="destructive">
+        <Alert variant="destructive" className="w-0 min-w-full">
           <AlertDescription>
-            {String(Cause.squash(result.cause))}
+            {saveFailureMessage(Cause.squash(result.cause))}
           </AlertDescription>
         </Alert>
       )}
@@ -372,4 +372,10 @@ function WriterForm({
       </form.Subscribe>
     </form>
   );
+}
+
+function saveFailureMessage(error: unknown) {
+  return error instanceof Error && error.message
+    ? error.message
+    : 'The writer could not be saved. Try again.';
 }

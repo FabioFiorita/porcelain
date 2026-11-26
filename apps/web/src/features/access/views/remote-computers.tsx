@@ -214,13 +214,15 @@ export function RemoteComputers({
             >
               Check for updates
             </PendingButton>
-            <Button
-              size="sm"
-              disabled={batch.running || count === 0}
-              onClick={() => run(targets)}
-            >
-              Update all ({count})
-            </Button>
+            {remotes.length > 0 && (
+              <Button
+                size="sm"
+                disabled={batch.running || count === 0}
+                onClick={() => run(targets)}
+              >
+                Update all ({count})
+              </Button>
+            )}
           </>
         }
       >

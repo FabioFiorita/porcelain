@@ -71,7 +71,7 @@ export const parseGitStatusEffect = Effect.fn('Git.parseStatus')(function* (
           },
         }),
     changes,
-  } satisfies GitStatusObservation;
+  } satisfies Omit<GitStatusObservation, 'omittedChanges'>;
 });
 
 const decode = Effect.fn('Git.decodeStatus')((output: Buffer) =>

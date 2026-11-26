@@ -16,7 +16,7 @@ api:
 
 # git-actions.stash
 
-Stashing sets the changes aside and popping the stash brings them back and drops it; popping over a file changed since is refused with what Git said, and the stash is kept. If a file changes while the Pop dialog is open, submitting is refused with one line naming it ("<file> changed after this was read. Look again before trying.") and Look again is the only action. A stash dialog opened again starts fresh, without the previous run's outcome.
+Stashing sets the changes aside and popping the stash brings them back and drops it; popping over a file changed since is refused with a plain explanation, and the stash is kept. If a file changes while the Pop dialog is open, submitting is refused with one line naming it ("<file> changed after this was read. Look again before trying.") and Look again is the only action. A stash dialog opened again starts fresh, without the previous run's outcome.
 
 ## How to get to it (user POV)
 
@@ -70,7 +70,7 @@ On a fresh instance (or after section 1):
 6. Click menuitem `/^Pop stash/`
    Expect: dialog "Pop stash" with the stash "On main: Porcelain review · <id>" selected.
 7. Click button `Pop stash`
-   Expect: an `alert` in the dialog with Git's message containing "would be overwritten".
+   Expect: an `alert` in the dialog reading "Git could not restore this stash."
 
 ### Observable proof
 
@@ -85,3 +85,5 @@ Automated coverage: `git-actions-stash.test.tsx`.
 - Steps 10 and 11 of section 1 leave a stash set aside and the "Pop stash" dialog open; before section 2 press Escape and run `git -C "$REPO" stash pop`, or start a fresh instance.
 - Section 2 leaves a stash and a modified README.md; reset with `git -C "$REPO" checkout README.md && git -C "$REPO" stash pop`, or start a fresh instance.
 - A reopened dialog shows an earlier outcome only while that action is still running or unconfirmed (then with "Check outcome"); a settled one is not shown again.
+
+- After a missing receipt, inspect the current Git state in a terminal and choose "Clear unconfirmed action" to release the form. Check outcome and clearing make no new Git write.

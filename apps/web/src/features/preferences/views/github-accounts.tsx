@@ -1,4 +1,5 @@
 import { useAtom, useAtomRefresh, useAtomValue } from '@effect/atom-react';
+import { RetryAlert } from '@/shared/views/retry-alert';
 import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { RotateCcwIcon, TriangleAlertIcon } from 'lucide-react';
@@ -231,19 +232,12 @@ function ProjectAccount({
         </div>
       )}
       {AsyncResult.isFailure(result) && (
-        <Alert variant="destructive" className="basis-full">
-          <AlertDescription>
-            Could not display the GitHub account.{' '}
-            <Button
-              size="xs"
-              variant="outline"
-              disabled={disabled}
-              onClick={refresh}
-            >
-              Try again
-            </Button>
-          </AlertDescription>
-        </Alert>
+        <RetryAlert
+          className="basis-full"
+          message="Could not display the GitHub account."
+          waiting={disabled}
+          onRetry={refresh}
+        />
       )}
       {AsyncResult.isFailure(mutation) && (
         <Alert variant="destructive" className="basis-full">

@@ -71,6 +71,9 @@ export class ReadGitStatusUseCase extends Context.Service<
                     mergeHeadOid: status.mergeHeadOid,
                     headCommit: details.headCommit,
                     changes: status.changes,
+                    ...(status.omittedChanges > 0 && {
+                      omittedChanges: status.omittedChanges,
+                    }),
                   };
                 }),
               ),

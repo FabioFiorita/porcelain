@@ -35,11 +35,13 @@ function EvidenceImage({
   className,
   style,
   opened = false,
+  framed = true,
 }: Source & {
   item: WalkthroughEvidence;
   className: string;
   style?: CSSProperties;
   opened?: boolean;
+  framed?: boolean;
 }) {
   const { url, retry } = useWalkthroughAssetUrl({
     scope,
@@ -58,8 +60,21 @@ function EvidenceImage({
         style={style}
       />
     );
-  if (!opened) return null;
-  if (AsyncResult.isFailure(url) && !url.waiting)
+  const failed = AsyncResult.isFailure(url) && !url.waiting;
+  if (!opened)
+    return framed ? (
+      <span
+        role={failed ? 'alert' : undefined}
+        className="grid aspect-video w-full place-items-center rounded-sm border bg-muted px-3 text-center text-caption text-muted-foreground"
+      >
+        {failed ? (
+          'This screenshot could not be loaded.'
+        ) : (
+          <PendingSpinner label="Reading the screenshot" />
+        )}
+      </span>
+    ) : null;
+  if (failed)
     return (
       <StateNotice
         role="alert"
@@ -75,6 +90,29 @@ function EvidenceImage({
     <div className="grid min-h-48 place-items-center">
       <PendingSpinner label="Reading the screenshot" />
     </div>
+  );
+}
+
+export function EvidenceThumbnails({
+  scope,
+  context,
+  run,
+  items,
+}: EvidenceProps) {
+  return (
+    <span aria-hidden className="flex shrink-0 gap-1.5">
+      {items.map((item, index) => (
+        <EvidenceImage
+          key={index}
+          scope={scope}
+          context={context}
+          run={run}
+          item={item}
+          framed={false}
+          className="h-12 w-auto max-w-20 rounded-sm border object-cover object-top"
+        />
+      ))}
+    </span>
   );
 }
 
@@ -135,6 +173,7 @@ function Overlay({
         <EvidenceImage
           {...source}
           item={after}
+          framed={false}
           className="absolute inset-0 size-full object-contain object-left-top"
           style={{ clipPath: `inset(0 0 0 ${split}%)` }}
         />

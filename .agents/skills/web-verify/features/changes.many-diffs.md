@@ -4,9 +4,11 @@ selectors:
   - 'Review'
   - 'All changes'
   - 'The changes in this document could not be read.'
+  - 'changes shown'
 tests:
   - apps/web/spec/integration/changes-many-diffs.test.tsx
   - apps/web/spec/integration/changes-presentation.test.tsx
+  - apps/web/spec/integration/workspace-read-failure.test.tsx
 api:
   - GET /api/worktrees/:worktreeId/changes
   - POST /api/worktrees/:worktreeId/changes/diffs
@@ -14,7 +16,7 @@ api:
 
 # changes.many-diffs
 
-All changes lists and reads diffs for its first 25 files; "Read 25 more…" at the bottom adds the next 25 rows and diffs. Its heading, reviewed count and Mark all still cover every file, and the window survives switching tabs. Read to the end, more files than one diff request may carry (200) are split over several requests, with no failure notice. While the initial diff is pending, the document shows nothing in its place (no skeleton or loading words); already loaded diffs stay readable during later reads.
+All changes lists and reads diffs for its first 25 files; a worktree with more than 2,000 changed files lists the first 2,000 and its heading reads "2,000 of M changes shown", while Stash, Pop stash and a merge commit say to use a terminal and the commit form notes that unlisted changes stay out of the commit. If the change list cannot be read at all, the tabs, toolbar and side panel stay and the Review tab shows the failure with Try again; "Read 25 more…" at the bottom adds the next 25 rows and diffs. Its heading, reviewed count and Mark all still cover every file, and the window survives switching tabs. Read to the end, more files than one diff request may carry (200) are split over several requests, with no failure notice. While the initial diff is pending, the document shows nothing in its place (no skeleton or loading words); already loaded diffs stay readable during later reads.
 
 ## How to get to it (user POV)
 

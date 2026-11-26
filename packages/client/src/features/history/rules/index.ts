@@ -19,4 +19,4 @@ export {
   branchTracking,
 } from './presentation.ts';
 export { type HistoryScope } from './connection.ts';
-export { commitAge } from './commit-age.ts';
+export { relativeTime } from './relative-time.ts';

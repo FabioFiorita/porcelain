@@ -27,7 +27,7 @@ The Open project dialog browses the server's folders, starting in its project ho
 
 ## How to get to it (user POV)
 
-- Sidebar (phone width: `Toggle Sidebar` first, or `ControlOrMeta+b`) → `Open project` (plus button in the navigator header) → dialog "Open project" → region "Browse for a folder": click a folder to enter it, `Up` to go to the parent, a breadcrumb button (navigation "Folder path") to jump to an ancestor → `Open <folder>`.
+- Sidebar (phone width: `Toggle Sidebar` first, or `ControlOrMeta+b`) → `Open project` (plus button in the navigator header) → dialog "Open project" → region "Browse for a folder": click a folder to enter it, `Up` to go to the parent, a breadcrumb button (navigation "Folder path") to jump to an ancestor → `Open repository`.
 - Desktop shell with remote computers added: `Open project` is a menu → `This computer` (see `projects.open-remote`). The desktop app with its bridge opens the native folder picker instead of this dialog.
 
 ## Driving it with browser
@@ -53,7 +53,7 @@ git -C "$REPO/../browsed" -c user.name=Verify -c user.email=verify@example.inval
 1. Navigate to `/`, then click button `Toggle Sidebar`
    Expect: dialog "Sidebar" with button "Open project", an always-visible search field and Filter worktrees. The scoped "repository · <computer>" project header is registered.
 2. Click button `Open project`
-   Expect: dialog "Open project", text "Browse for a repository on the Porcelain server."; folder buttons "plain", "browsed", "repository"; the project home is no repository, so text "Pick a folder that is a Git repository." and a disabled `Open porcelain-dev-…` button.
+   Expect: dialog "Open project", text "Browse for a repository on the Porcelain server."; folder buttons "plain", "browsed", "repository"; the project home is no repository, so text "Pick a folder that is a Git repository." and a disabled `Open repository` button.
 3. Click button `plain`
    Expect: text "No subfolders."; text "Pick a folder that is a Git repository."; button "Open plain" disabled; button "Up" present.
 

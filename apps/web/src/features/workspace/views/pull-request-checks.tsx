@@ -818,8 +818,8 @@ function LogFallback({ check, reason }: { check: PullCheck; reason: string }) {
       {check.detailsUrl && (
         <Button
           variant="link"
-          size="sm"
-          className="mt-1 px-0"
+          size="flush"
+          className="mt-1"
           render={
             <a href={check.detailsUrl} target="_blank" rel="noreferrer" />
           }
@@ -889,8 +889,7 @@ function ExternalCheck({ check }: { check: PullCheck }) {
       {check.detailsUrl && (
         <Button
           variant="link"
-          size="sm"
-          className="px-0"
+          size="flush"
           render={
             <a href={check.detailsUrl} target="_blank" rel="noreferrer" />
           }

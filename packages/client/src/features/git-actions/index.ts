@@ -9,6 +9,7 @@ export { operationKey, isTerminal } from './store/operations.ts';
 export {
   runGitAction,
   recoverGitAction,
+  GitOperationStateError,
   readGitActionCommands,
 } from './commands/git-action-controller.ts';
 export { OperationStorage } from './ports/operation-storage.ts';

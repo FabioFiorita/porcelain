@@ -109,7 +109,7 @@ function ComparisonChanges(props: ChangesPageProps) {
     <ChangesReader
       {...props}
       files={files}
-      summary={changesSummary(value, files.length)}
+      summary={changesSummary(value, files.length, props.reading === undefined)}
     />
   );
 }

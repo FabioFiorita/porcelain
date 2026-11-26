@@ -1,9 +1,10 @@
-import {
-  type StepBlock,
-  type WalkthroughComparison,
-  type WalkthroughRun,
+import type {
+  StepBlock,
+  WalkthroughComparison,
+  WalkthroughRun,
 } from '@porcelain/client/walkthroughs/rules';
 import {
+  currentWalkthroughChecks,
   movedPullHead,
   pullRequestRollup,
   recordedChecks,
@@ -112,22 +113,30 @@ function FileList({
   );
 }
 
-function checksTone(checks: Checks['checks']): Tone {
+export function checksTone(checks: Checks['checks']): Tone {
   return pullRequestRollup(checks.state).tone;
 }
 
 function CheckList({ block, pull }: { block: Checks; pull: WalkthroughPull }) {
   const checks = recordedChecks(block.checks);
+  const live = currentWalkthroughChecks(block.checks, pull?.status);
+  const label = live ? checks.whenWritten : checks.label;
   const moved = movedPullHead(pull?.detail?.headSha, block.checks.headOid);
   return (
     <EvidenceBox
-      label={checks.label}
+      label={label}
       heading={
         <>
           <CheckResultIcon tone={checksTone(block.checks)} />
           <span>
-            <ShortOid label={checks.label} />
+            <ShortOid label={label} />
           </span>
+          {live && (
+            <span className="ml-auto flex items-center gap-1.5 text-foreground">
+              <CheckResultIcon tone={live.tone} />
+              {live.label}
+            </span>
+          )}
           {moved && pull && (
             <span className="ml-auto text-warn">
               #{pull.number} is now at{' '}

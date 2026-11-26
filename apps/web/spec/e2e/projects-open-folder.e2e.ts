@@ -33,7 +33,7 @@ test('browsing to a Git repository opens it as a project in the navigator and th
     }),
   ).toBeVisible();
   await dialog
-    .getByRole('button', { name: 'Open browsed', exact: true })
+    .getByRole('button', { name: 'Open repository', exact: true })
     .click();
 
   await expect(dialog).not.toBeAttached();

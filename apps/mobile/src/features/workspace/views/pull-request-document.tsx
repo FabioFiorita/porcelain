@@ -12,7 +12,7 @@ import {
 } from '@porcelain/client/projects/rules';
 import { useComputerConnection } from '../../projects/index';
 import { useWritesBlocked } from '../../access';
-import { commitAge } from '@porcelain/client/history/rules';
+import { relativeTime } from '@porcelain/client/history/rules';
 import { Badge } from '../../../components/ui/badge';
 import { Box } from '../../../components/ui/box';
 import { Button } from '../../../components/ui/button';
@@ -130,7 +130,7 @@ function PullRequestPage({
               <Text variant="caption" tone="muted" numberOfLines={1}>
                 {[
                   pull.author ? `by ${pull.author}` : undefined,
-                  pull.createdAt ? commitAge(pull.createdAt) : undefined,
+                  pull.createdAt ? relativeTime(pull.createdAt, Date.now()) : undefined,
                 ]
                   .filter(Boolean)
                   .join(' · ')}
@@ -189,7 +189,7 @@ function PullRequestHeader({ pull }: { pull: PullRequest }) {
           {pull.baseBranch} ← {pull.headBranch}
         </Text>
         <Text variant="caption" tone="muted">
-          updated {commitAge(pull.updatedAt)}
+          updated {relativeTime(pull.updatedAt, Date.now())}
         </Text>
       </Box>
       {pull.labels.length > 0 ? (
@@ -317,7 +317,7 @@ function TimelineEntry({
         ) : null}
         <Text variant="caption" tone="muted" className="flex-1">
           {!review && item.kind === 'comment' ? 'commented · ' : ''}
-          {commitAge(item.time)}
+          {relativeTime(item.time, Date.now())}
         </Text>
         <IconButton
           icon="external"

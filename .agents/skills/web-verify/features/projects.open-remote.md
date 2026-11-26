@@ -31,7 +31,7 @@ In the desktop app with a remote computer added, the navigator's `Open project` 
 
 ## How to get to it (user POV)
 
-- Desktop shell only. Sidebar (phone width: `Toggle Sidebar` first, or `ControlOrMeta+b`) → `Open project` (plus button) → menu "Open project on" → `This computer` or the remote computer's name (disabled with a status badge while it is not online) → dialog "Open project" ("Browse for a repository on <name>.") → folder → `Open <folder>`.
+- Desktop shell only. Sidebar (phone width: `Toggle Sidebar` first, or `ControlOrMeta+b`) → `Open project` (plus button) → menu "Open project on" → `This computer` or the remote computer's name (disabled with a status badge while it is not online) → dialog "Open project" ("Browse for a repository on <name>.") → folder → `Open repository`.
 - A remote computer is added in Settings → `Computers` (route `/settings/computers`) → textbox `Pairing link` → `Add`.
 - Without remote computers, `Open project` is a plain button (`projects.open-folder`).
 
@@ -90,4 +90,4 @@ Automated coverage: `projects-open-remote.desktop.e2e.ts`.
 ## Gotchas
 
 - Requires --desktop for views without native picker/bridge; remotes persist in this browser. Remote fixture names are Remote journey computer and remote-sample.
-- Navigator sheet stays open after Open <folder>. Remote menuitem uses the computer name only while online.
+- Navigator sheet stays open after Open repository. Remote menuitem uses the computer name only while online.

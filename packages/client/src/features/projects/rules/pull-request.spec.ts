@@ -4,6 +4,7 @@ import {
   mergeConfirmation,
   pullRequestCheckout,
   undecidedCallAtHead,
+  walkthroughCheckRows,
   githubUnavailable,
   pullRequestChecks,
   pullRequestConversation,
@@ -261,6 +262,7 @@ it('names each recorded check result and the commit it ran on', () => {
     ]),
   ).toEqual({
     label: 'Checks failing at abcdef1',
+    whenWritten: 'Failing when written, at abcdef1',
     more: true,
     results: [
       { name: 'Unit', tone: 'passed', label: 'Passed', detail: undefined },
@@ -382,10 +384,13 @@ it('puts the live result first when the same captured head starts failing', () =
   };
   expect(currentWalkthroughChecks(captured, live)).toEqual({
     tone: 'failed',
-    label: 'Now failing',
+    label: 'Failing now',
     names: ['Browser tests'],
   });
   expect(recordedChecks(captured).label).toBe('Checks passing at abc1234');
+  expect(recordedChecks(captured).whenWritten).toBe(
+    'Passing when written, at abc1234',
+  );
   expect(
     currentWalkthroughChecks(captured, { ...live, headSha: 'def5678' }),
   ).toBeUndefined();
@@ -398,6 +403,40 @@ it('puts the live result first when the same captured head starts failing', () =
       ],
     }),
   ).toBeUndefined();
+});
+
+it('moves a step’s checks out of Verified only while GitHub now disagrees with what was written', () => {
+  const passing = {
+    headOid: 'abc1234',
+    state: 'SUCCESS',
+    checksTruncated: false,
+    results: [{ name: 'Browser tests', status: 'SUCCESS' }],
+  };
+  const failing = { ...passing, headOid: 'fed4321' };
+  const rows = walkthroughCheckRows(
+    [
+      { step: 1, checks: passing },
+      { step: 2, checks: failing },
+    ],
+    {
+      headSha: 'abc1234',
+      checksTruncated: false,
+      checks: [
+        { name: 'Browser tests', status: 'COMPLETED', conclusion: 'FAILURE' },
+      ],
+    },
+  );
+  expect(rows.changed).toEqual([
+    {
+      step: 1,
+      checks: passing,
+      live: { tone: 'failed', label: 'Failing now', names: ['Browser tests'] },
+    },
+  ]);
+  expect(rows.unchanged).toEqual([{ step: 2, checks: failing }]);
+  expect(
+    walkthroughCheckRows([{ step: 1, checks: passing }], undefined),
+  ).toEqual({ changed: [], unchanged: [{ step: 1, checks: passing }] });
 });
 
 it('recognizes that the failing check changed even when the overall rollup stayed red', () => {
@@ -419,7 +458,7 @@ it('recognizes that the failing check changed even when the overall rollup staye
         { name: 'Browser tests', status: 'COMPLETED', conclusion: 'FAILURE' },
       ],
     }),
-  ).toEqual({ tone: 'failed', label: 'Now failing', names: ['Browser tests'] });
+  ).toEqual({ tone: 'failed', label: 'Failing now', names: ['Browser tests'] });
 });
 
 it('finds the checkout of a pull request by its head branch', () => {

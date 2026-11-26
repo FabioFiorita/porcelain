@@ -9,7 +9,7 @@ import type {
   CodeViewLineSelection,
 } from '@pierre/diffs';
 import { DEFAULT_VIRTUAL_FILE_METRICS } from '@pierre/diffs';
-import type { CodeViewReactOptions } from '@pierre/diffs/react';
+import { CodeView, type CodeViewReactOptions } from '@pierre/diffs/react';
 import { useHotkey } from '@tanstack/react-hotkeys';
 import {
   Tooltip,
@@ -32,8 +32,7 @@ import {
   contentVersion,
   PIERRE_CHANGES_HEADER_CSS,
   PIERRE_FILE_CSS,
-  PIERRE_DECISION_CSS,
-  PIERRE_DECISION_THEME,
+  PIERRE_CARD_CSS,
   PIERRE_HEADER_CSS,
   PIERRE_INSET_CSS,
   PIERRE_SURFACE_CSS,
@@ -48,7 +47,7 @@ import {
   useTheme,
 } from '@/features/preferences/index';
 import { fileChangeBars } from '../adapters/file-changes';
-import { PierreCodeView as CodeView } from '../adapters/pierre-workers';
+
 import {
   type CodeEntry,
   codeTarget,
@@ -395,10 +394,7 @@ function CodeSurface({
   const card = decision || column || framed;
   const options: CodeViewReactOptions<CommentNote, undefined> = {
     preferredHighlighter: PIERRE_HIGHLIGHTER,
-    theme:
-      decision || column || compactThreads || framed
-        ? PIERRE_DECISION_THEME
-        : PIERRE_THEME,
+    theme: PIERRE_THEME,
     themeType: dark ? 'dark' : 'light',
     overflow: preferences.lineOverflow,
     diffStyle: preferences.diffStyle,
@@ -418,7 +414,7 @@ function CodeSurface({
     onLineClick: (_, context) => setFocusedId(context.item.id),
     onLineNumberClick: (_, context) => setFocusedId(context.item.id),
     lineHoverHighlight: 'number',
-    unsafeCSS: `${compactThreads ? '[data-line-annotation]:has([data-file-thread-marker]) { margin-left: 0; }' : ''}${fileChangeBars(fileDiff)}${card ? PIERRE_DECISION_CSS : ''}${column ? PIERRE_CHANGES_HEADER_CSS : ''}${PIERRE_SURFACE_CSS}${commentDrafts === undefined ? '' : PIERRE_COMMENT_CSS}${disableFileHeader || compactHeight ? '[data-code] { padding-top: 0 !important; }' : PIERRE_HEADER_CSS}${disableFileHeader || compactHeight || card ? '' : PIERRE_INSET_CSS}${compactThreads ? PIERRE_FILE_CSS : ''}${compactHeight ? '[data-diffs-header], pre { border: 0; border-radius: 0; }' : ''}`,
+    unsafeCSS: `${compactThreads ? '[data-line-annotation]:has([data-file-thread-marker]) { margin-left: 0; }' : ''}${fileChangeBars(fileDiff)}${card ? PIERRE_CARD_CSS : ''}${column ? PIERRE_CHANGES_HEADER_CSS : ''}${PIERRE_SURFACE_CSS}${commentDrafts === undefined ? '' : PIERRE_COMMENT_CSS}${disableFileHeader || compactHeight ? '[data-code] { padding-top: 0 !important; }' : PIERRE_HEADER_CSS}${disableFileHeader || compactHeight || card ? '' : PIERRE_INSET_CSS}${compactThreads ? PIERRE_FILE_CSS : ''}${compactHeight ? '[data-diffs-header], pre { border: 0; border-radius: 0; }' : ''}`,
     ...(column
       ? { itemMetrics: { lineHeight: 22, diffHeaderHeight: 41 } }
       : {}),
@@ -761,7 +757,6 @@ function CodeSurface({
               </div>
             );
           }}
-          review={decision || column || compactThreads || framed}
           options={options}
           className={cn(
             compactHeight && 'max-h-48 flex-none overflow-auto',
@@ -809,7 +804,7 @@ function CodeSurface({
           renderHeaderFilenameSuffix={(item) => {
             const entry = byId.get(item.id);
             if (!entry) return null;
-            return entry.note ? (
+            return entry.note && !ICON_STATUSES.has(entry.note) ? (
               <TruncatedText
                 className="ml-2 hidden max-w-48 font-sans text-xs text-muted-foreground @code-wide/code:block"
                 text={entry.note}
@@ -821,6 +816,8 @@ function CodeSurface({
     </div>
   );
 }
+
+const ICON_STATUSES = new Set(['added', 'deleted', 'modified', 'renamed']);
 
 const FOLLOW_SLACK = 8;
 

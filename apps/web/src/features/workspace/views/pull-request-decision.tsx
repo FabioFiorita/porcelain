@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { FileDiffIcon } from 'lucide-react';
 import {
+  mergeReadiness,
   pullRequestMergeable,
   withPullRequestStatus,
   type PullRequestMergeReview,
@@ -79,6 +80,12 @@ export function PullRequestDecision({
   const staleWalkthrough =
     walkthrough !== undefined && walkthrough.headOid !== live.headSha;
   const open = live.state === 'open';
+  const readiness = mergeReadiness({
+    status,
+    baseBranch: pull.baseBranch,
+    mergeMethods: pull.mergeMethods,
+    review,
+  });
   return (
     <section aria-labelledby="pull-decision-heading" className="mt-7 min-w-0">
       <div className={sectionHeading}>
@@ -214,11 +221,7 @@ export function PullRequestDecision({
           projectId={projectId}
           pull={live}
           review={review}
-          showBlock={
-            status === undefined ||
-            review?.undecidedCallStep === 'reading' ||
-            review?.undecidedCallStep === 'unreadable'
-          }
+          reason={readiness.waitsFor}
           className={cn('mt-2 border-t pt-3')}
         />
       )}

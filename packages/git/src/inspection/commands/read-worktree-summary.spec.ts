@@ -25,7 +25,7 @@ const commit = () => {
   git('add', '--all');
   git('commit', '-qm', 'Prepare baseline');
 };
-const read = () =>
+const read = (limits = gitLimits) =>
   Effect.runPromise(
     readWorktreeSummary(
       {
@@ -34,7 +34,7 @@ const read = () =>
         confirm: () => Effect.void,
         conversionFilters: (effect) => effect,
       },
-      gitLimits,
+      limits,
     ).pipe(Effect.provide(NodeServices.layer)),
   );
 beforeEach(() => {
@@ -54,6 +54,18 @@ it('counts the net HEAD-to-worktree change once across index and working copy an
   const indexBefore = readFileSync(join(checkout, '.git/index'));
   expect(await read()).toEqual({ additions: 4, deletions: 1, binaryFiles: 0 });
   expect(readFileSync(join(checkout, '.git/index'))).toEqual(indexBefore);
+});
+it('refuses to total a status that left changed files out', async () => {
+  write('tracked.txt', 'one\n');
+  commit();
+  write('a.txt', 'a\n');
+  write('b.txt', 'b\n');
+  await expect(
+    read({
+      ...gitLimits,
+      inspection: { ...gitLimits.inspection, maxChanges: 1 },
+    }),
+  ).rejects.toMatchObject({ name: 'InspectionLimitError' });
 });
 it('keeps pure renames at zero and counts deleted lines', async () => {
   write('before.txt', 'same\ncontent\n');

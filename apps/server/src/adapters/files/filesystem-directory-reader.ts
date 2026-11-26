@@ -8,6 +8,7 @@ import type {
   EntryKind,
 } from '@porcelain/files/models';
 import { DirectoryReader } from '@porcelain/files/ports';
+import { firstListedEntries } from '@porcelain/files/rules';
 import { Effect, Layer, type Scope } from 'effect';
 import {
   type GuardedPathFailure,
@@ -37,25 +38,24 @@ export const filesystemDirectoryReaderLayer = (
             if (!before.info.isDirectory())
               return { kind: 'failed', failure: 'unreadable' };
             const directory = yield* openRawDirectory(before.path);
-            const found: { name: string; entry: Dirent }[] = [];
-            let truncated = false;
+            const found: { name: string; kind: EntryKind; entry: Dirent }[] =
+              [];
             for (;;) {
               const entry = yield* syscall(() => directory.read());
               if (entry === null) break;
               const name = decodedName(entry.name);
               if (name === undefined)
                 return { kind: 'failed', failure: 'unsupported-name' };
-              if (found.length === input.limit) {
-                truncated = true;
-                break;
-              }
-              found.push({ name, entry });
+              found.push({ name, kind: entryKind(entry), entry });
             }
-            const entries = yield* Effect.forEach(found, ({ name, entry }) =>
-              describe(before.path, name, entry, options.gitDirectory),
+            const first = firstListedEntries(found, input.limit);
+            const entries = yield* Effect.forEach(
+              first.entries,
+              ({ name, entry }) =>
+                describe(before.path, name, entry, options.gitDirectory),
             );
             yield* verifyPath(before, target);
-            return { kind: 'listed', entries, truncated };
+            return { kind: 'listed', entries, omitted: first.omitted };
           }),
         ),
     ),

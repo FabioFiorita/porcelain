@@ -127,6 +127,44 @@ describe('native Git actions', () => {
     }).toEqual({ tracking: sourceOid, temporary: '', head: sourceOid });
   });
 
+  it('reports a remote branch advancing as a refusal to push', async () => {
+    const remote = join(root, 'remote.git');
+    const writer = join(root, 'writer');
+    execFileSync('git', ['clone', '-q', '--bare', checkout, remote]);
+    execFileSync('git', ['clone', '-q', remote, writer]);
+    execFileSync('git', [
+      '-C',
+      writer,
+      '-c',
+      'user.name=T',
+      '-c',
+      'user.email=t@e',
+      'commit',
+      '-q',
+      '--allow-empty',
+      '-m',
+      'Remote advanced',
+    ]);
+    execFileSync('git', ['-C', writer, 'push', '-q', 'origin', 'main']);
+    git('remote', 'add', 'origin', remote);
+
+    expect(
+      await run(
+        action({
+          action: 'push',
+          remoteName: 'origin',
+          destinationRef: 'refs/heads/main',
+          allowCreate: false,
+        }),
+      ),
+    ).toEqual({
+      state: 'rejected',
+      reason: 'NON_FAST_FORWARD',
+      message: 'This branch is behind its remote. Pull before pushing.',
+      refreshRequired: true,
+    });
+  });
+
   it('refuses a symbolic link hook before writing Git state', async () => {
     const script = join(root, 'hook');
     writeFileSync(script, '#!/bin/sh\nexit 0\n');

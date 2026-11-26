@@ -8,5 +8,5 @@ export type DirectoryReadInput = {
 };
 
 export type DirectoryRead =
-  | { kind: 'listed'; entries: DirectoryEntry[]; truncated: boolean }
+  | { kind: 'listed'; entries: DirectoryEntry[]; omitted: number }
   | { kind: 'failed'; failure: ListFailure };

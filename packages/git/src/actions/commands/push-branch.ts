@@ -46,19 +46,34 @@ export const pushBranch = Effect.fn('Git.pushBranch')(function* (
     `${sourceOid}:${intent.destinationRef}`,
   ]);
   const failure = processFailure(command);
-  if (failure)
+  const records = command.stdout.toString('utf8').split('\n');
+  if (failure) {
+    const behind = records.some((line) => {
+      const [flag, ref, summary] = line.split('\t');
+      return (
+        flag === '!' &&
+        ref === `${sourceOid}:${intent.destinationRef}` &&
+        (summary === '[rejected] (fetch first)' ||
+          summary === '[rejected] (non-fast-forward)')
+      );
+    });
+    if (failure.state === 'rejected' && behind)
+      return {
+        state: 'rejected',
+        reason: 'NON_FAST_FORWARD',
+        message: 'This branch is behind its remote. Pull before pushing.',
+        refreshRequired: true,
+      };
     return {
       ...failure,
       state: 'indeterminate',
       reason: failure.reason ?? 'OUTCOME_UNKNOWN',
     };
-  const records = command.stdout
-    .toString('utf8')
-    .split('\n')
-    .filter((line) => /^[ =*]\t/.test(line));
+  }
+  const accepted = records.filter((line) => /^[ =*]\t/.test(line));
   if (
-    records.length !== 1 ||
-    !records[0]?.split('\t')[1]?.endsWith(`:${intent.destinationRef}`)
+    accepted.length !== 1 ||
+    !accepted[0]?.split('\t')[1]?.endsWith(`:${intent.destinationRef}`)
   )
     return {
       state: 'indeterminate',
@@ -66,7 +81,7 @@ export const pushBranch = Effect.fn('Git.pushBranch')(function* (
       refreshRequired: true,
     };
   return {
-    state: records[0].startsWith('=') ? 'no-change' : 'succeeded',
+    state: accepted[0].startsWith('=') ? 'no-change' : 'succeeded',
     result: {
       sourceOid: sourceOid,
       destinationRef: intent.destinationRef,

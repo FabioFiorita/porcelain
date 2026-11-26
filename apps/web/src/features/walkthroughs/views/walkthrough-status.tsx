@@ -12,6 +12,7 @@ import type { WriterAction } from './walkthrough-writer-notice';
 export function WalkthroughStatus({
   run,
   requesting = false,
+  first = false,
   reused = false,
   freshness,
   failure,
@@ -22,7 +23,7 @@ export function WalkthroughStatus({
   writeBlock?: string | undefined;
   controls?: ((action: WriterAction) => ReactNode) | undefined;
 }) {
-  const progress = walkthroughProgress(run, requesting);
+  const progress = walkthroughProgress(run, requesting, first);
   if (
     run.state.status === 'ready' &&
     !progress.active &&

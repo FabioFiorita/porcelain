@@ -8,6 +8,7 @@ import type {
 export type RunGitActionInput = {
   run: GitActionRun;
   changes: FileChange[];
+  omittedChanges: number;
   onProgress?: GitActionProgressListener | undefined;
 };
 

@@ -1,9 +1,10 @@
 import type { LiveDiagnostic } from '../rules/diagnostics.ts';
-import { liveSessionState } from '../store.ts';
+import { liveRetrySignal, liveSessionState } from '../store.ts';
 import {
   Cause,
   Clock,
   Context,
+  Data,
   Deferred,
   Effect,
   Queue,
@@ -47,6 +48,8 @@ function unauthorized(error: unknown) {
   );
 }
 
+class RetryRequested extends Data.TaggedError('RetryRequested') {}
+
 type TimeoutEvent =
   | 'Connection setup timeout'
   | 'Ready timeout'
@@ -57,6 +60,7 @@ function disconnectDiagnostic(
   deadline: TimeoutEvent,
   silent: boolean,
 ): Omit<LiveDiagnostic, 'at'> {
+  if (error instanceof RetryRequested) return { event: 'Retry requested' };
   if (Cause.isTimeoutError(error)) return { event: deadline };
   const reason = socketReason(error);
   if (reason?._tag === 'SocketCloseError') {
@@ -99,8 +103,10 @@ export function createLiveUpdates<E>(
   },
 ): LiveUpdatePort {
   const state = liveSessionState();
+  const retry = liveRetrySignal();
   return {
     state,
+    retry: () => retry.update((revision) => revision + 1),
     connect: Effect.fn('LiveUpdates.connect')(function* ({
       onNotice,
       onReconnect,
@@ -123,6 +129,13 @@ export function createLiveUpdates<E>(
       const wakeups = yield* Queue.sliding<void>(1);
       let refreshOnForeground = false;
       const foreground = Queue.take(wakeups);
+      const retries = yield* Queue.sliding<void>(1);
+      yield* Effect.acquireRelease(
+        Effect.sync(() =>
+          retry.subscribe(() => Queue.offerUnsafe(retries, undefined)),
+        ),
+        (unsubscribe) => Effect.sync(unsubscribe),
+      );
       if (options?.activity) {
         const activity = options.activity;
         let wasActive = activity.isActive();
@@ -157,7 +170,7 @@ export function createLiveUpdates<E>(
       let silent = false;
       const connection = Effect.scoped(
         Effect.gen(function* () {
-          state.set(readyCount === 0 ? 'connecting' : 'reconnecting');
+          if (state.value === 'idle') state.set('connecting');
           deadline = 'Connection setup timeout';
           silent = false;
           record({ event: 'Connection attempt' });
@@ -238,7 +251,17 @@ export function createLiveUpdates<E>(
               }
             }),
           );
-          yield* Effect.all([receive, send, monitor, establish], {
+          const restart = Effect.forever(
+            Queue.take(retries).pipe(
+              Effect.andThen(Deferred.isDone(ready)),
+              Effect.flatMap((isReady) =>
+                isReady
+                  ? Effect.sync(() => Queue.offerUnsafe(wakeups, undefined))
+                  : Effect.fail(new RetryRequested()),
+              ),
+            ),
+          );
+          yield* Effect.all([receive, send, monitor, establish, restart], {
             concurrency: 'unbounded',
           }).pipe(Effect.raceFirst(Deferred.await(disconnected)));
         }),
@@ -249,6 +272,7 @@ export function createLiveUpdates<E>(
             Effect.sync(() => state.set('idle')).pipe(
               Effect.andThen(Queue.shutdown(updates)),
               Effect.andThen(Queue.shutdown(wakeups)),
+              Effect.andThen(Queue.shutdown(retries)),
             ),
           );
           while (true) {
@@ -269,9 +293,13 @@ export function createLiveUpdates<E>(
                 return yield* Effect.never;
               }
             }
-            state.set(readyCount === 0 ? 'connecting' : 'reconnecting');
+            state.set(readyCount === 0 ? 'unavailable' : 'reconnecting');
+            if (error instanceof RetryRequested) continue;
             record({ event: 'Retry scheduled', retryMs });
-            yield* Effect.sleep(retryMs).pipe(Effect.raceFirst(foreground));
+            yield* Effect.sleep(retryMs).pipe(
+              Effect.raceFirst(foreground),
+              Effect.raceFirst(Queue.take(retries)),
+            );
             retryMs = Math.min(
               retryMs * LIVE_RECONNECT_BACKOFF,
               LIVE_RECONNECT_MAX_MS,

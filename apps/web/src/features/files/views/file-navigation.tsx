@@ -70,6 +70,8 @@ import {
   changeStatus,
   fileTreeAncestors,
   mergeFileTreeEntries,
+  omittedEntriesText,
+  withUnlistedSelection,
   movedPath,
   pathInside,
   pinnedFileEntries,
@@ -182,7 +184,11 @@ function ScopedFileNavigation({
       Option.toArray(AsyncResult.value(result)),
     ),
   ];
-  const loadedEntries = mergeFileTreeEntries(directories);
+  const loadedEntries = withUnlistedSelection(
+    mergeFileTreeEntries(directories),
+    directories,
+    selected,
+  );
   const matches = searching
     ? fileSearchMatches(
         visibleFileTreePaths(
@@ -212,6 +218,11 @@ function ScopedFileNavigation({
   const visiblePaths = visibleFileTreePaths(paths, hidden, showHidden);
   const kinds = new Map(entries.map((entry) => [entry.path, entry.kind]));
   const failed = directoriesRead.results.filter(AsyncResult.isFailure);
+  const omittedNotes = searching
+    ? []
+    : directories.flatMap((directory) =>
+        Option.toArray(Option.fromNullishOr(omittedEntriesText(directory))),
+      );
   const pinDirectories: PinnedDirectoryState[] = [
     { path: '', status: 'loaded', entries: root.entries },
     ...directoriesRead.states,
@@ -548,6 +559,15 @@ function ScopedFileNavigation({
             </p>
           )}
         <PierreFileTree key={treeInput.owner} {...treeInput} />
+        {omittedNotes.map((note) => (
+          <p
+            key={note}
+            role="status"
+            className="shrink-0 px-3.5 py-2 text-2xs text-muted-foreground"
+          >
+            {note}
+          </p>
+        ))}
         {hidden.size > 0 && (
           <div className="flex shrink-0 items-center gap-1.5 px-3.5 py-2 text-2xs text-muted-foreground">
             <EyeOffIcon className="size-3.5 shrink-0" />

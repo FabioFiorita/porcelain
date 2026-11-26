@@ -3,6 +3,8 @@ import { PendingSpinner } from '@/shared/views/state-notice';
 import { useWorkspaceWriteBlock } from '@/shared/workspace/connection';
 import { TruncatedText } from '@/shared/views/truncated-text';
 import { AsyncResult } from 'effect/reactivity';
+import { useAtomRef } from '@effect/atom-react';
+import { isTerminal, operationKey } from '@porcelain/client/git-actions';
 import { Option } from 'effect';
 import { ChevronDownIcon, GitBranchIcon, Undo2Icon } from 'lucide-react';
 import { Fragment, useState } from 'react';
@@ -84,6 +86,7 @@ export function GitButton({
   context: Parameters<typeof useGitMenu>[1];
 }) {
   const { connection } = context;
+  const { operations } = useAtomRef(connection.operations.state);
   const overview = Option.getOrUndefined(
     AsyncResult.value(useReviewOverview(scope, connection)),
   );
@@ -371,11 +374,16 @@ export function GitButton({
               <Fragment key={group.id}>
                 <DropdownMenuGroup>
                   {group.actions.map((candidate) => {
-                    const blocker = networkActionBlocker(
-                      candidate.id,
-                      status,
-                      pullBlock,
+                    const pending = operations.get(
+                      operationKey(scope, candidate.id),
                     );
+                    const recoveringStash =
+                      candidate.id.startsWith('stash-') &&
+                      pending &&
+                      (!pending.receipt || !isTerminal(pending.receipt));
+                    const blocker = recoveringStash
+                      ? null
+                      : networkActionBlocker(candidate.id, status, pullBlock);
                     const reason =
                       writeBlock ??
                       (blocker
@@ -399,9 +407,11 @@ export function GitButton({
                           <GitActionIcon action={candidate.id} />
                           <span className="flex min-w-0 flex-col">
                             <TruncatedText text={candidate.label} />
-                            {blocker && (
+                            {(recoveringStash || blocker) && (
                               <span className="text-xs whitespace-normal text-muted-foreground">
-                                {blocker}
+                                {recoveringStash
+                                  ? 'Check the previous outcome.'
+                                  : blocker}
                               </span>
                             )}
                           </span>

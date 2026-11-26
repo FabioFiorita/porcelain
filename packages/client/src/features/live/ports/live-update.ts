@@ -12,10 +12,12 @@ export type LiveSessionState =
   | 'connecting'
   | 'connected'
   | 'reconnecting'
+  | 'unavailable'
   | 'unauthorized';
 
 export type LiveUpdatePort = {
   readonly state: AtomRef.ReadonlyRef<LiveSessionState>;
+  retry(): void;
   connect(options: {
     onNotice: (notice: LiveNotice) => void;
     onReconnect: () => void;

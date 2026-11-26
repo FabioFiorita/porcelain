@@ -6,7 +6,7 @@ import type { ReviewIndexProps } from './review-index';
 import { StateSpinner } from '@/shared/views/state-notice';
 import { useElement, type ElementTarget } from '@/shared/hooks/use-element';
 import { AsyncResult } from 'effect/reactivity';
-import { Cause, Option } from 'effect';
+import { Option } from 'effect';
 import {
   detectPlatform,
   formatForDisplay,
@@ -42,8 +42,9 @@ import {
 } from '@/components/ui/sheet';
 import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
 import { cn } from '@/shared/lib/utils';
+import { TruncatedText } from '@/shared/views/truncated-text';
 import { useBranchChanges, useReviewOverview } from '@/features/changes/index';
-import type { Project } from '@porcelain/client/projects/rules';
+import { worktreeLabel, type Project } from '@porcelain/client/projects/rules';
 import {
   ConflictGuidance,
   GitButton,
@@ -160,12 +161,14 @@ export function ReviewWorkspace({
       0 &&
     (Option.getOrUndefined(AsyncResult.value(overview))?.changes.length ?? 0) >
       0;
-  const awaitingChanges = Option.isNone(AsyncResult.value(overview));
+  const awaitingChanges = awaitingOverview(overview);
   const needsDefault =
     !saved && !parseEntry(search.entry) && !parseEntry(search.side);
   const ready = !needsDefault || (!awaitingChanges && !firstDocument.pending);
   const defaultEntry =
     firstDocument.guided ||
+    (AsyncResult.isFailure(overview) &&
+      Option.isNone(AsyncResult.value(overview))) ||
     (Option.getOrUndefined(AsyncResult.value(overview))?.changes.length ?? 0) >
       0
       ? REVIEW_TAB
@@ -337,11 +340,12 @@ export function ReviewWorkspace({
           >
             <section
               aria-label="Review content"
-              className="flex h-full min-w-0 flex-col overflow-hidden rounded-paper border bg-card"
+              className="flex h-full min-w-0 flex-col overflow-hidden rounded-paper border bg-card max-md:rounded-none max-md:border-0"
             >
               <InterruptedActionNotice scope={scope} context={context} />
               <ConflictGuidance scope={scope} context={context} onOpen={open} />
               <DocumentArea
+                worktreeName={worktreeLabel(worktree.branch)}
                 review={review}
                 walkthroughCode={walkthroughCode}
                 firstDocument={firstDocument}
@@ -471,6 +475,7 @@ type PaneContext = ReviewContentProps & {
   navigatorIsMobile: boolean;
   navigatorOpen: boolean;
   navigatorOpenMobile: boolean;
+  worktreeName: string;
   tabControls: (pane: PaneIndex) => ReactNode;
 };
 
@@ -481,14 +486,15 @@ type DocumentAreaProps = PaneContext & {
   needsDefault: boolean;
 };
 
+function awaitingOverview(overview: DocumentAreaProps['overview']) {
+  return (
+    Option.isNone(AsyncResult.value(overview)) &&
+    !AsyncResult.isFailure(overview)
+  );
+}
+
 function DocumentArea(props: DocumentAreaProps) {
-  const awaitingChanges = Option.isNone(AsyncResult.value(props.overview));
-  if (
-    props.needsDefault &&
-    awaitingChanges &&
-    AsyncResult.isFailure(props.overview)
-  )
-    throw Cause.squash(props.overview.cause);
+  const awaitingChanges = awaitingOverview(props.overview);
   if (props.needsDefault && (awaitingChanges || props.firstDocument.pending)) {
     return <StateSpinner label="Loading review" />;
   }
@@ -513,6 +519,7 @@ function DocumentPanes({
   navigatorIsMobile,
   navigatorOpen,
   navigatorOpenMobile,
+  worktreeName,
   tabControls,
 }: DocumentAreaProps) {
   const focusedPane = layout.panes[focused] ?? {
@@ -564,6 +571,7 @@ function DocumentPanes({
     navigatorIsMobile,
     navigatorOpen,
     navigatorOpenMobile,
+    worktreeName,
     tabControls,
   });
 
@@ -621,6 +629,7 @@ function PaneView({
   navigatorIsMobile,
   navigatorOpen,
   navigatorOpenMobile,
+  worktreeName,
   tabControls,
 }: PaneContext & {
   index: PaneIndex;
@@ -672,33 +681,41 @@ function PaneView({
         commitContext={{ connection: context.connection, scope }}
         leading={
           index === 0 ? (
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <SidebarTrigger
-                    ref={(element) => navigationTrigger.attach(element)}
-                    aria-label="Toggle Sidebar"
-                    aria-expanded={
-                      navigatorIsMobile ? navigatorOpenMobile : navigatorOpen
-                    }
-                    aria-keyshortcuts={
-                      detectPlatform() === 'mac' ? 'Meta+B' : 'Control+B'
-                    }
-                    onClick={() => {
-                      if (!navigatorIsMobile && navigatorOpen) {
-                        requestAnimationFrame(() =>
-                          navigationTrigger.element?.focus(),
-                        );
+            <>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <SidebarTrigger
+                      ref={(element) => navigationTrigger.attach(element)}
+                      aria-label="Toggle Sidebar"
+                      aria-expanded={
+                        navigatorIsMobile ? navigatorOpenMobile : navigatorOpen
                       }
-                    }}
-                  />
-                }
-              />
-              <TooltipContent role="tooltip" className="break-all">
-                Toggle Sidebar{' '}
-                <Kbd>{formatForDisplay(SHORTCUTS.toggleNavigator)}</Kbd>
-              </TooltipContent>
-            </Tooltip>
+                      aria-keyshortcuts={
+                        detectPlatform() === 'mac' ? 'Meta+B' : 'Control+B'
+                      }
+                      onClick={() => {
+                        if (!navigatorIsMobile && navigatorOpen) {
+                          requestAnimationFrame(() =>
+                            navigationTrigger.element?.focus(),
+                          );
+                        }
+                      }}
+                    />
+                  }
+                />
+                <TooltipContent role="tooltip" className="break-all">
+                  Toggle Sidebar{' '}
+                  <Kbd>{formatForDisplay(SHORTCUTS.toggleNavigator)}</Kbd>
+                </TooltipContent>
+              </Tooltip>
+              {navigatorIsMobile && pane.tabs.length <= 1 && (
+                <TruncatedText
+                  className="ml-1 max-w-32 min-w-0 font-mono text-caption text-foreground-2"
+                  text={worktreeName}
+                />
+              )}
+            </>
           ) : undefined
         }
         tabs={pane.tabs}

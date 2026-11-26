@@ -3,8 +3,10 @@ import {
   fileTreeExpansion,
   mergeFileTreeEntries,
   movedPath,
+  omittedEntriesText,
   pathInside,
   visibleFileTreeRows,
+  withUnlistedSelection,
 } from './file-tree.ts';
 test('folder reads attach only to currently reachable parents and preserve file identities', () => {
   const directories = [
@@ -251,4 +253,39 @@ test('a moved folder carries the paths inside it and leaves look-alike siblings'
   expect(movedPath('docsx/a.md', 'docs', 'notes')).toBe('docsx/a.md');
   expect(pathInside('docs/a.md', 'docs/')).toBe(true);
   expect(pathInside('docs.md', 'docs')).toBe(false);
+});
+
+test('a folder that lists only its first entries says how many more are not shown', () => {
+  expect(
+    omittedEntriesText({
+      worktreeId: 'w',
+      path: 'bulk',
+      entries: [],
+      omitted: 18_001,
+    }),
+  ).toBe('bulk: 18,001 more not shown; search to find them.');
+  expect(
+    omittedEntriesText({ worktreeId: 'w', path: 'src', entries: [] }),
+  ).toBeUndefined();
+});
+
+test('an open file past a folder listing stays in the tree, but a missing file does not appear', () => {
+  const bulk = {
+    worktreeId: 'w',
+    path: 'bulk',
+    entries: [{ name: 'file-00000.txt', kind: 'file' as const }],
+    omitted: 18_000,
+  };
+  const listed = [{ path: 'bulk/file-00000.txt', kind: 'file' as const }];
+  expect(withUnlistedSelection(listed, [bulk], 'bulk/file-19999.txt')).toEqual([
+    ...listed,
+    { path: 'bulk/file-19999.txt', kind: 'file' },
+  ]);
+  expect(
+    withUnlistedSelection(
+      listed,
+      [{ ...bulk, omitted: undefined }],
+      'bulk/gone.txt',
+    ),
+  ).toBe(listed);
 });

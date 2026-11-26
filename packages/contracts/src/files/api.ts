@@ -43,7 +43,7 @@ export class FilesApi extends porcelainApi.add(
           params: worktreeParamsSchema,
           query: listDirectoryQuerySchema.fields,
           success: listDirectoryResponseSchema,
-          error: [...readFailures, unsupportedEntryName, directoryTooLarge],
+          error: [...readFailures, unsupportedEntryName],
         },
       ),
       HttpApiEndpoint.get(

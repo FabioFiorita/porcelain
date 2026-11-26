@@ -45,7 +45,7 @@ export function ProjectWorkspace({
   return (
     <div
       className={cn(
-        'h-svh min-w-0 flex-1 bg-frame p-2 text-ui text-foreground',
+        'h-svh min-w-0 flex-1 bg-frame p-2 text-ui text-foreground max-md:p-0',
         (isMobile || !open) && 'desktop-workspace-without-navigator',
       )}
     >

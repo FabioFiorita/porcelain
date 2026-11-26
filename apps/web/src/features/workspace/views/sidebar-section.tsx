@@ -116,15 +116,20 @@ export function ReviewedCount({
   reviewed,
   total,
   label,
+  scope,
 }: {
   reviewed: number;
   total: number;
   label?: string;
+  scope?: string;
 }) {
   return (
-    <p className="flex min-w-0 items-baseline gap-2 px-2 pb-1.5 text-2xs text-muted-foreground tabular-nums">
-      <span className="min-w-0 flex-1 break-words">{label}</span>
-      <span className="shrink-0">{`${reviewed} of ${total} reviewed`}</span>
-    </p>
+    <div className="flex min-w-0 flex-col gap-0.5 px-2 pb-1.5 text-2xs text-muted-foreground tabular-nums">
+      {label && <TruncatedText className="min-w-0" text={label} />}
+      <p className="flex min-w-0 items-baseline gap-2">
+        {scope && <TruncatedText className="min-w-0 flex-1" text={scope} />}
+        <span className="ml-auto shrink-0">{`${reviewed} of ${counted(total, 'file')} reviewed`}</span>
+      </p>
+    </div>
   );
 }

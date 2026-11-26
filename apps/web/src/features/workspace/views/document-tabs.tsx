@@ -224,6 +224,9 @@ export function DocumentTabs({
               hasUnpinned={tabs.some(
                 (key) => !permanentTab(key) && !pinned.includes(key),
               )}
+              hasOthers={tabs.some(
+                (key) => !permanentTab(key) && !pinned.includes(key),
+              )}
               side={side}
               {...actions}
             />
@@ -271,6 +274,12 @@ export function DocumentTabs({
                     hasUnpinned: tabs.some(
                       (item) => !permanentTab(item) && !pinned.includes(item),
                     ),
+                    hasOthers: tabs.some(
+                      (item) =>
+                        item !== key &&
+                        !permanentTab(item) &&
+                        !pinned.includes(item),
+                    ),
                     side,
                     ...actions,
                   };
@@ -314,7 +323,7 @@ export function DocumentTabs({
                   render={
                     <Button
                       variant="ghost"
-                      size="icon-sm"
+                      size="sm"
                       className="shrink-0"
                       aria-label="Open document list"
                     />
@@ -322,7 +331,11 @@ export function DocumentTabs({
                 />
               }
             >
-              <ChevronDownIcon />
+              <span className="tabular-nums">
+                {tabs.length}
+                <span className="max-sm:hidden"> tabs</span>
+              </span>
+              <ChevronDownIcon data-icon="inline-end" />
             </TooltipTrigger>
             <TooltipContent>Open document list</TooltipContent>
           </Tooltip>
@@ -379,6 +392,7 @@ function DocumentTab({
   active,
   pinned,
   hasUnpinned,
+  hasOthers,
   side,
   onActivate,
   onClose,
@@ -394,6 +408,7 @@ function DocumentTab({
   active: boolean;
   pinned: boolean;
   hasUnpinned: boolean;
+  hasOthers: boolean;
   side: 'left' | 'right' | null;
 }) {
   const { Icon, title, hint, accessibleName = title } = describeTab(tabKey);
@@ -552,7 +567,10 @@ function DocumentTab({
               {formatForDisplay(SHORTCUTS.closeTab)}
             </ContextMenuShortcut>
           </ContextMenuItem>
-          <ContextMenuItem onSelect={() => onCloseOthers(tabKey)}>
+          <ContextMenuItem
+            disabled={!hasOthers}
+            onSelect={() => onCloseOthers(tabKey)}
+          >
             <SquareXIcon />
             Close others
           </ContextMenuItem>

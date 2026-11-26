@@ -6,6 +6,7 @@ selectors:
   - 'All files'
   - 'Search files'
   - 'No files match your search.'
+  - 'more not shown; search to find them.'
 tests:
   - packages/client/src/features/files/rules/file-icons.spec.ts
   - apps/web/spec/integration/files-tree-expansion.test.tsx
@@ -18,7 +19,7 @@ api:
 
 # files.tree-expansion
 
-Opening a folder loads its children lazily. A single-child folder chain becomes one row and opens with one click. A close while a read is pending keeps the resulting flattened row closed and does not load the next directory.
+Opening a folder loads its children lazily. A folder with more than 2,000 entries lists its first 2,000 and says how many more are not shown; search still finds the rest. A single-child folder chain becomes one row and opens with one click. A close while a read is pending keeps the resulting flattened row closed and does not load the next directory.
 
 ## How to get to it (user POV)
 
@@ -49,6 +50,15 @@ printf 'Stay closed\n' > "$REPO/closed/b/x/closed.txt"
 7. With `c` never opened, type `deep` immediately after focusing "Search files". Every character remains in the field; only `deep.txt` and its expanded parent chain appear. Search `no-such-file`: after the filename index succeeds, no tree rows remain and "No files match your search." appears under All files. A pending or failed index read must not show that empty-state message; failure keeps its retry action. Search `deep` again: its file reappears and the message goes. Clear the filter: the previous expansion returns with no empty-state message. Search `deep` again and choose "Clear search and collapse all": the field clears and normal folders are collapsed. Repeat with a deeply nested untracked filename and search substrings from its start and end. Hidden files stay excluded until Show is enabled; the no-match state still leaves that control available.
 8. Repeat the first-click screenshot in dark mode. Repeat at desktop width; repeat native bridge behavior separately in desktop verification. Native Electron bridge behavior is outside this map.
 9. Open "closed" and then its child "x" until "closed.txt" is visible. Collapse "closed / b", then remove the empty fixture directory `closed/b/y` on disk. After the live rebuild, "closed / b / x" stays collapsed and "closed.txt" stays absent.
+
+### A folder past the listing limit
+
+```sh
+mkdir -p "$REPO/bulk" && for i in $(seq -w 0 4999); do printf 'line %s\n' "$i" > "$REPO/bulk/file-$i.txt"; done
+```
+
+1. Open "bulk". It lists its first 2,000 entries (folders first) and the panel shows "bulk: 3,000 more not shown; search to find them." `GET .../directory?path=bulk` answers 200 with `omitted: 3000`; "Some folders could not be loaded." never appears.
+2. Search `file-4999`, open it, then clear the search: the file stays open and stays in the tree under "bulk".
 
 ### Observable proof
 
