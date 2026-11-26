@@ -3,7 +3,6 @@ import { type HeaderIconName } from './icon';
 
 const symbols = {
   add: 'plus',
-  settings: 'gearshape',
   refresh: 'arrow.clockwise',
   done: 'checkmark',
   close: 'xmark',

@@ -26,7 +26,7 @@ The screen being read reports the same state for its computer. Every reading scr
 
 ## How to get to it (user POV)
 
-- Header Settings (left) → Computers, or the deep link `porcelain.dev://computers`, with computers paired
+- Worktree drawer → Settings → Computers, or the deep link `porcelain.dev://computers`, with computers paired
 
 ## Driving it with agent-device
 

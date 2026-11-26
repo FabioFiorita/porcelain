@@ -1,11 +1,21 @@
+import { useRouter } from 'expo-router';
 import { View } from 'react-native';
 import { Box } from '../components/ui/box';
+import { Icon } from '../components/ui/icon';
+import { Item } from '../components/ui/item';
+import { Separator } from '../components/ui/separator';
 import { Text } from '../components/ui/text';
 import { ReadingConnection, useEnvironments } from '../features/access';
-import { WorktreesScreen, useSelectedWorktree } from '../features/projects';
+import {
+  WorktreesScreen,
+  useSelectedWorktree,
+  useWorktreeDrawer,
+} from '../features/projects';
 import { worktreeListNoticeComputer } from '../shared/rules/list-notice';
 
 export function WorktreeDrawer() {
+  const router = useRouter();
+  const drawer = useWorktreeDrawer();
   const selected = useSelectedWorktree();
   const listComputer = worktreeListNoticeComputer({
     selected: selected?.environment,
@@ -22,6 +32,18 @@ export function WorktreeDrawer() {
         <WorktreesScreen />
         {listComputer ? <ReadingConnection remote={listComputer} /> : null}
       </View>
+      <Separator />
+      <Box>
+        <Item
+          testID="drawer-settings"
+          title="Settings"
+          leading={<Icon name="settings" tone="muted" />}
+          onPress={() => {
+            drawer.close();
+            router.push('/settings');
+          }}
+        />
+      </Box>
     </View>
   );
 }

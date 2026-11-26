@@ -1,5 +1,4 @@
 export type HeaderIconName =
-  | 'settings'
   | 'refresh'
   | 'done'
   | 'close'
