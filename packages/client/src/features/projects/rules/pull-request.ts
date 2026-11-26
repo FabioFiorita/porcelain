@@ -222,7 +222,16 @@ export function currentWalkthroughChecks(
   const names = live.checks
     .filter((check) => checkOutcome(check) === tone)
     .map((check) => check.name);
-  return { tone, label: labels[tone], names };
+  return {
+    tone,
+    label: labels[tone],
+    names,
+    changed: changed.map((check) => ({
+      name: check.name,
+      tone: checkOutcome(check),
+      label: labels[checkOutcome(check)],
+    })),
+  };
 }
 
 export function walkthroughCheckRows<

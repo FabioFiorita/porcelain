@@ -328,7 +328,7 @@ it('lists every reason the pull request cannot merge and which of them hold the 
     label:
       'Not ready to merge: 2 checks failing, 1 check running, review required, 1 call open',
     waitsFor:
-      'Merge waits for: 2 checks failing, 1 check running, 1 call open.',
+      'Merge waits for: 2 checks failing, 1 check running, review required, 1 call open.',
   });
 });
 

@@ -383,6 +383,7 @@ it('puts the live result first when the same captured head starts failing', () =
     tone: 'failed',
     label: 'Failing now',
     names: ['Browser tests'],
+    changed: [{ name: 'Browser tests', tone: 'failed', label: 'Failing now' }],
   });
   expect(recordedChecks(captured).label).toBe('Checks passing at abc1234');
   expect(recordedChecks(captured).whenWritten).toBe(
@@ -427,7 +428,14 @@ it('moves a step’s checks out of Verified only while GitHub now disagrees with
     {
       step: 1,
       checks: passing,
-      live: { tone: 'failed', label: 'Failing now', names: ['Browser tests'] },
+      live: {
+        tone: 'failed',
+        label: 'Failing now',
+        names: ['Browser tests'],
+        changed: [
+          { name: 'Browser tests', tone: 'failed', label: 'Failing now' },
+        ],
+      },
     },
   ]);
   expect(rows.unchanged).toEqual([{ step: 2, checks: failing }]);
@@ -455,5 +463,13 @@ it('recognizes that the failing check changed even when the overall rollup staye
         { name: 'Browser tests', status: 'COMPLETED', conclusion: 'FAILURE' },
       ],
     }),
-  ).toEqual({ tone: 'failed', label: 'Failing now', names: ['Browser tests'] });
+  ).toEqual({
+    tone: 'failed',
+    label: 'Failing now',
+    names: ['Browser tests'],
+    changed: [
+      { name: 'Build', tone: 'passed', label: 'Passing now' },
+      { name: 'Browser tests', tone: 'failed', label: 'Failing now' },
+    ],
+  });
 });
