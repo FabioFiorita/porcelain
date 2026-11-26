@@ -1,7 +1,6 @@
 import { Box } from '../../../components/ui/box';
 import { WorkspaceGate, type Workspace } from '../../projects/index';
 import { useFileReview } from '../../workspace/index';
-import { worktreeLabel } from '@porcelain/client/projects/rules';
 import { useState } from 'react';
 import { useFileNavigation } from '../store';
 import { Stack, useIsFocused, useRouter } from 'expo-router';
@@ -347,32 +346,29 @@ function FilesNavigationView({ selected, mode, search }: FilesNavigationProps) {
           <Text variant="caption">Open {knownPath}</Text>
         </ButtonSurface>
       ) : null}
-      <Box className="min-h-8 flex-row items-center" gap={2}>
-        <Box className="min-w-0 flex-1">
-          <Text variant="caption" tone="muted" numberOfLines={1}>
-            {selected.project.name} · {worktreeLabel(selected.worktree.branch)}
-          </Text>
+      {preferenceEntries.hidden.size > 0 || search === 'top-bar' ? (
+        <Box className="min-h-8 flex-row items-center justify-end" gap={2}>
+          {preferenceEntries.hidden.size > 0 ? (
+            <ButtonSurface
+              variant="plain"
+              size="sm"
+              accessibilityLabel={`${showHidden ? 'Hide hidden' : 'Show hidden'} (${preferenceEntries.hidden.size})`}
+              onPress={() => setShowHidden((current) => !current)}
+            >
+              <Icon
+                name={showHidden ? 'visible' : 'hidden'}
+                tone="brand"
+                size="small"
+              />
+              <Text variant="caption" tone="brand" weight="medium">
+                {showHidden ? 'Hide hidden' : 'Show hidden'} (
+                {preferenceEntries.hidden.size})
+              </Text>
+            </ButtonSurface>
+          ) : null}
+          {search === 'top-bar' ? collapseAll : null}
         </Box>
-        {preferenceEntries.hidden.size > 0 ? (
-          <ButtonSurface
-            variant="plain"
-            size="sm"
-            accessibilityLabel={`${showHidden ? 'Hide hidden' : 'Show hidden'} (${preferenceEntries.hidden.size})`}
-            onPress={() => setShowHidden((current) => !current)}
-          >
-            <Icon
-              name={showHidden ? 'visible' : 'hidden'}
-              tone="brand"
-              size="small"
-            />
-            <Text variant="caption" tone="brand" weight="medium">
-              {showHidden ? 'Hide hidden' : 'Show hidden'} (
-              {preferenceEntries.hidden.size})
-            </Text>
-          </ButtonSurface>
-        ) : null}
-        {search === 'top-bar' ? collapseAll : null}
-      </Box>
+      ) : null}
       {failure ? (
         <ErrorState
           message={fileErrorMessage(Cause.squash(failure.cause))}
