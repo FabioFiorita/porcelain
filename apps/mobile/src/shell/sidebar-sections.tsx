@@ -8,6 +8,13 @@ import { tabHref } from '../shared/rules/tab-href';
 import type { TabIconName } from '../shared/icons/icon';
 import { appTabs, type WorktreeTab } from './app-tab-list';
 
+const sectionTestIds = {
+  walkthrough: { item: 'section-walkthrough', rail: 'rail-walkthrough' },
+  changes: { item: 'section-changes', rail: 'rail-changes' },
+  files: { item: 'section-files', rail: 'rail-files' },
+  history: { item: 'section-history', rail: 'rail-history' },
+} as const satisfies Record<WorktreeTab, { item: string; rail: string }>;
+
 const sectionIcons = {
   walkthrough: 'checklist',
   changes: 'changes',
@@ -37,7 +44,7 @@ export function SidebarSections() {
       {appTabs.map((tab) => (
         <Item
           key={tab.name}
-          testID={`section-${tab.root}`}
+          testID={sectionTestIds[tab.root].item}
           size="compact"
           title={tab.title}
           selected={section === tab.root}
@@ -63,7 +70,7 @@ export function SectionRail() {
       {appTabs.map((tab) => (
         <RailItem
           key={tab.name}
-          testID={`rail-${tab.root}`}
+          testID={sectionTestIds[tab.root].rail}
           icon={sectionIcons[tab.icon]}
           label={tab.title}
           selected={section === tab.root}
