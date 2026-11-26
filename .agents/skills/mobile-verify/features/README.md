@@ -64,7 +64,10 @@ Use the [shared evidence reference](../../verify-core/evidence.md) for screensho
 - [reviews.file](reviews.file.md) — Review diffs, source selection and feedback.
 - [reviews.pull-request](reviews.pull-request.md) — Pull request page: merge blockers, live checks with steps and logs, re-run, conversation and comment.
 - [reviews.merge-pull-request](reviews.merge-pull-request.md) — Merge sheet: allowed methods, the same blockers, pinned head, archive offer.
-- [reviews.walkthrough-page](reviews.walkthrough-page.md) — The Walkthrough a fresh agent wrote: calls, growth, steps, conversations, posting and saving.
+- [reviews.walkthrough-page](reviews.walkthrough-page.md) — The Walkthrough a fresh agent wrote: the briefing, calls and decisions, diagrams, steps, questions, draft comments and merge.
+- [reviews.comment](reviews.comment.md) — Add, edit or delete one draft comment on a step, node, file or lines.
+- [reviews.publish-comments](reviews.publish-comments.md) — Post the drafts as one pull request review or copy them for an agent.
+- [reviews.walkthrough-writer](reviews.walkthrough-writer.md) — Choose the writer, model and effort for the next Walkthrough run.
 - [reviews.walkthrough-step](reviews.walkthrough-step.md) — One step's files as a page of diffs, with previous and next step in the top bar.
 - [reviews.walkthrough-screenshot](reviews.walkthrough-screenshot.md) — A step's screenshot larger in a sheet.
 - [history.timeline](history.timeline.md) — file timeline, older commits and return context.

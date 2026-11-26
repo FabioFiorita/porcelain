@@ -319,57 +319,60 @@ test('the sample branch comparison loads through the shared client using its adv
   }
 });
 
-test('copied briefs contain only the chosen question or the saved questions', async () => {
+test('draft comments are added, edited and deleted, and posting a review needs a pull request', async () => {
   const send = createDemoTransport();
-  const conversation = `${worktree}/walkthrough/demo-welcome/conversations`;
-  const add = (text: string) =>
-    send(
-      `${conversation}/messages`,
-      request('POST', { anchor: { kind: 'walkthrough' }, text }),
-    );
-  await add('First question');
-  const view = Schema.decodeUnknownSync(walkthroughConversationsResponseSchema)(
-    await (await add('Second question')).json(),
-  );
-  const messages = view.conversations.flatMap((entry) => entry.messages);
-  const firstId = messages.find(
-    (message) =>
-      message.author === 'developer' && message.text === 'First question',
-  )?.id;
-  const secondId = messages.find(
-    (message) =>
-      message.author === 'developer' && message.text === 'Second question',
-  )?.id;
-  expect(firstId).toBeTypeOf('string');
-  expect(secondId).toBeTypeOf('string');
-  const brief = async (messageId?: string) => {
-    const answer: unknown = await (
-      await send(
-        `${conversation}/brief${messageId ? `?messageId=${encodeURIComponent(messageId)}` : ''}`,
-      )
-    ).json();
-    return answer;
+  const comments = `${worktree}/comments`;
+  const read = async (response: Response) => {
+    const view: unknown = await response.json();
+    return Schema.decodeUnknownSync(
+      Schema.Struct({
+        markdown: Schema.String,
+        comments: Schema.Array(
+          Schema.Struct({ id: Schema.String, text: Schema.String }),
+        ),
+      }),
+    )(view);
   };
-  expect(await brief(firstId)).toEqual({ text: 'First question' });
-  expect(await brief(secondId)).toEqual({ text: 'Second question' });
-  expect(await brief()).toEqual({ text: null });
-  await send(
-    `${conversation}/messages/${secondId}/saved`,
-    request('PUT', { saved: true }),
+  const added = await read(
+    await send(
+      comments,
+      request('POST', {
+        anchor: {
+          kind: 'node',
+          title: 'Choose the fallback greeting',
+          node: 'greet',
+        },
+        text: 'Keep this short.',
+      }),
+    ),
   );
-  expect(await brief()).toEqual({ text: 'Second question' });
-  expect(await brief(firstId)).toEqual({ text: 'First question' });
-  expect(await brief('missing-message')).toEqual({ text: null });
-  await send(
-    `${conversation}/messages/${firstId}/saved`,
-    request('PUT', { saved: true }),
+  const id = added.comments[0]?.id ?? '';
+  expect(added.markdown).toContain(
+    'greet · Choose the fallback greeting: Keep this short.',
   );
-  expect(await brief()).toEqual({ text: 'First question\n\nSecond question' });
-  await send(
-    `${conversation}/messages/${secondId}/saved`,
-    request('PUT', { saved: false }),
+  const edited = await read(
+    await send(`${comments}/${id}`, request('PATCH', { text: 'Shorter.' })),
   );
-  expect(await brief()).toEqual({ text: 'First question' });
+  expect(edited.comments.map((comment) => comment.text)).toEqual(['Shorter.']);
+  expect(
+    (await read(await send(`${comments}/${id}`, { method: 'DELETE' })))
+      .comments,
+  ).toEqual([]);
+  const preview: unknown = await (await send(`${comments}/review`)).json();
+  expect(preview).toEqual({ kind: 'unavailable', reason: 'no-pull-request' });
+});
+
+test('a call is decided with its option and undone', async () => {
+  const send = createDemoTransport();
+  const decision = `${worktree}/walkthrough/demo-welcome/calls/1/0/decision`;
+  const decide = async (body: unknown) =>
+    Schema.decodeUnknownSync(walkthroughConversationsResponseSchema)(
+      await (await send(decision, request('PUT', body))).json(),
+    ).decisions;
+  expect(await decide({ decided: true, option: 'Keep “friend”' })).toEqual([
+    expect.objectContaining({ step: 1, call: 0, option: 'Keep “friend”' }),
+  ]);
+  expect(await decide({ decided: false })).toEqual([]);
 });
 
 const pull = '/api/projects/f5dd81bf-c039-4345-927a-e55315a50029/pull-requests';

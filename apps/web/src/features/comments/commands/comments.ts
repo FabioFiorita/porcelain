@@ -3,15 +3,18 @@ import type { Atom } from 'effect/reactivity';
 import type { ReviewPreviewResponse } from '@porcelain/contracts/comments';
 import { useState } from 'react';
 import { commandBinding, commentCommands } from '@porcelain/client/comments';
-import { reviewUnavailableText } from '@porcelain/client/comments/rules';
-import { commentSelection, type CommentOwner } from '../queries/comments';
+import {
+  commentFailureText as failureText,
+  reviewUnavailableText,
+} from '@porcelain/client/comments/rules';
+import { ownerSelection, type CommentOwner } from '../queries/comments';
 
 function useCommand<I, A, E>(atom: Atom.AtomResultFn<I, A, E>) {
   return commandBinding(useAtom(atom, { mode: 'promiseExit' }));
 }
 
 export function useCommentCommands(owner: CommentOwner) {
-  const commands = commentCommands(commentSelection(owner));
+  const commands = commentCommands(ownerSelection(owner));
   return {
     add: useCommand(commands.add),
     edit: useCommand(commands.edit),
@@ -19,19 +22,6 @@ export function useCommentCommands(owner: CommentOwner) {
     preview: useCommand(commands.preview),
     publish: useCommand(commands.publish),
   };
-}
-
-function failureText(error: unknown, fallback: string): string {
-  if (
-    typeof error === 'object' &&
-    error !== null &&
-    'message' in error &&
-    typeof error.message === 'string' &&
-    error.message.length > 0 &&
-    error.message.length < 300
-  )
-    return error.message;
-  return fallback;
 }
 
 export type ReviewPreview = Extract<

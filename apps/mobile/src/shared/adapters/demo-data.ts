@@ -167,6 +167,46 @@ export const demoWalkthrough: NonNullable<
                 note: 'The fallback is visible to visitors.',
                 question: 'Does “friend” fit the voice of the product?',
               },
+              comparison: {
+                columns: ['Keep “friend”', 'Use “there”'],
+                rows: [['Warm and personal', 'Neutral and short']],
+              },
+            },
+            {
+              kind: 'diagram',
+              title: 'A blank name, end to end',
+              layout: 'flow',
+              nodes: [
+                {
+                  id: 'greet',
+                  label: 'greet',
+                  kind: 'function',
+                  note: 'Builds the greeting',
+                  mark: 'changed',
+                  anchor: {
+                    path: 'src/welcome.ts',
+                    lines: { side: 'new', start: 1, end: 4 },
+                  },
+                },
+                {
+                  id: 'trim',
+                  label: 'name.trim()',
+                  kind: 'function',
+                  note: 'Drops stray spaces',
+                  mark: 'added',
+                },
+                {
+                  id: 'friend',
+                  label: '“friend”',
+                  kind: 'external',
+                  note: 'The fallback',
+                  mark: 'added',
+                },
+              ],
+              edges: [
+                { from: 'greet', to: 'trim', label: 'name' },
+                { from: 'trim', to: 'friend', label: 'when blank' },
+              ],
             },
             {
               kind: 'diff_excerpt',

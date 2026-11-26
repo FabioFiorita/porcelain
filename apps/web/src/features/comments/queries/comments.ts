@@ -1,7 +1,9 @@
 import { useAtomRefresh, useAtomValue } from '@effect/atom-react';
-import { Option } from 'effect';
-import { AsyncResult } from 'effect/reactivity';
-import { readComments } from '@porcelain/client/comments';
+import {
+  commentSelection,
+  commentsRead,
+  readComments,
+} from '@porcelain/client/comments';
 import type { ReviewScope } from '@porcelain/client/changes/rules';
 import type { ConnectionContext } from '@/shared/workspace/connection';
 
@@ -10,19 +12,14 @@ export type CommentOwner = {
   context: ConnectionContext;
 };
 
-export function commentSelection({ scope, context }: CommentOwner) {
-  return {
-    connection: context.connection,
-    scope: { projectId: scope.projectId, worktreeId: scope.worktreeId },
-  };
+export function ownerSelection({ scope, context }: CommentOwner) {
+  return commentSelection(context.connection, scope);
 }
 
 export function useComments(owner: CommentOwner) {
-  const atom = readComments(commentSelection(owner));
-  const result = useAtomValue(atom);
+  const atom = readComments(ownerSelection(owner));
   return {
-    view: Option.getOrUndefined(AsyncResult.value(result)),
-    failed: AsyncResult.isFailure(result),
+    ...commentsRead(useAtomValue(atom)),
     refresh: useAtomRefresh(atom),
   };
 }

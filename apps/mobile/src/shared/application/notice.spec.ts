@@ -33,7 +33,7 @@ test('a copy the platform confirms leaves the current notice to dismiss on time'
   send({ kind: 'git', action: 'fetch' });
   await expect.poll(() => shown.length).toBe(1);
   expect(visible()).toBe('Fetched');
-  send({ kind: 'copy', target: 'brief' });
+  send({ kind: 'copy', target: 'comments' });
   expect(visible()).toBe('Fetched');
   elapse(0);
   await expect.poll(visible).toBeNull();
@@ -44,17 +44,17 @@ test('a replaced notice does not dismiss the notice that replaced it', async () 
   const { send, elapse, visible, shown, announced } = harness(false);
   send({ kind: 'git', action: 'fetch' });
   await expect.poll(() => shown.length).toBe(1);
-  send({ kind: 'copy', target: 'brief' });
+  send({ kind: 'copy', target: 'comments' });
   await expect.poll(() => shown.length).toBe(2);
-  expect(visible()).toBe('Copied brief');
+  expect(visible()).toBe('Copied comments');
   elapse(0);
   await expect(
     expect.poll(visible, { timeout: 200, interval: 20 }).toBeNull(),
   ).rejects.toThrow();
-  expect(visible()).toBe('Copied brief');
+  expect(visible()).toBe('Copied comments');
   elapse(1);
   await expect.poll(visible).toBeNull();
-  expect(announced).toEqual(['Fetched', 'Copied brief']);
+  expect(announced).toEqual(['Fetched', 'Copied comments']);
 });
 
 test('a pull request notice names the pull request it changed', async () => {

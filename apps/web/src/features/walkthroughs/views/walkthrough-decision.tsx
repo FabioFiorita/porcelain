@@ -1,5 +1,12 @@
 import { CheckIcon } from 'lucide-react';
-import type { WalkthroughStop } from '@porcelain/client/walkthroughs/rules';
+import {
+  callDecision,
+  callOptions,
+  decidedOption,
+  decidedWhen,
+  decisionAuthor,
+  type WalkthroughStop,
+} from '@porcelain/client/walkthroughs/rules';
 import { Button } from '@/components/ui/button';
 import { useWorkspaceWriteBlock } from '@/shared/workspace/connection';
 import { useDecideCall } from '../commands/conversations';
@@ -9,13 +16,6 @@ import {
 } from '../queries/conversations';
 
 type Comparison = WalkthroughStop['callouts'][number]['comparison'];
-
-function decidedWhen(at: string) {
-  return new Date(at).toLocaleString(undefined, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  });
-}
 
 export function CallDecision({
   owner,
@@ -32,10 +32,8 @@ export function CallDecision({
   const { decide, waiting, failure } = useDecideCall(owner);
   const writeBlock = useWorkspaceWriteBlock(owner.context);
   const disabled = waiting || Boolean(writeBlock) || view === undefined;
-  const decision = view?.decisions.find(
-    (entry) => entry.step === step && entry.call === index,
-  );
-  const options = comparison?.columns ?? [];
+  const decision = callDecision(view?.decisions, step, index);
+  const options = callOptions(comparison);
   return (
     <div className="flex flex-col gap-1.5 pt-1">
       {decision ? (
@@ -44,14 +42,9 @@ export function CallDecision({
           className="flex flex-wrap items-center gap-x-2 gap-y-1 text-ui"
         >
           <CheckIcon aria-hidden className="size-3.5 shrink-0 text-add-fg" />
-          <span className="font-medium">
-            {decision.option ? `Decided: ${decision.option}` : 'Decided'}
-          </span>
+          <span className="font-medium">{decidedOption(decision)}</span>
           <span className="text-caption text-muted-foreground">
-            {decision.decidedBy.kind === 'owner'
-              ? 'by the owner'
-              : 'from a paired device'}{' '}
-            ·{' '}
+            {decisionAuthor(decision)} ·{' '}
             <time dateTime={decision.decidedAt}>
               {decidedWhen(decision.decidedAt)}
             </time>

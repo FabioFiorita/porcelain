@@ -1,5 +1,8 @@
 import { useState } from 'react';
-import { conversationFailure } from '@porcelain/client/walkthroughs/rules';
+import {
+  callDecisionRequest,
+  conversationFailure,
+} from '@porcelain/client/walkthroughs/rules';
 import { useAtom } from '@effect/atom-react';
 import { type Atom } from 'effect/reactivity';
 import {
@@ -7,7 +10,6 @@ import {
   walkthroughConversationCommands,
   walkthroughDraft,
   walkthroughDraftBinding,
-  type WalkthroughDraftPlacement,
 } from '@porcelain/client/walkthroughs';
 import { useCommentCommands } from '@/features/comments/index';
 import {
@@ -35,7 +37,7 @@ export function useRetryAnswer(owner: ConversationScope, messageId: string) {
     setFailure(undefined);
     void commands.retry
       .run(messageId)
-      .catch((error: unknown) => setFailure(conversationFailure(error).text));
+      .catch((error: unknown) => setFailure(conversationFailure(error)));
   };
   return {
     failure,
@@ -44,14 +46,10 @@ export function useRetryAnswer(owner: ConversationScope, messageId: string) {
   };
 }
 
-export function useSendMessage(
-  owner: ConversationScope,
-  title: string,
-  placement: WalkthroughDraftPlacement,
-) {
+export function useSendMessage(owner: ConversationScope, title: string) {
   const selection = conversationSelection(owner);
   return walkthroughDraftBinding(
-    useAtom(walkthroughDraft(selection, owner.run, title, placement)),
+    useAtom(walkthroughDraft(selection, owner.run, title)),
     useCommand(walkthroughConversationCommands(selection).addMessage),
     { runId: selection.runId, title },
   );
@@ -72,15 +70,9 @@ export function useDecideCall(owner: ConversationScope) {
       option?: string | undefined;
     }) => {
       setFailure(undefined);
-      const payload = input.decided
-        ? {
-            decided: true as const,
-            ...(input.option === undefined ? {} : { option: input.option }),
-          }
-        : { decided: false as const };
       void decide
-        .run({ step: input.step, call: input.call, ...payload })
-        .catch((error: unknown) => setFailure(conversationFailure(error).text));
+        .run(callDecisionRequest(input))
+        .catch((error: unknown) => setFailure(conversationFailure(error)));
     },
   };
 }

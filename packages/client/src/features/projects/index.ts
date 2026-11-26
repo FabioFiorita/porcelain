@@ -53,7 +53,9 @@ export {
   readWalkthroughWriterSettings,
   recheckWalkthroughWriterSettings,
   walkthroughWriterCheck,
+  walkthroughWriterChoice,
 } from './queries/walkthrough-writer.ts';
+export { nextWalkthroughWriter } from './store/walkthrough-writer.ts';
 export { saveDefaultWalkthroughWriter } from './commands/projects.ts';
 
 export {

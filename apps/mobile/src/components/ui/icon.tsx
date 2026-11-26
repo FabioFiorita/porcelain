@@ -39,6 +39,7 @@ const symbols = {
   history: { ios: 'clock.arrow.circlepath', android: 'history' },
   refresh: { ios: 'arrow.clockwise', android: 'refresh' },
   trash: { ios: 'trash', android: 'delete' },
+  edit: { ios: 'pencil', android: 'edit' },
   more: { ios: 'ellipsis', android: 'more_horiz' },
   hidden: { ios: 'eye.slash', android: 'visibility_off' },
   visible: { ios: 'eye', android: 'visibility' },

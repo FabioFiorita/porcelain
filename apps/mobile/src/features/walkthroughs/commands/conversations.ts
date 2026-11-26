@@ -1,25 +1,20 @@
 import { useState } from 'react';
-import { useAtom, useAtomSet } from '@effect/atom-react';
+import { useAtom } from '@effect/atom-react';
 import type { Atom } from 'effect/reactivity';
 import {
   walkthroughCommandBinding,
   walkthroughConversationCommands,
   walkthroughDraft,
   walkthroughDraftBinding,
-  type WalkthroughDraftPlacement,
 } from '@porcelain/client/walkthroughs';
 import {
+  callDecisionRequest,
   conversationFailure,
-  postOutcome,
-  type DeveloperMessage,
 } from '@porcelain/client/walkthroughs/rules';
-import { notify as notifyCommand } from '../../../shared/application/notify';
-import { copyToClipboard } from '../../../shared/adapters/clipboard';
 import {
   conversationSelection,
   type ConversationOwner,
 } from '../queries/conversations';
-import { stillSavedNotice, type PostNotice } from '../rules/post-notice';
 import { useWriteAllowed } from '../../access';
 
 function useBound<I, A, E>(command: Atom.AtomResultFn<I, A, E>) {
@@ -28,56 +23,6 @@ function useBound<I, A, E>(command: Atom.AtomResultFn<I, A, E>) {
 
 function commandsOf(owner: ConversationOwner) {
   return walkthroughConversationCommands(conversationSelection(owner));
-}
-
-export function usePostActions(
-  owner: ConversationOwner,
-  message: DeveloperMessage | undefined,
-) {
-  const commands = commandsOf(owner);
-  const notify = useAtomSet(notifyCommand);
-  const postOne = useBound(commands.postMessage);
-  const postSaved = useBound(commands.postSavedMessages);
-  const saving = useBound(commands.saveMessage);
-  const brief = useBound(commands.readBrief);
-  const [notice, setNotice] = useState<PostNotice>();
-  const allowed = useWriteAllowed(owner.workspace.connection.environmentId);
-  const fail = (error: unknown) => setNotice(conversationFailure(error));
-  const toClipboard = (text: string) =>
-    copyToClipboard(text).then(
-      () => notify({ kind: 'copy', target: 'brief' }),
-      () => setNotice({ text: 'Could not copy the brief.', copy: false }),
-    );
-  return {
-    notice,
-    waiting:
-      postOne.waiting || postSaved.waiting || saving.waiting || brief.waiting,
-    copy: () => {
-      setNotice(undefined);
-      brief
-        .run(message?.id)
-        .then((text) => (text ? toClipboard(text) : undefined))
-        .catch(fail);
-    },
-    save: (saved: boolean) => {
-      if (!allowed()) return;
-      setNotice(undefined);
-      if (message) saving.run({ messageId: message.id, saved }).catch(fail);
-    },
-    post: () => {
-      if (!allowed()) return;
-      setNotice(undefined);
-      (message ? postOne.run(message.id) : postSaved.run(undefined))
-        .then((answer) => {
-          const outcome = postOutcome(answer);
-          if (outcome.kind === 'brief') return toClipboard(outcome.text);
-          if (outcome.kind === 'still-saved')
-            setNotice(stillSavedNotice(outcome.messages.length));
-          return undefined;
-        })
-        .catch(fail);
-    },
-  };
 }
 
 export function useAnswerRetry(owner: ConversationOwner) {
@@ -92,20 +37,38 @@ export function useAnswerRetry(owner: ConversationOwner) {
       setFailure(undefined);
       retry
         .run(messageId)
-        .catch((error: unknown) => setFailure(conversationFailure(error).text));
+        .catch((error: unknown) => setFailure(conversationFailure(error)));
     },
   };
 }
 
-export function useAsk(
-  owner: ConversationOwner,
-  title: string,
-  placement: WalkthroughDraftPlacement,
-) {
+export function useDecideCall(owner: ConversationOwner) {
+  const decide = useBound(commandsOf(owner).decideCall);
+  const [failure, setFailure] = useState<string>();
+  const allowed = useWriteAllowed(owner.workspace.connection.environmentId);
+  return {
+    failure,
+    waiting: decide.waiting,
+    decide: (input: {
+      step: number;
+      call: number;
+      decided: boolean;
+      option?: string | undefined;
+    }) => {
+      if (!allowed()) return;
+      setFailure(undefined);
+      decide
+        .run(callDecisionRequest(input))
+        .catch((error: unknown) => setFailure(conversationFailure(error)));
+    },
+  };
+}
+
+export function useAsk(owner: ConversationOwner, title: string) {
   const selection = conversationSelection(owner);
   const allowed = useWriteAllowed(owner.workspace.connection.environmentId);
   const binding = walkthroughDraftBinding(
-    useAtom(walkthroughDraft(selection, owner.run, title, placement)),
+    useAtom(walkthroughDraft(selection, owner.run, title)),
     useBound(walkthroughConversationCommands(selection).addMessage),
     { runId: selection.runId, title },
   );

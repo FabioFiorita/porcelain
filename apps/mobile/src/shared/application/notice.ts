@@ -2,7 +2,7 @@ import { Effect } from 'effect';
 import { Atom } from 'effect/reactivity';
 
 const copyTitles = {
-  brief: 'Copied brief',
+  comments: 'Copied comments',
   'worktree path': 'Copied worktree path',
   'log lines': 'Copied the log lines',
 };

@@ -37,6 +37,11 @@ import {
   type WalkthroughConversationsResponse,
 } from '@porcelain/contracts/walkthroughs';
 import {
+  addCommentRequestSchema,
+  type CommentsResponse,
+} from '@porcelain/contracts/comments';
+import { anchorLabel } from '@porcelain/client/comments/rules';
+import {
   demoRemote,
   demoProjectId,
   demoWorktreeId,
@@ -120,6 +125,20 @@ export function createDemoTransport(): Transport {
     Map<string, { path: string; fingerprint: string; reviewedAt: string }>
   >();
   let conversations: WalkthroughConversationsResponse['conversations'] = [];
+  let decisions: WalkthroughConversationsResponse['decisions'] = [];
+  let comments: CommentsResponse['comments'] = [];
+  let commentCount = 0;
+  const commentsView = (): CommentsResponse => ({
+    branch: demoBranch,
+    headOid: demoHead,
+    comments,
+    markdown: [
+      `Comments on ${demoBranch} at ${demoHead.slice(0, 7)}:`,
+      ...comments
+        .filter((comment) => comment.publication.status === 'draft')
+        .map((comment) => `- ${anchorLabel(comment.anchor)}: ${comment.text}`),
+    ].join('\n'),
+  });
   let preferences: { path: string; pinned: boolean; hidden: boolean }[] = [];
   const pullRequests = demoPullRequests();
   const worktree = `/api/worktrees/${demoWorktreeId}`;
@@ -472,7 +491,7 @@ export function createDemoTransport(): Transport {
       runId: demoWalkthrough.id,
       pullRequestNumber: undefined,
       conversations,
-      decisions: [],
+      decisions,
     });
     if (path === `${conversationPath}/messages` && method === 'POST') {
       const value = Schema.decodeUnknownSync(questionInput)(body);
@@ -516,43 +535,71 @@ export function createDemoTransport(): Transport {
     }
     if (path === conversationPath)
       return json(walkthroughConversationsResponseSchema, view());
-    if (path.startsWith(`${conversationPath}/`) && path.endsWith('/brief')) {
-      const messageId = url.searchParams.get('messageId');
-      return jsonResponse({
-        text:
-          conversations
-            .flatMap((entry) =>
-              entry.messages.flatMap((message) =>
-                message.author === 'developer' &&
-                (messageId === null
-                  ? message.post.status === 'saved'
-                  : message.id === messageId)
-                  ? [message.text]
-                  : [],
-              ),
-            )
-            .join('\n\n') || null,
-      });
-    }
-    if (
-      path.startsWith(`${conversationPath}/messages/`) &&
-      path.endsWith('/saved') &&
-      method === 'PUT'
-    ) {
-      const { saved } = Schema.decodeUnknownSync(
-        Schema.Struct({ saved: Schema.Boolean }),
+    const decisionPath = `${worktree}/walkthrough/${demoWalkthrough.id}/calls/`;
+    if (path.startsWith(decisionPath) && method === 'PUT') {
+      const [step, call] = path
+        .slice(decisionPath.length)
+        .split('/')
+        .map((part) => Number(part));
+      const choice = Schema.decodeUnknownSync(
+        Schema.Struct({
+          decided: Schema.Boolean,
+          option: Schema.optional(Schema.String),
+        }),
       )(body);
-      const id = path.split('/').at(-2);
-      conversations = conversations.map((entry) => ({
-        ...entry,
-        messages: entry.messages.map((message) =>
-          message.author === 'developer' && message.id === id
-            ? { ...message, post: { status: saved ? 'saved' : 'none' } }
-            : message,
-        ),
-      }));
+      decisions = decisions.filter(
+        (entry) => entry.step !== step || entry.call !== call,
+      );
+      if (choice.decided && step !== undefined && call !== undefined)
+        decisions = [
+          ...decisions,
+          {
+            step,
+            call,
+            option: choice.option,
+            decidedBy: { kind: 'owner' },
+            decidedAt: demoTime,
+          },
+        ];
       return json(walkthroughConversationsResponseSchema, view());
     }
+    const commentsPath = `${worktree}/comments`;
+    if (path === `${commentsPath}/review` && method === 'GET')
+      return jsonResponse({ kind: 'unavailable', reason: 'no-pull-request' });
+    if (path === commentsPath && method === 'POST') {
+      const value = Schema.decodeUnknownSync(addCommentRequestSchema)(body);
+      commentCount += 1;
+      comments = [
+        ...comments,
+        {
+          id: `demo-comment-${commentCount}`,
+          anchor: value.anchor,
+          text: value.text,
+          headOid: demoHead,
+          createdAt: demoTime,
+          updatedAt: demoTime,
+          publication: { status: 'draft' },
+          outdated: false,
+        },
+      ];
+      return jsonResponse(commentsView());
+    }
+    if (path.startsWith(`${commentsPath}/`) && method === 'PATCH') {
+      const { text } = Schema.decodeUnknownSync(
+        Schema.Struct({ text: Schema.String }),
+      )(body);
+      const id = path.slice(commentsPath.length + 1);
+      comments = comments.map((comment) =>
+        comment.id === id ? { ...comment, text } : comment,
+      );
+      return jsonResponse(commentsView());
+    }
+    if (path.startsWith(`${commentsPath}/`) && method === 'DELETE') {
+      const id = path.slice(commentsPath.length + 1);
+      comments = comments.filter((comment) => comment.id !== id);
+      return jsonResponse(commentsView());
+    }
+    if (path === commentsPath) return jsonResponse(commentsView());
     if (
       path === '/api/health' ||
       path === '/api/environment' ||

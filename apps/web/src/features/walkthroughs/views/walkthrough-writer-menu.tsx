@@ -1,7 +1,8 @@
 import { ChevronDownIcon } from 'lucide-react';
 import {
   chooseWalkthroughWriter,
-  resolvedWalkthroughWriterKey,
+  isProjectDefaultWriter,
+  walkthroughEfforts,
   walkthroughWriterKey,
   walkthroughWriterLabel,
   walkthroughWriterMenu,
@@ -52,13 +53,10 @@ export function WalkthroughWriterMenu({
     (model) =>
       model.provider === writer.provider && model.model === writer.model,
   );
-  const efforts = current?.efforts ?? [];
+  const efforts = walkthroughEfforts(writer, models);
   const pinned = current?.label ?? writer.model;
   const saved = project?.walkthroughSettings?.writer;
-  const isDefault =
-    saved !== undefined &&
-    resolvedWalkthroughWriterKey(saved, models) === key &&
-    saved.effort === writer.effort;
+  const isDefault = isProjectDefaultWriter(saved, writer, models);
   const choose = (next: string) =>
     check.choose(chooseWalkthroughWriter(next, writer, models));
   return (

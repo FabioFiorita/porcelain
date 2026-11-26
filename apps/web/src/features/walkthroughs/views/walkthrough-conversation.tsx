@@ -1,5 +1,4 @@
 import { useCommentSubmission } from '@/features/comments/index';
-import type { WalkthroughDraftPlacement } from '@porcelain/client/walkthroughs';
 import { useWorkspaceWriteBlock } from '@/shared/workspace/connection';
 import { useState } from 'react';
 import {
@@ -39,7 +38,7 @@ import {
   type ConversationScope,
 } from '../queries/conversations';
 import { RichText } from './rich-text';
-import { commentsAt } from '@porcelain/client/comments/rules';
+import { commentsAt, quotedAnswer } from '@porcelain/client/comments/rules';
 import {
   DraftCard,
   useCommentCommands,
@@ -112,7 +111,7 @@ function AgentReply({
             <AddToReview
               owner={owner}
               stepTitle={stepTitle}
-              text={reviewText(question, state.text)}
+              text={quotedAnswer(question, state.text)}
             />
           )}
         </div>
@@ -120,10 +119,6 @@ function AgentReply({
       </MessageContent>
     </Message>
   );
-}
-
-function reviewText(question: string, answer: string) {
-  return `> ${question.replaceAll('\n', '\n> ')}\n\n${answer}`;
 }
 
 function AddToReview({
@@ -190,12 +185,10 @@ function Messages({
 function Composer({
   owner,
   title,
-  placement,
   placeholder,
   onComment,
 }: Props & {
   title: string;
-  placement: WalkthroughDraftPlacement;
   placeholder: string;
   onComment?: ((text: string) => Promise<unknown>) | undefined;
 }) {
@@ -206,7 +199,7 @@ function Composer({
     waiting,
     change,
     send: submit,
-  } = useSendMessage(owner, title, placement);
+  } = useSendMessage(owner, title);
   const send = () => {
     if (!writeBlock) submit();
   };
@@ -343,7 +336,6 @@ export function WalkthroughConversation({
       <Composer
         owner={owner}
         title={title}
-        placement="step"
         placeholder="Comment on this step, or ask the agent"
         onComment={(text) =>
           comments.add.run({

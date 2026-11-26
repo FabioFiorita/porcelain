@@ -14,14 +14,13 @@ const draft = {
 it('finds the same draft and send error through a fresh selection', () => {
   const registry = AtomRegistry.make();
   try {
-    registry.set(walkthroughDraft(selection, run, 'Retries', 'step'), draft);
+    registry.set(walkthroughDraft(selection, run, 'Retries'), draft);
     expect(
       registry.get(
         walkthroughDraft(
           { connection: { environmentId: 'computer' }, scope: { ...scope } },
           run,
           'Retries',
-          'step',
         ),
       ),
     ).toEqual(draft);
@@ -36,33 +35,29 @@ it.each([
     { ...selection, connection: { environmentId: 'other-computer' } },
     run,
     'Retries',
-    'step',
   ],
   [
     'another project',
     { ...selection, scope: { ...scope, projectId: 'other-project' } },
     run,
     'Retries',
-    'step',
   ],
   [
     'another worktree',
     { ...selection, scope: { ...scope, worktreeId: 'other-worktree' } },
     run,
     'Retries',
-    'step',
   ],
-  ['another branch', selection, { ...run, branch: 'main' }, 'Retries', 'step'],
-  ['another step', selection, run, 'Timeouts', 'step'],
-  ['the call card', selection, run, 'Retries', 'call'],
+  ['another branch', selection, { ...run, branch: 'main' }, 'Retries'],
+  ['another step', selection, run, 'Timeouts'],
 ] as const)(
   'keeps the draft and send error separate from %s',
-  (_, owner, displayedRun, title, placement) => {
+  (_, owner, displayedRun, title) => {
     const registry = AtomRegistry.make();
     try {
-      registry.set(walkthroughDraft(selection, run, 'Retries', 'step'), draft);
+      registry.set(walkthroughDraft(selection, run, 'Retries'), draft);
       expect(
-        registry.get(walkthroughDraft(owner, displayedRun, title, placement)),
+        registry.get(walkthroughDraft(owner, displayedRun, title)),
       ).toEqual({ text: '', failure: undefined, sending: false });
     } finally {
       registry.dispose();

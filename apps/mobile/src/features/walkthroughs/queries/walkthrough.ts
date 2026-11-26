@@ -88,10 +88,16 @@ export function useCapturedExcerpt(input: {
   runId: string;
   step: number;
   block: number;
+  node: string | undefined;
 }) {
   const atom = readWalkthrough({
     ...walkthroughSelection(input.workspace),
-    excerpt: { runId: input.runId, step: input.step, block: input.block },
+    excerpt: {
+      runId: input.runId,
+      step: input.step,
+      block: input.block,
+      ...(input.node === undefined ? {} : { node: input.node }),
+    },
   });
   return { result: useAtomValue(atom), retry: useAtomRefresh(atom) };
 }
