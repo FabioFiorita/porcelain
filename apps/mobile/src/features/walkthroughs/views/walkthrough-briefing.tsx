@@ -136,38 +136,26 @@ function Verified({
       {checks.map(({ step, tone, moved, line }) => {
         const icon = RESULT_ICONS[tone];
         return (
-          <Box
+          <Item
             key={`checks:${step}`}
-            className="flex-row items-start"
-            paddingX={4}
-            paddingY={1}
-            gap={2}
+            size="compact"
+            title={line.text}
+            {...(line.captured ? { description: line.captured } : {})}
+            leading={<Icon name={icon.name} tone={icon.tone} size="small" />}
+            trailing={
+              <Text variant="caption" tone="muted">
+                Step {step}
+              </Text>
+            }
+            accessibilityLabel={`${line.text}, step ${step}`}
+            onPress={() => jump(stepTarget(step))}
           >
-            <Box className="h-5 justify-center">
-              <Icon name={icon.name} tone={icon.tone} size="small" />
-            </Box>
-            <Box className="min-w-0 flex-1" gap={0.5}>
-              <Text variant="secondary">{line.text}</Text>
-              {line.captured ? (
-                <Text variant="caption" tone="muted">
-                  {line.captured}
-                </Text>
-              ) : null}
-              {moved && pull ? (
-                <Text variant="caption" tone="warn">
-                  #{pull.number} is now at {moved}
-                </Text>
-              ) : null}
-            </Box>
-            <Button
-              label={`Step ${step}`}
-              variant="plain"
-              size="sm"
-              accessibilityLabel={`Go to step ${step}`}
-              className="-my-1.5 -mr-3.5"
-              onPress={() => jump(stepTarget(step))}
-            />
-          </Box>
+            {moved && pull ? (
+              <Text variant="caption" tone="warn">
+                #{pull.number} is now at {moved}
+              </Text>
+            ) : null}
+          </Item>
         );
       })}
       {screenshots ? (
