@@ -3,6 +3,7 @@ export { ReviewFileScreen } from './views/review-file-screen';
 export { ChangesPage, ChangesPageScreen } from './views/changes-page';
 export { useFileReview } from './queries/review';
 export { PullRequestScreen } from './views/pull-request-screen';
+export { MergePullRequestSheet } from './views/merge-pull-request-sheet';
 export { diffBody, diffChunk } from './rules/diff-page';
 export {
   DiffPage,

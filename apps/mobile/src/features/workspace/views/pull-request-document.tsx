@@ -14,7 +14,7 @@ import {
 } from '@porcelain/client/projects/rules';
 import { useComputerConnection } from '../../projects/index';
 import { useWritesBlocked } from '../../access';
-import { commitAge } from '../../../shared/rules/commit-age';
+import { commitAge } from '@porcelain/client/history/rules';
 import { Badge } from '../../../components/ui/badge';
 import { Box } from '../../../components/ui/box';
 import { Button } from '../../../components/ui/button';
