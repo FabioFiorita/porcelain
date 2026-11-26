@@ -179,12 +179,18 @@ export function withReviewBody(
 
 export function reviewRequest(
   form: ReviewForm,
-  preview: Pick<ReviewPreview, 'headOid'>,
+  preview: ReviewPreview,
 ): PublishReviewRequest | undefined {
   const bodies = publishableBodies(form.bodies);
-  return bodies === undefined
-    ? undefined
-    : { headOid: preview.headOid, summary: form.summary, bodies };
+  if (bodies === undefined) return undefined;
+  const { owner, repo, number } = preview.pullRequest;
+  return {
+    pullRequest: { owner, repo, number },
+    headOid: preview.headOid,
+    inlineIds: preview.inline.map(({ id }) => id),
+    summary: form.summary,
+    bodies,
+  };
 }
 
 const MAX_FAILURE_LENGTH = 300;

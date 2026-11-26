@@ -81,7 +81,13 @@ describe('comment summary', () => {
 describe('review preview', () => {
   const preview = {
     kind: 'available' as const,
-    pullRequest: { number: 4, url: 'https://example.com/4', title: 'Search' },
+    pullRequest: {
+      owner: 'acme',
+      repo: 'notes',
+      number: 4,
+      url: 'https://example.com/4',
+      title: 'Search',
+    },
     headOid: 'a'.repeat(40),
     inline: [
       {
@@ -125,7 +131,7 @@ describe('review preview', () => {
     expect(generalReviewNote('step')).toBeUndefined();
   });
 
-  it('starts from every previewed body and posts them trimmed, against the previewed head', () => {
+  it('starts from every previewed body and confirms the previewed destination, head and placement with trimmed bodies', () => {
     let form = reviewForm(preview);
     const update = (change: (current: typeof form) => typeof form) => {
       form = change(form);
@@ -135,7 +141,9 @@ describe('review preview', () => {
     const bound = reviewFormBinding([form, update], preview);
     expect(bound.body('one')).toBe(' First! ');
     expect(bound.request).toEqual({
+      pullRequest: { owner: 'acme', repo: 'notes', number: 4 },
       headOid: 'a'.repeat(40),
+      inlineIds: ['one', 'two'],
       summary: 'Looks good',
       bodies: { one: 'First!', two: 'Second', three: 'Third' },
     });

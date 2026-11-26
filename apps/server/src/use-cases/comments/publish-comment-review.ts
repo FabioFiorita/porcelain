@@ -65,7 +65,7 @@ export class PublishCommentReviewUseCase extends Context.Service<
         execute: Effect.fn('PublishCommentReviewUseCase.execute')(
           function* (input) {
             const { view, projectId } = yield* readView(input.worktreeId);
-            const { open, found } = yield* commentReviewTarget(capabilities, {
+            const { found } = yield* commentReviewTarget(capabilities, {
               projectId,
               branch: view.branch,
               comments: view.comments,
@@ -74,14 +74,20 @@ export class PublishCommentReviewUseCase extends Context.Service<
               input.worktreeId,
               'write',
               () =>
-                publish.execute({
-                  worktreeId: input.worktreeId,
-                  target:
-                    found.kind === 'available'
-                      ? found.target
-                      : { unavailable: found.reason },
-                  comments: open,
-                  confirmed: input,
+                Effect.gen(function* () {
+                  const current = yield* readCommentsView(
+                    capabilities,
+                    input.worktreeId,
+                  );
+                  return yield* publish.execute({
+                    worktreeId: input.worktreeId,
+                    target:
+                      found.kind === 'available'
+                        ? found.target
+                        : { unavailable: found.reason },
+                    comments: current.comments,
+                    confirmed: input,
+                  });
                 }),
             );
             yield* events.worktreeChanged({

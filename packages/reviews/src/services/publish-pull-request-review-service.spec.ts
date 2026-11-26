@@ -13,6 +13,7 @@ import { PublishPullRequestReviewService } from './publish-pull-request-review-s
 const worktreeId = 'w'.repeat(32);
 const HEAD = 'c'.repeat(40);
 const target = { owner: 'acme', repo: 'notes', account: 'dev', number: 7 };
+const preview = { pullRequest: target, headOid: HEAD, inlineIds: ['inline'] };
 const PATCH = '@@ -0,0 +1,2 @@\n+export const a = 1;\n+export const b = 2;';
 
 function stored(id: string, anchor: DraftCommentView['anchor']) {
@@ -83,7 +84,7 @@ describe('PublishPullRequestReviewService', () => {
         target,
         comments,
         confirmed: {
-          headOid: HEAD,
+          ...preview,
           summary: 'Two notes.',
           bodies: { inline: 'Name this better.', step: 'Show no notes.' },
         },
@@ -135,7 +136,7 @@ describe('PublishPullRequestReviewService', () => {
         target,
         comments,
         confirmed: {
-          headOid: HEAD,
+          ...preview,
           summary: '',
           bodies: { inline: 'x', step: 'y' },
         },
@@ -161,7 +162,7 @@ describe('PublishPullRequestReviewService', () => {
         target,
         comments,
         confirmed: {
-          headOid: HEAD,
+          ...preview,
           summary: '',
           bodies: { inline: 'x', step: 'y', invented: 'z' },
         },
@@ -179,7 +180,7 @@ describe('PublishPullRequestReviewService', () => {
         target: { unavailable: 'no-pull-request' },
         comments,
         confirmed: {
-          headOid: HEAD,
+          ...preview,
           summary: '',
           bodies: { inline: 'x', step: 'y' },
         },
