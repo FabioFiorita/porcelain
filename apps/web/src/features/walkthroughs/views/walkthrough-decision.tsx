@@ -1,6 +1,4 @@
-import { useAtomValue } from '@effect/atom-react';
 import { CheckIcon, CircleAlertIcon } from 'lucide-react';
-import { readDecisionPlace } from '@porcelain/client/walkthroughs';
 import {
   NEEDS_A_COMMIT,
   callChoices,
@@ -11,7 +9,6 @@ import {
   decidedWhen,
   type WalkthroughStop,
 } from '@porcelain/client/walkthroughs/rules';
-import type { Connection } from '@/shared/workspace/connection';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useWorkspaceWriteBlock } from '@/shared/workspace/connection';
@@ -23,17 +20,6 @@ import {
 } from '../queries/conversations';
 
 type Comparison = WalkthroughStop['callouts'][number]['comparison'];
-
-function DecisionPlace({
-  connection,
-  decidedBy,
-}: {
-  connection: Connection;
-  decidedBy: Parameters<typeof readDecisionPlace>[0]['decidedBy'];
-}) {
-  const place = useAtomValue(readDecisionPlace({ connection, decidedBy }));
-  return place ? <>{place} · </> : null;
-}
 
 export function CallDecision({
   owner,
@@ -134,15 +120,12 @@ export function CallDecision({
             <CheckIcon aria-hidden className="size-3.5 shrink-0 text-add-fg" />
           )}
           <span className="font-medium">{decidedOption(decision)}</span>
-          <span className="text-caption text-muted-foreground">
-            <DecisionPlace
-              connection={owner.context.connection}
-              decidedBy={decision.decidedBy}
-            />
-            <time dateTime={decision.decidedAt}>
-              {decidedWhen(decision.decidedAt)}
-            </time>
-          </span>
+          <time
+            dateTime={decision.decidedAt}
+            className="text-caption text-muted-foreground"
+          >
+            {decidedWhen(decision.decidedAt)}
+          </time>
           <Button
             variant="link"
             size="sm"

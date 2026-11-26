@@ -14,6 +14,5 @@ export {
 } from './queries/walkthrough.ts';
 export { readingOf } from './queries/reading.ts';
 export { readWalkthroughPull, type WalkthroughPull } from './queries/pull.ts';
-export { readDecisionPlace } from './queries/decision-place.ts';
 export { walkthroughDraftBinding } from './commands/draft-binding.ts';
 export { walkthroughDraft } from './store/draft.ts';
