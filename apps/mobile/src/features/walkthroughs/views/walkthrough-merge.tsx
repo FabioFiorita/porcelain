@@ -50,16 +50,20 @@ export function WalkthroughMerge({
   const { number } = found;
   const { projectId } = workspace.scope;
   const environmentId = workspace.connection.environmentId;
-  const block = pullRequestMergeBlock(pull, review);
-  const reason = mergeButtonReason(
-    block,
-    mergeReadiness({
-      status: found.status,
-      baseBranch: pull.baseBranch,
-      mergeMethods: pull.mergeMethods,
-      review,
-    }).waitsFor,
-  );
+  const block = blocked
+    ? 'The computer is offline.'
+    : pullRequestMergeBlock(pull, review);
+  const reason = blocked
+    ? block
+    : mergeButtonReason(
+        block,
+        mergeReadiness({
+          status: found.status,
+          baseBranch: pull.baseBranch,
+          mergeMethods: pull.mergeMethods,
+          review,
+        }).waitsFor,
+      );
   return (
     <Box gap={3} accessibilityLabel={`Pull request #${number}`}>
       <Separator />
@@ -69,7 +73,7 @@ export function WalkthroughMerge({
             <Button
               label={`Merge #${number}`}
               size="sm"
-              disabled={block !== undefined || blocked}
+              disabled={block !== undefined}
               onPress={() =>
                 router.push({
                   pathname: '/merge-pull-request',

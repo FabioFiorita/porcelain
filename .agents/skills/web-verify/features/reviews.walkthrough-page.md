@@ -137,5 +137,5 @@ Once saved, the status area is one quiet line, “Saved <date>” (with “· Be
 
 ### Live verification and diagram comments
 
-- When the latest pull request status differs at the captured commit, Verified shows the live result on the first line and "Captured: …" on a second, quieter line. If the head changed, a line names the newer commit. Opening the Walkthrough does not start the pull request page's status polling.
+- When the latest pull request status differs at the captured commit, or the captured checks failed or were still running when written, the briefing lists them in a Checks row, never under Verified: the live result first ("Failing now: …") and "Failing/Passing when written, at <sha>: …" on a second, quieter line. If the head changed, a line names the newer commit. Opening the Walkthrough does not start the pull request page's status polling.
 - A diagram lays out anchored nodes in the step. Open a node's related file or save a draft comment on the node, then find it in the same Comments list as line and step drafts.

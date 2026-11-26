@@ -438,7 +438,7 @@ it('says what each check does now beside what it did when written', () => {
   });
 });
 
-it('moves a step’s checks out of Verified only while GitHub now disagrees with what was written', () => {
+it('moves passing checks out of Verified while GitHub now disagrees with what was written', () => {
   const passing = {
     headOid: 'abc1234',
     state: 'SUCCESS',
