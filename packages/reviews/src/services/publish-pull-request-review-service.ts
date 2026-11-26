@@ -10,6 +10,7 @@ import { DraftCommentStore } from '../ports/draft-comment-store.ts';
 import { PullRequestReviewer } from '../ports/pull-request-reviewer.ts';
 import {
   confirmedReview,
+  openDraftRevision,
   planPullRequestReview,
 } from '../rules/draft-comments.ts';
 
@@ -41,6 +42,7 @@ export class PublishPullRequestReviewService extends Context.Service<
       readonly confirmed: {
         readonly pullRequest: GitHubRepository & { readonly number: number };
         readonly headOid: string;
+        readonly draftRevision: string;
         readonly inlineIds: readonly string[];
         readonly summary: string;
         readonly bodies: Readonly<Record<string, string>>;
@@ -82,6 +84,14 @@ export class PublishPullRequestReviewService extends Context.Service<
                 message:
                   'The destination pull request changed. Go back and preview the review again.',
               });
+            if (
+              openDraftRevision(input.comments) !==
+              input.confirmed.draftRevision
+            )
+              return yield* new ReviewChangedError({
+                message:
+                  'The comments changed since this preview. Review them again before posting.',
+              });
             const diff = yield* reviewer
               .diff(target)
               .pipe(
@@ -95,12 +105,6 @@ export class PublishPullRequestReviewService extends Context.Service<
                   'The pull request has new commits since this preview. Review it again before posting.',
               });
             const plan = planPullRequestReview(input.comments, diff);
-            const review = confirmedReview(plan, input.confirmed);
-            if (review === undefined)
-              return yield* new ReviewChangedError({
-                message:
-                  'The comments changed since this preview. Review them again before posting.',
-              });
             const inlineIds = new Set(input.confirmed.inlineIds);
             if (
               plan.inline.length !== inlineIds.size ||
@@ -109,6 +113,12 @@ export class PublishPullRequestReviewService extends Context.Service<
               return yield* new ReviewChangedError({
                 message:
                   'Where a comment will appear changed. Go back and preview the review again.',
+              });
+            const review = confirmedReview(plan, input.confirmed);
+            if (review === undefined)
+              return yield* new ReviewChangedError({
+                message:
+                  'The comments changed since this preview. Review them again before posting.',
               });
             const posted = yield* reviewer.post({
               ...target,

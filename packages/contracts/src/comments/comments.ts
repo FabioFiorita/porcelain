@@ -7,6 +7,7 @@ import {
   githubUnavailableReasonSchema,
   inlineReviewCommentSchema,
 } from '@porcelain/reviews/models';
+import { fingerprintSchema } from '../shared/fingerprint.ts';
 import { relativePathSchema } from '../shared/relative-path.ts';
 import { worktreeParamsSchema } from '../shared/worktree-params.ts';
 
@@ -77,6 +78,7 @@ export const reviewPreviewResponseSchema = Schema.Union([
       title: Schema.String,
     }),
     headOid: Schema.String,
+    draftRevision: fingerprintSchema,
     inline: Schema.Array(inlineReviewCommentSchema),
     general: Schema.Array(generalReviewCommentSchema),
   }),
@@ -92,6 +94,7 @@ export type ReviewPreviewResponse = typeof reviewPreviewResponseSchema.Type;
 
 export const publishReviewRequestSchema = Schema.Struct({
   pullRequest: reviewPullRequestIdentity,
+  draftRevision: fingerprintSchema,
   inlineIds: Schema.Array(Schema.String),
   headOid: Schema.String.check(Schema.isMinLength(1)),
   summary: Schema.String.check(Schema.isMaxLength(MAX_COMMENT_LENGTH)),

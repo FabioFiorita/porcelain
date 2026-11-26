@@ -8,12 +8,12 @@ import {
   type PullRequestReviewer as Reviewer,
 } from '../ports/pull-request-reviewer.ts';
 import { InMemoryDraftCommentStore } from '../../spec/fakes/in-memory-draft-comment-store.ts';
+import { openDraftRevision } from '../rules/draft-comments.ts';
 import { PublishPullRequestReviewService } from './publish-pull-request-review-service.ts';
 
 const worktreeId = 'w'.repeat(32);
 const HEAD = 'c'.repeat(40);
 const target = { owner: 'acme', repo: 'notes', account: 'dev', number: 7 };
-const preview = { pullRequest: target, headOid: HEAD, inlineIds: ['inline'] };
 const PATCH = '@@ -0,0 +1,2 @@\n+export const a = 1;\n+export const b = 2;';
 
 function stored(id: string, anchor: DraftCommentView['anchor']) {
@@ -72,12 +72,18 @@ async function setup(headOid = HEAD) {
       outdated: false,
     }),
   );
-  return { store, posted, service, comments };
+  const preview = {
+    pullRequest: target,
+    headOid: HEAD,
+    inlineIds: ['inline'],
+    draftRevision: openDraftRevision(comments),
+  };
+  return { store, posted, service, comments, preview };
 }
 
 describe('PublishPullRequestReviewService', () => {
   it('posts one review with the confirmed text and marks every draft published', async () => {
-    const { store, posted, service, comments } = await setup();
+    const { store, posted, service, comments, preview } = await setup();
     const result = await Effect.runPromise(
       service.execute({
         worktreeId,
@@ -129,7 +135,9 @@ describe('PublishPullRequestReviewService', () => {
   });
 
   it('refuses to post when the pull request moved after the preview', async () => {
-    const { store, posted, service, comments } = await setup('d'.repeat(40));
+    const { store, posted, service, comments, preview } = await setup(
+      'd'.repeat(40),
+    );
     const exit = await Effect.runPromiseExit(
       service.execute({
         worktreeId,
@@ -155,7 +163,7 @@ describe('PublishPullRequestReviewService', () => {
   });
 
   it('refuses a confirmation that adds a comment the developer did not write', async () => {
-    const { posted, service, comments } = await setup();
+    const { posted, service, comments, preview } = await setup();
     const exit = await Effect.runPromiseExit(
       service.execute({
         worktreeId,
@@ -173,7 +181,7 @@ describe('PublishPullRequestReviewService', () => {
   });
 
   it('refuses with a plain message when the branch has no open pull request, posting nothing', async () => {
-    const { posted, service, comments } = await setup();
+    const { posted, service, comments, preview } = await setup();
     const exit = await Effect.runPromiseExit(
       service.execute({
         worktreeId,

@@ -173,7 +173,10 @@ else console.log('{}');
       );
     }
 
-    const planned = await preview();
+    const { draftRevision: initialRevision, ...planned } = record(
+      await preview(),
+    );
+    expect(text(initialRevision)).toMatch(/^[0-9a-f]{64}$/);
     expect(planned).toEqual({
       kind: 'available',
       pullRequest: {
@@ -213,6 +216,7 @@ else console.log('{}');
       pullRequest: { owner: 'fixture', repo: 'project', number: 7 },
       headOid,
       inlineIds: [lineId],
+      draftRevision: text(initialRevision),
       summary: 'Two notes.',
       bodies,
     };
@@ -271,6 +275,51 @@ else console.log('{}');
       'const a = 1;\nconst b = 2;\nconst c = 3;\n',
     );
 
+    const phoneEdit = await read(session, {
+      method: 'PATCH',
+      path: `${root}/${lineId}`,
+      auth: 'desktop',
+      body: { text: 'Keep the names but explain why.' },
+    });
+    expect(commentsView(phoneEdit).comments).toContainEqual(
+      expect.objectContaining({
+        id: lineId,
+        text: 'Keep the names but explain why.',
+      }),
+    );
+    const staleDraft = await publish(confirmation);
+    expect(staleDraft.status).toBe(409);
+    expect(staleDraft.body).toEqual(
+      apiError(
+        409,
+        'Conflict',
+        'The comments changed since this preview. Review them again before posting.',
+      ),
+    );
+    expect(await readFile(reviewsPath, 'utf8')).toBe('');
+    expect((await view('GET', root)).comments).toContainEqual(
+      expect.objectContaining({
+        id: lineId,
+        text: 'Keep the names but explain why.',
+        publication: { status: 'draft' },
+      }),
+    );
+
+    const refreshed = record(await preview());
+    const draftRevision = text(refreshed.draftRevision);
+    expect(draftRevision).not.toBe(confirmation.draftRevision);
+    expect(list(refreshed.inline).map(record)).toContainEqual(
+      expect.objectContaining({
+        id: lineId,
+        body: 'Keep the names but explain why.',
+      }),
+    );
+    const reviewedAgain = {
+      ...confirmation,
+      draftRevision,
+      bodies: { ...bodies, [lineId]: 'Keep the names and document why.' },
+    };
+
     await new Promise<void>((resolve, reject) => {
       gate.once('error', reject);
       gate.listen(gatePath, resolve);
@@ -278,8 +327,8 @@ else console.log('{}');
     state.gate = true;
     await save();
     const responses = await Promise.all([
-      publish(confirmation),
-      publish(confirmation),
+      publish(reviewedAgain),
+      publish(reviewedAgain),
     ]);
     expect(responses.map((result) => result.status)).toEqual(
       expect.arrayContaining([200, 409]),
@@ -331,7 +380,7 @@ else console.log('{}');
             start_line: 1,
             start_side: 'RIGHT',
             line: 2,
-            body: 'Name these constants',
+            body: 'Keep the names and document why.',
           },
         ],
       },

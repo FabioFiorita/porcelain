@@ -89,6 +89,7 @@ describe('review preview', () => {
       title: 'Search',
     },
     headOid: 'a'.repeat(40),
+    draftRevision: 'b'.repeat(64),
     inline: [
       {
         id: 'one',
@@ -143,6 +144,7 @@ describe('review preview', () => {
     expect(bound.request).toEqual({
       pullRequest: { owner: 'acme', repo: 'notes', number: 4 },
       headOid: 'a'.repeat(40),
+      draftRevision: 'b'.repeat(64),
       inlineIds: ['one', 'two'],
       summary: 'Looks good',
       bodies: { one: 'First!', two: 'Second', three: 'Third' },
