@@ -46,6 +46,7 @@ import { useOpenComputers } from './open-computers';
 import { worktreeChecksLabel, worktreeRow } from '../rules/worktree-row';
 import { useWorktreeNavigator } from '../store';
 import { useOpenPullRequest } from './open-pull-request';
+import { useWorktreeDrawer } from './worktree-drawer';
 import { PickerNotices } from './picker-notices';
 import { useCopyPath } from '../commands/clipboard';
 import { ProjectActions } from './project-actions';
@@ -83,6 +84,7 @@ export function WorktreeNavigator({
   const { query, setQuery, filter, setFilter, setExpanded } =
     useWorktreeNavigator();
   const openPullRequest = useOpenPullRequest();
+  const drawer = useWorktreeDrawer();
   const openComputers = useOpenComputers();
   const paired = useEnvironments();
   const storage = useEnvironmentStorageStatus();
@@ -323,13 +325,14 @@ export function WorktreeNavigator({
                                   ]
                                     .filter(Boolean)
                                     .join(', ')}
-                                  onPress={() =>
+                                  onPress={() => {
+                                    drawer.close();
                                     openPullRequest({
                                       environmentId: entry.environmentId,
                                       number,
                                       projectId: entry.projectId,
-                                    })
-                                  }
+                                    });
+                                  }}
                                 >
                                   <Text
                                     accessible={false}
