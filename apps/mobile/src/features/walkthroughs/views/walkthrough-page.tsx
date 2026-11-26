@@ -1,27 +1,16 @@
-import { useAtom, useAtomValue } from '@effect/atom-react';
-import {
-  readWalkthroughWriterSettings,
-  recheckWalkthroughWriterSettings,
-  walkthroughWriterCheck,
-} from '@porcelain/client/projects';
-import {
-  canRecheckWalkthroughWriters,
-  walkthroughWriterNotice,
-} from '@porcelain/client/projects/rules';
 import { useState, type ComponentRef, type ReactNode } from 'react';
 import { ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
+import { commentsAt } from '@porcelain/client/comments/rules';
 import {
   attentionLabel,
   failureCopy,
   foldedGrowth,
-  foldedNotSaid,
   growthSign,
   plainText,
   readyUpdate,
   initialWriteFailure,
   stopPaths,
-  walkthroughCalls,
   walkthroughMeta,
   walkthroughEvidenceNotice,
   acknowledgedWalkthroughPhase,
@@ -30,6 +19,7 @@ import {
   type WalkthroughContent,
   type WalkthroughFailure,
   type WalkthroughRun,
+  type WalkthroughStop,
 } from '@porcelain/client/walkthroughs/rules';
 import { Box } from '../../../components/ui/box';
 import { Button } from '../../../components/ui/button';
@@ -38,19 +28,33 @@ import type { KeyboardScroller } from '../../../components/ui/keyboard-reveal';
 import { RichText } from '../../../components/ui/rich-text';
 import { Separator } from '../../../components/ui/separator';
 import { Text } from '../../../components/ui/text';
+import { DraftComments, newCommentParams, useComments } from '../../comments';
 import type { Workspace } from '../../projects/index';
 import { reviewParams } from '../../workspace/index';
 import { useStartWalkthrough } from '../commands/start-walkthrough';
 import type { ConversationOwner } from '../queries/conversations';
+import type { WalkthroughPull } from '@porcelain/client/walkthroughs';
+import { useWalkthroughPull } from '../queries/pull';
+import {
+  useWalkthroughWriter,
+  type WalkthroughWriter,
+} from '../queries/writer';
 import { useWalkthroughOffset } from '../store';
 import {
   EarlierComments,
-  PostSaved,
   WalkthroughConversation,
-  useSavedSummary,
 } from './walkthrough-conversation';
 import { WalkthroughStatus } from './walkthrough-status';
 import { ComparisonTable, StepBlocks } from './walkthrough-blocks';
+import {
+  Briefing,
+  callTarget,
+  stepTarget,
+  type Jump,
+} from './walkthrough-briefing';
+import { CallDecision } from './walkthrough-decision';
+import { WalkthroughMerge } from './walkthrough-merge';
+import { WalkthroughWriterRow } from './walkthrough-writer';
 import { useWritesBlocked } from '../../access';
 
 type Phase = ReturnType<typeof walkthroughPhase>;
@@ -60,82 +64,36 @@ type UpdateFailure = {
   writer: WalkthroughRun['writer'];
 };
 
-function useWriterCheck(workspace: Workspace) {
-  const { connection } = workspace;
-  const { projectId } = workspace.scope;
-  const result = useAtomValue(
-    readWalkthroughWriterSettings(connection, projectId),
-  );
-  const [recheck, run] = useAtom(recheckWalkthroughWriterSettings(connection));
-  return {
-    ...walkthroughWriterCheck(result),
-    checking: result.waiting || recheck.waiting,
-    refresh: () => run(undefined),
-  };
-}
-
-type WriterCheck = ReturnType<typeof useWriterCheck>;
-
-function WriterNotice({
-  writer,
-  existingMessage,
-  signedOut,
-}: {
-  writer: WriterCheck;
-  existingMessage?: string | undefined;
-  signedOut?: boolean | undefined;
-}) {
-  const check = canRecheckWalkthroughWriters(writer, signedOut);
-  const message = walkthroughWriterNotice(writer, existingMessage);
-  if (!message && !check) return null;
-  return (
-    <Box gap={2} className="items-start">
-      {message && <Text tone="muted">{message}</Text>}
-      {check && (
-        <Button
-          label="Check writers again"
-          size="sm"
-          variant="tonal"
-          pending={writer.checking}
-          onPress={writer.refresh}
-        />
-      )}
-    </Box>
-  );
-}
-
 const GROWTH_TONES = {
   added: 'add',
   removed: 'del',
   changed: 'muted',
 } as const;
 
-type Jump = (target: string) => void;
-type Place = (target: string) => (y: number) => void;
+type Place = (target: string, parent?: string) => (y: number) => void;
 
 function Column({
   workspace,
-  bottom,
   children,
-  onReady,
 }: {
   workspace: Workspace;
-  bottom?: boolean;
   children: (jump: Jump, place: Place, scroller: KeyboardScroller) => ReactNode;
-  onReady?: ReactNode;
 }) {
   const { initial, remember } = useWalkthroughOffset(workspace.key);
   const [scroll, setScroll] = useState<ComponentRef<typeof ScrollView> | null>(
     null,
   );
-  const [places] = useState(() => new Map<string, number>());
+  const [places] = useState(
+    () => new Map<string, { y: number; parent: string | undefined }>(),
+  );
   const jump: Jump = (target) => {
-    const y = places.get(target);
-    if (y !== undefined)
-      scroll?.scrollTo({ y: Math.max(0, y - 12), animated: true });
+    const place = places.get(target);
+    if (place === undefined) return;
+    const y = place.y + (place.parent ? (places.get(place.parent)?.y ?? 0) : 0);
+    scroll?.scrollTo({ y: Math.max(0, y - 12), animated: true });
   };
-  const place: Place = (target) => (y) => {
-    places.set(target, y);
+  const place: Place = (target, parent) => (y) => {
+    places.set(target, { y, parent });
   };
   return (
     <Box className="flex-1" surface="background" collapsable={false}>
@@ -149,14 +107,10 @@ function Column({
         contentOffset={{ x: 0, y: initial }}
         scrollEventThrottle={100}
         onScroll={(event) => remember(event.nativeEvent.contentOffset.y)}
-        contentContainerClassName={[
-          'w-full max-w-3xl self-center gap-8 px-4 pt-5',
-          bottom ? 'pb-28' : 'pb-10',
-        ].join(' ')}
+        contentContainerClassName="w-full max-w-3xl self-center gap-8 px-4 pt-5 pb-10"
       >
         {children(jump, place, scroll)}
       </ScrollView>
-      {onReady}
     </Box>
   );
 }
@@ -164,16 +118,24 @@ function Column({
 function Meta({
   run,
   content,
+  writer,
 }: {
   run: WalkthroughRun;
   content?: WalkthroughContent;
+  writer?: WalkthroughWriter | undefined;
 }) {
+  const model = content
+    ? (writer?.settings?.models.find(
+        (entry) =>
+          entry.provider === run.writer.provider &&
+          entry.model === run.writer.model,
+      )?.label ?? run.writer.model)
+    : undefined;
+  const notice = content ? undefined : walkthroughEvidenceNotice(run);
   return (
     <Text variant="mono" tone="muted">
-      {walkthroughMeta(run, content)}
-      {walkthroughEvidenceNotice(run)
-        ? `\n${walkthroughEvidenceNotice(run)}`
-        : ''}
+      {walkthroughMeta(run, content, model)}
+      {notice ? `\n${notice}` : ''}
     </Text>
   );
 }
@@ -197,152 +159,209 @@ function SectionTitle({ children }: { children: string }) {
   );
 }
 
-function Folded<T extends { hidden: number }>({
-  fold,
-  children,
-}: {
-  fold: (open: boolean) => T;
-  children: (folded: T) => ReactNode;
-}) {
-  const [open, setOpen] = useState(false);
-  const folded = fold(open);
-  return (
-    <>
-      {children(folded)}
-      {folded.hidden > 0 ? (
-        <MoreButton hidden={folded.hidden} onPress={() => setOpen(true)} />
-      ) : null}
-    </>
-  );
-}
-
-function MoreButton({
-  hidden,
+function LinkButton({
+  label,
+  accessibilityLabel,
   onPress,
 }: {
-  hidden: number;
+  label: string;
+  accessibilityLabel?: string;
   onPress: () => void;
 }) {
   return (
     <Button
-      label={`${hidden} more`}
+      label={label}
       variant="plain"
       size="sm"
       align="start"
       className="-ml-3.5 self-start"
       onPress={onPress}
+      {...(accessibilityLabel ? { accessibilityLabel } : {})}
     />
   );
 }
 
 function Growth({ content }: { content: WalkthroughContent }) {
+  const [open, setOpen] = useState(false);
+  const { shown, hidden } = foldedGrowth(content, open);
   return (
     <Box gap={2}>
       <SectionTitle>How the system grew</SectionTitle>
-      <Folded fold={(open) => foldedGrowth(content, open)}>
-        {({ shown }) =>
-          shown.map((item, index) => (
-            <Box key={`${index}:${item.what}`} className="flex-row" gap={2}>
-              <Text
-                variant="code"
-                tone={GROWTH_TONES[item.change]}
-                accessibilityLabel={item.change}
-                className="w-3"
-              >
-                {growthSign(item)}
-              </Text>
-              <Box className="min-w-0 flex-1">
-                <Text variant="secondary">
-                  <RichText
-                    text={item.what}
-                    variant="secondary"
-                    weight="medium"
-                  />
-                  <Text variant="secondary" weight="medium">
-                    .
-                  </Text>{' '}
-                  <RichText text={item.note} variant="secondary" tone="muted" />
-                </Text>
-              </Box>
-            </Box>
-          ))
-        }
-      </Folded>
+      {shown.map((item, index) => (
+        <Box key={`${index}:${item.what}`} className="flex-row" gap={2}>
+          <Text
+            variant="code"
+            tone={GROWTH_TONES[item.change]}
+            accessibilityLabel={item.change}
+            className="w-3"
+          >
+            {growthSign(item)}
+          </Text>
+          <Box className="min-w-0 flex-1">
+            <Text variant="secondary">
+              <RichText text={item.what} variant="secondary" weight="medium" />
+              <Text variant="secondary" weight="medium">
+                .
+              </Text>{' '}
+              <RichText text={item.note} variant="secondary" tone="muted" />
+            </Text>
+          </Box>
+        </Box>
+      ))}
+      {hidden > 0 ? (
+        <LinkButton label={`${hidden} more`} onPress={() => setOpen(true)} />
+      ) : null}
     </Box>
   );
 }
 
-function NotSaid({ content }: { content: WalkthroughContent }) {
-  if (content.onlyInTranscript.length + content.stillUnclear.length === 0)
-    return null;
-  return (
-    <Box gap={3}>
-      <Separator />
-      <SectionTitle>{"What the code doesn't say"}</SectionTitle>
-      <Folded fold={(open) => foldedNotSaid(content, open)}>
-        {({ explained, unclear }) => (
-          <>
-            {explained.map((item, index) => (
-              <Text key={`${index}:${item.point}`} variant="secondary">
-                <RichText text={item.point} variant="secondary" />{' '}
-                <RichText text={item.answer} variant="secondary" tone="muted" />
-              </Text>
-            ))}
-            {unclear.map((item, index) => (
-              <RichText
-                key={`${index}:${item}`}
-                text={item}
-                variant="secondary"
-                tone="muted"
-              />
-            ))}
-          </>
-        )}
-      </Folded>
-    </Box>
-  );
-}
-
-function Calls({
-  content,
+function CallPanels({
   owner,
-  jump,
+  stop,
+  step,
+  place,
+}: {
+  owner: ConversationOwner;
+  stop: WalkthroughStop;
+  step: number;
+  place: Place;
+}) {
+  return stop.callouts.map(({ attention, comparison }, index) => (
+    <Card
+      key={index}
+      variant="warning"
+      gap={2}
+      padding={4}
+      accessibilityLabel={`Your call: ${attentionLabel(attention)}`}
+      onLayout={(event) =>
+        place(
+          callTarget(step, index),
+          stepTarget(step),
+        )(event.nativeEvent.layout.y)
+      }
+    >
+      <Text variant="caption" weight="medium" tone="warn">
+        Your call · {attentionLabel(attention)}
+      </Text>
+      <RichText text={attention.question} variant="headline" />
+      <RichText text={attention.note} variant="secondary" tone="muted" />
+      {comparison ? <ComparisonTable comparison={comparison} /> : null}
+      <CallDecision
+        owner={owner}
+        step={step}
+        index={index}
+        comparison={comparison}
+      />
+    </Card>
+  ));
+}
+
+function StepDrafts({
+  workspace,
+  title,
+}: {
+  workspace: Workspace;
+  title: string;
+}) {
+  const { view } = useComments(workspace);
+  return (
+    <DraftComments
+      workspace={workspace}
+      drafts={commentsAt(
+        view,
+        (anchor) => anchor.kind === 'step' && anchor.title === title,
+      )}
+    />
+  );
+}
+
+function StepSection({
+  owner,
+  stop,
+  step,
+  pull,
+  place,
   scroller,
 }: {
-  content: WalkthroughContent;
-  owner: ConversationOwner;
-  jump: Jump;
+  owner: ConversationOwner & { run: WalkthroughRun };
+  stop: WalkthroughStop;
+  step: number;
+  pull: WalkthroughPull;
+  place: Place;
   scroller: KeyboardScroller;
 }) {
-  return walkthroughCalls(content).map(
-    ({ attention, comparison, step, stop, callIndex }) => (
-      <Card key={`${step}:${callIndex}`} gap={3} padding={4}>
-        <Box className="flex-row items-center justify-between" gap={3}>
-          <Text variant="caption" tone="muted">
-            {attentionLabel(attention)}
-          </Text>
-          <Button
-            label={`Step ${step}`}
-            variant="plain"
-            size="sm"
-            accessibilityLabel={`Go to step ${step}`}
-            className="-my-1.5 -mr-3.5"
-            onPress={() => jump(`step:${step}`)}
-          />
+  const router = useRouter();
+  const { workspace, run } = owner;
+  const title = plainText(stop.title);
+  return (
+    <Box
+      gap={3}
+      onLayout={(event) => place(stepTarget(step))(event.nativeEvent.layout.y)}
+    >
+      <Separator />
+      <Box className="flex-row" gap={2}>
+        <Text
+          variant="headline"
+          tone="muted"
+          accessibilityLabel={`Step ${step}`}
+        >
+          {step}
+        </Text>
+        <Box className="min-w-0 flex-1">
+          <RichText text={stop.title} variant="headline" />
         </Box>
-        <RichText text={attention.question} variant="headline" />
-        <RichText text={attention.note} variant="secondary" tone="muted" />
-        {comparison ? <ComparisonTable comparison={comparison} /> : null}
-        {callIndex === 0 ? (
-          <WalkthroughConversation
-            owner={owner}
-            title={stop.title}
-            placement="call"
-            scroller={scroller}
-          />
-        ) : null}
-      </Card>
-    ),
+      </Box>
+      <RichText text={stop.explanation} />
+      <CallPanels owner={owner} stop={stop} step={step} place={place} />
+      <StepBlocks
+        workspace={workspace}
+        run={run}
+        step={step}
+        title={title}
+        blocks={stop.blocks}
+        pull={pull}
+      />
+      <StepDrafts workspace={workspace} title={title} />
+      <WalkthroughConversation
+        owner={owner}
+        title={stop.title}
+        stepTitle={title}
+        scroller={scroller}
+        actions={
+          <>
+            {stopPaths(stop).length > 0 ? (
+              <Button
+                label="See the code"
+                variant="plain"
+                size="sm"
+                accessibilityLabel={`See the code for step ${step}`}
+                onPress={() =>
+                  router.push({
+                    pathname: '/walkthrough-step',
+                    params: { workspace: workspace.key, step: String(step) },
+                  })
+                }
+              />
+            ) : null}
+            <Button
+              label="Comment"
+              variant="plain"
+              size="sm"
+              accessibilityLabel={`Comment on step ${step}`}
+              onPress={() =>
+                router.push({
+                  pathname: '/comment',
+                  params: newCommentParams(workspace.key, {
+                    kind: 'step',
+                    title,
+                  }),
+                })
+              }
+            />
+          </>
+        }
+      />
+    </Box>
   );
 }
 
@@ -368,12 +387,12 @@ function Written({
   reused: boolean;
   updateFailure: UpdateFailure | undefined;
   onUpdate: () => void;
-  writer: WriterCheck;
+  writer: WalkthroughWriter;
   blocked: boolean;
 }) {
   const router = useRouter();
   const owner = { workspace, run };
-  const saved = useSavedSummary(owner) !== undefined;
+  const pull = useWalkthroughPull(workspace, run);
   const seeChange = () =>
     router.push({
       pathname: '/review-changes',
@@ -384,7 +403,7 @@ function Written({
     });
   const header = (
     <Box gap={3}>
-      <Meta run={run} content={content} />
+      <Meta run={run} content={content} writer={writer} />
       <Headline content={content} />
       <RichText text={content.summary} />
       <WalkthroughStatus
@@ -397,7 +416,8 @@ function Written({
         writeBlock={writer.status?.block}
         updateDisabled={blocked}
         writerNotice={
-          <WriterNotice
+          <WalkthroughWriterRow
+            workspace={workspace}
             writer={writer}
             existingMessage={updateFailure?.failure.message}
             signedOut={updateFailure?.failure.kind === 'signed_out'}
@@ -406,132 +426,60 @@ function Written({
       />
     </Box>
   );
-  if (content.outcome === 'nothing')
-    return (
-      <Column
-        workspace={workspace}
-        bottom={saved}
-        onReady={<PostSaved owner={owner} />}
-      >
-        {() => (
-          <>
-            <Box gap={3}>
-              {header}
-              <Button
-                label="See the change"
-                variant="plain"
-                size="sm"
-                align="start"
-                className="-ml-3.5 self-start"
-                onPress={seeChange}
-              />
-            </Box>
-            <EarlierComments owner={owner} titles={[]} />
-          </>
-        )}
-      </Column>
-    );
   return (
-    <Column
-      workspace={workspace}
-      bottom={saved}
-      onReady={<PostSaved owner={owner} />}
-    >
+    <Column workspace={workspace}>
       {(jump, place, scroller) => (
         <>
           {header}
-          {walkthroughCalls(content).length > 0 ? (
-            <Box
-              gap={3}
-              onLayout={(event) => place('calls')(event.nativeEvent.layout.y)}
-            >
-              <Calls
-                content={content}
-                owner={owner}
-                jump={jump}
-                scroller={scroller}
-              />
-            </Box>
+          <Briefing
+            workspace={workspace}
+            owner={owner}
+            run={run}
+            content={content}
+            pull={pull}
+            jump={jump}
+          />
+          {content.outcome !== 'nothing' && content.growth.length > 0 ? (
+            <Growth content={content} />
           ) : null}
-          {content.growth.length > 0 ? <Growth content={content} /> : null}
-          {content.stops.map((stop, index) => {
-            const step = index + 1;
-            return (
-              <Box
-                key={`${index}:${stop.title}`}
-                gap={3}
-                onLayout={(event) =>
-                  place(`step:${step}`)(event.nativeEvent.layout.y)
-                }
-              >
-                <Separator />
-                <Box className="flex-row items-center" gap={2}>
-                  <Text variant="mono" tone="muted">
-                    Step {step}
-                  </Text>
-                  {stop.callouts.length > 0 ? (
-                    <Button
-                      label="Your call"
-                      variant="plain"
-                      size="sm"
-                      accessibilityLabel={`Your call, step ${step}`}
-                      className="-my-1.5 -ml-1.5"
-                      onPress={() => jump('calls')}
-                    />
-                  ) : null}
-                </Box>
-                <RichText text={stop.title} variant="headline" />
-                <RichText text={stop.explanation} />
-                <StepBlocks
-                  workspace={workspace}
-                  run={run}
-                  step={step}
-                  blocks={stop.blocks}
-                />
-                <WalkthroughConversation
+          {content.outcome === 'nothing'
+            ? null
+            : content.stops.map((stop, index) => (
+                <StepSection
+                  key={`${index}:${stop.title}`}
                   owner={owner}
-                  title={stop.title}
-                  placement="step"
+                  stop={stop}
+                  step={index + 1}
+                  pull={pull}
+                  place={place}
                   scroller={scroller}
-                  lead={
-                    stopPaths(stop).length > 0 ? (
-                      <Button
-                        label="See the code"
-                        variant="plain"
-                        size="sm"
-                        accessibilityLabel={`See the code for step ${step}`}
-                        onPress={() =>
-                          router.push({
-                            pathname: '/walkthrough-step',
-                            params: {
-                              workspace: workspace.key,
-                              step: String(step),
-                            },
-                          })
-                        }
-                      />
-                    ) : null
-                  }
                 />
-              </Box>
-            );
-          })}
-          <NotSaid content={content} />
+              ))}
           <EarlierComments
             owner={owner}
-            titles={content.stops.map((stop) => stop.title)}
+            titles={
+              content.outcome === 'nothing'
+                ? []
+                : content.stops.map((stop) => stop.title)
+            }
           />
           <Box gap={2}>
             <Separator />
-            <Button
-              label="See every changed file"
-              variant="plain"
-              size="sm"
-              align="start"
-              className="-ml-3.5 self-start"
+            <LinkButton
+              label={
+                content.outcome === 'nothing'
+                  ? 'See the change'
+                  : 'See every changed file'
+              }
               onPress={seeChange}
             />
           </Box>
+          <WalkthroughMerge
+            workspace={workspace}
+            run={run}
+            content={content}
+            pull={pull}
+          />
         </>
       )}
     </Column>
@@ -548,7 +496,7 @@ function Unwritten({
   workspace: Workspace;
   waiting: boolean;
   onWrite: () => void;
-  writer: WriterCheck;
+  writer: WalkthroughWriter;
   blocked: boolean;
 }) {
   return (
@@ -561,7 +509,7 @@ function Unwritten({
           {!writer.status && !writer.failed && (
             <Text tone="muted">Checking Walkthrough writer…</Text>
           )}
-          <WriterNotice writer={writer} />
+          <WalkthroughWriterRow workspace={workspace} writer={writer} />
           <Button
             label="Write walkthrough"
             pending={waiting}
@@ -612,7 +560,7 @@ function Failed({
   failure: WalkthroughFailure;
   waiting: boolean;
   onRetry: () => void;
-  writer: WriterCheck;
+  writer: WalkthroughWriter;
   blocked: boolean;
 }) {
   const copy = failureCopy(failure, run);
@@ -625,7 +573,8 @@ function Failed({
             {copy.title}
           </Text>
           {copy.message ? <Text tone="muted">{copy.message}</Text> : null}
-          <WriterNotice
+          <WalkthroughWriterRow
+            workspace={workspace}
             writer={writer}
             existingMessage={copy.message}
             signedOut={failure.kind === 'signed_out'}
@@ -649,11 +598,12 @@ export function WalkthroughPage({
   workspace: Workspace;
   phase: Phase;
 }) {
-  const writer = useWriterCheck(workspace);
+  const writer = useWalkthroughWriter(workspace);
   const blocked = useWritesBlocked(workspace.connection.environmentId);
   const write = useStartWalkthrough(
     workspace,
     observedPhase.kind !== 'unwritten' ? observedPhase.run : undefined,
+    writer.next,
   );
   const phase = acknowledgedWalkthroughPhase(observedPhase, write.accepted);
   const startFailure = initialWriteFailure(phase, write.failure);

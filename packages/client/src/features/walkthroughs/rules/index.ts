@@ -20,6 +20,7 @@ export {
 } from './walkthrough.ts';
 export {
   stepScreenshots,
+  type DiagramEdge,
   type DiagramNode,
   type StepBlock,
   type StepDiagram,
@@ -31,27 +32,30 @@ export {
 } from './blocks.ts';
 export {
   answerTo,
-  canPostMessage,
   conversationFailure,
   earlierConversations,
-  postControls,
-  postedCommentLabel,
   canRetryAnswer,
   conversationsAt,
   developerTurns,
   isAnswering,
-  postLabels,
-  postOutcome,
-  savedSummary,
   stopConversations,
-  postDestination,
-  savedMessageCount,
   type AgentMessage,
   type Conversation,
   type DeveloperMessage,
   type WalkthroughAnchor,
 } from './conversations.ts';
 export { worktreeOpening, type WorktreeOpening } from './opening.ts';
+export {
+  callDecision,
+  callDecisionRequest,
+  callOptions,
+  decidedOption,
+  decidedWhen,
+  decisionAuthor,
+  nothingCaptured,
+  walkthroughPullRequest,
+  walkthroughVerified,
+} from './briefing.ts';
 export {
   attentionLabel,
   failureCopy,
@@ -74,9 +78,17 @@ export {
 export { fileComparison, fileOpening } from './file-comparison.ts';
 export {
   diagramConnections,
+  diagramEdgeTone,
   diagramNeighbours,
+  diagramNodeDescription,
+  diagramNodeFacts,
+  diagramNodeSign,
   diagramStep,
+  diagramTextMeasure,
   layoutDiagram,
+  type DiagramEdgeTone,
+  type DiagramTextMetrics,
+  type DiagramGeometry,
   type DiagramKey,
   type DiagramMeasure,
 } from './diagram-layout.ts';

@@ -3,20 +3,18 @@ import { CheckIcon, ImagesIcon } from 'lucide-react';
 import {
   attentionLabel,
   callDecisionProgress,
+  nothingCaptured,
   walkthroughCalls,
   walkthroughEvidenceNotice,
+  walkthroughVerified,
   type WalkthroughContent,
   type WalkthroughRun,
 } from '@porcelain/client/walkthroughs/rules';
-import {
-  currentWalkthroughChecks,
-  recordedChecks,
-} from '@porcelain/client/projects/rules';
+import { verifiedChecks } from '@porcelain/client/projects/rules';
 import { CheckResultIcon } from '@/features/workspace/index';
 import { cn } from '@/shared/lib/utils';
 import { RichText } from './rich-text';
 import { ShortOid } from './short-oid';
-import { checksTone } from './walkthrough-blocks';
 import {
   useConversations,
   type ConversationScope,
@@ -54,13 +52,6 @@ export function scrollToTarget(
 export const stepId = (step: number) => `walkthrough-step-${step}`;
 export const callId = (step: number, index: number) =>
   `walkthrough-call-${step}-${index}`;
-
-function stepsLabel(steps: readonly number[]) {
-  const unique = [...new Set(steps)];
-  return unique.length === 1
-    ? `Step ${unique[0]}`
-    : `Steps ${unique.join(', ')}`;
-}
 
 function BriefingRow({
   label,
@@ -205,26 +196,13 @@ function Verified({
   pull: WalkthroughPull;
   onJump: Jump;
 }) {
-  const checks = content.stops.flatMap((stop, index) =>
-    stop.blocks.flatMap((block) =>
-      block.kind === 'checks' ? [{ block, step: index + 1 }] : [],
-    ),
-  );
-  const pairs = content.stops.flatMap((stop, index) =>
-    stop.blocks.flatMap((block) =>
-      block.kind === 'images' ? [index + 1] : [],
-    ),
-  );
+  const verified = walkthroughVerified(content);
+  const { screenshots } = verified;
+  const checks = verifiedChecks(verified.checks, pull);
   const notice = walkthroughEvidenceNotice(run);
   return (
     <>
-      {checks.map(({ block, step }) => {
-        const recorded = recordedChecks(block.checks);
-        const live = currentWalkthroughChecks(block.checks, pull?.status);
-        const moved =
-          pull?.detail && pull.detail.headSha !== block.checks.headOid
-            ? pull.detail.headSha.slice(0, 7)
-            : undefined;
+      {checks.map(({ step, recorded, live, tone, moved }) => {
         const captured = (
           <>
             <ShortOid label={recorded.label} />
@@ -246,7 +224,7 @@ function Verified({
             className="flex min-h-7 items-start gap-2 py-1 text-ui"
           >
             <span className="flex h-5 shrink-0 items-center">
-              <CheckResultIcon tone={live?.tone ?? checksTone(block.checks)} />
+              <CheckResultIcon tone={tone} />
             </span>
             <span className="flex min-w-0 flex-1 flex-col gap-0.5 text-pretty">
               <span>
@@ -284,27 +262,22 @@ function Verified({
           </div>
         );
       })}
-      {pairs.length > 0 && (
+      {screenshots && (
         <Line
-          target={stepsLabel(pairs)}
-          onClick={() => onJump(stepId(pairs[0]!))}
+          target={screenshots.steps}
+          onClick={() => onJump(stepId(screenshots.first))}
         >
           <ImagesIcon
             aria-hidden
             className="size-3.5 shrink-0 self-center text-muted-foreground"
           />
-          <span className="min-w-0">
-            {pairs.length === 1
-              ? 'Before and after screenshots'
-              : `${pairs.length} before and after pairs`}
-          </span>
+          <span className="min-w-0">{screenshots.text}</span>
         </Line>
       )}
       {notice && <p className="py-1 text-ui text-muted-foreground">{notice}</p>}
-      {!notice && checks.length === 0 && pairs.length === 0 && (
+      {!notice && checks.length === 0 && !screenshots && (
         <p className="py-1 text-ui text-muted-foreground">
-          No checks or screenshots were captured for{' '}
-          <span className="font-mono">{run.headOid.slice(0, 7)}</span>.
+          {nothingCaptured(run)}
         </p>
       )}
     </>

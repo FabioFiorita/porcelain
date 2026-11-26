@@ -1,116 +1,31 @@
-import { Option } from 'effect';
-import { AsyncResult } from 'effect/reactivity';
-import { diffLines, focusPatch } from '@porcelain/client/changes/rules';
 import {
+  movedPullHead,
+  pullRequestRollup,
   recordedChecks,
   type RecordedCheck,
 } from '@porcelain/client/projects/rules';
 import {
   type StepBlock,
   type WalkthroughComparison,
-  type WalkthroughExcerpt,
   type WalkthroughRun,
 } from '@porcelain/client/walkthroughs/rules';
 import { Box } from '../../../components/ui/box';
 import { Card } from '../../../components/ui/card';
-import { ErrorState } from '../../../components/ui/error-state';
 import { Icon } from '../../../components/ui/icon';
 import { Item } from '../../../components/ui/item';
 import { RichText } from '../../../components/ui/rich-text';
 import { Separator } from '../../../components/ui/separator';
 import { Text } from '../../../components/ui/text';
 import { documentHeading } from '../../../shared/rules/document-heading';
-import { sourceLanguage } from '../../../shared/rules/highlight-code';
-import { DiffView } from '../../documents/index';
 import type { Workspace } from '../../projects/index';
-import { useCapturedExcerpt } from '../queries/walkthrough';
 import { useChangedFileOpening } from './changed-file-opening';
+import type { WalkthroughPull } from '@porcelain/client/walkthroughs';
+import { WalkthroughDiagram } from './walkthrough-diagram';
 import { WalkthroughProof } from './walkthrough-evidence';
+import { CapturedExcerpt } from './walkthrough-excerpt';
 
 type Files = Extract<StepBlock, { kind: 'files' }>;
 type Checks = Extract<StepBlock, { kind: 'checks' }>;
-
-function CapturedLines({
-  workspace,
-  runId,
-  step,
-  excerpt,
-}: {
-  workspace: Workspace;
-  runId: string;
-  step: number;
-  excerpt: WalkthroughExcerpt;
-}) {
-  const { result, retry } = useCapturedExcerpt({
-    workspace,
-    runId,
-    step,
-    block: excerpt.position,
-  });
-  if (AsyncResult.isInitial(result)) return null;
-  if (AsyncResult.isFailure(result))
-    return (
-      <ErrorState
-        message="The captured diff could not be read."
-        retry={{
-          label: 'Read the lines again',
-          onPress: retry,
-          pending: result.waiting,
-        }}
-      />
-    );
-  const answer = Option.getOrUndefined(AsyncResult.value(result));
-  const patch =
-    answer?.walkthrough?.id === runId ? answer.capturedPatch : undefined;
-  const focused = patch
-    ? focusPatch(patch, [excerpt.span], 3, excerpt.side)
-    : undefined;
-  const parsed = focused ? diffLines(focused) : undefined;
-  if (parsed?.kind !== 'text')
-    return (
-      <Text variant="caption" tone="muted">
-        These lines are unavailable in the saved walkthrough.
-      </Text>
-    );
-  return (
-    <Card>
-      <DiffView
-        lines={parsed.lines.filter((line) => line.kind !== undefined)}
-        language={sourceLanguage(excerpt.path)}
-        fit
-      />
-    </Card>
-  );
-}
-
-function Excerpt({
-  workspace,
-  runId,
-  step,
-  excerpt,
-}: {
-  workspace: Workspace;
-  runId: string;
-  step: number;
-  excerpt: WalkthroughExcerpt;
-}) {
-  return (
-    <Box gap={1}>
-      <Text variant="mono" tone="muted">
-        {excerpt.path} · {excerpt.lines}
-      </Text>
-      {excerpt.caption ? (
-        <RichText text={excerpt.caption} variant="secondary" />
-      ) : null}
-      <CapturedLines
-        workspace={workspace}
-        runId={runId}
-        step={step}
-        excerpt={excerpt}
-      />
-    </Box>
-  );
-}
 
 function FileList({
   workspace,
@@ -147,7 +62,7 @@ function FileList({
   );
 }
 
-const RESULT_ICONS = {
+export const RESULT_ICONS = {
   passed: { name: 'check', tone: 'add' },
   failed: { name: 'close', tone: 'del' },
   running: { name: 'refresh', tone: 'muted' },
@@ -158,7 +73,8 @@ function CheckRow({ result }: { result: RecordedCheck }) {
   const icon = RESULT_ICONS[result.tone];
   return (
     <Box
-      className="min-h-7 flex-row items-center"
+      className="min-h-8 flex-row items-center"
+      paddingX={4}
       gap={2}
       accessible
       accessibilityLabel={`${result.name}: ${result.label}`}
@@ -169,31 +85,53 @@ function CheckRow({ result }: { result: RecordedCheck }) {
           {result.name}
         </Text>
       </Box>
-      {result.detail ? (
-        <Text variant="caption" tone="muted">
-          {result.detail}
-        </Text>
-      ) : null}
+      <Text variant="caption" tone="muted">
+        {result.detail ?? result.label}
+      </Text>
     </Box>
   );
 }
 
-function CheckList({ block }: { block: Checks }) {
+function CheckList({ block, pull }: { block: Checks; pull: WalkthroughPull }) {
   const checks = recordedChecks(block.checks);
+  const icon = RESULT_ICONS[pullRequestRollup(block.checks.state).tone];
+  const moved = movedPullHead(pull?.detail?.headSha, block.checks.headOid);
   return (
-    <Box gap={1}>
-      <Text variant="mono" tone="muted" accessibilityRole="header">
-        {checks.label}
-      </Text>
-      {checks.results.map((result, index) => (
-        <CheckRow key={`${result.name}:${index}`} result={result} />
-      ))}
-      {checks.more ? (
-        <Text variant="caption" tone="muted">
-          More checks on the pull request
+    <Card>
+      <Box
+        className="min-h-9 flex-row flex-wrap items-center"
+        paddingX={4}
+        paddingY={2}
+        gap={2}
+        accessibilityRole="header"
+      >
+        <Icon name={icon.name} tone={icon.tone} size="small" />
+        <Text variant="secondary" weight="medium">
+          {checks.label}
         </Text>
+        {moved && pull ? (
+          <Text variant="caption" tone="warn">
+            #{pull.number} is now at {moved}
+          </Text>
+        ) : null}
+      </Box>
+      <Separator />
+      <Box paddingY={1}>
+        {checks.results.map((result, index) => (
+          <CheckRow key={`${result.name}:${index}`} result={result} />
+        ))}
+      </Box>
+      {checks.more ? (
+        <>
+          <Separator />
+          <Box paddingX={4} paddingY={2}>
+            <Text variant="caption" tone="muted">
+              More checks on the pull request
+            </Text>
+          </Box>
+        </>
       ) : null}
-    </Box>
+    </Card>
   );
 }
 
@@ -201,18 +139,22 @@ export function StepBlocks({
   workspace,
   run,
   step,
+  title,
   blocks,
+  pull,
 }: {
   workspace: Workspace;
   run: WalkthroughRun;
   step: number;
+  title: string;
   blocks: readonly StepBlock[];
+  pull: WalkthroughPull;
 }) {
   return blocks.map((block, index) => {
     switch (block.kind) {
       case 'excerpt':
         return (
-          <Excerpt
+          <CapturedExcerpt
             key={index}
             workspace={workspace}
             runId={run.id}
@@ -234,9 +176,52 @@ export function StepBlocks({
       case 'files':
         return <FileList key={index} workspace={workspace} block={block} />;
       case 'checks':
-        return <CheckList key={index} block={block} />;
+        return <CheckList key={index} block={block} pull={pull} />;
+      case 'diagram':
+        return (
+          <WalkthroughDiagram
+            key={index}
+            workspace={workspace}
+            run={run}
+            step={step}
+            title={title}
+            diagram={block.diagram}
+          />
+        );
     }
   });
+}
+
+function TableRow({
+  cells,
+  muted,
+  label,
+}: {
+  cells: readonly string[];
+  muted: boolean;
+  label?: string | undefined;
+}) {
+  return (
+    <Box
+      className="flex-row"
+      accessible={label !== undefined}
+      {...(label === undefined ? {} : { accessibilityLabel: label })}
+    >
+      {cells.map((cell, index) => (
+        <Box key={index} className="flex-1 flex-row">
+          {index > 0 ? <Separator orientation="vertical" /> : null}
+          <Box className="min-w-0 flex-1" paddingX={2} paddingY={2}>
+            <RichText
+              text={cell}
+              variant={muted ? 'secondary' : 'caption'}
+              weight={muted ? 'normal' : 'medium'}
+              tone={muted ? 'muted' : 'default'}
+            />
+          </Box>
+        </Box>
+      ))}
+    </Box>
+  );
 }
 
 export function ComparisonTable({
@@ -245,41 +230,22 @@ export function ComparisonTable({
   comparison: WalkthroughComparison;
 }) {
   return (
-    <Box>
-      <Box className="flex-row" gap={3} paddingY={1}>
-        {comparison.columns.map((column, index) => (
-          <Box key={index} className="flex-1">
-            <RichText
-              text={column}
-              variant="caption"
-              tone="muted"
-              weight="medium"
-            />
-          </Box>
-        ))}
-      </Box>
+    <Card>
+      <TableRow cells={comparison.columns} muted={false} />
       {comparison.rows.map((row, rowIndex) => (
         <Box key={rowIndex}>
           <Separator />
-          <Box
-            className="flex-row"
-            gap={3}
-            paddingY={2}
-            accessible
-            accessibilityLabel={row
+          <TableRow
+            cells={row}
+            muted
+            label={row
               .map(
                 (cell, index) => `${comparison.columns[index] ?? ''}: ${cell}.`,
               )
               .join(' ')}
-          >
-            {row.map((cell, index) => (
-              <Box key={index} className="flex-1">
-                <RichText text={cell} variant="secondary" />
-              </Box>
-            ))}
-          </Box>
+          />
         </Box>
       ))}
-    </Box>
+    </Card>
   );
 }

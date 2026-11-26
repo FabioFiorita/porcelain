@@ -36,7 +36,7 @@ export function walkthroughDraftBinding(
             ...current,
             failure:
               current.text === draft.text
-                ? { runId, message: conversationFailure(error).text }
+                ? { runId, message: conversationFailure(error) }
                 : undefined,
             sending: false,
           })),

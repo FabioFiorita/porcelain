@@ -4,17 +4,20 @@ import {
   MessageSquareIcon,
   MessageSquarePlusIcon,
 } from 'lucide-react';
-import { commentsAt } from '@porcelain/client/comments/rules';
+import {
+  commentsAt,
+  nodeCommentCounts,
+} from '@porcelain/client/comments/rules';
 import { CommentThread, useComments } from '@/features/comments/index';
 import {
-  diagramConnections,
+  diagramEdgeTone,
   diagramNeighbours,
+  diagramNodeDescription,
+  diagramNodeSign,
   diagramStep,
-  growthSign,
+  diagramTextMeasure,
   layoutDiagram,
   type DiagramKey,
-  type DiagramMeasure,
-  type DiagramNode,
   type StepDiagram,
 } from '@porcelain/client/walkthroughs/rules';
 import { Button } from '@/components/ui/button';
@@ -24,36 +27,17 @@ import { TruncatedText } from '@/shared/views/truncated-text';
 import { useCitedFiles } from './cited-files';
 import { WalkthroughExcerpt } from './walkthrough-excerpt';
 
-const MONO_CHARACTER = 8.1;
-const NOTE_CHARACTER = 5.6;
-const EDGE_CHARACTER = 5.4;
-const CARD_PADDING = 24;
-const SIGN_WIDTH = 12;
-const CHEVRON_WIDTH = 16;
-const CARD_MIN = 88;
-const CARD_MAX = 232;
+const MEASURE = diagramTextMeasure({
+  label: 8.1,
+  note: 5.6,
+  edge: 5.4,
+  padding: 24,
+  sign: 12,
+  chevron: 16,
+  min: 88,
+  max: 232,
+});
 const LABEL_PAD = 4;
-
-const MEASURE: DiagramMeasure = {
-  node: (node) => {
-    const sign = node.mark && node.mark !== 'unchanged' ? SIGN_WIDTH : 0;
-    const label =
-      sign +
-      node.label.length * MONO_CHARACTER +
-      (node.anchor ? CHEVRON_WIDTH : 0);
-    const note = node.note ? sign + node.note.length * NOTE_CHARACTER : 0;
-    return {
-      width: Math.round(
-        Math.min(
-          CARD_MAX,
-          Math.max(CARD_MIN, Math.max(label, note) + CARD_PADDING),
-        ),
-      ),
-      height: node.note ? 44 : 30,
-    };
-  },
-  label: (text) => text.length * EDGE_CHARACTER + 8,
-};
 
 const KEYS: Record<string, DiagramKey> = {
   ArrowLeft: 'left',
@@ -63,38 +47,6 @@ const KEYS: Record<string, DiagramKey> = {
   Home: 'first',
   End: 'last',
 };
-
-const MARK_WORDS: Record<NonNullable<DiagramNode['mark']>, string> = {
-  added: 'new',
-  changed: 'changed',
-  removed: 'removed',
-  unchanged: 'unchanged',
-};
-
-function nodeSign(node: DiagramNode) {
-  return node.mark === undefined || node.mark === 'unchanged'
-    ? undefined
-    : growthSign({ change: node.mark, what: '', note: '' });
-}
-
-function nodeDescription(diagram: StepDiagram, node: DiagramNode) {
-  const facts = [
-    node.kind,
-    node.mark === undefined ? undefined : MARK_WORDS[node.mark],
-  ].filter(Boolean);
-  const connections = diagramConnections(diagram, node.id);
-  let anchor = '';
-  if (node.anchor?.kind === 'lines')
-    anchor = `Shows ${node.anchor.excerpt.path}, ${node.anchor.excerpt.lines}.`;
-  if (node.anchor?.kind === 'file') anchor = `Shows ${node.anchor.path}.`;
-  return [
-    facts.length > 0 ? `${facts.join(', ')}.` : '',
-    connections.length > 0 ? `${connections.join('; ')}.` : '',
-    anchor,
-  ]
-    .filter(Boolean)
-    .join(' ');
-}
 
 function useFrameWidth() {
   const [width, setWidth] = useState(0);
@@ -106,14 +58,6 @@ function useFrameWidth() {
     return () => observer.disconnect();
   });
   return { frame, width };
-}
-
-type EdgeTone = 'add' | 'del' | 'lit' | 'rest';
-
-function edgeTone(edge: StepDiagram['edges'][number], lit: boolean): EdgeTone {
-  if (edge.mark === 'added') return 'add';
-  if (edge.mark === 'removed') return 'del';
-  return lit ? 'lit' : 'rest';
 }
 
 function DiagramFile({
@@ -189,17 +133,7 @@ function useNodeCommentCounts(document: DocumentProps, title: string) {
     scope: document.scope,
     context: document.context,
   });
-  const counts = new Map<string, number>();
-  for (const comment of commentsAt(
-    view,
-    (anchor) => anchor.kind === 'node' && anchor.title === title,
-  ))
-    if (comment.anchor.kind === 'node')
-      counts.set(
-        comment.anchor.node,
-        (counts.get(comment.anchor.node) ?? 0) + 1,
-      );
-  return counts;
+  return nodeCommentCounts(view, title);
 }
 
 export function WalkthroughDiagram({
@@ -289,7 +223,7 @@ export function WalkthroughDiagram({
                 if (edge === undefined) return null;
                 const lit = near?.edges.has(placed.index) === true;
                 const dim = near !== undefined && !lit;
-                const tone = edgeTone(edge, lit);
+                const tone = diagramEdgeTone(edge, lit);
                 return (
                   <g
                     key={placed.index}
@@ -339,7 +273,7 @@ export function WalkthroughDiagram({
                   (item) => item.id === placed.id,
                 );
                 if (node === undefined) return null;
-                const sign = nodeSign(node);
+                const sign = diagramNodeSign(node);
                 const isChosen = chosen === node.id;
                 const dim = near !== undefined && !near.nodes.has(node.id);
                 const code = node.kind !== 'external';
@@ -392,7 +326,7 @@ export function WalkthroughDiagram({
                     )}
                     <span className="sr-only">
                       {' '}
-                      {nodeDescription(diagram, node)}
+                      {diagramNodeDescription(diagram, node)}
                     </span>
                   </>
                 );
@@ -473,7 +407,7 @@ export function WalkthroughDiagram({
                 const edge = diagram.edges[placed.index];
                 if (!placed.label || !edge?.label) return null;
                 const lit = near?.edges.has(placed.index) === true;
-                const tone = edgeTone(edge, lit);
+                const tone = diagramEdgeTone(edge, lit);
                 return (
                   <text
                     key={placed.index}

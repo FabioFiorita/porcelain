@@ -102,6 +102,31 @@ export function chooseWalkthroughWriter(
   );
 }
 
+export function isProjectDefaultWriter(
+  saved: WriterChoice | undefined,
+  writer: WriterChoice,
+  models: readonly WriterModel[],
+) {
+  return (
+    saved !== undefined &&
+    resolvedWalkthroughWriterKey(saved, models) ===
+      walkthroughWriterKey(writer) &&
+    saved.effort === writer.effort
+  );
+}
+
+export function walkthroughEfforts(
+  writer: Pick<WriterChoice, 'provider' | 'model'>,
+  models: readonly WriterModel[],
+): readonly string[] {
+  return (
+    models.find(
+      (model) =>
+        model.provider === writer.provider && model.model === writer.model,
+    )?.efforts ?? []
+  );
+}
+
 export function withWalkthroughEffort(writer: WriterChoice, effort: string) {
   return selectedWalkthroughWriter(walkthroughWriterKey(writer), effort);
 }

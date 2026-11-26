@@ -1,9 +1,10 @@
-import type {
-  StepBlock,
-  WalkthroughComparison,
-  WalkthroughRun,
+import {
+  type StepBlock,
+  type WalkthroughComparison,
+  type WalkthroughRun,
 } from '@porcelain/client/walkthroughs/rules';
 import {
+  movedPullHead,
   pullRequestRollup,
   recordedChecks,
 } from '@porcelain/client/projects/rules';
@@ -111,16 +112,13 @@ function FileList({
   );
 }
 
-export function checksTone(checks: Checks['checks']): Tone {
+function checksTone(checks: Checks['checks']): Tone {
   return pullRequestRollup(checks.state).tone;
 }
 
 function CheckList({ block, pull }: { block: Checks; pull: WalkthroughPull }) {
   const checks = recordedChecks(block.checks);
-  const moved =
-    pull?.detail && pull.detail.headSha !== block.checks.headOid
-      ? pull.detail.headSha.slice(0, 7)
-      : undefined;
+  const moved = movedPullHead(pull?.detail?.headSha, block.checks.headOid);
   return (
     <EvidenceBox
       label={checks.label}

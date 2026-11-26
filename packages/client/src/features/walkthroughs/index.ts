@@ -13,8 +13,6 @@ export {
   readWalkthroughAsset,
 } from './queries/walkthrough.ts';
 export { readingOf } from './queries/reading.ts';
+export { readWalkthroughPull, type WalkthroughPull } from './queries/pull.ts';
 export { walkthroughDraftBinding } from './commands/draft-binding.ts';
-export {
-  walkthroughDraft,
-  type WalkthroughDraftPlacement,
-} from './store/draft.ts';
+export { walkthroughDraft } from './store/draft.ts';

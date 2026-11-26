@@ -62,6 +62,10 @@ export function ShellStartup() {
         options={{ title: 'Publish', ...sheetOptions('tall') }}
       />
       <Stack.Screen
+        name="walkthrough-writer"
+        options={{ title: 'Writer', ...sheetOptions('tall') }}
+      />
+      <Stack.Screen
         name="merge-pull-request"
         options={{ title: 'Merge', ...sheetOptions('half') }}
       />

@@ -1,4 +1,5 @@
 import type { DiagramEdge, DiagramNode, StepDiagram } from './blocks.ts';
+import { growthSign } from './page.ts';
 
 type DiagramPlacement = 'right' | 'down' | 'sequence';
 
@@ -504,4 +505,96 @@ export function diagramStep(
     .filter((node) => node.along <= nearest + 8)
     .sort((a, b) => a.aside - b.aside)[0];
   return best?.id ?? current;
+}
+
+export type DiagramTextMetrics = {
+  readonly label: number;
+  readonly note: number;
+  readonly edge: number;
+  readonly padding: number;
+  readonly sign: number;
+  readonly chevron: number;
+  readonly min: number;
+  readonly max: number;
+};
+
+const NODE_HEIGHT = 30;
+const NOTED_NODE_HEIGHT = 44;
+const EDGE_LABEL_PAD = 8;
+
+export function diagramTextMeasure(
+  metrics: DiagramTextMetrics,
+): DiagramMeasure {
+  return {
+    node: (node) => {
+      const sign = node.mark && node.mark !== 'unchanged' ? metrics.sign : 0;
+      const label =
+        sign +
+        node.label.length * metrics.label +
+        (node.anchor ? metrics.chevron : 0);
+      const note = node.note ? sign + node.note.length * metrics.note : 0;
+      return {
+        width: Math.round(
+          Math.min(
+            metrics.max,
+            Math.max(metrics.min, Math.max(label, note) + metrics.padding),
+          ),
+        ),
+        height: node.note ? NOTED_NODE_HEIGHT : NODE_HEIGHT,
+      };
+    },
+    label: (text) => text.length * metrics.edge + EDGE_LABEL_PAD,
+  };
+}
+
+const MARK_WORDS: Record<NonNullable<DiagramNode['mark']>, string> = {
+  added: 'new',
+  changed: 'changed',
+  removed: 'removed',
+  unchanged: 'unchanged',
+};
+
+export function diagramNodeSign(node: DiagramNode): string | undefined {
+  return node.mark === undefined || node.mark === 'unchanged'
+    ? undefined
+    : growthSign({ change: node.mark, what: '', note: '' });
+}
+
+export function diagramNodeFacts(node: DiagramNode): string {
+  return [
+    node.kind,
+    node.mark === undefined ? undefined : MARK_WORDS[node.mark],
+  ]
+    .filter(Boolean)
+    .join(', ');
+}
+
+export function diagramNodeDescription(
+  diagram: StepDiagram,
+  node: DiagramNode,
+): string {
+  const facts = diagramNodeFacts(node);
+  const connections = diagramConnections(diagram, node.id);
+  let anchor = '';
+  if (node.anchor?.kind === 'lines')
+    anchor = `Shows ${node.anchor.excerpt.path}, ${node.anchor.excerpt.lines}.`;
+  if (node.anchor?.kind === 'file') anchor = `Shows ${node.anchor.path}.`;
+  return [
+    facts ? `${facts}.` : '',
+    connections.length > 0 ? `${connections.join('; ')}.` : '',
+    anchor,
+  ]
+    .filter(Boolean)
+    .join(' ');
+}
+
+export type DiagramEdgeTone = 'add' | 'del' | 'lit' | 'rest';
+
+export function diagramEdgeTone(
+  edge: DiagramEdge,
+  lit: boolean,
+): DiagramEdgeTone {
+  if (edge.mark === 'added') return 'add';
+  if (edge.mark === 'removed') return 'del';
+  return lit ? 'lit' : 'rest';
 }
