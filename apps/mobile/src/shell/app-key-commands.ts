@@ -5,6 +5,7 @@ import {
 } from 'expo-router';
 import { useKeyCommands } from '../shared/application/key-commands';
 import { navigationExits } from '../shared/rules/navigation-exits';
+import { tabHref } from '../shared/rules/tab-href';
 
 export function useAppKeyCommands() {
   const router = useRouter();
@@ -27,10 +28,13 @@ export function useAppKeyCommands() {
         ];
   useKeyCommands('app', [
     { binding: 'settings', run: () => router.navigate('/settings') },
-    { binding: 'walkthrough', run: () => router.navigate('/walkthrough') },
-    { binding: 'changes', run: () => router.navigate('/changes') },
-    { binding: 'files', run: () => router.navigate('/files') },
-    { binding: 'history', run: () => router.navigate('/history') },
+    {
+      binding: 'walkthrough',
+      run: () => router.navigate(tabHref('walkthrough')),
+    },
+    { binding: 'changes', run: () => router.navigate(tabHref('changes')) },
+    { binding: 'files', run: () => router.navigate(tabHref('files')) },
+    { binding: 'history', run: () => router.navigate(tabHref('history')) },
     { binding: 'shortcuts', run: () => router.navigate('/keyboard-shortcuts') },
     ...(exits.back
       ? [
