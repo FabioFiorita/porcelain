@@ -58,7 +58,7 @@ async function filesUnder(folder: string) {
     .toSorted();
 }
 
-const stops: Parameters<Parameters<typeof started>[0]>[0][] = [];
+const stops: (() => Promise<void> | void)[] = [];
 let instance: Awaited<ReturnType<typeof started>>;
 beforeAll(async () => {
   instance = await started(
