@@ -182,7 +182,8 @@ else console.log('{}');
         (comment) => comment.text === 'Remove this draft.',
       )?.id,
     );
-    expect(await preview()).toEqual({
+    const { general, ...planned } = record(await preview());
+    expect(planned).toEqual({
       kind: 'available',
       pullRequest: {
         owner: 'fixture',
@@ -202,7 +203,10 @@ else console.log('{}');
           body: 'Name these constants',
         },
       ],
-      general: expect.arrayContaining([
+    });
+    expect(list(general)).toHaveLength(2);
+    expect(list(general)).toEqual(
+      expect.arrayContaining([
         expect.objectContaining({
           id: fileId,
           reason: 'file',
@@ -214,7 +218,7 @@ else console.log('{}');
           body: 'Remove this draft.',
         }),
       ]),
-    });
+    );
     const publish = (body: object) =>
       session.send({ method: 'POST', path: `${root}/review`, body });
 
@@ -334,11 +338,11 @@ else console.log('{}');
     expect(posted[0]).toMatchObject({
       commit_id: headOid,
       event: 'COMMENT',
-      body: expect.stringContaining(
-        '**src/app.ts:1-2**\n\nKeep the names and document why.',
-      ),
     });
     const review = record(posted[0]);
+    expect(text(review.body)).toContain(
+      '**src/app.ts:1-2**\n\nKeep the names and document why.',
+    );
     expect(text(review.body)).toContain('Two notes.');
     expect(text(review.body)).toContain('Is this still true?');
     expect(text(review.body)).not.toContain('Keep the names but explain why.');
