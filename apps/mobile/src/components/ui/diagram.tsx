@@ -24,7 +24,7 @@ export const diagramMeasure = diagramTextMeasure({
   max: 200,
 });
 
-export type DiagramMark = 'added' | 'removed' | 'changed' | 'unchanged';
+type DiagramMark = 'added' | 'removed' | 'changed' | 'unchanged';
 
 export type DiagramCard = {
   readonly id: string;

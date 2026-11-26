@@ -61,7 +61,6 @@ export {
   resolvedWalkthroughWriterKey,
   walkthroughEfforts,
   walkthroughWriterKeyModel,
-  walkthroughWriterChoiceStatus,
   walkthroughWriterKey,
   walkthroughWriterLabel,
   walkthroughWriterMenu,
@@ -69,9 +68,5 @@ export {
 } from './walkthrough-writer.ts';
 
 export * from './pull-request.ts';
-export {
-  movedPullHead,
-  verifiedChecks,
-  verifiedChecksLine,
-} from './walkthrough-checks.ts';
+export { movedPullHead, verifiedChecks } from './walkthrough-checks.ts';
 export * from './pull-request-checks.ts';

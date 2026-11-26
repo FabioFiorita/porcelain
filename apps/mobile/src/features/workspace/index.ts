@@ -17,7 +17,6 @@ export { reviewComparison, reviewParams } from './rules/navigation';
 export { useOpenReviewFile } from './views/open-review-file';
 export {
   LineSelectionBar,
-  useDraftComments,
   useFileCommentAction,
   useLineComments,
 } from './views/line-comments';

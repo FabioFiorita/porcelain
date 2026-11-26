@@ -10,7 +10,7 @@ import {
   type WriterSettings,
 } from '../rules/walkthrough-writer.ts';
 
-export function walkthroughWriterCheck<E>(
+function walkthroughWriterCheck<E>(
   result: AsyncResult.AsyncResult<WriterSettings, E>,
 ) {
   const settings = AsyncResult.isSuccess(result) ? result.value : undefined;

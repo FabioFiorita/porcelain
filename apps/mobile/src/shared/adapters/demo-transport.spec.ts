@@ -319,7 +319,7 @@ test('the sample branch comparison loads through the shared client using its adv
   }
 });
 
-test('draft comments are added, edited and deleted, and posting a review needs a pull request', async () => {
+test('draft comments are added, edited and deleted, and an empty review has nothing to post', async () => {
   const send = createDemoTransport();
   const comments = `${worktree}/comments`;
   const read = async (response: Response) => {
@@ -359,7 +359,7 @@ test('draft comments are added, edited and deleted, and posting a review needs a
       .comments,
   ).toEqual([]);
   const preview: unknown = await (await send(`${comments}/review`)).json();
-  expect(preview).toEqual({ kind: 'unavailable', reason: 'no-pull-request' });
+  expect(preview).toEqual({ kind: 'unavailable', reason: 'no-comments' });
 });
 
 test('a call is decided with its option and undone', async () => {
@@ -467,7 +467,7 @@ async function drafts(response: Response) {
   return Schema.decodeUnknownSync(draftsSchema)(await response.json()).comments;
 }
 
-test('draft comments on demo lines can be added, edited and deleted', async () => {
+test('a draft on demo lines is previewed inline on pull request #7 and published', async () => {
   const send = createDemoTransport();
   const comments = `${worktree}/comments`;
   const added = await drafts(
@@ -486,14 +486,27 @@ test('draft comments on demo lines can be added, edited and deleted', async () =
       }),
     ),
   );
-  expect(added).toEqual([
-    { id: 'draft-1', text: 'Why trim here?', publication: { status: 'draft' } },
-  ]);
+  const id = added[0]?.id ?? '';
+  await send(`${comments}/${id}`, request('PATCH', { text: 'Trim earlier?' }));
+  const preview: unknown = await (await send(`${comments}/review`)).json();
+  expect(preview).toMatchObject({
+    kind: 'available',
+    pullRequest: { number: 7 },
+    inline: [
+      {
+        path: 'src/welcome.ts',
+        side: 'additions',
+        line: 2,
+        body: 'Trim earlier?',
+      },
+    ],
+    general: [],
+  });
   await send(
-    `${comments}/draft-1`,
-    request('PATCH', { text: 'Trim earlier?' }),
+    `${comments}/review`,
+    request('POST', { headOid: 'demo', summary: '', bodies: {} }),
   );
-  expect((await drafts(await send(comments)))[0]?.text).toBe('Trim earlier?');
-  await send(`${comments}/draft-1`, { method: 'DELETE' });
-  expect(await drafts(await send(comments))).toEqual([]);
+  expect((await drafts(await send(comments)))[0]?.publication).toMatchObject({
+    status: 'published',
+  });
 });

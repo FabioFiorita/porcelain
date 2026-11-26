@@ -20,7 +20,6 @@ export {
 } from './walkthrough.ts';
 export {
   stepScreenshots,
-  type DiagramEdge,
   type DiagramNode,
   type StepBlock,
   type StepDiagram,
@@ -41,7 +40,6 @@ export {
   stopConversations,
   type AgentMessage,
   type Conversation,
-  type DeveloperMessage,
   type WalkthroughAnchor,
 } from './conversations.ts';
 export { worktreeOpening, type WorktreeOpening } from './opening.ts';
@@ -53,7 +51,6 @@ export {
   decidedWhen,
   decisionAuthor,
   nothingCaptured,
-  walkthroughPullRequest,
   walkthroughVerified,
 } from './briefing.ts';
 export {
@@ -87,8 +84,6 @@ export {
   diagramTextMeasure,
   layoutDiagram,
   type DiagramEdgeTone,
-  type DiagramTextMetrics,
   type DiagramGeometry,
   type DiagramKey,
-  type DiagramMeasure,
 } from './diagram-layout.ts';

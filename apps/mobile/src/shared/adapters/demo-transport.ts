@@ -60,7 +60,11 @@ import {
   demoCommits,
   demoWalkthrough,
 } from './demo-data';
-import { demoPullRequests } from './demo-pull-request';
+import {
+  demoPullRequestNumber,
+  demoPullRequestUrl,
+  demoPullRequests,
+} from './demo-pull-request';
 
 function jsonResponse(value: unknown, init?: ResponseInit) {
   return new Response(JSON.stringify(value), {
@@ -564,8 +568,66 @@ export function createDemoTransport(): Transport {
       return json(walkthroughConversationsResponseSchema, view());
     }
     const commentsPath = `${worktree}/comments`;
+    const drafts = () =>
+      comments.filter((comment) => comment.publication.status === 'draft');
     if (path === `${commentsPath}/review` && method === 'GET')
-      return jsonResponse({ kind: 'unavailable', reason: 'no-pull-request' });
+      return jsonResponse(
+        drafts().length === 0
+          ? { kind: 'unavailable', reason: 'no-comments' }
+          : {
+              kind: 'available',
+              pullRequest: {
+                number: demoPullRequestNumber,
+                url: demoPullRequestUrl,
+                title: 'A warmer welcome for every visitor',
+              },
+              headOid: demoHead,
+              inline: drafts().flatMap((comment) =>
+                comment.anchor.kind === 'lines'
+                  ? [
+                      {
+                        id: comment.id,
+                        path: comment.anchor.path,
+                        side: comment.anchor.side,
+                        ...(comment.anchor.start === comment.anchor.end
+                          ? {}
+                          : { startLine: comment.anchor.start }),
+                        line: comment.anchor.end,
+                        body: comment.text,
+                      },
+                    ]
+                  : [],
+              ),
+              general: drafts().flatMap((comment) =>
+                comment.anchor.kind === 'lines'
+                  ? []
+                  : [
+                      {
+                        id: comment.id,
+                        location: anchorLabel(comment.anchor),
+                        reason: comment.anchor.kind,
+                        body: comment.text,
+                      },
+                    ],
+              ),
+            },
+      );
+    if (path === `${commentsPath}/review` && method === 'POST') {
+      const review = `${demoPullRequestUrl}#pullrequestreview-${commentCount + 2}`;
+      comments = comments.map((comment) =>
+        comment.publication.status === 'draft'
+          ? {
+              ...comment,
+              publication: {
+                status: 'published',
+                url: review,
+                publishedAt: demoTime,
+              },
+            }
+          : comment,
+      );
+      return jsonResponse({ url: review, view: commentsView() });
+    }
     if (path === commentsPath && method === 'POST') {
       const value = Schema.decodeUnknownSync(addCommentRequestSchema)(body);
       commentCount += 1;

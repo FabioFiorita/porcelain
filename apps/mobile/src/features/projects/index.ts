@@ -1,7 +1,7 @@
 export { WorkspaceGate } from './views/workspace-gate';
 export { useSelectedWorkspaceKey } from './views/workspace';
 export type { Workspace } from './commands/workspace-connection';
-export { useComputerConnection, useWorktreeNavigator } from './store';
+export { useComputerConnection } from './store';
 export { WorktreesScreen, useSelectedWorktree } from './views/worktrees-screen';
 export { WorktreeTitleButton } from './views/worktree-title';
 export { useOpenPullRequest } from './views/open-pull-request';

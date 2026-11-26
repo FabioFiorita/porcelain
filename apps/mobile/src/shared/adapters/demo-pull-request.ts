@@ -1,5 +1,4 @@
 import { Schema } from 'effect';
-import type { CommentsResponse } from '@porcelain/contracts/comments';
 import {
   commentOnPullRequestResponseSchema,
   listPullRequestsResponseSchema,
@@ -12,13 +11,7 @@ import {
   type ReadPullRequestResponse,
   type ReadPullStatusResponse,
 } from '@porcelain/contracts/projects';
-import {
-  demoBranch,
-  demoHead,
-  demoProjectId,
-  demoTime,
-  demoWorktreeId,
-} from './demo-data';
+import { demoBranch, demoHead, demoProjectId, demoTime } from './demo-data';
 
 type Pull = Extract<
   ReadPullRequestResponse,
@@ -26,10 +19,11 @@ type Pull = Extract<
 >['pullRequest'];
 type Status = Extract<ReadPullStatusResponse, { kind: 'available' }>['status'];
 type Check = Status['checks'][number];
-type DraftView = CommentsResponse['comments'][number];
 
-const number = 7;
-const url = `https://github.com/porcelain-demo/hello-garden/pull/${number}`;
+export const demoPullRequestNumber = 7;
+const number = demoPullRequestNumber;
+export const demoPullRequestUrl = `https://github.com/porcelain-demo/hello-garden/pull/${number}`;
+const url = demoPullRequestUrl;
 const run = `https://github.com/porcelain-demo/hello-garden/actions/runs/101`;
 
 function conclusion(step: number, failedAt: number | undefined) {
@@ -104,27 +98,6 @@ const lintLog = [
   },
 ];
 
-const draftInput = Schema.Struct({
-  anchor: Schema.Union([
-    Schema.Struct({
-      kind: Schema.Literal('lines'),
-      path: Schema.String,
-      side: Schema.Literals(['additions', 'deletions']),
-      start: Schema.Int,
-      end: Schema.Int,
-      text: Schema.String,
-    }),
-    Schema.Struct({ kind: Schema.Literal('file'), path: Schema.String }),
-    Schema.Struct({ kind: Schema.Literal('step'), title: Schema.String }),
-    Schema.Struct({
-      kind: Schema.Literal('node'),
-      title: Schema.String,
-      node: Schema.String,
-    }),
-  ]),
-  text: Schema.String,
-});
-
 export function demoPullRequests() {
   let state: Status['state'] = 'open';
   let lintFailed = true;
@@ -152,7 +125,6 @@ export function demoPullRequests() {
         '@@ -1,3 +1,4 @@\n export function welcome(name: string) {\n-  return `Hello, ${name}!`;\n+  const trimmed = name.trim();\n+  return `Hello, ${trimmed || "friend"}!`;',
     },
   ];
-  let drafts: DraftView[] = [];
   const checks = () => [
     job('Unit tests', 201, false),
     job('Lint', lintFailed ? 202 : 203, lintFailed),
@@ -203,23 +175,12 @@ export function demoPullRequests() {
     timeline,
     truncated: false,
   });
-  const comments = (): CommentsResponse => ({
-    branch: demoBranch,
-    headOid: demoHead,
-    comments: drafts,
-    markdown: drafts.map((draft) => draft.text).join('\n\n'),
-  });
   const json = <A, I>(schema: Schema.Codec<A, I>, value: A) =>
     new Response(JSON.stringify(Schema.encodeSync(schema)(value)), {
       headers: { 'content-type': 'application/json' },
     });
-  const plain = (value: CommentsResponse) =>
-    new Response(JSON.stringify(value), {
-      headers: { 'content-type': 'application/json' },
-    });
   const project = `/api/projects/${demoProjectId}/pull-requests`;
   const pullPath = `${project}/${number}`;
-  const commentsPath = `/api/worktrees/${demoWorktreeId}/comments`;
 
   return (
     path: string,
@@ -286,41 +247,6 @@ export function demoPullRequests() {
         },
       ];
       return json(commentOnPullRequestResponseSchema, { url });
-    }
-    if (path === commentsPath && method === 'GET') return plain(comments());
-    if (path === commentsPath && method === 'POST') {
-      const input = Schema.decodeUnknownSync(draftInput)(body);
-      drafts = [
-        ...drafts,
-        {
-          id: `draft-${drafts.length + 1}`,
-          anchor: input.anchor,
-          text: input.text,
-          headOid: demoHead,
-          createdAt: demoTime,
-          updatedAt: demoTime,
-          publication: { status: 'draft' },
-          outdated: false,
-        },
-      ];
-      return plain(comments());
-    }
-    if (
-      path.startsWith(`${commentsPath}/`) &&
-      path !== `${commentsPath}/review`
-    ) {
-      const id = path.slice(commentsPath.length + 1);
-      if (method === 'DELETE')
-        drafts = drafts.filter((draft) => draft.id !== id);
-      if (method === 'PATCH') {
-        const { text } = Schema.decodeUnknownSync(
-          Schema.Struct({ text: Schema.String }),
-        )(body);
-        drafts = drafts.map((draft) =>
-          draft.id === id ? { ...draft, text, updatedAt: demoTime } : draft,
-        );
-      }
-      return plain(comments());
     }
     return undefined;
   };

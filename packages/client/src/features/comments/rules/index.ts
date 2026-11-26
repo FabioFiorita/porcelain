@@ -13,9 +13,7 @@ export {
   postedComments,
   quotedAnswer,
   reviewForm,
-  reviewRequest,
   reviewUnavailableText,
   type CommentAnchor,
   type DraftComment,
-  type ReviewForm,
 } from './comments.ts';

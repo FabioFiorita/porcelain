@@ -1,9 +1,15 @@
-import { useAtom, useAtomValue } from '@effect/atom-react';
+import { useAtom } from '@effect/atom-react';
 import { useRouter } from 'expo-router';
-import { Option } from 'effect';
-import { AsyncResult } from 'effect/reactivity';
-import { readComments } from '@porcelain/client/comments';
-import { anchorPath, commentsAt } from '@porcelain/client/comments/rules';
+import {
+  anchorPath,
+  commentsAt,
+  type CommentAnchor,
+} from '@porcelain/client/comments/rules';
+import {
+  editCommentParams,
+  newCommentParams,
+  useComments,
+} from '../../comments/index';
 import type { ReviewRange } from '../../../components/ui/code-range';
 import { FloatingBar } from '../../../components/ui/floating-bar';
 import { Button } from '../../../components/ui/button';
@@ -20,28 +26,22 @@ import {
 } from '../rules/line-comments';
 import { lineSelection } from '../store';
 
-type CommentParams = { anchor: string } | { commentId: string };
+type CommentTarget = { anchor: CommentAnchor } | { commentId: string };
 
 function useOpenComment(workspace: Workspace) {
   const router = useRouter();
-  return (params: CommentParams) =>
+  return (target: CommentTarget) =>
     router.push({
       pathname: '/comment',
-      params: { workspace: workspace.key, ...params },
+      params:
+        'anchor' in target
+          ? newCommentParams(workspace.key, target.anchor)
+          : editCommentParams(workspace.key, target.commentId),
     });
 }
 
 export function useDraftComments(workspace: Workspace) {
-  return Option.getOrUndefined(
-    AsyncResult.value(
-      useAtomValue(
-        readComments({
-          connection: workspace.connection,
-          scope: workspace.scope,
-        }),
-      ),
-    ),
-  );
+  return useComments(workspace).view;
 }
 
 export type LineComments = {
@@ -94,7 +94,7 @@ export function useFileCommentAction(
     id: 'comment-file',
     label: 'Comment on this file',
     icon: 'comment',
-    onPress: () => open({ anchor: JSON.stringify({ kind: 'file', path }) }),
+    onPress: () => open({ anchor: { kind: 'file', path } }),
   };
 }
 
@@ -133,7 +133,7 @@ export function LineSelectionBar({
           accessibilityLabel={`Comment on ${selectionLabel(selected.range).toLowerCase()}`}
           onPress={() => {
             setSelected(undefined);
-            open({ anchor: JSON.stringify(comment.anchor) });
+            open({ anchor: comment.anchor });
           }}
         />
       ) : null}

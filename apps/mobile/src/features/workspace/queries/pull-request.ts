@@ -36,10 +36,7 @@ export function usePullRequestRead(target: PullRequestRef) {
   return { result, refresh: useAtomRefresh(query) };
 }
 
-export function usePullRequestStatus(
-  target: PullRequestRef,
-  activity: PageActivity,
-) {
+function usePullRequestStatus(target: PullRequestRef, activity: PageActivity) {
   const input = { ...target, activity };
   return {
     ...useAtomValue(watchPullStatusView(input)),
