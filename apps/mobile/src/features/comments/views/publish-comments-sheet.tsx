@@ -40,7 +40,7 @@ export function PublishCommentsSheet({
   workspace: string | undefined;
 }) {
   return (
-    <Sheet title="Publish">
+    <Sheet title="Publish review">
       <WorkspaceGate
         frame="pane"
         expectedWorkspace={workspace ?? ''}

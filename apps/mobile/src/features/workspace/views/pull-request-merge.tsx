@@ -207,7 +207,7 @@ function DraftNote({
       action={
         workspace ? (
           <Button
-            label="Publish"
+            label="Publish review"
             variant="plain"
             size="sm"
             onPress={() =>

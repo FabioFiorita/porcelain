@@ -155,9 +155,9 @@ function ChecksGroup({ group, ...props }: GroupProps) {
         <Text variant="secondary" weight="medium" numberOfLines={1}>
           {group.name}
         </Text>
-        {group.runId === undefined ? null : (
+        {group.runNumber === undefined ? null : (
           <Text variant="caption" tone="muted" className="flex-1">
-            run {group.runId}
+            #{group.runNumber}
           </Text>
         )}
       </Box>

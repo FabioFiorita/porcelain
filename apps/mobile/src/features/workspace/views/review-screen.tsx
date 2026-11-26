@@ -308,7 +308,7 @@ function ChangedFiles({
             leading={<Icon name="comment" tone="muted" />}
             trailing={<Icon name="chevron" tone="muted" />}
             testID="review-publish-comments"
-            accessibilityLabel={`Review and publish ${draftCount} draft ${draftCount === 1 ? 'comment' : 'comments'}`}
+            accessibilityLabel={`Publish review, ${draftCount} draft ${draftCount === 1 ? 'comment' : 'comments'}`}
             onPress={() =>
               router.push({
                 pathname: '/publish-comments',

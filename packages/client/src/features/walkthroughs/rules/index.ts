@@ -50,7 +50,6 @@ export {
   callDecisionRequest,
   decidedOption,
   decidedWhen,
-  decisionAuthor,
   nothingCaptured,
   walkthroughVerified,
 } from './briefing.ts';
@@ -63,7 +62,6 @@ export {
   decisionPlace,
   stepCallState,
   callDeciding,
-  decidedAgainstChange,
   screenshotClaim,
   failureCopy,
   readyUpdate,

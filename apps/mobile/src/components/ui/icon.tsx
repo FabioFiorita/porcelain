@@ -68,6 +68,7 @@ const tones = {
   brandForeground: 'accent-brand-foreground',
   add: 'accent-add-fg',
   del: 'accent-del-fg',
+  warn: 'accent-warn',
   primary: 'accent-primary',
   brand: 'accent-brand',
   background: 'accent-background',

@@ -3,7 +3,6 @@ import {
   callDecision,
   callDecisionRequest,
   decidedOption,
-  decisionAuthor,
   nothingCaptured,
   walkthroughPullRequest,
   walkthroughVerified,
@@ -133,11 +132,7 @@ it('names the commit nothing was captured for', () => {
   );
 });
 
-it('says who decided a call and which option they chose', () => {
-  expect(decisionAuthor({ decidedBy: { kind: 'owner' } })).toBe('by the owner');
-  expect(decisionAuthor({ decidedBy: { kind: 'device' } })).toBe(
-    'from a paired device',
-  );
+it('names the option a call was decided with', () => {
   expect(decidedOption({ option: 'Show all notes' })).toBe(
     'Decided: Show all notes',
   );

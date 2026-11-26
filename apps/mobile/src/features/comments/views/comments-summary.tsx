@@ -45,7 +45,7 @@ export function CommentsSummary({ workspace }: { workspace: Workspace }) {
         )}
       </Text>
       <Button
-        label={open.length > 0 ? 'Review and publish' : 'Show'}
+        label={open.length > 0 ? 'Publish review' : 'Show'}
         variant="plain"
         size="sm"
         className="-mr-3.5"

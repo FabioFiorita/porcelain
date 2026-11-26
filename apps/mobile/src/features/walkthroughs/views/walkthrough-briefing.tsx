@@ -2,6 +2,8 @@ import { useState, type ReactNode } from 'react';
 import {
   attentionLabel,
   callDecisionProgress,
+  callState,
+  NEEDS_A_COMMIT,
   foldedNotSaid,
   nothingCaptured,
   plainText,
@@ -89,11 +91,18 @@ function Calls({
         </Text>
       </Line>
     );
-  return calls.map(({ attention, stop, step, callIndex }) => {
+  return calls.map(({ attention, comparison, stop, step, callIndex }) => {
     const decided = decisions?.find(
       (entry) => entry.step === step && entry.call === callIndex,
     );
+    const state = callState(comparison, decided);
     const label = attentionLabel(attention);
+    const stateLabel =
+      state === 'decided'
+        ? 'Decided'
+        : state === 'needs-commit'
+          ? 'Decided, needs a new commit'
+          : label;
     return (
       <Item
         key={`${step}:${callIndex}`}
@@ -101,10 +110,14 @@ function Calls({
         title={plainText(attention.question)}
         description={decided?.option ? `${label} · ${decided.option}` : label}
         leading={
-          decided ? (
+          state === 'decided' ? (
             <Icon name="check" tone="add" size="small" />
           ) : (
-            <Icon name="warning" tone="muted" size="small" />
+            <Icon
+              name="warning"
+              tone={state === 'needs-commit' ? 'warn' : 'muted'}
+              size="small"
+            />
           )
         }
         trailing={
@@ -112,9 +125,14 @@ function Calls({
             Step {step}
           </Text>
         }
-        accessibilityLabel={`${decided ? 'Decided' : label}: ${plainText(attention.question)}${decided?.option ? `, ${decided.option}` : ''}, step ${step}`}
+        accessibilityLabel={`${stateLabel}: ${plainText(attention.question)}${decided?.option ? `, ${decided.option}` : ''}, step ${step}`}
         onPress={() => jump(callTarget(step, callIndex))}
       >
+        {state === 'needs-commit' ? (
+          <Text variant="caption" tone="warn">
+            {NEEDS_A_COMMIT}
+          </Text>
+        ) : null}
         <RichText text={stop.explanation} variant="secondary" tone="muted" />
       </Item>
     );

@@ -51,7 +51,7 @@ export function ShellStartup() {
       />
       <Stack.Screen
         name="publish-comments"
-        options={{ title: 'Publish', ...sheetOptions('tall') }}
+        options={{ title: 'Publish review', ...sheetOptions('tall') }}
       />
       <Stack.Screen
         name="walkthrough-writer"

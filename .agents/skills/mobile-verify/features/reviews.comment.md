@@ -23,7 +23,7 @@ api:
 
 # reviews.comment
 
-One draft comment in a native sheet: a new one on a Walkthrough step, a diagram node, a file or a range of lines, or an existing draft to edit or delete. Its title names the anchor ("Step · …", "<node> · …", the path, or "<path> · lines 3–5"). Drafts stay on the connected computer until [Publish](reviews.publish-comments.md) posts or copies them.
+One draft comment in a native sheet: a new one on a Walkthrough step, a diagram node, a file or a range of lines, or an existing draft to edit or delete. Its title names the anchor ("Step · …", "<node> · …", the path, or "<path> · lines 3–5"). Drafts stay on the connected computer until [Publish review](reviews.publish-comments.md) posts or copies them.
 
 ## How to get to it (user POV)
 

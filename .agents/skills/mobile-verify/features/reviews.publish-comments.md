@@ -1,7 +1,7 @@
 ---
 screen: /publish-comments
 selectors:
-  - 'Publish'
+  - 'Publish review'
   - 'Nothing is posted until you publish.'
   - 'Post as one pull request review'
   - 'Preview review'
@@ -33,7 +33,7 @@ The open draft comments of a worktree, each with its anchor, and two ways out: p
 
 ## How to get to it (user POV)
 
-- [Walkthrough](reviews.walkthrough-page.md) → Before you merge → Comments → Review and publish (or Show once everything is posted).
+- [Walkthrough](reviews.walkthrough-page.md) → Before you merge → Comments → Publish review (or Show once everything is posted).
 - Close returns to the page; Back inside the review returns to the drafts.
 
 ## Driving it with agent-device

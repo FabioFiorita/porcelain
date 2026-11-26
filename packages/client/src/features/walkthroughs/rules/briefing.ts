@@ -112,14 +112,6 @@ export function callDecisionRequest(input: {
     : { step, call, decided: false as const };
 }
 
-export function decisionAuthor(decision: {
-  readonly decidedBy: { readonly kind: string };
-}) {
-  return decision.decidedBy.kind === 'owner'
-    ? 'by the owner'
-    : 'from a paired device';
-}
-
 export function decidedOption(decision: {
   readonly option?: string | undefined;
 }) {

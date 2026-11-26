@@ -560,7 +560,10 @@ export function createDemoTransport(): Transport {
             step,
             call,
             option: choice.option,
-            decidedBy: { kind: 'owner' },
+            decidedBy: {
+              kind: 'device',
+              deviceId: demoRemote.environmentId,
+            },
             decidedAt: demoTime,
           },
         ];
