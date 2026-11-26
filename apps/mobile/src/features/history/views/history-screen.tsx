@@ -7,6 +7,7 @@ import { WorkspaceGate, type Workspace } from '../../projects';
 import { CommitPane } from './commit-screen';
 import { HistoryNavigation } from './history-navigation';
 import { besideCommit } from '../store';
+import { useHistory } from '../queries/history';
 
 export function HistoryScreen({
   workspace,
@@ -38,7 +39,9 @@ function HistoryLayout({
   mode: ListDetailMode;
 }) {
   const router = useRouter();
-  const [opened, setOpened] = useAtom(besideCommit(current.key));
+  const [chosen, setOpened] = useAtom(besideCommit(current.key));
+  const latest = useHistory(current).value?.commits[0]?.oid;
+  const opened = chosen ?? latest;
   const navigation = (
     <HistoryNavigation
       selection={current}

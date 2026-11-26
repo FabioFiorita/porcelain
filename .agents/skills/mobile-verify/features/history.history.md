@@ -50,6 +50,6 @@ Automated coverage: `workspace-selection.spec.ts`, `status.spec.ts` (empty repos
 
 ## Gotchas
 
-- On a tablet with at least 700 units of content width the History tab shows the commit list beside the chosen commit (Select a commit until one is chosen); the commit's actions join the tab's top bar and a file in it still pushes its diff. Narrower content pushes the commit as on a phone.
+- On a tablet with at least 700 units of content width the History section shows the commit list beside the chosen commit, opening the newest commit until you choose one; the commit's actions join the tab's top bar and a file in it still pushes its diff. Narrower content pushes the commit as on a phone.
 - Use [Worktrees recovery](projects.worktrees.md) for shared inventory/loading/unavailable states.
 - Emulator loopback proof does not cover iOS, physical-device LAN permissions or remote routing.
