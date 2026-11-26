@@ -144,14 +144,15 @@ export const ghPullRequestReaderLayer = (limits: Limits['git']) =>
         return decoded.data.repository;
       });
       return GitHubReader.of({
-        accounts: Effect.fn('GitHubReader.accounts')(function* () {
+        accounts: Effect.fn('GitHubReader.accounts')(function* (freshness) {
           const now = yield* Clock.currentTimeMillis;
           const cached = yield* Ref.get(knownAccounts);
-          if (cached && now - cached.at < ACCOUNTS_TTL_MS)
+          if (!freshness?.fresh && cached && now - cached.at < ACCOUNTS_TTL_MS)
             return cached.accounts;
           const accounts = yield* listGitHubAccounts(limits).pipe(
             provide,
             Effect.mapError(unavailable),
+            Effect.tapError(() => Ref.set(knownAccounts, undefined)),
           );
           yield* Ref.set(
             knownAccounts,
@@ -164,7 +165,8 @@ export const ghPullRequestReaderLayer = (limits: Limits['git']) =>
             `${input.account}\n${input.owner}/${input.repo}`.toLowerCase();
           const now = yield* Clock.currentTimeMillis;
           const seen = (yield* Ref.get(readable)).get(key);
-          if (seen !== undefined && now - seen < ACCESS_TTL_MS) return true;
+          if (!input.fresh && seen !== undefined && now - seen < ACCESS_TTL_MS)
+            return true;
           const allowed = yield* api({
             account: input.account,
             endpoint: `repos/${encodeURIComponent(input.owner)}/${encodeURIComponent(input.repo)}`,
