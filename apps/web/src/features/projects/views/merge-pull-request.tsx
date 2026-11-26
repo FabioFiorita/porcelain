@@ -36,6 +36,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { cn } from '@/shared/lib/utils';
+import { createId } from '@/shared/lib/id';
 import { mergePullRequestDialog } from '../overlays';
 import { useMergePullRequest } from '../commands/merge-pull-request';
 
@@ -92,7 +93,7 @@ export function MergePullRequest({
               methods: pullRequestMergeMethods(pull).map(
                 ({ method }) => method,
               ),
-              requestId: crypto.randomUUID(),
+              requestId: createId(),
             },
           })
         }
