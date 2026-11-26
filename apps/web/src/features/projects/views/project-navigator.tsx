@@ -18,6 +18,7 @@ import {
   ChevronDownIcon,
   CircleAlertIcon,
   GitBranchIcon,
+  GitMergeIcon,
   HouseIcon,
   KeyboardIcon,
   ListFilterIcon,
@@ -528,7 +529,7 @@ export function ProjectNavigator({
                                         entry={entry}
                                         pullRequest={
                                           trailing?.kind === 'pull-request'
-                                            ? trailing.text
+                                            ? trailing
                                             : undefined
                                         }
                                       />
@@ -541,15 +542,14 @@ export function ProjectNavigator({
                                   variant="ghost"
                                   size="xs"
                                   className="absolute right-0.5 bottom-1 shrink-0 cursor-pointer"
-                                  aria-label={`Open PR #${trailing.number} · ${entry.projectName} · ${entry.environmentName} · ${navigatorChecksLabel(review?.checks)}`}
+                                  aria-label={`Open PR #${trailing.number} · ${entry.projectName} · ${entry.environmentName} · ${navigatorChecksLabel(review?.checks)}${trailing.merged ? ' · Merged' : ''}`}
+                                  data-merged={trailing.merged ? '' : undefined}
                                   onClick={() => {
                                     onOpenPullRequest(entry);
                                     setOpenMobile(false);
                                   }}
                                 >
-                                  <span className="text-2xs text-muted-foreground tabular-nums">
-                                    {trailing.text}
-                                  </span>
+                                  <PullRequestMark trailing={trailing} />
                                 </Button>
                               )}
                             </div>
@@ -656,12 +656,26 @@ export function ProjectNavigator({
   );
 }
 
+type PullRequestTrailing = Extract<
+  NonNullable<ReturnType<typeof navigatorRowTrailing>>,
+  { kind: 'pull-request' }
+>;
+
+function PullRequestMark({ trailing }: { trailing: PullRequestTrailing }) {
+  return (
+    <span className="flex items-center gap-0.5 text-2xs text-muted-foreground tabular-nums">
+      {trailing.merged && <GitMergeIcon aria-hidden="true" />}
+      {trailing.text}
+    </span>
+  );
+}
+
 function NavigatorRowMeta({
   entry,
   pullRequest,
 }: {
   entry: NavigatorEntry;
-  pullRequest: string | undefined;
+  pullRequest: PullRequestTrailing | undefined;
 }) {
   const branch = entry.displayTitle === undefined ? undefined : entry.branch;
   const label = navigatorCardChangesLabel(entry.changes);
@@ -698,10 +712,10 @@ function NavigatorRowMeta({
           aria-hidden="true"
           className={cn(
             buttonVariants({ variant: 'ghost', size: 'xs' }),
-            'invisible h-4 shrink-0 text-2xs tabular-nums',
+            'invisible h-4 shrink-0',
           )}
         >
-          {pullRequest}
+          <PullRequestMark trailing={pullRequest} />
         </span>
       )}
     </div>

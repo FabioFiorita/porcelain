@@ -49,6 +49,7 @@ export type CheckGroup = {
   readonly key: string;
   readonly name: string;
   readonly runId: number | undefined;
+  readonly runNumber: number | undefined;
   readonly state: CheckState;
   readonly failed: readonly PullCheck[];
   readonly running: readonly PullCheck[];
@@ -65,7 +66,12 @@ const ORDER: Record<CheckState, number> = {
 export function groupChecks(checks: readonly PullCheck[]): CheckGroup[] {
   const groups = new Map<
     string,
-    { name: string; runId: number | undefined; checks: PullCheck[] }
+    {
+      name: string;
+      runId: number | undefined;
+      runNumber: number | undefined;
+      checks: PullCheck[];
+    }
   >();
   for (const check of checks) {
     const key =
@@ -75,6 +81,7 @@ export function groupChecks(checks: readonly PullCheck[]): CheckGroup[] {
     const group = groups.get(key) ?? {
       name: check.group,
       runId: check.kind === 'actions' ? check.runId : undefined,
+      runNumber: check.kind === 'actions' ? check.runNumber : undefined,
       checks: [],
     };
     group.checks.push(check);
@@ -101,6 +108,7 @@ export function groupChecks(checks: readonly PullCheck[]): CheckGroup[] {
         key,
         name: group.name,
         runId: group.runId,
+        runNumber: group.runNumber,
         state,
         failed,
         running,

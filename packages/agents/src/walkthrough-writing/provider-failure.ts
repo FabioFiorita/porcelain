@@ -28,6 +28,52 @@ export const providerFailure = (
   });
 };
 
+export const failure = (
+  kind: WalkthroughFailedError['kind'],
+  message: string,
+) => new WalkthroughFailedError({ kind, message });
+
+export const unavailableWriter = (writer: {
+  provider: string;
+  model: string;
+}) =>
+  failure(
+    'other',
+    `The walkthrough model ${writer.provider}/${writer.model} is unavailable. Install the CLI and sign in, or choose another model in walkthrough settings.`,
+  );
+
+const modelRefused = (detail: string) =>
+  /model.*(?:not.*(?:available|exist|found|support)|unavailable|no access)|no access.*model/i.test(
+    detail,
+  );
+
+const signedOut =
+  /not logged in|not signed in|sign in again|please (?:re-?)?run .*login|authentication_error|oauth|token.*expired|unauthorized/i;
+
+export const classifyProviderFailure = (
+  turn: {
+    readonly provider: 'codex' | 'claude';
+    readonly model: string;
+    readonly stopped: string;
+  },
+  detail: string,
+  fallback: WalkthroughFailedError = providerFailure(
+    turn.provider,
+    detail,
+    turn.stopped,
+  ),
+) => {
+  if (/invalid_request_error|invalid_json_schema|invalid schema/i.test(detail))
+    return providerFailure(turn.provider, detail, turn.stopped);
+  if (signedOut.test(detail))
+    return failure(
+      'signed_out',
+      'Sign in again to the selected agent CLI, then try again.',
+    );
+  if (modelRefused(detail)) return unavailableWriter(turn);
+  return fallback;
+};
+
 export const logProviderFailure = (
   error: WalkthroughFailedError,
   detail = '',

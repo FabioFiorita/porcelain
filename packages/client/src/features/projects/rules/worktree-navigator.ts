@@ -182,7 +182,7 @@ export function navigatorInventoryEntries(
     .sort(navigatorWorktreeOrder);
 }
 export type NavigatorTrailing =
-  | { kind: 'pull-request'; number: number; text: string }
+  | { kind: 'pull-request'; number: number; merged: boolean; text: string }
   | { kind: 'changes'; text: string };
 export function navigatorRowTrailing(
   entry: Pick<NavigatorEntry, 'pullRequest' | 'changes'>,
@@ -191,7 +191,8 @@ export function navigatorRowTrailing(
     return {
       kind: 'pull-request',
       number: entry.pullRequest.number,
-      text: `#${entry.pullRequest.number}${entry.pullRequest.merged ? ' merged' : ''}`,
+      merged: entry.pullRequest.merged,
+      text: `#${entry.pullRequest.number}`,
     };
   if (entry.changes.state === 'available' && entry.changes.count > 0)
     return {

@@ -51,6 +51,7 @@ export function DecisionNote({
 }
 
 export function PullRequestDecision({
+  drafts,
   pull,
   status,
   context,
@@ -64,6 +65,7 @@ export function PullRequestDecision({
   onFocusCheck,
 }: {
   notes?: ReactNode;
+  drafts?: ReactNode;
   pull: PullRequest;
   status: PullStatus | undefined;
   context: ConnectionContext;
@@ -184,6 +186,7 @@ export function PullRequestDecision({
           {notes}
         </ul>
       )}
+      {open && drafts}
       {changedSinceReview.length > 0 && (
         <div className="min-w-0 pt-1">
           <p className="flex h-7 min-w-0 items-center gap-2 text-ui leading-4.5">

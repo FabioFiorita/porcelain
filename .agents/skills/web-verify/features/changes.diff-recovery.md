@@ -1,6 +1,7 @@
 ---
 route: /
 selectors:
+  - 'Side panel'
   - 'Review'
   - 'All changes'
   - 'The changes in this document could not be read.'
@@ -18,7 +19,7 @@ When a file changes on disk after the page read the change list but before its d
 
 ## How to get to it (user POV)
 
-- Workspace → button "Review" → button "All changes" or a change row such as "README.md · unstaged", while another writer (an agent, an editor) rewrites the file at that moment. There is no control of its own; it is how every uncommitted diff document recovers.
+- Workspace → button "Side panel" → button "All changes" or a change row such as "README.md · unstaged", while another writer (an agent, an editor) rewrites the file at that moment. There is no control of its own; it is how every uncommitted diff document recovers.
 
 ## Driving it with browser
 
@@ -39,11 +40,11 @@ The race needs the README.md diff request to reach the server only after the rew
 
 1. Navigate to `/`, then wait for '2 files'
    Expect: text "2 files".
-2. Click button `Review`
+2. Click button `Side panel`
    Expect: button "All changes"; rows "README.md · unstaged" and "second.md · unstaged".
 3. Click button `All changes`
    Expect: the sheet closes; heading "2 uncommitted changes" in document "All changes" (`entry=all-changes`, opened after Review); code holding "An earlier change to review." and "A second changed file."; no "Loading changes…".
-4. Click button `Review`, then hold matching `POST /api/worktrees/:worktreeId/changes/diffs` requests in the browser before they reach the server (see [routing recipes and per-map instructions](../references/failure-injection.md))
+4. Click button `Side panel`, then hold matching `POST /api/worktrees/:worktreeId/changes/diffs` requests in the browser before they reach the server (see [routing recipes and per-map instructions](../references/failure-injection.md))
    Expect: rows "README.md · unstaged" and "second.md · unstaged" again; the browser gate is armed for the next diff POST.
 5. Click button `README.md · unstaged`, then drop the live WebSocket and reject reconnects (see [routing recipes and per-map instructions](../references/failure-injection.md))
    Expect: the sheet closes; title "README.md — repository"; the URL contains `entry=change%3AREADME.md`; while the diff request waits the document shows no loading words or placeholder.

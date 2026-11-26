@@ -1,6 +1,7 @@
 ---
 route: /
 selectors:
+  - "Side panel"
   - "Review"
   - "History"
   - "Copy commit id"
@@ -36,7 +37,7 @@ git -C "$REPO" rev-parse HEAD
 
 Keep the 40-character id the second line prints for the clipboard comparison.
 
-1. Click button `Review`
+1. Click button `Side panel`
    Expect: dialog "Worktree review".
 2. Click tab `History`
    Expect: a row, button starting "Explain the change to review", above the "Initial commit" row.

@@ -1,6 +1,7 @@
 ---
 route: /pair
 selectors:
+  - "Side panel"
   - "Review content"
   - "Checking the link with your computer"
   - "This pairing link is not usable. Ask for a new one."
@@ -37,7 +38,7 @@ A browser with a valid session goes to its workspace when it opens `/pair` witho
 2. Run `$C pairing-link` and navigate this same tab to its fresh one-time link, then wait for region named `Review content`
    Expect: the local `pairing-link` output names `/pair#c=<one-time code>&e=<environmentId>`; the workspace shows within a few seconds.
    With `POST /api/pair` held, the same page says "Checking the link with your computer" and marks step 2 current. This also applies when the tab already showed an unpaired page or a refused link. Releasing the request opens the workspace.
-3. Click button `Review`
+3. Click button `Side panel`
    Expect: URL `/<projectId>/<worktreeId>?entry=review` with no `#c=` fragment, title "Review — repository".
 4. Inspect HTTP traffic (before any reload)
    Expect: `GET /api/health` 200, `POST /api/pair` 200, `GET /api/inventory` 200. `$C server devices` lists "Verification browser" beside "Development setup".

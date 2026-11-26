@@ -1,6 +1,7 @@
 ---
 route: /
 selectors:
+  - 'Side panel'
   - 'Review'
   - 'Branch'
   - 'All branch changes'
@@ -22,7 +23,7 @@ The Branch document ("All branch changes") reads diffs for the first 25 files ; 
 
 ## How to get to it (user POV)
 
-- Workspace → button "Review" → tab "Changes" → tab "Branch" → button "All branch changes" (its name ends with the file count) → at the bottom of the document, button "Read <n> more of <total>" (while further files remain; during a read it keeps its name, shows a spinner and is disabled).
+- Workspace → button "Side panel" → tab "Changes" → tab "Branch" → button "All branch changes" (its name ends with the file count) → at the bottom of the document, button "Read <n> more of <total>" (while further files remain; during a read it keeps its name, shows a spinner and is disabled).
 
 ## Driving it with browser
 
@@ -41,12 +42,12 @@ git -C "$REPO" diff --name-only main feature | wc -l   # prints 27
 
 1. Navigate to `/`
    Expect: title "Review — repository"; tab "Review" selected.
-2. Click button `Review`, then click tab `Changes`
+2. Click button `Side panel`, then click tab `Changes`
    Expect: tabs "Uncommitted" and "Branch".
 3. Click tab `Branch`
    Expect: text "1 commit on feature since main"; a button whose name starts "All branch changes" and ends "27"; rows "README.md · modified", "notes-00.md · added" … "notes-25.md · added".
 4. Click button `/^All branch changes/`
-   Expect: the sheet closes; title "Branch changes — repository"; toolbar "Branch" over "27 files changed"; heading "feature since main"; text "A change to review." (README.md's diff, the first file); button "Read 2 more of 27" at the bottom; no text "Some patches could not be read.".
+   Expect: the sheet closes; title "All branch changes — repository"; tab "All branch changes"; toolbar "Branch" over "27 files changed"; heading "feature since main"; text "A change to review." (README.md's diff, the first file); button "Read 2 more of 27" at the bottom; no text "Some patches could not be read.".
 5. Arm the HTTP hold for `POST /api/worktrees/:worktreeId/branch-changes/diffs` (see [routing recipes and per-map instructions](../references/failure-injection.md)), then click button `Read 2 more of 27`. Await the held request.
    Look for while held: text "A change to review." still visible. The read-more button disappears when this final window is selected; its absence alone does not prove the held request completed. Release within 15 seconds.
    Look for after release: button "Read 2 more of 27" is gone; text "A change to review." still shows; no text "Some patches could not be read.". Then inspect HTTP requests and responses: a second `POST /api/worktrees/<worktreeId>/branch-changes/diffs` with 200.

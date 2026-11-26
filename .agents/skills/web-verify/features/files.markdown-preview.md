@@ -1,6 +1,7 @@
 ---
 route: /$projectId/$worktreeId
 selectors:
+  - 'Side panel'
   - 'Review'
   - 'Files'
   - 'Open file'
@@ -38,7 +39,7 @@ The sample `README.md` ("# Sample repository\n\nA change to review.\n", modified
 
 ### 1. A Markdown file reads as formatted text and switches to its source
 
-1. Navigate to `/`, click button `Review`, click tab `Files`
+1. Navigate to `/`, click button `Side panel`, click tab `Files`
    Expect: treeitem "README.md".
 2. Right-click treeitem `README.md`, then click menuitem `Open file`
    Expect: the sheet closes; tab "README.md" selected; tab "Reader" selected; heading "Sample repository" (level 1) and paragraph "A change to review.".
@@ -49,7 +50,7 @@ The sample `README.md` ("# Sample repository\n\nA change to review.\n", modified
 
 ### 2. A Markdown file too large to read as text is not shown and says why
 
-1. Click button `Review`, then right-click treeitem named `large.md`
+1. Click button `Side panel`, then right-click treeitem named `large.md`
    Expect: menuitem "Open file".
 2. Click menuitem `Open file`
    Expect: tab "large.md" selected; heading "large.md"; the one line "This file is too large to display as text."; no tabs "Reader"/"Source" and no button "Edit".

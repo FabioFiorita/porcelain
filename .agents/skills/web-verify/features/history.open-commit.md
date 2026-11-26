@@ -1,6 +1,7 @@
 ---
 route: /
 selectors:
+  - 'Side panel'
   - 'Review'
   - 'History'
   - 'Changes without code preview'
@@ -36,7 +37,7 @@ Setup:
 git -C "$REPO" commit -am "Explain the change to review"
 ```
 
-1. Click button `Review`
+1. Click button `Side panel`
    Expect: dialog "Worktree review".
 2. Click tab `History`
    Expect: a row starting "Explain the change to review" above the "Initial commit" row.
@@ -56,7 +57,7 @@ git -C "$REPO" show --stat --format=%s HEAD
 
 The last line shows `logo.bin | Bin 0 -> 12 bytes`.
 
-1. Click button `Review`
+1. Click button `Side panel`
    Expect: dialog "Worktree review"; tab "History" is still the selected surface.
 2. Click tab `History`
    Expect: a row starting "Add a binary logo" at the top.

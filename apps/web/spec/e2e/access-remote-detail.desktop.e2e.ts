@@ -278,7 +278,7 @@ test('forgetting from detail protects an unsavable remote draft and succeeds aft
   const worktree = project.worktrees.find((item) => item.main);
   const workspace = `/remotes/${inventory.environmentId}/${project.id}/${worktree?.id ?? ''}`;
   await app.follow(workspace);
-  await page.getByRole('button', { name: 'Review', exact: true }).click();
+  await page.getByRole('button', { name: 'Side panel', exact: true }).click();
   await page.getByRole('tab', { name: 'Files', exact: true }).click();
   const readme = remote.repo.readme.path;
   await page
@@ -506,7 +506,7 @@ test('an open remote review and its file tree stay visible while live updates re
     includeHidden: true,
   });
   await expect(review).toBeVisible();
-  await page.getByRole('button', { name: 'Review', exact: true }).click();
+  await page.getByRole('button', { name: 'Side panel', exact: true }).click();
   await page.getByRole('tab', { name: 'Files', exact: true }).click();
   const readme = page.getByRole('treeitem', {
     name: remote.repo.readme.path,

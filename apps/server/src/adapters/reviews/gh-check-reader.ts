@@ -21,7 +21,7 @@ const STATUS_QUERY = `query PullRequestStatus($owner: String!, $repo: String!, $
     commits(last: 1) { nodes { commit { statusCheckRollup { state contexts(first: 100) {
       nodes { __typename
         ... on CheckRun { databaseId name status conclusion detailsUrl startedAt completedAt isRequired(pullRequestNumber: $number) title summary
-          checkSuite { app { name slug } workflowRun { databaseId workflow { name } } }
+          checkSuite { app { name slug } workflowRun { databaseId runNumber workflow { name } } }
           steps(first: 50) { nodes { number name status conclusion startedAt completedAt } }
           annotations(first: 20) { nodes { annotationLevel message path title location { start { line } } } } }
         ... on StatusContext { context state targetUrl description isRequired(pullRequestNumber: $number) } }

@@ -38,7 +38,7 @@ export function CommentsSummary({ owner }: { owner: CommentOwner }) {
               · {commentSpread(comments)}
             </span>
           </>,
-          'Review and publish',
+          'Publish review',
         )}
       {count === 0 &&
         posted > 0 &&

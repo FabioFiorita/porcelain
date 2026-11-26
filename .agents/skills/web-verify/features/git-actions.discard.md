@@ -1,6 +1,7 @@
 ---
 route: /
 selectors:
+  - 'Side panel'
   - 'Review'
   - 'Discard changes to'
   - 'Discard'
@@ -40,7 +41,7 @@ a fresh instance has README.md modified ("# Sample repository\n\nA change to rev
 
 ### Case 1: discard returns the file to the last commit, and Restore brings the change back
 
-1. Navigate to `/`, then click button `Review`
+1. Navigate to `/`, then click button `Side panel`
    Expect: the review sheet with button "README.md · unstaged".
 2. Click button `README.md · unstaged`
    Expect: the sheet closes; a README.md change document with button "Discard changes to README.md".
@@ -55,7 +56,7 @@ a fresh instance has README.md modified ("# Sample repository\n\nA change to rev
 
 Fresh instance, or after case 1's Restore.
 
-1. Navigate to `/`, click button `Review`, click button `README.md · unstaged`, click button `Discard changes to README.md`
+1. Navigate to `/`, click button `Side panel`, click button `README.md · unstaged`, click button `Discard changes to README.md`
    Expect: alertdialog "Discard README.md?".
 2. On disk, with the dialog open: `printf 'Changed on disk after the discard dialog opened\n' > "$REPO/README.md"`
 3. Click button `Discard`

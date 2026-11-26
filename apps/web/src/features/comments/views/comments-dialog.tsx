@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useState, type ComponentProps, type ReactNode } from 'react';
 import { ArrowLeftIcon, ExternalLinkIcon } from 'lucide-react';
 import {
   anchorLabel,
@@ -35,6 +35,24 @@ import { DraftCard } from './comment-thread';
 const COMMAND = 'porcelain comments';
 
 type Step = 'list' | 'publish' | 'review';
+
+function focusOnArrival(heading: HTMLHeadingElement | null) {
+  heading?.focus();
+}
+
+function StepTitle({
+  arrived,
+  ...props
+}: ComponentProps<typeof DialogTitle> & { arrived: boolean }) {
+  return (
+    <DialogTitle
+      ref={arrived ? focusOnArrival : undefined}
+      tabIndex={-1}
+      className="outline-none"
+      {...props}
+    />
+  );
+}
 
 function OutputRow({
   title,
@@ -89,11 +107,13 @@ function ReviewComment({
 }
 
 function ReviewStep({
+  arrived,
   owner,
   preview,
   onBack,
   onPosted,
 }: {
+  arrived: boolean;
   owner: CommentOwner;
   preview: ReviewPreview;
   onBack: () => void;
@@ -108,9 +128,9 @@ function ReviewStep({
   return (
     <>
       <DialogHeader>
-        <DialogTitle>
+        <StepTitle arrived={arrived}>
           Review on #{preview.pullRequest.number} · {preview.pullRequest.title}
-        </DialogTitle>
+        </StepTitle>
         <DialogDescription>
           This is exactly what will be posted, as one review.
         </DialogDescription>
@@ -187,12 +207,14 @@ function ReviewStep({
 }
 
 function PublishStep({
+  arrived,
   owner,
   count,
   markdown,
   onBack,
   onReview,
 }: {
+  arrived: boolean;
   owner: CommentOwner;
   count: number;
   markdown: string;
@@ -203,9 +225,9 @@ function PublishStep({
   return (
     <>
       <DialogHeader>
-        <DialogTitle>
-          Publish {count === 1 ? '1 comment' : `${count} comments`}
-        </DialogTitle>
+        <StepTitle arrived={arrived}>
+          Publish review · {count === 1 ? '1 comment' : `${count} comments`}
+        </StepTitle>
       </DialogHeader>
       <ul className="flex flex-col rounded-lg border">
         <OutputRow
@@ -264,9 +286,11 @@ function PublishStep({
 }
 
 function ListStep({
+  arrived,
   owner,
   onPublish,
 }: {
+  arrived: boolean;
   owner: CommentOwner;
   onPublish: () => void;
 }) {
@@ -276,9 +300,9 @@ function ListStep({
   return (
     <>
       <DialogHeader>
-        <DialogTitle>
+        <StepTitle arrived={arrived}>
           Comments{open.length > 0 ? ` · ${open.length}` : ''}
-        </DialogTitle>
+        </StepTitle>
         {view && (
           <DialogDescription>
             <span className="font-mono">{view.branch || 'detached HEAD'}</span>{' '}
@@ -331,7 +355,7 @@ function ListStep({
       </div>
       <DialogFooter>
         <Button disabled={open.length === 0} onClick={onPublish}>
-          Publish…
+          Publish review
         </Button>
       </DialogFooter>
     </>
@@ -352,6 +376,11 @@ export function CommentsDialog({
   const [step, setStep] = useState<Step>(initialStep);
   const [preview, setPreview] = useState<ReviewPreview>();
   const [posted, setPosted] = useState<string>();
+  const [arrived, setArrived] = useState(false);
+  const go = (next: Step) => {
+    setArrived(true);
+    setStep(next);
+  };
   const { view } = useComments(owner);
   const count = openComments(view).length;
   const content = () => {
@@ -359,7 +388,7 @@ export function CommentsDialog({
       return (
         <>
           <DialogHeader>
-            <DialogTitle>Review posted</DialogTitle>
+            <StepTitle arrived={arrived}>Review posted</StepTitle>
             <DialogDescription>
               The comments are marked as posted.
             </DialogDescription>
@@ -378,26 +407,37 @@ export function CommentsDialog({
     if (step === 'review' && preview)
       return (
         <ReviewStep
+          arrived={arrived}
           owner={owner}
           preview={preview}
-          onBack={() => setStep('publish')}
-          onPosted={setPosted}
+          onBack={() => go('publish')}
+          onPosted={(url) => {
+            setArrived(true);
+            setPosted(url);
+          }}
         />
       );
     if (step === 'publish')
       return (
         <PublishStep
+          arrived={arrived}
           owner={owner}
           count={count}
           markdown={view?.markdown ?? ''}
-          onBack={() => setStep('list')}
+          onBack={() => go('list')}
           onReview={(next) => {
             setPreview(next);
-            setStep('review');
+            go('review');
           }}
         />
       );
-    return <ListStep owner={owner} onPublish={() => setStep('publish')} />;
+    return (
+      <ListStep
+        arrived={arrived}
+        owner={owner}
+        onPublish={() => go('publish')}
+      />
+    );
   };
   return (
     <Dialog
@@ -406,6 +446,7 @@ export function CommentsDialog({
         if (!next) {
           setStep(initialStep);
           setPosted(undefined);
+          setArrived(false);
         }
         onOpenChange(next);
       }}

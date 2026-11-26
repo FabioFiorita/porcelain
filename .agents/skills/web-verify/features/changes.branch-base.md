@@ -1,6 +1,7 @@
 ---
 route: /
 selectors:
+  - 'Side panel'
   - 'Review'
   - 'Branch'
   - 'Compare against '
@@ -44,7 +45,7 @@ git -C "$REPO" log --oneline main..feature | wc -l   # prints 2
 
 1. Navigate to `/`
    Expect: tab "Review" selected; the working tree is clean, so the URL has no `entry`.
-2. Click button `Review`, then click tab `Changes`
+2. Click button `Side panel`, then click tab `Changes`
    Expect: the sheet shows tabs "Files", "Changes", "History" and, under them, tabs "Uncommitted" [selected] and "Branch".
 3. Click tab `Branch`
    Expect: text "2 commits on feature since main"; button "Compare against main"; buttons "README.md · modified", "first.md · added", "second.md · added"; the URL contains `scope=branch` and no `base=`.

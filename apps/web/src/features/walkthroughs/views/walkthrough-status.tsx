@@ -9,6 +9,19 @@ import { CheckIcon } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
 import type { WriterAction } from './walkthrough-writer-notice';
 
+export function WalkthroughFailureLine({
+  copy,
+}: {
+  copy: ReturnType<typeof walkthroughFailureCopy>;
+}) {
+  return (
+    <p role="alert" className="min-w-0 flex-1 basis-64 font-medium text-pretty">
+      {copy.title}
+      {copy.message && ` ${copy.message}`}
+    </p>
+  );
+}
+
 export function WalkthroughStatus({
   run,
   requesting = false,
@@ -69,9 +82,15 @@ export function WalkthroughStatus({
       className="flex flex-col gap-3 rounded-lg border p-4 text-ui"
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p role="status" className="font-medium">
-          {progress.label}
-        </p>
+        {failure && !progress.active ? (
+          <WalkthroughFailureLine
+            copy={walkthroughFailureCopy(failure.failure, failure.writer)}
+          />
+        ) : (
+          <p role="status" className="font-medium">
+            {progress.label}
+          </p>
+        )}
         {!progress.active &&
           onUpdate &&
           controls?.({
@@ -150,16 +169,9 @@ export function WalkthroughStatus({
               : walkthroughFreshnessText(freshness)}
           </p>
         )}
-      {failure && (
-        <p role="alert">
-          {walkthroughFailureCopy(failure.failure, failure.writer).title}
-          {failure.failure.kind !== 'signed_out' &&
-            ` ${failure.failure.message}`}
-        </p>
-      )}
       <details>
         <summary className="cursor-pointer text-muted-foreground">
-          Update log
+          Writing log
         </summary>
         <ol className="mt-2 flex flex-col gap-2 text-caption text-foreground-2">
           {progress.entries.map((entry, index) => (
@@ -172,7 +184,7 @@ export function WalkthroughStatus({
           ))}
           {progress.entries.length === 0 && (
             <li>
-              This walkthrough predates the update log. Its recorded status is
+              This walkthrough predates the writing log. Its recorded status is
               shown above.
             </li>
           )}

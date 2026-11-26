@@ -8,7 +8,7 @@ async function openFiles(render: Render, repo: Repo) {
   await repo.write('.gitignore', 'build.log\n');
   await repo.write('build.log', 'ignored output\n');
   const opened = await render.workspace();
-  await opened.getByRole('button', { name: 'Review', exact: true }).click();
+  await opened.getByRole('button', { name: 'Side panel', exact: true }).click();
   await opened.getByRole('tab', { name: 'Files', exact: true }).click();
   await expect
     .element(
@@ -78,7 +78,7 @@ test('an explicit ignored file path opens without adding ignored paths to name s
   });
   await repo.write('config/.env', 'KNOWN_PATH_VALUE=visible\n');
   const page = await render.workspace();
-  await page.getByRole('button', { name: 'Review', exact: true }).click();
+  await page.getByRole('button', { name: 'Side panel', exact: true }).click();
   await page.getByRole('tab', { name: 'Files', exact: true }).click();
   await userEvent.keyboard('{ControlOrMeta>}p{/ControlOrMeta}');
   const search = page.getByRole('combobox', {
@@ -296,7 +296,7 @@ test('empty quick open lists open file tabs by activation then deduplicated pinn
   const reads = fetchGate.recordFileLookupReads();
   const page = await render.workspace();
   const review = async () => {
-    await page.getByRole('button', { name: 'Review', exact: true }).click();
+    await page.getByRole('button', { name: 'Side panel', exact: true }).click();
     await page.getByRole('tab', { name: 'Files', exact: true }).click();
   };
   await review();

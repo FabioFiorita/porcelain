@@ -41,7 +41,10 @@ import {
   WalkthroughConversation,
   EarlierComments,
 } from './walkthrough-conversation';
-import { WalkthroughStatus } from './walkthrough-status';
+import {
+  WalkthroughFailureLine,
+  WalkthroughStatus,
+} from './walkthrough-status';
 import { Briefing, scrollToTarget } from './walkthrough-briefing';
 import { CommentsSummary } from '@/features/comments/index';
 import {
@@ -52,7 +55,10 @@ import {
 import { CallDecision } from './walkthrough-decision';
 import { WalkthroughStart } from './walkthrough-start';
 import { useWalkthroughWriter } from '../queries/writer';
-import { WalkthroughWriterRow } from './walkthrough-writer-notice';
+import {
+  WalkthroughWriterRow,
+  type WriterAction,
+} from './walkthrough-writer-notice';
 import { WalkthroughMerge } from './walkthrough-merge';
 import { WalkthroughStanding } from './walkthrough-standing';
 import { ReviewCode } from './walkthrough-code-document';
@@ -276,7 +282,6 @@ function Written({
           writer={writer}
           action={action}
           existingMessage={updateFailure?.failure.message}
-          signedOut={updateFailure?.failure.kind === 'signed_out'}
         />
       )}
     />
@@ -428,31 +433,42 @@ function Failed({
   writer: ReturnType<typeof useWalkthroughWriter>;
   children: ReactNode;
 }) {
-  const copy = failureCopy(failure, run);
+  const row = (action: WriterAction) => (
+    <WalkthroughWriterRow
+      document={document}
+      writer={writer}
+      existingMessage={failure.message}
+      action={action}
+    />
+  );
+  const retry = {
+    label: 'Try again',
+    disabled: waiting || Boolean(writeBlock),
+    description: writeBlock,
+    onClick: onRetry,
+  };
   return (
     <Column>
-      <header className="flex flex-col items-start gap-3">
-        <h1 className="text-subpage-title font-semibold tracking-tight">
-          {copy.title}
-        </h1>
-        {run && <WalkthroughStatus run={run} requesting={waiting} first />}
-        {copy.message && (
-          <p className="text-prose text-foreground-2">{copy.message}</p>
+      <header className="flex flex-col gap-3">
+        {run ? (
+          <WalkthroughStatus
+            run={run}
+            requesting={waiting}
+            first
+            failure={{ failure, writer: run.writer }}
+            onUpdate={onRetry}
+            writeBlock={writeBlock}
+            controls={row}
+          />
+        ) : (
+          <section
+            aria-label="Walkthrough status"
+            className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-4 text-ui"
+          >
+            <WalkthroughFailureLine copy={failureCopy(failure, run)} />
+            {row(retry)}
+          </section>
         )}
-        <WalkthroughWriterRow
-          document={document}
-          writer={writer}
-          existingMessage={copy.message}
-          signedOut={failure.kind === 'signed_out'}
-          actionFirst
-          action={{
-            label: 'Try again',
-            variant: 'default',
-            disabled: waiting || Boolean(writeBlock),
-            description: writeBlock,
-            onClick: onRetry,
-          }}
-        />
       </header>
       {children}
     </Column>

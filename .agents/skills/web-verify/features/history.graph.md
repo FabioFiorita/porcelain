@@ -1,6 +1,7 @@
 ---
 route: /
 selectors:
+  - "Side panel"
   - "Review"
   - "History"
   - "Open graph"
@@ -47,7 +48,7 @@ git -C "$REPO" log -1 --format='%s %p'
 
 The last line prints `Merge branch 'topic'` and two parent ids. ("Add the topic notes" also carries the README change, which the switch took along.)
 
-1. Click button `Review`
+1. Click button `Side panel`
    Expect: dialog "Worktree review".
 2. Click tab `History`
    Expect: four rows, the first starting "Merge commit Merge branch 'topic'", and button "Open graph".

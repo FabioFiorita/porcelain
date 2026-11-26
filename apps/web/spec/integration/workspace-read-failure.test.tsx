@@ -13,7 +13,7 @@ test('a worktree whose changes cannot be read keeps its tabs and toolbar, and Tr
     .element(page.getByText(/could not be loaded/).first())
     .toBeVisible();
   await expect
-    .element(page.getByRole('button', { name: 'Review', exact: true }))
+    .element(page.getByRole('button', { name: 'Side panel', exact: true }))
     .toBeVisible();
   await expect
     .element(page.getByRole('button', { name: 'Toggle Sidebar', exact: true }))

@@ -11,7 +11,7 @@ test('one click opens a single-child folder chain and one click closes it', asyn
   await repo.write('a/b/first.txt', 'First file\n');
   await repo.write('a/b/second.txt', 'Second file\n');
   const page = await render.workspace();
-  await page.getByRole('button', { name: 'Review', exact: true }).click();
+  await page.getByRole('button', { name: 'Side panel', exact: true }).click();
   await page.getByRole('tab', { name: 'Files', exact: true }).click();
 
   await page.getByRole('treeitem', { name: 'a', exact: true }).click();
@@ -51,7 +51,7 @@ test('one click opens a three-level single-child folder chain', async ({
   await repo.write('a/b/c/deep.txt', 'Deep file\n');
   const reads = fetchGate.recordDirectoryReads();
   const page = await render.workspace();
-  await page.getByRole('button', { name: 'Review', exact: true }).click();
+  await page.getByRole('button', { name: 'Side panel', exact: true }).click();
   await page.getByRole('tab', { name: 'Files', exact: true }).click();
   await page.getByRole('treeitem', { name: 'a', exact: true }).click();
   await expect
@@ -84,7 +84,7 @@ test('closing a folder before its lazy read finishes keeps its new chain closed'
   const held = fetchGate.holdNextDirectoryRead('a');
   const forbidden = fetchGate.holdNextDirectoryRead('a/b');
   const page = await render.workspace();
-  await page.getByRole('button', { name: 'Review', exact: true }).click();
+  await page.getByRole('button', { name: 'Side panel', exact: true }).click();
   await page.getByRole('tab', { name: 'Files', exact: true }).click();
   held.arm();
   forbidden.arm();
@@ -124,7 +124,7 @@ test('a filename search explains no matches and restores matching and unfiltered
   await repo.write('notes.md', '# Notes\n');
   await repo.write('reference.md', '# Reference\n');
   const page = await render.workspace();
-  await page.getByRole('button', { name: 'Review', exact: true }).click();
+  await page.getByRole('button', { name: 'Side panel', exact: true }).click();
   await page.getByRole('tab', { name: 'Files', exact: true }).click();
   const search = page.getByRole('textbox', {
     name: 'Search files',
@@ -170,7 +170,7 @@ test('Collapse all closes loaded folders and explicitly clears an active search'
   await repo.write('a/first.txt', 'First file\n');
   await repo.write('sibling/settled.txt', 'Sibling loaded\n');
   const page = await render.workspace();
-  await page.getByRole('button', { name: 'Review', exact: true }).click();
+  await page.getByRole('button', { name: 'Side panel', exact: true }).click();
   await page.getByRole('tab', { name: 'Files', exact: true }).click();
   await page.getByRole('treeitem', { name: 'a', exact: true }).click();
   await expect
@@ -236,7 +236,7 @@ test('Collapse all during a lazy read keeps its chain closed and a sibling can s
   const held = fetchGate.holdNextDirectoryRead('a');
   const forbidden = fetchGate.holdNextDirectoryRead('a/b');
   const page = await render.workspace();
-  await page.getByRole('button', { name: 'Review', exact: true }).click();
+  await page.getByRole('button', { name: 'Side panel', exact: true }).click();
   await page.getByRole('tab', { name: 'Files', exact: true }).click();
   held.arm();
   forbidden.arm();
@@ -283,7 +283,7 @@ test('returning to Files keeps its search and loaded folder expansion', async ({
   await repo.write('notes/first.md', '# First note\n');
   await repo.write('notes/second.md', '# Second note\n');
   const page = await render.workspace();
-  await page.getByRole('button', { name: 'Review', exact: true }).click();
+  await page.getByRole('button', { name: 'Side panel', exact: true }).click();
   await page.getByRole('tab', { name: 'Files', exact: true }).click();
   await page.getByRole('treeitem', { name: 'notes', exact: true }).click();
   await expect
@@ -298,7 +298,7 @@ test('returning to Files keeps its search and loaded folder expansion', async ({
   await expect
     .element(page.getByRole('heading', { name: 'First note', exact: true }))
     .toBeVisible();
-  await page.getByRole('button', { name: 'Review', exact: true }).click();
+  await page.getByRole('button', { name: 'Side panel', exact: true }).click();
   await page.getByRole('tab', { name: 'Files', exact: true }).click();
   await expect.element(search).toHaveValue('first');
   await search.fill('');
@@ -313,7 +313,7 @@ test('returning to Files keeps its search and loaded folder expansion', async ({
   await expect
     .element(page.getByRole('dialog', { name: 'Worktree review', exact: true }))
     .not.toBeInTheDocument();
-  await page.getByRole('button', { name: 'Review', exact: true }).click();
+  await page.getByRole('button', { name: 'Side panel', exact: true }).click();
   await page.getByRole('tab', { name: 'Files', exact: true }).click();
   await expect
     .element(page.getByRole('treeitem', { name: 'notes', exact: true }))

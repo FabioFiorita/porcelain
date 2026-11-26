@@ -4,9 +4,9 @@ import type {
   WalkthroughRun,
 } from '@porcelain/client/walkthroughs/rules';
 import {
+  checksHeadline,
   currentWalkthroughChecks,
   movedPullHead,
-  pullRequestRollup,
   recordedCheckNow,
   recordedChecks,
 } from '@porcelain/client/projects/rules';
@@ -26,7 +26,6 @@ import type { WalkthroughPull } from '../queries/pull';
 
 type Files = Extract<StepBlock, { kind: 'files' }>;
 type Checks = Extract<StepBlock, { kind: 'checks' }>;
-type Tone = ReturnType<typeof recordedChecks>['results'][number]['tone'];
 
 export function FileChangeSize({ size }: { size: FileSize }) {
   return (
@@ -114,28 +113,33 @@ function FileList({
   );
 }
 
-export function checksTone(checks: Checks['checks']): Tone {
-  return pullRequestRollup(checks.state).tone;
-}
-
 function CheckList({ block, pull }: { block: Checks; pull: WalkthroughPull }) {
   const checks = recordedChecks(block.checks);
   const live = currentWalkthroughChecks(block.checks, pull?.status);
-  const label = live ? checks.whenWritten : checks.label;
+  const headline = checksHeadline(block.checks, pull?.status);
+  const lead =
+    headline.names.length > 0
+      ? `${headline.label}: ${headline.names.join(', ')}`
+      : headline.label;
   const moved = movedPullHead(pull?.detail?.headSha, block.checks.headOid);
   return (
     <EvidenceBox
-      label={label}
+      label={headline.note ? `${lead}. ${headline.note}` : lead}
       heading={
         <>
-          <CheckResultIcon tone={checksTone(block.checks)} />
-          <span>
-            <ShortOid label={label} />
-          </span>
-          {live && (
-            <span className="ml-auto flex items-center gap-1.5 text-foreground">
-              <CheckResultIcon tone={live.tone} />
-              {live.label}
+          <CheckResultIcon tone={headline.tone} />
+          {headline.note ? (
+            <span className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-3 gap-y-0.5">
+              <span className="min-w-0 text-foreground wrap-anywhere">
+                {lead}
+              </span>
+              <span className="ml-auto">
+                <ShortOid label={headline.note} />
+              </span>
+            </span>
+          ) : (
+            <span>
+              <ShortOid label={lead} />
             </span>
           )}
           {moved && pull && (

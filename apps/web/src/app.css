@@ -46,11 +46,11 @@
   app-region: no-drag;
 }
 
-.desktop-shell .desktop-workspace-without-navigator {
+.desktop-mac .desktop-workspace-without-navigator {
   padding-top: 52px;
 }
 
-.desktop-shell .desktop-workspace-without-navigator::before {
+.desktop-mac .desktop-workspace-without-navigator::before {
   content: '';
   position: absolute;
   inset: 0 0 auto;

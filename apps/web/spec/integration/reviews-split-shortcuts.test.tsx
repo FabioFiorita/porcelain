@@ -53,7 +53,7 @@ for (const [width, labelled] of [
       `/${project.id}/${worktree.id}`,
     );
     await workspace
-      .getByRole('button', { name: 'Review', exact: true })
+      .getByRole('button', { name: 'Side panel', exact: true })
       .click();
     await workspace.getByRole('tab', { name: 'Files', exact: true }).click();
     await workspace
@@ -107,7 +107,9 @@ test('split tabs register their shortcuts once and Alt+W closes the focused pane
 }) => {
   const path = repo.readme.path;
   const tab = new RegExp(path);
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await workspace.getByRole('tab', { name: 'Files', exact: true }).click();
   await workspace
     .getByRole('treeitem', { name: path, exact: true })

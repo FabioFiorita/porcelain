@@ -1,5 +1,6 @@
 import { expect, it } from 'vite-plus/test';
 import {
+  checksHeadline,
   currentWalkthroughChecks,
   recordedCheckNow,
   mergeConfirmation,
@@ -580,5 +581,37 @@ it('names the pinned head in the merge confirmation', () => {
     title: 'Merge pull request #57?',
     description:
       'feature/search at 46b9389 goes into main on GitHub. A merge cannot be undone.',
+  });
+});
+
+it('leads a step’s checks with what fails now and keeps the written result second', () => {
+  const captured = {
+    headOid: 'abc1234',
+    state: 'SUCCESS',
+    checksTruncated: false,
+    results: [
+      { name: 'Unit tests', status: 'SUCCESS' },
+      { name: 'Browser tests', status: 'SUCCESS' },
+    ],
+  };
+  const live = {
+    headSha: 'abc1234',
+    checksTruncated: false,
+    checks: [
+      { name: 'Unit tests', status: 'COMPLETED', conclusion: 'SUCCESS' },
+      { name: 'Browser tests', status: 'COMPLETED', conclusion: 'FAILURE' },
+    ],
+  };
+  expect(checksHeadline(captured, live)).toEqual({
+    tone: 'failed',
+    label: 'Failing now',
+    names: ['Browser tests'],
+    note: 'Passing when written, at abc1234',
+  });
+  expect(checksHeadline(captured, undefined)).toEqual({
+    tone: 'passed',
+    label: 'Checks passing at abc1234',
+    names: [],
+    note: undefined,
   });
 });

@@ -81,6 +81,12 @@ it('restores distinct all-changes and Specs documents after navigation or reload
   ).toBe('Specs — p');
 });
 
+it('names the branch document after the row that opens it', () => {
+  expect(
+    workspaceTitle({ entry: 'branch', surface: 'changes', project: 'p' }),
+  ).toBe('All branch changes — p');
+});
+
 it('restores a pull request tab and names it after reload', () => {
   expect(
     entryKey({

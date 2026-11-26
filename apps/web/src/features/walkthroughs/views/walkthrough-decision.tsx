@@ -1,15 +1,20 @@
-import { CheckIcon } from 'lucide-react';
+import { useAtomValue } from '@effect/atom-react';
+import { Option } from 'effect';
+import { AsyncResult } from 'effect/reactivity';
+import { CheckIcon, CircleAlertIcon } from 'lucide-react';
+import { readDeviceLabels, readViewer } from '@porcelain/client/access';
 import {
   NEEDS_A_COMMIT,
   callChoices,
   callDecision,
   callDeciding,
-  decidedAgainstChange,
+  callState,
   decidedOption,
   decidedWhen,
-  decisionAuthor,
+  decisionPlace,
   type WalkthroughStop,
 } from '@porcelain/client/walkthroughs/rules';
+import type { Connection } from '@/shared/workspace/connection';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useWorkspaceWriteBlock } from '@/shared/workspace/connection';
@@ -20,6 +25,46 @@ import {
 } from '../queries/conversations';
 
 type Comparison = WalkthroughStop['callouts'][number]['comparison'];
+
+type Decider = { kind: 'owner' } | { kind: 'device'; deviceId: string };
+
+function DeviceLabels({
+  connection,
+  decidedBy,
+  viewer,
+}: {
+  connection: Connection;
+  decidedBy: Decider;
+  viewer: Decider | undefined;
+}) {
+  const result = useAtomValue(readDeviceLabels(connection));
+  if (AsyncResult.isInitial(result)) return null;
+  const labels = Option.getOrUndefined(AsyncResult.value(result));
+  const place = decisionPlace(decidedBy, viewer, labels);
+  return place ? <>{place} · </> : null;
+}
+
+function DecisionPlace({
+  connection,
+  decidedBy,
+}: {
+  connection: Connection;
+  decidedBy: Decider;
+}) {
+  const viewer = Option.getOrUndefined(
+    AsyncResult.value(useAtomValue(readViewer(connection))),
+  );
+  const place = decisionPlace(decidedBy, viewer, undefined);
+  if (place === undefined) return null;
+  if (decidedBy.kind === 'owner') return <>{place} · </>;
+  return (
+    <DeviceLabels
+      connection={connection}
+      decidedBy={decidedBy}
+      viewer={viewer}
+    />
+  );
+}
 
 export function CallDecision({
   owner,
@@ -38,6 +83,7 @@ export function CallDecision({
   const disabled = waiting || Boolean(writeBlock) || view === undefined;
   const decision = callDecision(view?.decisions, step, index);
   const choices = callChoices(comparison);
+  const state = callState(comparison, decision);
   const choose =
     choices.length > 0 ? (
       <div className="flex flex-col gap-1.5">
@@ -109,10 +155,20 @@ export function CallDecision({
           role="status"
           className="flex flex-wrap items-center gap-x-2 gap-y-1 text-ui"
         >
-          <CheckIcon aria-hidden className="size-3.5 shrink-0 text-add-fg" />
+          {state === 'needs-commit' ? (
+            <CircleAlertIcon
+              aria-hidden
+              className="size-3.5 shrink-0 text-warn"
+            />
+          ) : (
+            <CheckIcon aria-hidden className="size-3.5 shrink-0 text-add-fg" />
+          )}
           <span className="font-medium">{decidedOption(decision)}</span>
           <span className="text-caption text-muted-foreground">
-            {decisionAuthor(decision)} ·{' '}
+            <DecisionPlace
+              connection={owner.context.connection}
+              decidedBy={decision.decidedBy}
+            />
             <time dateTime={decision.decidedAt}>
               {decidedWhen(decision.decidedAt)}
             </time>
@@ -130,7 +186,7 @@ export function CallDecision({
       ) : (
         choose
       )}
-      {decision && decidedAgainstChange(comparison, decision.option) && (
+      {state === 'needs-commit' && (
         <p className="text-caption text-warn">{NEEDS_A_COMMIT}</p>
       )}
       {(failure ?? (failed ? 'Decisions could not be read.' : undefined)) && (

@@ -2,6 +2,7 @@ import { PendingButton, PendingContent } from '@/shared/views/pending-button';
 import { PendingSpinner } from '@/shared/views/state-notice';
 import { useWorkspaceWriteBlock } from '@/shared/workspace/connection';
 import { TruncatedText } from '@/shared/views/truncated-text';
+import { useElement } from '@/shared/hooks/use-element';
 import { AsyncResult } from 'effect/reactivity';
 import { useAtomRef } from '@effect/atom-react';
 import { isTerminal, operationKey } from '@porcelain/client/git-actions';
@@ -118,6 +119,8 @@ export function GitButton({
   const [progressOpen, setProgressOpen] = useState(false);
   const [result, setResult] = useState<GitNotice | null>(null);
   const [action, setAction] = useState<GitAction | null>(null);
+  const menuTrigger = useElement<HTMLButtonElement>();
+  const [opener, setOpener] = useState<HTMLElement | null>(null);
   const [openedStatus, setOpenedStatus] = useState<GitActionStatus | null>(
     null,
   );
@@ -200,6 +203,11 @@ export function GitButton({
       menu.runNetwork(next, status.branch);
       return;
     }
+    setOpener(
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null,
+    );
     setOpenedStatus(status);
     setAction(next);
   };
@@ -337,6 +345,7 @@ export function GitButton({
                 <DropdownMenuTrigger
                   render={
                     <Button
+                      ref={(element) => menuTrigger.attach(element)}
                       variant="outline"
                       size="icon"
                       aria-label="Git actions"
@@ -486,6 +495,9 @@ export function GitButton({
           }}
         >
           <DialogContent
+            finalFocus={() =>
+              opener?.isConnected ? opener : menuTrigger.element
+            }
             aria-busy={busy}
             className="max-h-[min(90svh,48rem)] overflow-y-auto sm:max-w-2xl"
           >

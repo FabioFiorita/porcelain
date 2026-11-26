@@ -1,6 +1,7 @@
 ---
 route: /
 selectors:
+  - "Side panel"
   - "Review"
   - "Worktree review"
   - "Files"
@@ -41,7 +42,7 @@ On Linux the sandboxed server keeps its XDG data home in the instance folder, so
 
 1. Navigate to `/`
    Expect: title "Review — repository".
-2. Click button `Review`
+2. Click button `Side panel`
    Expect: dialog "Worktree review".
 3. Click tab `Files`
    Expect: treeitems "old-notes.md" and "gone-notes.md" in the tree of region "All files".
@@ -72,9 +73,9 @@ On Linux the sandboxed server keeps its XDG data home in the instance folder, so
 
 Setup: `printf 'Notes to throw away\n' > "$REPO/old-notes.md"` before a full page load.
 
-13. Click button `Review`, tab `Files`, then treeitem `old-notes.md`
+13. Click button `Side panel`, tab `Files`, then treeitem `old-notes.md`
     Expect: the sheet closes and tab "old-notes.md" is selected.
-14. Click button `Review`, tab `Files`, right-click treeitem `old-notes.md`, menuitem `Move to trash`, then the dialog's button `Move to trash`, then press `Escape`
+14. Click button `Side panel`, tab `Files`, right-click treeitem `old-notes.md`, menuitem `Move to trash`, then the dialog's button `Move to trash`, then press `Escape`
     Expect: no tab "old-notes.md" remains and tab "Review" is selected.
 
 ### Observable proof

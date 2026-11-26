@@ -73,7 +73,7 @@ function pull(
 
 it('groups by run, failed groups first, and splits each group by outcome', () => {
   const groups = groupChecks([
-    job('Docs', 'passed', { group: 'Docs', runId: 2 }),
+    job('Docs', 'passed', { group: 'Docs', runId: 2, runNumber: 812 }),
     job('Lint', 'passed'),
     job('Unit', 'failed'),
     job('Deploy', 'running', { group: 'Deploy', runId: 3 }),
@@ -91,17 +91,18 @@ it('groups by run, failed groups first, and splits each group by outcome', () =>
     groups.map((group) => [
       group.name,
       group.runId,
+      group.runNumber,
       group.state,
       group.failed.map((check) => check.name),
       group.running.map((check) => check.name),
       group.passed.map((check) => check.name),
     ]),
   ).toEqual([
-    ['CI', 1, 'failed', ['Unit'], [], ['Lint']],
-    ['reviewdog', undefined, 'failed', ['reviewdog'], [], []],
-    ['Deploy', 3, 'running', [], ['Deploy'], []],
-    ['Docs', 2, 'passed', [], [], ['Docs']],
-    ['CI', 4, 'passed', [], [], ['Lint']],
+    ['CI', 1, undefined, 'failed', ['Unit'], [], ['Lint']],
+    ['reviewdog', undefined, undefined, 'failed', ['reviewdog'], [], []],
+    ['Deploy', 3, undefined, 'running', [], ['Deploy'], []],
+    ['Docs', 2, 812, 'passed', [], [], ['Docs']],
+    ['CI', 4, undefined, 'passed', [], [], ['Lint']],
   ]);
 });
 

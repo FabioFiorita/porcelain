@@ -74,7 +74,7 @@ export function useFileComments(owner: CommentOwner) {
             {count === 1 ? '1 draft comment' : `${count} draft comments`}
           </span>
           <Button size="xs" variant="ghost" onClick={() => setListOpen(true)}>
-            Review and publish
+            Publish review
           </Button>
         </div>
       ) : null,

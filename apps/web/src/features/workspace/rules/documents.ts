@@ -216,7 +216,7 @@ function documentTitle(ref: DocumentRef): string {
     case 'specs':
       return 'Specs';
     case 'branch':
-      return 'Branch changes';
+      return 'All branch changes';
     case 'graph':
       return 'Commit graph';
     case 'commit':

@@ -300,6 +300,7 @@ const githubStatusCheckSchema = Schema.Union([
             Schema.NullOr(
               Schema.Struct({
                 databaseId: Schema.optional(Schema.NullOr(Schema.Int)),
+                runNumber: Schema.optional(Schema.NullOr(Schema.Int)),
                 workflow: Schema.optional(
                   Schema.NullOr(Schema.Struct({ name: Schema.String })),
                 ),
@@ -392,6 +393,7 @@ const pullCheckDetailSchema = Schema.Struct({
   completedAt: Schema.optional(Schema.String),
   group: Schema.String,
   runId: Schema.optional(Schema.Int),
+  runNumber: Schema.optional(Schema.Int),
   jobId: Schema.optional(Schema.Int),
   required: Schema.Boolean,
   summary: Schema.optional(Schema.String),

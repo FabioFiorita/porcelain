@@ -7,7 +7,9 @@ test('the find count follows a file that changes on disk and stays within its ma
 }) => {
   const path = 'notes.txt';
   await repo.write(path, 'needle one\nneedle two\nneedle three\n');
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await workspace.getByRole('tab', { name: 'Files', exact: true }).click();
   await workspace
     .getByRole('treeitem', { name: path, exact: true })

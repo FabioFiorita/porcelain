@@ -1,6 +1,7 @@
 ---
 route: /pair
 selectors:
+  - 'Side panel'
   - 'This browser is not paired'
   - 'Review content'
 tests:
@@ -30,7 +31,7 @@ Start unpaired at `/pair`, then mint a fresh link with `$C pairing-link` and ope
    Expect: redirected to URL `/pair`; heading "This browser is not paired"; the command text `porcelain pair "This browser" --address http://127.0.0.1:<port>`.
 2. Run `$C pairing-link` and navigate this same tab to its fresh one-time link (the tab is already on `/pair`, so only the fragment changes), then wait for region named `Review content`
    Expect: region "Review content" in the same tab within a few seconds.
-3. Click button `Review`
+3. Click button `Side panel`
    Expect: URL `/<projectId>/<worktreeId>?entry=review` with no `#` fragment; title "Review — repository".
 4. Inspect HTTP traffic
    Expect: `GET /api/health` 200, `POST /api/pair` 200, `GET /api/inventory` 200. `$C server devices` lists "Verification browser".

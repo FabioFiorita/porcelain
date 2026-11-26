@@ -13,7 +13,9 @@ test('long files highlight in workers, reuse unchanged revisions and refresh cha
   ).join('\n');
   await repo.write(path, contents);
   const workspace = await render.workspace();
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await workspace.getByRole('tab', { name: 'Files', exact: true }).click();
   await workspace
     .getByRole('treeitem', { name: path, exact: true })

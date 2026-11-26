@@ -351,7 +351,8 @@ function BranchDiffs({
                 title={basename(first.path)}
                 subtitle={`${first.path} · on the branch`}
               >
-                {control(first, false)}
+                {interaction.toolbarTarget === undefined &&
+                  control(first, false)}
               </DocumentToolbar>
             );
           if (singleHeader)

@@ -2,6 +2,7 @@
 route: /remotes/$environmentId/$projectId/$worktreeId
 shell: desktop
 selectors:
+  - 'Side panel'
   - 'Toggle Sidebar'
   - 'Settings'
   - 'Computers'
@@ -81,7 +82,7 @@ Required instance mode: `--desktop`.
 
 ### The remote's disk shows live
 
-5. Click button `Review`, click tab `Files`, Right-click treeitem `README.md`, click menuitem `Open file`
+5. Click button `Side panel`, click tab `Files`, Right-click treeitem `README.md`, click menuitem `Open file`
    Expect: title "README.md — remote-sample · Remote journey computer".
 6. Click tab `Source`
    Expect: the code shows "# Sample repository" and "A change to review.".

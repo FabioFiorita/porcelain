@@ -237,6 +237,10 @@ export const PIERRE_COMMENT_CSS = `
   background-color: var(--accent);
   color: var(--foreground);
 }
+[data-utility-button]:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}
 @media (hover: hover) {
   :host(:not(:hover)) [data-utility-button]:not(:focus-visible) {
     opacity: 0;
