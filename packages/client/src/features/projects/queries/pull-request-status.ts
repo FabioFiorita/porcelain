@@ -38,6 +38,18 @@ const untilActive = (activity: PageActivity | undefined) =>
     return Effect.sync(stop);
   });
 
+const activitySignal = (activity: PageActivity | undefined) =>
+  Atom.readable((get) => {
+    if (activity === undefined) return 0;
+    let count = 0;
+    get.addFinalizer(
+      activity.subscribe(() => {
+        if (activity.isActive()) get.setSelf(++count);
+      }),
+    );
+    return count;
+  });
+
 export const watchProjectPullStatus = Atom.family(
   (input: {
     connection: RuntimeConnection;
@@ -113,7 +125,7 @@ export const watchProjectPullStatus = Atom.family(
             input.projectId,
           ),
         ]),
-        Atom.refreshOnWindowFocus,
+        Atom.makeRefreshOnSignal(activitySignal(input.activity)),
         Atom.setIdleTTL(0),
       ),
 );

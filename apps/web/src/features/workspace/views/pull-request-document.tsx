@@ -21,6 +21,7 @@ import {
   pullRequestConversation,
   pullRequestRepository,
   pullReviewState,
+  undecidedCallAtHead,
   type PullRequestRerunTarget,
 } from '@porcelain/client/projects/rules';
 import { Badge } from '@/components/ui/badge';
@@ -646,8 +647,7 @@ function PullRequestLive({
     ),
   );
   const headSha = status?.headSha ?? pull.headSha;
-  const call =
-    review?.headOid === headSha ? review.undecidedCallStep : undefined;
+  const call = undecidedCallAtHead(review, headSha);
   const blockers = status ? pullRequestBlockers(status, pull.baseBranch) : [];
   const openStep = onOpen
     ? (step: number) => onOpen({ kind: 'walkthrough-step', step })

@@ -1,6 +1,9 @@
 import { expect, it } from 'vite-plus/test';
 import {
   checkDurationLabel,
+  checkLogUnavailable,
+  failedJobsRerunRequest,
+  jobRerunRequest,
   checkProgress,
   checkState,
   groupChecks,
@@ -282,4 +285,41 @@ it('treats an expected status as still running', () => {
   expect(checkState({ status: 'COMPLETED', conclusion: 'NEUTRAL' })).toBe(
     'skipped',
   );
+});
+
+it('asks to re-run only the failed Actions jobs of a workflow run', () => {
+  const [group] = groupChecks([
+    job('unit', 'failed', { runId: 9, group: 'CI' }),
+    job('lint', 'failed', { runId: 9, group: 'CI' }),
+    job('build', 'passed', { runId: 9, group: 'CI' }),
+  ]);
+  expect(group && failedJobsRerunRequest(group)).toEqual({
+    title: 'Re-run 2 failed jobs in CI?',
+    description:
+      'GitHub starts a new attempt of the failed jobs and of the jobs that depend on them.',
+    target: { kind: 'failed-jobs', runId: 9 },
+    keys: ['actions:CI:unit', 'actions:CI:lint'],
+  });
+  const [external] = groupChecks([
+    job('vercel', 'failed', { kind: 'check', runId: undefined }),
+  ]);
+  expect(external && failedJobsRerunRequest(external)).toBeUndefined();
+});
+
+it('asks to re-run one job by its id, and nothing without one', () => {
+  expect(jobRerunRequest(job('unit', 'failed', { jobId: 31 }))).toMatchObject({
+    title: 'Re-run unit?',
+    target: { kind: 'job', jobId: 31 },
+    keys: ['actions:CI:unit'],
+  });
+  expect(
+    jobRerunRequest(job('unit', 'failed', { jobId: undefined })),
+  ).toBeUndefined();
+});
+
+it('explains a missing job log in one sentence', () => {
+  expect(checkLogUnavailable('log-too-large')).toBe(
+    'The job log is larger than 16 MB.',
+  );
+  expect(checkLogUnavailable('offline')).toBe('GitHub did not return the log.');
 });

@@ -15,13 +15,17 @@ import {
 import {
   checkCounts,
   checkDurationLabel,
+  checkLogHeading,
+  checkLogUnavailable,
   checkProgress,
   checkState,
   elapsedMs,
   failedJobsRerunOffer,
+  failedJobsRerunRequest,
   failingStep,
   groupChecks,
   jobRerunOffer,
+  jobRerunRequest,
   stepState,
   type CheckGroup,
   type PullCheck,
@@ -31,7 +35,7 @@ import {
   type StepState,
   type CheckLogLine,
   type PullRequestRerunTarget,
-  type ReadCheckLogResponse,
+  type RerunRequest,
 } from '@porcelain/client/projects/rules';
 import { Button } from '@/components/ui/button';
 import {
@@ -105,13 +109,6 @@ export type ChecksController = {
 export function checkRowSelector(key: string) {
   return `[data-check-row="${CSS.escape(key)}"]`;
 }
-
-type RerunRequest = {
-  readonly title: string;
-  readonly description: string;
-  readonly target: PullRequestRerunTarget;
-  readonly keys: readonly string[];
-};
 
 export function PullRequestChecks({
   status,
@@ -285,7 +282,7 @@ function ChecksGroup({
   const passedKey = `passed:${group.key}`;
   const showPassed = controller.open.has(passedKey);
   const offer = failedJobsRerunOffer(status, group);
-  const failedJobs = group.failed.filter((check) => check.kind === 'actions');
+  const failedJobs = failedJobsRerunRequest(group);
   const rows = (checks: readonly PullCheck[]) =>
     checks.map((check) => (
       <CheckRow
@@ -310,24 +307,13 @@ function ChecksGroup({
         {group.runId !== undefined && (
           <span className="shrink-0 tabular-nums">run {group.runId}</span>
         )}
-        {offer && group.runId !== undefined && (
+        {offer && failedJobs && (
           <RerunButton
             offer={offer}
             label={`Re-run failed jobs`}
             className="ml-auto"
             pending={rerunning}
-            onClick={(confirm) =>
-              request(
-                {
-                  title: `Re-run ${failedJobs.length} failed ${failedJobs.length === 1 ? 'job' : 'jobs'} in ${group.name}?`,
-                  description:
-                    'GitHub starts a new attempt of the failed jobs and of the jobs that depend on them.',
-                  target: { kind: 'failed-jobs', runId: group.runId ?? 0 },
-                  keys: failedJobs.map((check) => check.key),
-                },
-                confirm,
-              )
-            }
+            onClick={(confirm) => request(failedJobs, confirm)}
           />
         )}
       </div>
@@ -588,6 +574,7 @@ function ActionsJob({
   );
   const offer = jobRerunOffer(status, check);
   const jobId = check.jobId;
+  const rerunJob = jobRerunRequest(check);
   return (
     <div className="min-w-0">
       {check.steps.length === 0 ? (
@@ -629,24 +616,13 @@ function ActionsJob({
           ))}
         </ol>
       )}
-      {!requested && jobId !== undefined && (
+      {!requested && rerunJob && (
         <div className="mt-1 flex min-w-0 items-center gap-2">
           <RerunButton
             offer={offer}
             label="Re-run this job"
             pending={rerunning}
-            onClick={(confirm) =>
-              request(
-                {
-                  title: `Re-run ${check.name}?`,
-                  description:
-                    'GitHub starts a new attempt of this job and re-runs the jobs in its workflow that depend on it, including ones that already finished.',
-                  target: { kind: 'job', jobId },
-                  keys: [check.key],
-                },
-                confirm,
-              )
-            }
+            onClick={(confirm) => request(rerunJob, confirm)}
           />
         </div>
       )}
@@ -723,17 +699,6 @@ const stepNameStyles: Record<StepState, string> = {
   passed: '',
 };
 
-const logUnavailable: Partial<
-  Record<
-    Extract<ReadCheckLogResponse, { kind: 'unavailable' }>['reason'],
-    string
-  >
-> = {
-  'log-missing': 'GitHub has no log for this job yet, or it has expired.',
-  'log-too-large': 'The job log is larger than 16 MB.',
-  'rate-limited': 'GitHub rate limit reached.',
-};
-
 const logLevels: Record<CheckLogLine['level'], string> = {
   plain: '',
   error: 'bg-del-bg text-del-fg',
@@ -789,12 +754,7 @@ function CheckLog({
   if (read.kind === 'unavailable')
     return (
       <div className={shell}>
-        <LogFallback
-          check={check}
-          reason={
-            logUnavailable[read.reason] ?? 'GitHub did not return the log.'
-          }
-        />
+        <LogFallback check={check} reason={checkLogUnavailable(read.reason)} />
       </div>
     );
   const { excerpt } = read;
@@ -804,7 +764,7 @@ function CheckLog({
       <div className="flex h-7 min-w-0 items-center gap-2 border-b px-2.5 text-xs text-muted-foreground">
         <TruncatedText
           className="min-w-0"
-          text={`${excerpt.source === 'step' ? `Step ${step.number}` : 'End of the job log'} · ${excerpt.omitted > 0 ? 'last ' : ''}${excerpt.lines.length} lines`}
+          text={checkLogHeading(excerpt, step.number)}
         />
         <Button
           variant="ghost"
