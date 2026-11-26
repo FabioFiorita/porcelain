@@ -32,6 +32,8 @@ import { readingOf } from '../queries/reading.ts';
 import {
   attentionLabel,
   callChoices,
+  callDeciding,
+  callsNeedingCommit,
   decidedAgainstChange,
   screenshotClaim,
   failureCopy,
@@ -1239,6 +1241,50 @@ describe('call choices', () => {
     expect(decidedAgainstChange(implemented, 'Show all notes')).toBe(false);
     expect(decidedAgainstChange(comparison, 'Show no notes')).toBe(false);
     expect(decidedAgainstChange(implemented, undefined)).toBe(false);
+  });
+
+  it('says what choosing does to Merge in words true for every option', () => {
+    expect(callDeciding(comparison)).toBe(
+      'Choosing records your call, and Merge stops waiting for it. Porcelain changes no code.',
+    );
+    expect(callDeciding({ ...comparison, implemented: 'Show all notes' })).toBe(
+      'Choosing records your call. Merge stops waiting for it unless the call needs a new commit. Porcelain changes no code.',
+    );
+    expect(callDeciding(undefined)).toBe(
+      'Choosing records your call, and Merge stops waiting for it. Porcelain changes no code.',
+    );
+  });
+
+  it('names the steps whose call was decided against what the change does', () => {
+    const implemented = { ...comparison, implemented: 'Show all notes' };
+    const calls = content({
+      stops: [
+        stop({ callouts: [{ attention, comparison: implemented }] }),
+        stop({ callouts: [{ attention, comparison }] }),
+        stop({
+          callouts: [
+            { attention, comparison: implemented },
+            { attention, comparison: implemented },
+          ],
+        }),
+      ],
+    });
+    expect(callsNeedingCommit(calls, undefined)).toEqual([]);
+    expect(callsNeedingCommit(calls, [])).toEqual([]);
+    expect(
+      callsNeedingCommit(calls, [
+        { step: 1, call: 0, option: 'Show all notes' },
+        { step: 2, call: 0, option: 'Show no notes' },
+        { step: 3, call: 0, option: undefined },
+      ]),
+    ).toEqual([]);
+    expect(
+      callsNeedingCommit(calls, [
+        { step: 3, call: 1, option: 'Show no notes' },
+        { step: 1, call: 0, option: 'Show no notes' },
+        { step: 3, call: 0, option: 'Show all notes' },
+      ]),
+    ).toEqual([1, 3]);
   });
 });
 

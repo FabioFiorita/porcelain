@@ -493,6 +493,12 @@ it.each([
     { ...decided, headOid: 'b'.repeat(40) },
     false,
   ],
+  [
+    'a call decided against the change',
+    pull([]),
+    { ...decided, callsNeedingCommit: [1] },
+    true,
+  ],
 ] satisfies [string, PullStatus, PullRequestMergeReview, boolean][])(
   'never says ready with %s, and says whether it holds the Merge button',
   (_case, live, review, holds) => {
@@ -541,6 +547,57 @@ it('names the open calls and a Walkthrough written for another commit', () => {
     label: 'Not ready to merge: the Walkthrough is for another commit',
     waitsFor: undefined,
   });
+});
+
+it('holds Merge while a call is decided against what the change does, until a new commit lands', () => {
+  const live = pull([job('Unit tests', 'passed')]);
+  expect(
+    mergeReadiness({
+      status: live,
+      baseBranch: 'main',
+      review: { ...decided, callsNeedingCommit: [2] },
+    }),
+  ).toMatchObject({
+    tone: 'waiting',
+    label: 'Not ready to merge: 1 call needs a new commit',
+    waitsFor: 'Merge waits for: 1 call needs a new commit.',
+  });
+  expect(buttonBlock(live, { ...decided, callsNeedingCommit: [2] })).toBe(
+    'Your call in step 2 needs a new commit.',
+  );
+  expect(
+    mergeReadiness({
+      status: live,
+      baseBranch: 'main',
+      review: {
+        headOid: head,
+        undecidedCallStep: 1,
+        undecidedCalls: 1,
+        callsNeedingCommit: [2, 3],
+      },
+    }).waitsFor,
+  ).toBe('Merge waits for: 1 call open, 2 calls need a new commit.');
+  const moved = {
+    ...decided,
+    headOid: 'b'.repeat(40),
+    callsNeedingCommit: [2],
+  };
+  expect(
+    mergeReadiness({ status: live, baseBranch: 'main', review: moved }),
+  ).toMatchObject({
+    label: 'Not ready to merge: the Walkthrough is for another commit',
+    waitsFor: undefined,
+  });
+  expect(buttonBlock(live, moved)).toBeUndefined();
+});
+
+it('lets a call decided for what the change does, or with no such option, merge', () => {
+  const live = pull([job('Unit tests', 'passed')]);
+  const review = { ...decided, callsNeedingCommit: [] };
+  expect(
+    mergeReadiness({ status: live, baseBranch: 'main', review }),
+  ).toMatchObject({ tone: 'ready', waitsFor: undefined });
+  expect(buttonBlock(live, review)).toBeUndefined();
 });
 
 it('reports an unread, merged or closed pull request without a verdict', () => {

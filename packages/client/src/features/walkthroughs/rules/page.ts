@@ -1,4 +1,5 @@
 import {
+  walkthroughCalls,
   walkthroughFailureCopy,
   walkthroughFileCount,
   type walkthroughPhase,
@@ -28,8 +29,11 @@ type Comparison = WalkthroughStop['callouts'][number]['comparison'];
 export const NEEDS_A_COMMIT =
   'Needs a new commit: this change does not do this yet.';
 
-export const CALL_DECIDING =
-  'Choosing records your call, and Merge stops waiting for it. Porcelain changes no code.';
+export function callDeciding(comparison: Comparison) {
+  return comparison?.implemented === undefined
+    ? 'Choosing records your call, and Merge stops waiting for it. Porcelain changes no code.'
+    : 'Choosing records your call. Merge stops waiting for it unless the call needs a new commit. Porcelain changes no code.';
+}
 
 export function callChoices(comparison: Comparison) {
   const implemented = comparison?.implemented;
@@ -60,6 +64,28 @@ export function decidedAgainstChange(
   return (
     option !== undefined && implemented !== undefined && option !== implemented
   );
+}
+
+type DecidedOption = {
+  readonly step: number;
+  readonly call: number;
+  readonly option?: string | undefined;
+};
+
+export function callsNeedingCommit(
+  content: WalkthroughContent,
+  decisions: readonly DecidedOption[] | undefined,
+) {
+  return walkthroughCalls(content)
+    .filter((call) =>
+      decidedAgainstChange(
+        call.comparison,
+        decisions?.find(
+          (entry) => entry.step === call.step && entry.call === call.callIndex,
+        )?.option,
+      ),
+    )
+    .map((call) => call.step);
 }
 
 const GROWTH_SIGNS: Record<Growth['change'], string> = {

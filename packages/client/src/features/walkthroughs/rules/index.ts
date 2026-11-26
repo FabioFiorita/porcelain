@@ -56,9 +56,9 @@ export {
 } from './briefing.ts';
 export {
   attentionLabel,
-  CALL_DECIDING,
   NEEDS_A_COMMIT,
   callChoices,
+  callDeciding,
   decidedAgainstChange,
   screenshotClaim,
   failureCopy,

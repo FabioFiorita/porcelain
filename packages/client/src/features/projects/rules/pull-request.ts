@@ -406,6 +406,7 @@ export type PullRequestMergeReview = {
   readonly headOid: string;
   readonly undecidedCallStep: number | 'reading' | 'unreadable' | undefined;
   readonly undecidedCalls?: number | undefined;
+  readonly callsNeedingCommit?: readonly number[] | undefined;
 };
 
 export function pullRequestMergeBlock(
@@ -447,6 +448,9 @@ export function pullRequestMergeBlock(
     return 'Your decisions on the calls could not be read.';
   if (review.undecidedCallStep !== undefined)
     return `Your call in step ${review.undecidedCallStep} is not decided yet.`;
+  const needsCommit = review.callsNeedingCommit?.[0];
+  if (needsCommit !== undefined)
+    return `Your call in step ${needsCommit} needs a new commit.`;
   return undefined;
 }
 
