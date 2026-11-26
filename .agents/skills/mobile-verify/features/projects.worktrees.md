@@ -43,7 +43,7 @@ api:
 
 # projects.worktrees
 
-Worktrees is the mobile root stack, with no one-item tab bar. Settings is the native header gear. Search and the environment/project pickers filter one list of current checkouts; there is no Reviews tab, saved-review row or review-state filter.
+Worktrees is the full-page worktree selector, pushed over the tabs from any worktree tab's title button and shown first on a launch with no worktree chosen. Choosing a worktree returns to the tab you came from. Search and the environment/project pickers filter one list of current checkouts; there is no Reviews tab, saved-review row or review-state filter.
 
 After a successful read, the phone saves display rows for the paired computer. On a cold launch, Worktrees can show saved rows in the same project groups with the same scope controls. Saved rows and their project actions are disabled. Saved search uses titles and branch names. Full path search uses live inventory. Screen readers announce saved rows as Saved. Live rows replace the saved rows when inventory arrives. Forgetting the computer removes its snapshot.
 

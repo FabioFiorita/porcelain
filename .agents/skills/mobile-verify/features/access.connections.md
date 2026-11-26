@@ -27,7 +27,7 @@ A computer can retain several independently paired addresses, choose a preferred
 
 ## How to get to it (user POV)
 
-Settings gear → Computers → Manage connections → Add connection. Phones and tablets use the same Computers screen.
+Settings tab → Computers → Manage connections → Add connection. Phones and tablets use the same Computers screen.
 
 ## Driving it with agent-device
 

@@ -25,6 +25,13 @@ import type { WorktreeTab } from './app-tab-list';
 import { TopBar } from './top-bar';
 import { WorktreeChangesPane } from './workspace-review-pane';
 
+const tabTestIds = {
+  walkthrough: 'walkthrough-tab',
+  changes: 'changes-tab',
+  files: 'files-tab',
+  history: 'history-tab',
+} as const satisfies Record<WorktreeTab, string>;
+
 export function WorktreeTabRoot({ tab }: { tab: WorktreeTab }) {
   const [collapsing, setCollapsing] = useState(false);
   const layout = useListDetailLayout((mode) =>
@@ -53,7 +60,7 @@ export function WorktreeTabRoot({ tab }: { tab: WorktreeTab }) {
       className="flex-1"
       collapsable={false}
       onLayout={layout.onLayout}
-      testID={`${tab}-tab`}
+      testID={tabTestIds[tab]}
     >
       <WorktreeTitleButton />
       <TopBar />

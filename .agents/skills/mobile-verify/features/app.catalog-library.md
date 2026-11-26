@@ -13,14 +13,14 @@ The development catalog lets a user explore mobile controls and return to Settin
 
 ## How to get to it (user POV)
 
-- Settings gear → Development → Component library (phones and tablets).
+- Settings tab → Development → Component library (phones and tablets).
 
 ## Driving it with agent-device
 
 Preconditions: [surface baseline](README.md).
 
 1. Settings → Development → Component library opens the directory, one list row per primitive; Explore Text opens its samples; native Back returns to directory then Settings.
-2. Tablets: the same directory and pushed samples; verify landscape and portrait. Close Settings leaves the catalog and returns to the tabs.
+2. Tablets: the same directory and pushed samples; verify landscape and portrait. Another tab leaves the catalog; the Settings tab keeps it.
 3. Exercise Button interaction and file context actions through their sample maps. In an isolated development run disable the development guard: Settings entry/active route disappear and direct links return to Settings. Restore the guard afterward.
 
 Automated coverage: none named; retain the live action and readback evidence.

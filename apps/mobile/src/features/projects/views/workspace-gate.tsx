@@ -99,7 +99,7 @@ export function WorkspaceGate({
             />
           ) : (
             <Empty
-              title="Choose a worktree"
+              title="No worktree selected"
               action={{
                 label: 'Choose worktree',
                 onPress: () => router.push('/worktrees'),
