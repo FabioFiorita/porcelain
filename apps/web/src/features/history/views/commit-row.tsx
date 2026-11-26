@@ -1,5 +1,5 @@
 import { TruncatedText } from '@/shared/views/truncated-text';
-import { relativeTime } from '@/shared/lib/relative-time';
+import { relativeTime } from '@porcelain/client/history/rules';
 import { Columns2Icon, CopyIcon, GitMergeIcon } from 'lucide-react';
 import { useState, type MouseEvent, type ReactNode } from 'react';
 import { flushSync } from 'react-dom';
@@ -77,7 +77,7 @@ export function CommitRow({
       {layout === 'stacked' && headBadge}
     </span>
   );
-  const age = relativeTime(commit.author.timestamp);
+  const age = relativeTime(commit.author.timestamp, Date.now());
   return (
     <ContextMenu
       onOpenChange={(open) => {

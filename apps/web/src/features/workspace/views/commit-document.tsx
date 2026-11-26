@@ -5,7 +5,7 @@ import {
   diffUnavailableReason,
   isSubmoduleChange,
 } from '@porcelain/client/changes/rules';
-import { relativeTime } from '@/shared/lib/relative-time';
+import { relativeTime } from '@porcelain/client/history/rules';
 import { BarAction } from '@/shared/workspace/bar-action';
 import {
   CopyIcon,
@@ -257,7 +257,7 @@ function CommitHeader({
           className="font-medium text-foreground"
         />
         <span aria-hidden="true">·</span>
-        <span>{relativeTime(commit.commit.author.timestamp)}</span>
+        <span>{relativeTime(commit.commit.author.timestamp, Date.now())}</span>
         {commit.comparison.kind === 'parent' ? (
           <span>
             <span aria-hidden="true">· </span>parent{' '}

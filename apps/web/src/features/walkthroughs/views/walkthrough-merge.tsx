@@ -4,6 +4,7 @@ import {
   type WalkthroughContent,
   type WalkthroughRun,
 } from '@porcelain/client/walkthroughs/rules';
+import { mergeReadiness } from '@porcelain/client/projects/rules';
 import {
   ArchivePullRequest,
   MergePullRequest,
@@ -48,6 +49,14 @@ export function WalkthroughMerge({
             pull={pull}
             label={`Merge #${number}`}
             review={review}
+            reason={
+              mergeReadiness({
+                status: found.status,
+                baseBranch: pull.baseBranch,
+                mergeMethods: pull.mergeMethods,
+                review,
+              }).waitsFor
+            }
           />
           <Button
             variant="link"

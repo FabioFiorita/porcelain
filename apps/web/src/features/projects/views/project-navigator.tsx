@@ -5,7 +5,7 @@ import {
 } from '@porcelain/client/projects/rules';
 import { TruncatedText } from '@/shared/views/truncated-text';
 import { NavigatorRowMenu } from './navigator-row-menu';
-import { relativeTime } from '@/shared/lib/relative-time';
+import { relativeTime } from '@porcelain/client/history/rules';
 import { formatForDisplay } from '@tanstack/react-hotkeys';
 import { Kbd } from '@/components/ui/kbd';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
@@ -429,21 +429,29 @@ export function ProjectNavigator({
                           : undefined;
                       const title = navigatorRowTitle(entry);
                       const trailing = navigatorRowTrailing(entry);
-                      const disclosure = [
-                        title,
-                        entry.name !== title ? entry.name : undefined,
-                        entry.path,
-                      ]
-                        .filter(Boolean)
-                        .join(' · ');
                       const EntryIcon = entryIcon(entry);
                       const failed =
                         review?.checks?.state === 'available' &&
                         review.checks.result === 'failed';
+                      const failedOn =
+                        trailing?.kind === 'pull-request'
+                          ? ` on #${trailing.number}`
+                          : '';
+                      const failedLabel = failed
+                        ? `Checks failed${failedOn}`
+                        : undefined;
+                      const disclosure = [
+                        title,
+                        entry.name !== title ? entry.name : undefined,
+                        entry.path,
+                        failedLabel,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ');
                       let attach =
                         entry.key === lastKey ? lastEntry.attach : undefined;
                       if (entry.key === firstKey) attach = firstEntry.attach;
-                      const label = `${navigatorEntryLabel(entry)}${active ? ', Current' : ''}`;
+                      const label = `${navigatorEntryLabel(entry)}${failedLabel ? `, ${failedLabel.toLowerCase()}` : ''}${active ? ', Current' : ''}`;
                       return (
                         <SidebarMenuItem key={entry.key}>
                           <NavigatorRowMenu
@@ -659,12 +667,14 @@ function NavigatorRowMeta({
   const touched = navigatorTouchedAt(entry);
   return (
     <div className="flex h-4 min-w-0 items-center gap-2 text-2xs leading-4 text-muted-foreground">
-      <TruncatedText className="min-w-0 flex-1" text={detail} />
-      {touched && (
-        <span className="shrink-0 tabular-nums">
-          {relativeTime(touched, undefined, 'narrow')}
-        </span>
-      )}
+      <div className="flex h-4 min-w-0 flex-1 flex-wrap justify-between gap-x-2 overflow-hidden">
+        <TruncatedText className="max-w-full min-w-0" text={detail} />
+        {touched && (
+          <span className="shrink-0 tabular-nums">
+            {relativeTime(touched, Date.now())}
+          </span>
+        )}
+      </div>
       {pullRequest !== undefined && (
         <span
           aria-hidden="true"

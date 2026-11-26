@@ -35,6 +35,7 @@ import {
   readyUpdate,
   initialWriteFailure,
   walkthroughMeta,
+  walkthroughScope,
   walkthroughEvidenceNotice,
 } from './page.ts';
 import {
@@ -686,6 +687,39 @@ describe('walkthrough page rules', () => {
     expect(walkthroughMeta(run({ status: 'running' }))).toBe(
       'written for bbbbbbb',
     );
+    expect(
+      walkthroughMeta(
+        run({ status: 'running' }),
+        content({ stops: [] }),
+        'Opus 5.5',
+      ),
+    ).toBe('written for bbbbbbb · by Opus 5.5 · high effort');
+  });
+
+  it('names uncommitted files outside the pull request and files no step covers', () => {
+    expect(
+      walkthroughScope({
+        uncommitted: ['README.md', 'docs/search.md'],
+        uncovered: ['docs/search.md'],
+        pullRequest: 57,
+        checkedCommit: 'abcdef1234',
+      }),
+    ).toEqual({
+      uncommitted:
+        'README.md and search.md are uncommitted, so not in #57. The checks cover abcdef1 only.',
+      uncovered: 'No step covers search.md.',
+    });
+    expect(
+      walkthroughScope({
+        uncommitted: ['a.ts', 'b.ts', 'c.ts', 'd.ts', 'e.ts'],
+        uncovered: [],
+        pullRequest: undefined,
+        checkedCommit: undefined,
+      }),
+    ).toEqual({
+      uncommitted: 'a.ts, b.ts, c.ts and 2 more are uncommitted.',
+      uncovered: undefined,
+    });
   });
 
   it('keeps the ready page while an update runs, and blames the failed attempt’s writer', () => {

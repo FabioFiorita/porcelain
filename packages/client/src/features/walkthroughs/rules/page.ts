@@ -78,7 +78,7 @@ export function walkthroughMeta(
     `written for ${run.headOid.slice(0, SHORT_OID)}${run.includesUncommitted ? ' and uncommitted work' : ''}`,
     ...(writerModel === undefined
       ? []
-      : [`by ${writerModel} ${run.writer.effort}`]),
+      : [`by ${writerModel}`, `${run.writer.effort} effort`]),
   ].join(' · ');
 }
 
@@ -146,4 +146,42 @@ export function walkthroughEvidenceNotice(run: WalkthroughRun) {
     case undefined:
       return undefined;
   }
+}
+
+function fileNames(paths: readonly string[]) {
+  const names = paths.map((path) => path.split('/').at(-1) ?? path);
+  const shown = names.slice(0, 3);
+  const more = names.length - shown.length;
+  if (more > 0) return `${shown.join(', ')} and ${more} more`;
+  const last = shown.pop();
+  return shown.length > 0 ? `${shown.join(', ')} and ${last}` : (last ?? '');
+}
+
+export function walkthroughScope({
+  uncommitted,
+  uncovered,
+  pullRequest,
+  checkedCommit,
+}: {
+  uncommitted: readonly string[];
+  uncovered: readonly string[];
+  pullRequest: number | undefined;
+  checkedCommit: string | undefined;
+}) {
+  const outside =
+    pullRequest === undefined ? '' : `, so not in #${pullRequest}`;
+  const checks =
+    checkedCommit === undefined
+      ? ''
+      : ` The checks cover ${checkedCommit.slice(0, SHORT_OID)} only.`;
+  return {
+    uncommitted:
+      uncommitted.length === 0
+        ? undefined
+        : `${fileNames(uncommitted)} ${uncommitted.length === 1 ? 'is' : 'are'} uncommitted${outside}.${checks}`,
+    uncovered:
+      uncovered.length === 0
+        ? undefined
+        : `No step covers ${fileNames(uncovered)}.`,
+  };
 }

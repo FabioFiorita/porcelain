@@ -23,7 +23,7 @@ Opening a repository that has a linked worktree from the empty workspace (no pro
 
 ## How to get to it (user POV)
 
-- Empty workspace `/` (button "Open project"; the sidebar says "No projects yet") → `Toggle Sidebar` (or `ControlOrMeta+b`) → `Open project` → browse to the repository → `Open <folder>`.
+- Empty workspace `/` (button "Open project"; the sidebar says "No projects yet") → `Toggle Sidebar` (or `ControlOrMeta+b`) → `Open project` → browse to the repository → `Open repository`.
 - The empty workspace exists only when no project is registered; with this fixture that means removing the sample project first (`projects.remove`).
 
 ## Driving it with browser

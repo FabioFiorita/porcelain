@@ -61,6 +61,7 @@ export {
   foldedNotSaid,
   growthSign,
   walkthroughMeta,
+  walkthroughScope,
   walkthroughEvidenceNotice,
 } from './page.ts';
 

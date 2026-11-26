@@ -328,7 +328,7 @@ function EmptyWorkspace({
   children: ReactNode;
 }) {
   return (
-    <div className="relative grid h-full min-h-0 place-items-center rounded-paper border bg-card p-8 [&>[data-slot=state-notice]]:justify-center [&>[data-slot=state-notice]]:text-center">
+    <div className="relative grid h-full min-h-0 place-items-center rounded-paper border bg-card p-8 max-md:rounded-none max-md:border-0 [&>[data-slot=state-notice]]:justify-center [&>[data-slot=state-notice]]:text-center">
       <Tooltip>
         <TooltipTrigger
           render={

@@ -7,6 +7,7 @@ import { retainRead, worktreeRead } from '../../../shared/api/worktree-read.ts';
 
 import {
   undecidedCallStep,
+  undecidedCallCount,
   type WalkthroughContent,
 } from '../rules/walkthrough.ts';
 
@@ -63,6 +64,7 @@ export const readWalkthroughMergeReview = Atom.family(
           view?.decisions,
           AsyncResult.isFailure(result),
         ),
+        undecidedCalls: undecidedCallCount(selection.content, view?.decisions),
       };
     }),
 );

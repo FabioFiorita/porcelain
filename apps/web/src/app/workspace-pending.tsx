@@ -9,14 +9,14 @@ export function WorkspacePending() {
   return (
     <div
       className={cn(
-        'relative flex h-svh w-full bg-frame p-2',
+        'relative flex h-svh w-full bg-frame p-2 max-md:p-0',
         !navigatorOpen && 'desktop-workspace-without-navigator',
       )}
     >
       {navigatorOpen && (
         <div aria-hidden="true" className="hidden w-64 shrink-0 md:block" />
       )}
-      <div className="flex min-w-0 flex-1 rounded-paper border bg-card">
+      <div className="flex min-w-0 flex-1 rounded-paper border bg-card max-md:rounded-none max-md:border-0">
         <StateSpinner label="Opening Porcelain" />
       </div>
       {open && (

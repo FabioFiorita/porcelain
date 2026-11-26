@@ -161,7 +161,7 @@ export function walkthroughWriterNotice(
 ) {
   let message = check.status?.block;
   if (check.failed)
-    message = 'Could not check writers on the connected computer.';
+    message = 'Could not check Claude Code or Codex on the connected computer.';
   else if (check.noWriters)
     message = 'Sign in to Claude Code or Codex on the connected computer.';
   return message && !existingMessage?.includes(message) ? message : undefined;

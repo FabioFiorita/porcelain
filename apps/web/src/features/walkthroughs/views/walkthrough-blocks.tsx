@@ -4,6 +4,7 @@ import type {
   WalkthroughRun,
 } from '@porcelain/client/walkthroughs/rules';
 import {
+  currentWalkthroughChecks,
   pullRequestRollup,
   recordedChecks,
 } from '@porcelain/client/projects/rules';
@@ -117,19 +118,27 @@ export function checksTone(checks: Checks['checks']): Tone {
 
 function CheckList({ block, pull }: { block: Checks; pull: WalkthroughPull }) {
   const checks = recordedChecks(block.checks);
+  const live = currentWalkthroughChecks(block.checks, pull?.status);
+  const label = live ? checks.whenWritten : checks.label;
   const moved =
     pull?.detail && pull.detail.headSha !== block.checks.headOid
       ? pull.detail.headSha.slice(0, 7)
       : undefined;
   return (
     <EvidenceBox
-      label={checks.label}
+      label={label}
       heading={
         <>
           <CheckResultIcon tone={checksTone(block.checks)} />
           <span>
-            <ShortOid label={checks.label} />
+            <ShortOid label={label} />
           </span>
+          {live && (
+            <span className="ml-auto flex items-center gap-1.5 text-foreground">
+              <CheckResultIcon tone={live.tone} />
+              {live.label}
+            </span>
+          )}
           {moved && pull && (
             <span className="ml-auto text-warn">
               #{pull.number} is now at{' '}

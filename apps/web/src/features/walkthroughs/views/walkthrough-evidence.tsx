@@ -93,6 +93,29 @@ function EvidenceImage({
   );
 }
 
+export function EvidenceThumbnails({
+  scope,
+  context,
+  run,
+  items,
+}: EvidenceProps) {
+  return (
+    <span aria-hidden className="flex shrink-0 gap-1.5">
+      {items.map((item, index) => (
+        <EvidenceImage
+          key={index}
+          scope={scope}
+          context={context}
+          run={run}
+          item={item}
+          framed={false}
+          className="h-12 w-auto max-w-20 rounded-sm border object-cover object-top"
+        />
+      ))}
+    </span>
+  );
+}
+
 function Caption({ item }: { item: WalkthroughScreenshot }) {
   return (
     <span className="text-caption text-muted-foreground">

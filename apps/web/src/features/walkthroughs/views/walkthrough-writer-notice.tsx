@@ -1,4 +1,5 @@
 import { Link } from '@tanstack/react-router';
+import { CircleAlertIcon } from 'lucide-react';
 import {
   canRecheckWalkthroughWriters,
   walkthroughWriterNotice,
@@ -79,18 +80,71 @@ export function WalkthroughWriterRow({
   const reason = walkthroughWriterNotice(writer, existingMessage);
   const settings =
     !writer.noWriters && !writer.failed && Boolean(writer.status?.block);
+  const button = action && !unavailable && (
+    <Button
+      size="sm"
+      variant={action.variant ?? 'outline'}
+      className={actionFirst ? 'order-first mr-1' : undefined}
+      disabled={action.disabled}
+      aria-description={action.description}
+      onClick={action.onClick}
+    >
+      {action.label}
+    </Button>
+  );
+  if (recheck && !settings) {
+    const notice = (
+      <div
+        role={writer.failed ? 'alert' : 'status'}
+        className="flex w-full min-w-0 flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border bg-muted px-3 py-2"
+      >
+        <p className="flex min-w-0 flex-1 basis-56 items-start gap-2 text-ui text-foreground-2">
+          <CircleAlertIcon
+            aria-hidden
+            className="mt-0.75 size-3.5 shrink-0 text-muted-foreground"
+          />
+          <span className="min-w-0 text-pretty">
+            {reason ?? 'Sign in on the connected computer, then check again.'}
+          </span>
+        </p>
+        <PendingButton
+          pending={writer.checking}
+          variant={
+            action?.variant === 'default' && unavailable ? 'default' : 'outline'
+          }
+          size="sm"
+          onClick={writer.refresh}
+        >
+          Check again
+        </PendingButton>
+      </div>
+    );
+    const shown = action && !unavailable && (
+      <Button
+        size="sm"
+        variant={action.variant ?? 'outline'}
+        disabled={action.disabled}
+        aria-description={action.description}
+        onClick={action.onClick}
+      >
+        {action.label}
+      </Button>
+    );
+    return (
+      <div className="flex w-full min-w-0 flex-col items-start gap-2">
+        {actionFirst && shown}
+        {notice}
+        {!actionFirst && shown}
+      </div>
+    );
+  }
   return (
     <div className="flex min-w-0 flex-wrap items-center gap-x-1 gap-y-1">
       {!writer.noWriters && (
         <WalkthroughWriterMenu document={document} writer={writer} />
       )}
       {reason && (
-        <p
-          role={writer.failed ? 'alert' : undefined}
-          className="min-w-0 text-caption text-muted-foreground"
-        >
-          {reason}
-        </p>
+        <p className="min-w-0 text-caption text-muted-foreground">{reason}</p>
       )}
       {recheck && (
         <PendingButton
@@ -99,22 +153,11 @@ export function WalkthroughWriterRow({
           size="sm"
           onClick={writer.refresh}
         >
-          Check writers again
+          Check again
         </PendingButton>
       )}
       {settings && <SettingsAction document={document} />}
-      {action && !unavailable && (
-        <Button
-          size="sm"
-          variant={action.variant ?? 'outline'}
-          className={actionFirst ? 'order-first mr-1' : undefined}
-          disabled={action.disabled}
-          aria-description={action.description}
-          onClick={action.onClick}
-        >
-          {action.label}
-        </Button>
-      )}
+      {button}
     </div>
   );
 }

@@ -52,6 +52,7 @@ import { WalkthroughStart } from './walkthrough-start';
 import { useWalkthroughWriter } from '../queries/writer';
 import { WalkthroughWriterRow } from './walkthrough-writer-notice';
 import { WalkthroughMerge } from './walkthrough-merge';
+import { WalkthroughStanding } from './walkthrough-standing';
 import { ReviewCode } from './walkthrough-code-document';
 import { DIFF_WINDOW_FILES } from '@/config/limits';
 
@@ -225,10 +226,13 @@ function Written({
     foldedNotSaid(content, false).total > 0 ? (
       <NotSaid content={content} />
     ) : undefined;
-  const outsideCount = new Set([
-    ...(code.branch ? code.sections.outside.branch : []),
-    ...code.sections.outside.worktree,
-  ]).size;
+  const uncovered = [
+    ...new Set([
+      ...(code.branch ? code.sections.outside.branch : []),
+      ...code.sections.outside.worktree,
+    ]),
+  ];
+  const outsideCount = uncovered.length;
   const conversation: Conversation = ({ step }) => {
     const title = content.stops[step - 1]!.title;
     return (
@@ -268,17 +272,26 @@ function Written({
       )}
     />
   );
+  const header = (
+    <header className="flex flex-col gap-3">
+      <Meta run={run} content={content} writer={writer} />
+      <Headline content={content} />
+      <WalkthroughStanding
+        document={props}
+        run={run}
+        content={content}
+        pull={pull}
+      />
+      <p className="text-prose text-foreground-2">
+        <RichText text={content.summary} />
+      </p>
+      {status}
+    </header>
+  );
   if (content.outcome === 'nothing')
     return (
       <Column>
-        <header className="flex flex-col gap-3">
-          <Meta run={run} content={content} writer={writer} />
-          <Headline content={content} />
-          <p className="text-prose text-foreground-2">
-            <RichText text={content.summary} />
-          </p>
-          {status}
-        </header>
+        {header}
         <Briefing
           run={run}
           content={content}
@@ -302,14 +315,7 @@ function Written({
     );
   return (
     <Column>
-      <header className="flex flex-col gap-3">
-        <Meta run={run} content={content} writer={writer} />
-        <Headline content={content} />
-        <p className="text-prose text-foreground-2">
-          <RichText text={content.summary} />
-        </p>
-        {status}
-      </header>
+      {header}
       <Briefing
         run={run}
         content={content}
@@ -318,6 +324,7 @@ function Written({
         notSaid={notSaid}
         onJump={scrollToTarget}
         comments={<CommentsSummary owner={props} />}
+        scope={{ uncommitted: code.uncommitted, uncovered }}
       />
       {content.growth.length > 0 && <Growth content={content} />}
       <WalkthroughSteps
@@ -435,6 +442,7 @@ type Code = {
   sections: ReturnType<typeof reviewCodeSections>;
   eager: ReturnType<typeof eagerSections>;
   branch: ComparedBranch | undefined;
+  uncommitted: readonly string[];
   settled: boolean;
 };
 
@@ -464,6 +472,7 @@ function useReviewCode(
     sections,
     eager: eagerSections(sections, branch !== undefined, DIFF_WINDOW_FILES),
     branch,
+    uncommitted: changes.changes.map((change) => change.path),
     settled: branch !== undefined,
   };
 }

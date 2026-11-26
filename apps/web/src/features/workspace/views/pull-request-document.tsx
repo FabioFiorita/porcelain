@@ -34,7 +34,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { MarkdownView } from '@/features/files/index';
-import { relativeTime } from '@/shared/lib/relative-time';
+import { relativeTime } from '@porcelain/client/history/rules';
 import { cn } from '@/shared/lib/utils';
 import {
   StateFailure,
@@ -581,7 +581,7 @@ function UnavailablePullRequest({
 
 function timeAgo(time: string) {
   return Number.isFinite(Date.parse(time))
-    ? relativeTime(time)
+    ? relativeTime(time, Date.now())
     : 'unknown time';
 }
 

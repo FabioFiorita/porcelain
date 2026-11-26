@@ -42,8 +42,9 @@ import {
 } from '@/components/ui/sheet';
 import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
 import { cn } from '@/shared/lib/utils';
+import { TruncatedText } from '@/shared/views/truncated-text';
 import { useBranchChanges, useReviewOverview } from '@/features/changes/index';
-import type { Project } from '@porcelain/client/projects/rules';
+import { worktreeLabel, type Project } from '@porcelain/client/projects/rules';
 import {
   ConflictGuidance,
   GitButton,
@@ -339,11 +340,12 @@ export function ReviewWorkspace({
           >
             <section
               aria-label="Review content"
-              className="flex h-full min-w-0 flex-col overflow-hidden rounded-paper border bg-card"
+              className="flex h-full min-w-0 flex-col overflow-hidden rounded-paper border bg-card max-md:rounded-none max-md:border-0"
             >
               <InterruptedActionNotice scope={scope} context={context} />
               <ConflictGuidance scope={scope} context={context} onOpen={open} />
               <DocumentArea
+                worktreeName={worktreeLabel(worktree.branch)}
                 review={review}
                 walkthroughCode={walkthroughCode}
                 firstDocument={firstDocument}
@@ -473,6 +475,7 @@ type PaneContext = ReviewContentProps & {
   navigatorIsMobile: boolean;
   navigatorOpen: boolean;
   navigatorOpenMobile: boolean;
+  worktreeName: string;
   tabControls: (pane: PaneIndex) => ReactNode;
 };
 
@@ -516,6 +519,7 @@ function DocumentPanes({
   navigatorIsMobile,
   navigatorOpen,
   navigatorOpenMobile,
+  worktreeName,
   tabControls,
 }: DocumentAreaProps) {
   const focusedPane = layout.panes[focused] ?? {
@@ -567,6 +571,7 @@ function DocumentPanes({
     navigatorIsMobile,
     navigatorOpen,
     navigatorOpenMobile,
+    worktreeName,
     tabControls,
   });
 
@@ -624,6 +629,7 @@ function PaneView({
   navigatorIsMobile,
   navigatorOpen,
   navigatorOpenMobile,
+  worktreeName,
   tabControls,
 }: PaneContext & {
   index: PaneIndex;
@@ -675,33 +681,41 @@ function PaneView({
         commitContext={{ connection: context.connection, scope }}
         leading={
           index === 0 ? (
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <SidebarTrigger
-                    ref={(element) => navigationTrigger.attach(element)}
-                    aria-label="Toggle Sidebar"
-                    aria-expanded={
-                      navigatorIsMobile ? navigatorOpenMobile : navigatorOpen
-                    }
-                    aria-keyshortcuts={
-                      detectPlatform() === 'mac' ? 'Meta+B' : 'Control+B'
-                    }
-                    onClick={() => {
-                      if (!navigatorIsMobile && navigatorOpen) {
-                        requestAnimationFrame(() =>
-                          navigationTrigger.element?.focus(),
-                        );
+            <>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <SidebarTrigger
+                      ref={(element) => navigationTrigger.attach(element)}
+                      aria-label="Toggle Sidebar"
+                      aria-expanded={
+                        navigatorIsMobile ? navigatorOpenMobile : navigatorOpen
                       }
-                    }}
-                  />
-                }
-              />
-              <TooltipContent role="tooltip" className="break-all">
-                Toggle Sidebar{' '}
-                <Kbd>{formatForDisplay(SHORTCUTS.toggleNavigator)}</Kbd>
-              </TooltipContent>
-            </Tooltip>
+                      aria-keyshortcuts={
+                        detectPlatform() === 'mac' ? 'Meta+B' : 'Control+B'
+                      }
+                      onClick={() => {
+                        if (!navigatorIsMobile && navigatorOpen) {
+                          requestAnimationFrame(() =>
+                            navigationTrigger.element?.focus(),
+                          );
+                        }
+                      }}
+                    />
+                  }
+                />
+                <TooltipContent role="tooltip" className="break-all">
+                  Toggle Sidebar{' '}
+                  <Kbd>{formatForDisplay(SHORTCUTS.toggleNavigator)}</Kbd>
+                </TooltipContent>
+              </Tooltip>
+              {navigatorIsMobile && pane.tabs.length <= 1 && (
+                <TruncatedText
+                  className="ml-1 max-w-32 min-w-0 font-mono text-caption text-foreground-2"
+                  text={worktreeName}
+                />
+              )}
+            </>
           ) : undefined
         }
         tabs={pane.tabs}

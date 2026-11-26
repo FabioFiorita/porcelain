@@ -99,8 +99,16 @@ type CapturedChecks = {
   }[];
 };
 
+const WRITTEN_WORDS: Record<PullChecksTone, string> = {
+  passed: 'Passing when written',
+  failed: 'Failing when written',
+  running: 'Running when written',
+  none: 'Checks when written',
+};
+
 export function recordedChecks(checks: CapturedChecks): {
   label: string;
+  whenWritten: string;
   more: boolean;
   results: readonly RecordedCheck[];
 } {
@@ -111,6 +119,7 @@ export function recordedChecks(checks: CapturedChecks): {
       rollup.tone === 'none'
         ? `Checks at ${commit}`
         : `${rollup.label} at ${commit}`,
+    whenWritten: `${WRITTEN_WORDS[rollup.tone]}, at ${commit}`,
     more: checks.checksTruncated,
     results: checks.results.map(({ name, status }) => {
       const tone = checkResultTone(status);
@@ -205,15 +214,33 @@ export function currentWalkthroughChecks(
   });
   if (tone === capturedTone && changed.length === 0) return undefined;
   const labels: Record<PullChecksTone, string> = {
-    failed: 'Now failing',
-    passed: 'Now passing',
-    running: 'Now running',
+    failed: 'Failing now',
+    passed: 'Passing now',
+    running: 'Running now',
     none: 'No checks now',
   };
   const names = live.checks
     .filter((check) => checkOutcome(check) === tone)
     .map((check) => check.name);
   return { tone, label: labels[tone], names };
+}
+
+export function walkthroughCheckRows<
+  Entry extends { readonly checks: CapturedChecks },
+>(
+  entries: readonly Entry[],
+  live: Parameters<typeof currentWalkthroughChecks>[1],
+) {
+  const rows = entries.map((entry) => ({
+    ...entry,
+    live: currentWalkthroughChecks(entry.checks, live),
+  }));
+  return {
+    changed: rows.flatMap(({ live: now, ...entry }) =>
+      now ? [{ ...entry, live: now }] : [],
+    ),
+    unchanged: rows.flatMap(({ live: now, ...entry }) => (now ? [] : [entry])),
+  };
 }
 
 export function withPullRequestStatus(
@@ -347,6 +374,7 @@ export function mergeFailureMessage(error: unknown) {
 export type PullRequestMergeReview = {
   readonly headOid: string;
   readonly undecidedCallStep: number | 'reading' | 'unreadable' | undefined;
+  readonly undecidedCalls?: number | undefined;
 };
 
 export function pullRequestMergeBlock(

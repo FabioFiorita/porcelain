@@ -55,19 +55,16 @@ export function useWalkthroughPull(
       ),
     ),
   );
-  const statusRead = Option.getOrUndefined(
-    AsyncResult.value(
-      useAtomValue(
-        pull
-          ? readProjectPullStatus({
-              connection,
-              projectId,
-              number: pull.number,
-            })
-          : noStatus,
-      ),
-    ),
+  const statusResult = useAtomValue(
+    pull
+      ? readProjectPullStatus({
+          connection,
+          projectId,
+          number: pull.number,
+        })
+      : noStatus,
   );
+  const statusRead = Option.getOrUndefined(AsyncResult.value(statusResult));
   if (!pull) return undefined;
   const status =
     statusRead?.kind === 'available' ? statusRead.status : undefined;
@@ -78,6 +75,9 @@ export function useWalkthroughPull(
         ? withPullRequestStatus(read.pullRequest, status)
         : undefined,
     status,
+    statusUnread:
+      (AsyncResult.isFailure(statusResult) && !statusResult.waiting) ||
+      (statusRead !== undefined && statusRead.kind !== 'available'),
     openCheck: (name: string | undefined) => {
       focus(
         name === undefined

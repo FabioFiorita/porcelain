@@ -187,6 +187,7 @@ function BranchFileList({
           }
           total={items.length}
           label={`${commits} on ${head} since ${refLabel(branch.base.ref)}`}
+          scope="Committed files only"
         />
         {comments.summary}
         {comments.dialogs}

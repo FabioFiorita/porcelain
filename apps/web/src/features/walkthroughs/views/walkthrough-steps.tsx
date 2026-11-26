@@ -36,7 +36,7 @@ export type Decision = (target: {
 
 const RAIL_OFFSET = 60;
 
-function trackSteps(onStep: (step: number) => void) {
+function trackSteps(onStep: (step: number, titled: boolean) => void) {
   return (list: HTMLOListElement | null) => {
     const root = list?.closest<HTMLElement>('[data-review-scroll]');
     if (!list || !root) return;
@@ -54,7 +54,16 @@ function trackSteps(onStep: (step: number) => void) {
       const lastShown =
         last !== undefined &&
         last.getBoundingClientRect().top < root.getBoundingClientRect().bottom;
-      onStep(atEnd && lastShown ? items.length : reached);
+      const step = atEnd && lastShown ? items.length : reached;
+      const heading = items[step - 1]?.querySelector('h2');
+      const rail = list.previousElementSibling?.getBoundingClientRect().bottom;
+      onStep(
+        step,
+        heading !== undefined &&
+          heading !== null &&
+          rail !== undefined &&
+          heading.getBoundingClientRect().bottom <= rail,
+      );
     };
     update();
     root.addEventListener('scroll', update, { passive: true });
@@ -65,12 +74,14 @@ function trackSteps(onStep: (step: number) => void) {
 function StepRail({
   stops,
   current,
+  titled,
   outside,
   onStep,
   onJump,
 }: {
   stops: readonly WalkthroughStop[];
   current: number;
+  titled: boolean;
   outside: number;
   onStep: (delta: 1 | -1) => void;
   onJump: Jump;
@@ -80,42 +91,48 @@ function StepRail({
   return (
     <nav
       aria-label="Step navigation"
-      className="sticky top-0 z-10 -mx-5 flex h-11 items-center gap-3 border-b bg-card px-5 @3xl:-mx-8 @3xl:px-8"
+      className="sticky top-0 z-10 -mx-5 bg-card px-5 @3xl:-mx-8 @3xl:px-8"
     >
-      <p className="flex min-w-0 flex-1 items-baseline gap-2 text-ui">
-        <span className="shrink-0 text-caption text-muted-foreground tabular-nums">
-          Step {shown} of {stops.length}
+      <div className="flex h-11 items-center gap-3 border-b">
+        <p className="flex min-w-0 flex-1 items-baseline gap-2 text-ui">
+          <span className="shrink-0 text-caption text-muted-foreground tabular-nums">
+            {current === 0
+              ? `${stops.length} ${stops.length === 1 ? 'step' : 'steps'}`
+              : `Step ${shown} of ${stops.length}`}
+          </span>
+          {titled && current > 0 && (
+            <TruncatedText
+              text={plainText(stop.title)}
+              className="min-w-0 flex-1 font-medium"
+            />
+          )}
+        </p>
+        {outside > 0 && (
+          <button
+            type="button"
+            onClick={() => onJump('review-not-covered')}
+            className="hidden shrink-0 text-caption text-muted-foreground hover:text-foreground @2xl:block"
+          >
+            {outside === 1 ? '1 file' : `${outside} files`} not in a step
+          </button>
+        )}
+        <span className="flex shrink-0 items-center">
+          <StepButton
+            label="Previous step"
+            shortcut="K"
+            icon={<ChevronUpIcon />}
+            disabled={current <= 1}
+            onClick={() => onStep(-1)}
+          />
+          <StepButton
+            label="Next step"
+            shortcut="J"
+            icon={<ChevronDownIcon />}
+            disabled={current >= stops.length}
+            onClick={() => onStep(1)}
+          />
         </span>
-        <TruncatedText
-          text={plainText(stop.title)}
-          className="min-w-0 flex-1 font-medium"
-        />
-      </p>
-      {outside > 0 && (
-        <button
-          type="button"
-          onClick={() => onJump('review-not-covered')}
-          className="hidden shrink-0 text-caption text-muted-foreground hover:text-foreground @2xl:block"
-        >
-          {outside === 1 ? '1 file' : `${outside} files`} not in a step
-        </button>
-      )}
-      <span className="flex shrink-0 items-center">
-        <StepButton
-          label="Previous step"
-          shortcut="K"
-          icon={<ChevronUpIcon />}
-          disabled={current <= 1}
-          onClick={() => onStep(-1)}
-        />
-        <StepButton
-          label="Next step"
-          shortcut="J"
-          icon={<ChevronDownIcon />}
-          disabled={current >= stops.length}
-          onClick={() => onStep(1)}
-        />
-      </span>
+      </div>
     </nav>
   );
 }
@@ -327,7 +344,10 @@ export function WalkthroughSteps({
   decision?: Decision | undefined;
   onJump: Jump;
 }) {
-  const [current, setCurrent] = useState(0);
+  const [{ current, titled }, setPosition] = useState({
+    current: 0,
+    titled: false,
+  });
   const total = content.stops.length;
   const step = (delta: 1 | -1, behavior: ScrollBehavior = 'smooth') => {
     const next = Math.min(Math.max(current + delta, 1), total);
@@ -353,11 +373,21 @@ export function WalkthroughSteps({
       <StepRail
         stops={content.stops}
         current={current}
+        titled={titled}
         outside={outside}
         onStep={step}
         onJump={onJump}
       />
-      <ol ref={trackSteps(setCurrent)} className="flex flex-col">
+      <ol
+        ref={trackSteps((next, nextTitled) =>
+          setPosition((position) =>
+            position.current === next && position.titled === nextTitled
+              ? position
+              : { current: next, titled: nextTitled },
+          ),
+        )}
+        className="flex flex-col"
+      >
         {content.stops.map((stop, index) => (
           <StepCard
             key={index}

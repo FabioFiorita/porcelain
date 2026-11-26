@@ -323,7 +323,7 @@ export function DocumentTabs({
                   render={
                     <Button
                       variant="ghost"
-                      size="icon-sm"
+                      size="sm"
                       className="shrink-0"
                       aria-label="Open document list"
                     />
@@ -331,7 +331,11 @@ export function DocumentTabs({
                 />
               }
             >
-              <ChevronDownIcon />
+              <span className="tabular-nums">
+                {tabs.length}
+                <span className="max-sm:hidden"> tabs</span>
+              </span>
+              <ChevronDownIcon data-icon="inline-end" />
             </TooltipTrigger>
             <TooltipContent>Open document list</TooltipContent>
           </Tooltip>

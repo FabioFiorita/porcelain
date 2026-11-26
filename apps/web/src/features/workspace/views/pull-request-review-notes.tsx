@@ -28,7 +28,8 @@ function UndecidedCall({
         )
       }
     >
-      Your call in Walkthrough step {step} is not decided yet.
+      Your call in Walkthrough step {step} is not decided yet. Merge waits for
+      it.
     </DecisionNote>
   );
 }

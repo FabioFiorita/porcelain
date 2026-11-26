@@ -3,7 +3,7 @@ diffs-container {
   --diffs-header-font-family: var(--font-sans);
 }
 
-.decision-code diffs-container {
+diffs-container {
   --diffs-foreground: var(--foreground);
   --diffs-background: var(--card);
   --diffs-token-comment: var(--muted-foreground);

@@ -16,16 +16,16 @@ function preferredHighlighter(): 'highlights' | 'shiki-js' {
 
 export const PIERRE_HIGHLIGHTER = preferredHighlighter();
 
+const PIERRE_PORCELAIN_THEME = 'porcelain-review';
+
+registerCustomCSSVariableTheme(PIERRE_PORCELAIN_THEME, {});
+
 export const PIERRE_THEME: ThemesType = {
-  light: 'pierre-light',
-  dark: 'pierre-dark',
+  light: PIERRE_PORCELAIN_THEME,
+  dark: PIERRE_PORCELAIN_THEME,
 };
 
-export const PIERRE_DECISION_THEME = 'porcelain-review';
-
-registerCustomCSSVariableTheme(PIERRE_DECISION_THEME, {});
-
-const PIERRE_CARD_CSS = `
+export const PIERRE_CARD_CSS = `
 [data-diffs-header] {
   min-height: calc(var(--spacing) * 10);
   padding-inline: calc(var(--spacing) * 2) calc(var(--spacing) * 1.5);
@@ -113,15 +113,6 @@ pre {
 }
 `;
 
-export const PIERRE_DECISION_CSS = `
-[data-line-type='change-addition'] {
-  --diffs-computed-diff-line-bg: var(--add-bg);
-}
-[data-line-type='change-deletion'] {
-  --diffs-computed-diff-line-bg: var(--del-bg);
-}
-${PIERRE_CARD_CSS}`;
-
 export const PIERRE_HEADER_CSS = `
 @media (max-width: 720px) {
   [data-header-content] {
@@ -151,6 +142,13 @@ export const PIERRE_SURFACE_CSS = `
 :host {
   --diffs-light-bg: var(--card) !important;
   --diffs-dark-bg: var(--card) !important;
+}
+
+[data-line-type='change-addition'] {
+  --diffs-computed-diff-line-bg: var(--add-bg);
+}
+[data-line-type='change-deletion'] {
+  --diffs-computed-diff-line-bg: var(--del-bg);
 }
 
 ::selection {

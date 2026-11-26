@@ -5,7 +5,7 @@ import {
   devicePlatformName,
   type DeviceKind,
 } from '../rules/settings';
-import { relativeTime } from '@/shared/lib/relative-time';
+import { relativeTime } from '@porcelain/client/history/rules';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { GlobeIcon, LinkIcon, SmartphoneIcon, TabletIcon } from 'lucide-react';
@@ -79,7 +79,7 @@ export function PairedDevices({
                 </Badge>
               </ItemTitle>
               <ItemDescription>
-                Last seen {relativeTime(device.lastSeenAt)} ·{' '}
+                Last seen {relativeTime(device.lastSeenAt, Date.now())} ·{' '}
                 {devicePlatformName(device.platform)}
               </ItemDescription>
               {device.routeInferred && (

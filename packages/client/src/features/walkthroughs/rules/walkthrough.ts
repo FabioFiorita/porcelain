@@ -91,6 +91,14 @@ export function callDecisionProgress(
   };
 }
 
+export function undecidedCallCount(
+  content: WalkthroughContent,
+  decisions: readonly Decided[] | undefined,
+) {
+  const progress = callDecisionProgress(content, decisions);
+  return progress.total - progress.decided;
+}
+
 export function undecidedCallStep(
   content: WalkthroughContent,
   decisions: readonly Decided[] | undefined,

@@ -134,7 +134,7 @@ test('the desktop app opens a project on another computer from the Open project 
     .getByRole('button', { name: 'landing-site', exact: true })
     .click();
   await dialog
-    .getByRole('button', { name: 'Open landing-site', exact: true })
+    .getByRole('button', { name: 'Open repository', exact: true })
     .click();
   await expect(dialog).not.toBeAttached();
   await expect(
@@ -227,7 +227,9 @@ test('This computer in the Open project menu still opens a project on this compu
     }),
   ).toBeVisible();
   await dialog.getByRole('button', { name: 'here', exact: true }).click();
-  await dialog.getByRole('button', { name: 'Open here', exact: true }).click();
+  await dialog
+    .getByRole('button', { name: 'Open repository', exact: true })
+    .click();
   await expect(dialog).not.toBeAttached();
   await expect(
     pairedPage.getByRole('dialog', { name: 'Sidebar', exact: true }),
