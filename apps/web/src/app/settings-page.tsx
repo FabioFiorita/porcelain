@@ -388,25 +388,27 @@ export function SettingsDialog({
                 <BreadcrumbItem>Settings</BreadcrumbItem>
                 <BreadcrumbSeparator>/</BreadcrumbSeparator>
                 <BreadcrumbItem>
-                  <h2>
-                    {environmentId === undefined ? (
+                  {environmentId === undefined ? (
+                    <h2>
                       <BreadcrumbPage>{current.label}</BreadcrumbPage>
-                    ) : (
-                      <BreadcrumbLink
-                        render={<button type="button" onClick={returnToList} />}
-                      >
-                        Computers
-                      </BreadcrumbLink>
-                    )}
-                  </h2>
+                    </h2>
+                  ) : (
+                    <BreadcrumbLink
+                      render={<button type="button" onClick={returnToList} />}
+                    >
+                      Computers
+                    </BreadcrumbLink>
+                  )}
                 </BreadcrumbItem>
                 {environmentId !== undefined && (
                   <>
                     <BreadcrumbSeparator>/</BreadcrumbSeparator>
                     <BreadcrumbItem className="min-w-0">
-                      <BreadcrumbPage className="min-w-0">
-                        {detailName}
-                      </BreadcrumbPage>
+                      <h2 className="min-w-0">
+                        <BreadcrumbPage className="min-w-0">
+                          {detailName}
+                        </BreadcrumbPage>
+                      </h2>
                     </BreadcrumbItem>
                   </>
                 )}

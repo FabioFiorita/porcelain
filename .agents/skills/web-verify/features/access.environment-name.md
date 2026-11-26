@@ -55,11 +55,11 @@ Required instance mode: `--desktop`.
 4. Fill textbox `Name of this computer` with 'Workstation'
    Expect: button "Save" enabled.
 5. Click button `Save`
-   Expect: title "Settings — Porcelain"; the name field closes; heading "Computers. Workstation".
+   Expect: title "Settings — Porcelain"; the name field closes; the breadcrumb heading "This computer" stays, and group "Overview" shows Workstation.
    Proof before continuing: reload `/settings/computers/this-computer` now: Workstation persists and the title stays Settings — Porcelain. Inventory returns `{ name, custom }`; each name PUT answers 200.
 
 6. Click button `Rename`, then press `Escape`
-   Expect: the name field closes without saving; heading "Computers. Workstation".
+   Expect: the name field closes without saving; group "Overview" still shows Workstation.
 7. Click button `Computers`, then button named `Open This computer: <name>`, then button `Rename`
    Expect: textbox "Name of this computer" holds "Workstation"; button "Save" disabled.
 8. Click button `Close` in dialog "Settings"
@@ -73,7 +73,7 @@ Required instance mode: `--desktop`.
 12. Fill textbox `Name of this computer` with ''
     Expect: textbox empty; button "Save" enabled.
 13. Click button `Save`
-    Expect: title "Settings — Porcelain"; the name field closes and the heading shows `$HOST`.
+    Expect: title "Settings — Porcelain"; the name field closes and group "Overview" shows `$HOST`.
 14. Click button `Close` in dialog "Settings"
     Expect: title "Review — repository"; reopening the navigator restores `$HOST` in the project controls, without a single-computer caption.
 
