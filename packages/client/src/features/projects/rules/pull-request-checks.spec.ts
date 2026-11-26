@@ -159,7 +159,7 @@ it('names what blocks a merge in plain words and links checks to their rows', ()
       key: 'check:actions:CI:Browser tests',
       tone: 'failed',
       checkKey: 'actions:CI:Browser tests',
-      text: 'Browser tests failed at step 6, Run tests · required.',
+      text: 'Browser tests (required) failed at step 6: Run tests.',
     },
     {
       key: 'running',
@@ -350,59 +350,85 @@ it('says ready only when GitHub lists nothing and every call is decided', () => 
 });
 
 it.each([
-  ['a failed check', pull([job('Unit tests', 'failed')]), decided],
-  ['a running check', pull([job('Unit tests', 'running')]), decided],
-  ['a draft', pull([], { draft: true }), decided],
-  ['a conflict', pull([], { mergeable: 'CONFLICTING' }), decided],
-  ['a branch behind its base', pull([], { mergeState: 'BEHIND' }), decided],
+  ['a failed check', pull([job('Unit tests', 'failed')]), decided, true],
+  ['a running check', pull([job('Unit tests', 'running')]), decided, true],
+  ['a draft', pull([], { draft: true }), decided, true],
+  ['a conflict', pull([], { mergeable: 'CONFLICTING' }), decided, true],
+  [
+    'a branch behind its base',
+    pull([], { mergeState: 'BEHIND' }),
+    decided,
+    false,
+  ],
   [
     'requested changes',
     pull([], { reviewDecision: 'CHANGES_REQUESTED' }),
     decided,
+    true,
   ],
   [
     'a required review',
     pull([], { reviewDecision: 'REVIEW_REQUIRED' }),
     decided,
+    true,
   ],
-  ['a branch rule', pull([], { mergeState: 'BLOCKED' }), decided],
+  ['a branch rule', pull([], { mergeState: 'BLOCKED' }), decided, false],
   [
     'more checks than GitHub lists',
     pull([job('Unit tests', 'passed')], { checksTruncated: true }),
     decided,
+    false,
   ],
   [
     'calls still being read',
     pull([]),
     { headOid: head, undecidedCallStep: 'reading' },
+    true,
   ],
   [
     'calls that could not be read',
     pull([]),
     { headOid: head, undecidedCallStep: 'unreadable' },
+    true,
   ],
   [
     'open calls',
     pull([]),
     { headOid: head, undecidedCallStep: 2, undecidedCalls: 2 },
+    true,
   ],
   [
     'a Walkthrough for another commit',
     pull([]),
     { ...decided, headOid: 'b'.repeat(40) },
+    false,
   ],
-] satisfies [string, PullStatus, PullRequestMergeReview][])(
-  'never says ready with %s, and names what holds the Merge button',
-  (_case, live, review) => {
+] satisfies [string, PullStatus, PullRequestMergeReview, boolean][])(
+  'never says ready with %s, and says whether it holds the Merge button',
+  (_case, live, review, holds) => {
     const readiness = mergeReadiness({
       status: live,
       baseBranch: 'main',
       review,
     });
     expect(readiness.label).toMatch(/^Not ready to merge: \S/);
-    expect(readiness.waitsFor === undefined).toBe(
-      buttonBlock(live, review) === undefined,
-    );
+    expect(readiness.waitsFor !== undefined).toBe(holds);
+  },
+);
+
+it.each([
+  ['CHANGES_REQUESTED', 'changes requested'],
+  ['REVIEW_REQUIRED', 'review required'],
+] as const)(
+  'holds Merge while GitHub reports %s, even with every check passing',
+  (reviewDecision, text) => {
+    expect(
+      mergeReadiness({
+        status: pull([job('Unit tests', 'passed')], { reviewDecision }),
+        baseBranch: 'main',
+        review: decided,
+      }).waitsFor,
+    ).toBe(`Merge waits for: ${text}.`);
   },
 );
 

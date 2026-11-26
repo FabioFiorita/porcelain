@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { FileDiffIcon } from 'lucide-react';
+import { ArrowUpRightIcon, FileDiffIcon } from 'lucide-react';
 import {
   mergeReadiness,
   pullRequestMergeable,
@@ -135,6 +135,19 @@ export function PullRequestDecision({
                 <span className="min-w-0 py-1 wrap-anywhere">
                   {blocker.text}
                 </span>
+              )}
+              {blocker.key === 'review' && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="shrink-0"
+                  render={
+                    <a href={pull.url} target="_blank" rel="noreferrer" />
+                  }
+                >
+                  Reviewers on GitHub
+                  <ArrowUpRightIcon aria-hidden="true" data-icon="inline-end" />
+                </Button>
               )}
             </li>
           ))}

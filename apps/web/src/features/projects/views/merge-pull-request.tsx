@@ -15,6 +15,7 @@ import {
   type ConnectionContext,
 } from '@/shared/workspace/connection';
 import { PendingButton } from '@/shared/views/pending-button';
+import { LockIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -63,9 +64,7 @@ export function MergePullRequest({
 }) {
   const reasonId = useId();
   const writeBlock = useWorkspaceWriteBlock(context);
-  const block = writeBlock ?? pullRequestMergeBlock(pull, review);
-  const shown =
-    writeBlock ?? (block === undefined ? undefined : (reason ?? block));
+  const block = writeBlock ?? reason ?? pullRequestMergeBlock(pull, review);
   return (
     <div
       className={cn(
@@ -95,9 +94,10 @@ export function MergePullRequest({
           })
         }
       >
+        {block !== undefined && <LockIcon aria-hidden />}
         {label}
       </Button>
-      {shown && (
+      {block && (
         <p
           id={reasonId}
           className={cn(
@@ -105,7 +105,7 @@ export function MergePullRequest({
             !showBlock && 'sr-only',
           )}
         >
-          {shown}
+          {block}
         </p>
       )}
     </div>

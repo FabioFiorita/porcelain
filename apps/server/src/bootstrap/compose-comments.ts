@@ -51,7 +51,10 @@ export function composeComments(
 ) {
   const { stores, shared } = dependencies;
   const ports = Layer.mergeAll(
-    ghPullRequestReviewerLayer(context.settings.limits.git),
+    ghPullRequestReviewerLayer(
+      context.settings.limits.git,
+      context.githubAccess,
+    ),
     Layer.succeed(DraftCommentStore, stores.draftComments),
     Layer.succeed(IdSource, context.ids),
     Layer.succeed(Clock.Clock, context.clock),

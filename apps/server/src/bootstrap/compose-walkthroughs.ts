@@ -118,7 +118,10 @@ export function composeWalkthroughs(
     Layer.succeed(ChangeStatusReader, shared.changeStatusReader),
     Layer.succeed(EventPublisher, context.events),
     Layer.succeed(ResolveProjectGitHubUseCasePort, resolveProjectGitHub),
-    ghPullRequestCommenterLayer(context.settings.limits.git),
+    ghPullRequestCommenterLayer(
+      context.settings.limits.git,
+      context.githubAccess,
+    ),
     Layer.succeed(IdSource, context.ids),
     gitWalkthroughSourceReaderLayer(context.settings.limits.git).pipe(
       Layer.provide(Layer.succeed(BranchRangeReader, shared.branchRangeReader)),
@@ -134,7 +137,7 @@ export function composeWalkthroughs(
     githubEvidenceReaderLayer.pipe(
       Layer.provide(
         Layer.mergeAll(
-          githubReader(context.settings.limits.git),
+          githubReader(context.settings.limits.git, context.githubAccess),
           Layer.succeed(GitHubAccountStore, stores.githubAccounts),
         ),
       ),

@@ -16,7 +16,26 @@ import {
   parseTabLayout,
   sideEntry,
   documentIds,
+  previewTab,
 } from './tab-strip.ts';
+
+describe('a preview tab', () => {
+  it('is a file tab until it is pinned', () => {
+    expect(previewTab('file:src/a.ts', false)).toBe(true);
+    expect(previewTab('file:src/a.ts', true)).toBe(false);
+  });
+
+  it.each([
+    'review',
+    'change:src/a.ts',
+    'branch:src/a.ts',
+    'commit:abcd',
+    'timeline:src/a.ts',
+    'walkthrough-step:1',
+  ])('is never %s', (key) => {
+    expect(previewTab(key, false)).toBe(false);
+  });
+});
 
 describe('opening a document', () => {
   it.each([
