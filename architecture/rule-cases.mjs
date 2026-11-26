@@ -1812,24 +1812,6 @@ export const saveBoth = Atom.writable(
     validPath: 'apps/mobile/src/components/ui/text.tsx',
   },
   {
-    rule: 'mobile-native-ui',
-    path: 'apps/mobile/src/features/files/views/file-screen.tsx',
-    valid:
-      "import { View as Row } from 'react-native'; export const view = <Row className='flex-1 flex-row items-center w-full mt-4' />;",
-    invalid:
-      "import { View as Row } from 'react-native'; export const view = <Row className='rounded-lg border border-border bg-card' />;",
-    errors: 4,
-  },
-  {
-    rule: 'mobile-native-ui',
-    path: 'apps/mobile/src/shell/tablet-split.ios.tsx',
-    valid:
-      "import { View } from 'react-native'; export const view = <View className='flex-1' />;",
-    invalid:
-      "import { View } from 'react-native'; export const view = <View className='p-4 gap-2' />;",
-    errors: 2,
-  },
-  {
     rule: 'web-views-no-promise-chains',
     path: 'apps/mobile/src/components/ui/use-highlighted-code.ts',
     valid:

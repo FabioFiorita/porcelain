@@ -38,7 +38,6 @@ import {
   callState,
   callStateLabel,
   decidedAgainstChange,
-  decisionPlace,
   stepCallState,
   screenshotClaim,
   failureCopy,
@@ -1387,62 +1386,6 @@ describe('call choices', () => {
         label: 'Decided',
       },
     ]);
-  });
-});
-
-describe('where a call was decided', () => {
-  const phone = 'a6f3c1d2-0000-4000-8000-000000000001';
-  const laptop = 'a6f3c1d2-0000-4000-8000-000000000002';
-  const labels = new Map([[phone, 'Fábio’s iPhone']]);
-
-  it('says nothing when the decision came from the device in use', () => {
-    expect(
-      decisionPlace({ kind: 'owner' }, { kind: 'owner' }, labels),
-    ).toBeUndefined();
-    expect(
-      decisionPlace(
-        { kind: 'device', deviceId: phone },
-        { kind: 'device', deviceId: phone },
-        labels,
-      ),
-    ).toBeUndefined();
-  });
-
-  it('names another device, or says only that it was another one', () => {
-    expect(
-      decisionPlace(
-        { kind: 'device', deviceId: phone },
-        { kind: 'owner' },
-        labels,
-      ),
-    ).toBe('on Fábio’s iPhone');
-    expect(
-      decisionPlace(
-        { kind: 'device', deviceId: phone },
-        { kind: 'device', deviceId: laptop },
-        undefined,
-      ),
-    ).toBe('on another device');
-    expect(
-      decisionPlace(
-        { kind: 'device', deviceId: laptop },
-        { kind: 'owner' },
-        labels,
-      ),
-    ).toBe('on another device');
-    expect(
-      decisionPlace(
-        { kind: 'owner' },
-        { kind: 'device', deviceId: phone },
-        labels,
-      ),
-    ).toBe('on the computer');
-  });
-
-  it('claims no place while the device in use is unknown', () => {
-    expect(
-      decisionPlace({ kind: 'device', deviceId: phone }, undefined, labels),
-    ).toBeUndefined();
   });
 });
 

@@ -1,7 +1,4 @@
 import { Fragment } from 'react';
-import { useAtomValue } from '@effect/atom-react';
-import { readDecisionPlace } from '@porcelain/client/walkthroughs';
-import type { RuntimeConnection } from '@porcelain/client/transport';
 import {
   NEEDS_A_COMMIT,
   callChoices,
@@ -24,17 +21,6 @@ import {
   useConversations,
   type ConversationOwner,
 } from '../queries/conversations';
-
-function DecisionPlace({
-  connection,
-  decidedBy,
-}: {
-  connection: RuntimeConnection;
-  decidedBy: Parameters<typeof readDecisionPlace>[0]['decidedBy'];
-}) {
-  const place = useAtomValue(readDecisionPlace({ connection, decidedBy }));
-  return place ? `${place} · ` : null;
-}
 
 export function CallDecision({
   owner,
@@ -110,10 +96,6 @@ export function CallDecision({
             {decidedOption(decision)}
           </Text>
           <Text variant="caption" tone="muted">
-            <DecisionPlace
-              connection={owner.workspace.connection}
-              decidedBy={decision.decidedBy}
-            />
             {decidedWhen(decision.decidedAt)}
           </Text>
           <Button
