@@ -93,6 +93,7 @@ export function SideDrawer({
         panel={pinned ? null : panel}
       >
         <View className="flex-1 flex-row" collapsable={false}>
+          <Fragment key="rail">{rail}</Fragment>
           {pinned ? (
             <View
               key="sidebar"
@@ -102,9 +103,7 @@ export function SideDrawer({
             >
               {panel}
             </View>
-          ) : (
-            <Fragment key="rail">{rail}</Fragment>
-          )}
+          ) : null}
           <View key="content" className="flex-1" collapsable={false}>
             {children}
           </View>

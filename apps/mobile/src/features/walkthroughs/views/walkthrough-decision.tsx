@@ -1,3 +1,4 @@
+import { Fragment } from 'react';
 import { useAtomValue } from '@effect/atom-react';
 import { readDecisionPlace } from '@porcelain/client/walkthroughs';
 import type { RuntimeConnection } from '@porcelain/client/transport';
@@ -18,6 +19,7 @@ import { Icon } from '../../../components/ui/icon';
 import { Text } from '../../../components/ui/text';
 import { useWritesBlocked } from '../../access';
 import { useDecideCall } from '../commands/conversations';
+import { ComparisonTable } from './walkthrough-blocks';
 import {
   useConversations,
   type ConversationOwner,
@@ -56,6 +58,43 @@ export function CallDecision({
     failure ?? (failed ? 'Decisions could not be read.' : undefined);
   return (
     <Box gap={2}>
+      {comparison ? (
+        <ComparisonTable
+          comparison={comparison}
+          actions={
+            decision
+              ? undefined
+              : choices.map(({ option, implemented, effect }) => (
+                  <Fragment key={option}>
+                    <Button
+                      label="Choose"
+                      accessibilityLabel={[
+                        `Choose ${option}`,
+                        implemented ? 'In this change' : undefined,
+                      ]
+                        .filter(Boolean)
+                        .join(', ')}
+                      variant="tonal"
+                      size="sm"
+                      className="self-start"
+                      disabled={disabled}
+                      onPress={() =>
+                        decide({ step, call: index, decided: true, option })
+                      }
+                    />
+                    {implemented ? (
+                      <Badge label="In this change" variant="outline" />
+                    ) : null}
+                    {effect ? (
+                      <Text variant="caption" tone="muted">
+                        {effect}
+                      </Text>
+                    ) : null}
+                  </Fragment>
+                ))
+          }
+        />
+      ) : null}
       {decision ? (
         <Box
           className="flex-row flex-wrap items-center"
@@ -87,37 +126,7 @@ export function CallDecision({
         </Box>
       ) : (
         <Box gap={2}>
-          {choices.length > 0 ? (
-            choices.map(({ option, implemented, effect }) => (
-              <Box key={option} gap={1}>
-                <Box className="flex-row flex-wrap items-center" gap={2}>
-                  <Button
-                    label={`Choose ${option}`}
-                    accessibilityLabel={[
-                      `Choose ${option}`,
-                      implemented ? 'In this change' : undefined,
-                    ]
-                      .filter(Boolean)
-                      .join(', ')}
-                    variant="tonal"
-                    size="sm"
-                    disabled={disabled}
-                    onPress={() =>
-                      decide({ step, call: index, decided: true, option })
-                    }
-                  />
-                  {implemented ? (
-                    <Badge label="In this change" variant="outline" />
-                  ) : null}
-                </Box>
-                {effect ? (
-                  <Text variant="caption" tone="muted">
-                    {effect}
-                  </Text>
-                ) : null}
-              </Box>
-            ))
-          ) : (
+          {choices.length > 0 ? null : (
             <Button
               label="Mark decided"
               variant="tonal"

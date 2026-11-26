@@ -1,7 +1,5 @@
 import { useRouter, useSegments } from 'expo-router';
-import { Box } from '../components/ui/box';
-import { Icon, type IconName } from '../components/ui/icon';
-import { Item } from '../components/ui/item';
+import type { IconName } from '../components/ui/icon';
 import { Rail, RailItem } from '../components/ui/rail';
 import { useWorktreeDrawer } from '../features/projects';
 import { tabHref } from '../shared/rules/tab-href';
@@ -9,11 +7,11 @@ import type { TabIconName } from '../shared/icons/icon';
 import { appTabs, type WorktreeTab } from './app-tab-list';
 
 const sectionTestIds = {
-  walkthrough: { item: 'section-walkthrough', rail: 'rail-walkthrough' },
-  changes: { item: 'section-changes', rail: 'rail-changes' },
-  files: { item: 'section-files', rail: 'rail-files' },
-  history: { item: 'section-history', rail: 'rail-history' },
-} as const satisfies Record<WorktreeTab, { item: string; rail: string }>;
+  walkthrough: 'rail-walkthrough',
+  changes: 'rail-changes',
+  files: 'rail-files',
+  history: 'rail-history',
+} as const satisfies Record<WorktreeTab, string>;
 
 const sectionIcons = {
   walkthrough: 'checklist',
@@ -36,32 +34,6 @@ function useOpenSection() {
   };
 }
 
-export function SidebarSections() {
-  const section = useSection();
-  const open = useOpenSection();
-  return (
-    <Box paddingX={2} gap={1} accessibilityRole="tablist">
-      {appTabs.map((tab) => (
-        <Item
-          key={tab.name}
-          testID={sectionTestIds[tab.root].item}
-          size="compact"
-          title={tab.title}
-          selected={section === tab.root}
-          selectionTone="neutral"
-          leading={
-            <Icon
-              name={sectionIcons[tab.icon]}
-              tone={section === tab.root ? 'default' : 'muted'}
-            />
-          }
-          onPress={() => open(tab.root)}
-        />
-      ))}
-    </Box>
-  );
-}
-
 export function SectionRail() {
   const section = useSection();
   const open = useOpenSection();
@@ -70,7 +42,7 @@ export function SectionRail() {
       {appTabs.map((tab) => (
         <RailItem
           key={tab.name}
-          testID={sectionTestIds[tab.root].rail}
+          testID={sectionTestIds[tab.root]}
           icon={sectionIcons[tab.icon]}
           label={tab.title}
           selected={section === tab.root}

@@ -20,9 +20,7 @@ export function AppTabs() {
       hidden={drawer.hidden}
       swipe={tabRoots.has(segments.at(-1) ?? '')}
       onOpenChange={drawer.setOpen}
-      drawer={
-        <WorktreeDrawer sections={drawer.mode === 'pinned' && !drawer.hidden} />
-      }
+      drawer={<WorktreeDrawer />}
       rail={<SectionRail />}
     >
       <NativeTabs {...tabPlacement(drawer.mode)} {...useTabBarColors()}>

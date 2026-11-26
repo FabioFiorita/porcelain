@@ -47,7 +47,7 @@ import {
   WalkthroughConversation,
 } from './walkthrough-conversation';
 import { WalkthroughStatus } from './walkthrough-status';
-import { ComparisonTable, StepBlocks } from './walkthrough-blocks';
+import { StepBlocks } from './walkthrough-blocks';
 import {
   Briefing,
   callTarget,
@@ -253,7 +253,6 @@ function CallPanels({
       </Text>
       <RichText text={attention.question} variant="headline" />
       <RichText text={attention.note} variant="secondary" tone="muted" />
-      {comparison ? <ComparisonTable comparison={comparison} /> : null}
       <CallDecision
         owner={owner}
         step={step}

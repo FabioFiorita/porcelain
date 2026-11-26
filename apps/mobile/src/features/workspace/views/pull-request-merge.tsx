@@ -10,6 +10,7 @@ import { Button } from '../../../components/ui/button';
 import { SectionHeading } from '../../../components/ui/section-heading';
 import { Separator } from '../../../components/ui/separator';
 import { StateIcon, type RunState } from '../../../components/ui/state-icon';
+import { Icon } from '../../../components/ui/icon';
 import { Text } from '../../../components/ui/text';
 import {
   PullRequestArchive,
@@ -146,6 +147,7 @@ export function PullRequestMergeArea({
             </Note>
           ))
         : null}
+      {open ? <Separator /> : null}
       {open && merge.checkout ? (
         <DraftNote
           target={target}
@@ -153,7 +155,6 @@ export function PullRequestMergeArea({
           workspace={here ? checkoutKey : undefined}
         />
       ) : null}
-      {open ? <Separator /> : null}
       {open ? (
         <Box paddingTop={2} gap={3} className="flex-row items-center">
           <Button
@@ -202,27 +203,26 @@ function DraftNote({
   const count = openComments(view).length;
   if (count === 0) return null;
   return (
-    <Note
-      state="pending"
-      action={
-        workspace ? (
-          <Button
-            label="Publish review"
-            variant="plain"
-            size="sm"
-            onPress={() =>
-              router.push({
-                pathname: '/publish-comments',
-                params: { workspace },
-              })
-            }
-          />
-        ) : undefined
-      }
-    >
-      {count === 1
-        ? '1 draft comment is not published yet.'
-        : `${count} draft comments are not published yet.`}
-    </Note>
+    <Box className="min-h-8 flex-row items-center" gap={2}>
+      <Icon name="comment" tone="muted" size="small" />
+      <Text variant="secondary" tone="muted" className="min-w-0 flex-1">
+        {count === 1
+          ? '1 draft comment is not published yet.'
+          : `${count} draft comments are not published yet.`}
+      </Text>
+      {workspace ? (
+        <Button
+          label="Publish review"
+          variant="plain"
+          size="sm"
+          onPress={() =>
+            router.push({
+              pathname: '/publish-comments',
+              params: { workspace },
+            })
+          }
+        />
+      ) : null}
+    </Box>
   );
 }

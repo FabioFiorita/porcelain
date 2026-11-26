@@ -172,10 +172,6 @@ function CommitPageView({
                       ))}
                     </Box>
                   ) : null}
-                  <Text
-                    variant="secondary"
-                    weight="medium"
-                  >{`${value.files.length} file${value.files.length === 1 ? '' : 's'} changed`}</Text>
                 </Box>
               )}
             />

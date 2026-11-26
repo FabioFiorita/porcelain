@@ -88,7 +88,7 @@ function PullRequestPage({
   return (
     <>
       <PageHeader
-        title={`PR #${pull.number}`}
+        title="Pull request"
         actions={[
           {
             kind: 'button',
@@ -161,12 +161,19 @@ function PullRequestHeader({ pull }: { pull: PullRequest }) {
   const repository = pullRequestRepository(pull.url)?.split('/').at(-1);
   return (
     <Box gap={2}>
-      <Box className="flex-row items-center" gap={2}>
-        <Icon name="pullRequest" tone="muted" size="small" />
-        <Text variant="caption" weight="medium" tone="muted" numberOfLines={1}>
-          {repository ? `Pull request · ${repository}` : 'Pull request'}
-        </Text>
-      </Box>
+      {repository ? (
+        <Box className="flex-row items-center" gap={2}>
+          <Icon name="pullRequest" tone="muted" size="small" />
+          <Text
+            variant="caption"
+            weight="medium"
+            tone="muted"
+            numberOfLines={1}
+          >
+            {repository}
+          </Text>
+        </Box>
+      ) : null}
       <Text variant="largeTitle" accessibilityRole="header">
         <Text variant="largeTitle" tone="muted">
           #{pull.number}

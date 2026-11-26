@@ -1,7 +1,8 @@
+import type { ReactNode } from 'react';
 import {
+  checksHeadline,
   currentWalkthroughChecks,
   movedPullHead,
-  pullRequestRollup,
   recordedCheckNow,
   recordedChecks,
   type RecordedCheck,
@@ -103,9 +104,13 @@ function CheckRow({
 
 function CheckList({ block, pull }: { block: Checks; pull: WalkthroughPull }) {
   const checks = recordedChecks(block.checks);
-  const icon = RESULT_ICONS[pullRequestRollup(block.checks.state).tone];
   const live = currentWalkthroughChecks(block.checks, pull?.status);
-  const now = live ? RESULT_ICONS[live.tone] : undefined;
+  const headline = checksHeadline(block.checks, pull?.status);
+  const icon = RESULT_ICONS[headline.tone];
+  const lead =
+    headline.names.length > 0
+      ? `${headline.label}: ${headline.names.join(', ')}`
+      : headline.label;
   const moved = movedPullHead(pull?.detail?.headSha, block.checks.headOid);
   return (
     <Card>
@@ -117,17 +122,16 @@ function CheckList({ block, pull }: { block: Checks; pull: WalkthroughPull }) {
         accessibilityRole="header"
       >
         <Icon name={icon.name} tone={icon.tone} size="small" />
-        <Text variant="secondary" weight="medium">
-          {live ? checks.whenWritten : checks.label}
-        </Text>
-        {live && now ? (
-          <Box className="flex-row items-center" gap={1}>
-            <Icon name={now.name} tone={now.tone} size="small" />
-            <Text variant="secondary" weight="medium">
-              {live.label}
+        <Box className="min-w-0 flex-1" gap={1}>
+          <Text variant="secondary" weight="medium">
+            {lead}
+          </Text>
+          {headline.note ? (
+            <Text variant="caption" tone="muted">
+              {headline.note}
             </Text>
-          </Box>
-        ) : null}
+          ) : null}
+        </Box>
         {moved && pull ? (
           <Text variant="caption" tone="warn">
             #{pull.number} is now at {moved}
@@ -249,8 +253,10 @@ function TableRow({
 
 export function ComparisonTable({
   comparison,
+  actions,
 }: {
   comparison: WalkthroughComparison;
+  actions?: readonly ReactNode[] | undefined;
 }) {
   return (
     <Card>
@@ -269,6 +275,21 @@ export function ComparisonTable({
           />
         </Box>
       ))}
+      {actions ? (
+        <Box>
+          <Separator />
+          <Box className="flex-row">
+            {actions.map((action, index) => (
+              <Box key={index} className="flex-1 flex-row">
+                {index > 0 ? <Separator orientation="vertical" /> : null}
+                <Box className="min-w-0 flex-1" padding={2} gap={1}>
+                  {action}
+                </Box>
+              </Box>
+            ))}
+          </Box>
+        </Box>
+      ) : null}
     </Card>
   );
 }
