@@ -71,7 +71,7 @@ export function useFileComments(owner: CommentOwner) {
       count > 0 ? (
         <div className="flex items-center gap-2 px-2 pb-1.5 text-2xs text-muted-foreground tabular-nums">
           <span className="min-w-0 flex-1">
-            {count === 1 ? '1 comment' : `${count} comments`} not posted
+            {count === 1 ? '1 draft comment' : `${count} draft comments`}
           </span>
           <Button size="xs" variant="ghost" onClick={() => setListOpen(true)}>
             Review and publish

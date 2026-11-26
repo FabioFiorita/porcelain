@@ -18,6 +18,7 @@ import { WalkthroughDiagram } from './walkthrough-diagram';
 import { WalkthroughProof } from './walkthrough-evidence';
 import { useCitedFiles, type FileSize } from './cited-files';
 import { EvidenceBox } from './evidence-box';
+import { ShortOid } from './short-oid';
 import type { WalkthroughPull } from '../queries/pull';
 
 type Files = Extract<StepBlock, { kind: 'files' }>;
@@ -126,7 +127,9 @@ function CheckList({ block, pull }: { block: Checks; pull: WalkthroughPull }) {
       heading={
         <>
           <CheckResultIcon tone={checksTone(block.checks)} />
-          <span className="font-mono">{checks.label}</span>
+          <span>
+            <ShortOid label={checks.label} />
+          </span>
           {moved && pull && (
             <span className="ml-auto text-warn">
               #{pull.number} is now at{' '}

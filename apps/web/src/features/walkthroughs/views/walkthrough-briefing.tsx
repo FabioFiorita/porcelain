@@ -13,7 +13,9 @@ import {
   recordedChecks,
 } from '@porcelain/client/projects/rules';
 import { CheckResultIcon } from '@/features/workspace/index';
+import { cn } from '@/shared/lib/utils';
 import { RichText } from './rich-text';
+import { ShortOid } from './short-oid';
 import { checksTone } from './walkthrough-blocks';
 import {
   useConversations,
@@ -131,50 +133,65 @@ function Calls({
         target={`Step ${step}`}
         onClick={() => onJump(callId(step, callIndex))}
       >
-        {decided ? (
-          <CheckIcon
-            aria-label="Decided"
-            className="size-3.5 shrink-0 self-center text-add-fg"
-          />
-        ) : (
-          <span className="shrink-0 text-caption text-warn">
+        <span className="flex min-w-0 flex-col gap-0.5 @md:flex-row @md:items-baseline @md:gap-2">
+          <span
+            className={cn(
+              'flex shrink-0 items-baseline gap-1 text-caption @md:w-28',
+              decided ? 'text-muted-foreground' : 'text-warn',
+            )}
+          >
+            {decided && (
+              <CheckIcon
+                aria-label="Decided"
+                className="size-3 shrink-0 self-center text-add-fg"
+              />
+            )}
             {attentionLabel(attention)}
           </span>
-        )}
-        <span className="min-w-0 font-medium text-pretty">
-          <RichText text={attention.question} />
-          {decided?.option && (
-            <span className="font-normal text-muted-foreground">
-              {' '}
-              · {decided.option}
-            </span>
-          )}
+          <span className="min-w-0 font-medium text-pretty">
+            <RichText text={attention.question} />
+            {decided?.option && (
+              <span className="font-normal text-muted-foreground">
+                {' '}
+                · {decided.option}
+              </span>
+            )}
+          </span>
         </span>
       </Line>
     );
   });
 }
 
-function CheckLink({
-  name,
-  label,
-  pull,
-}: {
-  name: string;
-  label: string;
-  pull: WalkthroughPull;
-}) {
+function CheckLink({ name, pull }: { name: string; pull: WalkthroughPull }) {
   if (!pull) return <span>{name}</span>;
   return (
     <button
       type="button"
-      title={`${label} · open on #${pull.number}`}
+      title={`Open on #${pull.number}`}
       onClick={() => pull.openCheck(name)}
       className="rounded-sm underline decoration-border underline-offset-2 hover:decoration-foreground focus-visible:outline-2 focus-visible:outline-ring"
     >
       {name}
     </button>
   );
+}
+
+function CheckNames({
+  names,
+  pull,
+}: {
+  names: readonly string[];
+  pull: WalkthroughPull;
+}) {
+  return names.map((name, index) => (
+    <span key={`${name}:${index}`}>
+      <CheckLink name={name} pull={pull} />
+      {index < names.length - 1 && (
+        <span className="text-muted-foreground">, </span>
+      )}
+    </span>
+  ));
 }
 
 function Verified({
@@ -208,53 +225,59 @@ function Verified({
           pull?.detail && pull.detail.headSha !== block.checks.headOid
             ? pull.detail.headSha.slice(0, 7)
             : undefined;
+        const captured = (
+          <>
+            <ShortOid label={recorded.label} />
+            {recorded.results.length > 0 && (
+              <span className="text-muted-foreground">: </span>
+            )}
+            <CheckNames
+              names={recorded.results.map((result) => result.name)}
+              pull={pull}
+            />
+            {recorded.more && (
+              <span className="text-muted-foreground"> and more</span>
+            )}
+          </>
+        );
         return (
           <div
             key={`checks:${step}`}
-            className="flex min-h-7 items-baseline gap-2 py-1 text-ui"
+            className="flex min-h-7 items-start gap-2 py-1 text-ui"
           >
-            <span className="self-center">
+            <span className="flex h-5 shrink-0 items-center">
               <CheckResultIcon tone={live?.tone ?? checksTone(block.checks)} />
             </span>
-            <span className="min-w-0 flex-1 text-pretty">
+            <span className="flex min-w-0 flex-1 flex-col gap-0.5 text-pretty">
+              <span>
+                {live ? (
+                  <>
+                    {live.label}
+                    {live.names.length > 0 && (
+                      <span className="text-muted-foreground">: </span>
+                    )}
+                    <CheckNames names={live.names} pull={pull} />
+                  </>
+                ) : (
+                  captured
+                )}
+              </span>
               {live && (
-                <>
-                  {live.label}
-                  {live.names.length > 0 && `: ${live.names.join(', ')}`}
-                  <span className="text-muted-foreground"> · Captured: </span>
-                </>
-              )}
-              {recorded.label}
-              {recorded.results.length > 0 && (
-                <span className="text-muted-foreground">: </span>
-              )}
-              {recorded.results.map((result, index) => (
-                <span key={`${result.name}:${index}`}>
-                  <CheckLink
-                    name={result.name}
-                    label={result.label}
-                    pull={pull}
-                  />
-                  {index < recorded.results.length - 1 && (
-                    <span className="text-muted-foreground">, </span>
-                  )}
+                <span className="text-caption text-muted-foreground">
+                  Captured: {captured}
                 </span>
-              ))}
-              {recorded.more && (
-                <span className="text-muted-foreground"> and more</span>
               )}
               {moved && pull && (
-                <span className="text-warn">
-                  {' '}
-                  · #{pull.number} is now at{' '}
-                  <span className="font-mono text-caption">{moved}</span>
+                <span className="text-caption text-warn">
+                  #{pull.number} is now at{' '}
+                  <span className="font-mono">{moved}</span>
                 </span>
               )}
             </span>
             <button
               type="button"
               onClick={() => onJump(stepId(step))}
-              className="shrink-0 rounded-sm text-caption text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+              className="shrink-0 rounded-sm text-caption leading-5 text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
             >
               Step {step}
             </button>

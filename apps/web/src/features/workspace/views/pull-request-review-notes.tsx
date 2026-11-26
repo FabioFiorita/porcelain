@@ -28,7 +28,7 @@ function UndecidedCall({
         )
       }
     >
-      Your call in step {step} is not decided yet.
+      Your call in Walkthrough step {step} is not decided yet.
     </DecisionNote>
   );
 }
@@ -60,8 +60,8 @@ export function PullRequestReviewNotes({
             }
           >
             {count === 1
-              ? '1 review comment is not published yet.'
-              : `${count} review comments are not published yet.`}
+              ? '1 draft comment is not published yet.'
+              : `${count} draft comments are not published yet.`}
           </DecisionNote>
         )}
       />

@@ -32,6 +32,7 @@ const SIGN_WIDTH = 12;
 const CHEVRON_WIDTH = 16;
 const CARD_MIN = 88;
 const CARD_MAX = 232;
+const LABEL_PAD = 4;
 
 const MEASURE: DiagramMeasure = {
   node: (node) => {
@@ -231,6 +232,10 @@ export function WalkthroughDiagram({
     active === undefined ? undefined : diagramNeighbours(diagram, active);
   const chosenNode = diagram.nodes.find((node) => node.id === chosen);
   const fits = geometry.width <= width;
+  const labelX = (x: number, text: string) => {
+    const half = MEASURE.label(text) / 2 + LABEL_PAD;
+    return Math.min(Math.max(x, half), geometry.width - half);
+  };
 
   const move = (event: KeyboardEvent) => {
     if (event.key === 'Escape' && chosen !== undefined) {
@@ -316,26 +321,6 @@ export function WalkthroughDiagram({
                         tone === 'rest' && 'fill-muted-foreground/60',
                       )}
                     />
-                    {placed.label && edge.label && (
-                      <text
-                        x={placed.label.x}
-                        y={placed.label.y}
-                        textAnchor="middle"
-                        dominantBaseline="middle"
-                        paintOrder="stroke"
-                        strokeWidth={4}
-                        strokeLinejoin="round"
-                        className={cn(
-                          'stroke-card text-2xs',
-                          tone === 'add' && 'fill-add-fg',
-                          tone === 'del' && 'fill-del-fg',
-                          tone === 'lit' && 'fill-foreground',
-                          tone === 'rest' && 'fill-muted-foreground',
-                        )}
-                      >
-                        {edge.label}
-                      </text>
-                    )}
                   </g>
                 );
               })}
@@ -384,12 +369,6 @@ export function WalkthroughDiagram({
                           node.mark === 'unchanged' && 'text-foreground-2',
                         )}
                       />
-                      {commented.has(node.label) && (
-                        <MessageSquareIcon
-                          aria-label={`${commented.get(node.label)} comments`}
-                          className="size-3 shrink-0 self-center text-muted-foreground"
-                        />
-                      )}
                       {node.anchor && (
                         <ChevronRightIcon
                           aria-hidden
@@ -455,6 +434,15 @@ export function WalkthroughDiagram({
                       height: placed.height,
                     }}
                   >
+                    {commented.has(node.label) && (
+                      <span
+                        role="img"
+                        aria-label={`${commented.get(node.label)} comments`}
+                        className="pointer-events-none absolute -top-1.5 -right-1.5 flex size-4 items-center justify-center rounded-full border bg-card text-muted-foreground"
+                      >
+                        <MessageSquareIcon aria-hidden className="size-2.5" />
+                      </span>
+                    )}
                     {node.anchor ? (
                       <button
                         type="button"
@@ -475,6 +463,41 @@ export function WalkthroughDiagram({
                 );
               })}
             </ul>
+            <svg
+              aria-hidden
+              width={geometry.width}
+              height={geometry.height}
+              className="pointer-events-none absolute inset-0 overflow-visible"
+            >
+              {geometry.edges.map((placed) => {
+                const edge = diagram.edges[placed.index];
+                if (!placed.label || !edge?.label) return null;
+                const lit = near?.edges.has(placed.index) === true;
+                const tone = edgeTone(edge, lit);
+                return (
+                  <text
+                    key={placed.index}
+                    x={labelX(placed.label.x, edge.label)}
+                    y={placed.label.y}
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    paintOrder="stroke"
+                    strokeWidth={4}
+                    strokeLinejoin="round"
+                    className={cn(
+                      'stroke-card text-2xs transition-opacity duration-100',
+                      near !== undefined && !lit && 'opacity-25',
+                      tone === 'add' && 'fill-add-fg',
+                      tone === 'del' && 'fill-del-fg',
+                      tone === 'lit' && 'fill-foreground',
+                      tone === 'rest' && 'fill-muted-foreground',
+                    )}
+                  >
+                    {edge.label}
+                  </text>
+                );
+              })}
+            </svg>
           </div>
         </div>
       </div>

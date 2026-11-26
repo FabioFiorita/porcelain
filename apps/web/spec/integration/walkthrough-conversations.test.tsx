@@ -34,7 +34,7 @@ test('asks, preserves a draft through an answer, and adds the answer to the revi
     .element(page.getByText('Added to the review', { exact: true }))
     .toBeVisible();
   await expect
-    .element(page.getByText('1 comment not posted', { exact: true }))
+    .element(page.getByText('1 draft comment', { exact: true }))
     .toBeVisible();
   await expect.poll(() => conversationFixture('posts')).toBe('');
 });

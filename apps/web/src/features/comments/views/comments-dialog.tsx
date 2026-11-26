@@ -15,6 +15,7 @@ import { PendingSpinner } from '@/shared/views/state-notice';
 import { copyText } from '@/shared/workspace/copy';
 import { useWorkspaceWriteBlock } from '@/shared/workspace/connection';
 import { TruncatedText } from '@/shared/views/truncated-text';
+import { cn } from '@/shared/lib/utils';
 import {
   usePostReview,
   useReviewPreview,
@@ -49,12 +50,14 @@ function OutputRow({
 
 function ReviewComment({
   location,
+  code = true,
   note,
   value,
   onChange,
 }: {
   location: string;
-  note?: string;
+  code?: boolean;
+  note?: string | undefined;
   value: string;
   onChange: (text: string) => void;
 }) {
@@ -62,7 +65,7 @@ function ReviewComment({
     <li className="flex flex-col gap-1.5">
       <span className="flex items-baseline gap-2 text-caption">
         <TruncatedText
-          className="min-w-0 font-mono text-foreground-2"
+          className={cn('min-w-0 text-foreground-2', code && 'font-mono')}
           text={location}
         />
         {note && <span className="shrink-0 text-muted-foreground">{note}</span>}
@@ -77,14 +80,16 @@ function ReviewComment({
   );
 }
 
-const BODY_REASON: Record<ReviewPreview['general'][number]['reason'], string> =
-  {
-    'not-in-pull-request': 'not in the pull request diff',
-    outdated: 'outdated',
-    file: 'whole file',
-    step: 'Walkthrough step',
-    node: 'diagram node',
-  };
+const BODY_REASON: Record<
+  ReviewPreview['general'][number]['reason'],
+  string | undefined
+> = {
+  'not-in-pull-request': 'not in the pull request diff',
+  outdated: 'outdated',
+  file: 'whole file',
+  step: undefined,
+  node: undefined,
+};
 
 function ReviewStep({
   owner,
@@ -158,6 +163,7 @@ function ReviewStep({
                 <ReviewComment
                   key={comment.id}
                   location={comment.location}
+                  code={comment.reason !== 'step' && comment.reason !== 'node'}
                   note={BODY_REASON[comment.reason]}
                   value={bodies[comment.id] ?? ''}
                   onChange={edit(comment.id)}
@@ -312,7 +318,7 @@ function ListStep({
         )}
         {view && open.length === 0 && (
           <p className="text-ui text-muted-foreground">
-            No open comments. Add one from any diff line, file, step or diagram
+            No draft comments. Add one from any diff line, file, step or diagram
             node.
           </p>
         )}

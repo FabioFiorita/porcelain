@@ -320,6 +320,7 @@ function PullRequestConversation({
   onBack: () => void;
   onFile: Props['onFile'];
 }) {
+  const conversation = pullRequestConversation(pull.timeline);
   return (
     <section aria-label="Conversation on GitHub" className="mt-8 min-w-0">
       <div className={sectionHeading}>
@@ -335,12 +336,16 @@ function PullRequestConversation({
           <ArrowUpRightIcon aria-hidden="true" className="size-3 shrink-0" />
         </a>
       </div>
-      {pull.timeline.length > 0 ? (
+      {conversation.length > 0 ? (
         <ol
           aria-label="Timeline"
-          className="relative mt-3 flex min-w-0 flex-col gap-4 before:absolute before:top-4 before:bottom-2.5 before:left-2.5 before:w-px before:bg-border"
+          className={cn(
+            'relative mt-3 flex min-w-0 flex-col gap-4',
+            conversation.length > 1 &&
+              'before:absolute before:top-4 before:bottom-2.5 before:left-2.5 before:w-px before:bg-border',
+          )}
         >
-          {pullRequestConversation(pull.timeline).map(({ item, comments }) => (
+          {conversation.map(({ item, comments }) => (
             <PullRequestTimelineItem key={item.id} item={item} onFile={onFile}>
               {comments.length > 0 && (
                 <ol

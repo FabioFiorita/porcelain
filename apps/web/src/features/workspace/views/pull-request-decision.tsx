@@ -84,13 +84,30 @@ export function PullRequestDecision({
       <div className={sectionHeading}>
         <h2 id="pull-decision-heading">Merge</h2>
         <span className="ml-auto flex min-w-0 items-center gap-1.5 font-normal">
-          <span>{mergeable.label}</span>
-          <Dot />
+          {open && (
+            <>
+              <span>{mergeable.label}</span>
+              <Dot />
+            </>
+          )}
           <span className="font-mono text-caption text-foreground">
             {shortOid(live.headSha)}
           </span>
         </span>
       </div>
+      {!open && (
+        <p className="flex h-7 min-w-0 items-center gap-2 pt-1 text-ui">
+          <StateIcon state={live.state === 'merged' ? 'passed' : 'skipped'} />
+          {live.state === 'merged' ? (
+            <span className="min-w-0">
+              Merged into{' '}
+              <span className="font-mono text-caption">{live.baseBranch}</span>.
+            </span>
+          ) : (
+            <span>Closed without merging.</span>
+          )}
+        </p>
+      )}
       {open && (
         <ul aria-label="What blocks the merge" className="min-w-0 pt-1">
           {blockers.map((blocker) => (

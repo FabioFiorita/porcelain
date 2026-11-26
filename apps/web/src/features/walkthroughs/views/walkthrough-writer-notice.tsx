@@ -87,7 +87,7 @@ export function WalkthroughWriterRow({
       {reason && (
         <p
           role={writer.failed ? 'alert' : undefined}
-          className="min-w-0 px-1 text-caption text-muted-foreground"
+          className="min-w-0 text-caption text-muted-foreground"
         >
           {reason}
         </p>

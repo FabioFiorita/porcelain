@@ -508,7 +508,7 @@ function CheckRow({
             aria-label={`${check.name} is cited in Walkthrough step ${cited}`}
             onClick={() => onOpenStep(cited)}
           >
-            cited in step {cited}
+            cited in Walkthrough step {cited}
           </button>
         )}
         {check.detailsUrl && (
@@ -837,7 +837,10 @@ function CheckLog({
         {excerpt.lines.map((line, index) => (
           <div
             key={index}
-            className={cn('px-2.5 whitespace-pre', logLevels[line.level])}
+            className={cn(
+              'px-2.5 whitespace-pre-wrap wrap-anywhere',
+              logLevels[line.level],
+            )}
           >
             {line.text || ' '}
           </div>

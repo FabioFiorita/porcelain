@@ -176,7 +176,9 @@ function NotSaid({ content }: { content: WalkthroughContent }) {
         ))}
         {explained.map((item, index) => (
           <li key={`${index}:${item.point}`}>
-            <RichText text={item.point} />{' '}
+            <span className="font-medium">
+              <RichText text={item.point} />
+            </span>{' '}
             <span className="text-muted-foreground">
               <RichText text={item.answer} />
             </span>

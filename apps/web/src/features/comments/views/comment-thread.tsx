@@ -163,7 +163,12 @@ export function DraftCard({
       <header className="flex min-h-6 items-center gap-2 text-caption text-muted-foreground">
         {location && (
           <TruncatedText
-            className="min-w-0 font-mono text-foreground-2"
+            className={cn(
+              'min-w-0 text-foreground-2',
+              (comment.anchor.kind === 'lines' ||
+                comment.anchor.kind === 'file') &&
+                'font-mono',
+            )}
             text={location}
           />
         )}

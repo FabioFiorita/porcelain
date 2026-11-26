@@ -5,6 +5,8 @@ import {
   type WalkthroughStatusInput,
 } from '@porcelain/client/walkthroughs/rules';
 import type { ReactNode } from 'react';
+import { CheckIcon } from 'lucide-react';
+import { cn } from '@/shared/lib/utils';
 import type { WriterAction } from './walkthrough-writer-notice';
 
 export function WalkthroughStatus({
@@ -101,24 +103,42 @@ export function WalkthroughStatus({
         className="h-1.5 overflow-hidden rounded-full bg-muted"
       >
         <div
-          className="h-full bg-primary"
+          className={cn(
+            'h-full',
+            run.state.status === 'failed' ? 'bg-destructive' : 'bg-primary',
+          )}
           style={{ width: `${(progress.completed / progress.total) * 100}%` }}
         />
       </div>
       <ol
         aria-label="Update stages"
-        className="flex flex-wrap gap-x-3 gap-y-1 text-caption text-muted-foreground"
+        className="flex flex-wrap gap-x-4 gap-y-1 text-caption text-muted-foreground"
       >
-        {progress.steps.map((step, index) => (
-          <li
-            key={step}
-            aria-current={
-              !requesting && index === progress.completed ? 'step' : undefined
-            }
-          >
-            {index + 1}. {step}
-          </li>
-        ))}
+        {progress.steps.map((step, index) => {
+          const current = !requesting && index === progress.completed;
+          const done = index < progress.completed;
+          return (
+            <li
+              key={step}
+              aria-current={current ? 'step' : undefined}
+              className={cn(
+                'flex items-center gap-1',
+                current && 'font-medium text-foreground',
+                current && run.state.status === 'failed' && 'text-destructive',
+              )}
+            >
+              {done ? (
+                <CheckIcon
+                  aria-label="Done"
+                  className="size-3 shrink-0 text-add-fg"
+                />
+              ) : (
+                <span className="tabular-nums">{index + 1}.</span>
+              )}
+              {step}
+            </li>
+          );
+        })}
       </ol>
       {requesting && <p>Sending the request and capturing the current work.</p>}
       {freshness &&
