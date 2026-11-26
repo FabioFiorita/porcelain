@@ -201,7 +201,7 @@ export function mergeReadiness({
   const waitsFor =
     blocking.length === 0
       ? undefined
-      : `Merge waits for: ${blocking.map((reason) => reason.text).join(', ')}.`;
+      : `Merge waits for: ${reasons.map((reason) => reason.text).join(', ')}.`;
   if (reasons.length === 0)
     return { tone: 'ready', label: 'Ready to merge', reasons, waitsFor };
   const reading = reasons.some(

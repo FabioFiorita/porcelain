@@ -49,7 +49,7 @@ export function CommentsSummary({ owner }: { owner: CommentOwner }) {
           'Show',
         )}
       {count === 0 && posted === 0 && (
-        <p className="py-1 text-ui text-muted-foreground">None yet</p>
+        <p className="py-1 text-ui text-muted-foreground">No draft comments</p>
       )}
       <CommentsDialog owner={owner} open={open} onOpenChange={setOpen} />
     </>
