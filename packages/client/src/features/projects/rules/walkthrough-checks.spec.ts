@@ -16,11 +16,14 @@ describe('verifiedChecksLine', () => {
     label: 'Checks passing at abcdef1',
     whenWritten: 'Passing when written, at abcdef1',
     more: true,
-    results: [{ name: 'Unit tests' }, { name: 'Browser tests' }],
+    results: [
+      { name: 'Unit tests', tone: 'passed' as const },
+      { name: 'Browser tests', tone: 'passed' as const },
+    ],
   };
 
   it('reads the captured checks when the pull request says nothing newer', () => {
-    expect(verifiedChecksLine(recorded, undefined)).toEqual({
+    expect(verifiedChecksLine(recorded, undefined, 'passed')).toEqual({
       text: 'Checks passing at abcdef1: Unit tests, Browser tests and more',
       captured: undefined,
     });
@@ -28,10 +31,14 @@ describe('verifiedChecksLine', () => {
 
   it('leads with the live result and says what passed when it was written', () => {
     expect(
-      verifiedChecksLine(recorded, {
-        label: 'Failing now',
-        names: ['Browser tests'],
-      }),
+      verifiedChecksLine(
+        recorded,
+        {
+          label: 'Failing now',
+          names: ['Browser tests'],
+        },
+        'passed',
+      ),
     ).toEqual({
       text: 'Failing now: Browser tests',
       captured:
@@ -44,11 +51,30 @@ describe('verifiedChecksLine', () => {
           label: 'No checks now',
           names: [],
         },
+        'passed',
       ),
     ).toEqual({
       text: 'No checks now',
       captured: 'Passing when written, at abcdef1',
     });
+  });
+
+  it('names only the checks that failed when the written result is a failure', () => {
+    expect(
+      verifiedChecksLine(
+        {
+          label: 'Checks failing at abcdef1',
+          whenWritten: 'Failing when written, at abcdef1',
+          more: false,
+          results: [
+            { name: 'Unit tests', tone: 'passed' },
+            { name: 'Browser tests', tone: 'failed' },
+          ],
+        },
+        undefined,
+        'failed',
+      ).text,
+    ).toBe('Checks failing at abcdef1: Browser tests');
   });
 });
 

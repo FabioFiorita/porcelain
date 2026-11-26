@@ -479,6 +479,28 @@ it('moves a step’s checks out of Verified only while GitHub now disagrees with
   ).toEqual({ changed: [], unchanged: [{ step: 1, checks: passing }] });
 });
 
+it('never keeps checks that failed or were still running when written under Verified', () => {
+  const written = (state: string) => ({
+    headOid: 'abc1234',
+    state,
+    checksTruncated: false,
+    results: [{ name: 'Browser tests', status: state }],
+  });
+  const rows = walkthroughCheckRows(
+    [
+      { step: 1, checks: written('FAILURE') },
+      { step: 2, checks: written('PENDING') },
+      { step: 3, checks: written('SUCCESS') },
+    ],
+    undefined,
+  );
+  expect(rows.changed.map((row) => [row.step, row.live])).toEqual([
+    [1, undefined],
+    [2, undefined],
+  ]);
+  expect(rows.unchanged.map((row) => row.step)).toEqual([3]);
+});
+
 it('recognizes that the failing check changed even when the overall rollup stayed red', () => {
   const captured = {
     headOid: 'abc1234',

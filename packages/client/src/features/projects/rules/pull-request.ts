@@ -262,11 +262,15 @@ export function walkthroughCheckRows<
     ...entry,
     live: currentWalkthroughChecks(entry.checks, live),
   }));
+  const settled = (row: (typeof rows)[number]) => {
+    const tone = pullRequestRollup(row.checks.state).tone;
+    return !row.live && tone !== 'failed' && tone !== 'running';
+  };
   return {
-    changed: rows.flatMap(({ live: now, ...entry }) =>
-      now ? [{ ...entry, live: now }] : [],
-    ),
-    unchanged: rows.flatMap(({ live: now, ...entry }) => (now ? [] : [entry])),
+    changed: rows.filter((row) => !settled(row)),
+    unchanged: rows
+      .filter(settled)
+      .map(({ live: _settled, ...entry }) => entry),
   };
 }
 

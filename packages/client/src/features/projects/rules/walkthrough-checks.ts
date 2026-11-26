@@ -28,13 +28,20 @@ export function verifiedChecksLine(
     readonly label: string;
     readonly whenWritten: string;
     readonly more: boolean;
-    readonly results: readonly { readonly name: string }[];
+    readonly results: readonly {
+      readonly name: string;
+      readonly tone: PullChecksTone;
+    }[];
   },
   live:
     | { readonly label: string; readonly names: readonly string[] }
     | undefined,
+  written: PullChecksTone,
 ): { readonly text: string; readonly captured: string | undefined } {
-  const names = recorded.results.map((result) => result.name);
+  const outstanding = written === 'failed' || written === 'running';
+  const names = recorded.results
+    .filter((result) => !outstanding || result.tone === written)
+    .map((result) => result.name);
   const more = recorded.more ? ' and more' : '';
   return live
     ? {
@@ -61,15 +68,15 @@ export function verifiedChecks(
     live: ReturnType<typeof currentWalkthroughChecks>,
   ) => {
     const recorded = recordedChecks(checks);
-    const tone: PullChecksTone =
-      live?.tone ?? pullRequestRollup(checks.state).tone;
+    const written = pullRequestRollup(checks.state).tone;
+    const tone: PullChecksTone = live?.tone ?? written;
     return {
       step,
       recorded,
       live,
       tone,
       moved: movedPullHead(pull?.detail?.headSha, checks.headOid),
-      line: verifiedChecksLine(recorded, live),
+      line: verifiedChecksLine(recorded, live, written),
     };
   };
   const { changed, unchanged } = walkthroughCheckRows(captured, pull?.status);

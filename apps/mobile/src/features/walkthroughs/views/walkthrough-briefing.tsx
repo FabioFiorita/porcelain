@@ -227,14 +227,17 @@ function Scope({
         </Line>
       ) : null}
       {notes.uncovered ? (
-        <Item
-          size="compact"
-          title={notes.uncovered}
-          titleNumberOfLines={3}
-          trailing={<Icon name="chevron" tone="muted" size="small" />}
-          accessibilityLabel={`${notes.uncovered} See every changed file`}
-          onPress={onUncovered}
-        />
+        <Box paddingX={4} paddingY={1} className="items-start">
+          <Text variant="secondary">{notes.uncovered}</Text>
+          <Button
+            label="See every changed file"
+            variant="plain"
+            size="sm"
+            align="start"
+            className="-ml-3.5"
+            onPress={onUncovered}
+          />
+        </Box>
       ) : null}
     </>
   );
