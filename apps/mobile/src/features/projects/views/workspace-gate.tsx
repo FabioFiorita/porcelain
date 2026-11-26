@@ -80,7 +80,7 @@ export function WorkspaceGate({
                   ? { label: 'Read again', onPress: read }
                   : {
                       label: 'Open Settings',
-                      onPress: () => router.push('/settings'),
+                      onPress: () => router.navigate('/settings'),
                     }
               }
             />
@@ -98,7 +98,13 @@ export function WorkspaceGate({
               }}
             />
           ) : (
-            <Empty title="Select a worktree" />
+            <Empty
+              title="Choose a worktree"
+              action={{
+                label: 'Choose worktree',
+                onPress: () => router.push('/worktrees'),
+              }}
+            />
           ))
         );
       case 'selected':

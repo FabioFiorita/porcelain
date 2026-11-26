@@ -29,3 +29,10 @@ export type HeaderIconName =
   | 'hideList'
   | 'previous'
   | 'next';
+
+export type TabIconName =
+  | 'walkthrough'
+  | 'changes'
+  | 'files'
+  | 'history'
+  | 'settings';

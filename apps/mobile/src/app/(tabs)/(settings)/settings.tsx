@@ -1,7 +1,7 @@
 import { Stack, useRouter } from 'expo-router';
-import { SettingsScreen } from '../../features/access';
-import { headerIcon } from '../../shared/icons/header-icon';
-import { keyCommandsSupported } from '../../features/keyboard';
+import { SettingsScreen } from '../../../features/access';
+import { headerIcon } from '../../../shared/icons/header-icon';
+import { keyCommandsSupported } from '../../../features/keyboard';
 
 export default function SettingsRoute() {
   const router = useRouter();

@@ -1,24 +1,7 @@
 import { useState, type ReactNode } from 'react';
-import { useAtomMount } from '@effect/atom-react';
-import { Atom } from 'effect/reactivity';
 import { DeviceType, deviceType } from 'expo-device';
-import {
-  BackHandler,
-  Pressable,
-  View,
-  useWindowDimensions,
-  type LayoutChangeEvent,
-} from 'react-native';
-import Animated, {
-  useAnimatedStyle,
-  withTiming,
-} from 'react-native-reanimated';
-import {
-  useFocusEffect,
-  useIsFocused,
-  useNavigation,
-  useRoute,
-} from 'expo-router';
+import { View, type LayoutChangeEvent } from 'react-native';
+import { useFocusEffect, useNavigation, useRoute } from 'expo-router';
 import {
   listDetailMode,
   layoutMove,
@@ -26,7 +9,6 @@ import {
   movesWithLayout,
   type LayoutMove,
   type ListDetailMode,
-  type ListPlace,
 } from '../../shared/rules/list-detail';
 
 const LIST_COLUMN_WIDTH = 340;
@@ -94,68 +76,22 @@ export function useLayoutMove({
   });
 }
 
-export function usePortrait() {
-  const { width, height } = useWindowDimensions();
-  return height > width;
-}
-
-const dismissOnBack = Atom.family((dismiss: () => void) =>
-  Atom.make((get) => {
-    const subscription = BackHandler.addEventListener(
-      'hardwareBackPress',
-      () => {
-        dismiss();
-        return true;
-      },
-    );
-    get.addFinalizer(() => subscription.remove());
-  }),
-);
-
-const keepBack = Atom.make(undefined);
-
 export function ListDetail({
   list,
   detail,
   collapse = 'list',
-  place = 'beside',
-  onDismiss,
   layout,
 }: {
-  list: (mode: ListDetailMode, place: ListPlace) => ReactNode;
+  list: (mode: ListDetailMode) => ReactNode;
   detail: ReactNode;
   collapse?: 'list' | 'detail';
-  place?: ListPlace;
-  onDismiss?: (() => void) | undefined;
   layout?: ListDetailLayout;
 }) {
   const own = useListDetailLayout();
-  const focused = useIsFocused();
   const { mode, onLayout } = layout ?? own;
   const beside = mode === 'beside';
-  const sliding = beside && place !== 'beside';
-  const over = beside && place === 'over';
-  useAtomMount(
-    over && focused && onDismiss ? dismissOnBack(onDismiss) : keepBack,
-  );
-  const panel = useAnimatedStyle(
-    () => ({
-      transform: [
-        {
-          translateX: withTiming(sliding && !over ? -LIST_COLUMN_WIDTH : 0),
-        },
-      ],
-    }),
-    [sliding, over],
-  );
-  const dim = useAnimatedStyle(
-    () => ({ opacity: withTiming(over ? 1 : 0) }),
-    [over],
-  );
   const showList = beside || collapse === 'list';
   const showDetail = beside || collapse === 'detail';
-  const shown = !sliding || over;
-  const listPlace = beside ? place : 'beside';
   return (
     <View
       className="flex-1 flex-row bg-background"
@@ -163,43 +99,19 @@ export function ListDetail({
       onLayout={onLayout}
     >
       {showList ? (
-        <Animated.View
+        <View
           key="list"
-          className={
-            sliding
-              ? 'absolute top-0 bottom-0 left-0 z-10 border-r border-border bg-background shadow-xl'
-              : beside
-                ? 'border-r border-border'
-                : 'flex-1'
-          }
+          className={beside ? 'border-r border-border' : 'flex-1'}
           collapsable={false}
-          pointerEvents={shown ? 'auto' : 'none'}
-          accessibilityElementsHidden={!shown}
-          importantForAccessibility={shown ? 'auto' : 'no-hide-descendants'}
-          style={[beside ? { width: LIST_COLUMN_WIDTH } : undefined, panel]}
+          style={beside ? { width: LIST_COLUMN_WIDTH } : undefined}
         >
-          {list(mode, listPlace)}
-        </Animated.View>
+          {list(mode)}
+        </View>
       ) : null}
       {showDetail ? (
         <View key="detail" className="flex-1" collapsable={false}>
           {detail}
         </View>
-      ) : null}
-      {sliding ? (
-        <Animated.View
-          key="scrim"
-          className="absolute inset-0 z-5 bg-black/25"
-          pointerEvents={over && onDismiss ? 'auto' : 'none'}
-          style={dim}
-        >
-          <Pressable
-            className="flex-1"
-            accessibilityRole="button"
-            accessibilityLabel="Close list"
-            onPress={onDismiss}
-          />
-        </Animated.View>
       ) : null}
     </View>
   );

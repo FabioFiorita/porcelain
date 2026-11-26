@@ -1,5 +1,5 @@
 import { Stack } from 'expo-router';
-import { sheetOptions } from '../../components/ui/sheet';
+import { sheetOptions } from '../../../components/ui/sheet';
 
 export const unstable_settings = { anchor: 'settings' };
 

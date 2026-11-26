@@ -27,6 +27,10 @@ export function useAppKeyCommands() {
         ];
   useKeyCommands('app', [
     { binding: 'settings', run: () => router.navigate('/settings') },
+    { binding: 'walkthrough', run: () => router.navigate('/walkthrough') },
+    { binding: 'changes', run: () => router.navigate('/changes') },
+    { binding: 'files', run: () => router.navigate('/files') },
+    { binding: 'history', run: () => router.navigate('/history') },
     { binding: 'shortcuts', run: () => router.navigate('/keyboard-shortcuts') },
     ...(exits.back
       ? [

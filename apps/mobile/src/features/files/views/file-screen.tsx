@@ -1,20 +1,19 @@
 import type { TopBarAction } from '../../../components/ui/top-bar-items';
-import { TopBarActions } from '../../../shared/application/top-bar';
+import {
+  TopBarActions,
+  usePublishedTopBar,
+} from '../../../shared/application/top-bar';
 import { useDocumentReadingLine } from '../../../shared/application/document-reading';
 import { sourceLanguage } from '../../../shared/rules/highlight-code';
 import { Box } from '../../../components/ui/box';
 import { View } from 'react-native';
-import { useIsFocused, useRouter, useSegments } from 'expo-router';
+import { useIsFocused, useRouter } from 'expo-router';
 import { useDocumentKeys } from '../../../shared/application/key-commands';
 import { useState, type ReactNode } from 'react';
 import { Cause, Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { fileErrorMessage } from '@porcelain/client/files/rules';
-import {
-  WorkspaceGate,
-  useWorktreeBarItems,
-  type Workspace,
-} from '../../projects/index';
+import { WorkspaceGate, type Workspace } from '../../projects/index';
 import type { ReviewRange } from '../../../components/ui/code-range';
 import { usePreferences } from '../../preferences/index';
 import { useTextFile, type FileContents } from '../queries/text';
@@ -101,7 +100,6 @@ function ReturnBeside({
   children: ReactNode;
 }) {
   const router = useRouter();
-  const worktrees = useSegments().some((segment) => segment === '(worktrees)');
   const openBeside = useOpenFileBeside(workspace);
   const layout = useListDetailLayout();
   useLayoutMove({
@@ -109,11 +107,7 @@ function ReturnBeside({
     mode: layout.measured,
     onMove: () => {
       openBeside(path);
-      if (worktrees) router.dismissTo('/worktrees');
-      else {
-        router.back();
-        router.navigate('/worktrees');
-      }
+      router.dismissAll();
     },
   });
   return (
@@ -162,7 +156,7 @@ function FileHeader({
   actions: readonly TopBarAction[];
   place: FileProps['place'];
 }) {
-  const worktreeBarItems = useWorktreeBarItems();
+  const worktreeBarItems = usePublishedTopBar().length;
   return (
     <>
       <DocumentHeader

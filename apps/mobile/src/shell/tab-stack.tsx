@@ -1,7 +1,13 @@
 import { Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-screens/experimental';
+import { appTabs, type WorktreeTab } from './app-tab-list';
 
-function TabRoutes() {
+function rootOf(segment: string): WorktreeTab {
+  const root = appTabs.find((tab) => tab.name === segment)?.root;
+  return root === undefined || root === 'settings' ? 'walkthrough' : root;
+}
+
+function TabRoutes({ root }: { root: WorktreeTab }) {
   return (
     <Stack
       screenOptions={({ theme }) => ({
@@ -10,16 +16,12 @@ function TabRoutes() {
         headerTintColor: theme.colors.text,
       })}
     >
-      <Stack.Screen
-        name="worktrees"
-        options={{ title: 'Worktrees', headerLargeTitleEnabled: true }}
-      />
-      <Stack.Screen name="worktree" options={{ title: '' }} />
-      <Stack.Screen name="files" options={{ title: 'Files' }} />
-      <Stack.Screen name="history" options={{ title: 'History' }} />
+      <Stack.Screen name={root} options={{ title: '' }} />
+      <Stack.Screen name="file" options={{ title: '' }} />
       <Stack.Screen name="review-file" options={{ title: 'Changed file' }} />
       <Stack.Screen name="review-changes" options={{ title: 'All changes' }} />
       <Stack.Screen name="walkthrough-step" options={{ title: 'Step' }} />
+      <Stack.Screen name="pull-request" options={{ title: 'Pull request' }} />
       <Stack.Screen
         name="history/commit/[oid]/index"
         options={{ title: 'Commit' }}
@@ -32,10 +34,10 @@ function TabRoutes() {
   );
 }
 
-export function TabStack() {
+export function TabStack({ segment }: { segment: string }) {
   return (
     <SafeAreaView edges={{ left: true, right: true }} style={{ flex: 1 }}>
-      <TabRoutes />
+      <TabRoutes root={rootOf(segment)} />
     </SafeAreaView>
   );
 }

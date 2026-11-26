@@ -4,15 +4,11 @@ import { Base64 } from 'effect/encoding';
 import { Atom, AsyncResult } from 'effect/reactivity';
 import { readBranchChanges, readChanges } from '@porcelain/client/changes';
 import {
-  readingOf,
   readWalkthrough,
   readWalkthroughAsset,
 } from '@porcelain/client/walkthroughs';
-import {
-  walkthroughPhase,
-  worktreeOpening,
-} from '@porcelain/client/walkthroughs/rules';
-import type { Workspace, WorktreeGuide } from '../../projects/index';
+import { walkthroughPhase } from '@porcelain/client/walkthroughs/rules';
+import type { Workspace } from '../../projects/index';
 
 type Selection = Pick<Workspace, 'connection' | 'scope'>;
 
@@ -49,18 +45,6 @@ export function useWalkthroughFiles(workspace: Selection) {
   const worktree =
     Option.getOrUndefined(AsyncResult.value(result))?.changes ?? [];
   return { branch, worktree };
-}
-
-export function useWorktreeGuide(workspace: Selection): WorktreeGuide {
-  const selection = walkthroughSelection(workspace);
-  const walkthrough = useAtomValue(readWalkthrough(selection));
-  const opening = worktreeOpening({
-    walkthrough: readingOf(walkthrough, (read) => read),
-  });
-  return {
-    walkthrough: opening.name === 'walkthrough',
-    pending: opening.pending,
-  };
 }
 
 const assetData = Atom.family(
