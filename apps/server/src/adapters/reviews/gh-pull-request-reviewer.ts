@@ -85,10 +85,14 @@ export const ghPullRequestReviewerLayer = (
             access.forgetWhenRefused(input, lacksAccess),
             Effect.map((url) => ({ url })),
             Effect.mapError(
-              () =>
+              (error) =>
                 new PullRequestReviewFailedError({
                   message:
-                    'GitHub did not take this review. Check your sign-in and that the pull request is still open, then try again.',
+                    error._tag === 'GitHubCommandError' &&
+                    (error.reason === 'offline' ||
+                      error.reason === 'invalid-response')
+                      ? 'GitHub may have received this review. Check the pull request before posting again.'
+                      : 'GitHub did not take this review. Check your sign-in and that the pull request is still open, then try again.',
                 }),
             ),
           ),

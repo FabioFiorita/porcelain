@@ -188,6 +188,21 @@ function ReviewStep({
             {failure}
           </p>
         )}
+        {failure && (
+          <Button
+            variant="outline"
+            render={
+              <a
+                href={preview.pullRequest.url}
+                target="_blank"
+                rel="noreferrer"
+              />
+            }
+          >
+            Open pull request
+            <ExternalLinkIcon data-icon="inline-end" />
+          </Button>
+        )}
         <Button variant="ghost" onClick={onBack}>
           <ArrowLeftIcon data-icon="inline-start" />
           Back

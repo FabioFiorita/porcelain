@@ -11,6 +11,7 @@ export {
   nodeCommentCounts,
   openComments,
   postedComments,
+  postReviewFailureText,
   quotedAnswer,
   reviewForm,
   reviewUnavailableText,
