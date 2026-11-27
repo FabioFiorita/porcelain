@@ -16,7 +16,7 @@ api:
 
 # git-actions.dismiss-interrupted
 
-A Git action that outlives its deadline ends interrupted ("outcome unknown"); the review shows a notice naming the action until Got it dismisses it, and the server keeps the receipt as interrupted.
+A Git action that outlives its deadline ends interrupted ("Porcelain could not confirm the outcome."); the review shows a notice naming the action until Got it dismisses it, and the server keeps the receipt as interrupted.
 
 ## How to get to it (user POV)
 
@@ -45,8 +45,8 @@ mkfifo "$REPO/.git/logs/HEAD"
    Expect: the textbox holds "Stuck commit"; button "Commit selected files" is enabled.
 3. Click button `Commit selected files`
    Expect: button "Committing…" (disabled) and status "running" for about 1.5 seconds; a separate tool call may land after it, so go on to step 4.
-4. Wait for text 'outcome unknown', then inspect the accessibility tree
-   Expect: inside dialog "Commit changes", an `alert` reading "outcome unknown"; button "Commit selected files" is back.
+4. Wait for text 'could not confirm the outcome', then inspect the accessibility tree
+   Expect: inside dialog "Commit changes", an `alert` reading "Porcelain could not confirm the outcome."; button "Commit selected files" is back.
 5. Press `Escape`
    Expect: the dialog is gone; at the top of region "Review content" a `status` with "A Git action was interrupted: commit", "Check the current changes before trying again." and button "Got it". README.md is still listed as changed (`git -C "$REPO" status --short` prints ` M README.md`).
 6. Navigate to `/`

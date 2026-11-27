@@ -12,6 +12,7 @@ export const SHORTCUTS = {
   nextFile: 'J',
   previousFile: 'K',
   toggleReviewed: 'R',
+  comment: 'C',
   findInFile: 'Mod+F',
   duplicateFile: 'Mod+D',
   nextTab: 'Alt+ArrowRight',
@@ -47,6 +48,10 @@ export const SHORTCUT_GROUPS: {
       { keys: SHORTCUTS.nextFile, label: 'Next file' },
       { keys: SHORTCUTS.previousFile, label: 'Previous file' },
       { keys: SHORTCUTS.toggleReviewed, label: 'Toggle reviewed' },
+      {
+        keys: SHORTCUTS.comment,
+        label: 'Comment on the selected lines or the current step',
+      },
       { keys: SHORTCUTS.findInFile, label: 'Find in file' },
       { keys: SHORTCUTS.saveFile, label: 'Save file edits' },
       {

@@ -42,7 +42,11 @@ function WalkthroughReader({ workspace }: { workspace: Workspace }) {
     <ListDetail
       collapse="detail"
       list={() => (
-        <WalkthroughSteps workspace={workspace} content={phase.content} />
+        <WalkthroughSteps
+          workspace={workspace}
+          run={phase.run}
+          content={phase.content}
+        />
       )}
       detail={page}
     />

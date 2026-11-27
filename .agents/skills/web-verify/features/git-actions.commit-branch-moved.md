@@ -14,7 +14,7 @@ api:
 
 # git-actions.commit-branch-moved
 
-A commit expects the branch the dialog looked at when it opened: if the worktree switches to another branch afterwards, even one on the same commit, the server refuses the commit as "changed since looked" and nothing is committed.
+A commit expects the branch the dialog looked at when it opened: if the worktree switches to another branch afterwards, even one on the same commit, the server refuses the commit because the files changed after the dialog looked at them and nothing is committed.
 
 ## How to get to it (user POV)
 
@@ -37,7 +37,7 @@ None before step 2. The branch switch happens on disk AFTER the dialog opens (st
 4. Fill textbox `Message` with 'Moved commit'
    Expect: button "Commit selected files" enabled.
 5. Click button `Commit selected files`
-   Expect: an alert in the dialog reads "changed since looked"; button "Look again" appears; button "Commit selected files" is disabled.
+   Expect: an alert in the dialog reads "The files changed after you looked at them."; button "Look again" appears; button "Commit selected files" is disabled.
    Disk: `git -C "$REPO" log -1 --format=%s` prints `Initial commit`; `git -C "$REPO" branch --show-current` prints `journey-moved`.
 
 ### Observable proof

@@ -17,9 +17,7 @@ export function PullRequestScreen() {
     <Screen layout="fixed">
       <Stack.Screen
         options={{
-          title: Option.isSome(target)
-            ? `PR #${target.value.number}`
-            : 'Pull request',
+          title: 'Pull request',
         }}
       />
       {Option.isSome(target) ? (

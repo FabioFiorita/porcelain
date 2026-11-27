@@ -17,7 +17,7 @@ function SettingsLayout() {
         options={{ title: 'Settings', headerLargeTitleEnabled: true }}
       />
       <Stack.Screen name="general" options={{ title: 'General' }} />
-      <Stack.Screen name="reviews-git" options={{ title: 'Reviews & Git' }} />
+      <Stack.Screen name="reviews-git" options={{ title: 'Changes & Git' }} />
       <Stack.Screen name="computers" options={{ title: 'Computers' }} />
       <Stack.Screen name="computer" options={{ title: 'Computer' }} />
       <Stack.Screen

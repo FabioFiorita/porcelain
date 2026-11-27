@@ -23,7 +23,7 @@ export const defaultReviewGitSettings: ReviewGitSettings = {
   archiveDeleteRemoteBranch: false,
 };
 
-const UNREADABLE = 'Reviews & Git settings could not be read.';
+const UNREADABLE = 'Changes & Git settings could not be read.';
 
 function failureMessage(error: unknown): string {
   return error instanceof Error &&
@@ -118,10 +118,10 @@ export function reviewGitSettingsTrustBlock(
   canChange: boolean | undefined,
 ): string | undefined {
   if (canChange === undefined)
-    return 'Device trust could not be confirmed. Check again before changing Reviews & Git settings.';
+    return 'Device trust could not be confirmed. Check again before changing Changes & Git settings.';
   return canChange
     ? undefined
-    : 'An owner must trust this device on the computer that runs Porcelain before it can change Reviews & Git settings.';
+    : 'An owner must trust this device on the computer that runs Porcelain before it can change Changes & Git settings.';
 }
 
 export function specsApart(view: ReviewGitSettingsView): boolean {
@@ -133,13 +133,13 @@ export function reviewGitSettingsBlock(
 ): string | undefined {
   switch (view.kind) {
     case 'reading':
-      return 'Reading Reviews & Git settings for this computer…';
+      return 'Reading Changes & Git settings for this computer…';
     case 'unsupported':
-      return 'Update Porcelain on this computer to use its Reviews & Git settings.';
+      return 'Update Porcelain on this computer to use its Changes & Git settings.';
     case 'unreadable':
       return view.message;
     case 'unconfigured':
-      return 'Choose Reviews & Git settings for this computer in Settings first.';
+      return 'Choose Changes & Git settings for this computer in Settings first.';
     case 'configured':
       return view.unreadable;
   }
@@ -148,5 +148,5 @@ export function reviewGitSettingsBlock(
 export function reviewGitSettingsSaveMessage(error: unknown): string {
   return error instanceof Error && error.message.length > 0
     ? error.message
-    : 'Reviews & Git settings could not be saved. Try again.';
+    : 'Changes & Git settings could not be saved. Try again.';
 }

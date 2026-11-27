@@ -9,7 +9,7 @@ import { HistoryList } from '../../../components/ui/history-list';
 import { Text } from '../../../components/ui/text';
 import { WorkspaceGate } from '../../projects';
 import { useFileTimeline, type HistorySelection } from '../queries/history';
-import { commitAge } from '../rules/commit-age';
+import { relativeTime } from '@porcelain/client/history/rules';
 import { HistoryFooter } from './history-navigation';
 
 function FileTimelineContent({
@@ -55,7 +55,7 @@ function FileTimelineContent({
         entries={
           value?.commits.map((entry) => ({
             ...commitEntry(entry.commit),
-            time: commitAge(entry.commit.author.timestamp),
+            time: relativeTime(entry.commit.author.timestamp, Date.now()),
             change: timelineChange(entry, path),
           })) ?? []
         }

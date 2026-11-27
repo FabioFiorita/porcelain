@@ -10,6 +10,7 @@ import {
   gitBranchSummarySchema,
   gitChangeSchema,
   gitChangeSelectionSchema,
+  omittedChangesSchema,
 } from './git-status.ts';
 import { CHANGED_PATHS, DIFFS_PER_REQUEST } from '../shared/limits.ts';
 
@@ -36,6 +37,7 @@ export const readChangesResponseSchema = Schema.Struct({
   changes: Schema.Array(fileChangeSchema).check(
     Schema.isMaxLength(CHANGED_PATHS),
   ),
+  omittedChanges: Schema.optional(omittedChangesSchema),
 });
 
 export const readChangeDiffsRequestSchema = Schema.Struct({

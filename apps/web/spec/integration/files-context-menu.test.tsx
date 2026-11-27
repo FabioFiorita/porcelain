@@ -22,7 +22,7 @@ async function openFolderTree(
   const page = await render.workspace();
   await page.viewport(width, 896);
   if (width === 414) {
-    await page.getByRole('button', { name: 'Review', exact: true }).click();
+    await page.getByRole('button', { name: 'Side panel', exact: true }).click();
     await page.getByRole('tab', { name: 'Files', exact: true }).click();
   } else await userEvent.keyboard('{Alt>}1{/Alt}');
   const row = (name: string) =>
@@ -207,7 +207,9 @@ test.for(
     const page = await render.workspace();
     await page.viewport(width, 896);
     if (width === 414) {
-      await page.getByRole('button', { name: 'Review', exact: true }).click();
+      await page
+        .getByRole('button', { name: 'Side panel', exact: true })
+        .click();
       await page.getByRole('tab', { name: 'Files', exact: true }).click();
     } else await userEvent.keyboard('{Alt>}1{/Alt}');
     held.arm();
@@ -274,7 +276,7 @@ test('a rejected create never opens the existing file while its response is pend
   const create = fetchGate.holdNextPost('/files');
   const page = await render.workspace();
   await page.viewport(414, 896);
-  await page.getByRole('button', { name: 'Review', exact: true }).click();
+  await page.getByRole('button', { name: 'Side panel', exact: true }).click();
   await page.getByRole('tab', { name: 'Files', exact: true }).click();
   directory.arm();
   try {

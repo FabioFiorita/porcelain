@@ -4,6 +4,7 @@ import { prepareNativeDatabase } from '../../../spec/kit/native-database.ts';
 import { NodeServices } from '@effect/platform-node';
 import { Effect, Layer, ManagedRuntime } from 'effect';
 import {
+  WalkthroughModelReader,
   WalkthroughStore,
   WalkthroughWriter,
 } from '@porcelain/walkthroughs/ports';
@@ -172,6 +173,11 @@ it('resolves every comment answer from request, project, changed default and bui
       Layer.provideMerge(ResolveWalkthroughWriterService.layer),
       Layer.provideMerge(database),
       Layer.provide(
+        Layer.succeed(WalkthroughModelReader, {
+          read: () => Effect.succeed([]),
+        }),
+      ),
+      Layer.provide(
         Layer.succeed(WalkthroughWriter, {
           write: () => Effect.die('Not used'),
           answer: (input) => {
@@ -239,7 +245,6 @@ it('resolves every comment answer from request, project, changed default and bui
           stopTitle: undefined,
           text: 'Why?',
           createdAt: '2026-11-09T00:00:00.000Z',
-          post: { status: 'none' },
           answer: { status: 'answering' },
           writer,
         }),
@@ -636,6 +641,92 @@ it('preserves the once-per-PR marker when the migration retires old walkthroughs
     ).toBe('manual');
   } finally {
     await runtime?.dispose();
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+it('keeps one decision per call of a run, replaces it, removes it and survives a restart', async () => {
+  const directory = mkdtempSync(join(temporaryRoot, 'walkthrough-decisions-'));
+  const open = () =>
+    ManagedRuntime.make(
+      storageLayer(directory, {
+        worktreeIdLength: 32,
+        busyTimeoutMs: 5000,
+      }).pipe(Layer.provide(NodeServices.layer)),
+    );
+  let runtime = open();
+  try {
+    const store = await runtime.runPromise(WalkthroughStore);
+    await runtime.runPromise(store.accept(job('decided-run', 'head')));
+    await runtime.runPromise(store.accept(job('other-run', 'other-head')));
+    const call = (step: number, index: number, runId = 'decided-run') => ({
+      worktreeId: 'worktree',
+      runId,
+      step,
+      call: index,
+    });
+    const owner = { kind: 'owner' as const };
+    await runtime.runPromise(
+      store.saveDecision(call(2, 0), {
+        option: 'Show all notes',
+        decidedBy: owner,
+        decidedAt: '2026-11-25T10:00:00.000Z',
+      }),
+    );
+    await runtime.runPromise(
+      store.saveDecision(call(2, 0), {
+        option: 'Show no notes',
+        decidedBy: { kind: 'device', deviceId: 'phone' },
+        decidedAt: '2026-11-25T11:00:00.000Z',
+      }),
+    );
+    await runtime.runPromise(
+      store.saveDecision(call(3, 1), {
+        decidedBy: owner,
+        decidedAt: '2026-11-25T12:00:00.000Z',
+      }),
+    );
+    await runtime.runPromise(
+      store.saveDecision(call(1, 0, 'other-run'), {
+        decidedBy: owner,
+        decidedAt: '2026-11-25T12:00:00.000Z',
+      }),
+    );
+    await runtime.dispose();
+    runtime = open();
+    const reopened = await runtime.runPromise(WalkthroughStore);
+    expect(
+      await runtime.runPromise(
+        reopened.listDecisions('worktree', 'decided-run'),
+      ),
+    ).toEqual([
+      {
+        step: 2,
+        call: 0,
+        option: 'Show no notes',
+        decidedBy: { kind: 'device', deviceId: 'phone' },
+        decidedAt: '2026-11-25T11:00:00.000Z',
+      },
+      {
+        step: 3,
+        call: 1,
+        decidedBy: owner,
+        decidedAt: '2026-11-25T12:00:00.000Z',
+      },
+    ]);
+    await runtime.runPromise(reopened.saveDecision(call(2, 0), undefined));
+    expect(
+      (
+        await runtime.runPromise(
+          reopened.listDecisions('worktree', 'decided-run'),
+        )
+      ).map((decision) => [decision.step, decision.call]),
+    ).toEqual([[3, 1]]);
+    expect(
+      await runtime.runPromise(reopened.listDecisions('other', 'decided-run')),
+    ).toEqual([]);
+  } finally {
+    await runtime.dispose();
     rmSync(directory, { recursive: true, force: true });
   }
 });

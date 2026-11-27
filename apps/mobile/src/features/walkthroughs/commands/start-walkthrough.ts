@@ -5,6 +5,7 @@ import {
   walkthroughStartBinding,
 } from '@porcelain/client/walkthroughs';
 import type { WalkthroughRun } from '@porcelain/client/walkthroughs/rules';
+import type { StartWalkthroughRequest } from '@porcelain/contracts/walkthroughs';
 import type { Workspace } from '../../projects/index';
 import { walkthroughSelection } from '../queries/walkthrough';
 import { useWriteAllowed } from '../../access';
@@ -12,6 +13,7 @@ import { useWriteAllowed } from '../../access';
 export function useStartWalkthrough(
   workspace: Workspace,
   displayedRun: WalkthroughRun | undefined,
+  writer: StartWalkthroughRequest['writer'] | undefined,
 ) {
   const [result, start] = useAtom(
     startWalkthrough(walkthroughSelection(workspace)),
@@ -28,6 +30,7 @@ export function useStartWalkthrough(
     pulls,
     branch: workspace.worktree.branch ?? undefined,
     displayedRun,
+    ...(writer === undefined ? {} : { writer }),
   });
   return {
     ...binding,

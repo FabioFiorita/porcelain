@@ -7,6 +7,9 @@ import {
 } from '@porcelain/walkthroughs/ports';
 import {
   answerStateSchema,
+  callDeciderSchema,
+  type CallDecision,
+  type CallTarget,
   walkthroughJobSchema,
   walkthroughSettingsSchema,
   writerSchema,
@@ -14,7 +17,6 @@ import {
   type WalkthroughSettings,
   type EvidenceAsset,
   type AnswerState,
-  type PostState,
   type StoredWalkthroughMessage,
   type WalkthroughFailure,
   type WalkthroughJob,
@@ -28,18 +30,26 @@ type MessageRow = {
   stopTitle: string | null;
   text: string;
   createdAt: string;
-  postStatus: string;
-  postUrl: string | null;
-  postedAt: string | null;
   answer: string;
   writer: string | null;
 };
-const postState = (row: MessageRow): PostState =>
-  row.postStatus === 'posted' && row.postUrl !== null && row.postedAt !== null
-    ? { status: 'posted', url: row.postUrl, postedAt: row.postedAt }
-    : row.postStatus === 'saved'
-      ? { status: 'saved' }
-      : { status: 'none' };
+type DecisionRow = {
+  step: number;
+  call: number;
+  option: string | null;
+  decidedBy: string;
+  decidedAt: string;
+};
+const decodeDecider = Schema.decodeUnknownSync(
+  Schema.fromJsonString(callDeciderSchema),
+);
+const decision = (row: DecisionRow): CallDecision => ({
+  step: row.step,
+  call: row.call,
+  ...(row.option === null ? {} : { option: row.option }),
+  decidedBy: decodeDecider(row.decidedBy),
+  decidedAt: row.decidedAt,
+});
 const decodeWriter = Schema.decodeUnknownSync(
   Schema.fromJsonString(writerSchema),
 );
@@ -53,7 +63,6 @@ const message = (row: MessageRow): StoredWalkthroughMessage => ({
   stopTitle: row.stopTitle ?? undefined,
   text: row.text,
   createdAt: row.createdAt,
-  post: postState(row),
   answer: decodeAnswer(row.answer),
   writer: row.writer === null ? undefined : decodeWriter(row.writer),
 });
@@ -344,26 +353,29 @@ export const sqliteWalkthroughStoreLayer = Layer.effectContext(
           );
         return rows.length === 1;
       }),
-      saveForLater: Effect.fn('WalkthroughStore.saveForLater')(function* (
+      listDecisions: Effect.fn('WalkthroughStore.listDecisions')(function* (
         worktreeId: string,
-        messageId: string,
-        saved: boolean,
+        runId: string,
       ) {
-        yield* sql`UPDATE walkthrough_messages SET post_status = ${saved ? 'saved' : 'none'} WHERE id = ${messageId} AND worktree_id = ${worktreeId} AND post_status != 'posted'`.pipe(
+        const rows =
+          yield* sql<DecisionRow>`SELECT step, call, option, decided_by, decided_at FROM walkthrough_decisions WHERE worktree_id = ${worktreeId} AND run_id = ${runId} ORDER BY step, call`.pipe(
+            Effect.orDie,
+          );
+        return rows.map(decision);
+      }),
+      saveDecision: Effect.fn('WalkthroughStore.saveDecision')(function* (
+        target: CallTarget,
+        value: Omit<CallDecision, 'step' | 'call'> | undefined,
+      ) {
+        if (value === undefined) {
+          yield* sql`DELETE FROM walkthrough_decisions WHERE worktree_id = ${target.worktreeId} AND run_id = ${target.runId} AND step = ${target.step} AND call = ${target.call}`.pipe(
+            Effect.orDie,
+          );
+          return;
+        }
+        yield* sql`INSERT INTO walkthrough_decisions (run_id, worktree_id, step, call, option, decided_by, decided_at) VALUES (${target.runId}, ${target.worktreeId}, ${target.step}, ${target.call}, ${value.option ?? null}, ${JSON.stringify(value.decidedBy)}, ${value.decidedAt}) ON CONFLICT (run_id, step, call) DO UPDATE SET option = excluded.option, decided_by = excluded.decided_by, decided_at = excluded.decided_at`.pipe(
           Effect.orDie,
         );
-      }),
-      markPosted: Effect.fn('WalkthroughStore.markPosted')(function* (
-        worktreeId: string,
-        messageIds: readonly string[],
-        url: string,
-        postedAt: string,
-      ) {
-        yield* Effect.forEach(
-          messageIds,
-          (id) =>
-            sql`UPDATE walkthrough_messages SET post_status = 'posted', post_url = ${url}, posted_at = ${postedAt} WHERE id = ${id} AND worktree_id = ${worktreeId} AND post_status != 'posted'`,
-        ).pipe(sql.withTransaction, Effect.asVoid, Effect.orDie);
       }),
     });
     return Context.make(WalkthroughStore, store).pipe(

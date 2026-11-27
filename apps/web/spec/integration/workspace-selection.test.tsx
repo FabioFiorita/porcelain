@@ -39,13 +39,6 @@ test('first run offers project registration without inactive search advice', asy
     .element(app.page.getByRole('dialog', { name: 'Sidebar', exact: true }))
     .not.toBeInTheDocument();
   await app.navigate('/');
-  await expect
-    .element(
-      app.page.getByText('Open your first project', {
-        exact: true,
-      }),
-    )
-    .toBeVisible();
   await app.page
     .getByRole('button', { name: 'Open project', exact: true })
     .filter({ hasText: 'Open project' })

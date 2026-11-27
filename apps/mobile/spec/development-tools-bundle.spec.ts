@@ -70,6 +70,6 @@ it.each(
     ).toBe(development);
     expect(output).toContain('Pair a computer');
     expect(output).toContain('Try again');
-    expect(output).toContain('Reviews & Git');
+    expect(output).toContain('Changes & Git');
   },
 );

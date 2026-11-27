@@ -23,11 +23,15 @@ import {
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { FileTreeIcon } from '@/features/files/index';
-import { groupedCommitModels } from '@porcelain/client/git-actions/rules';
+import {
+  groupedCommitModels,
+  unlistedCommitNote,
+} from '@porcelain/client/git-actions/rules';
 import {
   changedSinceLooked,
   gitErrorMessage,
   receiptFailed,
+  receiptSettled,
 } from '@porcelain/client/git-actions/rules';
 import { BranchTracking } from '@/features/history/index';
 import { branchTracking } from '@porcelain/client/history/rules';
@@ -185,19 +189,26 @@ export function CommitForm(
           <Button
             type="button"
             variant="outline"
+            className="self-start"
             disabled={working}
             onClick={form.lookAgain}
           >
             Look again
           </Button>
         )}
-      {git.operation && !working && (
-        <Button type="button" variant="outline" onClick={form.checkOutcome}>
+      {git.operation && !working && !(receipt && receiptSettled(receipt)) && (
+        <Button
+          type="button"
+          variant="outline"
+          className="self-start"
+          onClick={form.checkOutcome}
+        >
           Check outcome
         </Button>
       )}
       <Button
         type="submit"
+        className="self-end"
         aria-description={writeBlock}
         disabled={
           Boolean(writeBlock) ||
@@ -396,18 +407,6 @@ function CommitGeneration({
         <p className="w-full text-xs text-muted-foreground" role="status">
           {reason}
         </p>
-      )}
-      {AsyncResult.isFailure(form.generator.result) && !form.working && (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={blocked || form.uncertain}
-          aria-description={writeBlock}
-          onClick={form.generate}
-        >
-          Try again
-        </Button>
       )}
     </div>
   );
@@ -611,7 +610,7 @@ function commitNote(
   if (status.inProgress === 'merge') {
     return 'This finishes the merge and commits every staged resolution, including staged files outside your selection.';
   }
-  return null;
+  return unlistedCommitNote(status);
 }
 
 function submitLabel({
@@ -620,8 +619,7 @@ function submitLabel({
   groups,
   commitAction,
 }: CommitFormState) {
-  if (working) {
-    if (generator.result.waiting) return 'Generating…';
+  if (working && !generator.result.waiting) {
     if (commitAction === 'amend') return 'Amending…';
     return 'Committing…';
   }

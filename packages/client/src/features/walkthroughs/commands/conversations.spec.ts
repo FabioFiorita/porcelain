@@ -26,7 +26,6 @@ const conversations = (messageIds: readonly string[]) =>
           id,
           text: `Message ${id}`,
           createdAt: '2026-11-09T00:00:00.000Z',
-          post: { status: 'none' },
         },
         {
           author: 'agent',
@@ -37,6 +36,7 @@ const conversations = (messageIds: readonly string[]) =>
         },
       ],
     })),
+    decisions: [],
   }) satisfies Omit<WalkthroughConversationsResponse, 'pullRequestNumber'> & {
     pullRequestNumber: null;
   };
@@ -81,15 +81,6 @@ it('sends each command to its route and refreshes the conversations afterwards',
     calls.push(`${init?.method ?? 'GET'} ${pathname}`);
     if (init?.method === 'POST' && pathname === `${route}/messages`)
       current = ['added'];
-    if (pathname.endsWith('/post') || pathname.endsWith('/post-saved'))
-      return Promise.resolve(
-        Response.json({
-          outcome: { status: 'brief', text: 'Brief to copy' },
-          view: conversations(current),
-        }),
-      );
-    if (pathname.endsWith('/brief'))
-      return Promise.resolve(Response.json({ text: 'Brief to copy' }));
     return Promise.resolve(Response.json(conversations(current)));
   });
   const stop = subject.registry.mount(subject.state);
@@ -102,30 +93,19 @@ it('sends each command to its route and refreshes the conversations afterwards',
   await expect
     .poll(async () => (await subject.read(subject.state)).conversations.length)
     .toBe(1);
-  await subject.send(subject.commands.saveMessage, {
-    messageId: 'added',
-    saved: true,
-  });
   await subject.send(subject.commands.retryAnswer, 'added');
-  const posted = await subject.send(subject.commands.postMessage, 'added');
-  expect(posted.outcome).toEqual({ status: 'brief', text: 'Brief to copy' });
-  const saved = await subject.send(
-    subject.commands.postSavedMessages,
-    undefined,
-  );
-  expect(saved.outcome).toEqual({ status: 'brief', text: 'Brief to copy' });
-  expect(await subject.send(subject.commands.readBrief, 'added')).toBe(
-    'Brief to copy',
-  );
+  await subject.send(subject.commands.decideCall, {
+    step: 1,
+    call: 0,
+    decided: true,
+    option: 'Keep it local',
+  });
   expect(calls).toEqual(
     expect.arrayContaining([
       `GET ${route}`,
       `POST ${route}/messages`,
-      `PUT ${route}/messages/added/saved`,
       `POST ${route}/messages/added/retry`,
-      `POST ${route}/messages/added/post`,
-      `POST ${route}/post-saved`,
-      `GET ${route}/brief`,
+      `PUT /api/worktrees/${scope.worktreeId}/walkthrough/run/calls/1/0/decision`,
     ]),
   );
 });

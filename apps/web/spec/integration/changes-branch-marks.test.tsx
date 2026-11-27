@@ -14,7 +14,9 @@ test('a branch mark belongs to its branch: another branch starts fresh and switc
     .poll(async () => (await server.branchChanges()).head.branch)
     .toBe('refs/heads/feature');
 
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await workspace
     .getByRole('complementary', { name: 'Review sidebar', exact: true })
     .getByRole('tab', { name: 'Changes', exact: true })
@@ -58,7 +60,9 @@ test.for([1280, 414])(
       const app = await render.route('/');
       const page = app.page;
       if (width === 414)
-        await page.getByRole('button', { name: 'Review', exact: true }).click();
+        await page
+          .getByRole('button', { name: 'Side panel', exact: true })
+          .click();
       if (width === 414)
         await page
           .getByRole('complementary', {

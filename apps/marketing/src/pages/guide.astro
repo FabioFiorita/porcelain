@@ -81,8 +81,8 @@ const instructions = `## Before you hand back work
 - Upload the screenshots into that description. Do not link to image files in the repository.
 - Say what you could not verify.`;
 
-const withoutPull = ['Write walkthrough', 'Comments answered by the walkthrough agent', 'Copy as prompt, for your coding agent'];
-const withPull = ['Screenshots on the step they prove', 'Post on #42, alone or together', 'Automatic walkthroughs, if you turn them on'];
+const withoutPull = ['Write walkthrough', 'Comments answered by the walkthrough agent', 'Draft comments copied as Markdown, for your coding agent'];
+const withPull = ['Screenshots on the step they prove', 'Publish draft comments as one review on #42', 'Automatic walkthroughs, if you turn them on'];
 
 const leaves = [
   { not: 'Run or interrupt your coding agent', who: 'Your coding agent keeps building in its own app.' },
@@ -521,10 +521,10 @@ const card = 'rounded-2xl border border-border bg-card shadow-[0_30px_80px_-50px
           </p>
           <div class="mt-4 grid text-sm [&>*]:[grid-area:1/1]">
             <span data-post-before class="flex flex-wrap items-center gap-3">
-              <span data-post-button class="inline-flex h-8 items-center rounded-lg border border-border bg-background px-3 font-medium">Post on #42</span>
-              <span class="inline-flex h-8 items-center rounded-lg px-1 font-medium">Save for later</span>
+              <span class="text-xs text-muted-foreground">Added to the review</span>
+              <span data-post-button class="inline-flex h-8 items-center rounded-lg border border-border bg-background px-3 font-medium">Publish review (1)</span>
             </span>
-            <span data-post-after class="flex h-8 items-center text-xs text-muted-foreground opacity-0">Posted on #42</span>
+            <span data-post-after class="flex h-8 items-center text-xs text-muted-foreground opacity-0">Published on #42</span>
           </div>
         </div>
 
@@ -536,17 +536,12 @@ const card = 'rounded-2xl border border-border bg-card shadow-[0_30px_80px_-50px
         <figure data-post-comment class="min-w-0">
           <div class="rounded-2xl border border-border bg-background">
             <figcaption class="border-b border-border px-5 py-3 text-sm text-muted-foreground">
-              Comment on pull request #42
+              Review on pull request #42
             </figcaption>
             <div class="px-5 py-4 text-sm leading-relaxed">
-              <p>From the walkthrough of this change:</p>
-              <p class="mt-3 border-l-2 border-border pl-3 text-muted-foreground">Show none until someone types.</p>
+              <p><strong>Walkthrough step “Choose the empty search behavior”</strong></p>
               <p class="mt-3">
-                <strong>Step:</strong> Choose the empty search behavior
-                (<code class="font-mono text-[0.8em]">README.md</code>, <code class="font-mono text-[0.8em]">src/search.ts</code>)
-              </p>
-              <p class="mt-1">
-                <strong>Agent’s answer:</strong> That is a decision: return no notes for an empty query in
+                That is a decision: return no notes for an empty query in
                 <code class="font-mono text-[0.8em]">src/search.ts</code>.
               </p>
             </div>
@@ -821,7 +816,7 @@ const card = 'rounded-2xl border border-border bg-card shadow-[0_30px_80px_-50px
       });
     }
 
-    /* Post on #42 sends the comment, with its step and the agent's answer, to the pull request. */
+    /* Publish sends the draft comment, under its step, to the pull request as one review. */
     function playPost() {
       const post = one('[data-post]');
       if (!post) return;

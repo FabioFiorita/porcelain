@@ -13,16 +13,16 @@ it('allows Fetch while settings load but blocks Pull with the settings reason', 
     networkActionBlocker(
       'fetch',
       status,
-      'Reading Reviews & Git settings for this computer…',
+      'Reading Changes & Git settings for this computer…',
     ),
   ).toBeNull();
   expect(
     networkActionBlocker(
       'pull',
       status,
-      'Reading Reviews & Git settings for this computer…',
+      'Reading Changes & Git settings for this computer…',
     ),
-  ).toBe('Reading Reviews & Git settings for this computer…');
+  ).toBe('Reading Changes & Git settings for this computer…');
   expect(networkActionBlocker('pull', status, 'Computer offline')).toBe(
     'Computer offline',
   );

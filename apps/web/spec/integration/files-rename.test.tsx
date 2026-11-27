@@ -11,7 +11,7 @@ test('renaming a file in the tree moves it on disk and shows the new name', asyn
 }) => {
   await repo.write(before, 'Notes to rename\n');
   const opened = await render.workspace();
-  await opened.getByRole('button', { name: 'Review', exact: true }).click();
+  await opened.getByRole('button', { name: 'Side panel', exact: true }).click();
   await opened.getByRole('tab', { name: 'Files', exact: true }).click();
   await opened
     .getByRole('treeitem', { name: before, exact: true })
@@ -51,7 +51,7 @@ test('renaming a file onto an existing name is refused and keeps both files', as
 }) => {
   await repo.write(after, 'Notes to rename\n');
   const page = await render.workspace();
-  await page.getByRole('button', { name: 'Review', exact: true }).click();
+  await page.getByRole('button', { name: 'Side panel', exact: true }).click();
   await page.getByRole('tab', { name: 'Files', exact: true }).click();
   await page
     .getByRole('treeitem', { name: after, exact: true })
@@ -99,7 +99,7 @@ for (const activation of ['pointer', 'keyboard'] as const) {
   }) => {
     await repo.write(before, 'Notes to rename\n');
     const page = await render.workspace();
-    await page.getByRole('button', { name: 'Review', exact: true }).click();
+    await page.getByRole('button', { name: 'Side panel', exact: true }).click();
     await page.getByRole('tab', { name: 'Files', exact: true }).click();
     const search = page.getByRole('textbox', {
       name: 'Search files',
@@ -170,7 +170,7 @@ test('renaming a pinned file clears the tree search before showing the inline na
 }) => {
   await repo.write(before, 'Pinned notes\n');
   const page = await render.workspace();
-  await page.getByRole('button', { name: 'Review', exact: true }).click();
+  await page.getByRole('button', { name: 'Side panel', exact: true }).click();
   await page.getByRole('tab', { name: 'Files', exact: true }).click();
   await page
     .getByRole('treeitem', { name: before, exact: true })
@@ -219,13 +219,13 @@ test('renaming an open file moves its tab to the new name', async ({
   await repo.write(before, 'Notes to rename\n');
   const app = await render.route('/');
   const page = app.page;
-  await page.getByRole('button', { name: 'Review', exact: true }).click();
+  await page.getByRole('button', { name: 'Side panel', exact: true }).click();
   await page.getByRole('tab', { name: 'Files', exact: true }).click();
   await page.getByRole('treeitem', { name: before, exact: true }).click();
   await expect
     .element(page.getByRole('tab', { name: before, exact: true }))
     .toHaveAttribute('aria-selected', 'true');
-  await page.getByRole('button', { name: 'Review', exact: true }).click();
+  await page.getByRole('button', { name: 'Side panel', exact: true }).click();
   await page.getByRole('tab', { name: 'Files', exact: true }).click();
   await page
     .getByRole('treeitem', { name: before, exact: true })

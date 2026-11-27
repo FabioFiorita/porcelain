@@ -11,14 +11,16 @@ import { PendingSpinner } from '@/shared/views/state-notice';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { FieldLegend, FieldSet } from '@/components/ui/field';
 import {
   Item,
   ItemContent,
   ItemDescription,
-  ItemGroup,
   ItemTitle,
 } from '@/components/ui/item';
+import {
+  SettingsGroup,
+  SettingsSection,
+} from '@/shared/views/settings-section';
 import { useForgetRemote } from '../commands/remotes';
 import { useRemoteStatus } from '../queries/remotes';
 import { remoteStatusVariant } from '../rules/remotes';
@@ -82,62 +84,55 @@ function RemoteDetails({
   const name = online ? status.name : remote.name;
   const note = remoteStatusNote(status);
   return (
-    <div className="settings-computer grid min-w-0 items-start gap-x-8 gap-y-6 lg:grid-cols-[minmax(0,1fr)_--spacing(62)]">
-      <FieldSet className="lg:col-span-2">
-        <FieldLegend variant="label">Overview</FieldLegend>
-        <ItemGroup>
-          <Item variant="outline">
-            <ItemContent>
+    <>
+      <SettingsSection id="overview" title="Overview">
+        <SettingsGroup>
+          <Item>
+            <ItemContent className="min-w-0">
               <ItemTitle className="min-w-0 flex-wrap">
-                <span className="min-w-0">{name}</span>{' '}
+                <span className="min-w-0 text-sm">{name}</span>{' '}
                 <Badge variant={remoteStatusVariant(status)}>
                   {remoteStatusText(status)}
                 </Badge>
               </ItemTitle>
               {note && <ItemDescription>{note}</ItemDescription>}
               {!online && (
-                <p className="text-sm text-muted-foreground">
+                <p className="text-xs leading-4.5 text-muted-foreground">
                   Saved details · Stale. This computer has not been verified
                   online.
                 </p>
               )}
               <Collapsible>
                 <CollapsibleTrigger
-                  render={<Button variant="ghost" size="sm" />}
+                  render={
+                    <Button variant="ghost" size="sm" className="-ml-2 w-fit" />
+                  }
                 >
                   Details
                 </CollapsibleTrigger>
                 <CollapsibleContent>
-                  <dl className="grid gap-3 text-sm">
-                    <div>
-                      <dt className="text-muted-foreground">Address</dt>
-                      <dd className="break-all font-mono">{remote.address}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-muted-foreground">Computer ID</dt>
-                      <dd className="break-all font-mono">
-                        {remote.environmentId}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-muted-foreground">
-                        Porcelain version
-                      </dt>
-                      <dd>
-                        {online
-                          ? (status.version ?? 'Not reported')
-                          : 'Unavailable while this computer is not online'}
-                      </dd>
-                    </div>
+                  <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-6 gap-y-1.5 py-1 text-xs leading-4.5">
+                    <dt className="text-muted-foreground">Address</dt>
+                    <dd className="break-all font-mono">{remote.address}</dd>
+                    <dt className="text-muted-foreground">Computer ID</dt>
+                    <dd className="break-all font-mono">
+                      {remote.environmentId}
+                    </dd>
+                    <dt className="text-muted-foreground">Porcelain version</dt>
+                    <dd>
+                      {online
+                        ? (status.version ?? 'Not reported')
+                        : 'Unavailable while this computer is not online'}
+                    </dd>
                     {remote.deviceId && (
-                      <div>
+                      <>
                         <dt className="text-muted-foreground">
                           This app’s device ID
                         </dt>
                         <dd className="break-all font-mono">
                           {remote.deviceId}
                         </dd>
-                      </div>
+                      </>
                     )}
                   </dl>
                   <ConnectionHistory environmentId={remote.environmentId} />
@@ -146,14 +141,25 @@ function RemoteDetails({
             </ItemContent>
           </Item>
           {online && entry && (
-            <Item variant="outline">
+            <Item>
               <ItemContent>
                 <RemoteServiceUpdate connection={entry.connection} />
               </ItemContent>
             </Item>
           )}
-        </ItemGroup>
-      </FieldSet>
+          {!online && (
+            <Item>
+              <ItemContent>
+                <ItemTitle>Pair again</ItemTitle>
+                <ItemDescription>
+                  On this computer, run porcelain pair. Return to Computers and
+                  add the new link to replace this app’s saved connection.
+                </ItemDescription>
+              </ItemContent>
+            </Item>
+          )}
+        </SettingsGroup>
+      </SettingsSection>
       {online && entry && (
         <>
           <WaysIn connection={entry.connection} />
@@ -161,50 +167,34 @@ function RemoteDetails({
         </>
       )}
       <SavedWaysIn remote={remote} />
-      {!online && (
-        <Item variant="outline">
-          <ItemContent>
-            <ItemTitle>Pair again</ItemTitle>
-            <p className="text-sm text-muted-foreground">
-              On this computer, run porcelain pair. Return to Computers and add
-              the new link to replace this app’s saved connection.
-            </p>
-          </ItemContent>
-        </Item>
-      )}
-      <FieldSet>
-        <FieldLegend variant="label">Danger zone</FieldLegend>
-        <div className="rounded-2xl border border-destructive/30">
-          <ItemGroup>
-            <Item variant="outline">
-              <ItemContent>
-                <ItemTitle>Forget {name}</ItemTitle>
-                <p className="text-sm text-muted-foreground">
-                  Removes this computer from this app. Other devices keep their
-                  access.
-                </p>
-                <Button
-                  variant="destructive"
-                  className="w-fit"
-                  disabled={forget.result.waiting}
-                  onClick={() => void forget.submit()}
-                >
-                  {forget.result.waiting ? 'Forgetting…' : 'Forget on this app'}
-                </Button>
-                {AsyncResult.isFailure(forget.result) && (
-                  <Alert variant="destructive">
-                    <AlertDescription>
-                      {connectionErrorMessage(
-                        Cause.squash(forget.result.cause),
-                      )}
-                    </AlertDescription>
-                  </Alert>
-                )}
-              </ItemContent>
-            </Item>
-          </ItemGroup>
-        </div>
-      </FieldSet>
-    </div>
+      <SettingsSection id="danger-zone" title="Danger zone">
+        <SettingsGroup className="border-destructive/30">
+          <Item>
+            <ItemContent className="min-w-0">
+              <ItemTitle>Forget {name}</ItemTitle>
+              <p className="text-xs/relaxed text-muted-foreground">
+                Removes this computer from this app. Other devices keep their
+                access.
+              </p>
+              {AsyncResult.isFailure(forget.result) && (
+                <Alert variant="destructive">
+                  <AlertDescription>
+                    {connectionErrorMessage(Cause.squash(forget.result.cause))}
+                  </AlertDescription>
+                </Alert>
+              )}
+            </ItemContent>
+            <Button
+              variant="destructive"
+              className="shrink-0"
+              disabled={forget.result.waiting}
+              onClick={() => void forget.submit()}
+            >
+              {forget.result.waiting ? 'Forgetting…' : 'Forget on this app'}
+            </Button>
+          </Item>
+        </SettingsGroup>
+      </SettingsSection>
+    </>
   );
 }

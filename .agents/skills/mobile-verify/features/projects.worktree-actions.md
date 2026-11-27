@@ -24,7 +24,7 @@ Long-pressing a worktree card in Worktrees opens its actions as a form sheet rou
 
 ## How to get to it (user POV)
 
-- Worktrees → long-press a worktree card.
+- Worktree drawer → long-press a worktree card.
 
 ## Driving it with agent-device
 

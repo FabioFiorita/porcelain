@@ -24,13 +24,10 @@ const WALKTHROUGH_ROUTES = [
   'GET /api/worktrees/:worktreeId/walkthrough',
   'GET /api/worktrees/:worktreeId/walkthrough/:runId/assets/:assetId',
   'GET /api/worktrees/:worktreeId/walkthrough/:runId/conversations',
-  'GET /api/worktrees/:worktreeId/walkthrough/:runId/conversations/brief',
   'POST /api/worktrees/:worktreeId/walkthrough',
   'POST /api/worktrees/:worktreeId/walkthrough/:runId/conversations/messages',
-  'POST /api/worktrees/:worktreeId/walkthrough/:runId/conversations/messages/:messageId/post',
   'POST /api/worktrees/:worktreeId/walkthrough/:runId/conversations/messages/:messageId/retry',
-  'POST /api/worktrees/:worktreeId/walkthrough/:runId/conversations/post-saved',
-  'PUT /api/worktrees/:worktreeId/walkthrough/:runId/conversations/messages/:messageId/saved',
+  'PUT /api/worktrees/:worktreeId/walkthrough/:runId/calls/:step/:call/decision',
 ].toSorted();
 
 test('reads the latest attempt and reports when its pinned head is out of date', async ({
@@ -249,23 +246,23 @@ test('serves stored evidence bytes for a finished walkthrough and refuses assets
     (route) =>
       route.includes('/walkthrough') &&
       !route.includes('/conversations') &&
+      !route.includes('/calls/') &&
       !route.includes('/walkthrough-settings'),
   );
   const requested = await server.requestedRoutes();
   expect(() => handlerCoverage([{ registered, requested }])).not.toThrow();
 });
 
-test('answers a walkthrough comment, keeps it after a refresh, copies a brief without a pull request and posts once with one', async ({
+test('answers a walkthrough comment, keeps it after a refresh and across runs, and keeps each branch to its own conversations', async ({
   session,
   server,
 }) => {
-  const ghCalls = join(session.projectHome, 'gh-comment-calls');
   const agentFails = join(session.projectHome, 'agent-fails');
   const writer = await scriptedWalkthroughs(session, server.manifestPath, {
     answer: 'It keeps the retry local.',
     costUsd: 0.03,
     failurePath: agentFails,
-    postsPath: ghCalls,
+    postsPath: join(session.projectHome, 'gh-comment-calls'),
     argumentsPath: join(session.projectHome, 'answer-writer-args'),
   });
   await session.git(
@@ -358,11 +355,6 @@ test('answers a walkthrough comment, keeps it after a refresh, copies a brief wi
   let firstRunId = 'first-run';
   let secondRunId = 'second-run';
   let branchBRunId = 'branch-b-run';
-  const legacy = runJob('legacy-run', headA, [], undefined);
-  await seed({
-    ...legacy,
-    run: { ...legacy.run, pullRequestRepository: undefined },
-  });
   firstRunId = await seed(
     runJob(
       firstRunId,
@@ -391,6 +383,7 @@ test('answers a walkthrough comment, keeps it after a refresh, copies a brief wi
     runId: firstRunId,
     pullRequestNumber: undefined,
     conversations: [],
+    decisions: [],
   });
   const add = async (
     title: string | undefined,
@@ -434,9 +427,8 @@ test('answers a walkthrough comment, keeps it after a refresh, copies a brief wi
   });
   expect(await conversations()).toEqual(view);
   const missing = await session.send({
-    method: 'PUT',
-    path: `${worktreeRoot()}/messages/nope/saved`,
-    body: { saved: true },
+    method: 'POST',
+    path: `${worktreeRoot()}/messages/nope/retry`,
   });
   expect(missing.status).toBe(404);
   expect(missing.body).toEqual(
@@ -451,23 +443,6 @@ test('answers a walkthrough comment, keeps it after a refresh, copies a brief wi
     },
   });
   expect(unknownStop.status).toBe(404);
-  await read(session, {
-    method: 'PUT',
-    path: `${worktreeRoot()}/messages/${kept}/saved`,
-    body: { saved: true },
-  });
-  const brief = await read(session, {
-    method: 'GET',
-    path: `${worktreeRoot()}/brief?messageId=${kept}`,
-  });
-  expect(brief.text).toBe(
-    "From the walkthrough of this change:\n\n> Why here?\n\n**Step:** Kept step (`src/kept.ts`)\n**Agent's answer:** It keeps the retry local.\n",
-  );
-  const noPull = await read(session, {
-    method: 'POST',
-    path: `${worktreeRoot()}/post-saved`,
-  });
-  expect(noPull.outcome).toEqual({ status: 'brief', text: brief.text });
   await writeFile(agentFails, '');
   const removed = await add('Removed step', 'Should this stay?');
   await expect
@@ -501,26 +476,6 @@ test('answers a walkthrough comment, keeps it after a refresh, copies a brief wi
     [firstRunId, { kind: 'stop', title: 'Kept step' }],
     [firstRunId, { kind: 'walkthrough' }],
   ]);
-  const legacyMessage = await add(
-    undefined,
-    'A message without recorded origin',
-    'legacy-run',
-  );
-  const missingRepository = await session.send({
-    method: 'POST',
-    path: `${worktreeRoot()}/messages/${legacyMessage}/post`,
-  });
-  expect(missingRepository.status).toBe(409);
-  const unbound = await session.send({
-    method: 'POST',
-    path: `${worktreeRoot()}/messages/${removed}/post`,
-  });
-  expect(unbound.status).toBe(200);
-  expect(record(unbound.body).outcome).toEqual({
-    status: 'posted',
-    url: 'https://github.com/FabioFiorita/porcelain/pull/423#issuecomment-1',
-    notPosted: [],
-  });
   const onPull = await add('Kept step', 'Ship it this way?', secondRunId, {
     provider: 'claude',
     model: 'sonnet',
@@ -540,45 +495,11 @@ test('answers a walkthrough comment, keeps it after a refresh, copies a brief wi
   expect(answerArgs[answerArgs.indexOf('--model') + 1]).toBe('sonnet');
   expect(answerArgs[answerArgs.indexOf('--effort') + 1]).toBe('xhigh');
   expect(answerArgs).not.toContain('--resume');
-  const first = await read(session, {
-    method: 'POST',
-    path: `${worktreeRoot()}/messages/${onPull}/post`,
-  });
-  const url =
-    'https://github.com/FabioFiorita/porcelain/pull/423#issuecomment-1';
-  expect(first.outcome).toEqual({ status: 'posted', url, notPosted: [] });
-  const second = await read(session, {
-    method: 'POST',
-    path: `${worktreeRoot()}/messages/${onPull}/post`,
-  });
-  expect(second.outcome).toEqual(first.outcome);
-  const savedOnPull = await add(undefined, 'Saved on the pull', secondRunId);
-  await read(session, {
-    method: 'PUT',
-    path: `${worktreeRoot()}/messages/${savedOnPull}/saved`,
-    body: { saved: true },
-  });
-  const saved = await read(session, {
-    method: 'POST',
-    path: `${worktreeRoot()}/post-saved`,
-  });
-  expect(saved.outcome).toEqual({ status: 'posted', url, notPosted: [] });
-  const calls = (await readFile(ghCalls, 'utf8'))
-    .trim()
-    .split('\n')
-    .filter(Boolean);
-  expect(calls).toHaveLength(3);
-  expect(calls[0]).toContain('"body":"From the walkthrough of this change:');
   const branchA = await add(
     undefined,
     'Only branch A should see this.',
     secondRunId,
   );
-  await read(session, {
-    method: 'PUT',
-    path: `${worktreeRoot()}/messages/${branchA}/saved`,
-    body: { saved: true },
-  });
   await session.git('switch', '-c', 'conversation-branch-b');
   branchBRunId = await seed(
     runJob(
@@ -595,11 +516,6 @@ test('answers a walkthrough comment, keeps it after a refresh, copies a brief wi
     'Only branch B should see this.',
     branchBRunId,
   );
-  await read(session, {
-    method: 'PUT',
-    path: `${worktreeRoot()}/messages/${branchB}/saved`,
-    body: { saved: true },
-  });
   await session.git('switch', currentBranch);
   displayedRunId = secondRunId;
   const branchRead = Schema.decodeUnknownSync(readWalkthroughResponseSchema)(
@@ -635,101 +551,24 @@ test('answers a walkthrough comment, keeps it after a refresh, copies a brief wi
       body: { anchor: { kind: 'walkthrough' }, text: 'Foreign target' },
     },
     {
-      method: 'PUT',
-      path: `${worktreeRoot('foreign-run')}/messages/${branchA}/saved`,
-      body: { saved: true },
-    },
-    {
       method: 'POST',
       path: `${worktreeRoot('foreign-run')}/messages/${branchA}/retry`,
     },
-    {
-      method: 'POST',
-      path: `${worktreeRoot('foreign-run')}/messages/${branchA}/post`,
-    },
-    { method: 'POST', path: `${worktreeRoot('foreign-run')}/post-saved` },
-    { method: 'GET', path: `${worktreeRoot('foreign-run')}/brief` },
   ] as const) {
     const refused = await session.send(request);
     expect(refused.status).toBe(404);
   }
-  const branchBrief = await read(session, {
-    method: 'GET',
-    path: `${worktreeRoot()}/brief`,
-  });
-  expect(branchBrief.text).toContain('Only branch A');
-  expect(branchBrief.text).not.toContain('Only branch B');
-  const wrongBrief = await session.send({
-    method: 'GET',
-    path: `${worktreeRoot()}/brief?messageId=${branchB}`,
-  });
-  expect(wrongBrief.status).toBe(404);
-  const wrongPost = await session.send({
+  const wrongRetry = await session.send({
     method: 'POST',
-    path: `${worktreeRoot()}/messages/${branchB}/post`,
+    path: `${worktreeRoot()}/messages/${branchB}/retry`,
   });
-  expect(wrongPost.status).toBe(404);
-  for (const request of [
-    {
-      method: 'PUT',
-      path: `${worktreeRoot()}/messages/${branchB}/saved`,
-      body: { saved: false },
-    },
-    { method: 'POST', path: `${worktreeRoot()}/messages/${branchB}/retry` },
-  ] as const) {
-    const refused = await session.send(request);
-    expect(refused.status).toBe(404);
-  }
-  const postedA = await read(session, {
-    method: 'POST',
-    path: `${worktreeRoot()}/post-saved`,
-  });
-  expect(record(postedA.outcome).url).toBe(
-    'https://github.com/FabioFiorita/porcelain/pull/423#issuecomment-1',
-  );
-  expect(record(postedA.view).runId).toBe(secondRunId);
-  await session.git('switch', 'conversation-branch-b');
-  displayedRunId = branchBRunId;
-  const postedB = await read(session, {
-    method: 'POST',
-    path: `${worktreeRoot()}/post-saved`,
-  });
-  expect(record(postedB.outcome).url).toBe(
-    'https://github.com/FabioFiorita/porcelain/pull/424#issuecomment-1',
-  );
-  expect(record(postedB.view).runId).toBe(branchBRunId);
-  await session.git('switch', currentBranch);
-  displayedRunId = secondRunId;
-  const unposted = await add(undefined, 'A private decision', secondRunId);
-  await expect
-    .poll(() => agentState(unposted), { timeout: 10000 })
-    .toBe('answered');
+  expect(wrongRetry.status).toBe(404);
   await session.git(
     'remote',
     'set-url',
     'origin',
     'https://github.com/someone/public-fork.git',
   );
-  const refused = await session.send({
-    method: 'POST',
-    path: `${worktreeRoot()}/messages/${unposted}/post`,
-  });
-  expect(refused.status).toBe(409);
-  expect(refused.body).toEqual(
-    apiError(
-      409,
-      'Conflict',
-      "This walkthrough's pull request is on FabioFiorita/porcelain, but this project's origin no longer points there. Nothing was posted. Copy the brief instead.",
-    ),
-  );
-  expect(
-    (await readFile(ghCalls, 'utf8')).trim().split('\n').filter(Boolean),
-  ).toHaveLength(5);
-  const offered = await read(session, {
-    method: 'GET',
-    path: `${worktreeRoot()}/brief?messageId=${unposted}`,
-  });
-  expect(offered.text).toContain('A private decision');
   await session.git('branch', 'conversation-start-base');
   await session.writeFile('conversation.txt', 'Advance again.\n');
   await session.git('add', 'conversation.txt');
@@ -862,4 +701,130 @@ test('announces screenshots attached to a ready walkthrough to a client that is 
   expect(Buffer.from(await asset.arrayBuffer())).toEqual(
     Buffer.from([137, 80, 78, 71]),
   );
+});
+
+test('records a decision on a call with who made it, keeps it after a refresh, clears it and refuses a call or option the walkthrough does not offer', async ({
+  session,
+  server,
+}) => {
+  const writer = await scriptedWalkthroughs(session, server.manifestPath, {
+    answer: 'Unused.',
+    costUsd: 0.01,
+    failurePath: join(session.projectHome, 'decision-writer-fails'),
+    postsPath: join(session.projectHome, 'decision-posts'),
+  });
+  await session.git('branch', 'decision-base');
+  await session.writeFile('decision.txt', 'A change with a call to make.\n');
+  await session.git('add', 'decision.txt');
+  await session.git('commit', '-m', 'Add a change with a call');
+  const run = await writer.write(
+    {
+      version: 1,
+      outcome: 'worth_knowing',
+      title: 'Decision fixture',
+      summary: 'A walkthrough with two calls.',
+      growth: [],
+      stops: [
+        {
+          title: 'Choose the storage',
+          explanation: 'The change needs a place to keep its state.',
+          blocks: [
+            {
+              kind: 'callout',
+              attention: {
+                kind: 'tradeoff',
+                note: 'Both work.',
+                question: 'Which store?',
+              },
+              comparison: {
+                columns: ['SQLite', 'Files'],
+                rows: [['Durable', 'Simple']],
+              },
+            },
+            {
+              kind: 'callout',
+              attention: {
+                kind: 'risk',
+                note: 'It writes on every change.',
+                question: 'Is that acceptable?',
+              },
+            },
+          ],
+        },
+      ],
+      onlyInTranscript: [],
+      stillUnclear: [],
+    },
+    { base: 'refs/heads/decision-base' },
+  );
+  const root = `/api/worktrees/${session.worktreeId}/walkthrough/${run.id}`;
+  const decide = (step: number, call: number, body: object, runId = run.id) =>
+    session.send({
+      method: 'PUT',
+      path: `/api/worktrees/${session.worktreeId}/walkthrough/${runId}/calls/${step}/${call}/decision`,
+      body,
+    });
+  const summary = (body: unknown) =>
+    Schema.decodeUnknownSync(walkthroughConversationsResponseSchema)(
+      body,
+    ).decisions.map(({ decidedBy, decidedAt, ...decision }) => ({
+      ...decision,
+      decidedBy: decidedBy.kind,
+      dated: /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(decidedAt),
+    }));
+  const decisions = async () =>
+    summary(
+      await read(session, { method: 'GET', path: `${root}/conversations` }),
+    );
+  expect(await decisions()).toEqual([]);
+
+  const chosen = await decide(1, 0, { decided: true, option: 'SQLite' });
+  expect(chosen.status).toBe(200);
+  const afterChoice = summary(chosen.body);
+  expect(afterChoice).toEqual([
+    { step: 1, call: 0, option: 'SQLite', decidedBy: 'device', dated: true },
+  ]);
+  expect(await decisions()).toEqual(afterChoice);
+
+  expect((await decide(1, 1, { decided: true })).status).toBe(200);
+  expect(await decisions()).toEqual([
+    afterChoice[0],
+    { step: 1, call: 1, option: undefined, decidedBy: 'device', dated: true },
+  ]);
+
+  const before = await decisions();
+  for (const [step, call, body] of [
+    [1, 0, { decided: true, option: 'Postgres' }],
+    [1, 1, { decided: true, option: 'Yes' }],
+    [1, 2, { decided: true }],
+    [2, 0, { decided: true }],
+  ] as const) {
+    const refused = await decide(step, call, body);
+    expect(refused.status, `${step}/${call}`).toBe(404);
+    expect(refused.body).toEqual(
+      apiError(
+        404,
+        'Not Found',
+        'This call or option is not in the walkthrough',
+      ),
+    );
+  }
+  const foreign = await decide(
+    1,
+    0,
+    { decided: true, option: 'Files' },
+    '00000000-0000-4000-8000-000000000001',
+  );
+  expect(foreign.status).toBe(404);
+  expect(await decisions()).toEqual(before);
+
+  expect((await decide(1, 0, { decided: false })).status).toBe(200);
+  expect((await decisions()).map(({ step, call }) => [step, call])).toEqual([
+    [1, 1],
+  ]);
+
+  const registered = server.routes.filter((route) => route.includes('/calls/'));
+  expect(registered).toHaveLength(1);
+  const requested = await server.requestedRoutes();
+  expect(() => handlerCoverage([{ registered, requested }])).not.toThrow();
 });

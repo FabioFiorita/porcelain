@@ -9,7 +9,9 @@ test('an open file another writer rewrites on disk shows the new text without a 
 }) => {
   const readme = repo.readme.path;
   const rewritten = 'Rewritten by another writer while the page is open.';
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await workspace.getByRole('tab', { name: 'Files', exact: true }).click();
   const file = workspace.getByRole('treeitem', { name: readme, exact: true });
   await expect.element(file).toBeVisible();
@@ -54,7 +56,9 @@ test('a file another writer creates on disk appears in the open file tree and ch
   repo,
   server,
 }) => {
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   const files = workspace.getByRole('tab', { name: 'Files', exact: true });
   await files.click();
   await expect
@@ -90,7 +94,9 @@ test('a file another writer removes from disk leaves the open changes list and f
   server,
 }) => {
   await repo.write(note, 'Written by another writer.\n');
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await workspace
     .getByRole('complementary', { name: 'Review sidebar', exact: true })
     .getByRole('tab', { name: 'Changes', exact: true })

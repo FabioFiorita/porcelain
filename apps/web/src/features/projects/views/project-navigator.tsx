@@ -5,6 +5,7 @@ import {
 } from '@porcelain/client/projects/rules';
 import { TruncatedText } from '@/shared/views/truncated-text';
 import { NavigatorRowMenu } from './navigator-row-menu';
+import { relativeTime } from '@porcelain/client/history/rules';
 import { formatForDisplay } from '@tanstack/react-hotkeys';
 import { Kbd } from '@/components/ui/kbd';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
@@ -17,6 +18,7 @@ import {
   ChevronDownIcon,
   CircleAlertIcon,
   GitBranchIcon,
+  GitMergeIcon,
   HouseIcon,
   KeyboardIcon,
   ListFilterIcon,
@@ -24,7 +26,7 @@ import {
   SettingsIcon,
 } from 'lucide-react';
 import {
-  readWorktreeNavigator,
+  readWorktreeNavigatorWithSnapshots,
   refreshWorktreeNavigator,
   refreshInventories,
   worktreeNavigatorState,
@@ -33,15 +35,19 @@ import {
   emptyNavigatorFilter,
   navigatorEntryLabel,
   navigatorEntrySelected,
+  navigatorCardChangesLabel,
+  nameEnd,
   navigatorChecksLabel,
   navigatorRowTitle,
   navigatorRowTrailing,
+  navigatorTouchedAt,
   navigatorVisibleRows,
   type NavigatorEntry,
 } from '@porcelain/client/projects/rules';
 import {
   EnvironmentGlyph,
   remoteConnectionStatus,
+  remoteWorktreeSnapshots,
   UpdatesMenu,
   useConnectedContext,
 } from '@/features/access/index';
@@ -134,7 +140,10 @@ export function ProjectNavigator({
     ...(remotes ?? []).map((entry) => entry.connection),
   ];
   const { projects, filters, loading, neverRead } = useAtomValue(
-    readWorktreeNavigator(connections),
+    readWorktreeNavigatorWithSnapshots({
+      connections,
+      snapshots: remoteWorktreeSnapshots(remotes ?? []),
+    }),
   );
   const state = useAtomValue(worktreeNavigatorState);
   const setState = useAtomSet(worktreeNavigatorState);
@@ -368,7 +377,15 @@ export function ProjectNavigator({
                     </TooltipContent>
                   </Tooltip>
                 </div>
-                {!source.project.available && (
+                {source.saved && (
+                  <p
+                    role="status"
+                    className="px-2 py-2 text-xs text-muted-foreground"
+                  >
+                    Computer unavailable
+                  </p>
+                )}
+                {!source.saved && !source.project.available && (
                   <div className="flex flex-col gap-2 px-2 py-2">
                     <p role="status" className="text-xs text-muted-foreground">
                       {projectUnavailableMessage(source.project)}
@@ -414,21 +431,29 @@ export function ProjectNavigator({
                           : undefined;
                       const title = navigatorRowTitle(entry);
                       const trailing = navigatorRowTrailing(entry);
-                      const disclosure = [
-                        title,
-                        entry.name !== title ? entry.name : undefined,
-                        entry.path,
-                      ]
-                        .filter(Boolean)
-                        .join(' · ');
                       const EntryIcon = entryIcon(entry);
                       const failed =
                         review?.checks?.state === 'available' &&
                         review.checks.result === 'failed';
+                      const failedOn =
+                        trailing?.kind === 'pull-request'
+                          ? ` on #${trailing.number}`
+                          : '';
+                      const failedLabel = failed
+                        ? `Checks failed${failedOn}`
+                        : undefined;
+                      const disclosure = [
+                        title,
+                        entry.name !== title ? entry.name : undefined,
+                        entry.path,
+                        failedLabel,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ');
                       let attach =
                         entry.key === lastKey ? lastEntry.attach : undefined;
                       if (entry.key === firstKey) attach = firstEntry.attach;
-                      const label = `${navigatorEntryLabel(entry)}${active ? ', Current' : ''}`;
+                      const label = `${navigatorEntryLabel(entry)}${failedLabel ? `, ${failedLabel.toLowerCase()}` : ''}${active ? ', Current' : ''}`;
                       return (
                         <SidebarMenuItem key={entry.key}>
                           <NavigatorRowMenu
@@ -456,8 +481,8 @@ export function ProjectNavigator({
                               data-navigator-card=""
                               className={
                                 active
-                                  ? 'relative rounded-md bg-card'
-                                  : 'relative rounded-md hover:bg-card'
+                                  ? 'relative rounded-md bg-selection'
+                                  : 'relative rounded-md hover:bg-accent'
                               }
                             >
                               <TruncatedText
@@ -465,7 +490,7 @@ export function ProjectNavigator({
                                 disclose="always"
                                 renderTrigger={(_label, clip) => (
                                   <Item
-                                    className="w-full cursor-pointer text-left"
+                                    className="w-full cursor-pointer py-1.5 text-left text-ui leading-4.5"
                                     data-sidebar="menu-button"
                                     size="xs"
                                     aria-label={label}
@@ -479,8 +504,8 @@ export function ProjectNavigator({
                                       />
                                     }
                                   >
-                                    <ItemMedia>
-                                      <EntryIcon className="size-3.5 text-muted-foreground" />
+                                    <ItemMedia className="self-start">
+                                      <EntryIcon className="mt-0.5 size-3.5 text-muted-foreground" />
                                     </ItemMedia>
                                     <ItemContent className="min-w-0">
                                       <div className="flex min-w-0 items-center gap-1">
@@ -489,6 +514,9 @@ export function ProjectNavigator({
                                           active
                                             ? 'min-w-0 flex-1 font-semibold'
                                             : 'min-w-0 flex-1 font-medium',
+                                          entry.displayTitle === undefined
+                                            ? { keep: nameEnd(title) }
+                                            : 'end',
                                         )}
                                         {failed && (
                                           <CircleAlertIcon
@@ -496,25 +524,15 @@ export function ProjectNavigator({
                                             aria-hidden="true"
                                           />
                                         )}
-                                        {trailing?.kind === 'pull-request' && (
-                                          <span
-                                            aria-hidden="true"
-                                            data-trailing={trailing.text}
-                                            className={cn(
-                                              buttonVariants({
-                                                variant: 'ghost',
-                                                size: 'xs',
-                                              }),
-                                              'invisible shrink-0 text-2xs tabular-nums before:content-[attr(data-trailing)]',
-                                            )}
-                                          />
-                                        )}
-                                        {trailing?.kind === 'changes' && (
-                                          <span className="shrink-0 text-2xs text-muted-foreground tabular-nums">
-                                            {trailing.text}
-                                          </span>
-                                        )}
                                       </div>
+                                      <NavigatorRowMeta
+                                        entry={entry}
+                                        pullRequest={
+                                          trailing?.kind === 'pull-request'
+                                            ? trailing
+                                            : undefined
+                                        }
+                                      />
                                     </ItemContent>
                                   </Item>
                                 )}
@@ -523,16 +541,15 @@ export function ProjectNavigator({
                                 <Button
                                   variant="ghost"
                                   size="xs"
-                                  className="absolute top-1/2 right-2.75 shrink-0 -translate-y-1/2 cursor-pointer"
-                                  aria-label={`Open PR #${trailing.number} · ${entry.projectName} · ${entry.environmentName} · ${navigatorChecksLabel(review?.checks)}`}
+                                  className="absolute right-0.5 bottom-1 shrink-0 cursor-pointer"
+                                  aria-label={`Open PR #${trailing.number} · ${entry.projectName} · ${entry.environmentName} · ${navigatorChecksLabel(review?.checks)}${trailing.merged ? ' · Merged' : ''}`}
+                                  data-merged={trailing.merged ? '' : undefined}
                                   onClick={() => {
                                     onOpenPullRequest(entry);
                                     setOpenMobile(false);
                                   }}
                                 >
-                                  <span className="text-2xs text-muted-foreground tabular-nums">
-                                    {trailing.text}
-                                  </span>
+                                  <PullRequestMark trailing={trailing} />
                                 </Button>
                               )}
                             </div>
@@ -550,7 +567,7 @@ export function ProjectNavigator({
                             setShowingAll(source.key, shown.more > 0)
                           }
                         >
-                          <span className="text-muted-foreground">
+                          <span className="text-2xs text-muted-foreground">
                             {shown.more > 0
                               ? `Show ${shown.more} more`
                               : 'Show less'}
@@ -581,11 +598,9 @@ export function ProjectNavigator({
             </Empty>
           )}
           {!loading && projects.length === 0 && !neverRead && (
-            <Empty>
-              <EmptyHeader>
-                <EmptyTitle>{emptyTitle}</EmptyTitle>
-              </EmptyHeader>
-            </Empty>
+            <p className="px-4 py-3 text-xs text-muted-foreground">
+              {emptyTitle}
+            </p>
           )}
         </SidebarContent>
         <footer
@@ -637,6 +652,72 @@ export function ProjectNavigator({
       </Sidebar>
       <DeleteWorktreeDialog />
       <SwitchWorktreeBranchDialog />
+    </div>
+  );
+}
+
+type PullRequestTrailing = Extract<
+  NonNullable<ReturnType<typeof navigatorRowTrailing>>,
+  { kind: 'pull-request' }
+>;
+
+function PullRequestMark({ trailing }: { trailing: PullRequestTrailing }) {
+  return (
+    <span className="flex items-center gap-0.5 text-2xs text-muted-foreground tabular-nums">
+      {trailing.merged && <GitMergeIcon aria-hidden="true" />}
+      {trailing.text}
+    </span>
+  );
+}
+
+function NavigatorRowMeta({
+  entry,
+  pullRequest,
+}: {
+  entry: NavigatorEntry;
+  pullRequest: PullRequestTrailing | undefined;
+}) {
+  const branch = entry.displayTitle === undefined ? undefined : entry.branch;
+  const label = navigatorCardChangesLabel(entry.changes);
+  const changes = label === '—' || label === '' ? undefined : label;
+  const touched = navigatorTouchedAt(entry);
+  return (
+    <div className="flex h-4 min-w-0 items-center gap-2 text-2xs leading-4 text-muted-foreground">
+      <div className="flex h-4 min-w-0 flex-1 flex-wrap justify-between gap-x-2 overflow-hidden">
+        {(branch || changes) && (
+          <span className="flex max-w-full min-w-0">
+            {branch && (
+              <TruncatedText
+                className="max-w-full shrink-0"
+                text={branch}
+                cut={{ keep: nameEnd(branch) }}
+              />
+            )}
+            {changes && (
+              <TruncatedText
+                className="min-w-0"
+                text={branch ? `\u00a0· ${changes}` : changes}
+              />
+            )}
+          </span>
+        )}
+        {touched && (
+          <span className="shrink-0 tabular-nums">
+            {relativeTime(touched, Date.now())}
+          </span>
+        )}
+      </div>
+      {pullRequest !== undefined && (
+        <span
+          aria-hidden="true"
+          className={cn(
+            buttonVariants({ variant: 'ghost', size: 'xs' }),
+            'invisible h-4 shrink-0',
+          )}
+        >
+          <PullRequestMark trailing={pullRequest} />
+        </span>
+      )}
     </div>
   );
 }

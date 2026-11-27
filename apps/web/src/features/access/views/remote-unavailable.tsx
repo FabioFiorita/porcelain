@@ -8,10 +8,12 @@ export function RemoteUnavailable({
   name,
   status,
   onOpenRemotes,
+  onRetry,
 }: {
   name: string;
   status: RemoteStatus;
   onOpenRemotes: () => void;
+  onRetry: () => void;
 }) {
   if (status.kind === 'online') return null;
   if (status.kind === 'checking')
@@ -32,9 +34,16 @@ export function RemoteUnavailable({
           : `${name}: ${remoteStatusText(status)}`
       }
       action={
-        <Button variant="outline" size="sm" onClick={onOpenRemotes}>
-          Computer settings
-        </Button>
+        <div className="flex gap-2">
+          {status.kind === 'offline' && (
+            <Button variant="outline" size="sm" onClick={onRetry}>
+              Try again
+            </Button>
+          )}
+          <Button variant="outline" size="sm" onClick={onOpenRemotes}>
+            Computer settings
+          </Button>
+        </div>
       }
     />
   );

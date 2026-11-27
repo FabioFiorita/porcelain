@@ -1,8 +1,10 @@
 import { expect, it } from 'vite-plus/test';
 import {
   canonicalEntry,
+  documentSubject,
   entryKey,
   parseEntry,
+  pullRequestDocument,
   workspaceTitle,
 } from './documents.ts';
 
@@ -77,6 +79,12 @@ it('restores distinct all-changes and Specs documents after navigation or reload
   expect(
     workspaceTitle({ entry: 'specs', surface: 'changes', project: 'p' }),
   ).toBe('Specs — p');
+});
+
+it('names the branch document after the row that opens it', () => {
+  expect(
+    workspaceTitle({ entry: 'branch', surface: 'changes', project: 'p' }),
+  ).toBe('All branch changes — p');
 });
 
 it('restores a pull request tab and names it after reload', () => {
@@ -158,4 +166,45 @@ it('keeps equal pull request and review IDs on two computers as separate tabs', 
     number: 482,
     environmentId: 'remote-computer',
   });
+});
+
+it("opens a pull request on the worktree's own computer as the one tab its link names", () => {
+  const projectId = '10000000-0000-4000-8000-000000000001';
+  const fromWalkthrough = entryKey(
+    pullRequestDocument({
+      projectId,
+      number: 57,
+      environmentId: 'local-computer',
+      shownOn: 'local-computer',
+    }),
+  );
+  expect(fromWalkthrough).toBe(
+    'pull-request:10000000-0000-4000-8000-000000000001:57',
+  );
+  expect(
+    canonicalEntry('pull-request:10000000-0000-4000-8000-000000000001:57'),
+  ).toBe(fromWalkthrough);
+  expect(
+    entryKey(
+      pullRequestDocument({
+        projectId,
+        number: 57,
+        environmentId: 'remote-computer',
+        shownOn: 'local-computer',
+      }),
+    ),
+  ).toBe(
+    'pull-request:10000000-0000-4000-8000-000000000001:57:environment=remote-computer',
+  );
+});
+
+it.each([
+  ['commit:abcdef1', 'This commit'],
+  ['all-changes', 'These changes'],
+  ['file:src/a.ts', 'This file'],
+  ['review', 'The Walkthrough'],
+  ['pull-request:10000000-0000-4000-8000-000000000001:57', 'This pull request'],
+  [undefined, 'This worktree'],
+])('names %s as "%s" when it cannot be read', (entry, subject) => {
+  expect(documentSubject(parseEntry(entry))).toBe(subject);
 });

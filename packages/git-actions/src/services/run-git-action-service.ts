@@ -74,6 +74,13 @@ export class RunGitActionService extends Context.Service<
           refreshRequired: false,
         };
       }
+      function operationTooManyChanges(): GitActionOutcome {
+        return {
+          state: 'rejected',
+          reason: 'TOO_MANY_CHANGES',
+          refreshRequired: false,
+        };
+      }
       return {
         execute: Effect.fn('RunGitActionService.execute')(function* (
           input: RunGitActionInput,
@@ -83,14 +90,18 @@ export class RunGitActionService extends Context.Service<
           WorktreeRead | WorktreeWrite
         > {
           const { run } = input;
-          const outcome = operationTargetMatches(run, input.changes)
-            ? operationOutcome(
-                yield* gitActionRunnerCapability.run({
-                  run,
-                  onProgress: input.onProgress,
-                }),
-              )
-            : operationChangedSinceLooked();
+          const outcome =
+            input.omittedChanges > 0 &&
+            expectsWholeChangeList(run.intent, run.expected)
+              ? operationTooManyChanges()
+              : operationTargetMatches(run, input.changes)
+                ? operationOutcome(
+                    yield* gitActionRunnerCapability.run({
+                      run,
+                      onProgress: input.onProgress,
+                    }),
+                  )
+                : operationChangedSinceLooked();
           return {
             outcome,
             reviewStale:

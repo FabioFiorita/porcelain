@@ -6,6 +6,7 @@ import { Option } from 'effect';
 import type { HistoryScope } from '@porcelain/client/history/rules';
 import type { Connection } from '@/shared/workspace/connection';
 import { TruncatedText } from '@/shared/views/truncated-text';
+import { WindowDragRegion } from '@/shared/views/window-drag-region';
 import { formatForDisplay } from '@tanstack/react-hotkeys';
 import {
   Columns2Icon,
@@ -46,7 +47,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import {
   ScrollAreaRoot,
-  ScrollAreaViewport,
+  ScrollStripViewport,
   ScrollBar,
 } from '@/components/ui/scroll-area';
 import { shortOid } from '@porcelain/client/history/rules';
@@ -128,7 +129,7 @@ function describeTab(key: string) {
     case 'branch':
       return {
         Icon: GitBranchIcon,
-        title: 'Branch',
+        title: 'All branch changes',
         hint: 'Every change on the branch',
       };
     case 'branch-file':
@@ -196,10 +197,11 @@ export function DocumentTabs({
     <div
       data-pane-bar=""
       className={cn(
-        'flex h-12 shrink-0 items-center gap-1.5 border-b px-2.5 text-[length:var(--text-ui)] leading-[1.4]',
+        'relative flex h-12 shrink-0 items-center gap-1.5 border-b px-2.5 text-ui',
         side !== null && side !== undefined && 'gap-2',
       )}
     >
+      <WindowDragRegion />
       {leading !== null && leading !== undefined && (
         <div className="flex shrink-0 items-center">{leading}</div>
       )}
@@ -222,13 +224,16 @@ export function DocumentTabs({
               hasUnpinned={tabs.some(
                 (key) => !permanentTab(key) && !pinned.includes(key),
               )}
+              hasOthers={tabs.some(
+                (key) => !permanentTab(key) && !pinned.includes(key),
+              )}
               side={side}
               {...actions}
             />
           </span>
         )}
         <ScrollAreaRoot className="@container/tabs relative h-full min-w-0 flex-1">
-          <ScrollAreaViewport
+          <ScrollStripViewport
             data-tab-viewport=""
             className="size-full overflow-y-hidden"
             ref={(viewport) => {
@@ -251,7 +256,7 @@ export function DocumentTabs({
               };
             }}
           >
-            <div className="flex h-full w-max min-w-full items-center gap-1 px-1.5">
+            <div className="flex h-full w-full items-center gap-1 px-1.5">
               {tabs
                 .filter((key) => !permanentTab(key))
                 .map((key, index) => {
@@ -269,13 +274,22 @@ export function DocumentTabs({
                     hasUnpinned: tabs.some(
                       (item) => !permanentTab(item) && !pinned.includes(item),
                     ),
+                    hasOthers: tabs.some(
+                      (item) =>
+                        item !== key &&
+                        !permanentTab(item) &&
+                        !pinned.includes(item),
+                    ),
                     side,
                     ...actions,
                   };
                   return (
                     <span
                       key={key}
-                      className="flex min-w-0 shrink-0 items-center"
+                      className={cn(
+                        'flex items-center',
+                        key === active ? 'shrink-0' : 'min-w-18 shrink',
+                      )}
                     >
                       {commitContext && document?.kind === 'commit' ? (
                         <CommitTab
@@ -296,7 +310,7 @@ export function DocumentTabs({
                   );
                 })}
             </div>
-          </ScrollAreaViewport>
+          </ScrollStripViewport>
           <ScrollBar
             orientation="horizontal"
             className="absolute inset-x-0 bottom-0 data-horizontal:h-1.5"
@@ -312,7 +326,7 @@ export function DocumentTabs({
                   render={
                     <Button
                       variant="ghost"
-                      size="icon-sm"
+                      size="sm"
                       className="shrink-0"
                       aria-label="Open document list"
                     />
@@ -320,14 +334,15 @@ export function DocumentTabs({
                 />
               }
             >
-              <ChevronDownIcon />
+              <span className="tabular-nums">
+                {tabs.length}
+                <span className="max-sm:hidden"> tabs</span>
+              </span>
+              <ChevronDownIcon data-icon="inline-end" />
             </TooltipTrigger>
             <TooltipContent>Open document list</TooltipContent>
           </Tooltip>
-          <DropdownMenuContent
-            align="end"
-            className="w-auto max-w-[min(28rem,90vw)] min-w-56"
-          >
+          <DropdownMenuContent align="end">
             <DropdownMenuRadioGroup
               value={active ?? ''}
               onValueChange={(key: unknown) => {
@@ -365,7 +380,7 @@ export function DocumentTabs({
         </DropdownMenu>
       )}
       {trailing !== null && trailing !== undefined && (
-        <div className="ml-1 flex shrink-0 items-center gap-0.5 border-l pl-2">
+        <div className="relative flex shrink-0 items-center gap-1">
           {trailing}
         </div>
       )}
@@ -380,6 +395,7 @@ function DocumentTab({
   active,
   pinned,
   hasUnpinned,
+  hasOthers,
   side,
   onActivate,
   onClose,
@@ -395,6 +411,7 @@ function DocumentTab({
   active: boolean;
   pinned: boolean;
   hasUnpinned: boolean;
+  hasOthers: boolean;
   side: 'left' | 'right' | null;
 }) {
   const { Icon, title, hint, accessibleName = title } = describeTab(tabKey);
@@ -417,10 +434,7 @@ function DocumentTab({
         }}
       >
         <TruncatedText
-          className={cn(
-            'min-w-0 flex-1',
-            tabKey.startsWith('file:') && 'italic',
-          )}
+          className="min-w-0 flex-1"
           text={pinned ? `${tabHint} · pinned` : tabHint}
           disclose="always"
           renderTrigger={(label) => (
@@ -438,10 +452,10 @@ function DocumentTab({
                   aria-label={commitSubject ? tabTitle : accessibleName}
                   data-entry={tabKey}
                   className={cn(
-                    'group flex h-7 min-w-0 max-w-[min(100cqw,calc(var(--spacing)*45))] cursor-default items-center gap-1.5 rounded-md px-2 text-xs font-medium transition-colors',
+                    'group flex h-7 min-w-0 max-w-[min(100cqw,calc(var(--spacing)*45))] cursor-default items-center gap-1.5 rounded-md px-2 text-xs font-medium outline-none transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-solid focus-visible:outline-ring',
                     active
                       ? 'bg-muted text-foreground ring-1 ring-border ring-inset'
-                      : 'text-muted-foreground hover:bg-accent/50',
+                      : 'text-muted-foreground hover:bg-accent hover:text-foreground',
                     active && !permanentTab(tabKey) && !pinned && 'pr-0.5',
                   )}
                   onClick={() => onActivate(tabKey)}
@@ -518,10 +532,7 @@ function DocumentTab({
         >
           {tabTitle}
         </TruncatedText>
-        <ContextMenuContent
-          className="min-w-52"
-          finalFocus={openingSide ? 'none' : 'trigger'}
-        >
+        <ContextMenuContent finalFocus={openingSide ? 'none' : 'trigger'}>
           <ContextMenuItem
             disabled={permanentTab(tabKey)}
             onSelect={() => onTogglePin(tabKey)}
@@ -559,7 +570,10 @@ function DocumentTab({
               {formatForDisplay(SHORTCUTS.closeTab)}
             </ContextMenuShortcut>
           </ContextMenuItem>
-          <ContextMenuItem onSelect={() => onCloseOthers(tabKey)}>
+          <ContextMenuItem
+            disabled={!hasOthers}
+            onSelect={() => onCloseOthers(tabKey)}
+          >
             <SquareXIcon />
             Close others
           </ContextMenuItem>

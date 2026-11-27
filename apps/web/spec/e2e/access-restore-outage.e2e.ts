@@ -6,7 +6,7 @@ test('a reload while the server cannot answer keeps the address and shows the wo
 }) => {
   failures.console(/Could not reach Porcelain to restore this browser session/);
   const opened = await app.open(await app.link('this'));
-  await opened.getByRole('button', { name: 'Review', exact: true }).click();
+  await opened.getByRole('button', { name: 'Side panel', exact: true }).click();
   await opened.getByRole('tab', { name: 'Files', exact: true }).click();
   await expect(
     opened.getByRole('tab', { name: 'Files', selected: true, exact: true }),
@@ -33,7 +33,7 @@ test('a reload while the server cannot answer keeps the address and shows the wo
     opened.getByRole('region', { name: 'Review content', exact: true }),
   ).toBeVisible();
   await expect.poll(() => app.address().path).toBe(workspace);
-  await opened.getByRole('button', { name: 'Review', exact: true }).click();
+  await opened.getByRole('button', { name: 'Side panel', exact: true }).click();
   await expect(
     opened.getByRole('tab', { name: 'Files', selected: true, exact: true }),
   ).toBeVisible();

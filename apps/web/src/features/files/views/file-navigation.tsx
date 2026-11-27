@@ -70,6 +70,8 @@ import {
   changeStatus,
   fileTreeAncestors,
   mergeFileTreeEntries,
+  omittedEntriesText,
+  withUnlistedSelection,
   movedPath,
   pathInside,
   pinnedFileEntries,
@@ -182,7 +184,11 @@ function ScopedFileNavigation({
       Option.toArray(AsyncResult.value(result)),
     ),
   ];
-  const loadedEntries = mergeFileTreeEntries(directories);
+  const loadedEntries = withUnlistedSelection(
+    mergeFileTreeEntries(directories),
+    directories,
+    selected,
+  );
   const matches = searching
     ? fileSearchMatches(
         visibleFileTreePaths(
@@ -212,6 +218,11 @@ function ScopedFileNavigation({
   const visiblePaths = visibleFileTreePaths(paths, hidden, showHidden);
   const kinds = new Map(entries.map((entry) => [entry.path, entry.kind]));
   const failed = directoriesRead.results.filter(AsyncResult.isFailure);
+  const omittedNotes = searching
+    ? []
+    : directories.flatMap((directory) =>
+        Option.toArray(Option.fromNullishOr(omittedEntriesText(directory))),
+      );
   const pinDirectories: PinnedDirectoryState[] = [
     { path: '', status: 'loaded', entries: root.entries },
     ...directoriesRead.states,
@@ -293,8 +304,9 @@ function ScopedFileNavigation({
           close,
           rename,
           onStartCreate: (kind, parent) => {
-            if (!edit.result.waiting)
-              setCreating({ kind, folder: parent, nonce: Date.now() });
+            if (edit.result.waiting) return;
+            edit.reset();
+            setCreating({ kind, folder: parent, nonce: Date.now() });
           },
           onOpenFile: (next) => onOpen({ kind: 'file', path: next }),
           onOpenToSide: (next) => openFile(next, true),
@@ -309,9 +321,14 @@ function ScopedFileNavigation({
                 pinned: !pinned.includes(canonicalPreferencePath(next)),
               }),
             ),
-          onTrash: setDeleting,
+          onTrash: (next) => {
+            edit.reset();
+            setDeleting(next);
+          },
           onDuplicate: (next) => {
-            if (!edit.result.waiting) duplicate(next);
+            if (edit.result.waiting) return;
+            edit.reset();
+            duplicate(next);
           },
         }),
     };
@@ -326,7 +343,10 @@ function ScopedFileNavigation({
     links: entries.filter(
       (entry) => entry.kind === 'symlink' || entry.kind === 'submodule',
     ),
-    creating: writeBlock ? undefined : creating,
+    creating:
+      creating && !writeBlock
+        ? { ...creating, onStart: () => setCreating(undefined) }
+        : undefined,
     writeBlock,
     renameRequest:
       renaming && !writeBlock
@@ -334,6 +354,7 @@ function ScopedFileNavigation({
         : undefined,
     onRequestRename: (path) => {
       if (writeBlock) return;
+      edit.reset();
       setRequested((current) => union(current, fileTreeAncestors(path)));
       setFileQuery('');
       setRenaming({ path, nonce: Date.now() });
@@ -519,7 +540,7 @@ function ScopedFileNavigation({
       >
         <FileSectionHeader label="All files" />
         {searching && AsyncResult.isFailure(indexed.result) && (
-          <div role="alert" className="px-3 py-2 text-xs">
+          <div role="alert" className="px-6 py-2 text-xs">
             Could not search files.
             <Button variant="link" size="xs" onClick={() => indexed.refresh()}>
               Try again
@@ -532,12 +553,21 @@ function ScopedFileNavigation({
           matches.length === 0 && (
             <p
               role="status"
-              className="px-3 py-2 text-xs text-muted-foreground"
+              className="px-6 py-2 text-xs text-muted-foreground"
             >
               No files match your search.
             </p>
           )}
         <PierreFileTree key={treeInput.owner} {...treeInput} />
+        {omittedNotes.map((note) => (
+          <p
+            key={note}
+            role="status"
+            className="shrink-0 px-3.5 py-2 text-2xs text-muted-foreground"
+          >
+            {note}
+          </p>
+        ))}
         {hidden.size > 0 && (
           <div className="flex shrink-0 items-center gap-1.5 px-3.5 py-2 text-2xs text-muted-foreground">
             <EyeOffIcon className="size-3.5 shrink-0" />

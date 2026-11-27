@@ -53,12 +53,11 @@ export async function liveRouter(context: BrowserContext) {
       ),
     holdChangesRead: () => network.hold(isChangesRead),
     failChangesRead: () => network.fail(isChangesRead, 503),
-    failWorktreeStatusRead: (exceptWorktreeId: string) =>
+    failWorktreeStatusRead: (worktreeId: string) =>
       network.fail(
         (request) =>
           request.method() === 'GET' &&
-          /^\/api\/worktrees\/[^/]+\/git\/status$/.test(pathOf(request)) &&
-          !pathOf(request).includes(exceptWorktreeId),
+          pathOf(request) === `/api/worktrees/${worktreeId}/git/status`,
         503,
       ),
     worktreeStatusFailed: (worktreeId: string) =>

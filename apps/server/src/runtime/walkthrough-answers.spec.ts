@@ -81,7 +81,8 @@ const text = /<comment>\\n([\\s\\S]*?)\\n<\\/comment>/.exec(prompt)?.[1] ?? '';
 fs.appendFileSync(path.join(here, 'calls'), JSON.stringify({ text, resume: args.includes('--resume'), pid: process.pid }) + '\\n');
 const wait = () => new Promise((resolve) => setTimeout(resolve, 10));
 (async () => {
-  while (fs.existsSync(path.join(here, 'hold')) && text === fs.readFileSync(path.join(here, 'hold'), 'utf8')) await wait();
+  const held = () => { try { return text === fs.readFileSync(path.join(here, 'hold'), 'utf8'); } catch { return false; } };
+  while (held()) await wait();
   if (fs.existsSync(path.join(here, 'fail'))) { console.error('The tool crashed.'); process.exit(1); }
   console.log(JSON.stringify({ session_id: 'writer-session', total_cost_usd: 0.02, result: 'Answer to: ' + text }));
 })();
@@ -116,7 +117,7 @@ async function fixture(
         Layer.mergeAll(
           database,
           cliWalkthroughWriterLayer({ processGroup, command }).pipe(
-            Layer.provide(
+            Layer.provideMerge(
               Layer.succeed(WalkthroughModelReader, {
                 read: () =>
                   Effect.succeed([

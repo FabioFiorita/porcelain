@@ -147,12 +147,30 @@ describe('forwardedResponseHeaders', () => {
     ).toEqual([null, null, null, 'text/html']);
   });
 
-  it('gives every page the app policy, which keeps scripts to the app, instead of the server one', () => {
+  it('keeps the byte length of an uncompressed ranged media response', () => {
+    const media = new Headers({
+      'accept-ranges': 'bytes',
+      'content-length': '12',
+      'content-range': 'bytes 2-13/14',
+      'content-type': 'video/mp4',
+    });
+    const path = '/api/worktrees/example/preview-file';
+    const forwarded = forwardedResponseHeaders(path, media, 'built');
+    expect(forwarded.get('content-length')).toBe('12');
+    expect(forwarded.get('content-range')).toBe('bytes 2-13/14');
+    media.set('content-encoding', 'gzip');
+    expect(
+      forwardedResponseHeaders(path, media, 'built').get('content-length'),
+    ).toBeNull();
+  });
+
+  it('gives every page the app policy, which keeps scripts to the app and the file preview link bridge, instead of the server one', () => {
     expect(
       forwardedResponseHeaders('/project/worktree', answer, 'built')
         .get('content-security-policy')
-        ?.split('; '),
-    ).toContain("script-src 'self'");
+        ?.split('; ')
+        .find((directive) => directive.startsWith('script-src ')),
+    ).toMatch(/^script-src 'self' 'sha256-[A-Za-z0-9+/]{43}='$/);
   });
 
   it('leaves the policy of an API answer as the server sent it', () => {

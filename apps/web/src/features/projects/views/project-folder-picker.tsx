@@ -1,5 +1,4 @@
 import { PendingButton } from '@/shared/views/pending-button';
-import { TruncatedText } from '@/shared/views/truncated-text';
 import { Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { Fragment } from 'react';
@@ -36,12 +35,8 @@ export function ProjectFolderPicker({
     ? ['/', ...current.path.split('/').filter(Boolean)]
     : [];
   return (
-    <section
-      aria-label="Browse for a folder"
-      className="flex flex-col gap-2 rounded-2xl border bg-muted/30 p-2"
-    >
-      <div className="flex flex-col gap-1 px-3 pt-1">
-        <h3 className="text-sm font-medium">Browse for a folder</h3>
+    <section aria-label="Browse for a folder" className="flex flex-col gap-2">
+      <div className="flex min-h-5 flex-col gap-1">
         {current && (
           <Breadcrumb aria-label="Folder path">
             <BreadcrumbList>
@@ -85,11 +80,11 @@ export function ProjectFolderPicker({
       </div>
       <ProjectFolderList folder={folder} disabled={disabled} />
       {current?.truncated && (
-        <p className="px-3 text-xs text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           This folder is large; some entries are not shown.
         </p>
       )}
-      <div className="flex items-center justify-between gap-2 pr-1 pb-1 pl-3">
+      <div className="flex items-center justify-between gap-2">
         <p className="text-xs text-muted-foreground">
           {current?.repository
             ? 'Every worktree appears in the sidebar.'
@@ -108,13 +103,7 @@ export function ProjectFolderPicker({
             if (current) onOpen(current.path);
           }}
         >
-          <TruncatedText
-            className="max-w-36"
-            text={
-              action ??
-              `Open ${current?.path.split('/').filter(Boolean).at(-1) ?? 'folder'}`
-            }
-          />
+          {action ?? 'Open repository'}
         </PendingButton>
       </div>
     </section>

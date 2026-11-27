@@ -123,19 +123,25 @@ export class RunQueuedGitActionUseCase extends Context.Service<
                     const { run } = begun;
                     const ran = yield* restoreWrite(
                       Effect.gen(function* () {
+                        const status =
+                          run.target.kind === 'unchecked'
+                            ? undefined
+                            : yield* readStatus.execute({
+                                worktreeId: run.worktreeId,
+                              });
                         const changes =
+                          status === undefined ||
                           run.target.kind === 'unchecked'
                             ? []
                             : (yield* readFingerprints.execute({
                                 worktreeId: run.worktreeId,
-                                comparisons: (yield* readStatus.execute({
-                                  worktreeId: run.worktreeId,
-                                })).changes,
+                                comparisons: status.changes,
                                 paths: run.target.paths,
                               })).changes;
                         return yield* runAction.execute({
                           run,
                           changes,
+                          omittedChanges: status?.omittedChanges ?? 0,
                           onProgress: (line) =>
                             Effect.gen(function* () {
                               const recorded = yield* recordProgress.execute({

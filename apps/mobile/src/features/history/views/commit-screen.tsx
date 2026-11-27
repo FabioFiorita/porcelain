@@ -33,16 +33,36 @@ export function CommitScreen({
   );
 }
 
+export function CommitPane({
+  current,
+  oid,
+}: {
+  current: Workspace;
+  oid: string;
+}) {
+  return (
+    <CommitDetail
+      current={current}
+      oid={oid}
+      diffRoute="/history/commit/[oid]/diff"
+      selectedPath={undefined}
+      place="pane"
+    />
+  );
+}
+
 function CommitDetail({
   current,
   oid,
   diffRoute,
   selectedPath,
+  place = 'screen',
 }: {
   current: Workspace;
   oid: string;
   diffRoute: '/history/commit/[oid]/diff' | '/timeline-diff';
   selectedPath: string | undefined;
+  place?: 'screen' | 'pane' | undefined;
 }) {
   const [parent, setParent] = useState(1);
   const router = useRouter();
@@ -50,6 +70,7 @@ function CommitDetail({
     <Screen layout="fixed">
       <CommitPage
         key={parent}
+        surface={place}
         selection={current}
         oid={oid}
         parent={parent}

@@ -15,6 +15,7 @@ import {
   githubPullSummarySchema,
 } from '@porcelain/reviews/models';
 import type { Limits } from '../../config/limits.ts';
+import { lacksAccess, type GitHubAccessMemo } from './github-access-memo.ts';
 
 const PAGE = 'pageInfo { hasNextPage }';
 const SUMMARY_FIELDS = `number title url state isDraft author { login avatarUrl(size: 48) } headRefName baseRefName updatedAt`;
@@ -23,7 +24,7 @@ const CHECK_FIELDS = `commits(last: 1) { nodes { commit { statusCheckRollup { st
     nodes { __typename ... on CheckRun { name status conclusion detailsUrl startedAt completedAt } ... on StatusContext { context state targetUrl } } ${PAGE}
   } } } } }`;
 const detailQuery = `query PullRequestRead($owner: String!, $repo: String!, $number: Int!) {
-  repository(owner: $owner, name: $repo) { pullRequest(number: $number) {
+  repository(owner: $owner, name: $repo) { mergeCommitAllowed squashMergeAllowed rebaseMergeAllowed pullRequest(number: $number) {
     ${SUMMARY_FIELDS} ${CHECK_FIELDS} body createdAt baseRefName headRefOid headRepository { url } mergeable bodyHTML
     labels(first: 50) { nodes { name color } ${PAGE} }
     comments(first: 50) { nodes { id author { login avatarUrl(size: 48) } createdAt body url } ${PAGE} }
@@ -65,10 +66,27 @@ const listSchema = Schema.Struct({
 const detailSchema = Schema.Struct({
   data: Schema.Struct({
     repository: Schema.Struct({
+      mergeCommitAllowed: Schema.optional(Schema.Boolean),
+      squashMergeAllowed: Schema.optional(Schema.Boolean),
+      rebaseMergeAllowed: Schema.optional(Schema.Boolean),
       pullRequest: Schema.NullOr(githubPullRequestSchema),
     }),
   }),
 });
+
+function allowedMergeMethods(repository: {
+  readonly mergeCommitAllowed?: boolean | undefined;
+  readonly squashMergeAllowed?: boolean | undefined;
+  readonly rebaseMergeAllowed?: boolean | undefined;
+}) {
+  const allowed = [
+    ['merge', repository.mergeCommitAllowed],
+    ['squash', repository.squashMergeAllowed],
+    ['rebase', repository.rebaseMergeAllowed],
+  ] as const;
+  if (allowed.some(([, value]) => value === undefined)) return undefined;
+  return allowed.filter(([, value]) => value).map(([method]) => method);
+}
 
 const unavailable = (error: {
   readonly reason: GitHubReadError['reason'] | 'not-found';
@@ -77,7 +95,10 @@ const unavailable = (error: {
     reason: error.reason === 'not-found' ? 'invalid-response' : error.reason,
   });
 
-export const ghPullRequestReaderLayer = (limits: Limits['git']) =>
+export const ghPullRequestReaderLayer = (
+  limits: Limits['git'],
+  access: GitHubAccessMemo,
+) =>
   Layer.effect(
     GitHubReader,
     Effect.gen(function* () {
@@ -87,14 +108,12 @@ export const ghPullRequestReaderLayer = (limits: Limits['git']) =>
       ) {
         return yield* readGitHubApi(input, limits).pipe(provide);
       });
-      const readPull = Effect.fn('GitHubReader.readPull')(function* <T>(
+      const readPull = Effect.fn('GitHubReader.readPull')(function* <
+        R extends { readonly pullRequest: unknown },
+      >(
         input: Parameters<GitHubReader['read']>[0],
         query: string,
-        schema: Schema.Codec<{
-          readonly data: {
-            readonly repository: { readonly pullRequest: T | null };
-          };
-        }>,
+        schema: Schema.Codec<{ readonly data: { readonly repository: R } }>,
       ) {
         const json = yield* api({
           account: input.account,
@@ -106,6 +125,7 @@ export const ghPullRequestReaderLayer = (limits: Limits['git']) =>
             number: input.number,
           },
         }).pipe(
+          access.forgetWhenRefused(input, lacksAccess),
           Effect.mapError((error) =>
             error.reason === 'not-found'
               ? new GitHubPullRequestNotFoundError()
@@ -119,19 +139,28 @@ export const ghPullRequestReaderLayer = (limits: Limits['git']) =>
             () => new GitHubReadError({ reason: 'invalid-response' }),
           ),
         );
-        const pullRequest = decoded.data.repository.pullRequest;
-        if (pullRequest === null)
-          return yield* new GitHubPullRequestNotFoundError();
-        return pullRequest;
+        return decoded.data.repository;
       });
       return GitHubReader.of({
-        accounts: () =>
-          listGitHubAccounts(limits).pipe(
+        accounts: Effect.fn('GitHubReader.accounts')(function* (freshness) {
+          const cached = freshness?.fresh ? undefined : yield* access.accounts;
+          if (cached) return cached;
+          const accounts = yield* listGitHubAccounts(limits).pipe(
             provide,
             Effect.mapError(unavailable),
-          ),
-        canRead: (input) =>
-          api({
+            Effect.tapError(() => access.forgetAccounts),
+          );
+          yield* access.rememberAccounts(accounts);
+          return accounts;
+        }),
+        canRead: Effect.fn('GitHubReader.canRead')(function* (input) {
+          const target = {
+            account: input.account,
+            owner: input.owner,
+            repo: input.repo,
+          };
+          if (!input.fresh && (yield* access.readable(target))) return true;
+          const allowed = yield* api({
             account: input.account,
             endpoint: `repos/${encodeURIComponent(input.owner)}/${encodeURIComponent(input.repo)}`,
           }).pipe(
@@ -141,9 +170,29 @@ export const ghPullRequestReaderLayer = (limits: Limits['git']) =>
               (error) => error.reason === 'no-access',
               () => Effect.succeed(false),
             ),
+          );
+          yield* access.rememberReadable(target, allowed);
+          return allowed;
+        }),
+        read: (input) =>
+          readPull(input, detailQuery, detailSchema).pipe(
+            Effect.flatMap(({ pullRequest, ...repository }) =>
+              pullRequest === null
+                ? Effect.fail(new GitHubPullRequestNotFoundError())
+                : Effect.succeed({
+                    ...pullRequest,
+                    allowedMergeMethods: allowedMergeMethods(repository),
+                  }),
+            ),
           ),
-        read: (input) => readPull(input, detailQuery, detailSchema),
-        checks: (input) => readPull(input, CHECKS_QUERY, checksSchema),
+        checks: (input) =>
+          readPull(input, CHECKS_QUERY, checksSchema).pipe(
+            Effect.flatMap(({ pullRequest }) =>
+              pullRequest === null
+                ? Effect.fail(new GitHubPullRequestNotFoundError())
+                : Effect.succeed(pullRequest),
+            ),
+          ),
         list: Effect.fn('GitHubReader.list')(function* (input) {
           const open: (typeof githubPullSummarySchema.Type)[] = [];
           let cursor: string | undefined;
@@ -159,7 +208,10 @@ export const ghPullRequestReaderLayer = (limits: Limits['git']) =>
                 repo: input.repo,
                 ...(cursor === undefined ? {} : { cursor }),
               },
-            }).pipe(Effect.mapError(unavailable));
+            }).pipe(
+              access.forgetWhenRefused(input, lacksAccess),
+              Effect.mapError(unavailable),
+            );
             const decoded = yield* Schema.decodeEffect(
               Schema.fromJsonString(listSchema),
             )(json).pipe(

@@ -8,7 +8,6 @@ test('History retains commit focus and arrows traverse commits without taking ov
   await page.viewport(1280, 896);
   try {
     await repo.commit('Newest commit');
-    await repo.branch('newest-ref');
     const workspace = await render.workspace();
     await workspace
       .getByRole('navigation', { name: 'Side panel', exact: true })
@@ -40,7 +39,9 @@ test('History retains commit focus and arrows traverse commits without taking ov
         workspace.getByRole('heading', { name: 'Newest commit', exact: true }),
       )
       .toBeVisible();
-    await list.getByRole('button', { name: 'newest-ref', exact: true }).click();
+    await list
+      .getByRole('button', { name: repo.initialBranch, exact: true })
+      .click();
     await userEvent.keyboard('{ArrowDown}');
     await expectInputFocus(oldest);
     await expect

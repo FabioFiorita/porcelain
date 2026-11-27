@@ -73,6 +73,44 @@ export function walkthroughCalls(content: WalkthroughContent) {
   );
 }
 
+type Decided = { readonly step: number; readonly call: number };
+
+const isDecided = (decisions: readonly Decided[], step: number, call: number) =>
+  decisions.some((entry) => entry.step === step && entry.call === call);
+
+export function callDecisionProgress(
+  content: WalkthroughContent,
+  decisions: readonly Decided[] | undefined,
+) {
+  const calls = walkthroughCalls(content);
+  return {
+    total: calls.length,
+    decided: calls.filter((call) =>
+      isDecided(decisions ?? [], call.step, call.callIndex),
+    ).length,
+  };
+}
+
+export function undecidedCallCount(
+  content: WalkthroughContent,
+  decisions: readonly Decided[] | undefined,
+) {
+  const progress = callDecisionProgress(content, decisions);
+  return progress.total - progress.decided;
+}
+
+export function undecidedCallStep(
+  content: WalkthroughContent,
+  decisions: readonly Decided[] | undefined,
+  failed = false,
+): number | 'reading' | 'unreadable' | undefined {
+  if (walkthroughCalls(content).length === 0) return undefined;
+  if (!decisions) return failed ? 'unreadable' : 'reading';
+  return walkthroughCalls(content).find(
+    (call) => !isDecided(decisions, call.step, call.callIndex),
+  )?.step;
+}
+
 export function walkthroughVerdict(content: WalkthroughContent) {
   const calls = walkthroughCalls(content).length;
   if (content.outcome === 'nothing') return 'Nothing needs you.';
@@ -218,6 +256,7 @@ export function walkthroughStartRequest(input: {
   branch: string | undefined;
   displayedRun: Pick<WalkthroughRun, 'pullRequestNumber'> | undefined;
   base?: string | undefined;
+  writer?: StartWalkthroughRequest['writer'];
 }): StartWalkthroughRequest {
   const listed =
     input.branch === undefined
@@ -229,6 +268,7 @@ export function walkthroughStartRequest(input: {
   return {
     ...(input.base === undefined ? {} : { base: input.base }),
     ...(pullRequestNumber === undefined ? {} : { pullRequestNumber }),
+    ...(input.writer === undefined ? {} : { writer: input.writer }),
   };
 }
 
@@ -297,6 +337,19 @@ export function walkthroughCodeScopes({
 }
 
 export type ReviewCode = { branch: string[]; worktree: string[] };
+
+export function reviewCodeCount(code: ReviewCode) {
+  return new Set([...code.branch, ...code.worktree]).size;
+}
+
+export function reviewCodeIn(code: ReviewCode, side: keyof ReviewCode) {
+  const here = new Set(code[side]);
+  const other = side === 'branch' ? code.worktree : code.branch;
+  return {
+    here: code[side],
+    elsewhere: other.filter((path) => !here.has(path)),
+  };
+}
 
 export function eagerSections(
   sections: { steps: readonly ReviewCode[]; outside: ReviewCode },
@@ -377,4 +430,10 @@ export function reviewCodeSections({
       worktree: every.worktree.filter((path) => !coveredWorktree.has(path)),
     },
   };
+}
+
+export function uncoveredPaths(outside: ReviewCode, branchRead: boolean) {
+  return [
+    ...new Set([...(branchRead ? outside.branch : []), ...outside.worktree]),
+  ];
 }

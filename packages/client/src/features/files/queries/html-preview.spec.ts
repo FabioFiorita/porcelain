@@ -20,6 +20,8 @@ function preview(
         missing: [...assets]
           .filter(([, asset]) => asset === null)
           .map(([path]) => path),
+        links: [],
+        nonce: '',
       })),
   });
   return Effect.map(

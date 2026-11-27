@@ -1,6 +1,7 @@
 ---
 route: /$projectId/$worktreeId
 selectors:
+  - "Side panel"
   - "Review"
   - "Files"
   - "Open file"
@@ -31,7 +32,7 @@ printf 'needle one\nneedle two\nneedle three\n' > "$REPO/notes.txt"
 
 A second write happens between steps 4 and 5.
 
-1. Navigate to `/`, click button `Review`, click tab `Files`
+1. Navigate to `/`, click button `Side panel`, click tab `Files`
    Expect: treeitem "notes.txt".
 2. Right-click treeitem `notes.txt`, then click menuitem `Open file`
    Expect: tab "notes.txt" selected; the code shows "needle one", "needle two", "needle three".

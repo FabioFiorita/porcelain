@@ -17,6 +17,7 @@ import {
   ListWorktreePathsService,
   ReadFileAssetService,
   ReadPreviewAssetsService,
+  ReadPreviewFileService,
   ReadTextFileService,
 } from '@porcelain/files/services';
 import { gitDirectoryName, temporaryWriteName } from '@porcelain/kernel/rules';
@@ -24,6 +25,9 @@ import { filesystemDirectoryReaderLayer } from '../adapters/files/filesystem-dir
 import { filesystemFileWriterLayer } from '../adapters/files/filesystem-file-writer.ts';
 import { gitIgnoredEntriesReaderLayer } from '../adapters/files/git-ignored-entries-reader.ts';
 import { gitWorktreePathsReaderLayer } from '../adapters/files/git-worktree-paths-reader.ts';
+import { filesystemPreviewFileReaderLayer } from '../adapters/files/filesystem-file-reader.ts';
+import { previewFileTickets } from '../http/hooks/preview-file-ticket.ts';
+import { ReadPreviewFileUseCase } from '../use-cases/files/read-preview-file.ts';
 import { filesRoutes } from '../http/routes/files/files-api.ts';
 import { CheckWorktreeUseCasePort } from '../ports/check-worktree-use-case-port.ts';
 import { InvalidateReviewedMarksUseCasePort } from '../ports/invalidate-reviewed-marks-use-case-port.ts';
@@ -51,6 +55,7 @@ export function composeFiles(
   const { limits } = context.settings;
   const { worktreeAccess, fileReader } = dependencies.shared;
   const { lanes } = context;
+  const tickets = previewFileTickets();
   const ports = Layer.mergeAll(
     Layer.succeed(CheckWorktreeUseCasePort, dependencies.checkWorktree),
     Layer.succeed(
@@ -66,6 +71,7 @@ export function composeFiles(
     Layer.succeed(ListDirectoryOptions, limits.files.listDirectory),
     Layer.succeed(ReadTextFileService, dependencies.shared.readTextFileService),
     Layer.succeed(FileReader, fileReader),
+    filesystemPreviewFileReaderLayer(worktreeAccess),
     Layer.succeed(ReadFileAssetOptions, limits.files.readFileAsset),
     Layer.succeed(ReadPreviewAssetsOptions, limits.files.readPreviewAssets),
     filesystemFileWriterLayer(worktreeAccess, {
@@ -86,6 +92,7 @@ export function composeFiles(
     ListDirectoryService.layer,
     ReadFileAssetService.layer,
     ReadPreviewAssetsService.layer,
+    ReadPreviewFileService.layer,
     EditFileService.layer,
     ListWorktreePathsService.layer,
   ).pipe(Layer.provideMerge(ports));
@@ -94,6 +101,7 @@ export function composeFiles(
     ReadTextFileUseCase.layer,
     ReadFileAssetUseCase.layer,
     ReadPreviewAssetsUseCase.layer,
+    ReadPreviewFileUseCase.layer,
     EditFileUseCase.layer,
     ListWorktreePathsUseCase.layer,
   ).pipe(Layer.provideMerge(services));
@@ -105,10 +113,11 @@ export function composeFiles(
         readTextFile: yield* ReadTextFileUseCase,
         readFileAsset: yield* ReadFileAssetUseCase,
         readPreviewAssets: yield* ReadPreviewAssetsUseCase,
+        readPreviewFile: yield* ReadPreviewFileUseCase,
         editFile: yield* EditFileUseCase,
         listWorktreePaths: yield* ListWorktreePathsUseCase,
       };
-      return filesRoutes(useCases, limits.http);
+      return { routes: filesRoutes(useCases, limits.http, tickets), tickets };
     }).pipe(Effect.provideContext(runtime));
   });
 }

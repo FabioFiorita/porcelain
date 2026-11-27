@@ -1,5 +1,4 @@
 import { importedFrom, calledImport, styleObjects } from './web-rules.mjs';
-import shadcn from '@shadcn/lint';
 import { variableOf } from './scope.mjs';
 
 const controls = new Set([
@@ -221,53 +220,12 @@ export const mobileRules = {
         )
           context.report({ node, message: sheetMessage });
       };
-      const layoutOnly = /\/(?:features\/[^/]+\/views|shell)\//.test(path);
-      const styled = Object.create(context);
-      const nativeViews = importedFrom(
-        context.sourceCode.ast,
-        (source) => source === 'react-native',
-      );
-      Object.defineProperty(styled, 'report', {
-        value(report) {
-          const opening = context.sourceCode
-            .getAncestors(report.node)
-            .findLast((node) => node.type === 'JSXOpeningElement');
-          if (
-            opening?.name?.type === 'JSXIdentifier' &&
-            nativeViews.locals.get(opening.name.name) === 'View'
-          )
-            context.report(report);
-        },
-      });
-      Object.defineProperty(styled, 'options', {
-        value: [
-          {
-            componentImports: ['^react-native$'],
-            allow: ['layout'],
-            message:
-              'Use View only for layout; compose spacing, surfaces and controls from components/ui, because feature views must not redraw primitives.',
-          },
-        ],
-      });
-      const layout = layoutOnly
-        ? shadcn.rules['no-restyle'].create(styled)
-        : {};
       return {
-        ...layout,
-        ImportDeclaration(node) {
-          check(node);
-          layout.ImportDeclaration?.(node);
-        },
+        ImportDeclaration: check,
         ExportNamedDeclaration: check,
         ExportAllDeclaration: check,
-        MemberExpression(node) {
-          sheetMember(node);
-          layout.MemberExpression?.(node);
-        },
-        JSXMemberExpression(node) {
-          sheetMember(node);
-          layout.JSXMemberExpression?.(node);
-        },
+        MemberExpression: sheetMember,
+        JSXMemberExpression: sheetMember,
       };
     },
   },

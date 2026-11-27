@@ -5,6 +5,7 @@ export { restoreSession } from './commands/restore-session';
 export { useSignOutWhenUnauthorized } from './commands/unauthorized';
 export {
   remoteConnectionStatus,
+  remoteWorktreeSnapshots,
   rememberRemoteWorkspace,
   shownRemoteWorkspace,
   useRemoteStatus,
@@ -23,7 +24,7 @@ export { DisconnectedPage } from './views/disconnected-page';
 export { NotPaired } from './views/not-paired';
 export { PairingView } from './views/pairing-view';
 export { ComputerSettings } from './views/share-settings';
-export { RemoteComputers } from './views/remote-computers';
+export { ComputersOutline, RemoteComputers } from './views/remote-computers';
 export { RemoteUnavailable } from './views/remote-unavailable';
 
 export { pairingLinkChanges } from './commands/pairing';

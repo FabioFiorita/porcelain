@@ -26,7 +26,7 @@ test('a file changed before its diff request reaches the server recovers to the 
     )
     .toBeVisible();
   held.arm();
-  await opened.getByRole('button', { name: 'Review', exact: true }).click();
+  await opened.getByRole('button', { name: 'Side panel', exact: true }).click();
   await opened
     .getByRole('complementary', { name: 'Review sidebar', exact: true })
     .getByRole('tab', { name: 'Changes', exact: true })

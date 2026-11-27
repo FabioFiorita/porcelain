@@ -1,6 +1,7 @@
 ---
 route: /
 selectors:
+  - 'Side panel'
   - 'Review'
   - 'History'
   - 'Merge commit'
@@ -21,7 +22,7 @@ The History list gives each commit one row with its message, 7-character id, aut
 
 ## How to get to it (user POV)
 
-- Phone width: button "Review" → sheet "Worktree review" → tab "History".
+- Phone width: button "Side panel" → sheet "Worktree review" → tab "History".
 - Desktop width (1280 px and wider): button "History" in the rail (navigation "Side panel"); the panel "Review sidebar" opens on it.
 - Shortcut `Alt+3` opens History (the docked panel on desktop, the sheet at phone width); URL `?surface=history`.
 
@@ -48,7 +49,7 @@ git -C "$REPO" log -1 --format='%s %p'
 
 The last line prints `Merge branch 'topic'` and two parent ids.
 
-1. Click button `Review`
+1. Click button `Side panel`
    Expect: dialog "Worktree review" with tabs "Files", "Changes", "History".
 2. Click tab `History`
    Look for, in the snapshot of the sheet:
@@ -85,3 +86,5 @@ On a fresh desktop profile the right panel starts open. Hide it with the rail to
 With two commits, click the newest row in the docked History list. Its document opens while focus stays on the row. Down selects and focuses the next commit; Up returns to the previous one. Neither end wraps. Alt+Left/Right still steps document tabs. Opening to the side deliberately focuses the destination pane. At phone width selecting a commit closes the sheet and focuses its document tab.
 
 Regressions: `history-keyboard.test.tsx`, `review-panel-preference.test.tsx`.
+
+History starts with the branch, upstream and ahead/behind count when available. The collapsed panel remains scrollable with a long commit list, and Open graph reaches the full graph. In the worktree Change Summary, Recent commits provides another entry to a commit or the graph.

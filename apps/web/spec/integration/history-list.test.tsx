@@ -20,7 +20,7 @@ test.for([414, 1280])(
 
       if (width === 414) {
         await workspace
-          .getByRole('button', { name: 'Review', exact: true })
+          .getByRole('button', { name: 'Side panel', exact: true })
           .click();
         await workspace
           .getByRole('tab', { name: 'History', exact: true })
@@ -80,7 +80,7 @@ test.for([414, 1280])(
       const workspace = await render.workspace();
       if (width === 414) {
         await workspace
-          .getByRole('button', { name: 'Review', exact: true })
+          .getByRole('button', { name: 'Side panel', exact: true })
           .click();
         await workspace
           .getByRole('tab', { name: 'History', exact: true })
@@ -136,7 +136,9 @@ test('every ref is reachable at a narrow width in the History list and graph', a
   for (const branch of branches) await repo.branch(branch);
   await repo.switch(branches[2]!);
 
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await workspace.getByRole('tab', { name: 'History', exact: true }).click();
 
   for (const surface of ['list', 'graph'] as const) {
@@ -224,15 +226,20 @@ test.for(['refs/heads/topic', 'refs/tags/release'])(
     await repo.branch(branch);
     const workspace = await render.workspace();
     await workspace
-      .getByRole('button', { name: 'Review', exact: true })
+      .getByRole('button', { name: 'Side panel', exact: true })
       .click();
     await workspace.getByRole('tab', { name: 'History', exact: true }).click();
     const history = workspace.getByRole('complementary', {
       name: 'Review sidebar',
       exact: true,
     });
-    await expect
-      .element(history.getByRole('button', { name: branch, exact: true }))
-      .toHaveTextContent(branch);
+    await history
+      .getByRole('button', { name: 'Show 1 more ref', exact: true })
+      .click();
+    const more = workspace.getByRole('dialog', {
+      name: 'More refs',
+      exact: true,
+    });
+    await expect.element(more.getByText(branch, { exact: true })).toBeVisible();
   },
 );

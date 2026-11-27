@@ -31,6 +31,14 @@ const STATUS_MARKS: Partial<Record<GitStatus, string>> = {
   untracked: 'U',
 };
 
+const STATUS_TONES: Partial<Record<GitStatus, string>> = {
+  added: 'text-add-fg',
+  deleted: 'text-del-fg',
+  modified: 'text-brand',
+  renamed: 'text-brand',
+  untracked: 'text-add-fg',
+};
+
 const PIN_STATES: Record<PinnedFileEntry['state'], string> = {
   resolved: 'Not followed',
   loading: '',
@@ -72,13 +80,20 @@ export function PinnedFiles({
   const marks = new Map(
     statuses.flatMap((entry) => {
       const mark = STATUS_MARKS[entry.status];
-      return mark === undefined ? [] : [[entry.path, mark] as const];
+      return mark === undefined
+        ? []
+        : [
+            [
+              entry.path,
+              { mark, tone: STATUS_TONES[entry.status] ?? '' },
+            ] as const,
+          ];
     }),
   );
   return (
     <section aria-label="Pinned files" className="shrink-0 pt-1.5 pb-1">
       <FileSectionHeader label="Pinned" count={entries.length} />
-      <ul className="px-4">
+      <ul className="px-4 [--trees-item-height:--spacing(7)]">
         {entries.map((pinned) => {
           const { path } = pinned;
           const directory =
@@ -116,7 +131,7 @@ export function PinnedFiles({
                       aria-expanded={directory ? open : undefined}
                       disabled={!canOpen}
                       className={cn(
-                        'flex h-7.5 min-w-0 flex-1 items-center gap-1.5 rounded-md px-2 text-left hover:bg-accent',
+                        'flex h-7 min-w-0 flex-1 items-center gap-1.5 rounded-md px-2 text-left hover:bg-accent',
                         path === selected && 'bg-accent',
                       )}
                       onClick={(event) =>
@@ -143,12 +158,11 @@ export function PinnedFiles({
                         <span
                           aria-hidden="true"
                           className={cn(
-                            'ml-auto shrink-0 pl-1 font-mono text-2xs text-muted-foreground',
-                            marks.get(path) === STATUS_MARKS.modified &&
-                              'text-brand',
+                            'ml-auto shrink-0 pl-1 font-mono text-xs font-medium',
+                            marks.get(path)?.tone,
                           )}
                         >
-                          {marks.get(path)}
+                          {marks.get(path)?.mark}
                         </span>
                       )}
                     </button>

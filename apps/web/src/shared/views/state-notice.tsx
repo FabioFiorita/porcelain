@@ -1,7 +1,7 @@
 import { type ReactNode, useId } from 'react';
 import { createPortal } from 'react-dom';
 import { useAtomSet, useAtomValue } from '@effect/atom-react';
-import { cn } from 'cn';
+import { cn } from '@/shared/lib/utils';
 import { pendingRegions } from '@/shared/store';
 import { PENDING_DELAY_MS, PENDING_GRACE_MS } from '@/config/limits';
 import { Spinner } from '@/components/ui/spinner';
@@ -112,16 +112,21 @@ export function StateNotice({
   message,
   action,
   role,
+  className,
 }: {
   message: ReactNode;
   action?: ReactNode;
   role?: 'alert' | 'status';
+  className?: string | undefined;
 }) {
   return (
     <section
       data-slot="state-notice"
       role={role}
-      className="flex w-full min-w-0 max-w-xl flex-wrap items-center gap-x-3 gap-y-2 p-6 text-ui text-muted-foreground"
+      className={cn(
+        'flex w-full min-w-0 max-w-xl flex-wrap items-center gap-x-3 gap-y-2 p-6 text-ui text-muted-foreground',
+        className,
+      )}
     >
       <p className="min-w-0 [overflow-wrap:anywhere]">{message}</p>
       {action}
@@ -132,13 +137,16 @@ export function StateNotice({
 export function StateFailure({
   description,
   onRetry,
+  className,
 }: {
   description: ReactNode;
   onRetry: () => void;
+  className?: string | undefined;
 }) {
   return (
     <StateNotice
       role="alert"
+      className={className}
       message={description}
       action={
         <Button variant="outline" size="sm" onClick={onRetry}>

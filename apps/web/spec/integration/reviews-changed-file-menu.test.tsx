@@ -9,7 +9,9 @@ test('right-clicking a changed file marks it reviewed and opens its timeline wit
   const readme = repo.readme.path;
   const marked = async () =>
     (await server.reviewedFiles()).marks.map((mark) => mark.path);
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await workspace
     .getByRole('complementary', { name: 'Review sidebar', exact: true })
     .getByRole('tab', { name: 'Changes', exact: true })

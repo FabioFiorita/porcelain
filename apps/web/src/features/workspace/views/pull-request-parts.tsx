@@ -1,5 +1,4 @@
 import {
-  CheckIcon,
   CircleCheckIcon,
   CircleMinusIcon,
   CircleXIcon,
@@ -8,10 +7,8 @@ import {
   GitPullRequestDraftIcon,
   GitPullRequestIcon,
   LoaderCircleIcon,
-  XIcon,
   type LucideIcon,
 } from 'lucide-react';
-import type { ReactNode } from 'react';
 import {
   pullRequestState,
   pullRequestStateLabel,
@@ -39,41 +36,6 @@ export function PullStatePill({ pull }: { pull: PullState }) {
       <Icon aria-hidden="true" />
       {pullRequestStateLabel(pull)}
     </Badge>
-  );
-}
-
-const checkIcons: Record<Exclude<PullChecksTone, 'none'>, ReactNode> = {
-  passed: (
-    <CheckIcon
-      aria-hidden="true"
-      strokeWidth={2.5}
-      className="size-3 shrink-0 text-add-fg"
-    />
-  ),
-  running: <LoaderCircleIcon aria-hidden="true" className="size-3 shrink-0" />,
-  failed: (
-    <XIcon
-      aria-hidden="true"
-      strokeWidth={2.5}
-      className="size-3 shrink-0 text-del-fg"
-    />
-  ),
-};
-
-export function ChecksStatus({
-  tone,
-  label,
-  className,
-}: {
-  tone: PullChecksTone;
-  label: string;
-  className?: string;
-}) {
-  return (
-    <span className={cn('inline-flex items-center gap-1', className)}>
-      {tone !== 'none' && checkIcons[tone]}
-      {label}
-    </span>
   );
 }
 

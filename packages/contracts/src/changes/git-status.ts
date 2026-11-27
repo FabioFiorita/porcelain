@@ -99,6 +99,10 @@ export const gitChangeSchema = Schema.Union([
   unmergedChangeSchema,
 ]);
 
+export const omittedChangesSchema = Schema.Number.check(Schema.isInt()).check(
+  Schema.isGreaterThan(0),
+);
+
 export const gitBranchSummarySchema = Schema.Struct({
   name: nullableAsUndefined(Schema.String),
   upstream: nullableAsUndefined(Schema.String),
@@ -145,6 +149,7 @@ export const readGitStatusResponseSchema = Schema.Struct({
   changes: Schema.Array(gitChangeSchema).check(
     Schema.isMaxLength(CHANGED_PATHS),
   ),
+  omittedChanges: Schema.optional(omittedChangesSchema),
 });
 
 export type ReadGitStatusResponse = typeof readGitStatusResponseSchema.Type;

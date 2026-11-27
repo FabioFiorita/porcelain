@@ -97,6 +97,7 @@ export type PinnedDirectoryState =
       readonly path: string;
       readonly status: 'loaded';
       readonly entries: ListDirectoryResponse['entries'];
+      readonly omitted?: number | undefined;
     };
 
 export type PinnedFileEntry =
@@ -145,18 +146,20 @@ export function pinnedFileEntries(
     const entry = directory.entries.find(
       (entry) => entry.name === entryName(path),
     );
-    return entry
-      ? {
-          path,
-          state: 'resolved',
-          entry: {
-            kind: entry.kind,
-            path: `${path}${entry.kind === 'directory' ? '/' : ''}`,
-            ...(entry.ignored === undefined ? {} : { ignored: entry.ignored }),
-            ...(entry.target === undefined ? {} : { target: entry.target }),
-          },
-        }
-      : { path, state: 'missing' };
+    if (!entry)
+      return directory.omitted
+        ? { path, state: 'resolved', entry: { kind: 'file', path } }
+        : { path, state: 'missing' };
+    return {
+      path,
+      state: 'resolved',
+      entry: {
+        kind: entry.kind,
+        path: `${path}${entry.kind === 'directory' ? '/' : ''}`,
+        ...(entry.ignored === undefined ? {} : { ignored: entry.ignored }),
+        ...(entry.target === undefined ? {} : { target: entry.target }),
+      },
+    };
   };
   return paths.map((path) => resolve(canonicalPreferencePath(path)));
 }

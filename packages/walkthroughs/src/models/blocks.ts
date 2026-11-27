@@ -52,8 +52,54 @@ const walkthroughCalloutSchema = Schema.Struct({
     Schema.Struct({
       columns: Schema.Array(Schema.String),
       rows: Schema.Array(Schema.Array(Schema.String)),
+      implemented: Schema.optional(Schema.String),
     }),
   ),
+});
+
+const diagramLinesSchema = Schema.Struct({
+  side: Schema.Literals(['new', 'old']),
+  start: Schema.Int,
+  end: Schema.Int,
+});
+const diagramNodeSchema = Schema.Struct({
+  id: Schema.String,
+  label: Schema.String,
+  kind: Schema.optional(
+    Schema.Literals([
+      'file',
+      'function',
+      'type',
+      'component',
+      'route',
+      'table',
+      'test',
+      'external',
+    ]),
+  ),
+  note: Schema.optional(Schema.String),
+  mark: Schema.optional(
+    Schema.Literals(['added', 'changed', 'removed', 'unchanged']),
+  ),
+  anchor: Schema.optional(
+    Schema.Struct({
+      path: Schema.String,
+      lines: Schema.optional(diagramLinesSchema),
+    }),
+  ),
+});
+const diagramEdgeSchema = Schema.Struct({
+  from: Schema.String,
+  to: Schema.String,
+  label: Schema.optional(Schema.String),
+  mark: Schema.optional(Schema.Literals(['added', 'removed'])),
+});
+const diagramSchema = Schema.Struct({
+  kind: Schema.Literal('diagram'),
+  title: Schema.optional(Schema.String),
+  layout: Schema.Literals(['flow', 'layers', 'sequence']),
+  nodes: Schema.Array(diagramNodeSchema),
+  edges: Schema.Array(diagramEdgeSchema),
 });
 
 export const walkthroughBlockRequestSchema = Schema.Union([
@@ -62,6 +108,7 @@ export const walkthroughBlockRequestSchema = Schema.Union([
   filesSchema,
   checksRequestSchema,
   walkthroughCalloutSchema,
+  diagramSchema,
 ]);
 
 export const walkthroughBlockSchema = Schema.Union([
@@ -77,6 +124,7 @@ export const walkthroughBlockSchema = Schema.Union([
     ...walkthroughChecksSchema.fields,
   }),
   walkthroughCalloutSchema,
+  diagramSchema,
 ]);
 export type WalkthroughBlock = typeof walkthroughBlockSchema.Type;
 export type WalkthroughBlockRequest = typeof walkthroughBlockRequestSchema.Type;

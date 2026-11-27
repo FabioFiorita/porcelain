@@ -33,10 +33,6 @@ test('writes without evidence at another PR commit and attaches checks after pus
     'commits:{nodes:[]}',
     "commits:{nodes:[{commit:{statusCheckRollup:{state:'SUCCESS',contexts:{nodes:[],pageInfo:{hasNextPage:false}}}}}]}",
   );
-  writeFileSync(
-    gh,
-    matching.replace('headRefOid:head', "headRefOid:'another-commit'"),
-  );
   const headOid = (await session.git('rev-parse', 'HEAD')).trim();
   const content = {
     version: 1 as const,
@@ -55,6 +51,28 @@ test('writes without evidence at another PR commit and attaches checks after pus
     stillUnclear: [],
   };
   const input = { base: 'refs/heads/evidence-base', pullRequestNumber: 423 };
+  for (const [reason, script] of [
+    [
+      'github_unavailable',
+      `#!${process.execPath}\nconsole.error('GitHub unavailable');process.exit(1);`,
+    ],
+    ['github_account', `#!${process.execPath}\nconsole.log('[]');`],
+  ] as const) {
+    await session.writeFile('notes.md', `Explain ${reason}.\n`);
+    writeFileSync(gh, script);
+    const unavailable = await writer.write(content, input);
+    expect(unavailable.evidenceUnavailable).toBe(reason);
+    expect(unavailable.state.status).toBe('ready');
+    expect(
+      unavailable.state.status === 'ready' &&
+        unavailable.state.content.stops[0]?.blocks[0],
+    ).toBeUndefined();
+  }
+  await session.git('checkout', '--', 'notes.md');
+  writeFileSync(
+    gh,
+    matching.replace('headRefOid:head', "headRefOid:'another-commit'"),
+  );
   const behind = await writer.write(content, input);
   expect(behind.state.status).toBe('ready');
   expect(behind).toMatchObject({
@@ -93,21 +111,4 @@ test('writes without evidence at another PR commit and attaches checks after pus
     results: [],
     checksTruncated: false,
   });
-  for (const [reason, script] of [
-    [
-      'github_unavailable',
-      `#!${process.execPath}\nconsole.error('GitHub unavailable');process.exit(1);`,
-    ],
-    ['github_account', `#!${process.execPath}\nconsole.log('[]');`],
-  ] as const) {
-    await session.writeFile('notes.md', `Explain ${reason}.\n`);
-    writeFileSync(gh, script);
-    const unavailable = await writer.write(content, input);
-    expect(unavailable.evidenceUnavailable).toBe(reason);
-    expect(unavailable.state.status).toBe('ready');
-    expect(
-      unavailable.state.status === 'ready' &&
-        unavailable.state.content.stops[0]?.blocks[0],
-    ).toBeUndefined();
-  }
 });

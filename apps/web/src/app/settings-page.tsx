@@ -5,8 +5,13 @@ import {
   ServerIcon,
   type LucideIcon,
 } from 'lucide-react';
-import { useCanGoBack, useNavigate, useRouter } from '@tanstack/react-router';
-import { useState, type ReactNode } from 'react';
+import {
+  useCanGoBack,
+  useLocation,
+  useNavigate,
+  useRouter,
+} from '@tanstack/react-router';
+import { Fragment, useState, type ReactNode } from 'react';
 import { useAtomSet } from '@effect/atom-react';
 import {
   Breadcrumb,
@@ -22,6 +27,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useSidebar } from '@/components/ui/sidebar';
 import {
   ComputerSettings,
+  ComputersOutline,
   RemoteComputers,
   RemoteComputerSettings,
   RemoteComputerName,
@@ -35,13 +41,20 @@ import {
 import { useInventory } from '@/features/projects/index';
 import { useDocumentTitle } from '@/shared/hooks/use-document-title';
 import { cn } from '@/shared/lib/utils';
+import { plainClick } from '@/shared/views/settings-section';
+import { TruncatedText } from '@/shared/views/truncated-text';
 import { navigatorFocusPending } from '@/shared/store';
 import {
   goThen,
   recordSettingsSession,
+  replaceSettingsEntry,
   settingsEntry,
   type SettingsSession,
 } from './settings-history';
+import {
+  useSettingsOutline,
+  type SettingsOutlineEntry,
+} from './settings-outline';
 
 type SettingsSection = { id: string; label: string; icon: LucideIcon };
 
@@ -80,32 +93,56 @@ function settingsPlace(pathname: string) {
   );
 }
 
-type ContentLayout = 'reading' | 'list' | 'wide';
-
-const contentLayouts: Record<ContentLayout, string> = {
-  reading: 'max-w-186 gap-8',
-  list: 'max-w-186 gap-7',
-  wide: 'max-w-240 gap-5.5 md:pt-7.5',
-};
-
-function contentClass(layout: ContentLayout) {
-  return cn(
-    'settings-content wrap-anywhere mx-auto flex w-full flex-col px-4 py-6 md:px-6 md:py-9 lg:pr-10 lg:pl-6',
-    contentLayouts[layout],
-  );
-}
+const contentClass =
+  'settings-content wrap-anywhere mx-auto flex w-full max-w-200 flex-col gap-8 px-4 py-5 md:px-8 md:py-6';
 
 function SectionFrame({
+  attach,
   children,
-  layout,
 }: {
+  attach: (element: HTMLElement | null) => (() => void) | undefined;
   children: ReactNode;
-  layout: ContentLayout;
 }) {
   return (
     <ScrollArea className="min-h-0 flex-1">
-      <div className={contentClass(layout)}>{children}</div>
+      <div ref={attach} className={contentClass}>
+        {children}
+      </div>
     </ScrollArea>
+  );
+}
+
+function SectionOutline({
+  sections,
+  active,
+  onGo,
+}: {
+  sections: readonly SettingsOutlineEntry[];
+  active: string | undefined;
+  onGo: (id: string) => void;
+}) {
+  if (sections.length < 2) return null;
+  return (
+    <div className="my-0.5 ml-4.5 flex flex-col border-l">
+      {sections.map(({ id, title }) => (
+        <a
+          key={id}
+          href={`#${id}`}
+          aria-current={active === id ? 'location' : undefined}
+          onClick={(event) => {
+            if (!plainClick(event)) return;
+            event.preventDefault();
+            onGo(id);
+          }}
+          className={cn(
+            '-ml-px flex h-6 min-w-0 items-center border-l border-transparent pr-2 pl-3 text-xs text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/30',
+            active === id && 'border-foreground font-medium text-foreground',
+          )}
+        >
+          <TruncatedText text={title} className="min-w-0" />
+        </a>
+      ))}
+    </div>
   );
 }
 
@@ -266,6 +303,32 @@ export function SettingsDialog({
       });
     }
   };
+  const showComputer = (id: string) => {
+    if (current.id === 'computers' && environmentId === undefined) {
+      openRemote(id);
+      return;
+    }
+    if (id === environmentId) return;
+    const { index: _index, ...kept } = session();
+    replaceSettingsEntry(
+      router.history,
+      router.buildLocation({
+        to: '/settings/$section/$environmentId',
+        params: { section: 'computers', environmentId: id },
+      }).href,
+      kept,
+    );
+  };
+  const place = useLocation({ select: (location) => location.pathname });
+  const hash = useLocation({ select: (location) => location.hash });
+  const outline = useSettingsOutline(place, hash);
+  const sectionOutline = (
+    <SectionOutline
+      sections={outline.sections}
+      active={outline.active}
+      onGo={outline.go}
+    />
+  );
   const attachPopup = (element: HTMLDivElement | null) => {
     if (environmentId !== undefined) element?.focus({ preventScroll: true });
   };
@@ -313,7 +376,7 @@ export function SettingsDialog({
           if (togglesNavigator(event)) event.stopPropagation();
         }}
         aria-label="Settings"
-        className="flex h-[min(48rem,calc(100svh-2rem))] w-[min(64rem,calc(100vw-2rem))] max-w-none flex-col overflow-hidden sm:max-w-none"
+        className="flex h-[min(48rem,calc(100svh-2rem))] w-[min(64rem,calc(100vw-2rem))] max-w-none flex-col overflow-clip sm:max-w-none"
       >
         <div className="-m-4 flex min-h-0 flex-1 flex-col bg-card text-base text-card-foreground">
           <header
@@ -325,25 +388,27 @@ export function SettingsDialog({
                 <BreadcrumbItem>Settings</BreadcrumbItem>
                 <BreadcrumbSeparator>/</BreadcrumbSeparator>
                 <BreadcrumbItem>
-                  <h2>
-                    {environmentId === undefined ? (
+                  {environmentId === undefined ? (
+                    <h2>
                       <BreadcrumbPage>{current.label}</BreadcrumbPage>
-                    ) : (
-                      <BreadcrumbLink
-                        render={<button type="button" onClick={returnToList} />}
-                      >
-                        Computers
-                      </BreadcrumbLink>
-                    )}
-                  </h2>
+                    </h2>
+                  ) : (
+                    <BreadcrumbLink
+                      render={<button type="button" onClick={returnToList} />}
+                    >
+                      Computers
+                    </BreadcrumbLink>
+                  )}
                 </BreadcrumbItem>
                 {environmentId !== undefined && (
                   <>
                     <BreadcrumbSeparator>/</BreadcrumbSeparator>
                     <BreadcrumbItem className="min-w-0">
-                      <BreadcrumbPage className="min-w-0">
-                        {detailName}
-                      </BreadcrumbPage>
+                      <h2 className="min-w-0">
+                        <BreadcrumbPage className="min-w-0">
+                          {detailName}
+                        </BreadcrumbPage>
+                      </h2>
                     </BreadcrumbItem>
                   </>
                 )}
@@ -353,41 +418,59 @@ export function SettingsDialog({
           <div className="flex min-h-0 flex-1 flex-col md:flex-row">
             <nav
               aria-label="Settings sections"
-              className="flex shrink-0 flex-col md:w-52"
+              className="flex shrink-0 flex-col md:min-h-0 md:w-56"
             >
-              <div className="settings-nav flex gap-0.5 overflow-x-auto px-3 py-3 md:flex-col md:py-5">
+              <div className="settings-nav flex gap-0.5 overflow-x-auto px-3 py-3 md:min-h-0 md:flex-1 md:flex-col md:overflow-x-hidden md:overflow-y-auto md:py-4">
                 {settingsSections.map((item) => {
                   const Icon = item.icon;
-                  const selected = current.id === item.id;
+                  const here = current.id === item.id;
+                  const selected = here && environmentId === undefined;
                   return (
-                    <Button
-                      key={item.id}
-                      variant={selected ? 'secondary' : 'ghost'}
-                      size="sm"
-                      className="shrink-0 justify-start md:w-full"
-                      aria-current={selected ? 'page' : undefined}
-                      onClick={() => {
-                        if (
-                          environmentId !== undefined &&
-                          item.id === 'computers'
-                        ) {
-                          returnToList();
-                          return;
-                        }
-                        showSection(item.id);
-                      }}
-                    >
-                      <Icon />
-                      {item.label}
-                    </Button>
+                    <Fragment key={item.id}>
+                      <Button
+                        variant={selected ? 'secondary' : 'ghost'}
+                        size="sm"
+                        className="shrink-0 justify-start md:w-full"
+                        aria-current={selected ? 'page' : undefined}
+                        onClick={() => {
+                          if (
+                            environmentId !== undefined &&
+                            item.id === 'computers'
+                          ) {
+                            returnToList();
+                            return;
+                          }
+                          showSection(item.id);
+                        }}
+                      >
+                        <Icon />
+                        {item.label}
+                      </Button>
+                      {item.id === 'computers' ? (
+                        <div className="hidden pl-4 md:mb-1 md:block">
+                          <ComputersOutline
+                            selected={environmentId}
+                            onOpen={showComputer}
+                          >
+                            {sectionOutline}
+                          </ComputersOutline>
+                        </div>
+                      ) : (
+                        here && (
+                          <div className="hidden md:mb-1 md:block">
+                            {sectionOutline}
+                          </div>
+                        )
+                      )}
+                    </Fragment>
                   );
                 })}
               </div>
-              <p className="mt-auto hidden px-5 pb-4 text-xs tabular-nums text-muted-foreground md:block">
+              <p className="hidden shrink-0 px-5 py-3 text-xs tabular-nums text-muted-foreground md:block">
                 Porcelain {import.meta.env.PORCELAIN_VERSION}
               </p>
             </nav>
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col md:border-l">
               {current.id === 'computers' ? (
                 <>
                   <div
@@ -401,7 +484,7 @@ export function SettingsDialog({
                     aria-label="Computers list"
                     tabIndex={-1}
                   >
-                    <div className={contentClass('list')}>
+                    <div className={contentClass}>
                       <RemoteComputers
                         showUpdates={environmentId === undefined}
                         environment={environment}
@@ -410,7 +493,7 @@ export function SettingsDialog({
                     </div>
                   </div>
                   {environmentId !== undefined && (
-                    <SectionFrame layout="wide">
+                    <SectionFrame key={environmentId} attach={outline.attach}>
                       {environmentId === 'this-computer' ? (
                         <ComputerSettings environment={environment} />
                       ) : (
@@ -424,7 +507,7 @@ export function SettingsDialog({
                   )}
                 </>
               ) : (
-                <SectionFrame layout="reading">
+                <SectionFrame key={current.id} attach={outline.attach}>
                   {current.id === 'git' ? (
                     <ReviewsGitSettings />
                   ) : (

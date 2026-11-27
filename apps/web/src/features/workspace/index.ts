@@ -4,9 +4,15 @@ export * from './rules/documents';
 export * from './rules/tab-strip';
 
 export { SidebarDocumentRow } from './views/sidebar-section';
+export { ROW } from './views/change-row';
 export { CheckResultIcon } from './views/pull-request-parts';
 
-export { firstDocumentTitle, firstDocumentTitleOwner } from './store';
+export {
+  firstDocumentTitle,
+  firstDocumentTitleOwner,
+  useReviewPanelOpen,
+  pullRequestCheckFocus,
+} from './store';
 
 export { ReviewBoundary } from './views/review-boundary';
 

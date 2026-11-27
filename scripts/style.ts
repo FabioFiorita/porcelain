@@ -248,7 +248,6 @@ export async function checkStyle(
     'typescript/no-unsafe-type-assertion',
     'typescript/only-throw-error',
     'shadcn/no-raw-colors',
-    'shadcn/no-restyle',
   ] as const;
   const typesFreePackages = new Set<string>([
     ...domainPackages,

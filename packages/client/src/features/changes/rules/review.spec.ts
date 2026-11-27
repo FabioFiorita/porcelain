@@ -3,6 +3,7 @@ import {
   mergeBranchChanges,
   mergeReviewChanges,
   reviewErrorMessage,
+  readFailureMessage,
 } from './review.ts';
 const list = {
   environmentId: '00000000-0000-4000-8000-000000000000',
@@ -73,10 +74,26 @@ describe('mergeReviewChanges', () => {
 });
 
 describe('reviewErrorMessage', () => {
-  it('hides other failures behind a retry message', () => {
+  it('hides other failures behind one sentence naming the changes', () => {
     expect(reviewErrorMessage(new Error('socket hang up'))).toBe(
-      'These changes could not be loaded. Try again.',
+      'These changes could not be loaded.',
     );
+  });
+});
+
+describe('readFailureMessage', () => {
+  it('names what failed in one sentence and leaves retrying to the button', () => {
+    expect(readFailureMessage(new Error('socket hang up'), 'This commit')).toBe(
+      'This commit could not be loaded.',
+    );
+    expect(
+      readFailureMessage(
+        Object.assign(new Error('Could not reach Porcelain. Try again.'), {
+          name: 'ConnectionError',
+        }),
+        'These changes',
+      ),
+    ).toBe('Could not reach Porcelain.');
   });
 });
 

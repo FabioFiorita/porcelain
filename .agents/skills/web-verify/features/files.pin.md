@@ -1,6 +1,7 @@
 ---
 route: /
 selectors:
+  - 'Side panel'
   - 'Review'
   - 'Worktree review'
   - 'Files'
@@ -38,7 +39,7 @@ printf '# Guide\n\nPinned reading\n' > "$REPO/guide.md"
 
 1. Navigate to `/`
    Expect: title "Review — repository".
-2. Click button `Review`
+2. Click button `Side panel`
    Expect: dialog "Worktree review".
 3. Click tab `Files`
    Expect: treeitem "guide.md" in the tree of region "All files", and no region "Pinned files".
@@ -56,11 +57,11 @@ printf '# Guide\n\nPinned reading\n' > "$REPO/guide.md"
    Expect: the menu is gone and dialog "Worktree review" still shows.
 10. Click treeitem `README.md`
     Expect: the dialog is gone and the text "A change to review." shows (README's file document).
-11. Click button `Review`
+11. Click button `Side panel`
     Expect: dialog "Worktree review" on tab "Files", still showing region "Pinned files".
 12. Click button `guide.md`
     Expect: the dialog is gone; title "guide.md — repository"; the text "Pinned reading" shows.
-13. Navigate to `/`, then click button `Review` and click tab `Files`
+13. Navigate to `/`, then click button `Side panel` and click tab `Files`
     Expect: after the full reload, region "Pinned files" still holds button "guide.md" (the server kept the pin).
 14. Click button `Unpin guide.md`
     Expect: region "Pinned files" is gone; treeitem "guide.md" remains in the tree.

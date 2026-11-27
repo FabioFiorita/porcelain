@@ -3,7 +3,6 @@ import { type HeaderIconName } from './icon';
 
 const symbols = {
   add: 'plus',
-  settings: 'gearshape',
   refresh: 'arrow.clockwise',
   done: 'checkmark',
   close: 'xmark',
@@ -32,6 +31,7 @@ const symbols = {
   hideList: 'sidebar.left',
   previous: 'chevron.left',
   next: 'chevron.right',
+  openExternal: 'arrow.up.right.square',
 } satisfies Record<HeaderIconName, NonNullable<SFSymbolIcon['sf']>>;
 
 export function headerIcon(name: HeaderIconName) {

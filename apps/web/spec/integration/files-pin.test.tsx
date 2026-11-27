@@ -15,7 +15,7 @@ test('a saved file pin opens directly when its parent listing fails', async ({
   });
   await repo.write('wide/target.txt', 'Direct pinned file reading');
   const app = await render.workspace();
-  await app.getByRole('button', { name: 'Review', exact: true }).click();
+  await app.getByRole('button', { name: 'Side panel', exact: true }).click();
   await app.getByRole('tab', { name: 'Files', exact: true }).click();
   await app.getByRole('treeitem', { name: 'wide', exact: true }).click();
   await app
@@ -55,7 +55,9 @@ test('a pinned file is listed under Pinned, opens from there, and unpins', async
       .filter((preference) => preference.pinned)
       .map((preference) => preference.path);
 
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await workspace.getByRole('tab', { name: 'Files', exact: true }).click();
   const file = workspace.getByRole('treeitem', {
     name: 'guide.md',
@@ -136,7 +138,9 @@ test('a pinned file is listed under Pinned, opens from there, and unpins', async
         .getByText('A change to review.', { exact: true }),
     )
     .toBeVisible();
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await workspace.getByRole('tab', { name: 'Files', exact: true }).click();
   await group
     .getByRole('button', { name: /guide\.md/ })
@@ -150,7 +154,9 @@ test('a pinned file is listed under Pinned, opens from there, and unpins', async
     )
     .toBeVisible();
 
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await workspace.getByRole('tab', { name: 'Files', exact: true }).click();
   await workspace
     .getByRole('button', { name: `Unpin ${path}`, exact: true })
@@ -175,7 +181,7 @@ test('a pinned folder loads children only when expanded and opens its child docu
   await repo.write('manual/other.md', '# Other reading\n');
   const reads = fetchGate.recordDirectoryReads();
   const page = await render.workspace();
-  await page.getByRole('button', { name: 'Review', exact: true }).click();
+  await page.getByRole('button', { name: 'Side panel', exact: true }).click();
   await page.getByRole('tab', { name: 'Files', exact: true }).click();
   await page
     .getByRole('treeitem', { name: 'manual', exact: true })
@@ -199,7 +205,7 @@ test('a pinned folder loads children only when expanded and opens its child docu
       page.getByRole('heading', { name: 'Pinned folder reading', exact: true }),
     )
     .toBeVisible();
-  await page.getByRole('button', { name: 'Review', exact: true }).click();
+  await page.getByRole('button', { name: 'Side panel', exact: true }).click();
   await page.getByRole('tab', { name: 'Files', exact: true }).click();
   await expect.element(folder).toHaveAttribute('aria-expanded', 'true');
   await expect
@@ -221,7 +227,7 @@ test('a hidden pinned file leaves Pinned and returns with the hidden toggle', as
 }) => {
   await repo.write('hidden-pin.md', '# Hidden pin\n');
   const page = await render.workspace();
-  await page.getByRole('button', { name: 'Review', exact: true }).click();
+  await page.getByRole('button', { name: 'Side panel', exact: true }).click();
   await page.getByRole('tab', { name: 'Files', exact: true }).click();
   const file = page.getByRole('treeitem', {
     name: 'hidden-pin.md',

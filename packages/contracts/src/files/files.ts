@@ -40,6 +40,9 @@ export const listDirectoryResponseSchema = Schema.toStandardSchemaV1(
         target: Schema.optional(Schema.String),
       }),
     ),
+    omitted: Schema.optional(
+      Schema.Number.check(Schema.isInt()).check(Schema.isGreaterThan(0)),
+    ),
   }),
 );
 
@@ -108,8 +111,15 @@ export const readFileAssetResponseSchema = Schema.toStandardSchemaV1(
   }),
 );
 
+export const PREVIEW_FILE_ROUTE = '/api/worktrees/:worktreeId/preview-file';
+export const readPreviewFileQuerySchema = Schema.Struct({
+  path: relativePathSchema,
+  ticket: Schema.optional(Schema.String.check(Schema.isMaxLength(1024))),
+});
+
 export const readPreviewAssetsRequestSchema = Schema.Struct({
   document: relativePathSchema,
+  streamMedia: Schema.optional(Schema.Boolean),
   paths: Schema.Array(
     Schema.String.check(Schema.isMaxLength(PATH_LENGTH)),
   ).check(Schema.isMinLength(1), Schema.isMaxLength(PREVIEW_ASSETS)),
@@ -125,6 +135,11 @@ export const readPreviewAssetsResponseSchema = Schema.toStandardSchemaV1(
           base64: Schema.String,
         }),
         Schema.Struct({
+          kind: Schema.Literal('stream'),
+          path: Schema.String,
+          ticket: Schema.String,
+        }),
+        Schema.Struct({
           kind: Schema.Literal('unavailable'),
           path: Schema.String,
         }),
@@ -136,6 +151,7 @@ export const readPreviewAssetsResponseSchema = Schema.toStandardSchemaV1(
 export type ListDirectoryQuery = typeof listDirectoryQuerySchema.Type;
 export type ListDirectoryResponse = typeof listDirectoryResponseSchema.Type;
 export type ReadTextFileQuery = typeof readTextFileQuerySchema.Type;
+export type ReadPreviewFileQuery = typeof readPreviewFileQuerySchema.Type;
 export type ReadFileAssetQuery = typeof readFileAssetQuerySchema.Type;
 export type ReadPreviewAssetsRequest =
   typeof readPreviewAssetsRequestSchema.Type;
@@ -143,7 +159,5 @@ export type ReadFileAssetResponse = typeof readFileAssetResponseSchema.Type;
 export type ReadTextFileResponse = typeof readTextFileResponseSchema.Type;
 export type ListWorktreePathsResponse =
   typeof listWorktreePathsResponseSchema.Type;
-export type ReadPreviewAssetsResponse =
-  typeof readPreviewAssetsResponseSchema.Type;
 export type EditFileResponse = typeof editFileResponseSchema.Type;
 export type EditFileRequest = typeof editFileRequestSchema.Type;

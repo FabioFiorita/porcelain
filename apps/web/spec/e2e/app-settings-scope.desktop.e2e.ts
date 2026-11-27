@@ -71,7 +71,7 @@ test('desktop Settings uses the shared three sections and nests this computer an
   ).toHaveCount(0);
   await expect(settings.getByText('Agents', { exact: true })).toHaveCount(0);
   await expect(
-    settings.getByRole('complementary', {
+    settings.getByRole('region', {
       name: 'Pair a device',
       exact: true,
     }),

@@ -1,6 +1,7 @@
 ---
 route: /
 selectors:
+  - "Side panel"
   - "Review"
   - "Files"
   - "Open file"
@@ -40,15 +41,15 @@ Preconditions: [surface baseline](README.md).
 printf '# Notes\n' > "$REPO/notes.md"
 ```
 
-1. Navigate to `/`, then click button `Review`, then click tab `Files`
+1. Navigate to `/`, then click button `Side panel`, then click tab `Files`
    Expect: in the dialog, treeitems "README.md" and "notes.md".
 2. Right-click treeitem `README.md`, then click menuitem `Open file`
    Expect: the sheet closes; tab "README.md" selected.
-3. Click button `Review`, then right-click treeitem named `notes.md`, then click menuitem `Open file`
+3. Click button `Side panel`, then right-click treeitem named `notes.md`, then click menuitem `Open file`
    Expect: tab "notes.md" selected; tab "README.md" still there.
 4. Right-click tab `/README.md/`, then click menuitem `Pin`
    Expect: button "Unpin README.md" (the README.md tab now reads "README.md Unpin README.md" and sits first); no "Close README.md".
-5. Click button `Review`, then click tab `Changes`, then click button `All changes`
+5. Click button `Side panel`, then click tab `Changes`, then click button `All changes`
    Expect: the sheet closes; tab "All changes" selected after "Review"; heading "2 uncommitted changes", buttons "Collapse README.md" and "Collapse notes.md". URL carries `entry=all-changes`.
 6. Click button `Collapse README.md`
    Expect: button "Expand README.md" (aria-expanded false).

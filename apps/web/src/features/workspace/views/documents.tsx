@@ -14,7 +14,11 @@ import { FileIcon, HistoryIcon } from 'lucide-react';
 import { BarAction } from '@/shared/workspace/bar-action';
 import { Button } from '@/components/ui/button';
 
-import { CommitGraph, FileTimeline } from '@/features/history/index';
+import {
+  CommitGraph,
+  FileTimeline,
+  RecentHistory,
+} from '@/features/history/index';
 import { DiscardButton } from '@/features/git-actions/index';
 import { useChanges } from '@/features/changes/index';
 
@@ -54,7 +58,7 @@ import { PullRequestDocument } from './pull-request-document';
 import type { ComponentType } from 'react';
 
 import { type ConnectionContext } from '@/shared/workspace/connection';
-import { counted } from '@porcelain/client/changes/rules';
+import { counted, shownChangesText } from '@porcelain/client/changes/rules';
 
 export type WalkthroughCodeProps = DocumentProps & {
   document: Extract<DocumentRef, { kind: 'walkthrough-step' }>;
@@ -212,9 +216,7 @@ function PullRequestSourceDocument({
     document.projectId,
     document.number,
   );
-  const openSource = (
-    entry: { kind: 'review' } | { kind: 'file'; path: string },
-  ) => {
+  const openSource = (entry: DocumentRef) => {
     if (!checkout) {
       void navigate({ to: '/' });
       return;
@@ -244,6 +246,8 @@ function PullRequestSourceDocument({
       onFile={
         checkout ? (path) => openSource({ kind: 'file', path }) : undefined
       }
+      checkout={checkout}
+      onOpen={checkout ? openSource : undefined}
     />
   );
 }
@@ -302,10 +306,10 @@ function TimelineDocument({
   );
 }
 
-function changesLabel(specsOnly: boolean, count: number) {
-  return counted(
-    count,
-    specsOnly ? 'uncommitted spec change' : 'uncommitted change',
+function changesLabel(specsOnly: boolean, count: number, omitted?: number) {
+  return (
+    (specsOnly ? undefined : shownChangesText(count, omitted)) ??
+    counted(count, specsOnly ? 'uncommitted spec change' : 'uncommitted change')
   );
 }
 
@@ -335,6 +339,8 @@ export function PlainChangesDocument({
   context,
   interaction,
   onBrowse,
+  onOpen,
+  sideLabel,
   specsOnly = false,
   only,
   heading,
@@ -360,6 +366,8 @@ export function PlainChangesDocument({
   const inScope = (path: string) =>
     only ? only.includes(path) : !specsOnly || isSpecPath(path);
   const changes = allChanges.filter((item) => inScope(item.path));
+  const omitted =
+    changes.length === allChanges.length ? list.omittedChanges : undefined;
   const shown = limit === undefined ? changes : changes.slice(0, limit);
   const singleHeader = heading !== undefined;
   if (!specsOnly && changes.length === 0 && actionsOpen) setActionsOpen(false);
@@ -381,7 +389,15 @@ export function PlainChangesDocument({
       </div>
     );
   if (!specsOnly && changes.length === 0)
-    return <NoChanges onBrowse={onBrowse} />;
+    return (
+      <NoChanges
+        scope={scope}
+        context={context}
+        onBrowse={onBrowse}
+        onOpen={onOpen}
+        sideLabel={sideLabel}
+      />
+    );
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <ReviewCodeDocument
@@ -402,7 +418,7 @@ export function PlainChangesDocument({
                   {...(heading
                     ? { title: heading.title, titleLabel: heading.titleLabel }
                     : { title: 'All changes' })}
-                  subtitle={changesLabel(specsOnly, changes.length)}
+                  subtitle={changesLabel(specsOnly, changes.length, omitted)}
                 >
                   {collapse}
                   {heading?.after}
@@ -415,7 +431,7 @@ export function PlainChangesDocument({
                   <ChangeTable
                     scope={scope}
                     context={context}
-                    label={changesLabel(specsOnly, changes.length)}
+                    label={changesLabel(specsOnly, changes.length, omitted)}
                     items={changes}
                     rows={shown.length}
                     controls={controls}
@@ -445,21 +461,41 @@ export function PlainChangesDocument({
   );
 }
 
-export function NoChanges({ onBrowse }: Pick<DocumentProps, 'onBrowse'>) {
+export function NoChanges({
+  scope,
+  context,
+  onBrowse,
+  onOpen,
+  sideLabel,
+}: Pick<
+  DocumentProps,
+  'scope' | 'context' | 'onBrowse' | 'onOpen' | 'sideLabel'
+>) {
   return (
-    <div className="mx-auto w-full max-w-xl">
-      <StateNotice
-        message="No changes to review."
-        action={
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={(event) => onBrowse('files', event.currentTarget)}
-          >
-            Files <Kbd>{formatForDisplay(SHORTCUTS.surfaceFiles)}</Kbd>
-          </Button>
-        }
-      />
+    <div className="h-full overflow-y-auto">
+      <div className="mx-auto w-full max-w-(--container-commit) px-4 py-6">
+        <RecentHistory
+          scope={scope}
+          connection={context.connection}
+          sideLabel={sideLabel}
+          onOpenCommit={(oid, toSide) =>
+            onOpen({ kind: 'commit', oid }, { toSide: toSide === true })
+          }
+          onOpenGraph={() => onOpen({ kind: 'graph' })}
+          status={
+            <div className="flex items-center gap-2 text-caption text-muted-foreground">
+              <span>No changes to review.</span>
+              <Button
+                variant="ghost"
+                size="xs"
+                onClick={(event) => onBrowse('files', event.currentTarget)}
+              >
+                Files <Kbd>{formatForDisplay(SHORTCUTS.surfaceFiles)}</Kbd>
+              </Button>
+            </div>
+          }
+        />
+      </div>
     </div>
   );
 }

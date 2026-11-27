@@ -2,6 +2,7 @@
 route: /remotes/$environmentId/$projectId/$worktreeId
 shell: desktop
 selectors:
+  - 'Side panel'
   - 'Toggle Sidebar'
   - 'Settings'
   - 'Computers'
@@ -48,7 +49,8 @@ The desktop app lists projects from local and remote computers together, each wi
 
 - Desktop shell only. Settings → `Computers` (`/settings/computers`) → `Pairing link` → `Add`; then the sidebar (phone width: `Toggle Sidebar`, or `ControlOrMeta+b`) → project with the remote computer badge → its worktree card.
 - Route `/remotes/<environmentId>/<projectId>/<worktreeId>` (full page load works once the remote is saved; it redirects to `/` when the remote is unknown or the shell is not desktop).
-- An unavailable remote retains honest unavailable navigation states and its existing Settings recovery.
+- After a successful inventory read, an offline reload keeps the remote projects in the sidebar with "Computer unavailable".
+- A first live handshake that never becomes ready changes to unavailable when it times out. Try again starts the next attempt and Computer settings opens the saved computer.
 - Once the app shows a worktree on this computer, the open review, Files panel, and editor stay mounted through connection checks, reconnects and offline periods. Writes are disabled until the computer is online. A computer that needs pairing or an update, reports a different identity, or has never shown a worktree in this session still uses the existing recovery flow.
 
 ## Driving it with browser
@@ -80,7 +82,7 @@ Required instance mode: `--desktop`.
 
 ### The remote's disk shows live
 
-5. Click button `Review`, click tab `Files`, Right-click treeitem `README.md`, click menuitem `Open file`
+5. Click button `Side panel`, click tab `Files`, Right-click treeitem `README.md`, click menuitem `Open file`
    Expect: title "README.md — remote-sample · Remote journey computer".
 6. Click tab `Source`
    Expect: the code shows "# Sample repository" and "A change to review.".

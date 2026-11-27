@@ -1,5 +1,9 @@
 import { WorkspaceSelectionCleanup } from '@porcelain/client/projects';
-import { InventorySeed } from '@porcelain/client/projects';
+import {
+  InventorySeed,
+  WorktreeSnapshots,
+  WorktreeSnapshotStorage,
+} from '@porcelain/client/projects';
 import type { BrowserSession } from '@porcelain/client/access/rules';
 import { WEB_PLATFORM_NAME_MAX_LENGTH } from '@/config/limits';
 import {
@@ -31,6 +35,7 @@ import {
   type HistoryEntry,
 } from './adapters/connection-history';
 import { environmentStorage } from './adapters/environment-storage';
+import { worktreeSnapshotStorage } from './adapters/worktree-snapshot-storage';
 
 export const pairingPlatform: AccessPlatformValue = {
   name: () =>
@@ -193,8 +198,22 @@ function remoteConnection(remote: Remote): Connection {
 const stores = Layer.merge(AccessStore.layer, EnvironmentMutations.layer).pipe(
   Layer.provide(Layer.succeed(EnvironmentStorage, environmentStorage)),
 );
+const snapshots = WorktreeSnapshots.layer.pipe(
+  Layer.provide(stores),
+  Layer.provide(
+    Layer.succeed(WorktreeSnapshotStorage, worktreeSnapshotStorage),
+  ),
+);
+const cleanup = Layer.effect(
+  WorkspaceSelectionCleanup,
+  Effect.map(WorktreeSnapshots, (store) => ({
+    forgetEnvironment: (environmentId) => store.remove(environmentId),
+  })),
+).pipe(Layer.provide(snapshots));
 const services = Layer.mergeAll(
   stores,
+  snapshots,
+  cleanup,
   Layer.succeed(AccessPlatform, pairingPlatform),
   FileDrafts.layer,
   Layer.succeed(ConnectionFactory, {
@@ -210,9 +229,6 @@ const services = Layer.mergeAll(
         Effect.sync(() => remoteConnection(remote)),
         (connection) => Effect.promise(() => connection.close()),
       ),
-  }),
-  Layer.succeed(WorkspaceSelectionCleanup, {
-    forgetEnvironment: () => Effect.void,
   }),
 );
 const application = remoteConnectionsLayer.pipe(

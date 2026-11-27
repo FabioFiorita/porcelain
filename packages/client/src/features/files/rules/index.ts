@@ -15,8 +15,10 @@ export {
   fileTreeExpansion,
   mergeFileTreeEntries,
   movedPath,
+  omittedEntriesText,
   pathInside,
   visibleFileTreeRows,
+  withUnlistedSelection,
   type FileTreeEntry,
 } from './file-tree.ts';
 export {
@@ -25,6 +27,7 @@ export {
   quickOpenPath,
 } from './quick-open.ts';
 export { isImagePath } from './image-path.ts';
+export { PREVIEW_BRIDGE_SCRIPT, previewLinkHref } from './preview-bridge.ts';
 export {
   branchChangeMarks,
   branchChangeStatus,

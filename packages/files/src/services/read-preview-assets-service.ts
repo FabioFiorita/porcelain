@@ -9,7 +9,10 @@ import {
   type ReadPreviewAssetsResult,
 } from '../models/read-preview-assets.ts';
 import { FileReader } from '../ports/file-reader.ts';
-import { assetMediaType } from '../rules/asset-media-type.ts';
+import {
+  assetMediaType,
+  isStreamedPreviewMedia,
+} from '../rules/asset-media-type.ts';
 
 export class ReadPreviewAssetsService extends Context.Service<
   ReadPreviewAssetsService,
@@ -24,12 +27,6 @@ export class ReadPreviewAssetsService extends Context.Service<
     Effect.gen(function* () {
       const fileReaderCapability = yield* FileReader;
       const optionsCapability = yield* ReadPreviewAssetsOptions;
-      function operationServable(directory: string, path: string): boolean {
-        return (
-          isRelativePath(path, optionsCapability.maxPathLength) &&
-          (directory === '' || path.startsWith(`${directory}/`))
-        );
-      }
       const operationRead = Effect.fn('ReadPreviewAssetsService.read')(
         function* (
           input: FileReadInput,
@@ -44,17 +41,26 @@ export class ReadPreviewAssetsService extends Context.Service<
         execute: Effect.fn('ReadPreviewAssetsService.execute')(function* (
           input: ReadPreviewAssetsInput,
         ): Effect.fn.Return<ReadPreviewAssetsResult, never, WorktreeRead> {
-          const directory = input.document.includes('/')
-            ? input.document.slice(0, input.document.lastIndexOf('/'))
-            : '';
           const assets: PreviewAsset[] = [];
           let remaining = optionsCapability.maxTotalBytes;
           for (const path of new Set(input.paths)) {
             const mediaType = assetMediaType(path);
+            if (
+              input.canStream &&
+              mediaType &&
+              isStreamedPreviewMedia(mediaType)
+            ) {
+              assets.push(
+                (yield* input.canStream(path))
+                  ? { kind: 'stream', path }
+                  : { kind: 'unavailable', path },
+              );
+              continue;
+            }
             const bytes =
               mediaType === undefined ||
               remaining <= 0 ||
-              !operationServable(directory, path)
+              !isRelativePath(path, optionsCapability.maxPathLength)
                 ? undefined
                 : yield* operationRead({
                     worktreeId: input.worktreeId,

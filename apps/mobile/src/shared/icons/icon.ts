@@ -1,5 +1,4 @@
 export type HeaderIconName =
-  | 'settings'
   | 'refresh'
   | 'done'
   | 'close'
@@ -28,4 +27,7 @@ export type HeaderIconName =
   | 'showList'
   | 'hideList'
   | 'previous'
-  | 'next';
+  | 'next'
+  | 'openExternal';
+
+export type TabIconName = 'walkthrough' | 'changes' | 'files' | 'history';

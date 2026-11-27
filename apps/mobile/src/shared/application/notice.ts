@@ -2,8 +2,9 @@ import { Effect } from 'effect';
 import { Atom } from 'effect/reactivity';
 
 const copyTitles = {
-  brief: 'Copied brief',
+  comments: 'Copied comments',
   'worktree path': 'Copied worktree path',
+  'log lines': 'Copied the log lines',
 };
 
 const gitTitles = {
@@ -11,12 +12,24 @@ const gitTitles = {
   pull: 'Pulled',
 };
 
+const pullRequestTitles = {
+  merged: (number: number) => `Merged #${number}`,
+  commented: (number: number) => `Commented on #${number}`,
+};
+
 export type NotifyEvent =
   | { kind: 'copy'; target: keyof typeof copyTitles }
-  | { kind: 'git'; action: keyof typeof gitTitles };
+  | { kind: 'git'; action: keyof typeof gitTitles }
+  | {
+      kind: 'pull-request';
+      action: keyof typeof pullRequestTitles;
+      number: number;
+    };
 
 function notificationTitle(event: NotifyEvent, platformShowsCopy: boolean) {
   if (event.kind === 'git') return gitTitles[event.action];
+  if (event.kind === 'pull-request')
+    return pullRequestTitles[event.action](event.number);
   return platformShowsCopy ? undefined : copyTitles[event.target];
 }
 

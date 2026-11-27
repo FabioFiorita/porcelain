@@ -10,7 +10,7 @@ import { useElement } from '../../src/shared/hooks/use-element';
 import { getHotkeyManager } from '@tanstack/react-hotkeys';
 import { SHORTCUTS } from '@/shared/workspace/shortcuts';
 import { AtomRegistry } from 'effect/reactivity';
-import { Suspense, useState, type ReactNode } from 'react';
+import { Suspense, useState, type ComponentProps, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { expect, test as base } from 'vite-plus/test';
 import { page } from 'vite-plus/test/browser';
@@ -28,7 +28,12 @@ import {
   ReviewsGitSettings,
   ThemeProvider,
 } from '@/features/preferences/index';
-import { ProjectNavigator, useInventory } from '@/features/projects/index';
+import {
+  MergePullRequest,
+  MergePullRequestDialog,
+  ProjectNavigator,
+  useInventory,
+} from '@/features/projects/index';
 import { WorkspaceReview as ReviewWorkspace } from '@/app/workspace-review';
 import { setFilePreference } from '@porcelain/client/projects';
 import type { RemoteConnection } from '@porcelain/client/access';
@@ -60,6 +65,7 @@ import { createFetchGate, live } from './network.ts';
 
 export { expect };
 export { expectInputFocus } from './focus.ts';
+export { withoutRandomUUID } from './insecure-origin.ts';
 export { readClipboard, replaceEditorContent } from './commands.ts';
 
 export type Repo = SampleRepository;
@@ -87,6 +93,9 @@ export type Render = {
   navigator: (options?: {
     remotes: readonly RemoteConnection[];
   }) => Promise<typeof page>;
+  mergePullRequest: (
+    pull: ComponentProps<typeof MergePullRequest>['pull'],
+  ) => Promise<typeof page>;
 };
 
 type WatchedFailures = Failures & { reported: () => Promise<string[]> };
@@ -532,6 +541,19 @@ export const test = base
             }),
           )
           .toBeVisible();
+        return page;
+      },
+      async mergePullRequest(pull) {
+        await show((connection) => (
+          <>
+            <MergePullRequest
+              context={{ connection }}
+              projectId="merge-fixture"
+              pull={pull}
+            />
+            <MergePullRequestDialog />
+          </>
+        ));
         return page;
       },
     };

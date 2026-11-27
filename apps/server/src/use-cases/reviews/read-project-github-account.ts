@@ -21,7 +21,8 @@ export class ReadProjectGitHubAccountUseCase extends Context.Service<
       return {
         execute: Effect.fn('ReadProjectGitHubAccountUseCase.execute')(
           function* (input) {
-            return (yield* resolve.execute(input)).selection;
+            return (yield* resolve.execute({ ...input, fresh: true }))
+              .selection;
           },
         ),
       };

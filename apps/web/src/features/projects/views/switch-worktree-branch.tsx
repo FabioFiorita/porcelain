@@ -66,7 +66,7 @@ function SwitchWorktreeBranchContent({
     connection,
     scope: { projectId: entry.projectId, worktreeId },
   });
-  const { result: branches } = useBranchBases(
+  const { result: branches, refresh } = useBranchBases(
     { projectId: entry.projectId, worktreeId },
     connection,
     true,
@@ -107,14 +107,28 @@ function SwitchWorktreeBranchContent({
       >
         <CommandInput aria-label="Find a branch" placeholder="Find a branch" />
         {AsyncResult.isInitial(branches) && (
-          <p role="status" className="p-3 text-xs text-muted-foreground">
+          <p
+            role="status"
+            className="py-6 text-center text-xs/relaxed text-muted-foreground"
+          >
             Reading branches
           </p>
         )}
         {AsyncResult.isFailure(branches) && (
-          <p role="alert" className="p-3 text-xs text-muted-foreground">
+          <div
+            role="alert"
+            className="flex items-center justify-center gap-2 py-6 text-xs/relaxed text-muted-foreground"
+          >
             Branches could not be read.
-          </p>
+            <Button
+              variant="link"
+              size="flush"
+              disabled={branches.waiting}
+              onClick={refresh}
+            >
+              Try again
+            </Button>
+          </div>
         )}
         {answer && <CommandEmpty>No matching branch</CommandEmpty>}
         <CommandList aria-label="Branches">

@@ -236,6 +236,30 @@ test('pinned entry kind comes from its actual parent listing, including a known 
   ]);
 });
 
+test('a pin past a folder that lists only its first entries stays openable as a file', () => {
+  expect(
+    pinnedFileEntries(
+      ['bulk/file-19999.txt', 'src/gone.ts'],
+      [
+        {
+          path: 'bulk',
+          status: 'loaded',
+          entries: [{ name: 'file-00000.txt', kind: 'file' }],
+          omitted: 19_999,
+        },
+        { path: 'src', status: 'loaded', entries: [] },
+      ],
+    ),
+  ).toEqual([
+    {
+      path: 'bulk/file-19999.txt',
+      state: 'resolved',
+      entry: { path: 'bulk/file-19999.txt', kind: 'file' },
+    },
+    { path: 'src/gone.ts', state: 'missing' },
+  ]);
+});
+
 test('unread, failed and missing parent listings never invent a pinned file kind', () => {
   expect(pinnedFileEntries(['docs/.env'], [])).toEqual([
     { path: 'docs/.env', state: 'loading' },

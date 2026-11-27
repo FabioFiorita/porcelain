@@ -1,4 +1,5 @@
 import { TruncatedText } from '@/shared/views/truncated-text';
+import { cn } from '@/shared/lib/utils';
 import { BranchState } from './branch-state';
 import { HistoryIcon } from 'lucide-react';
 import { BarAction } from '@/shared/workspace/bar-action';
@@ -8,7 +9,6 @@ import { AsyncResult } from 'effect/reactivity';
 import { useAtom } from '@effect/atom-react';
 import { Option } from 'effect';
 import { type ReactNode, useState } from 'react';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DIFF_WINDOW_FILES } from '@/config/limits';
 import { type BranchFile, branchRange } from '@porcelain/client/changes/rules';
@@ -18,8 +18,8 @@ import {
   useBranchDiffs,
   useReviewOverview,
 } from '@/features/changes/index';
-import { shortOid } from '@porcelain/client/history/rules';
-import type { CodeEntry } from '../adapters/code-entries';
+import { type CodeEntry, entryLineCounts } from '../adapters/code-entries';
+import { ChangeCounts } from './change-counts';
 import { useReviewedMarks } from '../queries/reviewed';
 import type { DocumentInteraction, OpenDocument } from '../rules/documents';
 import {
@@ -325,7 +325,9 @@ function BranchDiffs({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <CodeDocument
+        comments
         fullHeight={fullHeight}
+        disableFileHeader={single}
         readingColumn={!single && !singleHeader}
         scope={scope}
         context={context}
@@ -350,9 +352,22 @@ function BranchDiffs({
                 target={interaction.toolbarTarget}
                 barActions={null}
                 title={basename(first.path)}
-                subtitle={`${first.path} · on the branch`}
+                subtitle={`${[first.oldPath, first.path].filter((name, index, names) => name !== undefined && names.indexOf(name) === index).join(' → ')} · on the branch`}
+                aside={
+                  entries[0] && (
+                    <>
+                      <ChangeCounts counts={entryLineCounts(entries[0])} />
+                      {first.reviewStatus === 'stale' && (
+                        <span className="shrink-0 rounded-md bg-graph-4/15 px-1.5 py-0.5 text-2xs text-graph-4">
+                          Changed since reviewed
+                        </span>
+                      )}
+                    </>
+                  )
+                }
               >
-                {control(first, false)}
+                {interaction.toolbarTarget === undefined &&
+                  control(first, false)}
               </DocumentToolbar>
             );
           if (singleHeader)
@@ -370,10 +385,9 @@ function BranchDiffs({
             );
           return (
             <DocumentToolbar
-              target={interaction.toolbarTarget}
-              barActions={null}
-              title="Branch"
-              subtitle={`${counted(items.length, 'file')} changed`}
+              inline
+              title={`${branch.head.branch ? refLabel(branch.head.branch) : 'This commit'} since ${refLabel(branch.base)}`}
+              subtitle={`${counted(items.length, 'file')} · ${counted(branch.commits, 'commit')}`}
             >
               {collapseControl}
               <MarkAllReviewed
@@ -387,7 +401,6 @@ function BranchDiffs({
         }}
         header={() => (
           <BranchHeader
-            branch={branch}
             single={single}
             singleHeader={singleHeader}
             uncommitted={uncommitted}
@@ -410,7 +423,6 @@ function BranchDiffs({
 }
 
 function BranchHeader({
-  branch,
   single,
   singleHeader,
   uncommitted,
@@ -420,12 +432,6 @@ function BranchHeader({
   onRetry,
   control,
 }: {
-  branch: {
-    base: string;
-    head: { oid: string; branch: string | undefined };
-    mergeBaseOid: string;
-    commits: number;
-  };
   single: boolean;
   singleHeader: boolean;
   uncommitted: number;
@@ -435,37 +441,18 @@ function BranchHeader({
   onRetry: () => void;
   control: (item: BranchChangeItem) => ReactNode;
 }) {
-  const head =
-    branch.head.branch === null || branch.head.branch === undefined
-      ? 'This commit'
-      : refLabel(branch.head.branch);
-  if (singleHeader && !failed && omitted.length === 0) return null;
+  const note = uncommitted > 0 && !singleHeader;
+  if (!note && !failed && omitted.length === 0) return null;
   return (
-    <section className="mx-4 mt-3 rounded-xl border px-4 py-3">
-      {!single && !singleHeader && (
-        <>
-          <h2 className="text-sm font-semibold">
-            {head} since {refLabel(branch.base)}
-          </h2>
-          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-2xs text-muted-foreground">
-            <span>{counted(branch.commits, 'commit')}</span>
-            <span>
-              from{' '}
-              <span className="font-mono">{shortOid(branch.mergeBaseOid)}</span>{' '}
-              to <span className="font-mono">{shortOid(branch.head.oid)}</span>
-            </span>
-            <Badge variant="secondary">{refLabel(branch.base)}</Badge>
-          </div>
-        </>
-      )}
-      {uncommitted > 0 && !singleHeader && (
-        <p className="mt-1 text-2xs text-muted-foreground">
+    <section className={cn('mx-4 mt-3 flex flex-col gap-3', single && 'mb-3')}>
+      {note && (
+        <p className="text-2xs text-muted-foreground">
           Uncommitted changes are not part of the branch review. Review them
           under Uncommitted.
         </p>
       )}
       {failed && (
-        <p className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+        <p className="flex items-center gap-2 text-xs text-muted-foreground">
           Some patches could not be read.
           <Button size="xs" variant="outline" onClick={onRetry}>
             Try again
@@ -473,20 +460,19 @@ function BranchHeader({
         </p>
       )}
       {omitted.length > 0 && (
-        <ul
-          className="mt-3 space-y-1.5"
-          aria-label="Changes without code preview"
-        >
+        <ul className="space-y-1.5" aria-label="Changes without code preview">
           {omitted.map((item) => (
             <li
               key={item.path}
               className="flex min-w-0 items-center gap-2 rounded-lg border bg-muted/25 px-3 py-2 text-xs"
             >
               {control(item)}
-              <TruncatedText
-                className="font-mono font-medium"
-                text={item.path}
-              />
+              {!single && (
+                <TruncatedText
+                  className="font-mono font-medium"
+                  text={item.path}
+                />
+              )}
               <span className="shrink-0 text-muted-foreground">
                 {item.status}
                 {patchOf(item) !== undefined || failed

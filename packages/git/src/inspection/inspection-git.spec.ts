@@ -112,13 +112,6 @@ describe('native checkout inspection', () => {
         inspection: { ...gitLimits.inspection, statusBytes: 1 },
       },
     },
-    {
-      kind: 'change-count',
-      limits: {
-        ...gitLimits,
-        inspection: { ...gitLimits.inspection, maxChanges: 0 },
-      },
-    },
   ])(
     'fails in the typed channel when status exceeds its $kind limit',
     async ({ limits }) => {
@@ -133,6 +126,27 @@ describe('native checkout inspection', () => {
       expect(failure).toMatchObject({ name: 'InspectionLimitError' });
     },
   );
+
+  it('lists whole files up to the change limit and counts the files left out', async () => {
+    write('a.txt', 'staged\n');
+    git('add', 'a.txt');
+    write('a.txt', 'unstaged\n');
+    for (const name of ['b', 'c', 'd', 'e', 'f']) write(`${name}.txt`, 'new\n');
+    const status = await run(
+      Effect.flatMap(session(), (opened) =>
+        readCheckoutStatus(opened, {
+          ...gitLimits,
+          inspection: { ...gitLimits.inspection, maxChanges: 3 },
+        }),
+      ),
+    );
+    expect(status.changes).toMatchObject([
+      { scope: 'staged', newPath: 'a.txt' },
+      { scope: 'unstaged', newPath: 'a.txt' },
+      { scope: 'untracked', path: 'b.txt' },
+    ]);
+    expect(status.omittedChanges).toBe(4);
+  });
 
   it('refuses a filename whose bytes are not UTF-8 in the typed channel', async () => {
     execFileSync(

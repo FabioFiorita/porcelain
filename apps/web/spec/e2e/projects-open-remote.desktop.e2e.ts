@@ -29,6 +29,39 @@ async function addRemoteComputer(page: Page, link: string, name: string) {
   ).not.toBeAttached();
 }
 
+test('the navigator keeps a remote project visible after an offline reload', async ({
+  pairedPage: page,
+  app,
+  remote,
+}) => {
+  const { environment } = await remote.server.inventory();
+  const project = await remote.server.project();
+  const link = await app.remoteLink();
+  await addRemoteComputer(page, link, environment.name);
+  await page.setViewportSize({ width: 1440, height: 900 });
+
+  const navigation = page.getByRole('navigation', {
+    name: 'Projects and worktrees',
+    exact: true,
+  });
+  const heading = navigation.getByRole('button', {
+    name: `Collapse ${project.name} · ${environment.name}`,
+    exact: true,
+  });
+  await expect(heading).toBeVisible();
+  const outage = await app.dropRemoteComputer(link);
+  try {
+    await outage.healthFailure;
+    await app.reload();
+    await expect(heading).toBeVisible();
+    await expect(
+      navigation.getByText('Computer unavailable', { exact: true }),
+    ).toBeVisible();
+  } finally {
+    await outage.restore();
+  }
+});
+
 const paths = (inventory: {
   projects: readonly { worktrees: readonly { path: string }[] }[];
 }) =>
@@ -101,7 +134,7 @@ test('the desktop app opens a project on another computer from the Open project 
     .getByRole('button', { name: 'landing-site', exact: true })
     .click();
   await dialog
-    .getByRole('button', { name: 'Open landing-site', exact: true })
+    .getByRole('button', { name: 'Open repository', exact: true })
     .click();
   await expect(dialog).not.toBeAttached();
   await expect(
@@ -194,7 +227,9 @@ test('This computer in the Open project menu still opens a project on this compu
     }),
   ).toBeVisible();
   await dialog.getByRole('button', { name: 'here', exact: true }).click();
-  await dialog.getByRole('button', { name: 'Open here', exact: true }).click();
+  await dialog
+    .getByRole('button', { name: 'Open repository', exact: true })
+    .click();
   await expect(dialog).not.toBeAttached();
   await expect(
     pairedPage.getByRole('dialog', { name: 'Sidebar', exact: true }),
@@ -453,17 +488,17 @@ for (const { source, checkouts } of [
         .click();
       const expected = `${source === 'remote' ? `/remotes/${inventory.environmentId}` : ''}/${project.id}/${current.id}`;
       await expect.poll(() => app.address().path).toBe(expected);
-      await expect(
-        page.getByRole('tab', { name: 'archive.txt', exact: true }),
-      ).toHaveAttribute('aria-selected', 'true');
+      const sourceTab = page.getByRole('tab', {
+        name: 'archive.txt',
+        exact: true,
+      });
+      await expect(sourceTab).toHaveAttribute('aria-selected', 'true');
       await expect(
         page.getByRole('code').filter({ hasText: content }),
       ).toBeVisible();
       await app.reload();
       await expect.poll(() => app.address().path).toBe(expected);
-      await expect(
-        page.getByRole('code').filter({ hasText: content }),
-      ).toBeVisible();
+      await expect(sourceTab).toHaveAttribute('aria-selected', 'true');
     });
   }
 }

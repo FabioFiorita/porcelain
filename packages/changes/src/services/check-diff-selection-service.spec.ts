@@ -15,6 +15,7 @@ const status: ChangeStatusObservation = {
   inProgress: undefined,
   mergeHeadOid: undefined,
   branch: undefined,
+  omittedChanges: 0,
   changes: [modified('unstaged', 'a.md')],
 };
 const stated = [{ path: 'a.md', fingerprint: undefined }];

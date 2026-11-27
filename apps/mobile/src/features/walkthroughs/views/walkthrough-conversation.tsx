@@ -1,22 +1,16 @@
-import type { WalkthroughDraftPlacement } from '@porcelain/client/walkthroughs';
 import { useState, type ReactNode } from 'react';
 import { Keyboard } from 'react-native';
 import { useAtom } from '@effect/atom-react';
+import { quotedAnswer } from '@porcelain/client/comments/rules';
 import {
   developerTurns,
   earlierConversations,
-  postControls,
-  postedCommentLabel,
-  postLabels,
-  savedSummary,
   stopConversations,
   type AgentMessage,
   type Conversation,
-  type DeveloperMessage,
 } from '@porcelain/client/walkthroughs/rules';
 import { Box } from '../../../components/ui/box';
 import { Button } from '../../../components/ui/button';
-import { FloatingBar } from '../../../components/ui/floating-bar';
 import { Spinner } from '../../../components/ui/spinner';
 import { Message } from '../../../components/ui/message';
 import type { KeyboardScroller } from '../../../components/ui/keyboard-reveal';
@@ -24,12 +18,8 @@ import { MessageComposer } from '../../../components/ui/message-composer';
 import { RichText } from '../../../components/ui/rich-text';
 import { Separator } from '../../../components/ui/separator';
 import { Text } from '../../../components/ui/text';
-import { usePreviewLink } from '../../../shared/adapters/preview-link';
-import {
-  useAnswerRetry,
-  useAsk,
-  usePostActions,
-} from '../commands/conversations';
+import { useSaveComment } from '../../comments';
+import { useAnswerRetry, useAsk } from '../commands/conversations';
 import {
   useConversations,
   type ConversationOwner,
@@ -43,12 +33,10 @@ const ANSWER_LINES = 3;
 
 function LinkButton({
   label,
-  accessibilityLabel,
   disabled = false,
   onPress,
 }: {
   label: string;
-  accessibilityLabel?: string;
   disabled?: boolean;
   onPress: () => void;
 }) {
@@ -61,120 +49,61 @@ function LinkButton({
       className="-ml-3.5 self-start"
       disabled={disabled}
       onPress={onPress}
-      {...(accessibilityLabel ? { accessibilityLabel } : {})}
     />
   );
 }
 
-function PostActions({
+function AddToReview({
   owner,
-  message,
-  pullRequest,
-}: Props & {
-  message?: DeveloperMessage | undefined;
-  pullRequest: number | undefined;
-}) {
-  const actions = usePostActions(owner, message);
-  const { notice, waiting } = actions;
+  stepTitle,
+  text,
+}: Props & { stepTitle: string; text: string }) {
+  const save = useSaveComment(owner.workspace);
   const blocked = useWritesBlocked(owner.workspace.connection.environmentId);
-  const copy = () => {
-    Keyboard.dismiss();
-    actions.copy();
-  };
-  const save = (saved: boolean) => {
-    Keyboard.dismiss();
-    actions.save(saved);
-  };
-  const post = () => {
-    Keyboard.dismiss();
-    actions.post();
-  };
-  const link = usePreviewLink();
-  const state = postControls(message);
-  const labels = postLabels(pullRequest);
+  const [added, setAdded] = useState(false);
+  if (added)
+    return (
+      <Text variant="caption" tone="muted" accessibilityRole="alert">
+        Added to the review
+      </Text>
+    );
   return (
-    <Box
-      className={message ? '' : 'flex-row flex-wrap items-center'}
-      gap={message ? 1 : 2}
-    >
-      {message?.post.status === 'posted' ? (
-        <LinkButton
-          label={postedCommentLabel(message.post.url)}
-          onPress={() => {
-            if (message.post.status === 'posted') link.open(message.post.url);
-          }}
-        />
-      ) : null}
-      {state === 'saved' ? (
-        <Box className="flex-row items-center" gap={2}>
-          <Text variant="secondary" tone="muted">
-            Saved for later
-          </Text>
-          <Button
-            label="Undo"
-            variant="plain"
-            size="sm"
-            disabled={waiting || blocked}
-            onPress={() => save(false)}
-          />
-        </Box>
-      ) : null}
-      {state === 'available' ? (
-        <Box className="flex-row flex-wrap items-center" gap={2}>
-          <Button
-            label={message ? labels.single : labels.together}
-            variant={message ? 'tonal' : 'filled'}
-            size="sm"
-            pending={waiting}
-            disabled={pullRequest !== undefined && blocked}
-            onPress={pullRequest === undefined ? copy : post}
-          />
-          {message ? (
-            <Button
-              label="Save for later"
-              variant="plain"
-              size="sm"
-              disabled={waiting || blocked}
-              onPress={() => save(true)}
-            />
-          ) : null}
-        </Box>
-      ) : null}
-      {link.error ? (
+    <>
+      <Button
+        label="Add to review"
+        variant="plain"
+        size="sm"
+        align="start"
+        className="-ml-3.5 self-start"
+        pending={save.waiting}
+        disabled={blocked}
+        onPress={() =>
+          void save
+            .add({ kind: 'step', title: stepTitle }, text)
+            .then((view) => {
+              if (view) setAdded(true);
+            })
+        }
+      />
+      {save.failure ? (
         <Text variant="caption" tone="destructive" accessibilityRole="alert">
-          {link.error}
+          {save.failure}
         </Text>
       ) : null}
-      {notice ? (
-        <Box className="flex-row flex-wrap items-center" gap={2}>
-          <Text
-            variant="caption"
-            tone="muted"
-            accessibilityRole="alert"
-            numberOfLines={2}
-          >
-            {notice.text}
-          </Text>
-          {notice.copy ? (
-            <Button
-              label="Copy"
-              variant="plain"
-              size="sm"
-              disabled={waiting}
-              onPress={copy}
-            />
-          ) : null}
-        </Box>
-      ) : null}
-    </Box>
+    </>
   );
 }
 
 function AgentReply({
   owner,
   message,
-  children,
-}: Props & { message: AgentMessage; children: ReactNode }) {
+  question,
+  stepTitle,
+}: Props & {
+  message: AgentMessage;
+  question: string;
+  stepTitle: string | undefined;
+}) {
   const [open, setOpen] = useState(false);
   const [clipped, setClipped] = useState(false);
   const { failure, waiting, retry } = useAnswerRetry(owner);
@@ -207,12 +136,18 @@ function AgentReply({
           onPress={() => retry(message.replyTo)}
         />
       ) : null}
+      {state.status === 'answered' && stepTitle !== undefined ? (
+        <AddToReview
+          owner={owner}
+          stepTitle={stepTitle}
+          text={quotedAnswer(question, state.text)}
+        />
+      ) : null}
       {failure ? (
         <Text variant="caption" tone="destructive" accessibilityRole="alert">
           {failure}
         </Text>
       ) : null}
-      {children}
     </Message>
   );
 }
@@ -220,22 +155,21 @@ function AgentReply({
 function Messages({
   owner,
   conversation,
-  number,
-}: Props & { conversation: Conversation; number: number | undefined }) {
+  stepTitle,
+}: Props & { conversation: Conversation; stepTitle: string | undefined }) {
   return developerTurns(conversation).map(({ message, reply }) => (
     <Box key={message.id} gap={3}>
       <Message align="end">
         <RichText text={message.text} />
       </Message>
       {reply ? (
-        <AgentReply owner={owner} message={reply}>
-          <PostActions owner={owner} message={message} pullRequest={number} />
-        </AgentReply>
-      ) : (
-        <Box className="items-end">
-          <PostActions owner={owner} message={message} pullRequest={number} />
-        </Box>
-      )}
+        <AgentReply
+          owner={owner}
+          message={reply}
+          question={message.text}
+          stepTitle={stepTitle}
+        />
+      ) : null}
     </Box>
   ));
 }
@@ -243,25 +177,14 @@ function Messages({
 function Composer({
   owner,
   title,
-  placement,
-  placeholder,
   scroller,
-}: Props & {
-  title: string;
-  placement: WalkthroughDraftPlacement;
-  placeholder: string;
-  scroller: KeyboardScroller;
-}) {
-  const { text, failure, waiting, change, send } = useAsk(
-    owner,
-    title,
-    placement,
-  );
+}: Props & { title: string; scroller: KeyboardScroller }) {
+  const { text, failure, waiting, change, send } = useAsk(owner, title);
   const blocked = useWritesBlocked(owner.workspace.connection.environmentId);
   return (
     <MessageComposer
       value={text}
-      placeholder={placeholder}
+      placeholder="Ask about this step"
       sending={waiting}
       disabled={blocked}
       error={failure}
@@ -279,16 +202,15 @@ function Composer({
 export function WalkthroughConversation({
   owner,
   title,
-  placement,
-  lead,
+  stepTitle,
+  actions,
   scroller,
 }: Props & {
   title: string;
-  placement: WalkthroughDraftPlacement;
-  lead?: ReactNode;
+  stepTitle: string;
+  actions: ReactNode;
   scroller: KeyboardScroller;
 }) {
-  const call = placement === 'call';
   const { view, failed, refresh } = useConversations(owner);
   const [asking, setAsking] = useAtom(
     walkthroughAsking(JSON.stringify([owner.workspace.key, title])),
@@ -297,17 +219,15 @@ export function WalkthroughConversation({
   const asked = conversations.some((item) => item.messages.length > 0);
   return (
     <Box gap={3}>
-      {call ? null : (
-        <Box className="-ml-3.5 flex-row flex-wrap items-center">
-          {lead}
-          <Button
-            label="Ask about this"
-            variant="plain"
-            size="sm"
-            onPress={() => setAsking(!asking)}
-          />
-        </Box>
-      )}
+      <Box className="-ml-3.5 flex-row flex-wrap items-center">
+        {actions}
+        <Button
+          label="Ask about this"
+          variant="plain"
+          size="sm"
+          onPress={() => setAsking(!asking)}
+        />
+      </Box>
       {failed ? (
         <Box className="flex-row flex-wrap items-center" gap={2}>
           <Text variant="caption" tone="muted" accessibilityRole="alert">
@@ -321,7 +241,7 @@ export function WalkthroughConversation({
           />
         </Box>
       ) : null}
-      {call || asking || asked ? (
+      {asking || asked ? (
         <>
           {conversations.length > 0 ? (
             <Box gap={4}>
@@ -331,20 +251,12 @@ export function WalkthroughConversation({
                   key={conversation.runId}
                   owner={owner}
                   conversation={conversation}
-                  number={view?.pullRequestNumber}
+                  stepTitle={stepTitle}
                 />
               ))}
             </Box>
           ) : null}
-          <Composer
-            owner={owner}
-            title={title}
-            placement={placement}
-            scroller={scroller}
-            placeholder={
-              call ? 'Decide, or ask about this' : 'Ask about this step'
-            }
-          />
+          <Composer owner={owner} title={title} scroller={scroller} />
         </>
       ) : null}
     </Box>
@@ -369,28 +281,9 @@ export function EarlierComments({
           key={`${conversation.runId}:${index}`}
           owner={owner}
           conversation={conversation}
-          number={view?.pullRequestNumber}
+          stepTitle={undefined}
         />
       ))}
     </Box>
-  );
-}
-
-export function useSavedSummary(owner: ConversationOwner) {
-  return savedSummary(useConversations(owner).view);
-}
-
-export function PostSaved({ owner }: Props) {
-  const { view } = useConversations(owner);
-  const saved = savedSummary(view);
-  if (!saved) return null;
-  return (
-    <FloatingBar
-      action={
-        <PostActions owner={owner} pullRequest={view?.pullRequestNumber} />
-      }
-    >
-      <Text variant="secondary">{saved}</Text>
-    </FloatingBar>
   );
 }

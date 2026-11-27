@@ -8,6 +8,7 @@ const variants = {
   destructive: 'bg-del-bg',
   success: 'bg-add-bg',
   warning: 'bg-warn-soft',
+  notice: 'border border-border bg-muted',
 };
 
 export function Card({

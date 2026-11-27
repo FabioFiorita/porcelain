@@ -24,9 +24,9 @@ export function GitActionError({
   children?: ReactNode;
 }) {
   return (
-    <p role="alert" className="flex gap-2 text-sm text-destructive">
-      <TriangleAlertIcon className="mt-0.5 size-4 shrink-0" />
-      <span>
+    <p role="alert" className="flex min-w-0 gap-1.5 text-destructive">
+      <TriangleAlertIcon className="mt-[0.2lh] size-3.5 shrink-0" />
+      <span className="min-w-0 break-words">
         <GitActionMessage text={text} />
         {children}
       </span>

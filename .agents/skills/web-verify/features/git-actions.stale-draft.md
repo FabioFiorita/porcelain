@@ -53,7 +53,7 @@ No setup on a fresh instance (README.md modified).
    Expect: textbox "Message" holds "Explain the change to review in the README".
 2. On disk, with the dialog open: `printf 'Changed after the draft\n' > "$REPO/README.md"`
 3. Review and optionally edit Message. The current HEAD is unchanged until clicking Commit. Click button `Commit selected files`, then wait for button `Look again`
-   Expect: alert "changed since looked"; button "Look again".
+   Expect: alert "The files changed after you looked at them."; button "Look again".
 4. Click button `Look again`
    Expect: STALE shows; button "Commit selected files" [disabled].
 5. Click tab `Amend last`, then click tab `Single commit`
@@ -95,7 +95,7 @@ Navigate to `/`, then wait for button `Mark NOTES.md as reviewed` and wait for b
    Expect: textbox "Message for commit 1" holds "Explain the change to review in the README"; textbox "Message for commit 2" holds "Add notes for the reviewer".
 2. On disk: `printf 'Changed after the groups were drafted\n' > "$REPO/NOTES.md"`
 3. Click button `Commit groups in order`, then wait for button `Look again`
-   Expect: paragraph "Commit 1 · committed"; alert "changed since looked". Disk: `git -C "$REPO" log -1 --format=%s` prints `Explain the change to review in the README`; `git -C "$REPO" status --porcelain` prints `?? NOTES.md`.
+   Expect: paragraph "Commit 1 · committed"; alert "The files changed after you looked at them.". Disk: `git -C "$REPO" log -1 --format=%s` prints `Explain the change to review in the README`; `git -C "$REPO" status --porcelain` prints `?? NOTES.md`.
 4. Click button `Look again`
    Expect: STALE shows; button "Commit groups in order" [disabled].
 

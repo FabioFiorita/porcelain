@@ -119,8 +119,8 @@ function RenameProjectContent({
         <p className="break-all font-mono text-xs text-muted-foreground">
           {projectPath(project)}
         </p>
+        <ProjectCommandProblem unavailable={unavailable} result={result} />
       </div>
-      <ProjectCommandProblem unavailable={unavailable} result={result} />
       <DialogFooter>
         <Button
           type="button"

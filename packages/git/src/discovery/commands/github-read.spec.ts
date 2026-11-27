@@ -9,7 +9,9 @@ import { expect, it, onTestFinished } from 'vite-plus/test';
 import { gitLimits } from '../../../spec/fixtures/git-limits.ts';
 import {
   listGitHubAccounts,
+  mergeGitHubPullRequest,
   postGitHubIssueComment,
+  postGitHubPullRequestReview,
   readGitHubApi,
 } from './github-read.ts';
 async function fixture(onCleanup: (fn: () => Promise<void> | void) => void) {
@@ -39,6 +41,12 @@ fs.appendFileSync(${JSON.stringify(calls)}, JSON.stringify({ args, token: proces
 if (args[0] === 'auth' && args[1] === 'status') { console.log('["personal","work"]'); }
 else if (args[0] === 'auth') { console.log('secret-' + args.at(-1)); }
 else if (args.includes('repos/o/r/issues/7/comments')) { fs.writeFileSync(${JSON.stringify(join(folder, 'posted'))}, fs.readFileSync(0)); console.log('{"html_url":"https://github.com/o/r/pull/7#issuecomment-1"}'); }
+else if (args.includes('repos/o/r/pulls/7/reviews') && mode === 'invalid') { console.error('gh: Validation Failed (HTTP 422)'); process.exitCode = 1; }
+else if (args.includes('repos/o/r/pulls/7/reviews') && mode === 'server-error') { console.error('gh: Server Error (HTTP 502)'); process.exitCode = 1; }
+else if (args.includes('repos/o/r/pulls/7/reviews')) { fs.writeFileSync(${JSON.stringify(join(folder, 'review'))}, fs.readFileSync(0)); console.log('{"id":9,"html_url":"https://github.com/o/r/pull/7#pullrequestreview-9"}'); }
+else if (args.includes('repos/o/r/pulls/7/merge') && mode === 'ok') { fs.writeFileSync(${JSON.stringify(join(folder, 'posted'))}, fs.readFileSync(0)); console.log('{"sha":"abc","merged":true,"message":"Pull Request successfully merged"}'); }
+else if (args.includes('repos/o/r/pulls/7/merge') && mode === 'blocked') { console.error('gh: Required status check "unit" is expected. (HTTP 405)'); process.exitCode = 1; }
+else if (args.includes('repos/o/r/pulls/7/merge') && mode === 'moved') { console.error('gh: Head branch was modified. Review and try the merge again. (HTTP 409)'); process.exitCode = 1; }
 else if (mode === 'rate') { console.error('HTTP 403 API rate limit exceeded ' + process.env.GH_TOKEN); process.exitCode = 1; }
 else if (mode === 'offline') { console.error('dial tcp: network is unreachable ' + process.env.GH_TOKEN); process.exitCode = 1; }
 else if (mode === 'missing-pull') { console.error('GraphQL: Could not resolve to a PullRequest with the number of 999. (repository.pullRequest) ' + process.env.GH_TOKEN); process.exitCode = 1; }
@@ -153,3 +161,162 @@ it('reports a missing gh executable without leaking a spawn error', async ({
     'gh-not-installed',
   );
 });
+
+const merge = {
+  account: 'work',
+  owner: 'o',
+  repo: 'r',
+  number: 7,
+  method: 'squash',
+  headSha: 'a'.repeat(40),
+} as const;
+it('merges with the chosen method only when the head is still the commit that was read', async ({
+  onTestFinished,
+}) => {
+  const f = await fixture(onTestFinished);
+  await run(mergeGitHubPullRequest(merge, gitLimits));
+  expect(JSON.parse(await readFile(join(f.folder, 'posted'), 'utf8'))).toEqual({
+    merge_method: 'squash',
+    sha: 'a'.repeat(40),
+  });
+  const call = (await readFile(f.calls, 'utf8')).trim().split('\n').at(-1)!;
+  expect(JSON.parse(call)).toMatchObject({
+    args: [
+      'api',
+      '--hostname',
+      'github.com',
+      'repos/o/r/pulls/7/merge',
+      '--method',
+      'PUT',
+      '--input',
+      '-',
+    ],
+    token: 'secret-work',
+  });
+});
+it.each([
+  ['blocked', 'not-mergeable', 'Required status check "unit" is expected.'],
+  [
+    'moved',
+    'head-changed',
+    'Head branch was modified. Review and try the merge again.',
+  ],
+  ['rate', 'rate-limited', undefined],
+] as const)(
+  'reports a %s merge as %s with what GitHub said',
+  async (mode, reason, detail) => {
+    const f = await fixture(onTestFinished);
+    await writeFile(f.state, mode);
+    const result = await run(
+      mergeGitHubPullRequest(merge, gitLimits).pipe(Effect.result),
+    );
+    expect(result._tag).toBe('Failure');
+    if (result._tag !== 'Failure') return;
+    expect(result.failure.reason).toBe(reason);
+    expect('detail' in result.failure ? result.failure.detail : undefined).toBe(
+      detail,
+    );
+    expect(JSON.stringify(result)).not.toContain('secret-work');
+  },
+);
+
+it('posts one COMMENT review at the given commit with single and multi-line comments on their side', async ({
+  onTestFinished,
+}) => {
+  const f = await fixture(onTestFinished);
+  expect(
+    await run(
+      postGitHubPullRequestReview(
+        {
+          account: 'work',
+          owner: 'o',
+          repo: 'r',
+          number: 7,
+          commitId: 'abc123',
+          body: 'Summary',
+          comments: [
+            { path: 'src/a.ts', side: 'RIGHT', line: 4, body: 'One line' },
+            {
+              path: 'src/b.ts',
+              side: 'LEFT',
+              startLine: 2,
+              line: 3,
+              body: 'Removed range',
+            },
+          ],
+        },
+        gitLimits,
+      ),
+    ),
+  ).toBe('https://github.com/o/r/pull/7#pullrequestreview-9');
+  expect(JSON.parse(await readFile(join(f.folder, 'review'), 'utf8'))).toEqual({
+    commit_id: 'abc123',
+    event: 'COMMENT',
+    body: 'Summary',
+    comments: [
+      { path: 'src/a.ts', side: 'RIGHT', line: 4, body: 'One line' },
+      {
+        path: 'src/b.ts',
+        side: 'LEFT',
+        line: 3,
+        body: 'Removed range',
+        start_line: 2,
+        start_side: 'LEFT',
+      },
+    ],
+  });
+  const decodeCall = Schema.decodeUnknownSync(
+    Schema.fromJsonString(
+      Schema.Struct({
+        args: Schema.Array(Schema.String),
+        token: Schema.optional(Schema.String),
+      }),
+    ),
+  );
+  const reviewCall = (await readFile(f.calls, 'utf8'))
+    .trim()
+    .split('\n')
+    .map((line) => decodeCall(line))
+    .find((call) => call.args.includes('repos/o/r/pulls/7/reviews'));
+  expect(reviewCall).toEqual({
+    args: [
+      'api',
+      '--hostname',
+      'github.com',
+      'repos/o/r/pulls/7/reviews',
+      '--method',
+      'POST',
+      '--input',
+      '-',
+    ],
+    token: 'secret-work',
+  });
+});
+
+it.each([
+  ['invalid', { _tag: 'GitHubWriteRefusedError', detail: 'Validation Failed' }],
+  ['server-error', { _tag: 'GitHubCommandError', reason: 'offline' }],
+] as const)(
+  'separates a refused review post from one GitHub may have taken (%s)',
+  async (mode, failure) => {
+    const f = await fixture(onTestFinished);
+    await writeFile(f.state, mode);
+    const result = await run(
+      postGitHubPullRequestReview(
+        {
+          account: 'work',
+          owner: 'o',
+          repo: 'r',
+          number: 7,
+          commitId: 'abc123',
+          body: 'Summary',
+          comments: [],
+        },
+        gitLimits,
+      ).pipe(Effect.result),
+    );
+    expect(result._tag === 'Failure' ? result.failure : result).toMatchObject(
+      failure,
+    );
+  },
+);

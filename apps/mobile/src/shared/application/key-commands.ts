@@ -53,7 +53,7 @@ export function useKeyCommands(
   useAtomMount(keyRegistration({ owner, commands }));
 }
 
-export function useScreenKeyCommands(
+function useScreenKeyCommands(
   owner: KeyOwner,
   commands: readonly OwnedKeyCommand[],
 ) {

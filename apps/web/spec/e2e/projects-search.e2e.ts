@@ -49,7 +49,7 @@ for (const [width, colorScheme] of [
     const clean = cards.filter({
       has: page.getByRole('button', { name: /^clean-topic,/ }),
     });
-    await expect(clean).toHaveText('clean-topic');
+    await expect(clean.getByText('clean-topic', { exact: true })).toBeVisible();
     for (const folder of ['detached-531', 'detached-532']) {
       const target = project.worktrees.find((row) =>
         row.path.endsWith(`/${folder}`),
@@ -78,13 +78,7 @@ for (const [width, colorScheme] of [
           .getByRole('button', { name: 'Toggle Sidebar', exact: true })
           .click();
       await expect(row).toHaveAttribute('aria-current', 'page');
-      await expect(
-        cards.filter({
-          has: page.getByRole('button', {
-            name: new RegExp(`${folder}.*Detached HEAD`),
-          }),
-        }),
-      ).toHaveText(folder);
+      await expect(row.getByText(folder, { exact: true })).toBeVisible();
     }
     const search = sidebar.getByRole('searchbox', {
       name: 'Search worktrees',
@@ -173,7 +167,9 @@ test('selecting a search result keeps a conflicted unsaved draft when returning 
   const current = project.worktrees.find((row) =>
     original.endsWith(`/${row.id}`),
   );
-  await pairedPage.getByRole('button', { name: 'Review', exact: true }).click();
+  await pairedPage
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await pairedPage.getByRole('tab', { name: 'Files', exact: true }).click();
   await pairedPage
     .getByRole('treeitem', { name: repo.readme.path, exact: true })

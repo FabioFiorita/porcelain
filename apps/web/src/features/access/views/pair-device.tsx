@@ -61,10 +61,11 @@ export function PairDevice({
         Turn on a way in above to pair a device.
       </p>
     );
+  const choosing = addresses.length > 1;
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-2.5">
       <form
-        className="flex flex-col gap-2"
+        className="flex flex-col gap-2 sm:flex-row sm:items-end"
         onSubmit={(event) =>
           submitForm(event, async () =>
             createPairing({
@@ -76,7 +77,7 @@ export function PairDevice({
           )
         }
       >
-        <Field className="min-w-0 flex-1">
+        <Field className="min-w-0 sm:flex-1">
           <Label htmlFor="pairing-label">Device name</Label>
           <Input
             id="pairing-label"
@@ -86,8 +87,8 @@ export function PairDevice({
             onChange={(event) => setLabel(event.target.value)}
           />
         </Field>
-        {addresses.length > 1 && (
-          <Field className="min-w-0">
+        {choosing && (
+          <Field className="min-w-0 sm:flex-1">
             <Label htmlFor="pairing-address">Opens through</Label>
             <Select
               items={addresses.map(({ route, url }) => ({
@@ -117,18 +118,11 @@ export function PairDevice({
                 ))}
               </SelectContent>
             </Select>
-            <p
-              id="pairing-address-url"
-              className="text-xs text-muted-foreground [overflow-wrap:anywhere]"
-            >
-              {target.url}
-            </p>
           </Field>
         )}
         <PendingButton
           pending={issue.waiting}
           type="submit"
-          size="sm"
           className="shrink-0"
           disabled={disabled || issue.waiting || label.trim() === ''}
         >
@@ -136,33 +130,39 @@ export function PairDevice({
           Create pairing link
         </PendingButton>
       </form>
-      <Field orientation="horizontal">
-        <Switch
-          id="pairing-management"
-          checked={management}
-          disabled={disabled}
-          onCheckedChange={setManagement}
-        />
-        <Label htmlFor="pairing-management">Can manage sharing</Label>
-      </Field>
-      <Field orientation="horizontal">
-        <Switch
-          id="pairing-trusted"
-          checked={trusted}
-          disabled={disabled}
-          onCheckedChange={setTrusted}
-        />
-        <Label htmlFor="pairing-trusted">
-          <span className="sr-only">
-            The paired device can update Porcelain
-          </span>
-          <span aria-hidden>Can update Porcelain</span>
-        </Label>
-      </Field>
-      <p className="text-xs leading-4.25 text-muted-foreground">
-        Uses {remoteRouteTitles[target.route]}. Pair again to add another way
-        in.
-      </p>
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+        <Field orientation="horizontal" className="w-auto">
+          <Switch
+            id="pairing-management"
+            checked={management}
+            disabled={disabled}
+            onCheckedChange={setManagement}
+          />
+          <Label htmlFor="pairing-management">Can manage sharing</Label>
+        </Field>
+        <Field orientation="horizontal" className="w-auto">
+          <Switch
+            id="pairing-trusted"
+            checked={trusted}
+            disabled={disabled}
+            onCheckedChange={setTrusted}
+          />
+          <Label htmlFor="pairing-trusted">
+            <span className="sr-only">
+              The paired device can update Porcelain
+            </span>
+            <span aria-hidden>Can update Porcelain</span>
+          </Label>
+        </Field>
+        <p
+          id="pairing-address-url"
+          className="min-w-0 text-xs leading-4.5 text-muted-foreground [overflow-wrap:anywhere] sm:ml-auto"
+        >
+          {choosing
+            ? target.url
+            : `Uses ${remoteRouteTitles[target.route]}. Pair again to add another way in.`}
+        </p>
+      </div>
       {AsyncResult.isFailure(issue) && (
         <Alert variant="destructive">
           <AlertDescription>
@@ -171,40 +171,36 @@ export function PairDevice({
         </Alert>
       )}
       {issued && (
-        <div className="flex flex-col gap-2.5 border-t pt-2.5">
-          <div className="flex flex-wrap gap-2.5">
-            <div className="shrink-0 rounded-lg bg-white p-1 inset-ring inset-ring-border">
-              <PairingQr link={issued.link} />
-            </div>
-            <div className="flex min-w-0 flex-1 basis-20 flex-col gap-1 pt-0.5">
-              <p className="text-ui leading-4.5 font-medium">
-                Scan on {issued.label}
-              </p>
-              <p className="text-xs leading-4.25 text-muted-foreground">
-                Works once, until{' '}
-                <span className="tabular-nums">
-                  {new Date(issued.expiresAt).toLocaleTimeString()}
-                </span>
-                {issuedRoute && <>, through {remoteRouteTitles[issuedRoute]}</>}
-                .
-              </p>
-            </div>
+        <div className="flex flex-wrap gap-3 border-t pt-2.5">
+          <div className="shrink-0 self-start rounded-lg bg-white p-1 inset-ring inset-ring-border">
+            <PairingQr link={issued.link} />
           </div>
-          <p
-            aria-label="Pairing link"
-            className="font-mono text-2xs leading-4 break-all text-muted-foreground"
-          >
-            {issued.link}
-          </p>
-          <Button
-            variant="outline"
-            size="sm"
-            className="self-start"
-            onClick={() => copyText(issued?.link ?? '', 'pairing link')}
-          >
-            <CopyIcon />
-            Copy link
-          </Button>
+          <div className="flex min-w-0 flex-1 basis-48 flex-col items-start gap-1.5">
+            <p className="text-ui leading-4.5 font-medium">
+              Scan on {issued.label}
+            </p>
+            <p className="text-xs leading-4.25 text-muted-foreground">
+              Works once, until{' '}
+              <span className="tabular-nums">
+                {new Date(issued.expiresAt).toLocaleTimeString()}
+              </span>
+              {issuedRoute && <>, through {remoteRouteTitles[issuedRoute]}</>}.
+            </p>
+            <p
+              aria-label="Pairing link"
+              className="max-w-full font-mono text-2xs leading-4 break-all text-muted-foreground"
+            >
+              {issued.link}
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => copyText(issued?.link ?? '', 'pairing link')}
+            >
+              <CopyIcon />
+              Copy link
+            </Button>
+          </div>
         </div>
       )}
     </div>

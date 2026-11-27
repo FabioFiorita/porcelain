@@ -15,7 +15,9 @@ test("copying a commit's id and message from its History row and its document", 
   const copied = (label: string) =>
     workspace.getByText(`Copied ${label}`, { exact: true }).last();
 
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await workspace.getByRole('tab', { name: 'History', exact: true }).click();
   const row = workspace.getByRole('button', {
     name: new RegExp(`^${subject}`),

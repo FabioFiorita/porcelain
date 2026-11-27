@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
+import { Kbd } from '@/components/ui/kbd';
 import {
   Tooltip,
   TooltipContent,
@@ -11,8 +12,10 @@ export function StepButton({
   icon,
   disabled,
   onClick,
+  shortcut,
 }: {
   label: string;
+  shortcut?: string | undefined;
   icon: ReactNode;
   disabled: boolean;
   onClick: () => void;
@@ -25,14 +28,19 @@ export function StepButton({
             size="icon-sm"
             variant="ghost"
             aria-label={label}
-            disabled={disabled}
-            onClick={onClick}
+            aria-keyshortcuts={shortcut}
+            aria-disabled={disabled || undefined}
+            className="aria-disabled:cursor-default aria-disabled:hover:bg-transparent"
+            onClick={disabled ? undefined : onClick}
           />
         }
       >
         {icon}
       </TooltipTrigger>
-      <TooltipContent>{label}</TooltipContent>
+      <TooltipContent>
+        {label}
+        {shortcut && <Kbd>{shortcut}</Kbd>}
+      </TooltipContent>
     </Tooltip>
   );
 }

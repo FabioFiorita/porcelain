@@ -10,6 +10,7 @@ import { Screen } from '../../../components/ui/screen';
 import type { Workspace } from '../commands/workspace-connection';
 import { useWorkspace } from './workspace';
 import { useOpenComputers } from './open-computers';
+import { useWorktreeDrawer } from './worktree-drawer';
 import { workspaceGateContent } from '../rules/workspace-gate';
 import { workspaceKey } from '../rules/workspace-key';
 
@@ -53,6 +54,7 @@ export function WorkspaceGate({
   });
   const router = useRouter();
   const openComputers = useOpenComputers();
+  const drawer = useWorktreeDrawer();
   const notice = () => {
     switch (state.kind) {
       case 'loading':
@@ -80,7 +82,7 @@ export function WorkspaceGate({
                   ? { label: 'Read again', onPress: read }
                   : {
                       label: 'Open Settings',
-                      onPress: () => router.push('/settings'),
+                      onPress: () => router.navigate('/settings'),
                     }
               }
             />
@@ -98,7 +100,13 @@ export function WorkspaceGate({
               }}
             />
           ) : (
-            <Empty title="Select a worktree" />
+            <Empty
+              title="No worktree selected"
+              action={{
+                label: 'Choose worktree',
+                onPress: drawer.show,
+              }}
+            />
           ))
         );
       case 'selected':

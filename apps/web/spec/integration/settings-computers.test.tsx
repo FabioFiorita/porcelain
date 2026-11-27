@@ -21,10 +21,9 @@ test.for([414, 1080, 1440])(
       await field.fill(name);
       await app.page.getByRole('button', { name: 'Save', exact: true }).click();
       await expect.element(field).not.toBeInTheDocument();
-      const heading = app.page.getByRole('heading', {
-        name: `Computers. ${name}`,
-        exact: true,
-      });
+      const heading = app.page
+        .getByRole('group', { name: 'Overview', exact: true })
+        .getByText(`${name}`, { exact: true });
       await expect.element(heading).toBeVisible();
       await expect
         .poll(() => reviewLayout.fitsViewport(heading))
@@ -155,10 +154,9 @@ test('the rename field closes on Save, Cancel and Escape and gives focus back to
 
   await expect
     .element(
-      app.page.getByRole('heading', {
-        name: 'Computers. Escape draft',
-        exact: true,
-      }),
+      app.page
+        .getByRole('group', { name: 'Overview', exact: true })
+        .getByText('Escape draft', { exact: true }),
     )
     .not.toBeInTheDocument();
 
@@ -167,12 +165,27 @@ test('the rename field closes on Save, Cancel and Escape and gives focus back to
   await app.page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect
     .element(
-      app.page.getByRole('heading', {
-        name: 'Computers. Studio',
-        exact: true,
-      }),
+      app.page
+        .getByRole('group', { name: 'Overview', exact: true })
+        .getByText('Studio', { exact: true }),
     )
     .toBeVisible();
   await expect.element(field).not.toBeInTheDocument();
   await expect.element(rename).toHaveFocus();
+});
+
+test('this computer’s overview names the computer once, without repeating the page it is on', async ({
+  render,
+}) => {
+  const app = await render.route('/settings/computers/this-computer');
+  const overview = app.page.getByRole('group', {
+    name: 'Overview',
+    exact: true,
+  });
+  await expect
+    .element(overview.getByRole('button', { name: 'Rename', exact: true }))
+    .toBeVisible();
+  await expect
+    .element(overview.getByText('This computer', { exact: true }))
+    .not.toBeInTheDocument();
 });

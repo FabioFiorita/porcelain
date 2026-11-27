@@ -11,9 +11,8 @@ import {
   UnsupportedWalkthroughEffortError,
   WalkthroughFailedError,
   WalkthroughAssetNotFoundError,
+  WalkthroughCallNotFoundError,
   WalkthroughMessageNotFoundError,
-  WalkthroughPostFailedError,
-  WalkthroughRepositoryChangedError,
   WalkthroughTargetNotFoundError,
 } from '@porcelain/walkthroughs/errors';
 import { nullableAsUndefined } from '../shared/schema.ts';
@@ -24,10 +23,8 @@ import { worktreeFailures } from '../shared/worktree-failures.ts';
 import { gitReadFailures } from '../shared/git-read-failures.ts';
 import {
   addWalkthroughMessageRequestSchema,
-  postWalkthroughMessagesResponseSchema,
-  readWalkthroughBriefQuery,
-  saveWalkthroughMessageRequestSchema,
-  walkthroughBriefResponseSchema,
+  decideWalkthroughCallRequestSchema,
+  walkthroughCallParamsSchema,
   walkthroughConversationsResponseSchema,
   walkthroughMessageParamsSchema,
   walkthroughConversationParamsSchema,
@@ -75,6 +72,7 @@ const readWalkthroughQuerySchema = Schema.Struct({
   excerptBlock: Schema.optional(
     Schema.NumberFromString.check(Schema.isInt(), Schema.isGreaterThan(0)),
   ),
+  excerptNode: Schema.optional(Schema.String),
 });
 export type ReadWalkthroughQuery = typeof readWalkthroughQuerySchema.Type;
 export const readWalkthroughResponseSchema = Schema.Struct({
@@ -106,17 +104,6 @@ export function isUnsupportedWalkthroughEffortFailure(error: unknown): boolean {
 }
 
 export type SaveDefaultWalkthroughWriterRequest = typeof writerSchema.Type;
-const postWalkthroughFailures = [
-  ...worktreeFailures,
-  httpFailure(WalkthroughTargetNotFoundError, 'NotFound'),
-  httpFailure(WalkthroughMessageNotFoundError, 'NotFound'),
-  httpFailure(WalkthroughPostFailedError, 'BadGateway', {
-    message: { fromError: true },
-  }),
-  httpFailure(WalkthroughRepositoryChangedError, 'Conflict', {
-    message: { fromError: true },
-  }),
-] as const;
 
 export class WalkthroughsApi extends porcelainApi.add(
   HttpApiGroup.make('walkthroughs')
@@ -227,52 +214,17 @@ export class WalkthroughsApi extends porcelainApi.add(
         },
       ),
       HttpApiEndpoint.put(
-        'saveWalkthroughMessage',
-        '/api/worktrees/:worktreeId/walkthrough/:runId/conversations/messages/:messageId/saved',
+        'decideWalkthroughCall',
+        '/api/worktrees/:worktreeId/walkthrough/:runId/calls/:step/:call/decision',
         {
           disableCodecs: true,
-          params: walkthroughMessageParamsSchema,
-          payload: saveWalkthroughMessageRequestSchema,
+          params: walkthroughCallParamsSchema,
+          payload: decideWalkthroughCallRequestSchema,
           success: walkthroughConversationsResponseSchema,
           error: [
             ...worktreeFailures,
             httpFailure(WalkthroughTargetNotFoundError, 'NotFound'),
-            httpFailure(WalkthroughMessageNotFoundError, 'NotFound'),
-          ],
-        },
-      ),
-      HttpApiEndpoint.post(
-        'postWalkthroughMessage',
-        '/api/worktrees/:worktreeId/walkthrough/:runId/conversations/messages/:messageId/post',
-        {
-          disableCodecs: true,
-          params: walkthroughMessageParamsSchema,
-          success: postWalkthroughMessagesResponseSchema,
-          error: postWalkthroughFailures,
-        },
-      ),
-      HttpApiEndpoint.post(
-        'postSavedWalkthroughMessages',
-        '/api/worktrees/:worktreeId/walkthrough/:runId/conversations/post-saved',
-        {
-          disableCodecs: true,
-          params: walkthroughConversationParamsSchema,
-          success: postWalkthroughMessagesResponseSchema,
-          error: postWalkthroughFailures,
-        },
-      ),
-      HttpApiEndpoint.get(
-        'readWalkthroughBrief',
-        '/api/worktrees/:worktreeId/walkthrough/:runId/conversations/brief',
-        {
-          disableCodecs: true,
-          params: walkthroughConversationParamsSchema,
-          query: readWalkthroughBriefQuery,
-          success: walkthroughBriefResponseSchema,
-          error: [
-            ...worktreeFailures,
-            httpFailure(WalkthroughTargetNotFoundError, 'NotFound'),
-            httpFailure(WalkthroughMessageNotFoundError, 'NotFound'),
+            httpFailure(WalkthroughCallNotFoundError, 'NotFound'),
           ],
         },
       ),

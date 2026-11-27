@@ -33,7 +33,7 @@ test('a draft the worktree moved past is refused, and after looking again the di
   await commit.click();
   await expect
     .element(dialog.getByRole('alert'))
-    .toMatchTextContent(/changed since looked/i);
+    .toMatchTextContent(/changed after you looked/i);
   await dialog.getByRole('button', { name: 'Look again', exact: true }).click();
   await expect.element(dialog.getByText(stale, { exact: true })).toBeVisible();
   await expect.element(commit).toBeDisabled();
@@ -178,7 +178,7 @@ test('when the file of a later group changes after the groups were drafted, look
     .toBeVisible();
   await expect
     .element(dialog.getByRole('alert'))
-    .toMatchTextContent(/changed since looked/i);
+    .toMatchTextContent(/changed after you looked/i);
   await dialog.getByRole('button', { name: 'Look again', exact: true }).click();
   await expect.element(dialog.getByText(stale, { exact: true })).toBeVisible();
   await expect.element(commit).toBeDisabled();

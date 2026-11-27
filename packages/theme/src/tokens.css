@@ -1,6 +1,6 @@
 @theme inline {
   --text-2xs: 0.6875rem;
-  --text-caption: 0.78125rem;
+  --text-caption: 0.75rem;
   --text-ui: 0.8125rem;
 
   --color-graph-1: var(--graph-1);
@@ -163,7 +163,7 @@
       --primary-foreground: #151516;
       --secondary: var(--muted);
       --secondary-foreground: var(--foreground);
-      --muted: #1c1c1e;
+      --muted: #242427;
       --muted-foreground: #a0a0a8;
       --accent: rgba(255, 255, 255, 0.05);
       --accent-foreground: var(--foreground);

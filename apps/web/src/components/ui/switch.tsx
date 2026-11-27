@@ -2,7 +2,7 @@
 
 import type * as React from 'react';
 import { Switch as SwitchRoot, SwitchThumb } from '@ui-sdk/react/switch';
-import { cn } from 'cn';
+import { cn } from '@/shared/lib/utils';
 
 function Switch({
   className,

@@ -4,6 +4,7 @@ export type ReviewSidebarAction = {
   id:
     | 'open'
     | 'review'
+    | 'comment'
     | 'open-to-side'
     | 'open-file'
     | 'timeline'
@@ -23,6 +24,7 @@ type Target =
       canReview: boolean;
       sideLabel: string;
       canDiscard: boolean;
+      canComment?: boolean;
     }
   | { kind: 'section' }
   | { kind: 'group' };
@@ -49,6 +51,9 @@ export function reviewSidebarActions(
           ),
           disabled: !target.canReview,
         },
+        ...(target.canComment
+          ? [{ id: 'comment' as const, label: 'Comment on file' }]
+          : []),
         { id: 'open', label: 'Open diff' },
         { id: 'open-to-side', label: target.sideLabel },
         { id: 'open-file', label: 'Open file' },

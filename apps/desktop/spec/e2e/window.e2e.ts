@@ -22,6 +22,10 @@ type RendererElement = {
 };
 type RendererStyle = {
   readonly paddingLeft: string;
+  readonly position: string;
+  readonly inset: string;
+  readonly width: string;
+  readonly height: string;
   getPropertyValue(name: string): string;
 };
 declare const porcelainDesktop: DesktopBridge;
@@ -138,7 +142,10 @@ test('the app serves its window from a private loopback server that refuses othe
     .toContain('Porcelain: renderer ready');
   const policy = (await responsePolicy(page, '/'))?.split('; ') ?? [];
   expect(policy).toContain("connect-src 'self' http: https: ws: wss:");
-  expect(policy).toContain("script-src 'self'");
+  expect(policy).toContainEqual(
+    expect.stringMatching(/^script-src 'self' 'sha256-[A-Za-z0-9+/]{43}='$/),
+  );
+  expect(policy).toContain("media-src 'self' data: blob:");
 
   const server = await app.server();
   expect(new URL(server.address).hostname).toBe('127.0.0.1');
@@ -171,21 +178,39 @@ test('the sidebar leaves room for the traffic lights with its button clickable, 
   expect(
     await page.evaluate(() => {
       const header = document.querySelector('.desktop-sidebar-header');
+      const region = header?.querySelector(':scope > .window-drag-region');
       const button = header?.querySelector('button');
       if (
         header === null ||
         header === undefined ||
+        region === null ||
+        region === undefined ||
         button === null ||
         button === undefined
       )
-        throw new Error('The sidebar header and its button are missing');
+        throw new Error(
+          'The sidebar header, its drag region and its button are missing',
+        );
+      const headerStyle = getComputedStyle(header);
+      const regionStyle = getComputedStyle(region);
       return {
-        inset: getComputedStyle(header).paddingLeft,
-        drag: getComputedStyle(header).getPropertyValue('app-region'),
+        inset: headerStyle.paddingLeft,
+        drag: regionStyle.getPropertyValue('app-region'),
+        regionCoversHeader:
+          headerStyle.position === 'relative' &&
+          regionStyle.position === 'absolute' &&
+          regionStyle.inset === '0px' &&
+          regionStyle.width === headerStyle.width &&
+          regionStyle.height === headerStyle.height,
         buttonDrag: getComputedStyle(button).getPropertyValue('app-region'),
       };
     }),
-  ).toEqual({ inset: '82px', drag: 'drag', buttonDrag: 'no-drag' });
+  ).toEqual({
+    inset: '82px',
+    drag: 'drag',
+    regionCoversHeader: true,
+    buttonDrag: 'no-drag',
+  });
 
   await fullscreen(app, true);
   await expect(page.locator('html')).toHaveClass(/desktop-fullscreen/);

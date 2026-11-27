@@ -18,6 +18,7 @@ import {
   WalkthroughSourceReader,
   WalkthroughStore,
   WalkthroughWriter,
+  WalkthroughModelReader,
 } from '@porcelain/walkthroughs/ports';
 import {
   AddWalkthroughMessageService,
@@ -135,7 +136,6 @@ it.each(['start', 'ask', 'retry'] as const)(
               stopTitle: undefined,
               text: 'Why here?',
               createdAt: '2026-11-10T00:00:01Z',
-              post: { status: 'none' },
               answer: { status: 'answering' },
             })
             .pipe(
@@ -207,6 +207,9 @@ it.each(['start', 'ask', 'retry'] as const)(
           Layer.succeed(TranscriptReader, { read: () => Effect.succeed('') }),
           Layer.succeed(EvidenceReader, {
             read: () => Effect.die('No captured pull request repository'),
+          }),
+          Layer.succeed(WalkthroughModelReader, {
+            read: () => Effect.succeed([]),
           }),
         ),
       ),

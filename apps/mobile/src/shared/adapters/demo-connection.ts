@@ -18,6 +18,7 @@ export function openDemoConnection(remote: Remote, memoMap: Layer.MemoMap) {
       transport: createDemoTransport(),
       liveUpdates: {
         state,
+        retry: () => undefined,
         connect: () => Effect.succeed({ subscribe: () => undefined }),
       },
     },

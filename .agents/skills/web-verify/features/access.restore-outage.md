@@ -1,6 +1,7 @@
 ---
 route: /$projectId/$worktreeId
 selectors:
+  - 'Side panel'
   - 'Review'
   - 'Files'
   - 'Could not display the workspace.'
@@ -27,13 +28,13 @@ Preconditions: [surface baseline](README.md).
 
 Opening `/pair` during the outage shows the same retrying error, not the not-paired page.
 
-1. Navigate to `/`, click button `Review`, click tab `Files`
+1. Navigate to `/`, click button `Side panel`, click tab `Files`
    Expect: tab "Files" selected; URL `/<projectId>/<worktreeId>?…surface=files` (call its path and query `$WORKSPACE`).
 2. Answer matching `GET /api/inventory` requests with 503 in the browser (see [routing recipes and per-map instructions](../references/failure-injection.md)), then navigate to `$WORKSPACE` and wait for text 'Could not display the workspace.'
    Expect: alert with the one line "Could not display the workspace." and one button "Try again"; NO heading "This browser is not paired"; URL still `$WORKSPACE`. Inspect HTTP traffic lists `GET /api/inventory` answered 503 (not 401); Inspect console holds "ConnectionError: Could not reach Porcelain to restore this browser session.".
 3. Restore HTTP pass-through (dispatch `online` only for access.restore-outage), then wait for region named `Review content`
    Expect: HTTP pass-through is restored and the page receives the `online` event; without another full page load, region "Review content" appears; URL still `$WORKSPACE`.
-4. Click button `Review`
+4. Click button `Side panel`
    Expect: tab "Files" [selected] (the `surface=files` search survived).
 
 ### The pairing page during the outage

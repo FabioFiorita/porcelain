@@ -14,6 +14,7 @@ export type ChangeStatusObservation = {
   mergeHeadOid: string | undefined;
   branch: BranchStatus | undefined;
   changes: ChangeComparison[];
+  omittedChanges: number;
 };
 
 type Stash = { oid: string; message: string };

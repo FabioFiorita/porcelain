@@ -23,7 +23,7 @@ A walkthrough step's files read as one scrolling page of diffs, the same reader 
 
 ## How to get to it (user POV)
 
-- [Walkthrough](reviews.walkthrough-page.md) → a step's See the code, or a step row in the tablet steps list. Native Back returns to the page at the same place.
+- [Walkthrough](reviews.walkthrough-page.md) → a step's See the code (beside Comment and Ask about this under the step's evidence and drafts), or a step row in the tablet steps list. Native Back returns to the page at the same place.
 
 ## Driving it with agent-device
 

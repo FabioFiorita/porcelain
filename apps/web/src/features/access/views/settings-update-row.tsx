@@ -96,7 +96,7 @@ export function SettingsUpdateRow({
       row.note ?? (latest ? 'Up to date' : 'Latest version unavailable');
     if (target.kind === 'service' && !target.state.managed)
       label = 'Managed on that computer';
-    action = !row.error && !row.checking && (
+    action = !row.error && !row.checking && entry?.status !== 'updated' && (
       <span className="text-xs leading-4 text-muted-foreground">{label}</span>
     );
   }

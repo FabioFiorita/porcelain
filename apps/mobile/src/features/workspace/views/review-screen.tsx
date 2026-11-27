@@ -36,36 +36,69 @@ import {
 } from '../rules/comparison';
 import { reviewParams } from '../rules/navigation';
 import { ReviewReadState } from './read-state';
-import { phoneReviewComparison, useReviewListOffset } from '../store';
+import { useDraftComments } from './line-comments';
+import { Badge } from '../../../components/ui/badge';
+import {
+  commentCountsByPath,
+  openComments,
+} from '@porcelain/client/comments/rules';
+import {
+  changesBesideFile,
+  phoneReviewComparison,
+  useReviewListOffset,
+} from '../store';
+import { ListDetail } from '../../../components/ui/list-detail';
+import type { ListDetailMode } from '../../../shared/rules/list-detail';
+import { ReviewFilePane } from './review-file-screen';
 import { ComparisonMenu } from './comparison-menu';
 
-export type ReviewPaneProps = { workspace?: string | undefined };
-export function ReviewPane({ workspace }: ReviewPaneProps) {
+export type ReviewPaneProps = {
+  workspace?: string | undefined;
+  mode?: ListDetailMode | undefined;
+};
+export function ReviewPane({ workspace, mode = 'stack' }: ReviewPaneProps) {
   const focused = useIsFocused();
   if (!focused) return null;
   return profileMobileScreen(
     'changes',
     <WorkspaceGate expectedWorkspace={workspace} frame="pane" nested>
-      {(selected) => <PhoneReview key={selected.key} workspace={selected} />}
+      {(selected) => (
+        <PhoneReview key={selected.key} workspace={selected} mode={mode} />
+      )}
     </WorkspaceGate>,
   );
 }
 
-function PhoneReview({ workspace }: { workspace: Workspace }) {
+function PhoneReview({
+  workspace,
+  mode,
+}: {
+  workspace: Workspace;
+  mode: ListDetailMode;
+}) {
   const router = useRouter();
   const [comparison, setComparison] = useAtom(
     phoneReviewComparison(workspace.key),
   );
-  return (
+  const [opened, setOpened] = useAtom(changesBesideFile(workspace.key));
+  const first = useFirstReviewFile(workspace, comparison);
+  const shown = opened ?? first;
+  const navigation = (selected: string | undefined) => (
     <ReviewNavigation
       workspace={workspace}
       comparison={comparison}
-      onComparison={setComparison}
+      selected={selected}
+      onComparison={(next) => {
+        setComparison(next);
+        setOpened(undefined);
+      }}
       onFile={(path) =>
-        router.push({
-          pathname: '/review-file',
-          params: { ...reviewParams(workspace.key, comparison), path },
-        })
+        mode === 'beside'
+          ? setOpened(path)
+          : router.push({
+              pathname: '/review-file',
+              params: { ...reviewParams(workspace.key, comparison), path },
+            })
       }
       onAll={() => {
         startMobileNavigation('all-changes');
@@ -76,10 +109,43 @@ function PhoneReview({ workspace }: { workspace: Workspace }) {
       }}
     />
   );
+  if (mode === 'stack') return navigation(undefined);
+  return (
+    <ListDetail
+      list={() => navigation(shown)}
+      detail={
+        shown ? (
+          <ReviewFilePane
+            key={`${shown}:${JSON.stringify(comparison)}`}
+            workspace={workspace}
+            path={shown}
+            comparison={comparison}
+          />
+        ) : (
+          <Empty title="Select a file" />
+        )
+      }
+    />
+  );
+}
+
+function useFirstReviewFile(
+  workspace: Workspace,
+  comparison: ReviewComparison,
+) {
+  const snapshot = Option.getOrUndefined(
+    AsyncResult.value(useReviewSnapshot(workspace, comparison).result),
+  );
+  const marks = useReviewMarks(workspace, snapshot);
+  const reviewed = Option.getOrUndefined(AsyncResult.value(marks.result));
+  return snapshot && reviewed
+    ? reviewFiles(snapshot, reviewed)[0]?.path
+    : undefined;
 }
 
 type ReviewNavigationProps = {
   workspace: Workspace;
+  selected?: string | undefined;
   comparison: ReviewComparison;
   onComparison: (comparison: ReviewComparison) => void;
   onFile: (path: string) => void;
@@ -88,6 +154,7 @@ type ReviewNavigationProps = {
 
 function ReviewNavigation({
   workspace,
+  selected,
   comparison,
   onComparison,
   onFile,
@@ -139,7 +206,7 @@ function ReviewNavigation({
             className="flex-row items-center justify-between"
             gap={2}
             onLayout={({ nativeEvent: { layout } }) =>
-              setComparisonWidth(layout.width / 2)
+              setComparisonWidth(layout.width * 0.58)
             }
           >
             <Text variant="headline" tone="muted" accessibilityRole="header">
@@ -176,6 +243,7 @@ function ReviewNavigation({
           ) : null}
           <ChangedFiles
             workspace={workspace}
+            selected={selected}
             snapshotRead={snapshotRead}
             onFile={onFile}
             onAll={onAll}
@@ -188,11 +256,13 @@ function ReviewNavigation({
 
 function ChangedFiles({
   workspace,
+  selected,
   snapshotRead,
   onFile,
   onAll,
 }: {
   workspace: Workspace;
+  selected: string | undefined;
   snapshotRead: ReturnType<typeof useReviewSnapshot>;
   onFile: (path: string) => void;
   onAll: () => void;
@@ -201,6 +271,10 @@ function ChangedFiles({
     AsyncResult.value(snapshotRead.result),
   );
   const marks = useReviewMarks(workspace, snapshot);
+  const drafts = useDraftComments(workspace);
+  const router = useRouter();
+  const counts = commentCountsByPath(drafts);
+  const draftCount = openComments(drafts).length;
   if (!snapshot)
     return (
       <ReviewReadState
@@ -222,6 +296,27 @@ function ChangedFiles({
             ? `${branch.head.branch ?? 'Detached HEAD'} compared with ${branch.base.ref} · ${branch.commits} commits`
             : 'No comparison base is available. Choose a base from the Branch menu.'}
         </Text>
+      ) : null}
+      {draftCount > 0 ? (
+        <Card>
+          <Item
+            title={
+              draftCount === 1
+                ? '1 draft comment'
+                : `${draftCount} draft comments`
+            }
+            leading={<Icon name="comment" tone="muted" />}
+            trailing={<Icon name="chevron" tone="muted" />}
+            testID="review-publish-comments"
+            accessibilityLabel={`Publish review, ${draftCount} draft ${draftCount === 1 ? 'comment' : 'comments'}`}
+            onPress={() =>
+              router.push({
+                pathname: '/publish-comments',
+                params: { workspace: workspace.key },
+              })
+            }
+          />
+        </Card>
       ) : null}
       {files.length === 0 ? (
         <Empty title="No changes" />
@@ -247,7 +342,17 @@ function ChangedFiles({
                 leading={
                   <ChangeStatusDot status={changes.files.get(file.path)} />
                 }
-                accessibilityLabel={`Review ${file.path}, ${changeLabel(changes.files.get(file.path))}, ${file.note}, ${reviewStatusLabel(file.reviewStatus)}`}
+                titleTrailing={
+                  counts.get(file.path) ? (
+                    <Badge
+                      variant="secondary"
+                      icon="comment"
+                      label={String(counts.get(file.path))}
+                    />
+                  ) : undefined
+                }
+                accessibilityLabel={`Review ${file.path}, ${changeLabel(changes.files.get(file.path))}, ${file.note}, ${reviewStatusLabel(file.reviewStatus)}${draftLabel(counts.get(file.path))}`}
+                selected={file.path === selected}
                 onPress={() => onFile(file.path)}
                 onLayout={
                   index === 0 ? mobileLayout('changes-first-file') : undefined
@@ -283,6 +388,11 @@ function ChangeStatusDot({ status }: { status: ChangeStatus | undefined }) {
 
 function changeLabel(status: ChangeStatus | undefined) {
   return status ? changeStatusMarks[status].label : 'Changed';
+}
+
+function draftLabel(count: number | undefined) {
+  if (!count) return '';
+  return count === 1 ? ', 1 draft comment' : `, ${count} draft comments`;
 }
 
 function reviewStatusLabel(status: ReviewFile['reviewStatus']) {

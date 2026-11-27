@@ -5,3 +5,4 @@ export {
   mapPullRequestChecks,
   recentPullRequestCutoff,
 } from './pull-request.ts';
+export { draftCommentsMarkdown } from './draft-comments.ts';

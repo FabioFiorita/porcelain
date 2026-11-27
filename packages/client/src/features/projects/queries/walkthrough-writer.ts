@@ -5,11 +5,12 @@ import { requestApi } from '../../../shared/api/client.ts';
 import { clientRuntime } from '../../../shared/api/runtime.ts';
 import { queryKeys } from '../../../shared/api/query-keys.ts';
 import {
+  walkthroughWriterChoiceStatus,
   walkthroughWriterStatus,
   type WriterSettings,
 } from '../rules/walkthrough-writer.ts';
 
-export function walkthroughWriterCheck<E>(
+function walkthroughWriterCheck<E>(
   result: AsyncResult.AsyncResult<WriterSettings, E>,
 ) {
   const settings = AsyncResult.isSuccess(result) ? result.value : undefined;
@@ -17,6 +18,24 @@ export function walkthroughWriterCheck<E>(
     status: settings && walkthroughWriterStatus(settings),
     failed: AsyncResult.isFailure(result),
     noWriters: settings?.models.length === 0,
+  };
+}
+
+export function walkthroughWriterChoice<E>(
+  result: AsyncResult.AsyncResult<WriterSettings, E>,
+  next: WriterSettings['writer'] | undefined,
+) {
+  const settings = AsyncResult.isSuccess(result) ? result.value : undefined;
+  const check = walkthroughWriterCheck(result);
+  return {
+    ...check,
+    status:
+      next && settings
+        ? walkthroughWriterChoiceStatus(next, settings.models)
+        : check.status,
+    settings,
+    writer: next ?? settings?.writer,
+    next,
   };
 }
 

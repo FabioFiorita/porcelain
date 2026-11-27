@@ -5,7 +5,12 @@ import { clientWorktreeRead } from '../../../shared/api/worktree-read.ts';
 export const readWalkthrough = Atom.family(
   (
     selection: WorktreeSelection & {
-      excerpt?: { runId: string; step: number; block?: number };
+      excerpt?: {
+        runId: string;
+        step: number;
+        block?: number;
+        node?: string;
+      };
     },
   ) =>
     clientWorktreeRead(
@@ -17,6 +22,7 @@ export const readWalkthrough = Atom.family(
             selection.excerpt.runId,
             selection.excerpt.step,
             selection.excerpt.block ?? 0,
+            selection.excerpt.node ?? '',
           ],
       (api) =>
         api.walkthroughs.readWalkthrough({
@@ -28,6 +34,7 @@ export const readWalkthrough = Atom.family(
                   excerptRunId: selection.excerpt.runId,
                   excerptStep: selection.excerpt.step,
                   excerptBlock: selection.excerpt.block,
+                  excerptNode: selection.excerpt.node,
                 },
         }),
       (answer) =>

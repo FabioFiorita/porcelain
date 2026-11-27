@@ -14,7 +14,7 @@ import {
 } from './failures.ts';
 import { worktreeParamsSchema } from '../shared/worktree-params.ts';
 import { porcelainApi } from '../shared/http-api.ts';
-import { HttpApiEndpoint, HttpApiGroup } from 'effect/http-api';
+import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api';
 import { worktreeFailures } from '../shared/worktree-failures.ts';
 import {
   editFileRequestSchema,
@@ -26,6 +26,8 @@ import {
   readFileAssetResponseSchema,
   readPreviewAssetsRequestSchema,
   readPreviewAssetsResponseSchema,
+  readPreviewFileQuerySchema,
+  PREVIEW_FILE_ROUTE,
   readTextFileQuerySchema,
   readTextFileResponseSchema,
 } from './files.ts';
@@ -41,7 +43,7 @@ export class FilesApi extends porcelainApi.add(
           params: worktreeParamsSchema,
           query: listDirectoryQuerySchema.fields,
           success: listDirectoryResponseSchema,
-          error: [...readFailures, unsupportedEntryName, directoryTooLarge],
+          error: [...readFailures, unsupportedEntryName],
         },
       ),
       HttpApiEndpoint.get(
@@ -67,6 +69,16 @@ export class FilesApi extends porcelainApi.add(
         query: readFileAssetQuerySchema.fields,
         success: readFileAssetResponseSchema,
         error: [...readFailures, unsupportedAssetType, fileTooLarge],
+      }),
+      HttpApiEndpoint.get('readPreviewFile', PREVIEW_FILE_ROUTE, {
+        params: worktreeParamsSchema,
+        query: readPreviewFileQuerySchema.fields,
+        success: [
+          HttpApiSchema.StreamUint8Array(),
+          HttpApiSchema.Empty(304),
+          HttpApiSchema.Empty(416),
+        ],
+        error: worktreeFailures,
       }),
       HttpApiEndpoint.post(
         'readPreviewAssets',

@@ -1,6 +1,7 @@
 ---
 route: /
 selectors:
+  - 'Side panel'
   - 'Review'
   - 'Worktree review'
   - 'Files'
@@ -42,7 +43,7 @@ printf 'Notes to rename\n' > "$REPO/draft-notes.md"
 
 1. Navigate to `/`
    Expect: title "Review — repository".
-2. Click button `Review`
+2. Click button `Side panel`
    Expect: dialog "Worktree review".
 3. Click tab `Files`
    Expect: treeitem "draft-notes.md" in the tree of region "All files".
@@ -78,9 +79,9 @@ Continue in the open sheet; `final-notes.md` exists from part 1.
 
 Setup as above, before a full page load.
 
-14. Click button `Review`, tab `Files`, then treeitem `draft-notes.md`
+14. Click button `Side panel`, tab `Files`, then treeitem `draft-notes.md`
     Expect: the sheet closes and tab "draft-notes.md" is selected.
-15. Click button `Review`, tab `Files`, right-click treeitem `draft-notes.md`, menuitem `Rename`, fill `/^Rename /` with 'final-notes.md', press `Enter`, then press `Escape`
+15. Click button `Side panel`, tab `Files`, right-click treeitem `draft-notes.md`, menuitem `Rename`, fill `/^Rename /` with 'final-notes.md', press `Enter`, then press `Escape`
     Expect: tab "final-notes.md" (`data-entry="file:final-notes.md"`) is selected and shows the file's text, no tab "draft-notes.md" remains, the title begins "final-notes.md — ", and no text "could not be loaded" appears.
 
 ### Observable proof
@@ -91,7 +92,7 @@ Automated coverage: `files-rename.test.tsx`.
 
 ## Gotchas
 
-A rename opens nothing, so the sheet stays open. Do not click "Review" again while it is open.
+A rename opens nothing, so the sheet stays open. Do not click "Side panel" again while it is open.
 
 - The clash is refused by the tree before any request: only the toast "Invalid name" shows, never the server's alert. A name holding `/` is refused the same way (`Name cannot include "/".`), so rename never moves an entry to another folder.
 - `F2` needs a focused tree row without opening it. Clicking a file row opens the file and closes the sheet, so drive rename through the menu.

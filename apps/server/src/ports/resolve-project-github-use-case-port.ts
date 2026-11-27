@@ -8,6 +8,7 @@ export interface ResolveProjectGitHubUseCasePort {
   execute(input: {
     projectId: string;
     override?: { account: string | undefined };
+    fresh?: true;
   }): Effect.Effect<
     {
       repository: GitHubRepository | undefined;

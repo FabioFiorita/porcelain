@@ -32,6 +32,7 @@ export type PullRequest = {
 
 export type Assessment = {
   fixes: readonly ReviewFinding[];
+  accepted: readonly ReviewFinding[];
   notes: readonly ReviewFinding[];
   protectedPaths: readonly string[];
   declaredDoor: 'two-way' | 'one-way' | undefined;
@@ -116,11 +117,22 @@ export function assess(
   pullRequest: PullRequest,
   review: Review | undefined,
   current: ReadonlySet<string>,
-  access: { approved: boolean; owner: boolean; requestedDecision?: boolean },
+  access: {
+    lane: 'main' | 'release';
+    approved: boolean;
+    owner: boolean;
+    requestedDecision?: boolean;
+  },
 ): Assessment {
   const findings = review?.findings ?? [];
+  const acceptsPriorityTwo = access.lane === 'release' && access.approved;
   return {
-    fixes: findings.filter((finding) => finding.priority <= 2),
+    fixes: findings.filter(
+      (finding) => finding.priority <= (acceptsPriorityTwo ? 1 : 2),
+    ),
+    accepted: acceptsPriorityTwo
+      ? findings.filter((finding) => finding.priority === 2)
+      : [],
     notes: findings.filter((finding) => finding.priority === 3),
     protectedPaths: pullRequest.files.flatMap((file) =>
       [file.filename, file.previous_filename].filter(
@@ -277,6 +289,14 @@ export function reviewComment(
       ? [
           '#### Reviewer findings',
           findings
+            .map((finding) => findingLine(pullRequest, finding))
+            .join('\n'),
+        ]
+      : []),
+    ...(assessment.accepted.length > 0
+      ? [
+          '#### Findings accepted by the owner',
+          assessment.accepted
             .map((finding) => findingLine(pullRequest, finding))
             .join('\n'),
         ]

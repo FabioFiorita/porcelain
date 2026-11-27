@@ -15,7 +15,9 @@ test.for([1280, 414])(
       const app = await render.route('/');
       const page = app.page;
       if (width === 414) {
-        await page.getByRole('button', { name: 'Review', exact: true }).click();
+        await page
+          .getByRole('button', { name: 'Side panel', exact: true })
+          .click();
         await page.getByRole('tab', { name: 'Files', exact: true }).click();
       } else await userEvent.keyboard('{Alt>}1{/Alt}');
       await page
@@ -34,7 +36,9 @@ test.for([1280, 414])(
       await expect.poll(() => app.title()).toBe(`notes copy.md — ${project}`);
 
       if (width === 414) {
-        await page.getByRole('button', { name: 'Review', exact: true }).click();
+        await page
+          .getByRole('button', { name: 'Side panel', exact: true })
+          .click();
         await page.getByRole('tab', { name: 'Files', exact: true }).click();
       }
       await expect

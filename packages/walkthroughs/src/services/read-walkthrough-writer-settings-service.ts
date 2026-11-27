@@ -29,12 +29,13 @@ export class ReadWalkthroughWriterSettingsService extends Context.Service<
       return {
         execute: Effect.fn('ReadWalkthroughWriterSettingsService.execute')(
           function* ({ projectId, refresh }) {
+            if (refresh) yield* invalidateCatalog;
+            const models = yield* readCatalog;
             const writer = yield* resolve.execute({
               projectId,
               writer: undefined,
+              models,
             });
-            if (refresh) yield* invalidateCatalog;
-            const models = yield* readCatalog;
             return {
               writer,
               models,

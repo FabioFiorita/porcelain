@@ -41,3 +41,5 @@ Automated coverage: `git-actions-commit-draft.test.tsx`.
 
 - After commit, Commit is disabled with Nothing to commit. Rewrite README with the fixture change before repeating.
 - New disk changes after the dialog opens need refusal/Look again. Escape closes only when idle.
+
+Check the Git actions menu from the workspace header itself. Open it, scroll to a lower action and select it. Reopen and dismiss it once with Escape and once with an outside click. The menu should remain above the workspace and return focus to its trigger when dismissed by Escape.

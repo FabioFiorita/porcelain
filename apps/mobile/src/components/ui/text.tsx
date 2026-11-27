@@ -39,6 +39,7 @@ const tones = {
   brandForeground: 'text-brand-foreground',
   add: 'text-add-fg',
   del: 'text-del-fg',
+  warn: 'text-warn',
   primaryForeground: 'text-primary-foreground',
   secondaryForeground: 'text-secondary-foreground',
 };

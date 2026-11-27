@@ -127,6 +127,7 @@ export function mapPullRequest(raw: GitHubPullRequest): PullRequest {
     headSha: raw.headRefOid,
     headRepository: raw.headRepository?.url,
     mergeable: raw.mergeable,
+    mergeMethods: raw.allowedMergeMethods,
     labels: raw.labels.nodes,
     ...checkData,
     timeline,

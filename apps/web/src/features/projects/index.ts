@@ -22,5 +22,9 @@ export {
   ArchivePullRequest,
   ArchivePullRequestDialog,
 } from './views/archive-pull-request';
+export {
+  MergePullRequest,
+  MergePullRequestDialog,
+} from './views/merge-pull-request';
 
 export { WalkthroughSettingsDialog } from './views/walkthrough-settings-dialog';

@@ -179,6 +179,8 @@ describe('Native storage adoption', () => {
         { migration_id: 17, name: 'preserve_reconnected_worktrees' },
         { migration_id: 18, name: 'drop_push_registrations' },
         { migration_id: 19, name: 'walkthrough_blocks' },
+        { migration_id: 20, name: 'draft_comments' },
+        { migration_id: 21, name: 'walkthrough_decisions' },
       ]);
     } finally {
       database.close();
@@ -535,6 +537,8 @@ describe('Native storage adoption', () => {
         { migration_id: 17, name: 'preserve_reconnected_worktrees' },
         { migration_id: 18, name: 'drop_push_registrations' },
         { migration_id: 19, name: 'walkthrough_blocks' },
+        { migration_id: 20, name: 'draft_comments' },
+        { migration_id: 21, name: 'walkthrough_decisions' },
       ]);
       expect(database.prepare('PRAGMA foreign_key_check').all()).toEqual([]);
     } finally {
@@ -603,6 +607,8 @@ describe('Native storage adoption', () => {
           { migration_id: 17, name: 'preserve_reconnected_worktrees' },
           { migration_id: 18, name: 'drop_push_registrations' },
           { migration_id: 19, name: 'walkthrough_blocks' },
+          { migration_id: 20, name: 'draft_comments' },
+          { migration_id: 21, name: 'walkthrough_decisions' },
         ]);
         expect(
           stored

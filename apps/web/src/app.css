@@ -7,21 +7,50 @@
 @custom-variant light (&:not(.dark));
 @custom-variant dark (&:is(.dark, .dark *));
 
-.desktop-shell .desktop-sidebar-header {
+::selection {
+  background: color-mix(in oklab, var(--foreground) 14%, transparent);
+  color: inherit;
+}
+
+.desktop-mac .desktop-sidebar-header {
   padding-left: 82px;
+}
+
+.window-drag-region {
+  display: none;
+}
+
+.desktop-shell .window-drag-region {
+  display: block;
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
   app-region: drag;
 }
 
 .desktop-shell
-  :is(button, input, textarea, select, a, [role='button'], [role='separator']) {
+  :is(
+    button,
+    input,
+    textarea,
+    select,
+    a,
+    [role='button'],
+    [role='separator'],
+    [role='tab'],
+    [role='menu'],
+    [role='listbox'],
+    [role='dialog'],
+    [role='tooltip']
+  ) {
   app-region: no-drag;
 }
 
-.desktop-shell .desktop-workspace-without-navigator {
+.desktop-mac .desktop-workspace-without-navigator {
   padding-top: 52px;
 }
 
-.desktop-shell .desktop-workspace-without-navigator::before {
+.desktop-mac .desktop-workspace-without-navigator::before {
   content: '';
   position: absolute;
   inset: 0 0 auto;
@@ -77,6 +106,7 @@
   --font-heading: var(--font-sans);
   --font-sans: 'Geist Variable', 'Geist Fallback', sans-serif;
   --font-mono: 'Geist Mono Variable', 'Geist Mono Fallback', monospace;
+  --color-selection: var(--selection);
 }
 
 :root {
@@ -165,6 +195,34 @@
   font-size: 0.875rem;
 }
 
+[data-scroll-strip] {
+  --strip-start: 0px;
+  --strip-end: 0px;
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 var(--strip-start),
+    #000 calc(100% - var(--strip-end)),
+    transparent
+  );
+}
+
+[data-scroll-strip]:not([data-at-x-start]) {
+  --strip-start: 1.25rem;
+}
+
+[data-scroll-strip]:not([data-at-x-end]) {
+  --strip-end: 1.25rem;
+}
+
+[data-scroll-strip][data-wide-fade]:not([data-at-x-start]) {
+  --strip-start: 3rem;
+}
+
+[data-scroll-strip][data-wide-fade]:not([data-at-x-end]) {
+  --strip-end: 3rem;
+}
+
 [data-slot='toast-viewport'] {
   z-index: 60;
 }
@@ -186,6 +244,7 @@
 }
 
 :root {
+  --selection: var(--brand-soft);
   --workspace-stage: var(--muted);
   --workspace-selected: var(--background);
   --workspace-glass: var(--sidebar);
@@ -251,11 +310,5 @@
       [data-slot='input-group-control']
     ) {
     font-size: var(--text-base);
-  }
-}
-
-@media (min-width: 64rem) {
-  .settings-computer > :not(aside) {
-    grid-column: 1;
   }
 }

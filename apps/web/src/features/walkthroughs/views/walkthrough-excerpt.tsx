@@ -1,29 +1,32 @@
 import { useState } from 'react';
+import {
+  CommentThread,
+  commentRange,
+  diffLineText,
+  useComments,
+  type LineRange,
+} from '@/features/comments/index';
+import type { DraftComment } from '@porcelain/client/comments/rules';
 import { FileDiff } from '@pierre/diffs/react';
 import { AsyncResult } from 'effect/reactivity';
-import { ArrowLeftIcon, ArrowDownRightIcon } from 'lucide-react';
+import { ChevronRightIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-import { useTheme } from '@/features/preferences/index';
+import { usePreferences, useTheme } from '@/features/preferences/index';
 import type { DocumentProps } from '@/features/workspace/index';
 import {
   PIERRE_HIGHLIGHTER,
+  PIERRE_COMMENT_CSS,
   PIERRE_SURFACE_CSS,
   PIERRE_THEME,
+  PIERRE_TOKEN_WRAP_CSS,
 } from '@/shared/lib/pierre';
+import { cn } from '@/shared/lib/utils';
 import { PendingSpinner } from '@/shared/views/state-notice';
 import type { WalkthroughExcerpt as Excerpt } from '@porcelain/client/walkthroughs/rules';
 import { capturedExcerpt } from '../adapters/captured-excerpt';
 import { useCapturedWalkthroughPatch } from '../queries/walkthrough';
 import { RichText } from './rich-text';
+import { useCitedFiles } from './cited-files';
 
 type ExcerptProps = {
   document: DocumentProps;
@@ -39,14 +42,23 @@ function CapturedLines({ document, runId, step, excerpt }: ExcerptProps) {
     runId,
     step,
     excerpt.position,
+    excerpt.node,
   );
   const { dark } = useTheme();
+  const { preferences } = usePreferences();
+  const owner = { scope: document.scope, context: document.context };
+  const { view } = useComments(owner);
+  const [composing, setComposing] = useState<LineRange>();
   if (AsyncResult.isInitial(result))
-    return <PendingSpinner label="Loading captured lines" />;
+    return (
+      <div className="px-3 py-2">
+        <PendingSpinner label="Loading captured lines" />
+      </div>
+    );
   if (AsyncResult.isFailure(result))
     return (
       <div
-        className="flex flex-wrap items-center gap-2 text-prose"
+        className="flex flex-wrap items-center gap-2 px-3 py-2 text-ui"
         role="alert"
       >
         <p>The captured diff could not be read.</p>
@@ -62,85 +74,147 @@ function CapturedLines({ document, runId, step, excerpt }: ExcerptProps) {
       : undefined;
   if (!file)
     return (
-      <div className="flex flex-col items-start gap-3 text-prose">
+      <div className="flex flex-wrap items-center gap-2 px-3 py-2 text-ui">
         <p>These lines are unavailable in the saved walkthrough.</p>
-        <DialogClose
-          render={<Button variant="outline" size="sm" />}
+        <Button
+          variant="outline"
+          size="sm"
           onClick={() => document.onOpen({ kind: 'walkthrough-step', step })}
         >
           Open step code
-        </DialogClose>
+        </Button>
       </div>
     );
   const side = excerpt.side === 'old' ? 'deletions' : 'additions';
+  const notes = new Map<
+    string,
+    { side: LineRange['side']; line: number; drafts: DraftComment[] }
+  >();
+  const note = (at: LineRange['side'], line: number) => {
+    const key = `${at}:${line}`;
+    const found = notes.get(key) ?? { side: at, line, drafts: [] };
+    notes.set(key, found);
+    return found;
+  };
+  for (const draft of view?.comments ?? []) {
+    const anchor = draft.anchor;
+    if (
+      draft.publication.status === 'draft' &&
+      anchor.kind === 'lines' &&
+      anchor.path === excerpt.path
+    )
+      note(anchor.side, anchor.end).drafts.push(draft);
+  }
+  if (composing) note(composing.side, composing.end);
   return (
-    <div className="min-w-0 overflow-auto rounded-lg border">
-      <FileDiff
-        fileDiff={file}
-        options={{
-          preferredHighlighter: PIERRE_HIGHLIGHTER,
-          theme: PIERRE_THEME,
-          themeType: dark ? 'dark' : 'light',
-          overflow: 'wrap',
-          disableFileHeader: true,
-          unsafeCSS: PIERRE_SURFACE_CSS,
-          diffStyle: 'unified',
-        }}
-        selectedLines={{
-          start: excerpt.start,
-          end: excerpt.end,
-          side,
-          endSide: side,
-        }}
-      />
-    </div>
+    <FileDiff<{ side: LineRange['side']; line: number; drafts: DraftComment[] }>
+      fileDiff={file}
+      lineAnnotations={[...notes.values()].map((entry) => ({
+        side: entry.side,
+        lineNumber: entry.line,
+        metadata: entry,
+      }))}
+      renderAnnotation={(annotation) => {
+        const entry = annotation.metadata;
+        const open =
+          composing?.side === entry.side && composing.end === entry.line;
+        return (
+          <CommentThread
+            owner={owner}
+            drafts={entry.drafts}
+            anchor={
+              open
+                ? {
+                    kind: 'lines',
+                    path: excerpt.path,
+                    ...composing,
+                    text: diffLineText(file, composing),
+                  }
+                : undefined
+            }
+            composing={open}
+            onClose={() => setComposing(undefined)}
+            className="mx-3 my-2"
+          />
+        );
+      }}
+      options={{
+        preferredHighlighter: PIERRE_HIGHLIGHTER,
+        theme: PIERRE_THEME,
+        themeType: dark ? 'dark' : 'light',
+        overflow: preferences.lineOverflow,
+        disableFileHeader: true,
+        unsafeCSS: `${PIERRE_SURFACE_CSS}${PIERRE_COMMENT_CSS}${PIERRE_TOKEN_WRAP_CSS}`,
+        diffStyle: 'unified',
+        enableGutterUtility: true,
+        onGutterUtilityClick: (range) => setComposing(commentRange(range)),
+      }}
+      selectedLines={{
+        start: excerpt.start,
+        end: excerpt.end,
+        side,
+        endSide: side,
+      }}
+    />
   );
 }
 
-export function WalkthroughExcerpt(props: ExcerptProps) {
-  const [open, setOpen] = useState(false);
-  const { excerpt } = props;
+export function WalkthroughExcerpt({
+  inFullDiff = false,
+  ...props
+}: ExcerptProps & { inFullDiff?: boolean }) {
+  const [expanded, setOpen] = useState(true);
+  const open = expanded && !inFullDiff;
+  const { excerpt, document } = props;
+  const cited = useCitedFiles(document, []);
+  const opening = cited.opening(excerpt.path);
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <DialogTrigger
-          render={<Button size="sm" variant="outline" />}
-          aria-description={`${excerpt.path} · ${excerpt.lines}`}
-        >
-          <ArrowDownRightIcon />
-          See the lines
-        </DialogTrigger>
-        <span className="min-w-0 font-mono text-caption text-muted-foreground wrap-anywhere">
-          {excerpt.path} · {excerpt.lines}
-        </span>
-      </div>
-      <DialogContent
-        className="max-h-[calc(100dvh-2rem)] overflow-auto sm:max-w-2xl"
-        showCloseButton={false}
-      >
-        <DialogHeader className="min-w-0">
-          <DialogClose
-            render={
-              <Button size="sm" variant="ghost" className="-ml-2 self-start" />
-            }
-          >
-            <ArrowLeftIcon />
-            Back to step
-          </DialogClose>
-          <DialogTitle>Captured diff</DialogTitle>
-          <DialogDescription>
-            <span className="font-mono break-all">
-              {excerpt.path} · {excerpt.lines}
-            </span>
-          </DialogDescription>
-          {excerpt.caption && (
-            <p className="text-prose">
-              <RichText text={excerpt.caption} />
-            </p>
+    <figure className="flex min-w-0 flex-col gap-1.5">
+      {excerpt.caption && (
+        <figcaption className="text-ui text-foreground-2">
+          <RichText text={excerpt.caption} />
+        </figcaption>
+      )}
+      <div className="min-w-0 overflow-hidden rounded-md border">
+        <div
+          className={cn(
+            'flex min-h-8 items-center gap-1 bg-muted/50 pr-1',
+            open && 'border-b',
           )}
-        </DialogHeader>
+        >
+          <button
+            type="button"
+            aria-expanded={open}
+            disabled={inFullDiff}
+            aria-label={`${open ? 'Hide' : 'Show'} the lines: ${excerpt.path} · ${excerpt.lines}`}
+            onClick={() => setOpen(!expanded)}
+            className="flex min-w-0 flex-1 items-center gap-1.5 self-stretch px-2 py-1 text-left font-mono text-caption text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+          >
+            <ChevronRightIcon
+              aria-hidden
+              className={cn('size-3.5 shrink-0', open && 'rotate-90')}
+            />
+            <span className="flex min-w-0 flex-wrap items-baseline gap-x-1.5">
+              <span className="text-foreground wrap-anywhere">
+                {excerpt.path}
+              </span>
+              <span>{excerpt.lines}</span>
+              {inFullDiff && (
+                <span className="font-sans">· in the full diff below</span>
+              )}
+            </span>
+          </button>
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={opening === undefined}
+            onClick={() => cited.open(excerpt.path)}
+          >
+            Open file
+          </Button>
+        </div>
         {open && <CapturedLines {...props} />}
-      </DialogContent>
-    </Dialog>
+      </div>
+    </figure>
   );
 }

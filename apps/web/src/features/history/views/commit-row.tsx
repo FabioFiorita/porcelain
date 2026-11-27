@@ -1,5 +1,5 @@
 import { TruncatedText } from '@/shared/views/truncated-text';
-import { relativeTime } from '@/shared/lib/relative-time';
+import { relativeTime } from '@porcelain/client/history/rules';
 import { Columns2Icon, CopyIcon, GitMergeIcon } from 'lucide-react';
 import { useState, type MouseEvent, type ReactNode } from 'react';
 import { flushSync } from 'react-dom';
@@ -77,7 +77,7 @@ export function CommitRow({
       {layout === 'stacked' && headBadge}
     </span>
   );
-  const age = relativeTime(commit.author.timestamp);
+  const age = relativeTime(commit.author.timestamp, Date.now());
   return (
     <ContextMenu
       onOpenChange={(open) => {
@@ -89,13 +89,12 @@ export function CommitRow({
           <div
             style={{ height, paddingLeft: inset }}
             className={cn(
-              'relative flex w-full rounded-lg px-2 text-left transition-colors hover:bg-accent',
+              'relative flex w-full rounded-lg px-2 text-left transition-colors hover:bg-accent has-[button:focus-visible]:ring-2 has-[button:focus-visible]:ring-ring/60',
               layout === 'stacked'
                 ? 'flex-col justify-center gap-0.5'
                 : 'items-center gap-3',
               height === undefined && 'py-1.5',
-              selected && 'bg-muted ring-1 ring-border ring-inset',
-              head && 'bg-muted ring-1 ring-border ring-inset',
+              selected && 'bg-selection hover:bg-selection',
             )}
           />
         }
@@ -106,10 +105,7 @@ export function CommitRow({
               type="button"
               aria-pressed={selected}
               onClick={select}
-              className={cn(
-                'block min-w-0 text-left before:absolute before:inset-0 before:rounded-lg',
-                refs.length > 0 ? 'max-w-3/5' : 'flex-1',
-              )}
+              className="block min-w-0 flex-1 text-left outline-none before:absolute before:inset-0 before:rounded-lg"
             >
               {subject}
               <span
@@ -127,7 +123,7 @@ export function CommitRow({
               )}
             </button>
             {refs.length > 0 && (
-              <div className="flex h-4.5 min-w-0 flex-1 flex-col justify-center">
+              <div className="flex h-4.5 max-w-2/5 min-w-0 shrink-0 flex-col justify-center">
                 <CommitRefs
                   refs={refs}
                   current={current}
@@ -146,7 +142,7 @@ export function CommitRow({
                 type="button"
                 aria-pressed={selected}
                 onClick={select}
-                className="flex max-w-3/5 min-w-0 shrink-0 items-center text-left before:absolute before:inset-0 before:rounded-lg"
+                className="flex min-w-0 items-center text-left outline-none before:absolute before:inset-0 before:rounded-lg"
               >
                 {subject}
                 <span className="sr-only">
@@ -154,7 +150,7 @@ export function CommitRow({
                 </span>
               </button>
               {headBadge}
-              <div className="min-w-0 flex-1 overflow-hidden">
+              <div className="max-w-2/5 min-w-0 shrink-0 overflow-hidden">
                 {refs.length > 0 && (
                   <CommitRefs
                     refs={refs}
@@ -165,7 +161,7 @@ export function CommitRow({
               </div>
             </div>
             <TruncatedText
-              className="hidden w-28 shrink-0 text-xs text-muted-foreground @2xl/graph:block"
+              className="hidden w-28 shrink-0 text-xs text-muted-foreground @2xl/graph:block @3xl/graph:w-40"
               text={commit.author.name}
             />
             <span

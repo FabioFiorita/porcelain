@@ -66,7 +66,7 @@ test('opening a repository with a linked worktree from the empty workspace after
       .click();
   await dialog
     .getByRole('button', {
-      name: `Open ${main.path.split('/').filter(Boolean).at(-1) ?? 'folder'}`,
+      name: 'Open repository',
       exact: true,
     })
     .click();

@@ -51,11 +51,16 @@ function subject(
   );
   return {
     lines,
-    execute: (input: Omit<RunGitActionInput, 'onProgress'>) =>
+    execute: (
+      input: Omit<RunGitActionInput, 'onProgress' | 'omittedChanges'> & {
+        omittedChanges?: number;
+      },
+    ) =>
       Effect.runPromise(
         withWriteLease(
           WORKTREE_ID,
           service.execute({
+            omittedChanges: 0,
             ...input,
             onProgress: (line) =>
               Effect.sync(() => {
@@ -110,6 +115,35 @@ describe('RunGitActionService', () => {
     });
     expect(ran.outcome.reason).toBe('CHANGED_SINCE_LOOKED');
     expect(lines).toEqual([]);
+  });
+
+  it('refuses a stash while the status leaves changed files unlisted', async () => {
+    const { lines, execute } = subject();
+    const ran = await execute({
+      run: sampleRun(
+        { action: 'stash-create', message: 'Park', includeUntracked: true },
+        { ...CLEAN_EXPECTATION, files: [readme] },
+      ),
+      changes: [change('README.md', README_FINGERPRINT)],
+      omittedChanges: 3000,
+    });
+    expect(ran.outcome).toEqual({
+      state: 'rejected',
+      reason: 'TOO_MANY_CHANGES',
+      refreshRequired: false,
+    });
+    expect(lines).toEqual([]);
+  });
+
+  it('commits listed files while the status leaves other files unlisted', async () => {
+    const { lines, execute } = subject();
+    const ran = await execute({
+      run: commit,
+      changes: [change('README.md', README_FINGERPRINT)],
+      omittedChanges: 3000,
+    });
+    expect(ran.outcome).toEqual(succeeded);
+    expect(lines).toEqual([gitRan]);
   });
 
   it('checks a merge commit against the whole change list', async () => {
@@ -193,6 +227,7 @@ describe('RunGitActionService', () => {
         subject().service.execute({
           run: commit,
           changes: [change('README.md', README_FINGERPRINT)],
+          omittedChanges: 0,
         }),
       ),
     );
@@ -202,6 +237,7 @@ describe('RunGitActionService', () => {
         subject().service.execute({
           run: commit,
           changes: [change('README.md', GUIDE_FINGERPRINT)],
+          omittedChanges: 0,
         }),
       ),
     );
@@ -215,6 +251,7 @@ describe('RunGitActionService', () => {
             sourceRef: 'refs/heads/main',
           }),
           changes: [],
+          omittedChanges: 0,
         }),
       ),
     );

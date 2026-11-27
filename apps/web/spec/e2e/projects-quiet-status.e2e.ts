@@ -16,7 +16,6 @@ test('a failed background status read keeps the row’s last count and shows no 
     .toBe(2);
   const project = await server.project();
   const main = project.worktrees.find((worktree) => worktree.main)!;
-  const other = project.worktrees.find((worktree) => !worktree.main)!;
   const sidebar = page.getByRole('navigation', {
     name: 'Projects and worktrees',
     exact: true,
@@ -24,14 +23,14 @@ test('a failed background status read keeps the row’s last count and shows no 
   const mainCard = sidebar.getByRole('listitem').filter({
     has: page.getByRole('button', { name: /Main worktree/ }),
   });
-  await expect(mainCard).toHaveText(/\d+ files?$/);
-  const shown = (await mainCard.textContent()) ?? '';
-  const restore = await live.failWorktreeStatusRead(other.id);
+  const count = mainCard.getByText(/^\d+ uncommitted$/);
+  await expect(count).toHaveText('2 uncommitted');
+  const restore = await live.failWorktreeStatusRead(main.id);
   try {
     const failed = live.worktreeStatusFailed(main.id);
-    await repo.write('quiet-two.md', 'Two\n');
+    await repo.write('quiet-one.md', 'Updated\n');
     await failed;
-    await expect(mainCard).toHaveText(shown);
+    await expect(count).toHaveText('2 uncommitted');
     await expect(page.getByRole('dialog')).toHaveCount(0);
     await expect(sidebar.getByRole('status')).toHaveCount(0);
     await expect(
@@ -40,7 +39,6 @@ test('a failed background status read keeps the row’s last count and shows no 
   } finally {
     await restore();
   }
-  await repo.write('quiet-three.md', 'Three\n');
-  await expect(mainCard).not.toHaveText(shown);
-  await expect(mainCard).toHaveText(/\d+ files$/);
+  await repo.write('quiet-two.md', 'Two\n');
+  await expect(count).toHaveText('3 uncommitted');
 });

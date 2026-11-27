@@ -51,3 +51,5 @@ Automated coverage: `app-settings-page.desktop.e2e.ts`, `app-settings-history.e2
 Default walkthrough writer in Changes & Git selects provider/model and effort on the server. Its note points to project overrides in the project three-dot menu. Follow [projects.walkthrough-settings](projects.walkthrough-settings.md) for the full save/reload and inheritance journey.
 
 The default writer uses the same outlined setting row as Spec files and Pull strategy, with its description beside the controls. The shared-computer notice names Changes & Git.
+
+At desktop width, the selected section exposes its headings in an outline under the section button. Click an outline entry and confirm the right-hand content scrolls to it. At phone width the section navigation is a horizontal row and the content scrolls below it. Open the Walkthrough writer select in Changes & Git with a writer available and confirm that choosing an option updates the form. Clicking within Settings outside the select or pressing Escape dismisses the select and keeps Settings open.

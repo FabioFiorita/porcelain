@@ -8,6 +8,7 @@ import {
 } from '@porcelain/client/walkthroughs';
 import type { WalkthroughRun } from '@porcelain/client/walkthroughs/rules';
 import type { ReviewScope } from '@porcelain/client/changes/rules';
+import type { StartWalkthroughRequest } from '@porcelain/contracts/walkthroughs';
 import type { ConnectionContext } from '@/shared/workspace/connection';
 import { useReviewOverview } from '@/features/changes/index';
 
@@ -16,6 +17,7 @@ export function useStartWalkthrough(
   context: ConnectionContext,
   base: string | undefined,
   displayedRun: WalkthroughRun | undefined,
+  writer?: StartWalkthroughRequest['writer'],
 ) {
   const [result, start] = useAtom(
     startWalkthrough({
@@ -38,5 +40,6 @@ export function useStartWalkthrough(
     branch: overview?.branch?.name ?? displayedRun?.branch,
     displayedRun,
     base,
+    writer,
   });
 }

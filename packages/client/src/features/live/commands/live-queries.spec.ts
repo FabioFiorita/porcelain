@@ -75,6 +75,7 @@ async function setup(
   let live: Parameters<LiveUpdatePort['connect']>[0] | undefined;
   const liveUpdates: LiveUpdatePort = {
     state: liveSessionState(),
+    retry: () => undefined,
     connect: Effect.fn(function* (options) {
       live = options;
       yield* Effect.addFinalizer(() => Effect.sync(() => stopped.resolve()));

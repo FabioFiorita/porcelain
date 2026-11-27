@@ -15,7 +15,9 @@ test('a branch deep link keeps valid selections when another optional search val
   await app.open(
     `${workspace}?surface=changes&scope=branch&base=refs%2Fheads%2Fmain&side=42&entry=%7B%22invalid%22%3Atrue%7D`,
   );
-  await pairedPage.getByRole('button', { name: 'Review', exact: true }).click();
+  await pairedPage
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await pairedPage
     .getByRole('complementary', { name: 'Review sidebar', exact: true })
     .getByRole('tab', { name: 'Changes', exact: true })

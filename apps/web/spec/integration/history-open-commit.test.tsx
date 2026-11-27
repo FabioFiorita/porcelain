@@ -12,7 +12,7 @@ test.for([
     await repo.branch(branch);
     const workspace = await render.workspace();
     await workspace
-      .getByRole('button', { name: 'Review', exact: true })
+      .getByRole('button', { name: 'Side panel', exact: true })
       .click();
     await workspace.getByRole('tab', { name: 'History', exact: true }).click();
     await workspace.getByRole('button', { name: /^Initial commit/ }).click();
@@ -34,7 +34,9 @@ test('opening the root commit shows its added file and patch against the empty t
   workspace,
   repo,
 }) => {
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await workspace.getByRole('tab', { name: 'History', exact: true }).click();
   await workspace.getByRole('button', { name: /^Initial commit/ }).click();
   await expect
@@ -60,17 +62,20 @@ test('opening the root commit shows its added file and patch against the empty t
   });
 });
 
-test('opening a commit leads with its subject and summarizes its files before their diffs', async ({
+test('opening a commit leads with its subject and indexes its files before their diffs', async ({
   workspace,
   repo,
   server,
 }) => {
   const subject = 'Explain the change to review';
+  await repo.write('notes.md', 'first note\n');
   await repo.commit(subject);
   await expect
     .poll(async () => (await server.commits()).commits[0]?.subject)
     .toBe(subject);
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await workspace.getByRole('tab', { name: 'History', exact: true }).click();
   await workspace
     .getByRole('button', { name: new RegExp(`^${subject}`) })
@@ -81,25 +86,18 @@ test('opening a commit leads with its subject and summarizes its files before th
     )
     .toBeVisible();
   await expect
-    .element(workspace.getByText('1 file changed', { exact: true }))
-    .toBeVisible();
-  await expect
-    .element(
-      workspace
-        .getByRole('list', { name: 'Changed files', exact: true })
-        .getByText('README.md', { exact: true }),
-    )
+    .element(workspace.getByText('2 files changed', { exact: true }))
     .toBeVisible();
   const changedFiles = workspace.getByRole('list', {
     name: 'Changed files',
     exact: true,
   });
   await expect
-    .element(changedFiles.getByText('+2', { exact: true }))
-    .toBeVisible();
+    .element(changedFiles.getByRole('listitem').nth(0))
+    .toHaveTextContent('MREADME.md+2−0');
   await expect
-    .element(changedFiles.getByText('−0', { exact: true }))
-    .toBeVisible();
+    .element(changedFiles.getByRole('listitem').nth(1))
+    .toHaveTextContent('Anotes.md+1−0');
   const [commit] = (await server.commits()).commits;
   if (!commit) throw new Error('The committed change must be listed');
   await expect
@@ -127,7 +125,9 @@ test('a binary file in a commit is listed without a code preview and says it is 
   await expect
     .poll(async () => (await server.commits()).commits[0]?.subject)
     .toBe(subject);
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await workspace.getByRole('tab', { name: 'History', exact: true }).click();
   await workspace
     .getByRole('button', { name: new RegExp(`^${subject}`) })
@@ -156,7 +156,9 @@ test('a retained commit only names the checkout branch while its history contain
   await repo.switch('topic');
   await repo.commit('Keep this commit open');
   const workspace = await render.workspace();
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await workspace.getByRole('tab', { name: 'History', exact: true }).click();
   await workspace
     .getByRole('button', { name: /^Keep this commit open/ })
@@ -187,7 +189,9 @@ test('the checkout branch appears in the eyebrow while a same-named tag remains 
 }) => {
   await repo.tag(repo.initialBranch);
   const workspace = await render.workspace();
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await workspace.getByRole('tab', { name: 'History', exact: true }).click();
   await workspace.getByRole('button', { name: /^Initial commit/ }).click();
   await expect
@@ -214,7 +218,9 @@ test('a binary-only commit retains its subject and file summary without a code p
   await expect
     .poll(async () => (await server.commits()).commits[0]?.subject)
     .toBe('Explain a binary-only change');
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await workspace.getByRole('tab', { name: 'History', exact: true }).click();
   await workspace
     .getByRole('button', { name: /^Explain a binary-only change/ })
@@ -231,30 +237,21 @@ test('a binary-only commit retains its subject and file summary without a code p
   await expect
     .element(workspace.getByText('1 file changed', { exact: true }))
     .toBeVisible();
+  const withoutPreview = workspace.getByRole('list', {
+    name: 'Changes without code preview',
+    exact: true,
+  });
   await expect
-    .element(
-      workspace
-        .getByRole('list', { name: 'Changed files', exact: true })
-        .getByText('only-binary.bin', { exact: true }),
-    )
+    .element(withoutPreview.getByText('only-binary.bin', { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(withoutPreview.getByText('added · Binary change', { exact: true }))
     .toBeVisible();
   await expect
     .element(
-      workspace
-        .getByRole('list', { name: 'Changed files', exact: true })
-        .getByText('Binary', { exact: true }),
+      workspace.getByRole('list', { name: 'Changed files', exact: true }),
     )
-    .toBeVisible();
-  await expect
-    .element(
-      workspace
-        .getByRole('list', {
-          name: 'Changes without code preview',
-          exact: true,
-        })
-        .getByText('added · Binary change', { exact: true }),
-    )
-    .toBeVisible();
+    .not.toBeInTheDocument();
 });
 
 test('a type change counts every text section of its patch', async ({
@@ -266,11 +263,14 @@ test('a type change counts every text section of its patch', async ({
   await repo.commit('Prepare a regular file');
   await repo.remove('mode-change.txt');
   await repo.symlink('README.md', 'mode-change.txt');
+  await repo.write('notes.md', 'first note\nsecond note\n');
   await repo.commit('Preserve both sides of a type change');
   await expect
     .poll(async () => (await server.commits()).commits[0]?.subject)
     .toBe('Preserve both sides of a type change');
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await workspace.getByRole('tab', { name: 'History', exact: true }).click();
   await workspace
     .getByRole('button', { name: /^Preserve both sides of a type change/ })
@@ -284,4 +284,46 @@ test('a type change counts every text section of its patch', async ({
     .toHaveAttribute('aria-label', 'type-changed');
   await expect.element(summary.getByText('+1', { exact: true })).toBeVisible();
   await expect.element(summary.getByText('−1', { exact: true })).toBeVisible();
+});
+
+test('a commit that changed one file shows that file once, in its diff, under the summary line', async ({
+  workspace,
+  repo,
+  server,
+  reviewLayout,
+}) => {
+  const subject = 'Change only the README';
+  await repo.commit(subject);
+  await expect
+    .poll(async () => (await server.commits()).commits[0]?.subject)
+    .toBe(subject);
+  await workspace
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
+  await workspace.getByRole('tab', { name: 'History', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: new RegExp(`^${subject}`) })
+    .click();
+  await expect
+    .element(workspace.getByText('A change to review.', { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(workspace.getByText('1 file changed', { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(
+      workspace.getByRole('list', { name: 'Changed files', exact: true }),
+    )
+    .not.toBeInTheDocument();
+  const code = workspace.getByRole('region', {
+    name: 'Code content',
+    exact: true,
+  });
+  await expect
+    .poll(() =>
+      reviewLayout
+        .fileHeaders(code)
+        .map((header) => header.startsWith('README.md')),
+    )
+    .toEqual([true]);
 });

@@ -15,7 +15,7 @@ const unpairedRoutes = new Set([
   'POST /api/pair',
 ]);
 
-const PAIRED_ROUTES = 71;
+const PAIRED_ROUTES = 80;
 
 const methods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as const;
 
@@ -29,8 +29,19 @@ function parameter(session: Session, name: string, route: string): string {
   if (name === 'projectId') return session.projectId;
   if (name === 'worktreeId') return session.worktreeId;
   if (name === 'number') return '423';
+  if (['jobId', 'step'].includes(name)) return '1';
+  if (name === 'call') return '0';
   if (name === 'oid') return unknownOid;
-  if (['threadId', 'requestId', 'runId', 'assetId', 'messageId'].includes(name))
+  if (
+    [
+      'threadId',
+      'requestId',
+      'runId',
+      'assetId',
+      'messageId',
+      'commentId',
+    ].includes(name)
+  )
     return UNKNOWN_UUID;
   throw new Error(`${route} has a parameter the sweep cannot fill: ${name}`);
 }
@@ -85,16 +96,25 @@ test.for<{ credential: string; auth: NonNullable<HttpRequest['auth']> }>([
         'GET /api/worktrees/:worktreeId/walkthrough',
         'GET /api/worktrees/:worktreeId/walkthrough/:runId/assets/:assetId',
         'GET /api/worktrees/:worktreeId/walkthrough/:runId/conversations',
-        'GET /api/worktrees/:worktreeId/walkthrough/:runId/conversations/brief',
         'POST /api/worktrees/:worktreeId/walkthrough/:runId/conversations/messages',
         'POST /api/worktrees/:worktreeId/walkthrough/:runId/conversations/messages/:messageId/retry',
-        'PUT /api/worktrees/:worktreeId/walkthrough/:runId/conversations/messages/:messageId/saved',
-        'POST /api/worktrees/:worktreeId/walkthrough/:runId/conversations/messages/:messageId/post',
-        'POST /api/worktrees/:worktreeId/walkthrough/:runId/conversations/post-saved',
+        'PUT /api/worktrees/:worktreeId/walkthrough/:runId/calls/:step/:call/decision',
+        'GET /api/worktrees/:worktreeId/comments',
+        'POST /api/worktrees/:worktreeId/comments',
+        'PATCH /api/worktrees/:worktreeId/comments/:commentId',
+        'DELETE /api/worktrees/:worktreeId/comments/:commentId',
+        'GET /api/worktrees/:worktreeId/comments/review',
+        'POST /api/worktrees/:worktreeId/comments/review',
+        'GET /api/worktrees/:worktreeId/preview-file',
         'GET /api/projects/:projectId/pull-requests',
         'GET /api/projects/:projectId/pull-requests/:number',
         'GET /api/projects/:projectId/pull-requests/:number/checks',
         'POST /api/projects/:projectId/pull-requests/:number/archive',
+        'GET /api/projects/:projectId/pull-requests/:number/status',
+        'GET /api/projects/:projectId/pull-requests/:number/jobs/:jobId/log',
+        'POST /api/projects/:projectId/pull-requests/:number/rerun',
+        'POST /api/projects/:projectId/pull-requests/:number/comments',
+        'POST /api/projects/:projectId/pull-requests/:number/merge',
         'GET /api/projects/:projectId/github-account',
         'PUT /api/projects/:projectId/github-account',
         'PUT /api/projects/:projectId/walkthrough-settings',

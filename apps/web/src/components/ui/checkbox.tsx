@@ -3,7 +3,7 @@ import {
   Checkbox as CheckboxRoot,
   CheckboxIndicator,
 } from '@ui-sdk/react/checkbox';
-import { cn } from 'cn';
+import { cn } from '@/shared/lib/utils';
 import { CheckIcon } from 'lucide-react';
 
 function Checkbox({

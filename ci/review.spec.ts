@@ -7,7 +7,27 @@ import { describe, expect, it } from 'vite-plus/test';
 import { savedState, withState } from './review-verdict.ts';
 
 const head = 'a'.repeat(40);
+const base = 'b'.repeat(40);
 const repository = 'owner/repo';
+const promotionReview = withState(undefined, {
+  releaseBase: base,
+  reviewed: {
+    sha: head,
+    review: {
+      summary: 'One finding.',
+      findings: [
+        {
+          title: 'Keep a draft after reconnecting',
+          body: 'The draft is lost on reconnect.',
+          priority: 2,
+          path: 'feature.ts',
+          line_start: 1,
+          line_end: 1,
+        },
+      ],
+    },
+  },
+});
 const reviewScript = new URL('./review.ts', import.meta.url);
 const markWait = `import { writeFileSync } from 'node:fs';
 export async function setTimeout() {
@@ -32,6 +52,7 @@ function landing(
     | 'always-blocked'
     | 'forbidden'
     | 'label-with-active-ci'
+    | 'approve-promotion'
     | 'ready-with-active-ci'
     | 'ci-starts-before-first-merge'
     | 'ci-starts-before-retry'
@@ -69,16 +90,17 @@ const reply = (value) => console.log(JSON.stringify(value));
 const blocked = events.includes('blocked');
 const scenario = ${JSON.stringify(scenario)};
 const head = ${JSON.stringify(head)};
-const branch = scenario === 'branch-renamed-after-ci' ? 'feature-renamed' : 'feature';
+const promotion = scenario === 'approve-promotion';
+const branch = promotion ? 'main' : scenario === 'branch-renamed-after-ci' ? 'feature-renamed' : 'feature';
 if (args[0] === 'pr' && args[1] === 'view') {
   reply({
     number: 42, title: 'Change a feature', body: '',
     state: blocked && scenario === 'merged-after-refusal' ? 'MERGED' : 'OPEN',
-    isDraft: false, baseRefName: 'main', baseRefOid: 'b'.repeat(40),
+    isDraft: false, baseRefName: promotion ? 'release' : 'main', baseRefOid: ${JSON.stringify(base)},
     headRefOid: blocked && scenario === 'pushed-after-refusal' ? 'c'.repeat(40) : head,
     headRefName: branch, headRepository: scenario === 'deleted-fork' ? null : { nameWithOwner: 'owner/repo' }, changedFiles: 1,
     author: { login: 'owner' }, isCrossRepository: scenario === 'deleted-fork',
-    labels: blocked && scenario === 'held-after-refusal' ? [{ name: 'hold' }] : [],
+    labels: promotion ? ['approved', ...(events.includes('cleared fixes') ? [] : ['agent-fixes'])].map(name => ({ name })) : blocked && scenario === 'held-after-refusal' ? [{ name: 'hold' }] : [],
   });
 } else if (args.at(-1) === 'repos/owner/repo/pulls?state=open&head=owner%3Afeature') {
   reply([[{ number: 42, head: { sha: head }, base: { ref: 'main' } }]]);
@@ -114,13 +136,13 @@ if (args[0] === 'pr' && args[1] === 'view') {
     ...(active ? [activeRun] : []),
   ] }]);
 } else if (args.at(-1) === 'repos/owner/repo/actions/runs/1/attempts/1/jobs') {
-  reply([{ jobs: [{ name: 'checks', conclusion: 'success' }] }]);
+  reply([{ jobs: [{ name: promotion ? 'release checks' : 'checks', conclusion: 'success' }] }]);
 } else if (args.at(-1) === 'repos/owner/repo/actions/runs/1/attempts/2/jobs') {
   reply([{ jobs: [] }]);
 } else if (args.at(-1) === 'repos/owner/repo/actions/runs/2/attempts/1/jobs') {
   reply([{ jobs: [{ name: 'checks', conclusion: scenario === 'workflow-ci-failed' ? 'failure' : 'success' }] }]);
 } else if (args.at(-1) === 'repos/owner/repo/issues/42/comments') {
-  reply([[{ id: 1, user: { type: 'Bot' }, body: ${JSON.stringify(withState(undefined, { decision: { sha: head, needsOwner: false } }))} }]]);
+  reply([[{ id: 1, user: { type: 'Bot' }, body: promotion ? ${JSON.stringify(promotionReview)} : ${JSON.stringify(withState(undefined, { decision: { sha: head, needsOwner: false } }))} }]]);
 } else if (args.at(-1) === 'repos/owner/repo/pulls/42/files') {
   reply([[{ filename: 'feature.ts' }]]);
 } else if (args.at(-1) === 'repos/owner/repo/commits/' + head + '/check-runs') {
@@ -133,8 +155,12 @@ if (args[0] === 'pr' && args[1] === 'view') {
 } else if (args.includes('repos/owner/repo/statuses/' + head)) {
   const status = JSON.parse(readFileSync(0, 'utf8'));
   record(status.context + ': ' + status.state);
-} else if (JSON.stringify(args) === JSON.stringify(['pr', 'merge', '42', '--repo', 'owner/repo', '--squash', '--match-head-commit', head]) && process.env.GH_TOKEN === 'fixture-merge-token') {
-  if (scenario === 'forbidden') {
+} else if (promotion && args.includes('repos/owner/repo/issues/42/labels/agent-fixes')) {
+  record('cleared fixes');
+} else if (JSON.stringify(args) === JSON.stringify(['pr', 'merge', '42', '--repo', 'owner/repo', promotion ? '--merge' : '--squash', '--match-head-commit', head]) && process.env.GH_TOKEN === 'fixture-merge-token') {
+  if (promotion) {
+    record('merged promotion');
+  } else if (scenario === 'forbidden') {
     record('forbidden');
     console.error('GraphQL: Resource not accessible by personal access token');
     process.exitCode = 1;
@@ -177,6 +203,7 @@ if (args[0] === 'pr' && args[1] === 'view') {
             : {}),
           ...([
             'label-with-active-ci',
+            'approve-promotion',
             'ci-starts-before-first-merge',
             'ci-starts-before-retry',
             'ci-starts-during-retry',
@@ -198,11 +225,13 @@ if (args[0] === 'pr' && args[1] === 'view') {
       },
     );
     if (result.error) throw result.error;
+    const verdictComment = readFileSync(comment, 'utf8');
     return {
       status: result.status,
       events: JSON.parse(readFileSync(events, 'utf8')) as unknown,
       output: result.stdout,
-      approvedHead: savedState(readFileSync(comment, 'utf8'))?.approvedHead,
+      approvedHead: savedState(verdictComment)?.approvedHead,
+      verdictComment,
     };
   } finally {
     rmSync(directory, { recursive: true, force: true });
@@ -211,6 +240,20 @@ if (args[0] === 'pr' && args[1] === 'view') {
 
 describe('landing after a verdict', () => {
   const passingVerdict = ['Agent verdict: pending', 'Agent verdict: success'];
+
+  it('reuses the saved promotion findings when approval triggers a verdict', () => {
+    const result = landing('approve-promotion');
+    expect(result.status).toBe(0);
+    expect(result.events).toEqual([
+      'Release verdict: pending',
+      'cleared fixes',
+      'Release verdict: success',
+      'merged promotion',
+    ]);
+    expect(result.verdictComment).toContain(
+      '#### Findings accepted by the owner\n\n- **P2** [Keep a draft after reconnecting]',
+    );
+  });
 
   it('leaves a label-triggered verdict pending while fresh CI runs on an already checked head', () => {
     const result = landing('label-with-active-ci');

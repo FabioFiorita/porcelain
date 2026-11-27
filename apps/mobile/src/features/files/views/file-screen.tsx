@@ -1,21 +1,25 @@
 import type { TopBarAction } from '../../../components/ui/top-bar-items';
-import { TopBarActions } from '../../../shared/application/top-bar';
+import {
+  TopBarActions,
+  usePublishedTopBar,
+} from '../../../shared/application/top-bar';
 import { useDocumentReadingLine } from '../../../shared/application/document-reading';
 import { sourceLanguage } from '../../../shared/rules/highlight-code';
 import { Box } from '../../../components/ui/box';
 import { View } from 'react-native';
-import { useIsFocused, useRouter, useSegments } from 'expo-router';
+import { useIsFocused, useRouter } from 'expo-router';
 import { useDocumentKeys } from '../../../shared/application/key-commands';
 import { useState, type ReactNode } from 'react';
 import { Cause, Option } from 'effect';
 import { AsyncResult } from 'effect/reactivity';
 import { fileErrorMessage } from '@porcelain/client/files/rules';
+import { WorkspaceGate, type Workspace } from '../../projects/index';
 import {
-  WorkspaceGate,
-  useWorktreeBarItems,
-  type Workspace,
-} from '../../projects/index';
-import type { ReviewRange } from '../../../components/ui/code-range';
+  LineSelectionBar,
+  codeLines,
+  useFileCommentAction,
+  useLineComments,
+} from '../../workspace/index';
 import { usePreferences } from '../../preferences/index';
 import { useTextFile, type FileContents } from '../queries/text';
 import { usePreviewLink } from '../../../shared/adapters/preview-link';
@@ -101,7 +105,6 @@ function ReturnBeside({
   children: ReactNode;
 }) {
   const router = useRouter();
-  const worktrees = useSegments().some((segment) => segment === '(worktrees)');
   const openBeside = useOpenFileBeside(workspace);
   const layout = useListDetailLayout();
   useLayoutMove({
@@ -109,11 +112,7 @@ function ReturnBeside({
     mode: layout.measured,
     onMove: () => {
       openBeside(path);
-      if (worktrees) router.dismissTo('/worktrees');
-      else {
-        router.back();
-        router.navigate('/worktrees');
-      }
+      router.dismissAll();
     },
   });
   return (
@@ -162,7 +161,7 @@ function FileHeader({
   actions: readonly TopBarAction[];
   place: FileProps['place'];
 }) {
-  const worktreeBarItems = useWorktreeBarItems();
+  const worktreeBarItems = usePublishedTopBar().length;
   return (
     <>
       <DocumentHeader
@@ -267,17 +266,25 @@ function FilePreview({
       ]
     : [];
   useDocumentKeys(mode);
+  const commentOnFile = useFileCommentAction(selected, path);
+  const page = JSON.stringify(['file', selected.key, path]);
   return (
     <View className="flex-1">
-      <FileHeader path={path} place={place} actions={[...mode, ...actions]} />
+      <FileHeader
+        path={path}
+        place={place}
+        actions={[...mode, commentOnFile, ...actions]}
+      />
       {link.error ? <ErrorState message={link.error} /> : null}
       <FileContentsPreview
-        workspace={selected.key}
+        workspace={selected}
+        page={page}
         path={path}
         text={text}
         rendered={rendered}
         onLink={link.open}
       />
+      <LineSelectionBar workspace={selected} page={page} />
     </View>
   );
 }
@@ -292,20 +299,18 @@ function documentModeToggle(path: string, rendered: boolean) {
 
 function FileContentsPreview({
   workspace,
+  page,
   path,
   text,
   rendered,
   onLink,
-  selection,
-  onSelect,
 }: {
-  workspace: string;
+  workspace: Workspace;
+  page: string;
   path: string;
   text: string;
   rendered: boolean;
   onLink: (url: string) => void;
-  selection?: ReviewRange | undefined;
-  onSelect?: ((range: ReviewRange) => void) | undefined;
 }) {
   const { preferences } = usePreferences();
   if (text === '') return <Empty title="Empty file" />;
@@ -316,8 +321,6 @@ function FileContentsPreview({
         onLink={onLink}
         mode={rendered ? 'reader' : 'source'}
         wrap={preferences.lineOverflow === 'wrap'}
-        selection={selection}
-        onSelect={onSelect}
       />
     );
   if (/\.html?$/i.test(path))
@@ -333,18 +336,15 @@ function FileContentsPreview({
           onLink={onLink}
           mode={rendered ? 'preview' : 'source'}
           wrap={preferences.lineOverflow === 'wrap'}
-          selection={selection}
-          onSelect={onSelect}
         />
       </View>
     );
   return (
     <FileCode
       workspace={workspace}
+      page={page}
       path={path}
       text={text}
-      selection={selection}
-      onSelect={onSelect}
       wrap={preferences.lineOverflow === 'wrap'}
     />
   );
@@ -352,31 +352,34 @@ function FileContentsPreview({
 
 function FileCode({
   workspace,
+  page,
   path,
   text,
-  selection,
-  onSelect,
   wrap,
 }: {
-  workspace: string;
+  workspace: Workspace;
+  page: string;
   path: string;
   text: string;
-  selection: ReviewRange | undefined;
-  onSelect: ((range: ReviewRange) => void) | undefined;
   wrap: boolean;
 }) {
   const reading = useDocumentReadingLine(
-    workspace,
+    workspace.key,
     JSON.stringify(['file', path]),
     text,
   );
+  const comments = useLineComments({
+    workspace,
+    page,
+    path,
+    lines: codeLines(text),
+  });
   const language = sourceLanguage(path);
   return (
     <CodeView
       {...reading}
+      {...comments}
       source={text}
-      selection={selection}
-      onSelect={onSelect}
       wrap={wrap}
       {...(language ? { language } : {})}
     />

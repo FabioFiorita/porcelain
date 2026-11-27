@@ -11,7 +11,9 @@ test('History shows a commit made on disk above the start of history, and the se
 }) => {
   const subject = 'Commit made on disk';
   await repo.branch('before-commit');
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await workspace.getByRole('tab', { name: 'History', exact: true }).click();
   const initial = workspace.getByRole('button', {
     name: new RegExp(`^${repo.initialCommit}`),
@@ -52,7 +54,9 @@ test('switching the worktree to a branch without that commit drops it from Histo
 }) => {
   await repo.branch('before-commit');
   await repo.commit('Commit made on disk');
-  await workspace.getByRole('button', { name: 'Review', exact: true }).click();
+  await workspace
+    .getByRole('button', { name: 'Side panel', exact: true })
+    .click();
   await workspace.getByRole('tab', { name: 'History', exact: true }).click();
   await expect
     .element(workspace.getByRole('button', { name: /^Commit made on disk/ }))

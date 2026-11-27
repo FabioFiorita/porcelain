@@ -4,6 +4,7 @@ import { AsyncResult } from 'effect/reactivity';
 import { useConnectedContext } from '../store';
 import { UnplugIcon } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { ItemDescription, ItemTitle } from '@/components/ui/item';
 import { useDisconnect } from '../commands/disconnect';
 import { connectionErrorMessage } from '@porcelain/client/access/rules';
 
@@ -14,12 +15,10 @@ export function DisconnectBrowser({ computer }: { computer: string }) {
     <div className="flex flex-col gap-3">
       <div className="settings-danger flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
         <div className="min-w-0">
-          <p className="text-sm leading-5 font-medium">
-            Disconnect this browser
-          </p>
-          <p className="mt-0.5 text-ui leading-4.5 text-muted-foreground">
+          <ItemTitle>Disconnect this browser</ItemTitle>
+          <ItemDescription>
             Ends its session on {computer}. Pair it again with a new link.
-          </p>
+          </ItemDescription>
         </div>
         <PendingButton
           pending={disconnect.waiting}

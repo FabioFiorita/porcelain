@@ -8,6 +8,7 @@ import type { useBranchChanges } from '@/features/changes/index';
 import { notify } from '@/shared/views/notify';
 import { useToggleReviewed } from '../commands/reviewed';
 import { useReviewedMarks } from '../queries/reviewed';
+import { useDiffFocus } from '../store';
 import { counted } from '@porcelain/client/changes/rules';
 import { BRANCH, entryKey, type OpenDocument } from '../rules/documents';
 import {
@@ -17,8 +18,9 @@ import {
 import { branchReviewRange } from '@porcelain/client/changes/rules';
 import { BranchBasePicker } from './branch-base-picker';
 import { branchChangeStatus } from '@porcelain/client/files/rules';
-import { SidebarDocumentRow } from './sidebar-section';
-import { ChangeRow } from './change-row';
+import { ReviewedCount, SidebarDocumentRow } from './sidebar-section';
+import { ChangeRow, type ChangeRowExtra } from './change-row';
+import { useFileComments } from '@/features/comments/index';
 import { groupSpecPaths } from '@porcelain/client/changes/rules';
 import { useSpecsApart } from '@/features/preferences/index';
 import { type ConnectionContext } from '@/shared/workspace/connection';
@@ -28,8 +30,9 @@ import type { BranchChangeItem } from '@porcelain/client/changes/rules';
 export type BranchFileGrouping = ComponentType<{
   scope: ReviewScope;
   context: ConnectionContext;
+  base: string | undefined;
   items: readonly BranchChangeItem[];
-  row: (item: BranchChangeItem) => ReactNode;
+  row: (item: BranchChangeItem, extra?: ChangeRowExtra) => ReactNode;
   activeEntry: string | undefined;
   onOpen: OpenDocument;
 }>;
@@ -55,7 +58,7 @@ export function BranchIndex({
 }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="shrink-0 px-2 pt-2">
+      <div className="shrink-0 px-2.5 pt-2">
         <BranchBasePicker
           scope={scope}
           connection={context.connection}
@@ -99,6 +102,7 @@ function BranchFiles({
         <BranchFileList
           scope={scope}
           context={context}
+          base={base}
           branch={branch}
           activeEntry={activeEntry}
           onOpen={onOpen}
@@ -113,6 +117,7 @@ function BranchFiles({
 function BranchFileList({
   scope,
   context,
+  base,
   branch,
   activeEntry,
   onOpen,
@@ -122,6 +127,7 @@ function BranchFileList({
   grouping: BranchFileGrouping | undefined;
   scope: ReviewScope;
   context: ConnectionContext;
+  base: string | undefined;
   branch: AsyncResult.AsyncResult.Success<
     ReturnType<typeof useBranchChanges>['result']
   >;
@@ -132,6 +138,8 @@ function BranchFileList({
   const specsApart = useSpecsApart(context.connection);
   const range = branchReviewRange(branch);
   const marks = useReviewedMarks(scope, context, range);
+  const comments = useFileComments({ scope, context });
+  const current = useDiffFocus(scope.worktreeId, activeEntry);
   const reviewed = useToggleReviewed(
     scope,
     context,
@@ -145,9 +153,10 @@ function BranchFileList({
       ? 'this commit'
       : refLabel(branch.head.branch);
   const commits = counted(branch.commits, 'commit');
-  const allLabel = Grouping ? 'All changes' : 'All branch changes';
-  const row = (item: BranchChangeItem) => (
+  const allLabel = 'All branch changes';
+  const row = (item: BranchChangeItem, extra?: ChangeRowExtra) => (
     <ChangeRow
+      {...extra}
       key={item.path}
       path={item.path}
       document={{ kind: 'branch-file', path: item.path }}
@@ -158,9 +167,12 @@ function BranchFileList({
       active={
         activeEntry === entryKey({ kind: 'branch-file', path: item.path })
       }
+      current={current === item.path}
       onOpen={onOpen}
       sideLabel={sideLabel}
       writeBlock={reviewed.writeBlock}
+      commentCount={comments.counts.get(item.path)}
+      onComment={() => comments.comment(item.path)}
       canReview={item.fingerprint !== null && item.fingerprint !== undefined}
       onReview={() =>
         reviewed.toggle({
@@ -173,10 +185,17 @@ function BranchFileList({
   );
   return (
     <ScrollArea className="h-0 min-h-0 flex-1">
-      <div className="p-2 pr-3">
-        <p className="px-2 pb-1.5 text-2xs text-muted-foreground">
-          {commits} on {head} since {refLabel(branch.base.ref)}
-        </p>
+      <div className="px-2.5 pt-2 pb-3">
+        <ReviewedCount
+          reviewed={
+            items.filter((item) => item.reviewStatus === 'reviewed').length
+          }
+          total={items.length}
+          label={`${commits} on ${head} since ${refLabel(branch.base.ref)}`}
+          scope="Committed files only"
+        />
+        {comments.summary}
+        {comments.dialogs}
         <SidebarDocumentRow
           label={allLabel}
           active={activeEntry === entryKey(BRANCH)}
@@ -190,7 +209,7 @@ function BranchFileList({
           </span>
         </SidebarDocumentRow>
         {items.length === 0 && (
-          <p className="p-3 text-sm text-muted-foreground">
+          <p className="px-2 py-1 text-caption text-muted-foreground">
             No changes since {refLabel(branch.base.ref)}
           </p>
         )}
@@ -198,13 +217,14 @@ function BranchFileList({
           <Grouping
             scope={scope}
             context={context}
+            base={base}
             items={items}
             row={row}
             activeEntry={activeEntry}
             onOpen={onOpen}
           />
         ) : (
-          groupSpecPaths(items, specsApart).map(row)
+          groupSpecPaths(items, specsApart).map((item) => row(item))
         )}
       </div>
     </ScrollArea>

@@ -39,11 +39,7 @@ export async function walkthroughConversationsFixture(
     | 'no-pr'
     | 'fail'
     | 'recover'
-    | 'moved'
     | 'posts'
-    | 'short-pr'
-    | 'short-copy'
-    | 'changed-pr'
     | 'running-update'
     | 'failed-update'
     | 'other-worktree'
@@ -64,15 +60,6 @@ export async function walkthroughConversationsFixture(
   }
   if (action === 'recover') {
     await rm(failure);
-    return '';
-  }
-  if (action === 'moved') {
-    await session.git(
-      'remote',
-      'set-url',
-      'origin',
-      'https://github.com/example/elsewhere.git',
-    );
     return '';
   }
   if (action === 'posts') return readFile(calls, 'utf8');
@@ -155,13 +142,13 @@ export async function walkthroughConversationsFixture(
   });
   if (action === 'two-branches') {
     const branchA = (await session.git('branch', '--show-current')).trim();
-    await writer.comment(run.id, 'Retry boundary', 'Only branch A', 'saved');
+    await writer.comment(run.id, 'Retry boundary', 'Only branch A');
     await session.git('checkout', '-b', 'conversation-branch-b');
     const b = await writer.write(
       { ...content, title: 'Decisions on branch B' },
       { base, pullRequestNumber: 424 },
     );
-    await writer.comment(b.id, 'Retry boundary', 'Only branch B', 'saved');
+    await writer.comment(b.id, 'Retry boundary', 'Only branch B');
     await session.git('checkout', branchA);
   }
   if (action === 'running-update' || action === 'failed-update') {
@@ -170,7 +157,6 @@ export async function walkthroughConversationsFixture(
       run.id,
       'Retry boundary',
       'Keep the original boundary.',
-      'saved',
     );
     await writer.reply(
       'Keep the retry beside its owner. The `local` boundary is deliberate.',
@@ -222,47 +208,6 @@ export async function walkthroughConversationsFixture(
         ],
       },
     );
-  }
-  if (
-    action === 'short-pr' ||
-    action === 'short-copy' ||
-    action === 'changed-pr'
-  ) {
-    await writer.reply('The original boundary still matters.');
-    await writer.comment(
-      run.id,
-      'Retry boundary',
-      'Keep the original boundary.',
-      'saved',
-    );
-    await writer.comment(
-      run.id,
-      'Retry boundary',
-      'This was already discussed.',
-      'posted',
-    );
-    await session.git(
-      'commit',
-      '--allow-empty',
-      '-m',
-      'Advance the conversation fixture',
-    );
-    await writer.write(
-      action === 'changed-pr'
-        ? content
-        : {
-            ...content,
-            outcome: 'nothing',
-            title: 'A small routine change',
-            summary: 'Nothing new needs a decision.',
-            stops: [],
-          },
-      { base, ...(action === 'short-copy' ? {} : { pullRequestNumber: 424 }) },
-    );
-    await writer.reply(
-      'Keep the retry beside its owner. The `local` boundary is deliberate.',
-    );
-    await writeFile(calls, '');
   }
   return run.id;
 }

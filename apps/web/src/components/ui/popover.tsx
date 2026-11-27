@@ -6,7 +6,8 @@ import {
   PopoverTitle as PopoverTitlePrimitive,
   PopoverTrigger as PopoverTriggerPrimitive,
 } from '@ui-sdk/react/popover';
-import { cn } from 'cn';
+import { cn } from '@/shared/lib/utils';
+import { pageRoot } from '@/components/ui/page-root';
 
 function Popover(props: React.ComponentProps<typeof PopoverRoot>) {
   return <PopoverRoot {...props} />;
@@ -29,6 +30,7 @@ function PopoverContent({
   return (
     <PopoverContentPrimitive
       data-slot="popover-content"
+      container={pageRoot()}
       align={align}
       alignOffset={alignOffset}
       side={side}

@@ -102,7 +102,10 @@ export function UpdatesMenu({
         )}
         <div className="flex max-h-[60svh] flex-col divide-y overflow-y-auto">
           {shown.map((row) => (
-            <div key={`${row.target.kind}:${row.target.id}`} className="py-3">
+            <div
+              key={`${row.target.kind}:${row.target.id}`}
+              className="py-3 first:pt-0"
+            >
               <SettingsUpdateRow row={row} showName />
             </div>
           ))}
@@ -115,7 +118,10 @@ export function UpdatesMenu({
                 ),
             )
             .map((entry) => (
-              <div key={`${entry.kind}:${entry.id}`} className="py-3">
+              <div
+                key={`${entry.kind}:${entry.id}`}
+                className="py-3 first:pt-0"
+              >
                 <p className="text-sm font-medium">{entry.name}</p>
                 <p
                   role={entry.status === 'failed' ? 'alert' : 'status'}
@@ -128,8 +134,8 @@ export function UpdatesMenu({
         </div>
         <footer className="flex items-center justify-between gap-2 border-t pt-3">
           <Button
-            size="sm"
-            variant="ghost"
+            size="flush"
+            variant="link"
             onClick={() => {
               setOpen(false);
               setOpenMobile(false);

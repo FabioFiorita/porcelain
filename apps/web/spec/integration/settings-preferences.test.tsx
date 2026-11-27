@@ -70,7 +70,7 @@ test('fresh archive preferences keep remote branches and require explicit initia
   await expect
     .element(
       page.getByText(
-        /These preview values come from this device’s preferences or the defaults\./,
+        /Spec files, Pull strategy and the archive deletions are shared by every device connected to this computer\. They show this device’s preferences or the defaults/,
       ),
     )
     .toBeVisible();
@@ -130,7 +130,7 @@ test('global Settings titles name Porcelain across sections and restore the work
   await expect
     .element(
       app.page.getByRole('heading', {
-        name: 'Settings. Computers',
+        name: 'Computers',
         exact: true,
       }),
     )

@@ -1,12 +1,21 @@
 import { Component, type ReactNode, Suspense } from 'react';
-import { StateFailure, StateSpinner } from '@/shared/views/state-notice';
-import { reviewErrorMessage } from '@porcelain/client/changes/rules';
+import {
+  StateFailure,
+  StateNotice,
+  StateSpinner,
+} from '@/shared/views/state-notice';
+import { readFailureMessage } from '@porcelain/client/changes/rules';
+import { documentSubject, parseEntry } from '../rules/documents';
 import { useRetryReview } from '../commands/read-retry';
 import type { Connection } from '@/shared/workspace/connection';
 import type { ReviewScope } from '@porcelain/client/changes/rules';
 
 class ReviewErrorBoundary extends Component<
-  { children: ReactNode; reset: (show: () => void) => void },
+  {
+    children: ReactNode;
+    subject: string;
+    reset: (show: () => void) => void;
+  },
   { error: unknown }
 > {
   override state = { error: null };
@@ -14,10 +23,13 @@ class ReviewErrorBoundary extends Component<
     return { error };
   }
   override render() {
-    if (this.state.error)
+    const error: unknown = this.state.error;
+    if (error instanceof Error && error.name === 'CommitNotFoundError')
+      return <StateNotice message="This commit is not in this repository." />;
+    if (error)
       return (
         <StateFailure
-          description={reviewErrorMessage(this.state.error)}
+          description={readFailureMessage(error, this.props.subject)}
           onRetry={() => this.props.reset(() => this.setState({ error: null }))}
         />
       );
@@ -40,7 +52,11 @@ export function ReviewBoundary({
   const reset = useRetryReview(connection, scope);
   return (
     <Suspense fallback={quiet ? null : <StateSpinner label="Loading review" />}>
-      <ReviewErrorBoundary key={documentKey} reset={reset}>
+      <ReviewErrorBoundary
+        key={documentKey}
+        subject={documentSubject(parseEntry(documentKey))}
+        reset={reset}
+      >
         {children}
       </ReviewErrorBoundary>
     </Suspense>

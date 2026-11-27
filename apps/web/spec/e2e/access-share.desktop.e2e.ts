@@ -21,7 +21,7 @@ test('an issued pairing link keeps its route caption when the next link uses ano
       cloudflare: { status: { kind: 'on' } },
     });
   await pairedPage.goto('/settings/computers/this-computer');
-  const pairing = pairedPage.getByRole('complementary', {
+  const pairing = pairedPage.getByRole('region', {
     name: 'Pair a device',
     exact: true,
   });
@@ -269,7 +269,7 @@ test('an automatic Devices read failure preserves the pairing draft and permissi
     .getByRole('button', { name: 'Settings', exact: true })
     .click();
   await openThisComputer(pairedPage);
-  const pair = pairedPage.getByRole('complementary', {
+  const pair = pairedPage.getByRole('region', {
     name: 'Pair a device',
     exact: true,
   });

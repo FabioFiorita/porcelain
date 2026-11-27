@@ -13,6 +13,8 @@ Porcelain is a companion to coding agents: it is where a developer reviews what 
 
 Simple systems, the smallest model that makes the correct behaviour unsurprising, and no machinery because it looks impressive. Fight scope creep; honour the developer's intent in a minimal and realistic way. Everything below is a good default, and the developer's request overrides it. Work autonomously and ask only when the answer would change the result.
 
+Weigh a fix against what it costs to keep. Before fixing a problem, judge how often it can really happen and what the person using Porcelain experiences when it does, and set that beside the code, states and tests the fix adds for good. Decide case by case and say what you weighed.
+
 Agents author this codebase. Prefer one enforced, typed abstraction per responsibility; dependency requirements and invalid alternatives should fail before runtime. Familiarity with the old implementation is not a reason to preserve it: when a new path replaces an old one, move every caller and delete the old path and its tests in the same change.
 
 The codebase is the example. Copy the nearest feature's shape, and extract a second copy into its owner rather than pasting it. Patched TypeScript, Vite+ lint and format, and the architecture check are the rulebook, and every lint message says why its rule exists: when one blocks you, change the code. When a rule fights the task itself, say so and ask before changing the rule. Code comments, including `@ts-ignore`, are banned by `no-comments`: express rules in code or a verification skill, because comment prose can drift from the behavior enforced by executable checks.
@@ -90,9 +92,9 @@ Work on your own branch from `main`, in your own worktree, one concern per pull 
 
 Feature PRs into `main` run affected static and unit checks, changed browser specs, a browser smoke test for web or shared runtime changes, and the migration check for storage changes. After green CI, the Decisions API checks whether the owner needs to decide. Routine owner-authored changes merge automatically. Keep a PR in draft or add `hold` to defer landing.
 
-Every push to `main` runs full static, unit, server, browser and desktop suites, mobile exports, migrations and package checks. The `main checks` result reports failures after landing. A newer push cancels any older run still in progress.
+Every push to `main` runs full static, unit, server, browser and desktop suites, mobile exports, migrations and package checks. The `main checks` result reports failures after landing. Each push to `main` finishes its own run, so a failure points at the merge that caused it. A newer push to a pull request cancels that pull request's older run.
 
-Promote `main` into `release` with a PR. The `release checks` gate reuses a successful `main checks` run for the exact PR head when the promotion merge has the same tree. Otherwise it runs the same full suites on the promotion merge. The hosted agent reviews the accumulated changes on the promotion PR. Address findings on main. Promotion preserves main’s history. Only an explicit version tag publishes the qualified commit.
+Promote `main` into `release` with a PR. The `release checks` gate reuses a successful `main checks` run for the exact PR head when the promotion merge has the same tree. Otherwise it runs the same full suites on the promotion merge. The hosted agent reviews the accumulated changes on the promotion PR. Address findings on main. On a release promotion, the owner can accept priority 2 findings by applying `approved` to the reviewed head, while priority 0 and 1 findings always block. Promotion preserves main’s history. Only an explicit version tag publishes the qualified commit.
 
 The workflow reuses a completed decision or review for the same candidate. Failed CI on an eligible trusted, open, non-draft PR gets an explanation for its current head when it has failed jobs to explain. A maintainer can request an additional hosted review on a feature PR with `agent-review`. Verify `agent-fixes` findings. A local verification marked `reviewed` can satisfy an optional feature review; a release requires its hosted review.
 

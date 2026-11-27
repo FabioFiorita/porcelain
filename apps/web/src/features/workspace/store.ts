@@ -4,8 +4,8 @@ import type { CodeViewLineSelection } from '@pierre/diffs';
 import { atomRegistry } from '@/shared/store';
 import { DIFF_WINDOW_FILES } from '@/config/limits';
 import { useAtomSet, useAtomValue, useAtomMount } from '@effect/atom-react';
-import { Atom } from 'effect/reactivity';
-import { Option, Schema, SchemaGetter } from 'effect';
+import { Atom, AsyncResult } from 'effect/reactivity';
+import { Clock, Option, Schema, SchemaGetter, Stream } from 'effect';
 import { storageRuntime } from '@/shared/adapters/storage';
 import { parseCodeFolds, withFolds } from './rules/code-folds';
 import { type Pane, parseTabLayout } from './rules/tab-strip';
@@ -187,6 +187,37 @@ export function useCodeViewScroll(owner: string) {
   };
 }
 
+const diffFocus = Atom.family(
+  (_document: { worktreeId: string; entry: string }) =>
+    Atom.make<string | null>(null).pipe(Atom.keepAlive),
+);
+const diffFocusOwner = Atom.family(
+  (input: { worktreeId: string; entry: string; path: string }) =>
+    Atom.make((get) => {
+      const focus = diffFocus({
+        worktreeId: input.worktreeId,
+        entry: input.entry,
+      });
+      get.set(focus, input.path);
+      get.addFinalizer(() => {
+        if (!get.registry.getNodes().has(focus)) return;
+        if (get.registry.get(focus) === input.path)
+          get.registry.set(focus, null);
+      });
+    }),
+);
+const noDiffFocus = Atom.make(null);
+export function usePublishDiffFocus(
+  input: { worktreeId: string; entry: string; path: string } | undefined,
+) {
+  useAtomMount(input ? diffFocusOwner(input) : noDiffFocus);
+}
+export function useDiffFocus(worktreeId: string, entry: string | undefined) {
+  return (
+    useAtomValue(diffFocus({ worktreeId, entry: entry ?? '' })) ?? undefined
+  );
+}
+
 export { tabs as tabLayoutState };
 
 const reviewPanelOpen = Atom.kvs({
@@ -221,3 +252,25 @@ export const firstDocumentTitleOwner = Atom.family(
       });
     }),
 );
+
+const stillClock = Atom.make(AsyncResult.success<number>(0));
+const tickingClock = Atom.make(
+  Stream.fromEffect(Clock.currentTimeMillis).pipe(
+    Stream.concat(
+      Stream.tick('1 second').pipe(
+        Stream.mapEffect(() => Clock.currentTimeMillis),
+      ),
+    ),
+  ),
+);
+
+export function useSecondsClock(ticking: boolean) {
+  const value = useAtomValue<AsyncResult.AsyncResult<number, unknown>>(
+    ticking ? tickingClock : stillClock,
+  );
+  return Option.getOrElse(AsyncResult.value(value), () => 0);
+}
+
+export const pullRequestCheckFocus = Atom.make<
+  { projectId: string; number: number; name: string } | undefined
+>(undefined).pipe(Atom.keepAlive);

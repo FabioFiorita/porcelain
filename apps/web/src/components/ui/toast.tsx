@@ -8,7 +8,7 @@ import {
   ToastTitle,
   createToaster,
 } from '@ui-sdk/react/toast';
-import { cn } from 'cn';
+import { cn } from '@/shared/lib/utils';
 
 import { Button } from '@/components/ui/button';
 import {

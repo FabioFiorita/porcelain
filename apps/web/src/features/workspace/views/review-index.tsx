@@ -7,7 +7,11 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { type ChangeScope } from '@/shared/workspace/search';
 import { SegmentedTabs } from './segmented-tabs';
 import { useChanges } from '@/features/changes/index';
-import { SidebarGroup, SidebarDocumentRow } from './sidebar-section';
+import {
+  ReviewedCount,
+  SidebarGroup,
+  SidebarDocumentRow,
+} from './sidebar-section';
 import { useToggleReviewed } from '../commands/reviewed';
 
 import { usePrefetchReviewed, useReviewChangeItems } from '../queries/reviewed';
@@ -25,10 +29,12 @@ import {
 } from '@porcelain/client/changes/rules';
 
 import { type BranchFileGrouping, BranchIndex } from './branch-index';
-import { ChangeRow } from './change-row';
+import { useDiffFocus } from '../store';
+import { ChangeRow, type ChangeRowExtra } from './change-row';
+import { useFileComments } from '@/features/comments/index';
 import { worktreeChangeMarks } from '@porcelain/client/files/rules';
 
-import { isSpecPath } from '@porcelain/client/changes/rules';
+import { isSpecPath, shownChangesText } from '@porcelain/client/changes/rules';
 import { useSpecsApart } from '@/features/preferences/index';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
@@ -58,7 +64,7 @@ export type UncommittedFileGrouping = ComponentType<{
   scope: ReviewScope;
   context: ConnectionContext;
   paths: readonly string[];
-  row: (path: string) => ReactNode;
+  row: (path: string, extra?: ChangeRowExtra) => ReactNode;
   activeEntry: string | undefined;
   onOpen: OpenDocument;
 }>;
@@ -152,6 +158,8 @@ function LayersView({
   const reviewed = useToggleReviewed(scope, context, (notice) =>
     notify(notice),
   );
+  const comments = useFileComments({ scope, context });
+  const current = useDiffFocus(scope.worktreeId, activeEntry);
   const [discard, setDiscard] = useState<{
     path: string;
     nonce: number;
@@ -179,8 +187,9 @@ function LayersView({
       </SidebarDocumentRow>
     );
   };
-  const renderChange = (path: string) => (
+  const renderChange = (path: string, extra?: ChangeRowExtra) => (
     <ChangeRow
+      {...extra}
       key={path}
       path={path}
       document={{ kind: 'change', path }}
@@ -195,9 +204,12 @@ function LayersView({
       ]}
       reviewStatus={changeByPath.get(path)?.reviewStatus}
       active={activeEntry === entryKey({ kind: 'change', path })}
+      current={current === path}
       onOpen={onOpen}
       sideLabel={sideLabel}
       writeBlock={reviewed.writeBlock}
+      commentCount={comments.counts.get(path)}
+      onComment={() => comments.comment(path)}
       canReview={
         changeByPath.get(path)?.fingerprint !== null &&
         changeByPath.get(path)?.fingerprint !== undefined
@@ -220,9 +232,28 @@ function LayersView({
   return (
     <ScrollArea className="h-0 min-h-0 flex-1">
       <div className="px-2.5 pt-2 pb-3">
+        {paths.length > 0 && (
+          <ReviewedCount
+            reviewed={
+              paths.filter(
+                (path) => changeByPath.get(path)?.reviewStatus === 'reviewed',
+              ).length
+            }
+            total={paths.length}
+          />
+        )}
+        {shownChangesText(paths.length, list.omittedChanges) && (
+          <p className="px-2 py-1 text-caption text-muted-foreground">
+            {shownChangesText(paths.length, list.omittedChanges)}
+          </p>
+        )}
+        {comments.summary}
+        {comments.dialogs}
         {navigation()}
         {!Grouping && paths.length === 0 && (
-          <p className="p-3 text-sm text-muted-foreground">No changes</p>
+          <p className="px-2 py-1 text-caption text-muted-foreground">
+            No changes
+          </p>
         )}
         {!Grouping && mainPaths.length > 0 && (
           <SidebarGroup
@@ -236,7 +267,7 @@ function LayersView({
               setGroups({ changes: expanded, specs: expanded })
             }
           >
-            {mainPaths.map(renderChange)}
+            {mainPaths.map((path) => renderChange(path))}
           </SidebarGroup>
         )}
         {!Grouping && specPaths.length > 0 && (
@@ -258,7 +289,7 @@ function LayersView({
             >
               Open all specs
             </SidebarDocumentRow>
-            {specPaths.map(renderChange)}
+            {specPaths.map((path) => renderChange(path))}
           </SidebarGroup>
         )}
         {discard && (

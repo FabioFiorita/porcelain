@@ -5,7 +5,7 @@ import {
   diffUnavailableReason,
   isSubmoduleChange,
 } from '@porcelain/client/changes/rules';
-import { relativeTime } from '@/shared/lib/relative-time';
+import { relativeTime } from '@porcelain/client/history/rules';
 import { BarAction } from '@/shared/workspace/bar-action';
 import {
   CopyIcon,
@@ -257,7 +257,7 @@ function CommitHeader({
           className="font-medium text-foreground"
         />
         <span aria-hidden="true">·</span>
-        <span>{relativeTime(commit.commit.author.timestamp)}</span>
+        <span>{relativeTime(commit.commit.author.timestamp, Date.now())}</span>
         {commit.comparison.kind === 'parent' ? (
           <span>
             <span aria-hidden="true">· </span>parent{' '}
@@ -307,32 +307,34 @@ function CommitHeader({
             </span>
           )}
         </p>
-        <ul
-          className="max-h-64 divide-y overflow-y-auto border-b"
-          aria-label="Changed files"
-        >
-          {commit.files.map((file) => (
-            <li
-              key={pathKey(file)}
-              className="flex h-8 min-w-0 items-center gap-2.5 rounded-sm pr-1.5 pl-1 text-caption leading-4"
-            >
-              <span
-                aria-label={file.status}
-                className="w-4 shrink-0 text-center font-mono text-xs font-semibold text-brand"
+        {commit.files.length > 1 && (
+          <ul
+            className="max-h-64 divide-y overflow-y-auto border-b"
+            aria-label="Changed files"
+          >
+            {commit.files.map((file) => (
+              <li
+                key={pathKey(file)}
+                className="flex h-8 min-w-0 items-center gap-2.5 rounded-sm pr-1.5 pl-1 text-caption leading-4"
               >
-                {file.status.slice(0, 1).toUpperCase()}
-              </span>
-              <TruncatedText
-                text={commitPaths(file).join(' → ')}
-                className="flex-1 font-mono font-medium"
-              />
-              <LineCounts count={counts.get(commitPath(file))} />
-              {patchOf(file)?.kind === 'binary' && (
-                <span className="text-xs text-muted-foreground">Binary</span>
-              )}
-            </li>
-          ))}
-        </ul>
+                <span
+                  aria-label={file.status}
+                  className="w-4 shrink-0 text-center font-mono text-xs font-semibold text-brand"
+                >
+                  {file.status.slice(0, 1).toUpperCase()}
+                </span>
+                <TruncatedText
+                  text={commitPaths(file).join(' → ')}
+                  className="flex-1 font-mono font-medium"
+                />
+                <LineCounts count={counts.get(commitPath(file))} />
+                {patchOf(file)?.kind === 'binary' && (
+                  <span className="text-xs text-muted-foreground">Binary</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
       {omitted.length > 0 && (
         <OmittedCommitChanges

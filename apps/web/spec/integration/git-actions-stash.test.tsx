@@ -79,6 +79,11 @@ test('a reopened stash dialog starts fresh instead of showing the previous run',
     await expect
       .element(dialog.getByText('succeeded', { exact: true }))
       .toBeVisible();
+    await expect
+      .element(
+        dialog.getByRole('button', { name: 'Check outcome', exact: true }),
+      )
+      .not.toBeInTheDocument();
     await userEvent.keyboard('{Escape}');
     await expect.element(dialog).not.toBeInTheDocument();
   };
@@ -122,7 +127,7 @@ test('a reopened stash dialog starts fresh instead of showing the previous run',
     .toBe(repo.readme.changed);
 });
 
-test('popping a stash over a file changed since is refused with what Git said and keeps the stash', async ({
+test('popping a stash over a file changed since is refused with a plain explanation and keeps the stash', async ({
   workspace,
   repo,
   server,
@@ -166,7 +171,7 @@ test('popping a stash over a file changed since is refused with what Git said an
   await pop.getByRole('button', { name: 'Pop stash', exact: true }).click();
   await expect
     .element(pop.getByRole('alert'))
-    .toMatchTextContent(/would be overwritten/);
+    .toMatchTextContent('Git could not restore this stash.');
   await expect.poll(async () => (await server.text(readme)).text).toBe(local);
   await expect
     .poll(async () =>

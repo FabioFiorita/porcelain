@@ -16,9 +16,16 @@ export type PreviewAssetFailure =
   | Schema.SchemaError
   | ConnectionError
   | RequestError;
+export type PreviewAssetSource =
+  | ReadFileAssetResponse
+  | { readonly url: string };
+
 export type HtmlPreview = {
+  readonly mediaSources?: readonly string[];
   readonly html: string;
   readonly missing: readonly string[];
+  readonly links: readonly string[];
+  readonly nonce: string;
 };
 
 export class HtmlPreviewUnavailable extends Schema.TaggedError<HtmlPreviewUnavailable>()(
@@ -39,7 +46,7 @@ export class HtmlPreviewPlatform extends Context.Service<
       read: (
         paths: readonly string[],
       ) => Effect.Effect<
-        Map<string, ReadFileAssetResponse | null>,
+        Map<string, PreviewAssetSource | null>,
         PreviewAssetFailure
       >,
     ) => Effect.Effect<
