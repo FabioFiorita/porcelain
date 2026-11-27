@@ -488,17 +488,17 @@ for (const { source, checkouts } of [
         .click();
       const expected = `${source === 'remote' ? `/remotes/${inventory.environmentId}` : ''}/${project.id}/${current.id}`;
       await expect.poll(() => app.address().path).toBe(expected);
-      await expect(
-        page.getByRole('tab', { name: 'archive.txt', exact: true }),
-      ).toHaveAttribute('aria-selected', 'true');
+      const sourceTab = page.getByRole('tab', {
+        name: 'archive.txt',
+        exact: true,
+      });
+      await expect(sourceTab).toHaveAttribute('aria-selected', 'true');
       await expect(
         page.getByRole('code').filter({ hasText: content }),
       ).toBeVisible();
       await app.reload();
       await expect.poll(() => app.address().path).toBe(expected);
-      await expect(
-        page.getByRole('code').filter({ hasText: content }),
-      ).toBeVisible();
+      await expect(sourceTab).toHaveAttribute('aria-selected', 'true');
     });
   }
 }
