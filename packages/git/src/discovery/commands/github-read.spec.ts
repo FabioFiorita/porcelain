@@ -41,6 +41,8 @@ fs.appendFileSync(${JSON.stringify(calls)}, JSON.stringify({ args, token: proces
 if (args[0] === 'auth' && args[1] === 'status') { console.log('["personal","work"]'); }
 else if (args[0] === 'auth') { console.log('secret-' + args.at(-1)); }
 else if (args.includes('repos/o/r/issues/7/comments')) { fs.writeFileSync(${JSON.stringify(join(folder, 'posted'))}, fs.readFileSync(0)); console.log('{"html_url":"https://github.com/o/r/pull/7#issuecomment-1"}'); }
+else if (args.includes('repos/o/r/pulls/7/reviews') && mode === 'invalid') { console.error('gh: Validation Failed (HTTP 422)'); process.exitCode = 1; }
+else if (args.includes('repos/o/r/pulls/7/reviews') && mode === 'server-error') { console.error('gh: Server Error (HTTP 502)'); process.exitCode = 1; }
 else if (args.includes('repos/o/r/pulls/7/reviews')) { fs.writeFileSync(${JSON.stringify(join(folder, 'review'))}, fs.readFileSync(0)); console.log('{"id":9,"html_url":"https://github.com/o/r/pull/7#pullrequestreview-9"}'); }
 else if (args.includes('repos/o/r/pulls/7/merge') && mode === 'ok') { fs.writeFileSync(${JSON.stringify(join(folder, 'posted'))}, fs.readFileSync(0)); console.log('{"sha":"abc","merged":true,"message":"Pull Request successfully merged"}'); }
 else if (args.includes('repos/o/r/pulls/7/merge') && mode === 'blocked') { console.error('gh: Required status check "unit" is expected. (HTTP 405)'); process.exitCode = 1; }
@@ -290,3 +292,31 @@ it('posts one COMMENT review at the given commit with single and multi-line comm
     token: 'secret-work',
   });
 });
+
+it.each([
+  ['invalid', { _tag: 'GitHubWriteRefusedError', detail: 'Validation Failed' }],
+  ['server-error', { _tag: 'GitHubCommandError', reason: 'offline' }],
+] as const)(
+  'separates a refused review post from one GitHub may have taken (%s)',
+  async (mode, failure) => {
+    const f = await fixture(onTestFinished);
+    await writeFile(f.state, mode);
+    const result = await run(
+      postGitHubPullRequestReview(
+        {
+          account: 'work',
+          owner: 'o',
+          repo: 'r',
+          number: 7,
+          commitId: 'abc123',
+          body: 'Summary',
+          comments: [],
+        },
+        gitLimits,
+      ).pipe(Effect.result),
+    );
+    expect(result._tag === 'Failure' ? result.failure : result).toMatchObject(
+      failure,
+    );
+  },
+);

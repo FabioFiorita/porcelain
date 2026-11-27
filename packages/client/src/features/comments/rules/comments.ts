@@ -207,6 +207,26 @@ export function commentFailureText(error: unknown, fallback: string): string {
   return fallback;
 }
 
+const REVIEW_MAY_HAVE_POSTED =
+  'GitHub may have received this review. Check the pull request before posting again.';
+
+const DEFINITE_POST_FAILURES: ReadonlySet<string> = new Set([
+  'ReviewChangedError',
+  'PullRequestReviewFailedError',
+]);
+
+export function postReviewFailureText(error: unknown): string {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'name' in error &&
+    typeof error.name === 'string' &&
+    DEFINITE_POST_FAILURES.has(error.name)
+  )
+    return commentFailureText(error, REVIEW_MAY_HAVE_POSTED);
+  return REVIEW_MAY_HAVE_POSTED;
+}
+
 export function quotedAnswer(question: string, answer: string): string {
   return `> ${question.replaceAll('\n', '\n> ')}\n\n${answer}`;
 }

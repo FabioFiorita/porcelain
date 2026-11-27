@@ -122,6 +122,26 @@ export const listGitHubAccounts = Effect.fn('Git.listGitHubAccounts')(
   },
 );
 
+function githubErrorLine(stderr: string, status: RegExp) {
+  return stderr
+    .split('\n')
+    .map((text) => text.trim())
+    .find((text) => status.test(text));
+}
+
+function githubErrorDetail(line: string, token: Redacted.Redacted<string>) {
+  const detail = line
+    .replace(/^gh:\s*/, '')
+    .replace(/\s*\(HTTP 4\d\d\)$/, '')
+    .slice(0, 300);
+  return detail.includes(Redacted.value(token)) ? '' : detail;
+}
+
+class GitHubWriteRefusedError extends Schema.TaggedError<GitHubWriteRefusedError>()(
+  'GitHubWriteRefusedError',
+  { detail: Schema.String },
+) {}
+
 const githubCommentSchema = Schema.fromJsonString(
   Schema.Struct({ html_url: Schema.String }),
 );
@@ -159,12 +179,24 @@ const postGitHubComment = Effect.fn('Git.postGitHubComment')(function* (
   limits: GitLimits,
 ) {
   const token = yield* githubToken(account, limits);
-  const response = yield* output(
+  const result = yield* invoke(
     githubJsonWrite(endpoint, 'POST'),
     limits,
     token,
     JSON.stringify(payload),
   );
+  if (result.exitCode !== 0) {
+    const stderr = result.stderr.toString('utf8');
+    const invalid = githubErrorLine(stderr, /\(HTTP 422\)$/);
+    if (invalid)
+      return yield* new GitHubWriteRefusedError({
+        detail: githubErrorDetail(invalid, token),
+      });
+    return yield* new GitHubCommandError({ reason: failureReason(stderr) });
+  }
+  const response = result.stdout.toString('utf8');
+  if (response.includes(Redacted.value(token)))
+    return yield* new GitHubCommandError({ reason: 'invalid-response' });
   const decoded = yield* Schema.decodeEffect(githubCommentSchema)(
     response,
   ).pipe(
@@ -276,21 +308,6 @@ const githubMergeSchema = Schema.fromJsonString(
   }),
 );
 
-function githubErrorLine(stderr: string, status: RegExp) {
-  return stderr
-    .split('\n')
-    .map((text) => text.trim())
-    .find((text) => status.test(text));
-}
-
-function githubErrorDetail(line: string, token: Redacted.Redacted<string>) {
-  const detail = line
-    .replace(/^gh:\s*/, '')
-    .replace(/\s*\(HTTP 4\d\d\)$/, '')
-    .slice(0, 300);
-  return detail.includes(Redacted.value(token)) ? '' : detail;
-}
-
 function githubRefusal(stderr: string, token: Redacted.Redacted<string>) {
   const line = githubErrorLine(stderr, /\(HTTP 40[59]\)$/);
   if (!line) return undefined;
@@ -378,11 +395,6 @@ export const readGitHubJobLog = Effect.fn('Git.readGitHubJobLog')(function* (
     return yield* new GitHubCommandError({ reason: 'invalid-response' });
   return { kind: 'log' as const, text };
 });
-
-class GitHubWriteRefusedError extends Schema.TaggedError<GitHubWriteRefusedError>()(
-  'GitHubWriteRefusedError',
-  { detail: Schema.String },
-) {}
 
 function githubWriteRefusal(stderr: string, token: Redacted.Redacted<string>) {
   const line = githubErrorLine(stderr, /\(HTTP 4(0[0-9]|22)\)$/);

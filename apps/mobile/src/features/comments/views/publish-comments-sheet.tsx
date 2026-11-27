@@ -254,6 +254,7 @@ function ReviewStep({
   onPosted: (url: string) => void;
 }) {
   const post = usePostReview(workspace);
+  const link = usePreviewLink();
   const blocked = useWritesBlocked(workspace.connection.environmentId);
   const review = reviewFormBinding(
     useState(() => reviewForm(preview)),
@@ -305,9 +306,25 @@ function ReviewStep({
         />
       ))}
       {post.failure ? (
-        <Text variant="caption" tone="destructive" accessibilityRole="alert">
-          {post.failure}
-        </Text>
+        <>
+          <Text variant="caption" tone="destructive" accessibilityRole="alert">
+            {post.failure}
+          </Text>
+          <Button
+            label="Open pull request"
+            variant="tonal"
+            onPress={() => link.open(preview.pullRequest.url)}
+          />
+          {link.error ? (
+            <Text
+              variant="caption"
+              tone="destructive"
+              accessibilityRole="alert"
+            >
+              {link.error}
+            </Text>
+          ) : null}
+        </>
       ) : null}
       <Button
         label="Post review"

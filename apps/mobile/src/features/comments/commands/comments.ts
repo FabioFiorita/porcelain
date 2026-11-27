@@ -4,6 +4,7 @@ import type { Atom } from 'effect/reactivity';
 import { commandBinding, commentCommands } from '@porcelain/client/comments';
 import {
   commentFailureText,
+  postReviewFailureText,
   reviewUnavailableText,
   type CommentAnchor,
 } from '@porcelain/client/comments/rules';
@@ -25,7 +26,7 @@ function useBound<I, A, E>(command: Atom.AtomResultFn<I, A, E>) {
 function useCommand<I, A, E>(
   owner: CommentOwner,
   command: Atom.AtomResultFn<I, A, E>,
-  fallback: string,
+  failureText: (error: unknown) => string,
 ) {
   const bound = useBound(command);
   const allowed = useWriteAllowed(owner.connection.environmentId);
@@ -39,7 +40,7 @@ function useCommand<I, A, E>(
       try {
         return await bound.run(input);
       } catch (error) {
-        setFailure(commentFailureText(error, fallback));
+        setFailure(failureText(error));
         return undefined;
       }
     },
@@ -48,15 +49,11 @@ function useCommand<I, A, E>(
 
 export function useSaveComment(owner: CommentOwner) {
   const commands = commentCommands(ownerSelection(owner));
-  const add = useCommand(
-    owner,
-    commands.add,
-    'The comment was not saved. Try again.',
+  const add = useCommand(owner, commands.add, (error) =>
+    commentFailureText(error, 'The comment was not saved. Try again.'),
   );
-  const edit = useCommand(
-    owner,
-    commands.edit,
-    'The comment was not saved. Try again.',
+  const edit = useCommand(owner, commands.edit, (error) =>
+    commentFailureText(error, 'The comment was not saved. Try again.'),
   );
   return {
     failure: add.failure ?? edit.failure,
@@ -70,7 +67,7 @@ export function useRemoveComment(owner: CommentOwner) {
   return useCommand(
     owner,
     commentCommands(ownerSelection(owner)).remove,
-    'The comment was not deleted.',
+    (error) => commentFailureText(error, 'The comment was not deleted.'),
   );
 }
 
@@ -98,7 +95,7 @@ export function usePostReview(owner: CommentOwner) {
   return useCommand(
     owner,
     commentCommands(ownerSelection(owner)).publish,
-    'Nothing was posted. Try again.',
+    postReviewFailureText,
   );
 }
 

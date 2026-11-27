@@ -31,8 +31,10 @@ export type GitHubAccessMemo = {
   ) => Effect.Effect<A, Failure, R>;
 };
 
-export const lacksAccess = (error: { readonly reason?: unknown }) =>
-  error.reason === 'no-access';
+export const lacksAccess = (error: {
+  readonly _tag: string;
+  readonly reason?: unknown;
+}) => error.reason === 'no-access';
 
 export const makeGitHubAccessMemo = Effect.gen(function* () {
   const known = yield* Ref.make<

@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { commandBinding, commentCommands } from '@porcelain/client/comments';
 import {
   commentFailureText as failureText,
+  postReviewFailureText,
   reviewUnavailableText,
 } from '@porcelain/client/comments/rules';
 import { ownerSelection, type CommentOwner } from '../queries/comments';
@@ -90,7 +91,7 @@ export function usePostReview(
         const answer = await publish.run(input);
         onPosted(answer.url);
       } catch (error) {
-        setFailure(failureText(error, 'Nothing was posted. Try again.'));
+        setFailure(postReviewFailureText(error));
       }
     },
   };
