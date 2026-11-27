@@ -16,7 +16,6 @@ test('a failed background status read keeps the row’s last count and shows no 
     .toBe(2);
   const project = await server.project();
   const main = project.worktrees.find((worktree) => worktree.main)!;
-  const other = project.worktrees.find((worktree) => !worktree.main)!;
   const sidebar = page.getByRole('navigation', {
     name: 'Projects and worktrees',
     exact: true,
@@ -26,10 +25,10 @@ test('a failed background status read keeps the row’s last count and shows no 
   });
   const count = mainCard.getByText(/^\d+ uncommitted$/);
   await expect(count).toHaveText('2 uncommitted');
-  const restore = await live.failWorktreeStatusRead(other.id);
+  const restore = await live.failWorktreeStatusRead(main.id);
   try {
     const failed = live.worktreeStatusFailed(main.id);
-    await repo.write('quiet-two.md', 'Two\n');
+    await repo.write('quiet-one.md', 'Updated\n');
     await failed;
     await expect(count).toHaveText('2 uncommitted');
     await expect(page.getByRole('dialog')).toHaveCount(0);
@@ -40,6 +39,6 @@ test('a failed background status read keeps the row’s last count and shows no 
   } finally {
     await restore();
   }
-  await repo.write('quiet-three.md', 'Three\n');
-  await expect(count).toHaveText('4 uncommitted');
+  await repo.write('quiet-two.md', 'Two\n');
+  await expect(count).toHaveText('3 uncommitted');
 });
