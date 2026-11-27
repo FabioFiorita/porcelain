@@ -259,6 +259,7 @@ if (number === undefined) {
 }
 const view = readView(repository, number);
 const promotion = view.baseRefName === 'release';
+const lane = promotion ? 'release' : 'main';
 const validTarget =
   view.baseRefName === 'main' ||
   (promotion && view.headRefName === 'main' && !view.isCrossRepository);
@@ -396,7 +397,7 @@ try {
     (paidClient ??= new OpenAI({ apiKey: required('OPENAI_API_KEY') }));
   const { review, decision } = await judgeReview({
     head: view.headRefOid,
-    lane: promotion ? 'release' : 'main',
+    lane,
     requested,
     locallyReviewed: markedReviewedHead !== undefined,
     saved,
@@ -481,6 +482,7 @@ try {
       review,
       now,
       {
+        lane,
         approved: approvalHolds(now, view.headRefOid, approvedHead),
         owner,
         requestedDecision: decision?.needsOwner === true,

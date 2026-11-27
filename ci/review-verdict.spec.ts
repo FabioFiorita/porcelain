@@ -42,7 +42,7 @@ function review(findings: readonly ReviewFinding[]): Review {
 
 const product = ['apps/web/src/features/walkthroughs/view.tsx'];
 const none = new Set<string>();
-const owner = { approved: false, owner: true };
+const owner = { lane: 'main' as const, approved: false, owner: true };
 function step(
   files: PullRequest['files'],
   options: {
@@ -107,7 +107,11 @@ it('keeps a hold, actionable findings and old approvals from merging a head', ()
     status: 'success',
   });
   expect(
-    step([], { approved: true, review: review([finding(2)]) }),
+    step([], {
+      labels: ['approved'],
+      approved: true,
+      review: review([finding(2)]),
+    }),
   ).toMatchObject({ merge: false, add: ['agent-fixes'] });
   expect(step([], { labels: ['approved', 'decision'] })).toMatchObject({
     merge: false,
@@ -117,6 +121,73 @@ it('keeps a hold, actionable findings and old approvals from merging a head', ()
     step([], { review: review([finding(3)]), labels: ['agent-fixes'] }),
   ).toMatchObject({ merge: true, remove: ['agent-fixes'] });
 });
+
+describe('release verdict', () => {
+  const pull = pullRequest([]);
+  const approved = new Set(['approved']);
+  const lane = 'release' as const;
+
+  it('passes with a priority 2 finding listed as accepted on the approved head', () => {
+    const checked = review([finding(2)]);
+    const access = {
+      ...owner,
+      lane,
+      approved: approvalHolds(approved, pull.headSha, headSha),
+    };
+    const assessment = assess(pull, checked, approved, access);
+    expect(nextStep(assessment, approved)).toMatchObject({
+      merge: true,
+      status: 'success',
+    });
+    expect(reviewComment(pull, checked, assessment, undefined)).toContain(
+      '#### Findings accepted by the owner\n\n- **P2** [Clear the viewer only when the detached handle is current]',
+    );
+  });
+
+  it.each([
+    {
+      label: 'without approval',
+      priority: 2,
+      labels: none,
+      approvedHead: undefined,
+    },
+    {
+      label: 'with approval on an older head',
+      priority: 2,
+      labels: approved,
+      approvedHead: 'earlier',
+    },
+    {
+      label: 'with approval of priority 1',
+      priority: 1,
+      labels: approved,
+      approvedHead: headSha,
+    },
+    {
+      label: 'with approval of priority 0',
+      priority: 0,
+      labels: approved,
+      approvedHead: headSha,
+    },
+  ] as const)('fails $label', ({ priority, labels, approvedHead }) => {
+    const checked = review([finding(priority)]);
+    const access = {
+      ...owner,
+      lane,
+      approved: approvalHolds(labels, pull.headSha, approvedHead),
+    };
+    const assessment = assess(pull, checked, labels, access);
+    expect(nextStep(assessment, labels)).toMatchObject({
+      merge: false,
+      status: 'failure',
+      verdict: 'needs-fixes',
+    });
+    expect(reviewComment(pull, checked, assessment, undefined)).not.toContain(
+      '#### Findings accepted by the owner',
+    );
+  });
+});
+
 describe('approvalHolds', () => {
   it('counts the approved label only for the commit it was given on', () => {
     const labels = new Set(['approved']);
