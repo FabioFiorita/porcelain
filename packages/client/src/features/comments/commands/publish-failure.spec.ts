@@ -17,9 +17,9 @@ const request = {
   bodies: { first: 'Please rename this.' },
 };
 
-async function postFailure(transport: Transport) {
+async function postFailure(transport: Transport, timeoutMs = 10_000) {
   const lifetime = createWorktreeConnection(
-    { environmentId: 'environment', timeoutMs: 200, transport },
+    { environmentId: 'environment', timeoutMs, transport },
     undefined,
     Layer.empty,
   );
@@ -52,20 +52,23 @@ it.each([
   {
     outcome: 'the connection drops',
     transport: () => Promise.reject(new TypeError('Failed to fetch')),
+    timeoutMs: undefined,
   },
   {
     outcome: 'the request times out',
     transport: () => new Promise<Response>(() => {}),
+    timeoutMs: 200,
   },
   {
     outcome: 'the server fails after GitHub answered',
     transport: () =>
       Promise.resolve(new Response('Internal Server Error', { status: 500 })),
+    timeoutMs: undefined,
   },
 ])(
   'tells the developer GitHub may have the review when $outcome',
-  async ({ transport }) => {
-    expect(await postFailure(transport)).toBe(
+  async ({ transport, timeoutMs }) => {
+    expect(await postFailure(transport, timeoutMs)).toBe(
       'GitHub may have received this review. Check the pull request before posting again.',
     );
   },
