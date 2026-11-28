@@ -100,7 +100,7 @@ import {
 import { SwitchWorktreeBranchDialog } from './switch-worktree-branch';
 import { DeleteWorktreeDialog } from './delete-worktree';
 import { ProjectActions } from './project-actions';
-import { ProjectHeading } from './project-heading';
+import { ProjectHeading, ProjectReconnectingBadge } from './project-heading';
 import { NavigatorHeader } from './navigator-header';
 import { OpenProjectMenu } from './open-project-menu';
 
@@ -175,6 +175,10 @@ export function ProjectNavigator({
   const searching = query.trim().length > 0;
   const shownProjects = projects.map((source) => ({
     source,
+    reconnecting:
+      showRemoteNotice &&
+      selected?.remote === source.connection.environmentId &&
+      selected.projectId === source.project.id,
     actions: (
       <ProjectActions
         project={source.project}
@@ -335,7 +339,7 @@ export function ProjectNavigator({
           </DropdownMenu>
         </div>
         <SidebarContent>
-          {shownProjects.map(({ source, shown, actions }) => (
+          {shownProjects.map(({ source, shown, actions, reconnecting }) => (
             <SidebarGroup
               key={source.key}
               className={source.singleCheckout ? 'py-0' : 'mb-3'}
@@ -357,11 +361,7 @@ export function ProjectNavigator({
                       environmentName={source.environmentName}
                       environmentIcon={source.environmentIcon}
                       showEnvironment={connections.length > 1}
-                      reconnecting={
-                        showRemoteNotice &&
-                        selected?.remote === source.connection.environmentId &&
-                        selected.projectId === source.project.id
-                      }
+                      reconnecting={reconnecting}
                     />
                     {actions}
                     <Tooltip hoverable={false}>
@@ -563,6 +563,13 @@ export function ProjectNavigator({
                                             icon={source.environmentIcon}
                                             className="size-3 shrink-0 text-muted-foreground"
                                             aria-hidden="true"
+                                          />
+                                        )}
+                                        {compact && reconnecting && (
+                                          <ProjectReconnectingBadge
+                                            environmentName={
+                                              source.environmentName
+                                            }
                                           />
                                         )}
                                         {failed && (
