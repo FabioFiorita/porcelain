@@ -574,7 +574,10 @@ test('a dropped computer keeps the focused editor and refreshes the workspace on
   await page.clock.pauseAt(new Date('2026-01-01T00:00:01Z'));
   await replaceEditorContent(editor, draft);
 
-  const indicator = page.getByText('Reconnecting', { exact: true });
+  const indicator = page
+    .getByRole('navigation', { name: 'Projects and worktrees', exact: true })
+    .getByRole('status')
+    .filter({ hasText: /^Reconnecting$/ });
   const outage = await app.dropRemoteComputer(link);
   try {
     await expect(done).toBeDisabled();

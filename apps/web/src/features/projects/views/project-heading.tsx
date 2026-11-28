@@ -3,6 +3,22 @@ import { EnvironmentGlyph } from '@/features/access/index';
 import { Badge } from '@/components/ui/badge';
 import { TruncatedText } from '@/shared/views/truncated-text';
 
+export function ProjectReconnectingBadge({
+  environmentName,
+}: {
+  environmentName: string;
+}) {
+  return (
+    <Badge
+      variant="secondary"
+      role="status"
+      title={`${environmentName} is reconnecting`}
+    >
+      Reconnecting
+    </Badge>
+  );
+}
+
 export function ProjectHeading({
   projectName,
   environmentName,
@@ -38,13 +54,7 @@ export function ProjectHeading({
             <TruncatedText text={environmentName} />
           </div>
           {reconnecting && (
-            <Badge
-              variant="secondary"
-              role="status"
-              title={`${environmentName} is reconnecting`}
-            >
-              Reconnecting
-            </Badge>
+            <ProjectReconnectingBadge environmentName={environmentName} />
           )}
         </div>
       )}
