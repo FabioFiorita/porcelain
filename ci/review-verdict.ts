@@ -51,11 +51,18 @@ export const labels = {
   hold: 'hold',
 } as const;
 
-const ReviewedCommit = Schema.Struct({ sha: Schema.String, review: Review });
+export const maxReleaseReviewRounds = 3;
+
+const ReviewedCommit = Schema.Struct({
+  sha: Schema.String,
+  review: Review,
+  releaseRound: Schema.optional(Schema.Int),
+});
 export type ReviewedCommit = typeof ReviewedCommit.Type;
 
 export const ReviewState = Schema.Struct({
   releaseBase: Schema.optional(Schema.String),
+  releaseRound: Schema.optional(Schema.Int),
   reviewed: Schema.optional(ReviewedCommit),
   decision: Schema.optional(
     Schema.Struct({ sha: Schema.String, needsOwner: Schema.Boolean }),
@@ -122,18 +129,24 @@ export function assess(
     approved: boolean;
     owner: boolean;
     requestedDecision?: boolean;
+    releaseRound?: number | undefined;
   },
 ): Assessment {
   const findings = review?.findings ?? [];
-  const acceptsPriorityTwo = access.lane === 'release' && access.approved;
+  const lastRound =
+    access.lane === 'release' && access.releaseRound === maxReleaseReviewRounds;
+  const acceptsPriorityTwo =
+    access.lane === 'release' && access.approved && !lastRound;
+  const blockingPriority = lastRound ? 0 : acceptsPriorityTwo ? 1 : 2;
   return {
-    fixes: findings.filter(
-      (finding) => finding.priority <= (acceptsPriorityTwo ? 1 : 2),
-    ),
+    fixes: findings.filter((finding) => finding.priority <= blockingPriority),
     accepted: acceptsPriorityTwo
       ? findings.filter((finding) => finding.priority === 2)
       : [],
-    notes: findings.filter((finding) => finding.priority === 3),
+    notes: findings.filter(
+      (finding) =>
+        finding.priority === 3 || (lastRound && finding.priority > 0),
+    ),
     protectedPaths: pullRequest.files.flatMap((file) =>
       [file.filename, file.previous_filename].filter(
         (path): path is string =>
@@ -237,6 +250,14 @@ export function withState(
 
 export const reviewCommentMarker = '<!-- porcelain-agent-review -->';
 
+export function releaseRoundLine(round: number): string {
+  const rule =
+    round === maxReleaseReviewRounds
+      ? 'Only P0 blocks. P1–P3 are advisory. No further hosted review runs for this promotion.'
+      : 'P0–P2 block. The owner can accept P2 on the judged commit.';
+  return `Release review round **${round} of ${maxReleaseReviewRounds}**. ${rule}`;
+}
+
 const headlines: Record<Verdict, string> = {
   ready: 'Ready to merge',
   'needs-fixes': 'Needs fixes before merging',
@@ -275,21 +296,36 @@ export function reviewComment(
   review: Review | undefined,
   assessment: Assessment,
   state: ReviewState | undefined,
+  superseded = false,
 ): string {
   const reasons = ownerReasons(assessment);
   const findings = [...assessment.fixes, ...assessment.notes];
   const reviewer = review ? [`- **Reviewer:** ${review.summary}`] : [];
+  const reviewedHead = state?.reviewed?.sha ?? pullRequest.headSha;
+  const reviewedPullRequest = { ...pullRequest, headSha: reviewedHead };
   return [
     reviewCommentMarker,
     ...stateComment(state),
-    `### ${headlines[verdict(assessment)]}`,
+    superseded
+      ? '### Reviewed an earlier candidate'
+      : `### ${headlines[verdict(assessment)]}`,
     `Judged commit \`${pullRequest.headSha.slice(0, 12)}\`.`,
+    ...(state?.releaseBase && state.reviewed
+      ? [
+          releaseRoundLine(state.reviewed.releaseRound ?? 1),
+          ...(reviewedHead === pullRequest.headSha
+            ? []
+            : [
+                `The findings are from reviewed commit \`${reviewedHead.slice(0, 12)}\`.`,
+              ]),
+        ]
+      : []),
     ...reviewer,
     ...(findings.length > 0
       ? [
           '#### Reviewer findings',
           findings
-            .map((finding) => findingLine(pullRequest, finding))
+            .map((finding) => findingLine(reviewedPullRequest, finding))
             .join('\n'),
         ]
       : []),
@@ -297,7 +333,7 @@ export function reviewComment(
       ? [
           '#### Findings accepted by the owner',
           assessment.accepted
-            .map((finding) => findingLine(pullRequest, finding))
+            .map((finding) => findingLine(reviewedPullRequest, finding))
             .join('\n'),
         ]
       : []),

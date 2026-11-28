@@ -1,0 +1,56 @@
+name: Advisory AI review
+
+on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, reopened, ready_for_review, edited, labeled]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  advisory:
+    if: >-
+      !github.event.pull_request.draft &&
+      !contains(github.event.pull_request.labels.*.name, 'skip-review') &&
+      (github.event.action != 'edited' || github.event.changes.base.ref.from) &&
+      (github.event.action != 'labeled' || github.event.label.name == 'review-again')
+    concurrency:
+      group: advisory-review-${{ github.event.pull_request.number }}
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out the revision that defines this trusted workflow
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.workflow_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3
+        with:
+          runtime: node@24.20.0
+          cache: true
+          save-cache: false
+          require-lockfile: true
+      - run: pnpm install --frozen-lockfile --ignore-scripts --filter @porcelain/ci
+      - name: Fetch the pull request commits as data
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          auth=$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" \
+            fetch --no-tags --quiet origin "$BASE_SHA" "$HEAD_SHA"
+      - name: Post advisory findings
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          REVIEW_AGAIN: ${{ github.event.action == 'labeled' }}
+        run: exec node ci/advisory-review.ts

@@ -111,6 +111,7 @@ export function upsertComment(
 export function resolveWorkflowPullRequest(
   repository: string,
   { sha, owner, branch }: WorkflowHead,
+  useCurrentPromotionHead = false,
 ) {
   if (!sha || !owner || !branch) return undefined;
   const base =
@@ -123,7 +124,12 @@ export function resolveWorkflowPullRequest(
     `repos/${repository}/pulls?state=open&head=${encodeURIComponent(`${owner}:${branch}`)}`,
   )
     .flat()
-    .find((pull) => pull.head.sha === sha && pull.base.ref === base);
+    .find(
+      (pull) =>
+        pull.base.ref === base &&
+        (pull.head.sha === sha ||
+          (base === 'release' && useCurrentPromotionHead)),
+    );
 }
 
 export function isCurrentTrustedPullRequest(

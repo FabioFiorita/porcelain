@@ -122,6 +122,7 @@ export default {
     ci: {
       entry: [
         'review.ts',
+        'advisory-review.ts',
         'explain-failure.ts',
         'release-notes.ts',
         '*.spec.ts',

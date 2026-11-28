@@ -12,6 +12,7 @@ import {
   reviewComment,
   reviewCommentMarker,
   reviewJsonSchema,
+  releaseRoundLine,
   savedState,
   withState,
   type PullRequest,
@@ -194,11 +195,15 @@ function pullRequestNumber(
 ): number | undefined {
   const given = process.env.PR_NUMBER?.trim();
   if (given) return Number(given);
-  return resolveWorkflowPullRequest(repository, {
-    sha: headSha ?? '',
-    owner: process.env.HEAD_OWNER?.trim() ?? '',
-    branch: process.env.HEAD_BRANCH?.trim() ?? '',
-  })?.number;
+  return resolveWorkflowPullRequest(
+    repository,
+    {
+      sha: headSha ?? '',
+      owner: process.env.HEAD_OWNER?.trim() ?? '',
+      branch: process.env.HEAD_BRANCH?.trim() ?? '',
+    },
+    true,
+  )?.number;
 }
 
 function readView(repository: string, number: number): PullRequestView {
@@ -268,6 +273,8 @@ const statusContext = promotion ? 'Release verdict' : 'Agent verdict';
 const current = new Set(view.labels.map((label) => label.name));
 const existing = findComment(repository, number, reviewCommentMarker);
 const priorState = savedState(existing?.body);
+const releaseHistory =
+  promotion && priorState?.releaseBase ? priorState : undefined;
 const saved =
   (priorState?.releaseBase === view.baseRefOid && promotion) ||
   (!promotion && !priorState?.releaseBase)
@@ -281,18 +288,22 @@ const approvedNow =
   labelAddedOnHead && process.env.TRIGGER_LABEL === labels.approved;
 const reviewedNow =
   labelAddedOnHead && process.env.TRIGGER_LABEL === labels.reviewed;
+let commentBody = existing?.body;
+const recordState = (state: ReviewState, body = commentBody) => {
+  commentBody = withState(body, state);
+  upsertComment(repository, number, reviewCommentMarker, commentBody);
+};
+const labelState: ReviewState = {
+  ...releaseHistory,
+  ...saved,
+  ...(promotion
+    ? { releaseBase: releaseHistory?.releaseBase ?? view.baseRefOid }
+    : {}),
+  ...(approvedNow ? { approvedHead: headSha } : {}),
+  ...(reviewedNow ? { markedReviewedHead: headSha } : {}),
+};
 if ((approvedNow || reviewedNow) && view.state === 'OPEN')
-  upsertComment(
-    repository,
-    number,
-    reviewCommentMarker,
-    withState(existing?.body, {
-      ...saved,
-      ...(promotion ? { releaseBase: view.baseRefOid } : {}),
-      ...(approvedNow ? { approvedHead: headSha } : {}),
-      ...(reviewedNow ? { markedReviewedHead: headSha } : {}),
-    }),
-  );
+  recordState(labelState);
 const owner =
   !view.isCrossRepository &&
   view.author?.login.toLowerCase() === repository.split('/')[0]?.toLowerCase();
@@ -310,7 +321,7 @@ const skip =
       ? 'only feature PRs into main or main into release land here'
       : view.isDraft
         ? 'it is a draft'
-        : headSha && view.headRefOid !== headSha
+        : !promotion && headSha && view.headRefOid !== headSha
           ? 'a newer commit will be judged when its CI passes'
           : undefined;
 if (skip) {
@@ -391,25 +402,40 @@ try {
       'The changed-file list is incomplete; check this head again before merging',
     );
   const previous = saved?.reviewed;
+  let startedRound: number | undefined;
   const requested = current.has(labels.review);
   let paidClient: OpenAI | undefined;
   const client = () =>
     (paidClient ??= new OpenAI({ apiKey: required('OPENAI_API_KEY') }));
-  const { review, decision } = await judgeReview({
+  const { reviewed, decision } = await judgeReview({
     head: view.headRefOid,
     lane,
+    releaseBase: promotion ? view.baseRefOid : undefined,
     requested,
     locallyReviewed: markedReviewedHead !== undefined,
-    saved,
-    review: (earlier) =>
-      runReview(
-        client(),
-        repository,
-        view,
+    saved: promotion ? releaseHistory : saved,
+    review: async (earlier, releaseRound) => {
+      const provider = client();
+      const previousCommit =
         earlier && isAncestor(repository, earlier.sha, view.headRefOid)
           ? earlier
-          : undefined,
-      ),
+          : undefined;
+      if (releaseRound === undefined)
+        return runReview(provider, repository, view, previousCommit);
+      startedRound = releaseRound;
+      const pending = { ...labelState, releaseRound };
+      const heading = `${reviewCommentMarker}\n\n${releaseRoundLine(releaseRound)}\n\nCommit \`${view.headRefOid.slice(0, 12)}\`.`;
+      recordState(pending, `${heading} Waiting for the reviewer.`);
+      try {
+        return await runReview(provider, repository, view, previousCommit);
+      } catch (error) {
+        recordState(
+          pending,
+          `${heading} The reviewer did not return a verdict.`,
+        );
+        throw error;
+      }
+    },
     decide: async () => {
       const patch = readReviewPatch(
         {
@@ -449,6 +475,7 @@ try {
       return answer.probability >= 0.5;
     },
   });
+  const review = reviewed?.review;
   const approvedHead = approvedNow
     ? headSha
     : saved?.approvedHead === view.headRefOid
@@ -458,13 +485,17 @@ try {
         ? view.headRefOid
         : undefined;
   const state: ReviewState = {
-    ...(promotion ? { releaseBase: view.baseRefOid } : {}),
+    ...(promotion
+      ? {
+          releaseBase:
+            startedRound === undefined
+              ? labelState.releaseBase
+              : view.baseRefOid,
+          releaseRound: startedRound ?? releaseHistory?.releaseRound,
+        }
+      : {}),
     ...(decision ? { decision } : {}),
-    ...(review
-      ? { reviewed: { sha: view.headRefOid, review } }
-      : previous
-        ? { reviewed: previous }
-        : {}),
+    ...((reviewed ?? previous) ? { reviewed: reviewed ?? previous } : {}),
     ...(approvedHead ? { approvedHead } : {}),
     ...(markedReviewedHead ? { markedReviewedHead } : {}),
   };
@@ -486,6 +517,7 @@ try {
         approved: approvalHolds(now, view.headRefOid, approvedHead),
         owner,
         requestedDecision: decision?.needsOwner === true,
+        releaseRound: reviewed?.releaseRound,
       },
     );
     return {
@@ -563,6 +595,19 @@ try {
       ),
     );
     changeLabels(repository, number, first.step.add, first.step.remove);
+  } else if (startedRound !== undefined) {
+    upsertComment(
+      repository,
+      number,
+      reviewCommentMarker,
+      reviewComment(
+        pullRequest,
+        review,
+        judge(view.body, current).assessment,
+        state,
+        true,
+      ),
+    );
   }
   const latest = readView(repository, number);
   const settled =
