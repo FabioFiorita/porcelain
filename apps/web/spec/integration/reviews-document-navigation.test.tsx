@@ -99,22 +99,28 @@ test('opening a file from the tree selects it before its text arrives', async ({
     .toBeVisible();
 });
 
-test('source is readable while review marks are unavailable', async ({
+test('source is readable while a requested review-marks read is held', async ({
   repo,
   render,
   server,
   fetchGate,
+  reviewLayout,
 }) => {
+  await repo.write('notes.txt', 'Committed notes\n');
+  await repo.commit('Add notes');
   await repo.write('notes.txt', 'Source without review marks\n');
   const project = await server.project();
   const worktree = project.worktrees.find((entry) => entry.main);
   if (!worktree) throw new Error('The fixture has no main worktree');
+  reviewLayout.saveTabs(worktree.id, ['file:notes.txt']);
   const held = fetchGate.holdNextReviewedRead();
   held.arm();
   try {
     const app = await render.route(
-      `/${project.id}/${worktree.id}?entry=file:notes.txt`,
+      `/${project.id}/${worktree.id}?entry=review`,
     );
+    await held.requested;
+    await app.page.getByRole('tab', { name: 'notes.txt', exact: true }).click();
     await expect
       .element(
         app.page.getByText('Source without review marks', { exact: true }),

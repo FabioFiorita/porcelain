@@ -135,7 +135,7 @@ export function TruncatedText({
   const disclosed = text.trim() !== '' && (clipped || disclose === 'always');
   const triggered = renderTrigger !== undefined;
 
-  const attach = (element: HTMLElement | null) => {
+  const [attach] = useState(() => (element: HTMLElement | null) => {
     if (!element) return;
     const pieces = () =>
       [
@@ -149,8 +149,7 @@ export function TruncatedText({
     let frame = 0;
     const measure = () => {
       if (!active) return;
-      if (disclose === 'clipped')
-        setClipped(pieces().some((piece) => isClipped(piece, lines)));
+      setClipped(pieces().some((piece) => isClipped(piece, lines)));
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
         for (const head of element.querySelectorAll<HTMLElement>(
@@ -201,7 +200,7 @@ export function TruncatedText({
       owner?.removeEventListener('blur', hide);
       owner?.removeEventListener('keydown', dismiss);
     };
-  };
+  });
 
   const standalone = !triggered && !owned;
   const clip = (value: string, styles?: string, edge: Cut = 'end') =>
