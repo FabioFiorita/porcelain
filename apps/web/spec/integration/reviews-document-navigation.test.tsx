@@ -2,7 +2,7 @@ import { userEvent } from 'vite-plus/test/browser';
 import { expect, test } from './fixtures.tsx';
 
 test.for(['arrive', 'return'] as const)(
-  'a cold saved tab stays readable and honors the latest request: %s',
+  'a cold saved file tab becomes active and honors the latest request: %s',
   async (destination, { repo, render, server, reviewLayout, fetchGate }) => {
     await repo.write('first.txt', 'First document\n');
     await repo.write('second.txt', 'Second document\n');
@@ -21,7 +21,6 @@ test.for(['arrive', 'return'] as const)(
       exact: true,
     });
     await expect.element(code).toBeVisible();
-    const height = reviewLayout.visibleHeight(code);
     await expect
       .element(screen.getByRole('tab', { name: 'second.txt', exact: true }))
       .toBeVisible();
@@ -30,10 +29,17 @@ test.for(['arrive', 'return'] as const)(
     );
     try {
       await held.requested;
-      await expect.poll(height).toBeGreaterThan(0);
       await expect
-        .element(screen.getByRole('tab', { name: 'first.txt', exact: true }))
+        .element(screen.getByRole('tab', { name: 'second.txt', exact: true }))
         .toHaveAttribute('aria-selected', 'true');
+      await expect
+        .element(
+          screen
+            .getByRole('tabpanel', { name: 'second.txt', exact: true })
+            .getByRole('status', { name: 'Loading file', exact: true }),
+        )
+        .toBeInTheDocument();
+      await expect.element(code).not.toBeInTheDocument();
       if (destination === 'return')
         await screen
           .getByRole('tab', { name: 'first.txt', exact: true })
@@ -55,38 +61,74 @@ test.for(['arrive', 'return'] as const)(
   },
 );
 
-test('Review stays visible until a newly opened file can be read', async ({
+test('opening a file from the tree selects it before its text arrives', async ({
   repo,
   render,
   server,
   fetchGate,
-  reviewLayout,
 }) => {
   await repo.write('notes.txt', 'Ready to read\n');
   await repo.commit('Add notes');
   const project = await server.project();
   const main = project.worktrees.find((worktree) => worktree.main);
   if (!main) throw new Error('The fixture has no main worktree');
-  reviewLayout.saveTabs(main.id, ['file:notes.txt']);
   const held = fetchGate.holdNextTextRead('notes.txt');
   held.arm();
   const app = await render.route(`/${project.id}/${main.id}?entry=review`);
-  const review = app.page.getByRole('tab', { name: 'Review', exact: true });
+  const target = app.page.getByRole('tab', { name: 'notes.txt', exact: true });
   const emptyReview = app.page.getByText('No changes to review.', {
     exact: true,
   });
   await expect.element(emptyReview).toBeVisible();
   try {
-    await app.page.getByRole('tab', { name: 'notes.txt', exact: true }).click();
+    await app.page
+      .getByRole('button', { name: 'Side panel', exact: true })
+      .click();
+    await app.page.getByRole('tab', { name: 'Files', exact: true }).click();
+    await app.page
+      .getByRole('treeitem', { name: 'notes.txt', exact: true })
+      .click();
     await held.requested;
-    await expect.element(review).toHaveAttribute('aria-selected', 'true');
-    await expect.element(emptyReview).toBeVisible();
+    await expect.element(target).toHaveAttribute('aria-selected', 'true');
+    await expect.element(emptyReview).not.toBeVisible();
   } finally {
     held.release();
   }
   await expect
     .element(app.page.getByText('Ready to read', { exact: true }))
     .toBeVisible();
+});
+
+test('source is readable while a requested review-marks read is held', async ({
+  repo,
+  render,
+  server,
+  fetchGate,
+  reviewLayout,
+}) => {
+  await repo.write('notes.txt', 'Committed notes\n');
+  await repo.commit('Add notes');
+  await repo.write('notes.txt', 'Source without review marks\n');
+  const project = await server.project();
+  const worktree = project.worktrees.find((entry) => entry.main);
+  if (!worktree) throw new Error('The fixture has no main worktree');
+  reviewLayout.saveTabs(worktree.id, ['file:notes.txt']);
+  const held = fetchGate.holdNextReviewedRead();
+  held.arm();
+  try {
+    const app = await render.route(
+      `/${project.id}/${worktree.id}?entry=review`,
+    );
+    await held.requested;
+    await app.page.getByRole('tab', { name: 'notes.txt', exact: true }).click();
+    await expect
+      .element(
+        app.page.getByText('Source without review marks', { exact: true }),
+      )
+      .toBeVisible();
+  } finally {
+    held.release();
+  }
 });
 
 test('the old All changes link lands on Review over a saved file tab', async ({

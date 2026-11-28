@@ -141,11 +141,6 @@ export const reviewLayout = {
       }),
     );
   },
-  visibleHeight(locator: Locator) {
-    const element = locator.element();
-    return () =>
-      element.isConnected ? element.getBoundingClientRect().height : 0;
-  },
   holdDialogExit(locator: Locator) {
     const popup = locator.element();
     const held = popup.ownerDocument.createElement('style');

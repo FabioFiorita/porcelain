@@ -1,6 +1,6 @@
 import { useAtom, useAtomSet } from '@effect/atom-react';
 import { Atom } from 'effect/reactivity';
-import { useConfirmedRead } from '@/shared/query/confirmed-read';
+import { usePendingRead } from '@/shared/query/confirmed-read';
 import { Effect, Exit, Cause } from 'effect';
 import {
   editFile,
@@ -8,7 +8,7 @@ import {
   type FileDraftHandle,
 } from '@porcelain/client/files';
 import type { FilesScope } from '@porcelain/client/files/rules';
-import { readFileDraft, useFileDraftState, clearEditorFile } from '../store';
+import { readFileDraft, clearEditorFile } from '../store';
 import { copyText } from '@/shared/workspace/copy';
 import type { ConnectionContext } from '@/shared/workspace/connection';
 import type { RuntimeConnection } from '@porcelain/client/transport';
@@ -76,21 +76,18 @@ export function useFileDraft(
   scope: FilesScope,
   path: string,
 ) {
-  const {
-    result,
-    value: { file, draft },
-  } = useConfirmedRead(
+  const { result, value } = usePendingRead(
     readFileDraft({
       context,
       scope,
       path,
     }),
   );
-  const state = useFileDraftState(draft);
+  if (value === undefined) return undefined;
+  const { file, draft } = value;
   return {
     file,
     draft,
-    state,
     reset: (text: string, fingerprint: string) => {
       Effect.runFork(draft.reset(text, fingerprint));
     },

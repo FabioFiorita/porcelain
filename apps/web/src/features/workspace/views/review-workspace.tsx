@@ -641,9 +641,11 @@ function PaneView({
     useElement<HTMLDivElement>();
   const pane = layout.panes[index] ?? { tabs: [], pinned: [], active: null };
   const deferredEntry = useDeferredValue(pane.active);
-  const shownEntry = pane.tabs.includes(deferredEntry ?? '')
-    ? deferredEntry
-    : pane.active;
+  const requested = parseEntry(pane.active ?? undefined);
+  const shownEntry =
+    requested?.kind !== 'file' && pane.tabs.includes(deferredEntry ?? '')
+      ? deferredEntry
+      : pane.active;
   const pending = shownEntry !== pane.active;
   const paneId = useId();
   const [reviewOpened, setReviewOpened] = useState(false);

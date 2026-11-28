@@ -1,4 +1,4 @@
-import { Cause, Effect, Option } from 'effect';
+import { Cause, Effect, Equal, Option } from 'effect';
 import type { Atom, AtomRegistry } from 'effect/reactivity';
 import { useAtomValue } from '@effect/atom-react';
 import { moveFileEntries } from '@porcelain/client/files';
@@ -345,9 +345,9 @@ function mountTree(
       previous.selected !== current.selected
     )
       reset();
-    if (previous?.gitStatus !== current.gitStatus)
+    if (!Equal.equals(previous?.gitStatus, current.gitStatus))
       model.setGitStatus(current.gitStatus);
-    if (previous?.links !== current.links)
+    if (!Equal.equals(previous?.links, current.links))
       model.setIcons(treeIconsFor(current.links));
     previous = current;
     create();
