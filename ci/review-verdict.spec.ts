@@ -127,6 +127,39 @@ describe('release verdict', () => {
   const approved = new Set(['approved']);
   const lane = 'release' as const;
 
+  it('keeps P1 through P3 visible as advisory in round three and blocks P0', () => {
+    const pull = pullRequest([]);
+    const advisory = review([finding(1), finding(2), finding(3)]);
+    const state = {
+      releaseBase: 'base',
+      releaseRound: 3,
+      reviewed: { sha: 'earlier', review: advisory, releaseRound: 3 },
+    };
+    const access = { lane, approved: false, owner: true, releaseRound: 3 };
+    const assessment = assess(pull, advisory, none, access);
+    expect(nextStep(assessment, none)).toMatchObject({
+      status: 'success',
+      merge: true,
+    });
+    const comment = reviewComment(pull, advisory, assessment, state);
+    expect(comment).toContain(
+      'Release review round **3 of 3**. Only P0 blocks.',
+    );
+    expect(comment).toContain(
+      'The findings are from reviewed commit `earlier`.',
+    );
+    expect(comment).toContain('/blob/earlier/apps/web/');
+    expect(comment).toMatch(/\*\*P1\*\*[\s\S]*\*\*P2\*\*[\s\S]*\*\*P3\*\*/);
+    const critical = assess(pull, review([finding(0)]), approved, {
+      ...access,
+      approved: true,
+    });
+    expect(nextStep(critical, approved)).toMatchObject({
+      status: 'failure',
+      merge: false,
+    });
+  });
+
   it('passes with a priority 2 finding listed as accepted on the approved head', () => {
     const checked = review([finding(2)]);
     const access = {

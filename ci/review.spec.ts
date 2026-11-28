@@ -53,6 +53,7 @@ function landing(
     | 'forbidden'
     | 'label-with-active-ci'
     | 'approve-promotion'
+    | 'capped-promotion'
     | 'ready-with-active-ci'
     | 'ci-starts-before-first-merge'
     | 'ci-starts-before-retry'
@@ -90,7 +91,7 @@ const reply = (value) => console.log(JSON.stringify(value));
 const blocked = events.includes('blocked');
 const scenario = ${JSON.stringify(scenario)};
 const head = ${JSON.stringify(head)};
-const promotion = scenario === 'approve-promotion';
+const promotion = ['approve-promotion', 'capped-promotion'].includes(scenario);
 const branch = promotion ? 'main' : scenario === 'branch-renamed-after-ci' ? 'feature-renamed' : 'feature';
 if (args[0] === 'pr' && args[1] === 'view') {
   reply({
@@ -102,8 +103,8 @@ if (args[0] === 'pr' && args[1] === 'view') {
     author: { login: 'owner' }, isCrossRepository: scenario === 'deleted-fork',
     labels: promotion ? ['approved', ...(events.includes('cleared fixes') ? [] : ['agent-fixes'])].map(name => ({ name })) : blocked && scenario === 'held-after-refusal' ? [{ name: 'hold' }] : [],
   });
-} else if (args.at(-1) === 'repos/owner/repo/pulls?state=open&head=owner%3Afeature') {
-  reply([[{ number: 42, head: { sha: head }, base: { ref: 'main' } }]]);
+} else if (args.at(-1) === 'repos/owner/repo/pulls?state=open&head=owner%3A' + branch) {
+  reply([[{ number: 42, head: { sha: head }, base: { ref: promotion ? 'release' : 'main' } }]]);
 } else if (args.at(-1) === 'repos/owner/repo/actions/workflows/ci.yml/runs?event=pull_request&head_sha=' + head + '&branch=' + branch) {
   if (scenario === 'deleted-fork') throw new Error('A deleted fork has no CI lookup.');
   if (['branch-renamed-after-ci', 'ci-never-ran'].includes(scenario)) {
@@ -142,7 +143,29 @@ if (args[0] === 'pr' && args[1] === 'view') {
 } else if (args.at(-1) === 'repos/owner/repo/actions/runs/2/attempts/1/jobs') {
   reply([{ jobs: [{ name: 'checks', conclusion: scenario === 'workflow-ci-failed' ? 'failure' : 'success' }] }]);
 } else if (args.at(-1) === 'repos/owner/repo/issues/42/comments') {
-  reply([[{ id: 1, user: { type: 'Bot' }, body: promotion ? ${JSON.stringify(promotionReview)} : ${JSON.stringify(withState(undefined, { decision: { sha: head, needsOwner: false } }))} }]]);
+  reply([[{ id: 1, user: { type: 'Bot' }, body: scenario === 'capped-promotion' ? ${JSON.stringify(
+    withState(undefined, {
+      releaseBase: base,
+      releaseRound: 3,
+      reviewed: {
+        sha: 'c'.repeat(40),
+        releaseRound: 3,
+        review: {
+          summary: 'One advisory finding.',
+          findings: [
+            {
+              title: 'Keep a draft after reconnecting',
+              body: 'The draft is lost on reconnect.',
+              priority: 1,
+              path: 'feature.ts',
+              line_start: 1,
+              line_end: 1,
+            },
+          ],
+        },
+      },
+    }),
+  )} : promotion ? ${JSON.stringify(promotionReview)} : ${JSON.stringify(withState(undefined, { decision: { sha: head, needsOwner: false } }))} }]]);
 } else if (args.at(-1) === 'repos/owner/repo/pulls/42/files') {
   reply([[{ filename: 'feature.ts' }]]);
 } else if (args.at(-1) === 'repos/owner/repo/commits/' + head + '/check-runs') {
@@ -191,9 +214,12 @@ if (args[0] === 'pr' && args[1] === 'view') {
         env: {
           PATH: directory,
           GITHUB_REPOSITORY: repository,
-          ...(scenario.startsWith('workflow-') ? {} : { PR_NUMBER: '42' }),
+          ...(scenario.startsWith('workflow-') ||
+          scenario === 'capped-promotion'
+            ? {}
+            : { PR_NUMBER: '42' }),
           HEAD_OWNER: 'owner',
-          HEAD_BRANCH: 'feature',
+          HEAD_BRANCH: scenario === 'capped-promotion' ? 'main' : 'feature',
           ...([
             'ready-with-active-ci',
             'branch-renamed-after-ci',
@@ -216,7 +242,7 @@ if (args[0] === 'pr' && args[1] === 'view') {
           ...(scenario.startsWith('workflow-')
             ? { TRIGGER_ACTION: 'completed' }
             : {}),
-          HEAD_SHA: head,
+          HEAD_SHA: scenario === 'capped-promotion' ? 'c'.repeat(40) : head,
           GITHUB_SERVER_URL: 'https://github.com',
           GITHUB_RUN_ID: '123',
           MERGE_TOKEN: 'fixture-merge-token',
@@ -252,6 +278,23 @@ describe('landing after a verdict', () => {
     ]);
     expect(result.verdictComment).toContain(
       '#### Findings accepted by the owner\n\n- **P2** [Keep a draft after reconnecting]',
+    );
+  });
+
+  it('passes a newer promotion head with a third-round P1 and no model credentials', () => {
+    const result = landing('capped-promotion');
+    expect(result.status).toBe(0);
+    expect(result.events).toEqual([
+      'Release verdict: pending',
+      'cleared fixes',
+      'Release verdict: success',
+      'merged promotion',
+    ]);
+    expect(result.verdictComment).toContain(
+      'Release review round **3 of 3**. Only P0 blocks.',
+    );
+    expect(result.verdictComment).toContain(
+      '**P1** [Keep a draft after reconnecting]',
     );
   });
 
