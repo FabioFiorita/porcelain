@@ -1,5 +1,8 @@
 import { useAtomSet, useAtomValue } from '@effect/atom-react';
-import { useConfirmedRead } from '@/shared/query/confirmed-read';
+import {
+  useConfirmedRead,
+  usePendingRead,
+} from '@/shared/query/confirmed-read';
 import {
   readDirectory,
   readDirectories,
@@ -18,6 +21,15 @@ export function useDirectory(
 ) {
   return useConfirmedRead(readDirectory({ connection, scope, path })).value;
 }
+
+export function useDirectoryIfReady(
+  connection: Connection,
+  scope: FilesScope,
+  path: string,
+) {
+  return usePendingRead(readDirectory({ connection, scope, path })).value;
+}
+
 export function useDirectories(
   connection: Connection,
   scope: FilesScope,

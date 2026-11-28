@@ -6,13 +6,14 @@ import { CopyIcon, FileDiffIcon, HistoryIcon, PencilIcon } from 'lucide-react';
 import { useHotkey } from '@tanstack/react-hotkeys';
 import { createPortal } from 'react-dom';
 import { BarAction } from '@/shared/workspace/bar-action';
-import { useReviewChangeItems } from '../queries/reviewed';
 import { type ReactNode, useId, useState } from 'react';
+import { Option } from 'effect';
+import { AsyncResult } from 'effect/reactivity';
 import { Button } from '@/components/ui/button';
 import { ButtonGroup } from '@/components/ui/button-group';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  useChanges,
+  useReviewOverview,
   useChangeDiffs,
   diffEntry,
 } from '@/features/changes/index';
@@ -33,11 +34,12 @@ import {
   MarkdownOutlineMenu,
   MarkdownReader,
   scrollToFragment,
-  useDirectory,
+  useDirectoryIfReady,
   useMarkdownDocument,
   useReaderPlaces,
   useDiskChangeNotice,
   useFileDraft,
+  useFileDraftState,
 } from '@/features/files/index';
 import { isImagePath } from '@porcelain/client/files/rules';
 import type { FileDraftState } from '@porcelain/client/files';
@@ -46,7 +48,7 @@ import type { DocumentInteraction, OpenDocument } from '../rules/documents';
 import type { ReviewScope } from '@porcelain/client/changes/rules';
 import { CodeDocument } from './code-document';
 import { FindBar } from './find-bar';
-import { StateNotice } from '@/shared/views/state-notice';
+import { PendingSpinner, StateNotice } from '@/shared/views/state-notice';
 import { MARKDOWN_READER_MAX_CHARACTERS } from '@/config/limits';
 import { type ConnectionContext } from '@/shared/workspace/connection';
 
@@ -82,7 +84,8 @@ export function FileDocument(props: FileDocumentProps) {
 function LinkedFileDocument(props: FileDocumentProps) {
   const parent = props.path.split('/').slice(0, -1).join('/');
   const { connection } = props.context;
-  const folder = useDirectory(connection, props.scope, parent);
+  const folder = useDirectoryIfReady(connection, props.scope, parent);
+  if (folder === undefined) return <FilePending />;
   const name = props.path.split('/').at(-1);
   const link = folder.entries.find((entry) => entry.name === name);
   if (link?.kind === 'symlink')
@@ -112,30 +115,30 @@ function NotShownFile({
   );
 }
 
-function TextFileDocument({
-  scope,
-  context,
-  interaction,
-  path,
-  onOpen,
-}: FileDocumentProps) {
-  const { file, draft, state, reset, edit } = useFileDraft(
-    context,
-    scope,
-    path,
+function FilePending() {
+  return (
+    <div aria-busy="true" className="grid min-h-24 flex-1 place-items-center">
+      <PendingSpinner label="Loading file" />
+    </div>
   );
+}
+
+function TextFileDocument(props: FileDocumentProps) {
+  const read = useFileDraft(props.context, props.scope, props.path);
+  return read ? <OpenedTextFile {...props} read={read} /> : <FilePending />;
+}
+
+function OpenedTextFile({
+  read,
+  ...props
+}: FileDocumentProps & {
+  read: NonNullable<ReturnType<typeof useFileDraft>>;
+}) {
+  const { file, draft, reset, edit } = read;
+  const state = useFileDraftState(draft);
   const unreadable = 'kind' in file;
   if (unreadable && state.owner === null && state.text === state.savedText)
-    return (
-      <NotShownFile
-        scope={scope}
-        context={context}
-        interaction={interaction}
-        onOpen={onOpen}
-        path={path}
-        message={file.reason}
-      />
-    );
+    return <NotShownFile {...props} message={file.reason} />;
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       {unreadable && (
@@ -148,10 +151,7 @@ function TextFileDocument({
         </p>
       )}
       <ReadableFileDocument
-        scope={scope}
-        context={context}
-        interaction={interaction}
-        path={path}
+        {...props}
         text={unreadable ? state.savedText : file.text}
         contentFingerprint={
           unreadable ? state.fingerprint : file.contentFingerprint
@@ -160,7 +160,6 @@ function TextFileDocument({
         draftState={state}
         reset={reset}
         edit={edit}
-        onOpen={onOpen}
       />
     </div>
   );
@@ -192,19 +191,21 @@ function ReadableFileDocument({
   const { preferences } = usePreferences();
   const writeBlock = useWorkspaceWriteBlock(context);
   const { connection } = context;
-  const changes = useChanges(scope, connection);
+  const changes = Option.getOrUndefined(
+    AsyncResult.value(useReviewOverview(scope, connection)),
+  );
   const kind = fileKind(path);
-  const reviewItem = useReviewChangeItems(scope, context, changes, [path])[0];
-  const comparisons = reviewItem?.comparisons ?? [];
+  const change = changes?.changes.find((entry) => entry.path === path);
+  const comparisons = change?.comparisons ?? [];
   const comparison =
     comparisons.find((change) => change.scope === 'unstaged') ?? comparisons[0];
   const selection = comparison ? diffSelection(comparison) : undefined;
   const diffs = useChangeDiffs(
     scope,
     connection,
-    reviewItem?.statusToken ?? '',
-    reviewItem?.read ?? 0,
-    reviewItem ? [{ path, fingerprint: reviewItem.fingerprint }] : [],
+    changes?.statusToken ?? '',
+    changes?.read ?? 0,
+    change ? [{ path, fingerprint: change.fingerprint }] : [],
     selection ? [selection] : [],
   );
   const content = selection
@@ -221,7 +222,7 @@ function ReadableFileDocument({
     comparison && 'kind' in comparison
       ? `${comparison.scope} · ${comparison.kind}`
       : comparison?.scope;
-  const changed = changes.changes.some((entry) => entry.path === path);
+  const changed = change !== undefined;
   const large =
     kind === 'markdown' && text.length > MARKDOWN_READER_MAX_CHARACTERS;
   const [renderLarge, setRenderLarge] = useState(false);

@@ -6,11 +6,11 @@ export {
   MarkdownReader,
   useMarkdownDocument,
 } from './views/markdown-reader';
-export { useReaderPlaces } from './store';
+export { useFileDraftState, useReaderPlaces } from './store';
 export { useTextContents } from './queries/text';
 export { FileEditor } from './views/lazy-file-editor';
 export { HtmlPreview } from './views/html-preview';
-export { useDirectory } from './queries/directory';
+export { useDirectoryIfReady } from './queries/directory';
 export { useFileDraft } from './commands/edit-file';
 export { FileNavigation } from './views/file-navigation';
 export { FilesQuickOpen } from './views/quick-open';

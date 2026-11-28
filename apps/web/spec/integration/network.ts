@@ -314,6 +314,12 @@ export function createFetchGate(filePath: string) {
         (url, init) =>
           (init?.method ?? 'GET') === 'GET' && url.pathname.endsWith('/review'),
       ),
+    holdNextReviewedRead: () =>
+      holdNextFetch(
+        (url, init) =>
+          (init?.method ?? 'GET') === 'GET' &&
+          url.pathname.endsWith('/reviewed'),
+      ),
     holdNextWriterSettings: () =>
       holdNextFetch(
         (url, init) =>
