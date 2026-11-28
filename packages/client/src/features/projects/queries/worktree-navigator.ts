@@ -32,6 +32,7 @@ type NavigatorProject = {
   project: Project;
   environmentName: string;
   environmentIcon: EnvironmentIcon;
+  singleCheckout: boolean;
   expanded: boolean;
   entries: readonly NavigatorEntry[];
   saved?: true;
@@ -176,6 +177,7 @@ function savedProjects(
       project: { id, name, available: false, worktrees: [] },
       environmentName: snapshot.computerName,
       environmentIcon: environmentIcon(snapshot),
+      singleCheckout: false,
       expanded,
       entries: expanded ? rows.filter((row) => row.projectId === id) : [],
       saved: true,
@@ -186,6 +188,7 @@ function savedProjects(
 function navigator(
   connections: readonly RuntimeConnection[],
   snapshots?: NavigatorSnapshots,
+  expandSingleCheckout = false,
 ) {
   return Atom.readable((get) => {
     const state = get(worktreeNavigatorState);
@@ -207,13 +210,23 @@ function navigator(
       }
       for (const project of inventory.projects) {
         const key = `${connection.environmentId}/${project.id}`;
+        const checkout = project.worktrees[0];
+        const singleCheckout =
+          project.available &&
+          project.worktrees.length === 1 &&
+          checkout?.main === true &&
+          checkout.available;
         all.push({
           key,
           connection,
           project,
           environmentName: inventory.environment.name,
           environmentIcon: environmentIcon(inventory.environment),
-          expanded: query.trim().length > 0 || state.expanded[key] !== false,
+          singleCheckout,
+          expanded:
+            (expandSingleCheckout && singleCheckout) ||
+            query.trim().length > 0 ||
+            state.expanded[key] !== false,
           entries: [],
         });
       }
@@ -310,8 +323,10 @@ export const readWorktreeNavigatorWithSnapshots = Atom.family(
   ({
     connections,
     snapshots,
+    expandSingleCheckout,
   }: {
     connections: readonly RuntimeConnection[];
     snapshots: NavigatorSnapshots;
-  }) => navigator(connections, snapshots),
+    expandSingleCheckout?: boolean;
+  }) => navigator(connections, snapshots, expandSingleCheckout),
 );

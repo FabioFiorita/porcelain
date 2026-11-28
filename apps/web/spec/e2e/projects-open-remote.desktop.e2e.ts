@@ -2,6 +2,11 @@ import { closeSettings } from '../kit/settings.ts';
 import { archiveFixture } from '../kit/archive-fixture.ts';
 import { expect, test, type Page } from './fixtures.ts';
 
+function mainCheckoutPattern(project: string, computer: string) {
+  const name = `, ${project}, ${computer}, Main worktree`;
+  return `${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:,|$)`;
+}
+
 async function addRemoteComputer(page: Page, link: string, name: string) {
   await page
     .getByRole('button', { name: 'Toggle Sidebar', exact: true })
@@ -44,16 +49,16 @@ test('the navigator keeps a remote project visible after an offline reload', asy
     name: 'Projects and worktrees',
     exact: true,
   });
-  const heading = navigation.getByRole('button', {
-    name: `Collapse ${project.name} · ${environment.name}`,
-    exact: true,
+  const checkout = navigation.getByRole('button', {
+    name: new RegExp(mainCheckoutPattern(project.name, environment.name)),
   });
-  await expect(heading).toBeVisible();
+  await expect(checkout).toBeEnabled();
   const outage = await app.dropRemoteComputer(link);
   try {
     await outage.healthFailure;
     await app.reload();
-    await expect(heading).toBeVisible();
+    await expect(checkout).toBeVisible();
+    await expect(checkout).toBeDisabled();
     await expect(
       navigation.getByText('Computer unavailable', { exact: true }),
     ).toBeVisible();
@@ -169,19 +174,15 @@ test('the desktop app opens a project on another computer from the Open project 
     name: 'Projects and worktrees',
     exact: true,
   });
-  for (const [computer, count] of [
-    [(await server.inventory()).environment.name, 1],
-    [other.environment.name, 2],
-  ] as const) {
-    const badges = navigator.getByRole('img', {
-      name: `Computer: ${computer}`,
-      exact: true,
-    });
-    await expect(badges).toHaveCount(count);
-    await expect(badges.first()).toBeVisible();
-  }
+  const checkout = navigator.getByRole('button', {
+    name: new RegExp(
+      mainCheckoutPattern('landing-site', other.environment.name),
+    ),
+  });
+  await expect(checkout).toBeVisible();
+  await expect(checkout).toHaveAttribute('aria-current', 'page');
   await expect(
-    navigator.getByText('landing-site', { exact: true }),
+    checkout.getByText('landing-site', { exact: true }),
   ).not.toHaveAttribute('data-clipped');
   await navigator
     .getByRole('searchbox', {
@@ -189,12 +190,7 @@ test('the desktop app opens a project on another computer from the Open project 
       exact: true,
     })
     .fill('landing-site');
-  await expect(
-    navigator.getByRole('img', {
-      name: `Computer: ${other.environment.name}`,
-      exact: true,
-    }),
-  ).toBeVisible();
+  await expect(checkout).toBeVisible();
 });
 
 test('This computer in the Open project menu still opens a project on this computer', async ({

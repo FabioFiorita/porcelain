@@ -143,6 +143,7 @@ export function ProjectNavigator({
     readWorktreeNavigatorWithSnapshots({
       connections,
       snapshots: remoteWorktreeSnapshots(remotes ?? []),
+      expandSingleCheckout: true,
     }),
   );
   const state = useAtomValue(worktreeNavigatorState);
@@ -174,6 +175,17 @@ export function ProjectNavigator({
   const searching = query.trim().length > 0;
   const shownProjects = projects.map((source) => ({
     source,
+    actions: (
+      <ProjectActions
+        project={source.project}
+        environmentId={
+          source.connection.environmentId === connection.environmentId
+            ? null
+            : source.connection.environmentId
+        }
+        environmentName={source.environmentName}
+      />
+    ),
     shown: navigatorVisibleRows(source.entries, {
       selectedKey: source.entries.find(
         (entry) =>
@@ -237,7 +249,7 @@ export function ProjectNavigator({
                 }
                 if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
                   event.preventDefault();
-                  (event.key === 'ArrowDown'
+                  (event.key === 'ArrowDown' || firstKey === lastKey
                     ? firstEntry
                     : lastEntry
                   ).element?.focus();
@@ -323,8 +335,11 @@ export function ProjectNavigator({
           </DropdownMenu>
         </div>
         <SidebarContent>
-          {shownProjects.map(({ source, shown }) => (
-            <SidebarGroup key={source.key} className="mb-3">
+          {shownProjects.map(({ source, shown, actions }) => (
+            <SidebarGroup
+              key={source.key}
+              className={source.singleCheckout ? 'py-0' : 'mb-3'}
+            >
               <Collapsible
                 open={source.expanded}
                 onOpenChange={(open) =>
@@ -335,48 +350,43 @@ export function ProjectNavigator({
                 }
                 className="group/project"
               >
-                <div className="flex min-w-0 items-center gap-1">
-                  <ProjectHeading
-                    projectName={source.project.name}
-                    environmentName={source.environmentName}
-                    environmentIcon={source.environmentIcon}
-                    showEnvironment={connections.length > 1}
-                    reconnecting={
-                      showRemoteNotice &&
-                      selected?.remote === source.connection.environmentId &&
-                      selected.projectId === source.project.id
-                    }
-                  />
-                  <ProjectActions
-                    project={source.project}
-                    environmentId={
-                      source.connection.environmentId ===
-                      connection.environmentId
-                        ? null
-                        : source.connection.environmentId
-                    }
-                    environmentName={source.environmentName}
-                  />
-                  <Tooltip hoverable={false}>
-                    <TooltipTrigger
-                      render={
-                        <CollapsibleTrigger
-                          render={
-                            <SidebarGroupAction
-                              className="relative top-0 right-0 w-6 cursor-pointer"
-                              aria-label={`${source.expanded ? 'Collapse' : 'Expand'} ${source.project.name} · ${source.environmentName}`}
-                            />
-                          }
-                        />
+                {!source.singleCheckout && (
+                  <div className="flex min-w-0 items-center gap-1">
+                    <ProjectHeading
+                      projectName={source.project.name}
+                      environmentName={source.environmentName}
+                      environmentIcon={source.environmentIcon}
+                      showEnvironment={connections.length > 1}
+                      reconnecting={
+                        showRemoteNotice &&
+                        selected?.remote === source.connection.environmentId &&
+                        selected.projectId === source.project.id
                       }
-                    >
-                      <ChevronDownIcon className="group-data-closed/project:-rotate-90" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      {source.expanded ? 'Collapse project' : 'Expand project'}
-                    </TooltipContent>
-                  </Tooltip>
-                </div>
+                    />
+                    {actions}
+                    <Tooltip hoverable={false}>
+                      <TooltipTrigger
+                        render={
+                          <CollapsibleTrigger
+                            render={
+                              <SidebarGroupAction
+                                className="relative top-0 right-0 w-6 cursor-pointer"
+                                aria-label={`${source.expanded ? 'Collapse' : 'Expand'} ${source.project.name} · ${source.environmentName}`}
+                              />
+                            }
+                          />
+                        }
+                      >
+                        <ChevronDownIcon className="group-data-closed/project:-rotate-90" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        {source.expanded
+                          ? 'Collapse project'
+                          : 'Expand project'}
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                )}
                 {source.saved && (
                   <p
                     role="status"
@@ -442,10 +452,23 @@ export function ProjectNavigator({
                       const failedLabel = failed
                         ? `Checks failed${failedOn}`
                         : undefined;
+                      const compact = source.singleCheckout;
+                      const touched = compact
+                        ? navigatorTouchedAt(entry)
+                        : undefined;
                       const disclosure = [
+                        ...(compact
+                          ? [entry.projectName, entry.environmentName]
+                          : []),
                         title,
                         entry.name !== title ? entry.name : undefined,
                         entry.path,
+                        compact &&
+                        entry.changes.state === 'available' &&
+                        entry.changes.count > 0
+                          ? navigatorCardChangesLabel(entry.changes)
+                          : undefined,
+                        touched ? relativeTime(touched, Date.now()) : undefined,
                         failedLabel,
                       ]
                         .filter(Boolean)
@@ -455,7 +478,12 @@ export function ProjectNavigator({
                       if (entry.key === firstKey) attach = firstEntry.attach;
                       const label = `${navigatorEntryLabel(entry)}${failedLabel ? `, ${failedLabel.toLowerCase()}` : ''}${active ? ', Current' : ''}`;
                       return (
-                        <SidebarMenuItem key={entry.key}>
+                        <SidebarMenuItem
+                          key={entry.key}
+                          className={
+                            compact ? 'flex min-w-0 items-center' : undefined
+                          }
+                        >
                           <NavigatorRowMenu
                             onRetryChanges={() =>
                               retry({ environmentId: entry.environmentId })
@@ -479,18 +507,23 @@ export function ProjectNavigator({
                           >
                             <div
                               data-navigator-card=""
-                              className={
-                                active
-                                  ? 'relative rounded-md bg-selection'
-                                  : 'relative rounded-md hover:bg-accent'
-                              }
+                              className={cn(
+                                'relative rounded-md',
+                                active ? 'bg-selection' : 'hover:bg-accent',
+                                compact && 'flex min-w-0 items-center',
+                              )}
                             >
                               <TruncatedText
                                 text={disclosure}
                                 disclose="always"
                                 renderTrigger={(_label, clip) => (
                                   <Item
-                                    className="w-full cursor-pointer py-1.5 text-left text-ui leading-4.5"
+                                    className={cn(
+                                      'w-full cursor-pointer text-left text-ui leading-4.5',
+                                      compact
+                                        ? 'min-w-0 flex-1 py-2'
+                                        : 'py-1.5',
+                                    )}
                                     data-sidebar="menu-button"
                                     size="xs"
                                     aria-label={label}
@@ -504,19 +537,33 @@ export function ProjectNavigator({
                                       />
                                     }
                                   >
-                                    <ItemMedia className="self-start">
-                                      <EntryIcon className="mt-0.5 size-3.5 text-muted-foreground" />
-                                    </ItemMedia>
+                                    {!compact && (
+                                      <ItemMedia className="self-start">
+                                        <EntryIcon className="mt-0.5 size-3.5 text-muted-foreground" />
+                                      </ItemMedia>
+                                    )}
                                     <ItemContent className="min-w-0">
                                       <div className="flex min-w-0 items-center gap-1">
                                         {clip(
-                                          title,
-                                          active
-                                            ? 'min-w-0 flex-1 font-semibold'
-                                            : 'min-w-0 flex-1 font-medium',
-                                          entry.displayTitle === undefined
+                                          compact ? entry.projectName : title,
+                                          cn(
+                                            'min-w-0',
+                                            !compact && 'flex-1',
+                                            active
+                                              ? 'font-semibold'
+                                              : 'font-medium',
+                                          ),
+                                          !compact &&
+                                            entry.displayTitle === undefined
                                             ? { keep: nameEnd(title) }
                                             : 'end',
+                                        )}
+                                        {compact && (
+                                          <EnvironmentGlyph
+                                            icon={source.environmentIcon}
+                                            className="size-3 shrink-0 text-muted-foreground"
+                                            aria-hidden="true"
+                                          />
                                         )}
                                         {failed && (
                                           <CircleAlertIcon
@@ -525,14 +572,16 @@ export function ProjectNavigator({
                                           />
                                         )}
                                       </div>
-                                      <NavigatorRowMeta
-                                        entry={entry}
-                                        pullRequest={
-                                          trailing?.kind === 'pull-request'
-                                            ? trailing
-                                            : undefined
-                                        }
-                                      />
+                                      {!compact && (
+                                        <NavigatorRowMeta
+                                          entry={entry}
+                                          pullRequest={
+                                            trailing?.kind === 'pull-request'
+                                              ? trailing
+                                              : undefined
+                                          }
+                                        />
+                                      )}
                                     </ItemContent>
                                   </Item>
                                 )}
@@ -541,7 +590,12 @@ export function ProjectNavigator({
                                 <Button
                                   variant="ghost"
                                   size="xs"
-                                  className="absolute right-0.5 bottom-1 shrink-0 cursor-pointer"
+                                  className={cn(
+                                    'shrink-0 cursor-pointer',
+                                    compact
+                                      ? 'mr-0.5'
+                                      : 'absolute right-0.5 bottom-1',
+                                  )}
                                   aria-label={`Open PR #${trailing.number} · ${entry.projectName} · ${entry.environmentName} · ${navigatorChecksLabel(review?.checks)}${trailing.merged ? ' · Merged' : ''}`}
                                   data-merged={trailing.merged ? '' : undefined}
                                   onClick={() => {
@@ -554,6 +608,7 @@ export function ProjectNavigator({
                               )}
                             </div>
                           </NavigatorRowMenu>
+                          {compact && actions}
                         </SidebarMenuItem>
                       );
                     })}
